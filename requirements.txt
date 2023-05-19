@@ -4,3 +4,5 @@ langchain
 uvicorn
 python-multipart
 dotenv
+pdfminer.six
+unstructured

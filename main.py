@@ -5,16 +5,45 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 from langchain.vectorstores import Chroma
 from langchain.embeddings import OpenAIEmbeddings
-from langchain.document_loaders import PyPDFLoader
-from langchain.document_loaders import TextLoader
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.document_loaders import (
+    CSVLoader,
+    EverNoteLoader,
+    PDFMinerLoader,
+    TextLoader,
+    UnstructuredEmailLoader,
+    UnstructuredEPubLoader,
+    UnstructuredHTMLLoader,
+    UnstructuredMarkdownLoader,
+    UnstructuredODTLoader,
+    UnstructuredPowerPointLoader,
+    UnstructuredWordDocumentLoader,
+)
 from langchain.text_splitter import CharacterTextSplitter
 from dotenv import load_dotenv
 
 load_dotenv()
 
+LOADERS_MAP = {
+    ".csv": (CSVLoader, {}),
+    ".doc": (UnstructuredWordDocumentLoader, {}),
+    ".docx": (UnstructuredWordDocumentLoader, {}),
+    ".enex": (EverNoteLoader, {}),
+    ".eml": (UnstructuredEmailLoader, {}),
+    ".epub": (UnstructuredEPubLoader, {}),
+    ".html": (UnstructuredHTMLLoader, {}),
+    ".md": (UnstructuredMarkdownLoader, {}),
+    ".odt": (UnstructuredODTLoader, {}),
+    ".pdf": (PDFMinerLoader, {}),
+    ".ppt": (UnstructuredPowerPointLoader, {}),
+    ".pptx": (UnstructuredPowerPointLoader, {}),
+    ".txt": (TextLoader, {"encoding": "utf8"}),
+}
+
 app = FastAPI()
 embeddingsPath = "./embeddings/"
 embeddings = OpenAIEmbeddings()
+#embeddings = HuggingFaceEmbeddings(model_name=HF_EMBEDDINGS_MODEL)
 
 text_splitter = CharacterTextSplitter(
     separator=" ", chunk_size=1000, chunk_overlap=0
@@ -51,20 +80,20 @@ def create_upload_file(project: str, file: UploadFile):
                 f.write(contents)
         except Exception:
             raise HTTPException(
-                status_code=500, detail='Error on uploading the file')
+                status_code=500, detail='{"error": "Error while saving file."}')
         finally:
             file.file.close()
 
-        match file.content_type:
-            case "text/plain":
-                loader = TextLoader(temp.name)
-            case "application/pdf":
-                loader = PyPDFLoader(temp.name)
-            case _:
-                raise HTTPException(
-                    status_code=500, detail='{"error": "Invalid file type."}')
-        texts = text_splitter.split_documents(loader.load())
-    except Exception:
+        _, ext = os.path.splitext(file.filename)
+        if ext in LOADERS_MAP:
+            loader_class, loader_args = LOADERS_MAP[ext]
+            loader = loader_class(temp.name, **loader_args)
+        else:
+            raise HTTPException(
+                status_code=500, detail='{"error": "Invalid file type."}')
+        documents = loader.load()
+        texts = text_splitter.split_documents(documents)
+    except Exception as e:
         raise HTTPException(
             status_code=500, detail='{"error": "Something went wrong."}')
     finally:
@@ -75,7 +104,7 @@ def create_upload_file(project: str, file: UploadFile):
 
     db.add_texts(texts=texts_final, metadatas=metadatas)
 
-    return {"filename": file.filename, "type": file.content_type}
+    return {"filename": file.filename, "type": file.content_type, "texts": len(texts_final), "documents": len(documents)}
 
 
 if __name__ == "__main__":
