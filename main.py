@@ -1,76 +1,67 @@
 import logging
 import os
-from tempfile import NamedTemporaryFile
 import uvicorn
+from tempfile import NamedTemporaryFile
 from fastapi import FastAPI, HTTPException, Request, UploadFile
-from langchain.vectorstores import Chroma
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.document_loaders import (
-    CSVLoader,
-    EverNoteLoader,
-    PDFMinerLoader,
-    TextLoader,
-    UnstructuredEmailLoader,
-    UnstructuredEPubLoader,
-    UnstructuredHTMLLoader,
-    UnstructuredMarkdownLoader,
-    UnstructuredODTLoader,
-    UnstructuredPowerPointLoader,
-    UnstructuredWordDocumentLoader,
+    WebBaseLoader,
 )
-from langchain.text_splitter import CharacterTextSplitter
 from dotenv import load_dotenv
+from brain import Brain
+
+from project import IngestModel, ProjectModel
+from tools import FindFileLoader, IndexDocuments
 
 load_dotenv()
 
-LOADERS_MAP = {
-    ".csv": (CSVLoader, {}),
-    ".doc": (UnstructuredWordDocumentLoader, {}),
-    ".docx": (UnstructuredWordDocumentLoader, {}),
-    ".enex": (EverNoteLoader, {}),
-    ".eml": (UnstructuredEmailLoader, {}),
-    ".epub": (UnstructuredEPubLoader, {}),
-    ".html": (UnstructuredHTMLLoader, {}),
-    ".md": (UnstructuredMarkdownLoader, {}),
-    ".odt": (UnstructuredODTLoader, {}),
-    ".pdf": (PDFMinerLoader, {}),
-    ".ppt": (UnstructuredPowerPointLoader, {}),
-    ".pptx": (UnstructuredPowerPointLoader, {}),
-    ".txt": (TextLoader, {"encoding": "utf8"}),
-}
+if os.environ["EMBEDDINGS_PATH"] is None:
+    os.environ["EMBEDDINGS_PATH"] = "./embeddings/"
 
 app = FastAPI()
-embeddingsPath = "./embeddings/"
-embeddings = OpenAIEmbeddings()
-#embeddings = HuggingFaceEmbeddings(model_name=HF_EMBEDDINGS_MODEL)
-
-text_splitter = CharacterTextSplitter(
-    separator=" ", chunk_size=1000, chunk_overlap=0
-)
-
+brain = Brain()
 
 @app.get("/")
 async def get(request: Request):
-    return "REST AI API, so many 'A' and 'I's, so little time..."
+    return "REST AI API, so many 'A's and 'I's, so little time..."
 
 
-@app.get("/embeddings")
-async def get(request: Request):
-    return {"projects": [d for d in os.listdir(embeddingsPath) if os.path.isdir(os.path.join(embeddingsPath, d))]}
+@app.get("/projects")
+async def getEmbeddings(request: Request):
+    return {"projects": brain.listProjects()}
+
+@app.get("/projects/{projectName}")
+async def getProject(projectName: str):
+    project = brain.loadProject(projectName)
+    dbInfo = project.db.get()
+
+    return {"project": project.model.name, "embeddings": project.model.embeddings, "documents": len(dbInfo["documents"]), "metadatas": len(dbInfo["metadatas"])}
+
+@app.post("/projects")
+async def createProject(projectModel: ProjectModel):
+    try:
+        brain.createProject(projectModel)
+        return {"project": projectModel.name}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail='{"error": ' + str(e) + '}')
 
 
-@app.post("/embeddings/{project}/create/")
-async def createProject(project: str):
-    os.mkdir(os.path.join(embeddingsPath, project))
-    return {"project": project}
+@app.post("/projects/{projectName}/ingest/url")
+def ingest(projectName: str, ingest: IngestModel):
+    project = brain.loadProject(projectName)
+
+    loader = WebBaseLoader(ingest.url)
+    documents = loader.load()
+
+    texts = IndexDocuments(brain, project, documents)
+    project.db.persist()
+
+    return {"url": ingest.url, "texts": len(texts), "documents": len(documents)}
 
 
-@app.post("/embeddings/{project}/upload")
-def create_upload_file(project: str, file: UploadFile):
-    db = Chroma(
-        persist_directory=os.path.join(embeddingsPath, project), embedding_function=embeddings
-    )
+@app.post("/projects/{projectName}/ingest/upload")
+def uploadIngest(projectName: str, file: UploadFile):
+    project = brain.loadProject(projectName)
 
     temp = NamedTemporaryFile(delete=False)
     try:
@@ -84,27 +75,19 @@ def create_upload_file(project: str, file: UploadFile):
         finally:
             file.file.close()
 
-        _, ext = os.path.splitext(file.filename)
-        if ext in LOADERS_MAP:
-            loader_class, loader_args = LOADERS_MAP[ext]
-            loader = loader_class(temp.name, **loader_args)
-        else:
-            raise HTTPException(
-                status_code=500, detail='{"error": "Invalid file type."}')
+        _, ext = os.path.splitext(file.filename or '')
+        loader = FindFileLoader(temp, ext)
         documents = loader.load()
-        texts = text_splitter.split_documents(documents)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail='{"error": "Something went wrong."}')
     finally:
         os.remove(temp.name)
 
-    texts_final = [doc.page_content for doc in texts]
-    metadatas = [doc.metadata for doc in texts]
+    texts = IndexDocuments(brain, project, documents)
+    project.db.persist()
 
-    db.add_texts(texts=texts_final, metadatas=metadatas)
-
-    return {"filename": file.filename, "type": file.content_type, "texts": len(texts_final), "documents": len(documents)}
+    return {"filename": file.filename, "type": file.content_type, "texts": len(texts), "documents": len(documents)}
 
 
 if __name__ == "__main__":

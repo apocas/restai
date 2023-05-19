@@ -6,3 +6,4 @@ python-multipart
 dotenv
 pdfminer.six
 unstructured
+pydantic

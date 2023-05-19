@@ -1,0 +1,73 @@
+from pydantic import BaseModel
+from typing import Union
+import json
+import os
+
+from langchain.vectorstores import Chroma
+
+from tools import GetEmbedding
+
+
+class IngestModel(BaseModel):
+    url: str
+
+
+class ProjectModel(BaseModel):
+    name: str
+    embeddings: Union[str, None] = None
+    embeddings_model: Union[str, None] = None
+    llm_model: Union[str, None] = None
+
+
+class Project:
+
+    def boot(self, model: ProjectModel):
+        self.model = model
+        self.loadEmbedding()
+
+    def delete(self):
+        if os.path.exists(os.path.join('./projects/', f'{self.model.name}.json')):
+            os.remove(os.path.join('./projects/', f'{self.model.name}.json'))
+
+        if os.path.exists(os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name)):
+            os.rmdir(os.path.join(
+                os.environ["EMBEDDINGS_PATH"], self.model.name))
+
+    def save(self):
+        if os.path.exists(os.path.join('./projects/', f'{self.model.name}.json')):
+            raise ValueError("Project already exists")
+
+        if not os.path.exists('./projects'):
+            os.makedirs('./projects')
+
+        if not os.path.exists(os.environ["EMBEDDINGS_PATH"]):
+            os.makedirs(os.environ["EMBEDDINGS_PATH"])
+
+        if not os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name):
+            os.mkdir(os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name))
+
+        file_path = os.path.join('./projects/', f'{self.model.name}.json')
+        model_json = json.dumps(self.model.dict(), indent=4)
+
+        with open(file_path, 'w') as f:
+            f.write(model_json)
+
+    def load(self, name):
+        if name is None:
+            raise ValueError("Name cannot be None")
+
+        file_path = os.path.join('projects', f'{name}.json')
+
+        with open(file_path, 'r') as f:
+            model_json = json.load(f)
+
+        self.model = ProjectModel(**model_json)
+        self.loadEmbedding()
+
+    def loadEmbedding(self):
+        self.embedding = GetEmbedding(
+            self.model.embeddings, self.model.embeddings_model)  # type: ignore
+
+        self.db = Chroma(
+            persist_directory=os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name), embedding_function=self.embedding
+        )
