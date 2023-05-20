@@ -1,6 +1,7 @@
+from fastapi import HTTPException
 from langchain.text_splitter import CharacterTextSplitter
 
-from project import Project
+from app.project import Project
 
 class Brain:
     def __init__(self):
@@ -26,6 +27,7 @@ class Brain:
         project.load(name)
         self.projects.append(project)
         return project
+        
     
     def deleteProject(self, name):
         for project in self.projects:

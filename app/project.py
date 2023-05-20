@@ -2,10 +2,11 @@ from pydantic import BaseModel
 from typing import Union
 import json
 import os
+import shutil
 
 from langchain.vectorstores import Chroma
 
-from tools import GetEmbedding
+from app.tools import GetEmbedding
 
 
 class IngestModel(BaseModel):
@@ -26,15 +27,14 @@ class Project:
         self.loadEmbedding()
 
     def delete(self):
-        if os.path.exists(os.path.join('./projects/', f'{self.model.name}.json')):
-            os.remove(os.path.join('./projects/', f'{self.model.name}.json'))
+        if os.path.exists(os.path.join(os.environ["PROJECTS_PATH"], f'{self.model.name}.json')):
+            os.remove(os.path.join(os.environ["PROJECTS_PATH"], f'{self.model.name}.json'))
 
         if os.path.exists(os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name)):
-            os.rmdir(os.path.join(
-                os.environ["EMBEDDINGS_PATH"], self.model.name))
+            shutil.rmtree(os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name), ignore_errors=True)
 
     def save(self):
-        if os.path.exists(os.path.join('./projects/', f'{self.model.name}.json')):
+        if os.path.exists(os.path.join(os.environ["PROJECTS_PATH"], f'{self.model.name}.json')):
             raise ValueError("Project already exists")
 
         if not os.path.exists('./projects'):
@@ -46,7 +46,7 @@ class Project:
         if not os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name):
             os.mkdir(os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name))
 
-        file_path = os.path.join('./projects/', f'{self.model.name}.json')
+        file_path = os.path.join(os.environ["PROJECTS_PATH"], f'{self.model.name}.json')
         model_json = json.dumps(self.model.dict(), indent=4)
 
         with open(file_path, 'w') as f:

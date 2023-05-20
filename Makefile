@@ -1,3 +1,7 @@
 .PHONY: start
 start:
-	uvicorn main:app --reload --port 9000
+	uvicorn app.main:app --reload --port 9000
+
+.PHONY: test
+test:
+	pytest tests
