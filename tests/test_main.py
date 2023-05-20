@@ -33,11 +33,20 @@ def test_ingestURL():
     assert response.status_code == 200
 
 
-def test_getProjectAfterIngest():
+def test_getProjectAfterIngestURL():
     response = client.get("/projects/test")
     assert response.status_code == 200
     assert response.json() == {"project": "test", "embeddings": "openai", "documents": 1, "metadatas": 1}
 
+def test_ingestUpload():
+    response = client.post("/projects/test/ingest/upload",
+                           files={"file": ("test.txt", open("tests/test.txt", "rb"))})
+    assert response.status_code == 200
+
+def test_getProjectAfterIngestUpload():
+    response = client.get("/projects/test")
+    assert response.status_code == 200
+    assert response.json() == {"project": "test", "embeddings": "openai", "documents": 2, "metadatas": 2}
 
 def test_deleteProject():
     response = client.delete("/projects/test")
