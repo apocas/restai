@@ -31,6 +31,7 @@ class Project:
             os.remove(os.path.join(os.environ["PROJECTS_PATH"], f'{self.model.name}.json'))
 
         if os.path.exists(os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name)):
+            self.db.delete_collection()
             shutil.rmtree(os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name), ignore_errors=True)
 
     def save(self):
