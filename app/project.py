@@ -12,6 +12,8 @@ from app.tools import GetEmbedding
 class IngestModel(BaseModel):
     url: str
 
+class QueryModel(BaseModel):
+    query: str
 
 class ProjectModel(BaseModel):
     name: str

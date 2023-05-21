@@ -18,7 +18,8 @@ def test_getProjects():
 
 
 def test_createProject():
-    response = client.post("/projects", json={"name": "test",  "embeddings": "openai"})
+    response = client.post(
+        "/projects", json={"name": "test",  "embeddings": "openai"})
     assert response.status_code == 200
 
 
@@ -36,17 +37,30 @@ def test_ingestURL():
 def test_getProjectAfterIngestURL():
     response = client.get("/projects/test")
     assert response.status_code == 200
-    assert response.json() == {"project": "test", "embeddings": "openai", "documents": 1, "metadatas": 1}
+    assert response.json() == {
+        "project": "test", "embeddings": "openai", "documents": 1, "metadatas": 1}
+
 
 def test_ingestUpload():
     response = client.post("/projects/test/ingest/upload",
                            files={"file": ("test.txt", open("tests/test.txt", "rb"))})
     assert response.status_code == 200
 
+
 def test_getProjectAfterIngestUpload():
     response = client.get("/projects/test")
     assert response.status_code == 200
-    assert response.json() == {"project": "test", "embeddings": "openai", "documents": 2, "metadatas": 2}
+    assert response.json() == {
+        "project": "test", "embeddings": "openai", "documents": 2, "metadatas": 2}
+
+
+def test_query():
+    response = client.post("/projects/test/query",
+                           json={"query": "What is the secret?"})
+    assert response.status_code == 200
+    assert response.json() == {"query": "What is the secret?",
+                               "answer": "The secret is that ingenuity should be bigger than politics and corporate greed."}
+
 
 def test_deleteProject():
     response = client.delete("/projects/test")
