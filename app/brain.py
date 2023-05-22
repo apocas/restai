@@ -1,26 +1,21 @@
+import os
 from fastapi import HTTPException
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.chains import RetrievalQA
-from langchain import LLMChain, OpenAI, PromptTemplate
-from langchain.llms import GPT4All, LlamaCpp
-from langchain.chat_models import ChatOpenAI
+from langchain import LLMChain, PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
+from langchain.vectorstores import Chroma
 
 from app.project import Project
-
-LLMS = {
-    "openai": (OpenAI, {"temperature": 0, "model_name": "text-davinci-003"}),
-    "llamacpp": (LlamaCpp, {"model": "./models/ggml-model-q4_0.bin"}),
-    "gpt4all": (GPT4All, {"model": "./models/ggml-gpt4all-j-v1.3-groovy.bin", "backend": "gptj", "n_ctx": 1000}),
-    "chat": (ChatOpenAI, {"temperature": 0, "model_name":"gpt-3.5-turbo"}),
-    "chat4": (ChatOpenAI, {"temperature": 0, "model_name":"gpt-4"}),
-}
+from modules.embeddings import EMBEDDINGS
+from modules.llms import LLMS
 
 
 class Brain:
     def __init__(self):
         self.projects = []
         self.llmCache = {}
+        self.embeddingCache = {}
 
         self.text_splitter = CharacterTextSplitter(
             separator=" ", chunk_size=1024, chunk_overlap=0)
@@ -30,13 +25,26 @@ class Brain:
             return self.llmCache[llmModel]
         else:
             if llmModel in LLMS:
-                loader_class, llm_args = LLMS[llmModel]
-                llm = loader_class(**llm_args, **kwargs)
+                llm_class, llm_args = LLMS[llmModel]
+                llm = llm_class(**llm_args, **kwargs)
                 self.llmCache[llmModel] = llm
                 return llm
             else:
                 raise HTTPException(
                     status_code=500, detail='{"error": "Invalid LLM type."}')
+
+    def getEmbedding(self, embeddingModel, **kwargs):
+        if embeddingModel in self.embeddingCache:
+            return self.embeddingCache[embeddingModel]
+        else:
+            if embeddingModel in EMBEDDINGS:
+                embedding_class, embedding_args = EMBEDDINGS[embeddingModel]
+                model = embedding_class(**embedding_args, **kwargs)
+                self.embeddingCache[embeddingModel] = model
+                return model
+            else:
+                raise HTTPException(
+                    status_code=500, detail='{"error": "Invalid Embedding type."}')
 
     def listProjects(self):
         return [project.model.name for project in self.projects]
@@ -44,6 +52,13 @@ class Brain:
     def createProject(self, projectModel):
         project = Project()
         project.boot(projectModel)
+        kwargs = {}
+        if project.model.embeddings_model != None:
+            kwargs["model"] = project.model.embeddings_model
+        embedding = self.getEmbedding(project.model.embeddings, **kwargs)
+        project.db = Chroma(
+            persist_directory=os.path.join(os.environ["EMBEDDINGS_PATH"], project.model.name), embedding_function=embedding
+        )
         project.save()
         self.projects.append(project)
 
@@ -54,6 +69,9 @@ class Brain:
 
         project = Project()
         project.load(name)
+        project.db = Chroma(
+            persist_directory=os.path.join(os.environ["EMBEDDINGS_PATH"], project.model.name), embedding_function=self.getEmbedding(project.model.embeddings, model=project.model.embeddings_model)
+        )
         self.projects.append(project)
         return project
 
@@ -64,11 +82,11 @@ class Brain:
                 self.projects.remove(project)
 
     def question(self, project, questionModel):
+        llm = self.getLLM(questionModel.llm or project.model.llm)
+        
         retriever = project.db.as_retriever(
             search_type="similarity", search_kwargs={"k": 2}
         )
-
-        llm = self.getLLM(questionModel.llm or project.model.llm)
 
         qa = RetrievalQA.from_chain_type(
             llm=llm,

@@ -2,21 +2,19 @@ import json
 import os
 import shutil
 
-from langchain.vectorstores import Chroma
 from app.chat import Chat
 from app.models import ProjectModel
 
-from app.tools import GetEmbedding
-
+from langchain.vectorstores import Chroma
 
 class Project:
 
     def __init__(self):
         self.chats = []
+        self.db: Chroma
 
     def boot(self, model: ProjectModel):
         self.model = model
-        self.loadEmbedding()
 
     def delete(self):
         if os.path.exists(os.path.join(os.environ["PROJECTS_PATH"], f'{self.model.name}.json')):
@@ -59,15 +57,7 @@ class Project:
             model_json = json.load(f)
 
         self.model = ProjectModel(**model_json)
-        self.loadEmbedding()
 
-    def loadEmbedding(self):
-        self.embedding = GetEmbedding(
-            self.model.embeddings, self.model.embeddings_model)  # type: ignore
-
-        self.db = Chroma(
-            persist_directory=os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name), embedding_function=self.embedding
-        )
 
     def loadChat(self, chatModel):
         for chat in self.chats:
