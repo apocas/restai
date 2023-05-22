@@ -71,7 +71,7 @@ class Project:
 
     def loadChat(self, chatModel):
         for chat in self.chats:
-            if chat.model.id == chatModel.id:
+            if chat.id == chatModel.id:
                 return chat
 
         chat = Chat(chatModel)

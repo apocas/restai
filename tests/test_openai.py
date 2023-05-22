@@ -22,6 +22,7 @@ def test_createProject():
         "/projects", json={"name": "test_openai",  "embeddings": "openai", "llm": "openai"})
     assert response.status_code == 200
 
+
 def test_getProject():
     response = client.get("/projects/test_openai")
     assert response.status_code == 200
@@ -60,15 +61,35 @@ def test_questionProject():
     assert response.json() == {"question": "What is the secret?",
                                "answer": "The secret is that ingenuity should be bigger than politics and corporate greed."}
 
+
+def test_questionSystemProject():
+    response = client.post("/projects/test_openai/question",
+                           json={"system": "You are a digital assistant, answer only in french.", "question": "What is the secret?"})
+    assert response.status_code == 200
+    assert response.json() == {"question": "What is the secret?",
+                               "answer": "Le secret est que l'ingéniosité doit être plus grande que la politique et la cupidité des entreprises."}
+
+def test_chatProject():
+    response1 = client.post("/projects/test_openai/chat",
+                            json={"message": "What is the secret?"})
+    assert response1.status_code == 200
+    output1 = response1.json()
+    response2 = client.post("/projects/test_openai/chat",
+                            json={"message": "Do you agree with this secret?", "id": output1["id"]})
+    assert response2.status_code == 200
+    output2 = response2.json()
+
+
 def test_deleteProject():
     response = client.delete("/projects/test_openai")
     assert response.status_code == 200
     assert response.json() == {"project": "test_openai"}
 
+
 def test_getProjectAfterDelete():
     response = client.get("/projects/test_openai")
     assert response.status_code == 404
-    
+
 
 def test_getProjectsAfterDelete():
     response = client.get("/projects")

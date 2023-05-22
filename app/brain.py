@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.chains import RetrievalQA
-from langchain import OpenAI
+from langchain import LLMChain, OpenAI, PromptTemplate
 from langchain.llms import GPT4All, LlamaCpp
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
@@ -12,7 +12,8 @@ LLMS = {
     "openai": (OpenAI, {"temperature": 0, "model_name": "text-davinci-003"}),
     "llamacpp": (LlamaCpp, {"model": "./models/ggml-model-q4_0.bin"}),
     "gpt4all": (GPT4All, {"model": "./models/ggml-gpt4all-j-v1.3-groovy.bin", "backend": "gptj", "n_ctx": 1000}),
-    "chat": (ChatOpenAI, {"temperature": 0}),
+    "chat": (ChatOpenAI, {"temperature": 0, "model_name":"gpt-3.5-turbo"}),
+    "chat4": (ChatOpenAI, {"temperature": 0, "model_name":"gpt-4"}),
 }
 
 
@@ -80,7 +81,7 @@ class Brain:
     def chat(self, project, chatModel):
         llm = self.getLLM("chat")
         chat = project.loadChat(chatModel)
-        
+
         retriever = project.db.as_retriever(
             search_type="similarity", search_kwargs={"k": 2}
         )
@@ -88,9 +89,30 @@ class Brain:
         self.conversationalChain = ConversationalRetrievalChain.from_llm(
             llm=llm, retriever=retriever
         )
-        
+
         result = self.conversationalChain(
             {"question": chatModel.message, "chat_history": chat.history}
         )
         chat.history.append((chatModel.message, result["answer"]))
-        return result["answer"].strip()
+        return chat, result["answer"].strip()
+
+    def questionContext(self, project, questionModel):
+        llm = self.getLLM(questionModel.llm or "chat")
+
+        prompt_template = """{system}
+
+            Question: {{question}}
+            =========
+            Context: {{context}}
+            =========
+            Answer:""".format(system=questionModel.system)
+
+        prompt = PromptTemplate(
+            template=prompt_template, input_variables=["context", "question"]
+        )
+        chain = LLMChain(llm=llm, prompt=prompt)
+
+        docs = project.db.similarity_search(questionModel.question, k=1)
+        inputs = [{"context": doc.page_content,
+                   "question": questionModel.question} for doc in docs]
+        return chain.apply(inputs)[0]["text"].strip()

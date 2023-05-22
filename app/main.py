@@ -5,7 +5,6 @@ from fastapi import FastAPI, HTTPException, Request, UploadFile
 from langchain.document_loaders import (
     WebBaseLoader,
 )
-from langchain.chains import RetrievalQA
 from dotenv import load_dotenv
 from app.brain import Brain
 
@@ -122,7 +121,10 @@ def ingestFile(projectName: str, file: UploadFile):
 def questionProject(projectName: str, input: QuestionModel):
     try:
         project = brain.loadProject(projectName)
-        answer = brain.question(project, input)
+        if input.system:
+            answer = brain.questionContext(project, input)
+        else:
+            answer = brain.question(project, input)
         return {"question": input.question, "answer": answer}
     except Exception as e:
         logging.error(e)
@@ -134,9 +136,9 @@ def questionProject(projectName: str, input: QuestionModel):
 def chatProject(projectName: str, input: ChatModel):
     try:
         project = brain.loadProject(projectName)
-        response = brain.chat(project, input)
-        
-        return {"message": input.message, "response": response, "uuid": input.id}
+        chat, response = brain.chat(project, input)
+
+        return {"message": input.message, "response": response, "id": chat.id}
     except Exception as e:
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
