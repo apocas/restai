@@ -7,3 +7,5 @@ dotenv
 pdfminer.six
 unstructured
 pydantic
+pygpt4all
+llama-cpp-python

@@ -2,7 +2,6 @@ import logging
 import os
 from tempfile import NamedTemporaryFile
 from fastapi import FastAPI, HTTPException, Request, UploadFile
-from langchain import OpenAI
 from langchain.document_loaders import (
     WebBaseLoader,
 )
@@ -10,7 +9,7 @@ from langchain.chains import RetrievalQA
 from dotenv import load_dotenv
 from app.brain import Brain
 
-from app.project import IngestModel, ProjectModel, QueryModel
+from app.models import IngestModel, ProjectModel, QuestionModel, ChatModel
 from app.tools import FindFileLoader, IndexDocuments
 
 load_dotenv()
@@ -118,26 +117,24 @@ def ingestFile(projectName: str, file: UploadFile):
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
-@app.post("/projects/{projectName}/query")
-def queryProject(projectName: str, input: QueryModel):
+
+@app.post("/projects/{projectName}/question")
+def questionProject(projectName: str, input: QuestionModel):
     try:
-      project = brain.loadProject(projectName)
+        project = brain.loadProject(projectName)
+        answer = brain.question(project, input)
+        return {"question": input.question, "answer": answer.strip()}
+    except Exception as e:
+        logging.error(e)
+        raise HTTPException(
+            status_code=500, detail='{"error": ' + str(e) + '}')
 
-      retriever = project.db.as_retriever(
-          search_type="similarity", search_kwargs={"k": 2}
-      )
 
-      llm = OpenAI(temperature=0, model_name="text-davinci-003") # type: ignore
-
-      qa = RetrievalQA.from_chain_type(
-          llm=llm,
-          chain_type="stuff",
-          retriever=retriever,
-      )
-
-      answer = qa.run(input.query)
-
-      return {"query": input.query, "answer": answer.strip()}
+@app.post("/projects/{projectName}/chat")
+def chatProject(projectName: str, input: ChatModel):
+    try:
+        project = brain.loadProject(projectName)
+        return "Not implemented yet."
     except Exception as e:
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')

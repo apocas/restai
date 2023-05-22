@@ -1,25 +1,11 @@
-from pydantic import BaseModel
-from typing import Union
 import json
 import os
 import shutil
 
 from langchain.vectorstores import Chroma
+from app.models import ProjectModel
 
 from app.tools import GetEmbedding
-
-
-class IngestModel(BaseModel):
-    url: str
-
-class QueryModel(BaseModel):
-    query: str
-
-class ProjectModel(BaseModel):
-    name: str
-    embeddings: Union[str, None] = None
-    embeddings_model: Union[str, None] = None
-    llm_model: Union[str, None] = None
 
 
 class Project:

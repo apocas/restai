@@ -24,7 +24,6 @@ def GetEmbedding(name: str, model=None):
 
     return embeddings[name]
 
-
 def IndexDocuments(brain, project, documents):
     texts = brain.text_splitter.split_documents(documents)
     texts_final = [doc.page_content for doc in texts]
@@ -40,7 +39,7 @@ def IndexDocuments(brain, project, documents):
 
 
 def FindFileLoader(temp, ext):
-    LOADERS_MAP = {
+    loaders = {
         ".csv": (CSVLoader, {}),
         ".doc": (UnstructuredWordDocumentLoader, {}),
         ".docx": (UnstructuredWordDocumentLoader, {}),
@@ -56,8 +55,8 @@ def FindFileLoader(temp, ext):
         ".txt": (TextLoader, {"encoding": "utf8"}),
     }
 
-    if ext in LOADERS_MAP:
-      loader_class, loader_args = LOADERS_MAP[ext]
+    if ext in loaders:
+      loader_class, loader_args = loaders[ext]
       return loader_class(temp.name, **loader_args)
     else:
         raise HTTPException(status_code=500, detail='{"error": "Invalid file type."}')

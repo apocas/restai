@@ -163,3 +163,6 @@ embeddings/*
 !embeddings/.gitkeep
 projects/*
 !projects/.gitkeep
+models/*
+!models/.gitkeep
+.DS_Store
