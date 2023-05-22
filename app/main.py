@@ -123,7 +123,7 @@ def questionProject(projectName: str, input: QuestionModel):
     try:
         project = brain.loadProject(projectName)
         answer = brain.question(project, input)
-        return {"question": input.question, "answer": answer.strip()}
+        return {"question": input.question, "answer": answer}
     except Exception as e:
         logging.error(e)
         raise HTTPException(
@@ -134,7 +134,9 @@ def questionProject(projectName: str, input: QuestionModel):
 def chatProject(projectName: str, input: ChatModel):
     try:
         project = brain.loadProject(projectName)
-        return "Not implemented yet."
+        response = brain.chat(project, input)
+        
+        return {"message": input.message, "response": response, "uuid": input.id}
     except Exception as e:
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')

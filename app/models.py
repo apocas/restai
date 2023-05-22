@@ -10,8 +10,8 @@ class QuestionModel(BaseModel):
     
 class ChatModel(BaseModel):
     message: str
-    conversation: Union[str, None] = None
-    llm: Union[str, None] = None
+    id: Union[str, None] = None
+    system: Union[str, None] = None
 
 class ProjectModel(BaseModel):
     name: str

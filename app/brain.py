@@ -3,6 +3,8 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.chains import RetrievalQA
 from langchain import OpenAI
 from langchain.llms import GPT4All, LlamaCpp
+from langchain.chat_models import ChatOpenAI
+from langchain.chains import ConversationalRetrievalChain
 
 from app.project import Project
 
@@ -10,19 +12,19 @@ LLMS = {
     "openai": (OpenAI, {"temperature": 0, "model_name": "text-davinci-003"}),
     "llamacpp": (LlamaCpp, {"model": "./models/ggml-model-q4_0.bin"}),
     "gpt4all": (GPT4All, {"model": "./models/ggml-gpt4all-j-v1.3-groovy.bin", "backend": "gptj", "n_ctx": 1000}),
+    "chat": (ChatOpenAI, {"temperature": 0}),
 }
 
 
 class Brain:
     def __init__(self):
         self.projects = []
+        self.llmCache = {}
 
         self.text_splitter = CharacterTextSplitter(
             separator=" ", chunk_size=1024, chunk_overlap=0)
 
-        self.llmCache = {}
-
-    def loadLLM(self, llmModel, **kwargs):
+    def getLLM(self, llmModel, **kwargs):
         if llmModel in self.llmCache:
             return self.llmCache[llmModel]
         else:
@@ -65,7 +67,7 @@ class Brain:
             search_type="similarity", search_kwargs={"k": 2}
         )
 
-        llm = self.loadLLM(questionModel.llm or project.model.llm)
+        llm = self.getLLM(questionModel.llm or project.model.llm)
 
         qa = RetrievalQA.from_chain_type(
             llm=llm,
@@ -73,4 +75,22 @@ class Brain:
             retriever=retriever,
         )
 
-        return qa.run(questionModel.question)
+        return qa.run(questionModel.question).strip()
+
+    def chat(self, project, chatModel):
+        llm = self.getLLM("chat")
+        chat = project.loadChat(chatModel)
+        
+        retriever = project.db.as_retriever(
+            search_type="similarity", search_kwargs={"k": 2}
+        )
+
+        self.conversationalChain = ConversationalRetrievalChain.from_llm(
+            llm=llm, retriever=retriever
+        )
+        
+        result = self.conversationalChain(
+            {"question": chatModel.message, "chat_history": chat.history}
+        )
+        chat.history.append((chatModel.message, result["answer"]))
+        return result["answer"].strip()
