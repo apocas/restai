@@ -1,1 +1,475 @@
-{"openapi":"3.0.2","info":{"title":"FastAPI","version":"0.1.0"},"paths":{"/":{"get":{"summary":"Get","operationId":"get__get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}}}}},"/projects":{"get":{"summary":"Getprojects","operationId":"getProjects_projects_get","responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}}}},"post":{"summary":"Createproject","operationId":"createProject_projects_post","requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ProjectModel"}}},"required":true},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/projects/{projectName}":{"get":{"summary":"Getproject","operationId":"getProject_projects__projectName__get","parameters":[{"required":true,"schema":{"title":"Projectname","type":"string"},"name":"projectName","in":"path"}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}},"delete":{"summary":"Deleteproject","operationId":"deleteProject_projects__projectName__delete","parameters":[{"required":true,"schema":{"title":"Projectname","type":"string"},"name":"projectName","in":"path"}],"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/projects/{projectName}/ingest/url":{"post":{"summary":"Ingesturl","operationId":"ingestURL_projects__projectName__ingest_url_post","parameters":[{"required":true,"schema":{"title":"Projectname","type":"string"},"name":"projectName","in":"path"}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/IngestModel"}}},"required":true},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/projects/{projectName}/ingest/upload":{"post":{"summary":"Ingestfile","operationId":"ingestFile_projects__projectName__ingest_upload_post","parameters":[{"required":true,"schema":{"title":"Projectname","type":"string"},"name":"projectName","in":"path"}],"requestBody":{"content":{"multipart/form-data":{"schema":{"$ref":"#/components/schemas/Body_ingestFile_projects__projectName__ingest_upload_post"}}},"required":true},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/projects/{projectName}/question":{"post":{"summary":"Questionproject","operationId":"questionProject_projects__projectName__question_post","parameters":[{"required":true,"schema":{"title":"Projectname","type":"string"},"name":"projectName","in":"path"}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/QuestionModel"}}},"required":true},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}},"/projects/{projectName}/chat":{"post":{"summary":"Chatproject","operationId":"chatProject_projects__projectName__chat_post","parameters":[{"required":true,"schema":{"title":"Projectname","type":"string"},"name":"projectName","in":"path"}],"requestBody":{"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ChatModel"}}},"required":true},"responses":{"200":{"description":"Successful Response","content":{"application/json":{"schema":{}}}},"422":{"description":"Validation Error","content":{"application/json":{"schema":{"$ref":"#/components/schemas/HTTPValidationError"}}}}}}}},"components":{"schemas":{"Body_ingestFile_projects__projectName__ingest_upload_post":{"title":"Body_ingestFile_projects__projectName__ingest_upload_post","required":["file"],"type":"object","properties":{"file":{"title":"File","type":"string","format":"binary"}}},"ChatModel":{"title":"ChatModel","required":["message"],"type":"object","properties":{"message":{"title":"Message","type":"string"},"id":{"title":"Id","type":"string"}}},"HTTPValidationError":{"title":"HTTPValidationError","type":"object","properties":{"detail":{"title":"Detail","type":"array","items":{"$ref":"#/components/schemas/ValidationError"}}}},"IngestModel":{"title":"IngestModel","required":["url"],"type":"object","properties":{"url":{"title":"Url","type":"string"}}},"ProjectModel":{"title":"ProjectModel","required":["name"],"type":"object","properties":{"name":{"title":"Name","type":"string"},"embeddings":{"title":"Embeddings","type":"string"},"embeddings_model":{"title":"Embeddings Model","type":"string"},"llm":{"title":"Llm","type":"string"}}},"QuestionModel":{"title":"QuestionModel","required":["question"],"type":"object","properties":{"question":{"title":"Question","type":"string"},"llm":{"title":"Llm","type":"string"},"system":{"title":"System","type":"string"}}},"ValidationError":{"title":"ValidationError","required":["loc","msg","type"],"type":"object","properties":{"loc":{"title":"Location","type":"array","items":{"anyOf":[{"type":"string"},{"type":"integer"}]}},"msg":{"title":"Message","type":"string"},"type":{"title":"Error Type","type":"string"}}}}}}
+{
+  "openapi": "3.0.2",
+  "info": {
+    "title": "FastAPI",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Get",
+        "operationId": "get__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "summary": "Getprojects",
+        "operationId": "getProjects_projects_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Createproject",
+        "operationId": "createProject_projects_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectModel"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectName}": {
+      "get": {
+        "summary": "Getproject",
+        "operationId": "getProject_projects__projectName__get",
+        "parameters": [
+          {
+            "required": true,
+            "schema": {
+              "title": "Projectname",
+              "type": "string"
+            },
+            "name": "projectName",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deleteproject",
+        "operationId": "deleteProject_projects__projectName__delete",
+        "parameters": [
+          {
+            "required": true,
+            "schema": {
+              "title": "Projectname",
+              "type": "string"
+            },
+            "name": "projectName",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectName}/ingest/url": {
+      "post": {
+        "summary": "Ingesturl",
+        "operationId": "ingestURL_projects__projectName__ingest_url_post",
+        "parameters": [
+          {
+            "required": true,
+            "schema": {
+              "title": "Projectname",
+              "type": "string"
+            },
+            "name": "projectName",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestModel"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectName}/ingest/upload": {
+      "post": {
+        "summary": "Ingestfile",
+        "operationId": "ingestFile_projects__projectName__ingest_upload_post",
+        "parameters": [
+          {
+            "required": true,
+            "schema": {
+              "title": "Projectname",
+              "type": "string"
+            },
+            "name": "projectName",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_ingestFile_projects__projectName__ingest_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectName}/question": {
+      "post": {
+        "summary": "Questionproject",
+        "operationId": "questionProject_projects__projectName__question_post",
+        "parameters": [
+          {
+            "required": true,
+            "schema": {
+              "title": "Projectname",
+              "type": "string"
+            },
+            "name": "projectName",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionModel"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectName}/chat": {
+      "post": {
+        "summary": "Chatproject",
+        "operationId": "chatProject_projects__projectName__chat_post",
+        "parameters": [
+          {
+            "required": true,
+            "schema": {
+              "title": "Projectname",
+              "type": "string"
+            },
+            "name": "projectName",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatModel"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_ingestFile_projects__projectName__ingest_upload_post": {
+        "title": "Body_ingestFile_projects__projectName__ingest_upload_post",
+        "required": [
+          "file"
+        ],
+        "type": "object",
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string",
+            "format": "binary"
+          }
+        }
+      },
+      "ChatModel": {
+        "title": "ChatModel",
+        "required": [
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        }
+      },
+      "HTTPValidationError": {
+        "title": "HTTPValidationError",
+        "type": "object",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            }
+          }
+        }
+      },
+      "IngestModel": {
+        "title": "IngestModel",
+        "required": [
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        }
+      },
+      "ProjectModel": {
+        "title": "ProjectModel",
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "embeddings": {
+            "title": "Embeddings",
+            "type": "string"
+          },
+          "embeddings_model": {
+            "title": "Embeddings Model",
+            "type": "string"
+          },
+          "llm": {
+            "title": "Llm",
+            "type": "string"
+          }
+        }
+      },
+      "QuestionModel": {
+        "title": "QuestionModel",
+        "required": [
+          "question"
+        ],
+        "type": "object",
+        "properties": {
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "llm": {
+            "title": "Llm",
+            "type": "string"
+          },
+          "system": {
+            "title": "System",
+            "type": "string"
+          }
+        }
+      },
+      "ValidationError": {
+        "title": "ValidationError",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "loc": {
+            "title": "Location",
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            }
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
