@@ -20,7 +20,8 @@ This LLM may be an OpenAI based model, llamacpp, gpt4all or any other LLM suppor
 ## Endpoints:
 
 ### Project
---
+
+---
 
 A project is an abstract entity basically a tenant. You may have multiple projects and each project has its own embeddings, loaders and llms.
 
@@ -54,7 +55,8 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 - Errors: 500 if there is an error while creating the project.
 
 ### Embeddings
---
+
+---
 
 **POST /projects/{projectName}/ingest/url**
 
@@ -73,7 +75,8 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 - Errors: 500 if there is an error while ingesting the data.
 
 ### LLMs
---
+
+---
 
 **POST /projects/{projectName}/question**
 
