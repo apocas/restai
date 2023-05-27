@@ -17,23 +17,86 @@ This LLM may be an OpenAI based model, llamacpp, gpt4all or any other LLM suppor
 
 ## Usage
 
-## Endpoints
+## Endpoints:
+
 ### Project
 
 A project is an abstract entity basically a tenant. You may have multiple projects and each project has its own embeddings, loaders and llms.
 
-* GET "/projects"
-* POST "/projects"
-* DELETE "/projects/{projectName}"
-* GET "/projects/{projectName}"
+**GET /projects**
+
+- Description: Lists all the projects.
+- Request Payload: None.
+- Response: A JSON object containing the list of all projects.
+
+---
+
+**GET /projects/{projectName}**
+
+- Description: Get the specific project details.
+- Request Payload: None.
+- Path Parameters: 'projectName' which represents the name of the project.
+- Response: A JSON object with details about the specified project including project name, embeddings, documents and metadatas. 
+- Errors: 404 if project not found.
+
+---
+
+**DELETE /projects/{projectName}**
+
+- Description: Deletes the specific project.
+- Request Payload: None.
+- Path Parameters: 'projectName' which represents the name of the project.
+- Response: A JSON object with the name of the deleted project.
+- Errors: 500 if there is an error while deleting the project.
+
+---
+
+**POST /projects**
+
+- Description: Creates a new project.
+- Request Payload: JSON representation of 'ProjectModel'.
+- Response: A JSON object with the name of the created project.
+- Errors: 500 if there is an error while creating the project.
+
 ### Embeddings
 
-* POST "/projects/{projectName}/ingest/url"
-* POST "/projects/{projectName}/ingest/upload"
+**POST /projects/{projectName}/ingest/url**
+
+- Description: Ingests data into a specific project from a provided URL.
+- Request Payload: JSON representation of 'IngestModel'.
+- Path Parameters: 'projectName' which represents the name of the project.
+- Response: A JSON object with details about the ingested data.
+- Errors: 500 if there is an error while ingesting the data.
+
+---
+
+**POST /projects/{projectName}/ingest/upload**
+
+- Description: Ingests data into a specific project from an uploaded file.
+- Request Payload: File to be ingested into the system.
+- Path Parameters: 'projectName' which represents the name of the project.
+- Response: A JSON object with details about the ingested file including filename, type, texts, and documents.
+- Errors: 500 if there is an error while ingesting the data.
+
 ### LLMs
 
-* POST "/projects/{projectName}/question"
-* POST "/projects/{projectName}/chat"
+**POST /projects/{projectName}/question**
+
+- Description: Asks a question to a specific project.
+- Request Payload: JSON representation of 'QuestionModel'.
+- Path Parameters: 'projectName' which represents the name of the project.
+- Response: A JSON object containing the asked question and the corresponding answer.
+- Errors: 500 if there is an error while asking the question.
+
+---
+
+**POST /projects/{projectName}/chat**
+
+- Description: Send a chat message to a specific project.
+- Request Payload: JSON representation of 'ChatModel'.
+- Path Parameters: 'projectName' which represents the name of the project.
+- Response: A JSON object containing the sent message, the response, and an id for the chat.
+- Errors: 500 if there is an error while sending the message.
 
 ## Tests
 
