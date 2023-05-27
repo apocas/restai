@@ -29,8 +29,6 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 - Request Payload: None.
 - Response: A JSON object containing the list of all projects.
 
----
-
 **GET /projects/{projectName}**
 
 - Description: Get the specific project details.
@@ -39,8 +37,6 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 - Response: A JSON object with details about the specified project including project name, embeddings, documents and metadatas. 
 - Errors: 404 if project not found.
 
----
-
 **DELETE /projects/{projectName}**
 
 - Description: Deletes the specific project.
@@ -48,8 +44,6 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 - Path Parameters: 'projectName' which represents the name of the project.
 - Response: A JSON object with the name of the deleted project.
 - Errors: 500 if there is an error while deleting the project.
-
----
 
 **POST /projects**
 
@@ -68,8 +62,6 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 - Response: A JSON object with details about the ingested data.
 - Errors: 500 if there is an error while ingesting the data.
 
----
-
 **POST /projects/{projectName}/ingest/upload**
 
 - Description: Ingests data into a specific project from an uploaded file.
@@ -87,8 +79,6 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 - Path Parameters: 'projectName' which represents the name of the project.
 - Response: A JSON object containing the asked question and the corresponding answer.
 - Errors: 500 if there is an error while asking the question.
-
----
 
 **POST /projects/{projectName}/chat**
 
