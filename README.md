@@ -50,7 +50,15 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 **POST /projects**
 
 - Description: Creates a new project.
-- Request Payload: JSON representation of 'ProjectModel'.
+- Request Payload:
+    ```
+    {
+      "name": "string",
+      "embeddings": "string (Optional)",
+      "embeddings_model": "string (Optional)",
+      "llm": "string (Optional)"
+    }
+    ```
 - Response: A JSON object with the name of the created project.
 - Errors: 500 if there is an error while creating the project.
 
@@ -61,7 +69,12 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 **POST /projects/{projectName}/ingest/url**
 
 - Description: Ingests data into a specific project from a provided URL.
-- Request Payload: JSON representation of 'IngestModel'.
+- Request Payload:
+    ```
+    {
+      "url": "string"
+    }
+    ```
 - Path Parameters: 'projectName' which represents the name of the project.
 - Response: A JSON object with details about the ingested data.
 - Errors: 500 if there is an error while ingesting the data.
@@ -86,7 +99,7 @@ A project is an abstract entity basically a tenant. You may have multiple projec
     {
       "question": "string",
       "llm": "string (Optional)",
-      "system": "string (Optional)"
+      "system": "string (Optional - System message for LLMs that support it)"
     }
     ```
 - Path Parameters: 'projectName' which represents the name of the project.
@@ -96,7 +109,13 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 **POST /projects/{projectName}/chat**
 
 - Description: Send a chat message to a specific project.
-- Request Payload: JSON representation of 'ChatModel'.
+- Request Payload:
+    ```
+    {
+      "message": "string",
+      "id": "string (If not provided, a new chat will be created)",
+    }
+    ```
 - Path Parameters: 'projectName' which represents the name of the project.
 - Response: A JSON object containing the sent message, the response, and an id for the chat.
 - Errors: 500 if there is an error while sending the message.
