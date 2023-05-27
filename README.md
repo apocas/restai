@@ -81,7 +81,14 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 **POST /projects/{projectName}/question**
 
 - Description: Asks a question to a specific project.
-- Request Payload: JSON representation of 'QuestionModel'.
+- Request Payload:
+    ```
+    {
+      "question": "string",
+      "llm": "string (Optional)",
+      "system": "string (Optional)"
+    }
+    ```
 - Path Parameters: 'projectName' which represents the name of the project.
 - Response: A JSON object containing the asked question and the corresponding answer.
 - Errors: 500 if there is an error while asking the question.
