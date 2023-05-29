@@ -22,15 +22,25 @@
 * It's very easy to add support for more [embeddings](modules/embeddings.py), [loaders](modules/loaders.py) and [LLMs](modules/llms.py).
 
 ## Example usage
+
+POST /projects ({"name": "test_openai",  "embeddings": "openai", "llm": "openai"})
+```json 
+{"project": "test_openai"}
 ```
-REQUEST - POST /projects ({"name": "test_openai",  "embeddings": "openai", "llm": "openai"})
-RESPONSE - {"project": "test_openai"}
-REQUEST - POST /projects/test_openai/ingest/upload (upload a [test.txt](tests/test.txt))
-RESPONSE - {"project": "test_openai", "embeddings": "openai", "documents": 2, "metadatas": 2}
-REQUEST - POST /projects/test_openai/question ({"question": "What is the secret?"})
-RESPONSE - {"question": "What is the secret?", "answer": "The secret is that ingenuity should be bigger than politics and corporate greed."}
-REQUEST - POST /projects/test_openai/question ({"system": "You are a digital assistant, answer only in french.", "question": "What is the secret?"})
-RESPONSE - {"question": "What is the secret?", "answer": "Le secret est que l'ingéniosité doit être plus grande que la politique et la cupidité des entreprises."}
+
+POST /projects/test_openai/ingest/upload (upload a [test.txt](tests/test.txt))
+```json 
+{"project": "test_openai", "embeddings": "openai", "documents": 2, "metadatas": 2}
+```
+
+POST /projects/test_openai/question ({"question": "What is the secret?"})
+```json 
+{"question": "What is the secret?", "answer": "The secret is that ingenuity should be bigger than politics and corporate greed."}
+```
+
+POST /projects/test_openai/question ({"system": "You are a digital assistant, answer only in french.", "question": "What is the secret?"})
+```json 
+{"question": "What is the secret?", "answer": "Le secret est que l'ingéniosité doit être plus grande que la politique et la cupidité des entreprises."}
 ```
 
 ## Endpoints:
@@ -144,8 +154,12 @@ A project is an abstract entity basically a tenant. You may have multiple projec
       "system": "string (Optional - System message for LLMs that support it)"
     }
     ```
-- Path Parameters: 'projectName' which represents the name of the project.
-- Response: A JSON object containing the asked question and the corresponding answer.
+- Response:
+    ```json
+    {
+      "question": "What is the secret?",
+      "answer": "The secret is that ingenuity should be bigger than politics and corporate greed."}
+    ```
 - Errors: 500 if there is an error while asking the question.
 
 **POST /projects/{projectName}/chat**
@@ -158,8 +172,14 @@ A project is an abstract entity basically a tenant. You may have multiple projec
       "id": "string (Optional - if not provided, a new chat will be created)",
     }
     ```
-- Path Parameters: 'projectName' which represents the name of the project.
-- Response: A JSON object containing the sent message, the response, and an id for the chat.
+- Response:
+    ```json
+    {
+      "id": "string",
+      "message": "string",
+      "response": "string"
+    }
+    ```
 - Errors: 500 if there is an error while sending the message.
 
 ## Tests
