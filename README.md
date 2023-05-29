@@ -1,11 +1,11 @@
 # restai
 
-RESTAI is a simple generic REST API that allows to create embeddings for a lot of data types and then interact with them using a LLM.
+RESTAI is a simple generic REST API that allows to create embeddings from multiple datatypes and then interact with them using a LLM.
 This LLM may be an OpenAI based model, llamacpp, gpt4all or any other LLM supported by langchain.
 
 ## Details
 ### Embeddings
-* Create embeddings from your data. You are able to ingest data by uploading files ou directly parsing URLs.
+* Create embeddings from your data. You are able to ingest data by uploading files ou directly parsing an URL content.
 * You may [pick whatever](modules/embeddings.py) embeddings model thats supported by langchain, cloud based (ex: Openai) or private (HuggingFace model).
 
 ### Loaders
@@ -28,22 +28,34 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 **GET /projects**
 
 - Description: Lists all the projects.
-- Request Payload: None.
-- Response: A JSON object containing the list of all projects.
+- Response:
+    ```json
+    {
+      "projects": [
+        "test_openai",
+        "test_openai2"
+      ]
+    }
+    ```
 
 **GET /projects/{projectName}**
 
 - Description: Get the specific project details.
-- Request Payload: None.
-- Path Parameters: 'projectName' which represents the name of the project.
-- Response: A JSON object with details about the specified project including project name, embeddings, documents and metadatas. 
+- Response:
+    ```json
+    {
+      "project": "test_openai",
+      "embeddings": "openai",
+      "documents": 2,
+      "metadatas": 2,
+    }
+    ```
 - Errors: 404 if project not found.
 
 **DELETE /projects/{projectName}**
 
 - Description: Deletes the specific project.
 - Request Payload: None.
-- Path Parameters: 'projectName' which represents the name of the project.
 - Response: A JSON object with the name of the deleted project.
 - Errors: 500 if there is an error while deleting the project.
 
@@ -51,7 +63,7 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 
 - Description: Creates a new project.
 - Request Payload:
-    ```
+    ```json
     {
       "name": "string",
       "embeddings": "string (Optional)",
@@ -72,19 +84,33 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 - Request Payload:
     ```
     {
-      "url": "string"
+      "url": "https://www.example.com",
     }
     ```
-- Path Parameters: 'projectName' which represents the name of the project.
-- Response: A JSON object with details about the ingested data.
+- Response:
+    ```json
+    {
+      "project": "test_openai",
+      "embeddings": "openai",
+      "documents": 2,
+      "metadatas": 2
+    }
+    ```
 - Errors: 500 if there is an error while ingesting the data.
 
 **POST /projects/{projectName}/ingest/upload**
 
-- Description: Ingests data into a specific project from an uploaded file.
+- Description: Ingests data into a specific project's embeddings from an uploaded file.
 - Request Payload: File to be ingested into the system.
-- Path Parameters: 'projectName' which represents the name of the project.
-- Response: A JSON object with details about the ingested file including filename, type, texts, and documents.
+- Response:
+    ```json
+    {
+      "project": "test_openai",
+      "embeddings": "openai",
+      "documents": 2,
+      "metadatas": 2
+    }
+    ```
 - Errors: 500 if there is an error while ingesting the data.
 
 ### LLMs
@@ -95,7 +121,7 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 
 - Description: Asks a question to a specific project.
 - Request Payload:
-    ```
+    ```json
     {
       "question": "string",
       "llm": "string (Optional)",
@@ -110,10 +136,10 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 
 - Description: Send a chat message to a specific project.
 - Request Payload:
-    ```
+    ```json
     {
       "message": "string",
-      "id": "string (If not provided, a new chat will be created)",
+      "id": "string (Optional - if not provided, a new chat will be created)",
     }
     ```
 - Path Parameters: 'projectName' which represents the name of the project.
