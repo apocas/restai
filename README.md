@@ -1,8 +1,8 @@
 # restai
 
-RESTAI is a simple generic REST API that allows to create embeddings from multiple datatypes and then interact with them using a LLM.
-This LLM may be an OpenAI based model, llamacpp, gpt4all or any other LLM supported by langchain.
-
+* RESTAI is a simple generic REST API that allows to create embeddings from multiple datatypes and then interact with them using a LLM.
+* This LLM may be an OpenAI based model, llamacpp, gpt4all or any other LLM supported by langchain.
+* If you want to be completely offline, you may use the `gpt4all` LLM and `huggingface` embeddings.
 ## Details
 ### Embeddings
 * Create embeddings from your data. You are able to ingest data by uploading files ou directly parsing an URL content.
@@ -15,7 +15,23 @@ This LLM may be an OpenAI based model, llamacpp, gpt4all or any other LLM suppor
 * You may use [any LLM](modules/llms.py) supported by langchain.
 * There are two main ways to interact with the LLM: QA(questions and answers) and text generation aKa chat.
 
-## Usage
+## Default support
+
+* Embeddings: `huggingface` (HuggingFace), `openai` (OpenAI)
+* LLM: `gpt4all` (ggml-gpt4all-j-v1.3-groovy.bin), `llamacpp` (ggml-model-q4_0.bin), `openai` (OpenAI)
+* It's very easy to add support for more [embeddings](modules/embeddings.py), [loaders](modules/loaders.py) and [LLMs](modules/llms.py).
+
+## Example usage
+```
+REQUEST - POST /projects ({"name": "test_openai",  "embeddings": "openai", "llm": "openai"})
+RESPONSE - {"project": "test_openai"}
+REQUEST - POST /projects/test_openai/ingest/upload (upload a [test.txt](tests/test.txt))
+RESPONSE - {"project": "test_openai", "embeddings": "openai", "documents": 2, "metadatas": 2}
+REQUEST - POST /projects/test_openai/question ({"question": "What is the secret?"})
+RESPONSE - {"question": "What is the secret?", "answer": "The secret is that ingenuity should be bigger than politics and corporate greed."}
+REQUEST - POST /projects/test_openai/question ({"system": "You are a digital assistant, answer only in french.", "question": "What is the secret?"})
+RESPONSE - {"question": "What is the secret?", "answer": "Le secret est que l'ingéniosité doit être plus grande que la politique et la cupidité des entreprises."}
+```
 
 ## Endpoints:
 
@@ -149,6 +165,7 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 ## Tests
 
  * Tests are implemented using `pytest`. Run them with `make test`.
+ * Running on a Macmini M1 8gb takes around 5~10mins to run the HuggingFace tests. Which uses an local LLM and a local embeddings model from HuggingFace.
 
 ## License
 
