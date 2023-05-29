@@ -23,22 +23,22 @@
 
 ## Example usage
 
-POST /projects ({"name": "test_openai",  "embeddings": "openai", "llm": "openai"})
+* POST /projects ({"name": "test_openai",  "embeddings": "openai", "llm": "openai"})
 ```json 
 {"project": "test_openai"}
 ```
 
-POST /projects/test_openai/ingest/upload (upload a [test.txt](tests/test.txt))
+* POST /projects/test_openai/ingest/upload (upload a [test.txt](tests/test.txt))
 ```json 
 {"project": "test_openai", "embeddings": "openai", "documents": 2, "metadatas": 2}
 ```
 
-POST /projects/test_openai/question ({"question": "What is the secret?"})
+* POST /projects/test_openai/question ({"question": "What is the secret?"})
 ```json 
 {"question": "What is the secret?", "answer": "The secret is that ingenuity should be bigger than politics and corporate greed."}
 ```
 
-POST /projects/test_openai/question ({"system": "You are a digital assistant, answer only in french.", "question": "What is the secret?"})
+* POST /projects/test_openai/question ({"system": "You are a digital assistant, answer only in french.", "question": "What is the secret?"})
 ```json 
 {"question": "What is the secret?", "answer": "Le secret est que l'ingéniosité doit être plus grande que la politique et la cupidité des entreprises."}
 ```
