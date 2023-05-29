@@ -182,6 +182,8 @@ A project is an abstract entity basically a tenant. You may have multiple projec
     ```
 - Errors: 500 if there is an error while sending the message.
 
+## [Swagger](https://apocas.github.io/restai/)
+
 ## Tests
 
  * Tests are implemented using `pytest`. Run them with `make test`.
