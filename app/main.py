@@ -41,6 +41,7 @@ async def getProject(projectName: str):
 
         return {"project": project.model.name, "embeddings": project.model.embeddings, "documents": len(dbInfo["documents"]), "metadatas": len(dbInfo["metadatas"])}
     except Exception as e:
+        logging.error(e)
         raise HTTPException(
             status_code=404, detail='{"error": ' + str(e) + '}')
 
@@ -51,6 +52,7 @@ async def deleteProject(projectName: str):
         brain.deleteProject(projectName)
         return {"project": projectName}
     except Exception as e:
+        logging.error(e)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
@@ -61,6 +63,7 @@ async def createProject(projectModel: ProjectModel):
         brain.createProject(projectModel)
         return {"project": projectModel.name}
     except Exception as e:
+        logging.error(e)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
@@ -78,6 +81,7 @@ def ingestURL(projectName: str, ingest: IngestModel):
 
         return {"url": ingest.url, "texts": len(texts), "documents": len(documents)}
     except Exception as e:
+        logging.error(e)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
@@ -113,6 +117,7 @@ def ingestFile(projectName: str, file: UploadFile):
 
         return {"filename": file.filename, "type": file.content_type, "texts": len(texts), "documents": len(documents)}
     except Exception as e:
+        logging.error(e)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
@@ -140,5 +145,6 @@ def chatProject(projectName: str, input: ChatModel):
 
         return {"message": input.message, "response": response, "id": chat.id}
     except Exception as e:
+        logging.error(e)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')

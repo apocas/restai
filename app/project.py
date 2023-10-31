@@ -42,7 +42,7 @@ class Project:
 
         file_path = os.path.join(
             os.environ["PROJECTS_PATH"], f'{self.model.name}.json')
-        model_json = json.dumps(self.model.dict(), indent=4)
+        model_json = json.dumps(self.model.model_dump(), indent=4)
 
         with open(file_path, 'w') as f:
             f.write(model_json)

@@ -2,8 +2,8 @@ import os
 from fastapi import HTTPException
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.chains import RetrievalQA
-from langchain import LLMChain, PromptTemplate
-from langchain.chains import ConversationalRetrievalChain
+from langchain.prompts import PromptTemplate
+from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain.vectorstores import Chroma
 
 from app.project import Project
@@ -30,8 +30,7 @@ class Brain:
                 self.llmCache[llmModel] = llm
                 return llm
             else:
-                raise HTTPException(
-                    status_code=500, detail='{"error": "Invalid LLM type."}')
+                raise Exception("Invalid LLM type.")
 
     def getEmbedding(self, embeddingModel, **kwargs):
         if embeddingModel in self.embeddingCache:
@@ -39,12 +38,11 @@ class Brain:
         else:
             if embeddingModel in EMBEDDINGS:
                 embedding_class, embedding_args = EMBEDDINGS[embeddingModel]
-                model = embedding_class(**embedding_args, **kwargs)
+                model = embedding_class(**embedding_args)
                 self.embeddingCache[embeddingModel] = model
                 return model
             else:
-                raise HTTPException(
-                    status_code=500, detail='{"error": "Invalid Embedding type."}')
+                raise Exception("Invalid Embedding type.")
 
     def listProjects(self):
         return [project.model.name for project in self.projects]
