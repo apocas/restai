@@ -11,3 +11,4 @@ pygpt4all
 llama-cpp-python
 sentence_transformers
 chromadb
+tiktoken
