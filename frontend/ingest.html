@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Project File Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+   <h1>Upload a File</h1>
+    <form id="upload-form" enctype="multipart/form-data">
+        <label for="projectName">Project Name:</label><br>
+        <select id="projectName" name="projectName"></select><br>
+        <label for="file">File:</label><br>
+        <input type="file" id="file" name="file"><br>
+        <input type="submit" value="Upload">
+    </form>
+    <p id="result"></p>
+
+    <script>
+        // Fetch the list of projects when the page loads
+        fetch('/projects')
+        .then(response => response.json())
+        .then(data => {
+            var projectNameField = document.getElementById('projectName');
+            // Add each project as an option in the projectName field
+            for (var i = 0; i < data.projects.length; i++) {
+                var option = document.createElement('option');
+                option.value = data.projects[i];
+                option.text = data.projects[i];
+                projectNameField.add(option);
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+
+        document.getElementById('upload-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            var projectName = document.getElementById('projectName').value;
+            var file = document.getElementById('file').files[0];
+            var formData = new FormData();
+            formData.append('file', file);
+            fetch('/projects/' + projectName + '/ingest/upload', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('result').textContent = 'File uploaded successfully. Texts: ' + data.texts + ', Documents: ' + data.documents;
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
+</body>
+</html>
