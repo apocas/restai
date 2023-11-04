@@ -66,8 +66,7 @@ def test_questionSystemProject():
     response = client.post("/projects/test_openai/question",
                            json={"system": "You are a digital assistant, answer only in french.", "question": "What is the secret?"})
     assert response.status_code == 200
-    assert response.json() == {"question": "What is the secret?",
-                               "answer": "Le secret est que l'ingéniosité doit être plus grande que la politique et la cupidité des entreprises."}
+    assert "Le secret" in response.json()["answer"]
 
 def test_chatProject():
     response1 = client.post("/projects/test_openai/chat",

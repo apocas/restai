@@ -166,3 +166,4 @@ projects/*
 models/*
 !models/.gitkeep
 .DS_Store
+pytest.ini
