@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 from tempfile import NamedTemporaryFile
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 from langchain.document_loaders import (
@@ -15,6 +16,9 @@ load_dotenv()
 
 if "EMBEDDINGS_PATH" not in os.environ:
     os.environ["EMBEDDINGS_PATH"] = "./embeddings/"
+
+if "UPLOADS_PATH" not in os.environ:
+    os.environ["UPLOADS_PATH"] = "./uploads/"
 
 if "PROJECTS_PATH" not in os.environ:
     os.environ["PROJECTS_PATH"] = "./projects/"
@@ -90,27 +94,15 @@ def ingestURL(projectName: str, ingest: IngestModel):
 def ingestFile(projectName: str, file: UploadFile):
     try:
         project = brain.loadProject(projectName)
+        
+        dest = os.path.join(os.path.join(os.environ["UPLOADS_PATH"], project.model.name), file.filename)
 
-        temp = NamedTemporaryFile(delete=False)
-        try:
-            try:
-                contents = file.file.read()
-                with temp as f:
-                    f.write(contents)
-            except Exception:
-                raise HTTPException(
-                    status_code=500, detail='{"error": "Error while saving file."}')
-            finally:
-                file.file.close()
-
-            _, ext = os.path.splitext(file.filename or '')
-            loader = FindFileLoader(temp, ext)
-            documents = loader.load()
-        except Exception as e:
-            raise HTTPException(
-                status_code=500, detail='{"error": "Something went wrong."}')
-        finally:
-            os.remove(temp.name)
+        with open(dest, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+      
+        _, ext = os.path.splitext(file.filename or '')
+        loader = FindFileLoader(dest, ext)
+        documents = loader.load()
 
         texts = IndexDocuments(brain, project, documents)
         project.db.persist()

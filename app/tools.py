@@ -16,9 +16,9 @@ def IndexDocuments(brain, project, documents):
     return texts_final
 
 
-def FindFileLoader(temp, ext):
+def FindFileLoader(filepath, ext):
     if ext in LOADERS:
       loader_class, loader_args = LOADERS[ext]
-      return loader_class(temp.name, **loader_args)
+      return loader_class(filepath, **loader_args)
     else:
         raise HTTPException(status_code=500, detail='{"error": "Invalid file type."}')

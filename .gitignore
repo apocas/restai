@@ -165,5 +165,7 @@ projects/*
 !projects/.gitkeep
 models/*
 !models/.gitkeep
+uploads/*
+!uploads/.gitkeep
 .DS_Store
 pytest.ini

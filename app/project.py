@@ -7,6 +7,7 @@ from app.models import ProjectModel
 
 from langchain.vectorstores import Chroma
 
+
 class Project:
 
     def __init__(self):
@@ -25,20 +26,28 @@ class Project:
             self.db.delete_collection()
             shutil.rmtree(os.path.join(
                 os.environ["EMBEDDINGS_PATH"], self.model.name), ignore_errors=True)
+            
+        if os.path.exists(os.path.join(os.environ["UPLOADS_PATH"], self.model.name)):
+            shutil.rmtree(os.path.join(
+                os.environ["UPLOADS_PATH"], self.model.name), ignore_errors=True)
 
     def save(self):
         if os.path.exists(os.path.join(os.environ["PROJECTS_PATH"], f'{self.model.name}.json')):
             raise ValueError("Project already exists")
 
-        if not os.path.exists('./projects'):
-            os.makedirs('./projects')
+        if not os.path.exists(os.environ["PROJECTS_PATH"]):
+            os.makedirs(os.environ["PROJECTS_PATH"])
 
         if not os.path.exists(os.environ["EMBEDDINGS_PATH"]):
             os.makedirs(os.environ["EMBEDDINGS_PATH"])
 
-        if not os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name):
+        if not os.path.exists(os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name)):
             os.mkdir(os.path.join(
                 os.environ["EMBEDDINGS_PATH"], self.model.name))
+
+        if not os.path.exists(os.path.join(os.environ["UPLOADS_PATH"], self.model.name)):
+            os.mkdir(os.path.join(
+                os.environ["UPLOADS_PATH"], self.model.name))
 
         file_path = os.path.join(
             os.environ["PROJECTS_PATH"], f'{self.model.name}.json')
@@ -51,13 +60,12 @@ class Project:
         if name is None:
             raise ValueError("Name cannot be None")
 
-        file_path = os.path.join('projects', f'{name}.json')
+        file_path = os.path.join(os.environ["PROJECTS_PATH"], f'{name}.json')
 
         with open(file_path, 'r') as f:
             model_json = json.load(f)
 
         self.model = ProjectModel(**model_json)
-
 
     def loadChat(self, chatModel):
         for chat in self.chats:
