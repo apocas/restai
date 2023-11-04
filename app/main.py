@@ -71,6 +71,9 @@ async def createProject(projectModel: ProjectModel):
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
+@app.post("/projects/{projectName}/refresh")
+def refresh(projectName: str):
+    return "Not implemented yet."
 
 @app.post("/projects/{projectName}/ingest/url")
 def ingestURL(projectName: str, ingest: IngestModel):
