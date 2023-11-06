@@ -71,15 +71,16 @@ class Brain:
                     self.loadProject(projectname)
 
     def loadProject(self, name):
-        for project in self.projects:
-            if project.model.name == name:
-                return project
-
         project = Project()
         project.load(name)
         self.initializeEmbeddings(project)
         self.projects.append(project)
         return project
+      
+    def findProject(self, name):
+        for project in self.projects:
+            if project.model.name == name:
+                return project
 
     def deleteProject(self, name):
         for project in self.projects:

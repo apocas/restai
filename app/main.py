@@ -9,8 +9,9 @@ from langchain.document_loaders import (
 from dotenv import load_dotenv
 from app.brain import Brain
 
-from app.models import IngestModel, ProjectModel, QuestionModel, ChatModel
+from app.models import EmbeddingModel, IngestModel, ProjectModel, QuestionModel, ChatModel
 from app.tools import FindFileLoader, IndexDocuments
+from fastapi.openapi.utils import get_openapi
 
 load_dotenv()
 
@@ -25,13 +26,27 @@ if "PROJECTS_PATH" not in os.environ:
     
 os.environ["ALLOW_RESET"] = "true"
 
-app = FastAPI()
-brain = Brain()
+app = FastAPI(
+    title="RestAI",
+    description="Modular REST API bootstrap on top of LangChain. Create embeddings associated with a project tenant and interact using a LLM. RAG as a service.",
+    summary="Modular REST API bootstrap on top of LangChain. Create embeddings associated with a project tenant and interact using a LLM. RAG as a service.",
+    version="2.0.0",
+    contact={
+        "name": "Pedro Dias",
+        "url": "https://github.com/apocas/restai",
+        "email": "petermdias@gmail.com",
+    },
+    license_info={
+        "name": "Apache 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+    },
+)
 
+brain = Brain()
 
 @app.get("/")
 async def get(request: Request):
-    return "RESTAI, so many 'A's and 'I's, so little time... v1.1"
+    return "RESTAI, so many 'A's and 'I's, so little time..."
 
 
 @app.get("/projects")
@@ -42,7 +57,7 @@ async def getProjects(request: Request):
 @app.get("/projects/{projectName}")
 async def getProject(projectName: str):
     try:
-        project = brain.loadProject(projectName)
+        project = brain.findProject(projectName)
         dbInfo = project.db.get()
 
         return {"project": project.model.name, "embeddings": project.model.embeddings, "documents": len(dbInfo["documents"]), "metadatas": len(dbInfo["metadatas"])}
@@ -72,10 +87,10 @@ async def createProject(projectModel: ProjectModel):
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
         
-@app.post("/projects/{projectName}/reset")
+@app.post("/projects/{projectName}/embeddings/reset")
 def reset(projectName: str):
     try:
-        project = brain.loadProject(projectName)
+        project = brain.findProject(projectName)
         project.db._client.reset()
         brain.initializeEmbeddings(project)
 
@@ -84,11 +99,32 @@ def reset(projectName: str):
         logging.error(e)
         raise HTTPException(
             status_code=404, detail='{"error": ' + str(e) + '}')
+        
+@app.post("/projects/{projectName}/embeddings/find")
+def getEmbedding(projectName: str, embedding: EmbeddingModel):
+    project = brain.findProject(projectName)
 
-@app.post("/projects/{projectName}/ingest/url")
+    collection = project.db._client.get_collection("langchain")
+    ids = collection.get(where = {'source': os.path.join(os.path.join(os.environ["UPLOADS_PATH"], project.model.name), embedding.source)})['ids']
+    
+    if(len(ids) == 0):
+        return {"ids": []}
+    else:
+      return collection.get(ids = ids)
+
+@app.post("/projects/{projectName}/embeddings/delete")
+def deleteEmbedding(projectName: str, embedding: EmbeddingModel):
+    project = brain.findProject(projectName)
+
+    collection = project.db._client.get_collection("langchain")
+    ids = collection.get(where = {'source': os.path.join(os.path.join(os.environ["UPLOADS_PATH"], project.model.name), embedding.source)})['ids']
+    if len(ids): collection.delete(ids)
+    return {"deleted": len(ids)}
+
+@app.post("/projects/{projectName}/embeddings/ingest/url")
 def ingestURL(projectName: str, ingest: IngestModel):
     try:
-        project = brain.loadProject(projectName)
+        project = brain.findProject(projectName)
 
         loader = WebBaseLoader(ingest.url)
         documents = loader.load()
@@ -102,11 +138,10 @@ def ingestURL(projectName: str, ingest: IngestModel):
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
-
-@app.post("/projects/{projectName}/ingest/upload")
+@app.post("/projects/{projectName}/embeddings/ingest/upload")
 def ingestFile(projectName: str, file: UploadFile):
     try:
-        project = brain.loadProject(projectName)
+        project = brain.findProject(projectName)
         
         dest = os.path.join(os.path.join(os.environ["UPLOADS_PATH"], project.model.name), file.filename)
 
@@ -130,7 +165,7 @@ def ingestFile(projectName: str, file: UploadFile):
 @app.post("/projects/{projectName}/question")
 def questionProject(projectName: str, input: QuestionModel):
     try:
-        project = brain.loadProject(projectName)
+        project = brain.findProject(projectName)
         if input.system:
             answer = brain.questionContext(project, input)
         else:
@@ -145,7 +180,7 @@ def questionProject(projectName: str, input: QuestionModel):
 @app.post("/projects/{projectName}/chat")
 def chatProject(projectName: str, input: ChatModel):
     try:
-        project = brain.loadProject(projectName)
+        project = brain.findProject(projectName)
         chat, response = brain.chat(project, input)
 
         return {"message": input.message, "response": response, "id": chat.id}

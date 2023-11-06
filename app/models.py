@@ -4,7 +4,11 @@ from typing import Union
 
 class IngestModel(BaseModel):
     url: str
-
+    
+    
+class EmbeddingModel(BaseModel):
+    source: Union[str, None] = None
+    
 
 class QuestionModel(BaseModel):
     question: str

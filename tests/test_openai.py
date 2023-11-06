@@ -8,7 +8,7 @@ client = TestClient(app)
 def test_get():
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json() == "REST AI API, so many 'A's and 'I's, so little time..."
+    assert response.json() == "RESTAI, so many 'A's and 'I's, so little time..."
 
 
 def test_getProjects():
@@ -38,7 +38,7 @@ def test_getProjects2():
 
 
 def test_ingestURL():
-    response = client.post("/projects/test_openai/ingest/url",
+    response = client.post("/projects/test_openai/embeddings/ingest/url",
                            json={"url": "https://www.google.com"})
     assert response.status_code == 200
 
@@ -51,17 +51,35 @@ def test_getProjectAfterIngestURL():
 
 
 def test_ingestUpload():
-    response = client.post("/projects/test_openai/ingest/upload",
+    response = client.post("/projects/test_openai/embeddings/ingest/upload",
                            files={"file": ("test.txt", open("tests/test.txt", "rb"))})
     assert response.status_code == 200
-
 
 def test_getProjectAfterIngestUpload():
     response = client.get("/projects/test_openai")
     assert response.status_code == 200
     assert response.json() == {
         "project": "test_openai", "embeddings": "openai", "documents": 2, "metadatas": 2}
+    
+def test_ingestUpload2():
+    response = client.post("/projects/test_openai/embeddings/ingest/upload",
+                           files={"file": ("test2.txt", open("tests/test2.txt", "rb"))})
+    assert response.status_code == 200
 
+def test_getEmbeddings():
+    response = client.post("/projects/test_openai/embeddings/find", json={"source": "test2.txt"})
+    assert response.status_code == 200
+    assert len(response.json()["ids"]) == 1
+
+def test_deleteEmbeddings():
+    response = client.post("/projects/test_openai/embeddings/delete", json={"source": "test2.txt"})
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 1}
+    
+def test_getEmbeddingsAfterDelete():
+    response = client.post("/projects/test_openai/embeddings/find", json={"source": "test2.txt"})
+    assert response.status_code == 200
+    assert len(response.json()["ids"]) == 0
 
 def test_questionProject():
     response = client.post("/projects/test_openai/question",
@@ -93,7 +111,7 @@ def test_chatProject():
     output2 = response2.json()
 
 def test_resetProject():
-    response = client.post("/projects/test_openai/reset")
+    response = client.post("/projects/test_openai/embeddings/reset")
     assert response.status_code == 200
     
 def test_questionProjectAfterReset():
@@ -109,7 +127,7 @@ def test_getProjectAfterIngestUploadAfterReset():
         "project": "test_openai", "embeddings": "openai", "documents": 0, "metadatas": 0}
     
 def test_ingestUploadAfterReset():
-    response = client.post("/projects/test_openai/ingest/upload",
+    response = client.post("/projects/test_openai/embeddings/ingest/upload",
                            files={"file": ("test.txt", open("tests/test.txt", "rb"))})
     assert response.status_code == 200
     
