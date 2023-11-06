@@ -93,7 +93,6 @@ A project is an abstract entity basically a tenant. You may have multiple projec
     {
       "name": "string",
       "embeddings": "string (Optional)",
-      "embeddings_model": "string (Optional)",
       "llm": "string (Optional)"
     }
     ```

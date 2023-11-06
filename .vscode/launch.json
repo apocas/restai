@@ -9,6 +9,17 @@
       "justMyCode": false,
       "args": [],
       "purpose": ["debug-in-terminal"]
+    },
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "cwd": "${fileDirname}",
+      "args": [],
+      "purpose": ["debug-in-terminal"]
     }
   ]
 }

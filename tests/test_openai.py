@@ -21,11 +21,20 @@ def test_createProject():
     response = client.post(
         "/projects", json={"name": "test_openai",  "embeddings": "openai", "llm": "openai"})
     assert response.status_code == 200
-
-
+    
 def test_getProject():
     response = client.get("/projects/test_openai")
     assert response.status_code == 200
+    
+def test_createProject2():
+    response = client.post(
+        "/projects", json={"name": "test_openai2",  "embeddings": "openai", "llm": "openai"})
+    assert response.status_code == 200
+    
+def test_getProjects2():
+    response = client.get("/projects")
+    assert response.status_code == 200
+    assert response.json() == {"projects": ['test_openai', 'test_openai2']}
 
 
 def test_ingestURL():
@@ -61,6 +70,11 @@ def test_questionProject():
     assert response.json() == {"question": "What is the secret?",
                                "answer": "The secret is that ingenuity should be bigger than politics and corporate greed."}
 
+def test_questionProject2():
+    response = client.post("/projects/test_openai2/question",
+                           json={"question": "What is the secret?"})
+    assert response.status_code == 200
+    assert "ingenuity" not in response.json()["answer"]
 
 def test_questionSystemProject():
     response = client.post("/projects/test_openai/question",
@@ -78,12 +92,43 @@ def test_chatProject():
     assert response2.status_code == 200
     output2 = response2.json()
 
+def test_resetProject():
+    response = client.post("/projects/test_openai/reset")
+    assert response.status_code == 200
+    
+def test_questionProjectAfterReset():
+    response = client.post("/projects/test_openai/question",
+                           json={"question": "What is the secret?"})
+    assert response.status_code == 200
+    assert "ingenuity" not in response.json()["answer"]
+    
+def test_getProjectAfterIngestUploadAfterReset():
+    response = client.get("/projects/test_openai")
+    assert response.status_code == 200
+    assert response.json() == {
+        "project": "test_openai", "embeddings": "openai", "documents": 0, "metadatas": 0}
+    
+def test_ingestUploadAfterReset():
+    response = client.post("/projects/test_openai/ingest/upload",
+                           files={"file": ("test.txt", open("tests/test.txt", "rb"))})
+    assert response.status_code == 200
+    
+def test_questionProjectAfterResetAfterIngest():
+    response = client.post("/projects/test_openai/question",
+                           json={"question": "What is the secret?"})
+    assert response.status_code == 200
+    assert response.json() == {"question": "What is the secret?",
+                               "answer": "The secret is that ingenuity should be bigger than politics and corporate greed."}
 
 def test_deleteProject():
     response = client.delete("/projects/test_openai")
     assert response.status_code == 200
     assert response.json() == {"project": "test_openai"}
 
+def test_deleteProject2():
+    response = client.delete("/projects/test_openai2")
+    assert response.status_code == 200
+    assert response.json() == {"project": "test_openai2"}
 
 def test_getProjectAfterDelete():
     response = client.get("/projects/test_openai")

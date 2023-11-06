@@ -23,7 +23,7 @@ class Project:
                 os.environ["PROJECTS_PATH"], f'{self.model.name}.json'))
 
         if os.path.exists(os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name)):
-            self.db.delete_collection()
+            #self.db.delete_collection()
             shutil.rmtree(os.path.join(
                 os.environ["EMBEDDINGS_PATH"], self.model.name), ignore_errors=True)
             
@@ -34,27 +34,31 @@ class Project:
     def save(self):
         if os.path.exists(os.path.join(os.environ["PROJECTS_PATH"], f'{self.model.name}.json')):
             raise ValueError("Project already exists")
-
-        if not os.path.exists(os.environ["PROJECTS_PATH"]):
-            os.makedirs(os.environ["PROJECTS_PATH"])
-
-        if not os.path.exists(os.environ["EMBEDDINGS_PATH"]):
-            os.makedirs(os.environ["EMBEDDINGS_PATH"])
-
-        if not os.path.exists(os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name)):
-            os.mkdir(os.path.join(
-                os.environ["EMBEDDINGS_PATH"], self.model.name))
-
-        if not os.path.exists(os.path.join(os.environ["UPLOADS_PATH"], self.model.name)):
-            os.mkdir(os.path.join(
-                os.environ["UPLOADS_PATH"], self.model.name))
-
+          
+        self.initializePaths()
+        
         file_path = os.path.join(
             os.environ["PROJECTS_PATH"], f'{self.model.name}.json')
         model_json = json.dumps(self.model.model_dump(), indent=4)
 
         with open(file_path, 'w') as f:
             f.write(model_json)
+            
+    def initializePaths(self):
+      if not os.path.exists(os.environ["PROJECTS_PATH"]):
+          os.makedirs(os.environ["PROJECTS_PATH"])
+
+      if not os.path.exists(os.environ["EMBEDDINGS_PATH"]):
+          os.makedirs(os.environ["EMBEDDINGS_PATH"])
+
+      if not os.path.exists(os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name)):
+          os.mkdir(os.path.join(
+              os.environ["EMBEDDINGS_PATH"], self.model.name))
+
+      if not os.path.exists(os.path.join(os.environ["UPLOADS_PATH"], self.model.name)):
+          os.mkdir(os.path.join(
+              os.environ["UPLOADS_PATH"], self.model.name))
+
 
     def load(self, name):
         if name is None:

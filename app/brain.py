@@ -16,6 +16,8 @@ class Brain:
         self.projects = []
         self.llmCache = {}
         self.embeddingCache = {}
+                        
+        self.loadProjects()
 
         self.text_splitter = CharacterTextSplitter(
             separator=" ", chunk_size=1024, chunk_overlap=0)
@@ -32,7 +34,7 @@ class Brain:
             else:
                 raise Exception("Invalid LLM type.")
 
-    def getEmbedding(self, embeddingModel, **kwargs):
+    def getEmbedding(self, embeddingModel):
         if embeddingModel in self.embeddingCache:
             return self.embeddingCache[embeddingModel]
         else:
@@ -50,15 +52,23 @@ class Brain:
     def createProject(self, projectModel):
         project = Project()
         project.boot(projectModel)
-        kwargs = {}
-        if project.model.embeddings_model != None:
-            kwargs["model"] = project.model.embeddings_model
-        embedding = self.getEmbedding(project.model.embeddings, **kwargs)
-        project.db = Chroma(
-            persist_directory=os.path.join(os.environ["EMBEDDINGS_PATH"], project.model.name), embedding_function=embedding
-        )
+        self.initializeEmbeddings(project)
         project.save()
         self.projects.append(project)
+        
+    def initializeEmbeddings(self, project):
+        project.db = Chroma(
+            persist_directory=os.path.join(os.environ["EMBEDDINGS_PATH"], project.model.name), embedding_function=self.getEmbedding(project.model.embeddings)
+        )
+      
+    def loadProjects(self):
+        if os.path.isdir(os.environ["PROJECTS_PATH"]):
+          for file in os.listdir(os.environ["PROJECTS_PATH"]):
+              file_path = os.path.join(os.environ["PROJECTS_PATH"], file)
+              if os.path.isfile(file_path):
+                  projectname, ext = os.path.splitext(file or '')
+                  if ext == ".json":
+                    self.loadProject(projectname)
 
     def loadProject(self, name):
         for project in self.projects:
@@ -67,9 +77,7 @@ class Brain:
 
         project = Project()
         project.load(name)
-        project.db = Chroma(
-            persist_directory=os.path.join(os.environ["EMBEDDINGS_PATH"], project.model.name), embedding_function=self.getEmbedding(project.model.embeddings, model=project.model.embeddings_model)
-        )
+        self.initializeEmbeddings(project)
         self.projects.append(project)
         return project
 

@@ -237,6 +237,43 @@
         }
       }
     },
+    "/projects/{projectName}/reset": {
+      "post": {
+        "summary": "Resetproject",
+        "operationId": "resetProject_projects__projectName__reset_post",
+        "parameters": [
+          {
+            "required": true,
+            "schema": {
+              "title": "Projectname",
+              "type": "string"
+            },
+            "name": "projectName",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/{projectName}/question": {
       "post": {
         "summary": "Questionproject",
@@ -404,10 +441,6 @@
           },
           "embeddings": {
             "title": "Embeddings",
-            "type": "string"
-          },
-          "embeddings_model": {
-            "title": "Embeddings Model",
             "type": "string"
           },
           "llm": {

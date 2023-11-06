@@ -22,6 +22,8 @@ if "UPLOADS_PATH" not in os.environ:
 
 if "PROJECTS_PATH" not in os.environ:
     os.environ["PROJECTS_PATH"] = "./projects/"
+    
+os.environ["ALLOW_RESET"] = "true"
 
 app = FastAPI()
 brain = Brain()
@@ -29,7 +31,7 @@ brain = Brain()
 
 @app.get("/")
 async def get(request: Request):
-    return "REST AI API, so many 'A's and 'I's, so little time..."
+    return "RESTAI, so many 'A's and 'I's, so little time... v1.1"
 
 
 @app.get("/projects")
@@ -48,7 +50,6 @@ async def getProject(projectName: str):
         logging.error(e)
         raise HTTPException(
             status_code=404, detail='{"error": ' + str(e) + '}')
-
 
 @app.delete("/projects/{projectName}")
 async def deleteProject(projectName: str):
@@ -70,10 +71,19 @@ async def createProject(projectModel: ProjectModel):
         logging.error(e)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
+        
+@app.post("/projects/{projectName}/reset")
+def reset(projectName: str):
+    try:
+        project = brain.loadProject(projectName)
+        project.db._client.reset()
+        brain.initializeEmbeddings(project)
 
-@app.post("/projects/{projectName}/refresh")
-def refresh(projectName: str):
-    return "Not implemented yet."
+        return {"project": project.model.name}
+    except Exception as e:
+        logging.error(e)
+        raise HTTPException(
+            status_code=404, detail='{"error": ' + str(e) + '}')
 
 @app.post("/projects/{projectName}/ingest/url")
 def ingestURL(projectName: str, ingest: IngestModel):
