@@ -15,7 +15,24 @@ code {
 body a.active {
   color: red;
 }
-body a:link { text-decoration: none; }
-body a:visited { text-decoration: none; }
-body a:hover { text-decoration: none; }
-body a { color: inherit; } 
+
+body a:link {
+  text-decoration: none;
+}
+
+body a:visited {
+  text-decoration: none;
+}
+
+body a:hover {
+  text-decoration: none;
+}
+
+body a {
+  color: inherit;
+}
+
+.highlight {
+  color: cornflowerblue;
+  font-weight: bold;
+}
