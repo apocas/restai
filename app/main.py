@@ -186,6 +186,11 @@ def list_files(projectName: str):
 @app.delete('/projects/{projectName}/embeddings/files/{fileName}')
 def delete_file(projectName: str, fileName: str):
     project = brain.findProject(projectName)
+    
+    collection = project.db._client.get_collection("langchain")
+    ids = collection.get(where = {'source': os.path.join(os.path.join(os.environ["UPLOADS_PATH"], project.model.name), fileName)})['ids']
+    if len(ids): collection.delete(ids)
+    
     project_path = os.path.join(os.environ["UPLOADS_PATH"], project.model.name)
     
     file_path = os.path.join(project_path, fileName)
@@ -194,7 +199,8 @@ def delete_file(projectName: str, fileName: str):
     if not os.path.isfile(file_path):
         return {'error': f'{file_path} is not a file'}
     os.remove(file_path)
-    return {'message': f'File {fileName} deleted successfully'}
+    
+    return {"deleted": len(ids)}
 
 @app.post("/projects/{projectName}/question")
 def questionProject(projectName: str, input: QuestionModel):
