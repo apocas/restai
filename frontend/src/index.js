@@ -12,7 +12,7 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 
 function Root() {
   return (
-    <BrowserRouter basename="/">
+    <BrowserRouter basename="/admin">
       <Routes>
         <Route exact path="/" element={<Projects />} />
         <Route exact
