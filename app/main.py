@@ -13,6 +13,10 @@ from app.models import EmbeddingModel, IngestModel, ProjectModel, QuestionModel,
 from app.tools import FindFileLoader, IndexDocuments
 from fastapi.openapi.utils import get_openapi
 
+from modules.embeddings import EMBEDDINGS
+from modules.llms import LLMS
+from modules.loaders import LOADERS
+
 load_dotenv()
 
 if "EMBEDDINGS_PATH" not in os.environ:
@@ -47,6 +51,10 @@ brain = Brain()
 @app.get("/")
 async def get(request: Request):
     return "RESTAI, so many 'A's and 'I's, so little time..."
+  
+@app.get("/info")
+async def getInfo(request: Request):
+    return {"version": app.version, "embeddings": list(EMBEDDINGS.keys()), "llms": list(LLMS.keys()), "loaders": list(LOADERS.keys())}
 
 
 @app.get("/projects")
