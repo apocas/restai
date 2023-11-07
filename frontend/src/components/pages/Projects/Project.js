@@ -94,8 +94,8 @@ function Project() {
       <CustomNavBar />
       <Container style={{ marginTop: "20px" }}>
         <Row style={{ marginTop: "20px" }}>
-          <h1>Status</h1>
-          <Col sm={4}>
+          <Col sm={6}>
+            <h1>Status</h1>
             <ListGroup>
               <ListGroup.Item>Project: {data.project}</ListGroup.Item>
               <ListGroup.Item>LLM: {data.llm}</ListGroup.Item>
@@ -103,6 +103,36 @@ function Project() {
               <ListGroup.Item>Documents: {data.documents}</ListGroup.Item>
               <ListGroup.Item>Metadatas: {data.metadatas}</ListGroup.Item>
             </ListGroup>
+          </Col>
+          <Col sm={6}>
+            <h1>Ingest File</h1>
+            <Form onSubmit={onSubmitHandler}>
+              <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
+                <Form.Label column sm={2}>
+                  File
+                </Form.Label>
+                <Col sm={8}>
+                  <Form.Control onChange={handleFileChange} type="file" />
+                </Col>
+                <Col sm={2}>
+                  <Button variant="dark" type="submit">Upload</Button>
+                </Col>
+              </Form.Group>
+            </Form>
+            {
+              file && (
+                <Row>
+                  <Col sm={6}>
+                    <h2>File details:</h2>
+                    <ListGroup>
+                      <ListGroup.Item>Name: {file.name}</ListGroup.Item>
+                      <ListGroup.Item>Type: {file.type}</ListGroup.Item>
+                      <ListGroup.Item>Size: {file.size} bytes</ListGroup.Item>
+                    </ListGroup>
+                  </Col>
+                </Row>
+              )
+            }
           </Col>
         </Row>
         <Row style={{ marginTop: "20px" }}>
@@ -152,38 +182,7 @@ function Project() {
             }
           </Col>
         </Row>
-        <Row style={{ marginTop: "20px" }}>
-          <h1>Upload File</h1>
-          <Col sm={12}>
-            <Form onSubmit={onSubmitHandler}>
-              <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
-                <Form.Label column sm={2}>
-                  File
-                </Form.Label>
-                <Col sm={8}>
-                  <Form.Control onChange={handleFileChange} type="file" />
-                </Col>
-                <Col sm={2}>
-                  <Button variant="dark" type="submit">Upload</Button>
-                </Col>
-              </Form.Group>
-            </Form>
-            {
-              file && (
-                <Row>
-                  <Col sm={4}>
-                    <h2>File details:</h2>
-                    <ListGroup>
-                      <ListGroup.Item>Name: {file.name}</ListGroup.Item>
-                      <ListGroup.Item>Type: {file.type}</ListGroup.Item>
-                      <ListGroup.Item>Size: {file.size} bytes</ListGroup.Item>
-                    </ListGroup>
-                  </Col>
-                </Row>
-              )
-            }
-          </Col>
-        </Row>
+
       </Container>
     </>
   );
