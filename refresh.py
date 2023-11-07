@@ -15,22 +15,12 @@ if "UPLOADS_PATH" not in os.environ:
 if "PROJECTS_PATH" not in os.environ:
     os.environ["PROJECTS_PATH"] = "./projects/"
 
-os.environ["ALLOW_RESET"] = "true"
-
 brain = Brain()
 
 projectName = "test_openai"
 project = brain.loadProject(projectName)
 
-
 project_path = os.path.join(os.environ["UPLOADS_PATH"], project.model.name)
-
-brain.initializeEmbeddings(project)
-
-debug = os.path.join(os.environ["EMBEDDINGS_PATH"], project.model.name)
-if os.path.exists(os.path.join(os.environ["EMBEDDINGS_PATH"], project.model.name)):
-    print("Deleting old embeddings...")
-    project.db._client.reset()
 
 if os.path.isdir(project_path):
     for file in os.listdir(project_path):
