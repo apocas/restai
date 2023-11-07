@@ -103,9 +103,9 @@ function Projects() {
                         <NavLink
                           to={"/projects/" + project + "/question"}
                         >
-                          <Button variant="danger">Question</Button>{' '}
+                          <Button variant="dark">Question</Button>{' '}
                         </NavLink>
-                        <Button onClick={() => handleDeleteClick(project)} variant="dark">Delete</Button>
+                        <Button onClick={() => handleDeleteClick(project)} variant="danger">Delete</Button>
                       </td>
                     </tr>
                   )
