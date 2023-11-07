@@ -161,6 +161,32 @@ def ingestFile(projectName: str, file: UploadFile):
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
+@app.get('/projects/{projectName}/embeddings/files')
+def list_files(projectName: str):
+    project = brain.findProject(projectName)
+    project_path = os.path.join(os.environ["UPLOADS_PATH"], project.model.name)
+    
+    if not os.path.exists(project_path):
+        return {'error': f'Project {projectName} not found'}
+      
+    if not os.path.isdir(project_path):
+        return {'error': f'{project_path} is not a directory'}
+      
+    files = [f for f in os.listdir(project_path) if os.path.isfile(os.path.join(project_path, f))]
+    return {'files': files}
+
+@app.delete('/projects/{projectName}/embeddings/files/{fileName}')
+def delete_file(projectName: str, fileName: str):
+    project = brain.findProject(projectName)
+    project_path = os.path.join(os.environ["UPLOADS_PATH"], project.model.name)
+    
+    file_path = os.path.join(project_path, fileName)
+    if not os.path.exists(file_path):
+        return {'error': f'File {fileName} not found'}
+    if not os.path.isfile(file_path):
+        return {'error': f'{file_path} is not a file'}
+    os.remove(file_path)
+    return {'message': f'File {fileName} deleted successfully'}
 
 @app.post("/projects/{projectName}/question")
 def questionProject(projectName: str, input: QuestionModel):
