@@ -90,6 +90,11 @@ function Projects() {
                         </NavLink>
                       </td>
                       <td>
+                        <NavLink
+                          to={"/projects/" + project}
+                        >
+                          <button>View</button>
+                        </NavLink>
                         <button onClick={() => handleDeleteClick(project)}>Delete</button>
                       </td>
                     </tr>

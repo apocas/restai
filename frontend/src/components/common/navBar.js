@@ -11,26 +11,12 @@ function CustomNavBar() {
           <NavLink
             to="/"
           >
-            Home
+            RestAI
           </NavLink>
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="me-auto">
-            <Nav.Link href="#home">
-              <NavLink
-                to="/"
-              >
-                Home
-              </NavLink>
-            </Nav.Link>
-            <Nav.Link href="#link">
-              <NavLink
-                to="/projects"
-              >
-                Projects
-              </NavLink>
-            </Nav.Link>
           </Nav>
         </Navbar.Collapse>
       </Container>

@@ -14,7 +14,7 @@ function Root() {
   return (
     <BrowserRouter basename="/">
       <Routes>
-        <Route exact path="/" element={<Home />} />
+        <Route exact path="/" element={<Projects />} />
         <Route exact
           path={`/projects`}
           element={<Projects />}
