@@ -17,7 +17,7 @@ function Project() {
   const [data, setData] = useState({ projects: [] });
   const [files, setFiles] = useState({ files: [] });
   const [file, setFile] = useState(null);
-  const [response, setResponse] = useState('');
+  const [embeddings, setEmbeddings] = useState(null);
   var { projectName } = useParams();
 
 
@@ -45,17 +45,17 @@ function Project() {
   }
 
   const handleViewClick = (fileName) => {
-      fetch(url + "/projects/" + projectName + "/embeddings/find", {
-        method: 'POST',
-        headers: new Headers({'Content-Type': 'application/json'}),
-        body: JSON.stringify({
-          "source": fileName
-        }),
+    fetch(url + "/projects/" + projectName + "/embeddings/find", {
+      method: 'POST',
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        "source": fileName
+      }),
+    })
+      .then(response => response.json())
+      .then(response => {
+        setEmbeddings(response);
       })
-        .then(response => response.json())
-        .then(response => {
-          setResponse(JSON.stringify(response));
-        })
   }
 
   const handleFileChange = (e) => {
@@ -76,7 +76,10 @@ function Project() {
         body: formData,
       })
         .then(response => response.json())
-        .then(() => fetchFiles(projectName))
+        .then(() => {
+          fetchProject(projectName);
+          fetchFiles(projectName);
+        })
     }
   }
 
@@ -92,72 +95,94 @@ function Project() {
       <Container style={{ marginTop: "20px" }}>
         <Row style={{ marginTop: "20px" }}>
           <h1>Status</h1>
-          <ListGroup>
-            <ListGroup.Item>Project: {data.project}</ListGroup.Item>
-            <ListGroup.Item>LLM: {data.llm}</ListGroup.Item>
-            <ListGroup.Item>Embeddings: {data.embeddings}</ListGroup.Item>
-            <ListGroup.Item>Documents: {data.documents}</ListGroup.Item>
-            <ListGroup.Item>Metadatas: {data.metadatas}</ListGroup.Item>
-          </ListGroup>
+          <Col sm={4}>
+            <ListGroup>
+              <ListGroup.Item>Project: {data.project}</ListGroup.Item>
+              <ListGroup.Item>LLM: {data.llm}</ListGroup.Item>
+              <ListGroup.Item>Embeddings: {data.embeddings}</ListGroup.Item>
+              <ListGroup.Item>Documents: {data.documents}</ListGroup.Item>
+              <ListGroup.Item>Metadatas: {data.metadatas}</ListGroup.Item>
+            </ListGroup>
+          </Col>
         </Row>
         <Row style={{ marginTop: "20px" }}>
           <h1>Files</h1>
-          <Table striped bordered hover>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Files</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {
-                files.files.map((file, index) => {
-                  return (
-                    <tr key={index}>
-                      <td>{index}</td>
-                      <td>
-                        {file}
-                      </td>
-                      <td>
-                        <button onClick={() => handleDeleteClick(file)}>Delete</button>
-                        <button onClick={() => handleViewClick(file)}>View</button>
-                      </td>
-                    </tr>
-                  )
-                })
-              }
-            </tbody>
-          </Table>
+          <Col sm={12}>
+            <Table striped bordered hover>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Files</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  files.files.map((file, index) => {
+                    return (
+                      <tr key={index}>
+                        <td>{index}</td>
+                        <td>
+                          {file}
+                        </td>
+                        <td>
+                          <Button onClick={() => handleViewClick(file)} variant="dark">View</Button>{' '}
+                          <Button onClick={() => handleDeleteClick(file)} variant="dark">Delete</Button>
+                        </td>
+                      </tr>
+                    )
+                  })
+                }
+              </tbody>
+            </Table>
+            {
+              embeddings && (
+                <Row>
+                  <Col sm={12}>
+                    <h2>Embeddings:</h2>
+                    <ListGroup style={{ height: "200px", overflowY: "scroll" }}>
+                      <ListGroup.Item>IDS: {JSON.stringify(embeddings.ids)}</ListGroup.Item>
+                      <ListGroup.Item>Embeddings: {JSON.stringify(embeddings.embeddings)}</ListGroup.Item>
+                      <ListGroup.Item>Metadatas: {JSON.stringify(embeddings.metadatas)}</ListGroup.Item>
+                      <ListGroup.Item>Documents: {JSON.stringify(embeddings.documents)}</ListGroup.Item>
+                    </ListGroup>
+                  </Col>
+                </Row>
+              )
+            }
+          </Col>
         </Row>
         <Row style={{ marginTop: "20px" }}>
           <h1>Upload File</h1>
-          <Form onSubmit={onSubmitHandler}>
-            <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
-              <Form.Label column sm={2}>
-                File
-              </Form.Label>
-              <Col sm={8}>
-                <Form.Control onChange={handleFileChange} type="file" />
-              </Col>
-              <Col sm={2}>
-                <Button type="submit">Upload</Button>
-              </Col>
-            </Form.Group>
-          </Form>
-          {file && (
-            <section>
-              File details:
-              <ul>
-                <li>Name: {file.name}</li>
-                <li>Type: {file.type}</li>
-                <li>Size: {file.size} bytes</li>
-              </ul>
-            </section>
-          )}
-        </Row>
-        <Row>
-          {response}
+          <Col sm={12}>
+            <Form onSubmit={onSubmitHandler}>
+              <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
+                <Form.Label column sm={2}>
+                  File
+                </Form.Label>
+                <Col sm={8}>
+                  <Form.Control onChange={handleFileChange} type="file" />
+                </Col>
+                <Col sm={2}>
+                  <Button variant="dark" type="submit">Upload</Button>
+                </Col>
+              </Form.Group>
+            </Form>
+            {
+              file && (
+                <Row>
+                  <Col sm={4}>
+                    <h2>File details:</h2>
+                    <ListGroup>
+                      <ListGroup.Item>Name: {file.name}</ListGroup.Item>
+                      <ListGroup.Item>Type: {file.type}</ListGroup.Item>
+                      <ListGroup.Item>Size: {file.size} bytes</ListGroup.Item>
+                    </ListGroup>
+                  </Col>
+                </Row>
+              )
+            }
+          </Col>
         </Row>
       </Container>
     </>

@@ -44,7 +44,7 @@ function Projects() {
     event.preventDefault();
     fetch(url + "/projects", {
       method: 'POST',
-      headers: new Headers({'Content-Type': 'application/json'}),
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         "name": projectNameForm.current.value,
         "embeddings": embbeddingForm.current.value,
@@ -68,7 +68,7 @@ function Projects() {
       <Container style={{ marginTop: "20px" }}>
         <Row>
           <h1>Projects</h1>
-          <Table striped bordered hover>
+          <Table striped bordered hover responsive>
             <thead>
               <tr>
                 <th>#</th>
@@ -93,9 +93,19 @@ function Projects() {
                         <NavLink
                           to={"/projects/" + project}
                         >
-                          <button>View</button>
+                          <Button variant="dark">View</Button>{' '}
                         </NavLink>
-                        <button onClick={() => handleDeleteClick(project)}>Delete</button>
+                        <NavLink
+                          to={"/projects/" + project + "/chat"}
+                        >
+                          <Button variant="dark">Chat</Button>{' '}
+                        </NavLink>
+                        <NavLink
+                          to={"/projects/" + project + "/question"}
+                        >
+                          <Button variant="dark">Question</Button>{' '}
+                        </NavLink>
+                        <Button onClick={() => handleDeleteClick(project)} variant="dark">Delete</Button>
                       </td>
                     </tr>
                   )
@@ -143,7 +153,7 @@ function Projects() {
                 </Form.Select>
               </Form.Group>
             </Row>
-            <Button type="submit" className="mb-2">
+            <Button variant="dark" type="submit" className="mb-2">
               Submit
             </Button>
           </Form>
