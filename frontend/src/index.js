@@ -1,10 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
-import './index.css';
-import Home from './components/pages/Home/Home.js';
+import './assets/css/index.css';
 import Projects from './components/pages/Projects/Projects.js';
 import Project from './components/pages/Projects/Project.js';
+import Chat from './components/pages/Projects/Chat.js';
+import Question from './components/pages/Projects/Question.js';
 import Error from './components/pages/Error/Error.js';
 import 'bootstrap/dist/css/bootstrap.css';
 
@@ -24,16 +25,12 @@ function Root() {
           element={<Project />}
         />
         <Route
-          path={`/projects/:projectName/embbeddings`}
-          element={<Projects />}
-        />
-        <Route
           path={`/projects/:projectName/question`}
-          element={<Projects />}
+          element={<Question />}
         />
         <Route
           path={`/projects/:projectName/chat`}
-          element={<Projects />}
+          element={<Chat />}
         />
         <Route
           path={`/error`}
