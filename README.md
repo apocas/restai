@@ -99,11 +99,11 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 - Response: A JSON object with the name of the created project.
 - Errors: 500 if there is an error while creating the project.
 
-### Embeddings
+### Embeddings - main endpoints
 
 ---
 
-**POST /projects/{projectName}/ingest/url**
+**POST /projects/{projectName}/embeddings/ingest/url**
 
 - Description: Ingests data into a specific project from a provided URL.
 - Request Payload:
@@ -123,7 +123,7 @@ A project is an abstract entity basically a tenant. You may have multiple projec
     ```
 - Errors: 500 if there is an error while ingesting the data.
 
-**POST /projects/{projectName}/ingest/upload**
+**POST /projects/{projectName}/embeddings/ingest/upload**
 
 - Description: Ingests data into a specific project's embeddings from an uploaded file.
 - Request Payload: File to be ingested into the system.
@@ -181,7 +181,7 @@ A project is an abstract entity basically a tenant. You may have multiple projec
     ```
 - Errors: 500 if there is an error while sending the message.
 
-## [Swagger](https://apocas.github.io/restai/)
+## [All endpoints (Swagger)](https://apocas.github.io/restai/)
 
 ## Tests
 
