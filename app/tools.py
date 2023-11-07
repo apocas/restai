@@ -1,3 +1,4 @@
+import os
 from fastapi import HTTPException
 from modules.loaders import LOADERS
 
@@ -21,4 +22,15 @@ def FindFileLoader(filepath, ext):
       loader_class, loader_args = LOADERS[ext]
       return loader_class(filepath, **loader_args)
     else:
-        raise HTTPException(status_code=500, detail='{"error": "Invalid file type."}')
+        raise Exception("Invalid file type.")
+      
+      
+def FindEmbeddingsPath(projectName): 
+    embeddings_path = os.environ["EMBEDDINGS_PATH"]
+    project_dirs = [d for d in os.listdir(embeddings_path) if os.path.isdir(os.path.join(embeddings_path, d))]
+
+    for dir in project_dirs:
+        if dir.startswith(projectName + "_"):
+            return os.path.join(embeddings_path, dir)
+
+    raise Exception("Project not found.")

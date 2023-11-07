@@ -7,6 +7,7 @@ from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain.vectorstores import Chroma
 
 from app.project import Project
+from app.tools import FindEmbeddingsPath
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
 
@@ -58,7 +59,7 @@ class Brain:
         
     def initializeEmbeddings(self, project):
         project.db = Chroma(
-            persist_directory=os.path.join(os.environ["EMBEDDINGS_PATH"], project.model.name), embedding_function=self.getEmbedding(project.model.embeddings)
+            persist_directory=FindEmbeddingsPath(project.model.name), embedding_function=self.getEmbedding(project.model.embeddings)
         )
       
     def loadProjects(self):
@@ -87,6 +88,8 @@ class Brain:
             if project.model.name == name:
                 project.delete()
                 self.projects.remove(project)
+                return True
+        return False
 
     def question(self, project, questionModel):
         llm = self.getLLM(questionModel.llm or project.model.llm)

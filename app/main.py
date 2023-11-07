@@ -77,8 +77,11 @@ async def getProject(projectName: str):
 @app.delete("/projects/{projectName}")
 async def deleteProject(projectName: str):
     try:
-        brain.deleteProject(projectName)
-        return {"project": projectName}
+        if brain.deleteProject(projectName):
+            return {"project": projectName}
+        else:
+            raise HTTPException(
+                status_code=404, detail='{"error": "Project not found"}')
     except Exception as e:
         logging.error(e)
         raise HTTPException(

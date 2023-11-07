@@ -1,11 +1,14 @@
 import json
 import os
 import shutil
+import time
 
 from app.chat import Chat
 from app.models import ProjectModel
 
 from langchain.vectorstores import Chroma
+
+from app.tools import FindEmbeddingsPath
 
 
 class Project:
@@ -16,16 +19,18 @@ class Project:
 
     def boot(self, model: ProjectModel):
         self.model = model
+        self.initializePaths()
 
     def delete(self):
         if os.path.exists(os.path.join(os.environ["PROJECTS_PATH"], f'{self.model.name}.json')):
             os.remove(os.path.join(
                 os.environ["PROJECTS_PATH"], f'{self.model.name}.json'))
 
-        if os.path.exists(os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name)):
-            #self.db.delete_collection()
-            shutil.rmtree(os.path.join(
-                os.environ["EMBEDDINGS_PATH"], self.model.name), ignore_errors=True)
+        try:
+            embeddingsPath = FindEmbeddingsPath(self.model.name)
+            shutil.rmtree(embeddingsPath, ignore_errors=True)
+        except:
+            pass
             
         if os.path.exists(os.path.join(os.environ["UPLOADS_PATH"], self.model.name)):
             shutil.rmtree(os.path.join(
@@ -51,10 +56,12 @@ class Project:
       if not os.path.exists(os.environ["EMBEDDINGS_PATH"]):
           os.makedirs(os.environ["EMBEDDINGS_PATH"])
 
-      if not os.path.exists(os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name)):
-          os.mkdir(os.path.join(
-              os.environ["EMBEDDINGS_PATH"], self.model.name))
-
+      try:
+          embeddingsPath = FindEmbeddingsPath(self.model.name)
+      except:
+          embeddingsPath = os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name + "_" + str(time.time()))
+          os.mkdir(embeddingsPath)
+          
       if not os.path.exists(os.path.join(os.environ["UPLOADS_PATH"], self.model.name)):
           os.mkdir(os.path.join(
               os.environ["UPLOADS_PATH"], self.model.name))
