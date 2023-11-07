@@ -108,9 +108,6 @@ function Project() {
             <h1>Ingest File</h1>
             <Form onSubmit={onSubmitHandler}>
               <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
-                <Form.Label column sm={2}>
-                  File
-                </Form.Label>
                 <Col sm={8}>
                   <Form.Control onChange={handleFileChange} type="file" />
                 </Col>
