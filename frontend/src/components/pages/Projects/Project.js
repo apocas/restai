@@ -127,7 +127,7 @@ function Project() {
                         </td>
                         <td>
                           <Button onClick={() => handleViewClick(file)} variant="dark">View</Button>{' '}
-                          <Button onClick={() => handleDeleteClick(file)} variant="dark">Delete</Button>
+                          <Button onClick={() => handleDeleteClick(file)} variant="danger">Delete</Button>
                         </td>
                       </tr>
                     )
