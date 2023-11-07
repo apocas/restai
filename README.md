@@ -2,7 +2,7 @@
 
 * RESTAI is a simple generic REST API that allows to create embeddings from multiple datatypes and then interact with them using a LLM.
 * This LLM may be an OpenAI based model, llamacpp, gpt4all or any other LLM supported by langchain.
-* If you want to be completely offline, you may use the `gpt4all` LLM and `huggingface` embeddings.
+* If you want to be completely offline, you may use (for example) the `gpt4all` LLM and `huggingface` embeddings.
 ## Details
 ### Embeddings
 * Create embeddings from your data. You are able to ingest data by uploading files ou directly parsing an URL content.
