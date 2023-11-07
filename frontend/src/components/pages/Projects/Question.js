@@ -19,12 +19,11 @@ function Question() {
   const systemForm = useRef(null);
   const questionForm = useRef(null);
   const [answers, setAnswers] = useState([]);
+  const [canSubmit, setCanSubmit] = useState(true);
 
   // TODO: error handling and response
   const onSubmitHandler = (event) => {
     event.preventDefault();
-    console.log(systemForm.current.value)
-    console.log(questionForm.current.value)
 
     var system = systemForm.current.value;
     var question = questionForm.current.value;
@@ -44,7 +43,8 @@ function Question() {
       submit = true;
     }
 
-    if (submit) {
+    if (submit && canSubmit) {
+      setCanSubmit(false);
       setAnswers([...answers, { question: question, answer: null }]);
       fetch(url + "/projects/" + projectName + "/question", {
         method: 'POST',
@@ -56,6 +56,7 @@ function Question() {
           setAnswers([...answers, { question: question, answer: response.answer }]);
           systemForm.current.value = "";
           questionForm.current.value = "";
+          setCanSubmit(true);
         })
     }
   }
@@ -81,13 +82,13 @@ function Question() {
                         return (answer.answer != null ?
                           <div key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
                             <span className='highlight'>QUESTION:</span> {answer.question} <br />
-                            <span className='highlight'>ANSWER:</span> {answer.answer}
+                            🤖<span className='highlight'>ANSWER:</span> {answer.answer}
                             <hr />
                           </div>
                           :
                           <div key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
                             <span className='highlight'>QUESTION:</span> {answer.question} <br />
-                            <span className='highlight'>ANSWER:</span> <Spinner animation="grow" size="sm" />
+                            🤖<span className='highlight'>ANSWER:</span> <Spinner animation="grow" size="sm" />
                             <hr />
                           </div>
                         )
@@ -118,7 +119,9 @@ function Question() {
             <Col sm={2}>
               <div className="d-grid gap-2">
                 <Button variant="dark" type="submit" size="lg">
-                  Ask
+                {
+                    canSubmit ? <span>Ask</span> : <Spinner animation="border" />
+                  }
                 </Button>
               </div>
             </Col>
