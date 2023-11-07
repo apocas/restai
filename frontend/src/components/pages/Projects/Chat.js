@@ -18,6 +18,7 @@ function Chat() {
   var { projectName } = useParams();
   const messageForm = useRef(null);
   const [messages, setMessages] = useState([]);
+  const [canSubmit, setCanSubmit] = useState(true);
 
   // TODO: error handling and response
   const onSubmitHandler = (event) => {
@@ -47,7 +48,8 @@ function Chat() {
       submit = true;
     }
 
-    if (submit) {
+    if (submit && canSubmit) {
+      setCanSubmit(false);
       setMessages([...messages, { id: id, message: message, response: null }]);
       fetch(url + "/projects/" + projectName + "/chat", {
         method: 'POST',
@@ -58,6 +60,7 @@ function Chat() {
         .then((response) => {
           setMessages([...messages, { id: response.id, message: message, response: response.response }]);
           messageForm.current.value = "";
+          setCanSubmit(true);
         })
     }
   }
@@ -83,13 +86,13 @@ function Chat() {
                         return (message.response != null ?
                           <div key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
                             <span className='highlight'>MESSAGE:</span> {message.message} <br />
-                            <span className='highlight'>RESPONSE:</span> {message.response}
+                            🤖<span className='highlight'>RESPONSE:</span> {message.response}
                             <hr />
                           </div>
                           :
                           <div key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
                             <span className='highlight'>MESSAGE:</span> {message.message} <br />
-                            <span className='highlight'>RESPONSE:</span> <Spinner animation="grow" size="sm" />
+                            🤖<span className='highlight'>RESPONSE:</span> <Spinner animation="grow" size="sm" />
                             <hr />
                           </div>
                         )
@@ -114,7 +117,9 @@ function Chat() {
             <Col sm={2}>
               <div className="d-grid gap-2">
                 <Button variant="dark" type="submit" size="lg">
-                  Chat
+                  {
+                    canSubmit ? <span>Chat</span> : <Spinner animation="border" />
+                  }
                 </Button>
               </div>
             </Col>
