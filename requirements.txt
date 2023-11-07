@@ -12,3 +12,4 @@ llama-cpp-python
 sentence_transformers
 chromadb
 tiktoken
+python-pptx
