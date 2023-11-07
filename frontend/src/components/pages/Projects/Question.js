@@ -54,7 +54,6 @@ function Question() {
         .then(response => response.json())
         .then((response) => {
           setAnswers([...answers, { question: question, answer: response.answer }]);
-          systemForm.current.value = "";
           questionForm.current.value = "";
           setCanSubmit(true);
         })
@@ -72,6 +71,12 @@ function Question() {
         <h1>Question {projectName}</h1>
         <Form onSubmit={onSubmitHandler}>
           <Row>
+          <Col sm={12}>
+              <InputGroup>
+                <InputGroup.Text>System</InputGroup.Text>
+                <Form.Control ref={systemForm} rows="5" as="textarea" aria-label="With textarea" />
+              </InputGroup>
+            </Col>
             {answers.length > 0 &&
               <Col sm={12}>
                 <Card>
@@ -100,13 +105,7 @@ function Question() {
             }
           </Row>
           <Row style={{ marginTop: "20px" }}>
-            <Col sm={6}>
-              <InputGroup>
-                <InputGroup.Text>System</InputGroup.Text>
-                <Form.Control ref={systemForm} rows="5" as="textarea" aria-label="With textarea" />
-              </InputGroup>
-            </Col>
-            <Col sm={6}>
+            <Col sm={12}>
               <InputGroup>
                 <InputGroup.Text>Question</InputGroup.Text>
                 <Form.Control ref={questionForm} rows="5" as="textarea" aria-label="With textarea" />
