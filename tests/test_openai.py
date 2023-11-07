@@ -47,7 +47,7 @@ def test_getProjectAfterIngestURL():
     response = client.get("/projects/test_openai")
     assert response.status_code == 200
     assert response.json() == {
-        "project": "test_openai", "embeddings": "openai", "documents": 1, "metadatas": 1}
+        "project": "test_openai", "llm": "openai", "embeddings": "openai", "documents": 1, "metadatas": 1}
 
 
 def test_ingestUpload():
@@ -59,7 +59,7 @@ def test_getProjectAfterIngestUpload():
     response = client.get("/projects/test_openai")
     assert response.status_code == 200
     assert response.json() == {
-        "project": "test_openai", "embeddings": "openai", "documents": 2, "metadatas": 2}
+        "project": "test_openai", "llm":"openai", "embeddings": "openai", "documents": 2, "metadatas": 2}
     
 def test_ingestUpload2():
     response = client.post("/projects/test_openai/embeddings/ingest/upload",
@@ -124,7 +124,7 @@ def test_getProjectAfterIngestUploadAfterReset():
     response = client.get("/projects/test_openai")
     assert response.status_code == 200
     assert response.json() == {
-        "project": "test_openai", "embeddings": "openai", "documents": 0, "metadatas": 0}
+        "project": "test_openai", "llm": "openai", "embeddings": "openai", "documents": 0, "metadatas": 0}
     
 def test_ingestUploadAfterReset():
     response = client.post("/projects/test_openai/embeddings/ingest/upload",

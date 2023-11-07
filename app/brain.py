@@ -104,7 +104,7 @@ class Brain:
         return qa.run(questionModel.question).strip()
 
     def chat(self, project, chatModel):
-        llm = self.getLLM("chat")
+        llm = self.getLLM(project.model.llm)
         chat = project.loadChat(chatModel)
 
         retriever = project.db.as_retriever(
@@ -122,7 +122,7 @@ class Brain:
         return chat, result["answer"].strip()
 
     def questionContext(self, project, questionModel):
-        llm = self.getLLM(questionModel.llm or "chat")
+        llm = self.getLLM(questionModel.llm or project.model.llm)
 
         prompt_template = """{system}
 
