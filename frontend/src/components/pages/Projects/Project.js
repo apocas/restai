@@ -17,6 +17,7 @@ function Project() {
   const [data, setData] = useState({ projects: [] });
   const [files, setFiles] = useState({ files: [] });
   const [file, setFile] = useState(null);
+  const [response, setResponse] = useState('');
   var { projectName } = useParams();
 
 
@@ -43,6 +44,19 @@ function Project() {
       });
   }
 
+  const handleViewClick = (fileName) => {
+      fetch(url + "/projects/" + projectName + "/embeddings/find", {
+        method: 'POST',
+        headers: new Headers({'Content-Type': 'application/json'}),
+        body: JSON.stringify({
+          "source": fileName
+        }),
+      })
+        .then(response => response.json())
+        .then(response => {
+          setResponse(JSON.stringify(response));
+        })
+  }
 
   const handleFileChange = (e) => {
     if (e.target.files) {
@@ -107,6 +121,7 @@ function Project() {
                       </td>
                       <td>
                         <button onClick={() => handleDeleteClick(file)}>Delete</button>
+                        <button onClick={() => handleViewClick(file)}>View</button>
                       </td>
                     </tr>
                   )
@@ -140,6 +155,9 @@ function Project() {
               </ul>
             </section>
           )}
+        </Row>
+        <Row>
+          {response}
         </Row>
       </Container>
     </>
