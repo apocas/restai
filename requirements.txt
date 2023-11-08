@@ -14,3 +14,4 @@ chromadb
 tiktoken
 python-pptx
 bs4
+selenium
