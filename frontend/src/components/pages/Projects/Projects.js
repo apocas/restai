@@ -11,7 +11,7 @@ import React, { useState, useEffect, useRef } from "react";
 
 function Projects() {
 
-  const url = "https://ai.ptisp.systems";
+  const url = "";
   const [data, setData] = useState({ projects: [] });
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const projectNameForm = useRef(null)

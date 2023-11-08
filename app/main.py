@@ -16,6 +16,7 @@ from app.brain import Brain
 from app.models import EmbeddingModel, IngestModel, ProjectModel, QuestionModel, ChatModel
 from app.tools import FindFileLoader, IndexDocuments
 from fastapi.openapi.utils import get_openapi
+from fastapi.staticfiles import StaticFiles
 
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
@@ -302,3 +303,8 @@ def chatProject(projectName: str, input: ChatModel):
         logging.error(e)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
+
+app.mount("/admin/", StaticFiles(directory="frontend/html/", html=True), name="static_admin")
+app.mount("/admin/static/js", StaticFiles(directory="frontend/html/static/js"), name="static_js")
+app.mount("/admin/static/css", StaticFiles(directory="frontend/html/static/css"), name="static_css")
+app.mount("/admin/static/media", StaticFiles(directory="frontend/html/static/media"), name="static_media")
