@@ -198,23 +198,25 @@ def ingestFile(projectName: str, file: UploadFile):
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
+
 @app.get('/projects/{projectName}/embeddings/urls')
 def list_urls(projectName: str):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
-  
+
     docs = collection.get(
-      include=[ "metadatas" ]
+        include=["metadatas"]
     )
-    
+
     urls = []
-    
+
     for metadata in docs["metadatas"]:
-      if metadata["source"].startswith(('http://', 'https://')) and metadata["source"] not in urls:
-        urls.append(metadata["source"])
+        if metadata["source"].startswith(('http://', 'https://')) and metadata["source"] not in urls:
+            urls.append(metadata["source"])
 
     return {'urls': urls}
+
 
 @app.get('/projects/{projectName}/embeddings/files')
 def list_files(projectName: str):
@@ -231,16 +233,19 @@ def list_files(projectName: str):
         os.path.join(project_path, f))]
     return {'files': files}
 
+
 @app.delete('/projects/{projectName}/embeddings/url/{url}')
 def delete_url(projectName: str, url: str):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
-    ids = collection.get(where={'source': base64.b64decode(url).decode('utf-8')})['ids']
+    ids = collection.get(
+        where={'source': base64.b64decode(url).decode('utf-8')})['ids']
     if len(ids):
         collection.delete(ids)
 
     return {"deleted": len(ids)}
+
 
 @app.delete('/projects/{projectName}/embeddings/files/{fileName}')
 def delete_file(projectName: str, fileName: str):
