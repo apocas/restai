@@ -199,6 +199,23 @@ def ingestFile(projectName: str, file: UploadFile):
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
+@app.get('/projects/{projectName}/embeddings/urls')
+def list_urls(projectName: str):
+    project = brain.findProject(projectName)
+
+    collection = project.db._client.get_collection("langchain")
+    if embedding.source.startswith(('http://', 'https://')):
+        ids = collection.get(where={'source': embedding.source})['ids']
+    else:
+        ids = collection.get(where={'source': os.path.join(os.path.join(
+            os.environ["UPLOADS_PATH"], project.model.name), embedding.source)})['ids']
+
+    docs = collection.get(ids=ids)
+
+    if (len(ids) == 0):
+        return {"ids": []}
+    else:
+        return docs
 
 @app.get('/projects/{projectName}/embeddings/files')
 def list_files(projectName: str):
