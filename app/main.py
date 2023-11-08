@@ -1,3 +1,4 @@
+import base64
 import logging
 import os
 import shutil
@@ -122,17 +123,16 @@ def reset(projectName: str):
 @app.post("/projects/{projectName}/embeddings/find")
 def getEmbedding(projectName: str, embedding: EmbeddingModel):
     project = brain.findProject(projectName)
+    docs = None
 
     collection = project.db._client.get_collection("langchain")
     if embedding.source.startswith(('http://', 'https://')):
-        ids = collection.get(where={'source': embedding.source})['ids']
+        docs = collection.get(where={'source': embedding.source})
     else:
-        ids = collection.get(where={'source': os.path.join(os.path.join(
-            os.environ["UPLOADS_PATH"], project.model.name), embedding.source)})['ids']
+        docs = collection.get(where={'source': os.path.join(os.path.join(
+            os.environ["UPLOADS_PATH"], project.model.name), embedding.source)})
 
-    docs = collection.get(ids=ids)
-
-    if (len(ids) == 0):
+    if (len(docs['ids']) == 0):
         return {"ids": []}
     else:
         return docs
@@ -199,7 +199,23 @@ def ingestFile(projectName: str, file: UploadFile):
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
+@app.get('/projects/{projectName}/embeddings/urls')
+def list_urls(projectName: str):
+    project = brain.findProject(projectName)
 
+    collection = project.db._client.get_collection("langchain")
+  
+    docs = collection.get(
+      include=[ "metadatas" ]
+    )
+    
+    urls = []
+    
+    for metadata in docs["metadatas"]:
+      if metadata["source"] not in urls:
+        urls.append(metadata["source"])
+
+    return urls;
 
 @app.get('/projects/{projectName}/embeddings/files')
 def list_files(projectName: str):
@@ -216,6 +232,16 @@ def list_files(projectName: str):
         os.path.join(project_path, f))]
     return {'files': files}
 
+@app.delete('/projects/{projectName}/embeddings/url/{url}')
+def delete_file(projectName: str, url: str):
+    project = brain.findProject(projectName)
+
+    collection = project.db._client.get_collection("langchain")
+    ids = collection.get(where={'source': base64.b64decode(url).decode('utf-8')})['ids']
+    if len(ids):
+        collection.delete(ids)
+
+    return {"deleted": len(ids)}
 
 @app.delete('/projects/{projectName}/embeddings/files/{fileName}')
 def delete_file(projectName: str, fileName: str):
@@ -223,7 +249,7 @@ def delete_file(projectName: str, fileName: str):
 
     collection = project.db._client.get_collection("langchain")
     ids = collection.get(where={'source': os.path.join(os.path.join(
-        os.environ["UPLOADS_PATH"], project.model.name), fileName)})['ids']
+        os.environ["UPLOADS_PATH"], project.model.name), base64.b64decode(fileName).decode('utf-8'))})['ids']
     if len(ids):
         collection.delete(ids)
 
