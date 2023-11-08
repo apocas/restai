@@ -5,6 +5,9 @@ start:
 install:
 	pip install -r requirements.txt
 
+frontend:
+	cd frontend && npm install && npm run build
+
 .PHONY: test
 test:
 	pytest tests
