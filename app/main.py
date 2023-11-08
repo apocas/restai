@@ -211,7 +211,7 @@ def list_urls(projectName: str):
     urls = []
     
     for metadata in docs["metadatas"]:
-      if metadata["source"] not in urls:
+      if metadata["source"].startswith(('http://', 'https://')) and metadata["source"] not in urls:
         urls.append(metadata["source"])
 
     return {'urls': urls}
