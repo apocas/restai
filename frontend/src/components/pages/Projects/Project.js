@@ -9,7 +9,7 @@ import ListGroup from 'react-bootstrap/ListGroup';
 import { useParams } from "react-router-dom";
 
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 function Project() {
 
@@ -18,6 +18,8 @@ function Project() {
   const [files, setFiles] = useState({ files: [] });
   const [file, setFile] = useState(null);
   const [embeddings, setEmbeddings] = useState(null);
+  const urlForm = useRef(null);
+  const depthForm = useRef(null);
   var { projectName } = useParams();
 
 
@@ -80,6 +82,33 @@ function Project() {
           fetchProject(projectName);
           fetchFiles(projectName);
         })
+    } else {
+      if (urlForm.current.value !== "") {
+        var ingestUrl = urlForm.current.value;
+        var ingestUrlDepth = depthForm.current.value;
+        var body = {};
+
+        if (ingestUrlDepth !== "") {
+          body = {
+            "url": ingestUrl,
+            "recursive": true,
+            "depth": parseInt(ingestUrlDepth)
+          }
+        } else {
+          body = {
+            "url": ingestUrl
+          }
+        }
+        fetch(url + "/projects/" + projectName + "/embeddings/ingest/url", {
+          method: 'POST',
+          body: JSON.stringify(body),
+        })
+          .then(response => response.json())
+          .then(() => {
+            fetchProject(projectName);
+            fetchFiles(projectName);
+          })
+      }
     }
   }
 
@@ -108,21 +137,36 @@ function Project() {
             <h1>Ingest File</h1>
             <Form onSubmit={onSubmitHandler}>
               <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
-                <Col sm={8}>
+                <Form.Label column sm={1}>
+                  File
+                </Form.Label>
+                <Col sm={11}>
                   <Form.Control onChange={handleFileChange} type="file" />
                 </Col>
-                <Col sm={2}>
-                  <Button variant="dark" type="submit">Upload</Button>
+              </Form.Group>
+              <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
+                <Form.Label column sm={1}>
+                  Url
+                </Form.Label>
+                <Col sm={8}>
+                  <Form.Control ref={urlForm} type="url" placeholder="Enter url" />
+                </Col>
+                <Col sm={3}>
+                  <Form.Control ref={depthForm} type="number" placeholder="Depth" />
                 </Col>
               </Form.Group>
+              <Col sm={2}>
+                <Button variant="dark" type="submit">Upload</Button>
+              </Col>
             </Form>
             {
               file && (
                 <Row>
                   <Col sm={6}>
-                    <h2>File details:</h2>
+                  </Col>
+                  <Col sm={6}>
+                    <h5>File details:</h5>
                     <ListGroup>
-                      <ListGroup.Item>Name: {file.name}</ListGroup.Item>
                       <ListGroup.Item>Type: {file.type}</ListGroup.Item>
                       <ListGroup.Item>Size: {file.size} bytes</ListGroup.Item>
                     </ListGroup>
