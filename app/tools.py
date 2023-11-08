@@ -14,8 +14,8 @@ def IndexDocuments(brain, project, documents):
         if value is None:
             del metadata[key]
     
-    project.db.add_texts(texts=texts, metadatas=metadatas)
-    return texts
+    ids = project.db.add_texts(texts=texts, metadatas=metadatas)
+    return ids
 
 
 def FindFileLoader(filepath, ext):

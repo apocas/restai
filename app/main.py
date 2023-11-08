@@ -167,10 +167,10 @@ def ingestURL(projectName: str, ingest: IngestModel):
 
         documents = loader.load()
 
-        texts = IndexDocuments(brain, project, documents)
+        ids = IndexDocuments(brain, project, documents)
         project.db.persist()
 
-        return {"url": ingest.url, "texts": len(texts), "documents": len(documents)}
+        return {"url": ingest.url, "documents": len(ids)}
     except Exception as e:
         logging.error(e)
         raise HTTPException(
@@ -192,10 +192,10 @@ def ingestFile(projectName: str, file: UploadFile):
         loader = FindFileLoader(dest, ext)
         documents = loader.load()
 
-        texts = IndexDocuments(brain, project, documents)
+        ids = IndexDocuments(brain, project, documents)
         project.db.persist()
 
-        return {"filename": file.filename, "type": file.content_type, "texts": len(texts), "documents": len(documents)}
+        return {"filename": file.filename, "type": file.content_type, "documents": len(ids)}
     except Exception as e:
         logging.error(e)
         raise HTTPException(
