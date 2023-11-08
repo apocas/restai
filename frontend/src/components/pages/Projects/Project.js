@@ -13,7 +13,7 @@ import React, { useState, useEffect, useRef } from "react";
 
 function Project() {
 
-  const url = "https://ai.ptisp.systems";
+  const url = "";
   const [data, setData] = useState({ projects: [] });
   const [files, setFiles] = useState({ files: [] });
   const [file, setFile] = useState(null);

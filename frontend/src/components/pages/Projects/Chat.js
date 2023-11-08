@@ -14,7 +14,7 @@ import React, { useState, useEffect, useRef } from "react";
 
 function Chat() {
 
-  const url = "https://ai.ptisp.systems";
+  const url = "";
   var { projectName } = useParams();
   const messageForm = useRef(null);
   const [messages, setMessages] = useState([]);
