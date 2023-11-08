@@ -101,6 +101,7 @@ function Project() {
         }
         fetch(url + "/projects/" + projectName + "/embeddings/ingest/url", {
           method: 'POST',
+          headers: new Headers({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(body),
         })
           .then(response => response.json())
