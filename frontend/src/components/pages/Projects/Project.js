@@ -17,6 +17,7 @@ function Project() {
   const [data, setData] = useState({ projects: [] });
   const [files, setFiles] = useState({ files: [] });
   const [file, setFile] = useState(null);
+  const [urls, setUrls] = useState({ urls: [] });
   const [embeddings, setEmbeddings] = useState(null);
   const urlForm = useRef(null);
   const depthForm = useRef(null);
@@ -35,23 +36,30 @@ function Project() {
       .then((res) => res.json())
       .then((d) => setFiles(d))
   }
+  // TODO: error handling
+  const fetchUrls = (projectName) => {
+    return fetch(url + "/projects/" + projectName + "/embeddings/urls")
+      .then((res) => res.json())
+      .then((d) => setUrls(d))
+  }
 
   // TODO: error handling
-  const handleDeleteClick = (fileName) => {
-    alert(fileName);
-    fetch(url + "/projects/" + projectName + "/embeddings/files/" + fileName, { method: 'DELETE' })
+  const handleDeleteClick = (source, type) => {
+    alert(source);
+    fetch(url + "/projects/" + projectName + "/embeddings/" + type + "/" + btoa(source), { method: 'DELETE' })
       .then(() => {
         fetchProject(projectName);
         fetchFiles(projectName);
+        fetchUrls(projectName);
       });
   }
 
-  const handleViewClick = (fileName) => {
+  const handleViewClick = (source) => {
     fetch(url + "/projects/" + projectName + "/embeddings/find", {
       method: 'POST',
       headers: new Headers({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
-        "source": fileName
+        "source": source
       }),
     })
       .then(response => response.json())
@@ -108,6 +116,7 @@ function Project() {
           .then(() => {
             fetchProject(projectName);
             fetchFiles(projectName);
+            fetchUrls(projectName);
           })
       }
     }
@@ -117,6 +126,7 @@ function Project() {
     document.title = 'RestAI Project ' + projectName;
     fetchProject(projectName);
     fetchFiles(projectName);
+    fetchUrls(projectName);
   }, [projectName]);
 
   return (
@@ -178,13 +188,14 @@ function Project() {
           </Col>
         </Row>
         <Row style={{ marginTop: "20px" }}>
-          <h1>Files</h1>
+          <h1>Files & Urls</h1>
           <Col sm={12}>
             <Table striped bordered hover>
               <thead>
                 <tr>
                   <th>#</th>
                   <th>Files</th>
+                  <th>Type</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -194,12 +205,36 @@ function Project() {
                     return (
                       <tr key={index}>
                         <td>{index}</td>
+                        <td>File</td>
                         <td>
                           {file}
                         </td>
                         <td>
                           <Button onClick={() => handleViewClick(file)} variant="dark">View</Button>{' '}
-                          <Button onClick={() => handleDeleteClick(file)} variant="danger">Delete</Button>
+                          <Button onClick={() => handleDeleteClick(file, "files")} variant="danger">Delete</Button>
+                        </td>
+                      </tr>
+                    )
+                  })
+                }
+                <tr>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                </tr>
+                {
+                  urls.urls.map((url, index) => {
+                    return (
+                      <tr key={index}>
+                        <td>{index}</td>
+                        <td>Url</td>
+                        <td>
+                          {url}
+                        </td>
+                        <td>
+                          <Button onClick={() => handleViewClick(url)} variant="dark">View</Button>{' '}
+                          <Button onClick={() => handleDeleteClick(url, "url")} variant="danger">Delete</Button>
                         </td>
                       </tr>
                     )
@@ -224,7 +259,6 @@ function Project() {
             }
           </Col>
         </Row>
-
       </Container>
     </>
   );
