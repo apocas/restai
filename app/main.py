@@ -133,8 +133,8 @@ def getEmbedding(projectName: str, embedding: EmbeddingModel):
     if embedding.source.startswith(('http://', 'https://')):
         docs = collection.get(where={'source': embedding.source})
     else:
-        docs = collection.get(where={'source': os.path.join(os.path.join(
-            os.environ["UPLOADS_PATH"], project.model.name), embedding.source)})
+        docs = collection.get(where={'source': os.path.join(
+            os.environ["UPLOADS_PATH"], project.model.name, embedding.source)})
 
     if (len(docs['ids']) == 0):
         return {"ids": []}
@@ -183,8 +183,7 @@ def ingestFile(projectName: str, file: UploadFile):
     try:
         project = brain.findProject(projectName)
 
-        dest = os.path.join(os.path.join(
-            os.environ["UPLOADS_PATH"], project.model.name), file.filename)
+        dest = os.path.join(os.environ["UPLOADS_PATH"], project.model.name, file.filename)
 
         with open(dest, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
@@ -256,8 +255,8 @@ def delete_file(projectName: str, fileName: str):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
-    ids = collection.get(where={'source': os.path.join(os.path.join(
-        os.environ["UPLOADS_PATH"], project.model.name), base64.b64decode(fileName).decode('utf-8'))})['ids']
+    ids = collection.get(where={'source': os.path.join(
+        os.environ["UPLOADS_PATH"], project.model.name, base64.b64decode(fileName).decode('utf-8'))})['ids']
     if len(ids):
         collection.delete(ids)
 
