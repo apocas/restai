@@ -138,13 +138,12 @@ def getEmbedding(projectName: str, embedding: EmbeddingModel):
         return docs
 
 
-@app.post("/projects/{projectName}/embeddings/delete")
-def deleteEmbedding(projectName: str, embedding: EmbeddingModel):
+@app.delete("/projects/{projectName}/embeddings/{id}")
+def delete_Embedding(projectName: str, id: str):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
-    ids = collection.get(where={'source': os.path.join(os.path.join(
-        os.environ["UPLOADS_PATH"], project.model.name), embedding.source)})['ids']
+    ids = collection.get(ids=[id])['ids']
     if len(ids):
         collection.delete(ids)
     return {"deleted": len(ids)}
@@ -215,7 +214,7 @@ def list_urls(projectName: str):
       if metadata["source"] not in urls:
         urls.append(metadata["source"])
 
-    return urls;
+    return {'urls': urls}
 
 @app.get('/projects/{projectName}/embeddings/files')
 def list_files(projectName: str):
