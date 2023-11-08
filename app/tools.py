@@ -4,17 +4,18 @@ from modules.loaders import LOADERS
 
 
 def IndexDocuments(brain, project, documents):
-    texts = brain.text_splitter.split_documents(documents)
-    texts_final = [doc.page_content for doc in texts]
-    metadatas = [doc.metadata for doc in texts]
+    docs = brain.text_splitter.split_documents(documents)
+    
+    texts = [doc.page_content for doc in docs]
+    metadatas = [doc.metadata for doc in docs]
 
     for metadata in metadatas:
       for key, value in list(metadata.items()):
         if value is None:
             del metadata[key]
     
-    project.db.add_texts(texts=texts_final, metadatas=metadatas)
-    return texts_final
+    project.db.add_texts(texts=texts, metadatas=metadatas)
+    return texts
 
 
 def FindFileLoader(filepath, ext):

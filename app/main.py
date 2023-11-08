@@ -91,8 +91,11 @@ async def deleteProject(projectName: str):
                 status_code=404, detail='{"error": "Project not found"}')
     except Exception as e:
         logging.error(e)
-        raise HTTPException(
-            status_code=500, detail='{"error": ' + str(e) + '}')
+        if e.detail:
+          raise e
+        else:
+          raise HTTPException(
+            status_code=500, detail='{"error": ' + str(e)+ '}')
 
 
 @app.post("/projects")
