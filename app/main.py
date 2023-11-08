@@ -30,7 +30,7 @@ if "UPLOADS_PATH" not in os.environ:
 
 if "PROJECTS_PATH" not in os.environ:
     os.environ["PROJECTS_PATH"] = "./projects/"
-    
+
 os.environ["ALLOW_RESET"] = "true"
 
 app = FastAPI(
@@ -51,10 +51,12 @@ app = FastAPI(
 
 brain = Brain()
 
+
 @app.get("/")
 async def get(request: Request):
     return "RESTAI, so many 'A's and 'I's, so little time..."
-  
+
+
 @app.get("/info")
 async def getInfo(request: Request):
     return {"version": app.version, "embeddings": list(EMBEDDINGS.keys()), "llms": list(LLMS.keys()), "loaders": list(LOADERS.keys())}
@@ -71,11 +73,12 @@ async def getProject(projectName: str):
         project = brain.findProject(projectName)
         dbInfo = project.db.get()
 
-        return {"project": project.model.name, "llm": project.model.llm , "embeddings": project.model.embeddings, "documents": len(dbInfo["documents"]), "metadatas": len(dbInfo["metadatas"])}
+        return {"project": project.model.name, "llm": project.model.llm, "embeddings": project.model.embeddings, "documents": len(dbInfo["documents"]), "metadatas": len(dbInfo["metadatas"])}
     except Exception as e:
         logging.error(e)
         raise HTTPException(
             status_code=404, detail='{"error": ' + str(e) + '}')
+
 
 @app.delete("/projects/{projectName}")
 async def deleteProject(projectName: str):
@@ -100,7 +103,8 @@ async def createProject(projectModel: ProjectModel):
         logging.error(e)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
-        
+
+
 @app.post("/projects/{projectName}/embeddings/reset")
 def reset(projectName: str):
     try:
@@ -113,27 +117,38 @@ def reset(projectName: str):
         logging.error(e)
         raise HTTPException(
             status_code=404, detail='{"error": ' + str(e) + '}')
-        
+
+
 @app.post("/projects/{projectName}/embeddings/find")
 def getEmbedding(projectName: str, embedding: EmbeddingModel):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
-    ids = collection.get(where = {'source': os.path.join(os.path.join(os.environ["UPLOADS_PATH"], project.model.name), embedding.source)})['ids']
-    
-    if(len(ids) == 0):
+    if embedding.source.startswith(('http://', 'https://')):
+        ids = collection.get(where={'source': embedding.source})['ids']
+    else:
+        ids = collection.get(where={'source': os.path.join(os.path.join(
+            os.environ["UPLOADS_PATH"], project.model.name), embedding.source)})['ids']
+
+    docs = collection.get(ids=ids)
+
+    if (len(ids) == 0):
         return {"ids": []}
     else:
-      return collection.get(ids = ids)
+        return docs
+
 
 @app.post("/projects/{projectName}/embeddings/delete")
 def deleteEmbedding(projectName: str, embedding: EmbeddingModel):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
-    ids = collection.get(where = {'source': os.path.join(os.path.join(os.environ["UPLOADS_PATH"], project.model.name), embedding.source)})['ids']
-    if len(ids): collection.delete(ids)
+    ids = collection.get(where={'source': os.path.join(os.path.join(
+        os.environ["UPLOADS_PATH"], project.model.name), embedding.source)})['ids']
+    if len(ids):
+        collection.delete(ids)
     return {"deleted": len(ids)}
+
 
 @app.post("/projects/{projectName}/embeddings/ingest/url")
 def ingestURL(projectName: str, ingest: IngestModel):
@@ -141,12 +156,13 @@ def ingestURL(projectName: str, ingest: IngestModel):
         project = brain.findProject(projectName)
 
         if ingest.recursive:
-          loader = RecursiveUrlLoader(
-              url=ingest.url, max_depth=ingest.depth, extractor=lambda x: Soup(x, "html.parser").text
-          )
+            loader = RecursiveUrlLoader(
+                url=ingest.url, max_depth=ingest.depth, extractor=lambda x: Soup(
+                    x, "html.parser").text
+            )
         else:
-          loader = loader = SeleniumURLLoader(urls=[ingest.url])
-          
+            loader = loader = SeleniumURLLoader(urls=[ingest.url])
+
         documents = loader.load()
 
         texts = IndexDocuments(brain, project, documents)
@@ -158,16 +174,18 @@ def ingestURL(projectName: str, ingest: IngestModel):
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
+
 @app.post("/projects/{projectName}/embeddings/ingest/upload")
 def ingestFile(projectName: str, file: UploadFile):
     try:
         project = brain.findProject(projectName)
-        
-        dest = os.path.join(os.path.join(os.environ["UPLOADS_PATH"], project.model.name), file.filename)
+
+        dest = os.path.join(os.path.join(
+            os.environ["UPLOADS_PATH"], project.model.name), file.filename)
 
         with open(dest, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-      
+
         _, ext = os.path.splitext(file.filename or '')
         loader = FindFileLoader(dest, ext)
         documents = loader.load()
@@ -181,38 +199,45 @@ def ingestFile(projectName: str, file: UploadFile):
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
+
+
 @app.get('/projects/{projectName}/embeddings/files')
 def list_files(projectName: str):
     project = brain.findProject(projectName)
     project_path = os.path.join(os.environ["UPLOADS_PATH"], project.model.name)
-    
+
     if not os.path.exists(project_path):
         return {'error': f'Project {projectName} not found'}
-      
+
     if not os.path.isdir(project_path):
         return {'error': f'{project_path} is not a directory'}
-      
-    files = [f for f in os.listdir(project_path) if os.path.isfile(os.path.join(project_path, f))]
+
+    files = [f for f in os.listdir(project_path) if os.path.isfile(
+        os.path.join(project_path, f))]
     return {'files': files}
+
 
 @app.delete('/projects/{projectName}/embeddings/files/{fileName}')
 def delete_file(projectName: str, fileName: str):
     project = brain.findProject(projectName)
-    
+
     collection = project.db._client.get_collection("langchain")
-    ids = collection.get(where = {'source': os.path.join(os.path.join(os.environ["UPLOADS_PATH"], project.model.name), fileName)})['ids']
-    if len(ids): collection.delete(ids)
-    
+    ids = collection.get(where={'source': os.path.join(os.path.join(
+        os.environ["UPLOADS_PATH"], project.model.name), fileName)})['ids']
+    if len(ids):
+        collection.delete(ids)
+
     project_path = os.path.join(os.environ["UPLOADS_PATH"], project.model.name)
-    
+
     file_path = os.path.join(project_path, fileName)
     if not os.path.exists(file_path):
         return {'error': f'File {fileName} not found'}
     if not os.path.isfile(file_path):
         return {'error': f'{file_path} is not a file'}
     os.remove(file_path)
-    
+
     return {"deleted": len(ids)}
+
 
 @app.post("/projects/{projectName}/question")
 def questionProject(projectName: str, input: QuestionModel):

@@ -59,7 +59,7 @@ class Project:
       try:
           embeddingsPath = FindEmbeddingsPath(self.model.name)
       except:
-          embeddingsPath = os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name + "_" + str(time.time()))
+          embeddingsPath = os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name + "_" + str(int(time.time())))
           os.mkdir(embeddingsPath)
           
       if not os.path.exists(os.path.join(os.environ["UPLOADS_PATH"], self.model.name)):
