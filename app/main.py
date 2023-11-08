@@ -5,7 +5,10 @@ from tempfile import NamedTemporaryFile
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 from langchain.document_loaders import (
     WebBaseLoader,
+    SeleniumURLLoader,
+    RecursiveUrlLoader
 )
+from bs4 import BeautifulSoup as Soup
 from dotenv import load_dotenv
 from app.brain import Brain
 
@@ -137,7 +140,13 @@ def ingestURL(projectName: str, ingest: IngestModel):
     try:
         project = brain.findProject(projectName)
 
-        loader = WebBaseLoader(ingest.url)
+        if ingest.recursive:
+          loader = RecursiveUrlLoader(
+              url=ingest.url, max_depth=ingest.depth, extractor=lambda x: Soup(x, "html.parser").text
+          )
+        else:
+          loader = loader = SeleniumURLLoader(urls=[ingest.url])
+          
         documents = loader.load()
 
         texts = IndexDocuments(brain, project, documents)

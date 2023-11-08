@@ -13,3 +13,4 @@ sentence_transformers
 chromadb
 tiktoken
 python-pptx
+bs4

@@ -4,6 +4,8 @@ from typing import Union
 
 class IngestModel(BaseModel):
     url: str
+    recursive: bool = False
+    depth: int = 2
     
     
 class EmbeddingModel(BaseModel):
