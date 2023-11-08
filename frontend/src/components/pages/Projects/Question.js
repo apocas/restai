@@ -14,7 +14,7 @@ import React, { useState, useEffect, useRef } from "react";
 
 function Question() {
 
-  const url = "https://ai.ptisp.systems";
+  const url = "";
   var { projectName } = useParams();
   const systemForm = useRef(null);
   const questionForm = useRef(null);

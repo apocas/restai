@@ -1,6 +1,6 @@
 import os
 from fastapi import HTTPException
-from langchain.text_splitter import CharacterTextSplitter
+from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain, LLMChain
@@ -20,8 +20,7 @@ class Brain:
                         
         self.loadProjects()
 
-        self.text_splitter = CharacterTextSplitter(
-            separator=" ", chunk_size=1024, chunk_overlap=0)
+        self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=30)
 
     def getLLM(self, llmModel, **kwargs):
         if llmModel in self.llmCache:

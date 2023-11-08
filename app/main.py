@@ -16,6 +16,7 @@ from app.brain import Brain
 from app.models import EmbeddingModel, IngestModel, ProjectModel, QuestionModel, ChatModel
 from app.tools import FindFileLoader, IndexDocuments
 from fastapi.openapi.utils import get_openapi
+from fastapi.staticfiles import StaticFiles
 
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
@@ -91,8 +92,11 @@ async def deleteProject(projectName: str):
                 status_code=404, detail='{"error": "Project not found"}')
     except Exception as e:
         logging.error(e)
-        raise HTTPException(
-            status_code=500, detail='{"error": ' + str(e) + '}')
+        if e.detail:
+          raise e
+        else:
+          raise HTTPException(
+            status_code=500, detail='{"error": ' + str(e)+ '}')
 
 
 @app.post("/projects")
@@ -129,8 +133,8 @@ def getEmbedding(projectName: str, embedding: EmbeddingModel):
     if embedding.source.startswith(('http://', 'https://')):
         docs = collection.get(where={'source': embedding.source})
     else:
-        docs = collection.get(where={'source': os.path.join(os.path.join(
-            os.environ["UPLOADS_PATH"], project.model.name), embedding.source)})
+        docs = collection.get(where={'source': os.path.join(
+            os.environ["UPLOADS_PATH"], project.model.name, embedding.source)})
 
     if (len(docs['ids']) == 0):
         return {"ids": []}
@@ -164,10 +168,10 @@ def ingestURL(projectName: str, ingest: IngestModel):
 
         documents = loader.load()
 
-        texts = IndexDocuments(brain, project, documents)
+        ids = IndexDocuments(brain, project, documents)
         project.db.persist()
 
-        return {"url": ingest.url, "texts": len(texts), "documents": len(documents)}
+        return {"url": ingest.url, "documents": len(ids)}
     except Exception as e:
         logging.error(e)
         raise HTTPException(
@@ -179,8 +183,7 @@ def ingestFile(projectName: str, file: UploadFile):
     try:
         project = brain.findProject(projectName)
 
-        dest = os.path.join(os.path.join(
-            os.environ["UPLOADS_PATH"], project.model.name), file.filename)
+        dest = os.path.join(os.environ["UPLOADS_PATH"], project.model.name, file.filename)
 
         with open(dest, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
@@ -189,10 +192,10 @@ def ingestFile(projectName: str, file: UploadFile):
         loader = FindFileLoader(dest, ext)
         documents = loader.load()
 
-        texts = IndexDocuments(brain, project, documents)
+        ids = IndexDocuments(brain, project, documents)
         project.db.persist()
 
-        return {"filename": file.filename, "type": file.content_type, "texts": len(texts), "documents": len(documents)}
+        return {"filename": file.filename, "type": file.content_type, "documents": len(ids)}
     except Exception as e:
         logging.error(e)
         raise HTTPException(
@@ -252,8 +255,8 @@ def delete_file(projectName: str, fileName: str):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
-    ids = collection.get(where={'source': os.path.join(os.path.join(
-        os.environ["UPLOADS_PATH"], project.model.name), base64.b64decode(fileName).decode('utf-8'))})['ids']
+    ids = collection.get(where={'source': os.path.join(
+        os.environ["UPLOADS_PATH"], project.model.name, base64.b64decode(fileName).decode('utf-8'))})['ids']
     if len(ids):
         collection.delete(ids)
 
@@ -299,3 +302,11 @@ def chatProject(projectName: str, input: ChatModel):
         logging.error(e)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
+
+try:
+  app.mount("/admin/", StaticFiles(directory="frontend/html/", html=True), name="static_admin")
+  app.mount("/admin/static/js", StaticFiles(directory="frontend/html/static/js"), name="static_js")
+  app.mount("/admin/static/css", StaticFiles(directory="frontend/html/static/css"), name="static_css")
+  app.mount("/admin/static/media", StaticFiles(directory="frontend/html/static/media"), name="static_media")
+except:
+  print("Admin interface not available. Did you run 'make frontend'?")

@@ -1,4 +1,4 @@
-openai
+openai==0.28.1
 fastapi
 langchain
 uvicorn
@@ -10,7 +10,7 @@ pydantic
 pygpt4all
 llama-cpp-python
 sentence_transformers
-chromadb
+chromadb==0.4.15
 tiktoken
 python-pptx
 bs4
