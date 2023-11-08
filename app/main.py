@@ -259,11 +259,15 @@ def delete_file(projectName: str, fileName: str):
 
     project_path = os.path.join(os.environ["UPLOADS_PATH"], project.model.name)
 
-    file_path = os.path.join(project_path, fileName)
+    file_path = os.path.join(
+        project_path, base64.b64decode(fileName).decode('utf-8'))
     if not os.path.exists(file_path):
-        return {'error': f'File {fileName} not found'}
+        raise HTTPException(
+            status_code=404, detail="{'error': f'File {fileName} not found'}")
     if not os.path.isfile(file_path):
-        return {'error': f'{file_path} is not a file'}
+        raise HTTPException(
+            status_code=404, detail="{'error': f'File {fileName} not found'}")
+
     os.remove(file_path)
 
     return {"deleted": len(ids)}
