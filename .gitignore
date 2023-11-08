@@ -120,7 +120,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .venv
 env/
 venv/
@@ -169,3 +168,5 @@ uploads/*
 !uploads/.gitkeep
 .DS_Store
 pytest.ini
+frontend/html/*
+.env.local
