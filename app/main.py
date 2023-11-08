@@ -303,7 +303,10 @@ def chatProject(projectName: str, input: ChatModel):
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
-app.mount("/admin/", StaticFiles(directory="frontend/html/", html=True), name="static_admin")
-app.mount("/admin/static/js", StaticFiles(directory="frontend/html/static/js"), name="static_js")
-app.mount("/admin/static/css", StaticFiles(directory="frontend/html/static/css"), name="static_css")
-app.mount("/admin/static/media", StaticFiles(directory="frontend/html/static/media"), name="static_media")
+try:
+  app.mount("/admin/", StaticFiles(directory="frontend/html/", html=True), name="static_admin")
+  app.mount("/admin/static/js", StaticFiles(directory="frontend/html/static/js"), name="static_js")
+  app.mount("/admin/static/css", StaticFiles(directory="frontend/html/static/css"), name="static_css")
+  app.mount("/admin/static/media", StaticFiles(directory="frontend/html/static/media"), name="static_media")
+except:
+  print("Admin interface not available. Did you run 'make frontend'?")
