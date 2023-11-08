@@ -19,8 +19,10 @@ function Project() {
   const [file, setFile] = useState(null);
   const [urls, setUrls] = useState({ urls: [] });
   const [embeddings, setEmbeddings] = useState(null);
+  const [uploadResponse, setUploadResponse] = useState({ type: null });
   const urlForm = useRef(null);
   const depthForm = useRef(null);
+  const fileForm = useRef(null);
   var { projectName } = useParams();
 
 
@@ -74,7 +76,13 @@ function Project() {
     }
   };
 
-  // TODO: error handling and response
+  const resetFileInput = () => {
+    // 👇️ reset input value
+    setFile(null);
+    fileForm.current.value = null;
+  };
+
+  // TODO: error handling
   const onSubmitHandler = (event) => {
     event.preventDefault();
     if (file) {
@@ -86,7 +94,10 @@ function Project() {
         body: formData,
       })
         .then(response => response.json())
-        .then(() => {
+        .then((response) => {
+          response.type = "file";
+          resetFileInput();
+          setUploadResponse(response);
           fetchProject(projectName);
           fetchFiles(projectName);
         })
@@ -113,9 +124,10 @@ function Project() {
           body: JSON.stringify(body),
         })
           .then(response => response.json())
-          .then(() => {
+          .then((response) => {
+            response.type = "url";
+            setUploadResponse(response);
             fetchProject(projectName);
-            fetchFiles(projectName);
             fetchUrls(projectName);
           })
       }
@@ -145,14 +157,14 @@ function Project() {
             </ListGroup>
           </Col>
           <Col sm={6}>
-            <h1>Ingest File</h1>
+            <h1>Ingest</h1>
             <Form onSubmit={onSubmitHandler}>
               <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
                 <Form.Label column sm={1}>
                   File
                 </Form.Label>
                 <Col sm={11}>
-                  <Form.Control onChange={handleFileChange} type="file" />
+                  <Form.Control ref={fileForm} onChange={handleFileChange} type="file" />
                 </Col>
               </Form.Group>
               <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
@@ -167,23 +179,39 @@ function Project() {
                 </Col>
               </Form.Group>
               <Col sm={2}>
-                <Button variant="dark" type="submit">Upload</Button>
+                <Button variant="dark" type="submit">Ingest</Button>
               </Col>
             </Form>
             {
-              file && (
+              uploadResponse.type === "file" ?
                 <Row>
                   <Col sm={6}>
                   </Col>
                   <Col sm={6}>
-                    <h5>File details:</h5>
+                    <h5>Ingest Result:</h5>
                     <ListGroup>
-                      <ListGroup.Item>Type: {file.type}</ListGroup.Item>
-                      <ListGroup.Item>Size: {file.size} bytes</ListGroup.Item>
+                      <ListGroup.Item>FileName: {uploadResponse.filename}</ListGroup.Item>
+                      <ListGroup.Item>Type: {uploadResponse.type}</ListGroup.Item>
+                      <ListGroup.Item>Texts: {uploadResponse.texts}</ListGroup.Item>
+                      <ListGroup.Item>Documents: {uploadResponse.documents}</ListGroup.Item>
                     </ListGroup>
                   </Col>
                 </Row>
-              )
+                : (
+                  uploadResponse.type === "url" &&
+                  <Row>
+                    <Col sm={6}>
+                    </Col>
+                    <Col sm={6}>
+                      <h5>Ingest Result:</h5>
+                      <ListGroup>
+                        <ListGroup.Item>Url: {uploadResponse.url}</ListGroup.Item>
+                        <ListGroup.Item>Texts: {uploadResponse.texts}</ListGroup.Item>
+                        <ListGroup.Item>Documents: {uploadResponse.documents}</ListGroup.Item>
+                      </ListGroup>
+                    </Col>
+                  </Row>
+                )
             }
           </Col>
         </Row>
