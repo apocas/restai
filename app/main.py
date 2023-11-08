@@ -233,7 +233,7 @@ def list_files(projectName: str):
     return {'files': files}
 
 @app.delete('/projects/{projectName}/embeddings/url/{url}')
-def delete_file(projectName: str, url: str):
+def delete_url(projectName: str, url: str):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
