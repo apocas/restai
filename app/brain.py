@@ -52,7 +52,10 @@ class Brain:
         return [project.model.name for project in self.projects]
 
     def createProject(self, projectModel):
-        if os.path.exists(os.path.join(os.environ["PROJECTS_PATH"], f'{projectModel.name}.json')):
+        if os.path.exists(
+            os.path.join(
+                os.environ["PROJECTS_PATH"],
+                f'{projectModel.name}.json')):
             raise ValueError("Project already exists")
 
         project = Project()
@@ -81,8 +84,9 @@ class Brain:
 
     def initializeEmbeddings(self, project):
         project.db = Chroma(
-            persist_directory=FindEmbeddingsPath(project.model.name), embedding_function=self.getEmbedding(project.model.embeddings)
-        )
+            persist_directory=FindEmbeddingsPath(
+                project.model.name), embedding_function=self.getEmbedding(
+                project.model.embeddings))
 
     def loadProjects(self):
         if os.path.isdir(os.environ["PROJECTS_PATH"]):
@@ -166,7 +170,7 @@ class Brain:
 
         try:
             docs = project.db.similarity_search(questionModel.question, k=1)
-        except:
+        except BaseException:
             docs = []
 
         if len(docs) == 0:

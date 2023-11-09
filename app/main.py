@@ -80,7 +80,11 @@ async def get(request: Request):
 
 @app.get("/info")
 async def getInfo(request: Request):
-    return {"version": app.version, "embeddings": list(EMBEDDINGS.keys()), "llms": list(LLMS.keys()), "loaders": list(LOADERS.keys())}
+    return {
+        "version": app.version, "embeddings": list(
+            EMBEDDINGS.keys()), "llms": list(
+            LLMS.keys()), "loaders": list(
+                LOADERS.keys())}
 
 
 @app.get("/projects")
@@ -94,7 +98,15 @@ async def getProject(projectName: str):
         project = brain.findProject(projectName)
         dbInfo = project.db.get()
 
-        return {"project": project.model.name, "llm": project.model.llm, "embeddings": project.model.embeddings, "documents": len(dbInfo["documents"]), "metadatas": len(dbInfo["metadatas"]), "system": project.model.system}
+        return {
+            "project": project.model.name,
+            "llm": project.model.llm,
+            "embeddings": project.model.embeddings,
+            "documents": len(
+                dbInfo["documents"]),
+            "metadatas": len(
+                dbInfo["metadatas"]),
+            "system": project.model.system}
     except Exception as e:
         logging.error(e)
         raise HTTPException(
@@ -196,9 +208,11 @@ def ingestURL(projectName: str, ingest: IngestModel):
 
         if ingest.recursive:
             loader = RecursiveUrlLoader(
-                url=ingest.url, max_depth=ingest.depth, extractor=lambda x: Soup(
-                    x, "html.parser").text
-            )
+                url=ingest.url,
+                max_depth=ingest.depth,
+                extractor=lambda x: Soup(
+                    x,
+                    "html.parser").text)
         else:
             loader = loader = SeleniumURLLoader(urls=[ingest.url])
 
@@ -243,7 +257,10 @@ def ingestFile(projectName: str, file: UploadFile):
         project.db.persist()
         logger.debug("Persisten project to DB")
 
-        return {"filename": file.filename, "type": file.content_type, "documents": len(ids)}
+        return {
+            "filename": file.filename,
+            "type": file.content_type,
+            "documents": len(ids)}
     except Exception as e:
         logging.error(e)
         raise HTTPException(
@@ -263,7 +280,8 @@ def list_urls(projectName: str):
     urls = []
 
     for metadata in docs["metadatas"]:
-        if metadata["source"].startswith(('http://', 'https://')) and metadata["source"] not in urls:
+        if metadata["source"].startswith(
+                ('http://', 'https://')) and metadata["source"] not in urls:
             urls.append(metadata["source"])
 
     return {'urls': urls}
@@ -303,8 +321,12 @@ def delete_file(projectName: str, fileName: str):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
-    ids = collection.get(where={'source': os.path.join(
-        os.environ["UPLOADS_PATH"], project.model.name, base64.b64decode(fileName).decode('utf-8'))})['ids']
+    ids = collection.get(
+        where={
+            'source': os.path.join(
+                os.environ["UPLOADS_PATH"],
+                project.model.name,
+                base64.b64decode(fileName).decode('utf-8'))})['ids']
     if len(ids):
         collection.delete(ids)
 
@@ -355,11 +377,20 @@ def chatProject(projectName: str, input: ChatModel):
 try:
     app.mount("/admin/", StaticFiles(directory="frontend/html/",
               html=True), name="static_admin")
-    app.mount("/admin/static/js",
-              StaticFiles(directory="frontend/html/static/js"), name="static_js")
-    app.mount("/admin/static/css",
-              StaticFiles(directory="frontend/html/static/css"), name="static_css")
-    app.mount("/admin/static/media",
-              StaticFiles(directory="frontend/html/static/media"), name="static_media")
-except:
+    app.mount(
+        "/admin/static/js",
+        StaticFiles(
+            directory="frontend/html/static/js"),
+        name="static_js")
+    app.mount(
+        "/admin/static/css",
+        StaticFiles(
+            directory="frontend/html/static/css"),
+        name="static_css")
+    app.mount(
+        "/admin/static/media",
+        StaticFiles(
+            directory="frontend/html/static/media"),
+        name="static_media")
+except BaseException:
     print("Admin interface not available. Did you run 'make frontend'?")
