@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
 from modules.loaders import LOADERS
+import logging
 
 load_dotenv()
 
@@ -36,7 +37,12 @@ if "PROJECTS_PATH" not in os.environ:
 if "ANONYMIZED_TELEMETRY" not in os.environ:
     os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
+if "LOG_LEVEL" not in os.environ:
+    os.environ["LOG_LEVEL"] = "INFO"
+
 os.environ["ALLOW_RESET"] = "true"
+
+logging.basicConfig(level=os.environ["LOG_LEVEL"])
 
 app = FastAPI(
     title="RestAI",
@@ -184,19 +190,26 @@ def ingestURL(projectName: str, ingest: IngestModel):
 @app.post("/projects/{projectName}/embeddings/ingest/upload")
 def ingestFile(projectName: str, file: UploadFile):
     try:
+        logger = logging.getLogger("embeddings_ingest_upload")
         project = brain.findProject(projectName)
 
         dest = os.path.join(os.environ["UPLOADS_PATH"], project.model.name, file.filename)
+        logger.info("Ingesting upload for destination: {}".format(dest))
 
         with open(dest, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
         _, ext = os.path.splitext(file.filename or '')
+        logger.debug("Filename: {}".format(file.filename))
+        logger.debug("ContentType: {}".format(file.content_type))
+        logger.debug("Extension: {}".format(ext))
         loader = FindFileLoader(dest, ext)
         documents = loader.load()
 
         ids = IndexDocuments(brain, project, documents)
+        logger.debug("Documents: {}".format(len(ids)))
         project.db.persist()
+        logger.debug("Persisten project to DB")
 
         return {"filename": file.filename, "type": file.content_type, "documents": len(ids)}
     except Exception as e:
