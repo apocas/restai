@@ -22,6 +22,10 @@ docs:
 test:
 	pytest tests
 
+.PHONY: codestyle
+codestyle:
+	autopep8 --in-place --aggressive --aggressive app/*.py
+
 .PHONY: clean
 clean:
 	rm -rf frontend/html/*

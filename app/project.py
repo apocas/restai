@@ -24,19 +24,28 @@ class Project:
         self.save()
 
     def delete(self):
-        if os.path.exists(os.path.join(os.environ["PROJECTS_PATH"], f'{self.model.name}.json')):
+        if os.path.exists(
+            os.path.join(
+                os.environ["PROJECTS_PATH"],
+                f'{self.model.name}.json')):
             os.remove(os.path.join(
                 os.environ["PROJECTS_PATH"], f'{self.model.name}.json'))
 
         try:
             embeddingsPath = FindEmbeddingsPath(self.model.name)
             shutil.rmtree(embeddingsPath, ignore_errors=True)
-        except:
+        except BaseException:
             pass
 
-        if os.path.exists(os.path.join(os.environ["UPLOADS_PATH"], self.model.name)):
-            shutil.rmtree(os.path.join(
-                os.environ["UPLOADS_PATH"], self.model.name), ignore_errors=True)
+        if os.path.exists(
+            os.path.join(
+                os.environ["UPLOADS_PATH"],
+                self.model.name)):
+            shutil.rmtree(
+                os.path.join(
+                    os.environ["UPLOADS_PATH"],
+                    self.model.name),
+                ignore_errors=True)
 
     def save(self):
         file_path = os.path.join(
@@ -55,12 +64,15 @@ class Project:
 
         try:
             embeddingsPath = FindEmbeddingsPath(self.model.name)
-        except:
+        except BaseException:
             embeddingsPath = os.path.join(
                 os.environ["EMBEDDINGS_PATH"], self.model.name + "_" + str(int(time.time())))
             os.mkdir(embeddingsPath)
 
-        if not os.path.exists(os.path.join(os.environ["UPLOADS_PATH"], self.model.name)):
+        if not os.path.exists(
+            os.path.join(
+                os.environ["UPLOADS_PATH"],
+                self.model.name)):
             os.mkdir(os.path.join(
                 os.environ["UPLOADS_PATH"], self.model.name))
 
