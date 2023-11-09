@@ -7,5 +7,5 @@ LLMS = {
     "openai_gpt3.5": (ChatOpenAI, {"temperature": 0, "model_name":"gpt-3.5-turbo"}),
     "openai_gpt4": (ChatOpenAI, {"temperature": 0, "model_name":"gpt-4"}),
     "openai_gpt4_turbo": (ChatOpenAI, {"temperature": 0, "model_name":"gpt-4-1106-preview"}),
-    "llama13b_chat_gptq": (ChatOpenAI, {"openai_api_key":"na", "openai_api_base": "http://127.0.0.1:5000/v1"}),
+    "llama13b_chat_gptq": (ChatOpenAI, {"temperature": 0.5, "openai_api_key":"na", "openai_api_base": "http://127.0.0.1:5000/v1"}),
 }
