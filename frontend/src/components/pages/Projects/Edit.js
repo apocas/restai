@@ -10,11 +10,10 @@ import React, { useState, useEffect, useRef } from "react";
 function Edit() {
 
   const url = "";
-  const [data, setData] = useState({ projects: [] });
+  const [setData] = useState({ projects: [] });
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const projectNameForm = useRef(null)
   const systemForm = useRef(null)
-  const embbeddingForm = useRef(null)
   const llmForm = useRef(null)
 
   // TODO: error handling
@@ -70,21 +69,6 @@ function Edit() {
               <Form.Group as={Col} controlId="formGridSystem">
                 <Form.Label>System Message</Form.Label>
                 <Form.Control ref={systemForm} />
-              </Form.Group>
-
-              <Form.Group as={Col} controlId="formGridEmbeddings">
-                <Form.Label>Embeddings</Form.Label>
-                <Form.Select ref={embbeddingForm} defaultValue="Choose...">
-                  <option isDisabled={true}>Choose...</option>
-                  {
-                    info.embeddings.map((embbedding, index) => {
-                      return (
-                        <option key={index}>{embbedding}</option>
-                      )
-                    }
-                    )
-                  }
-                </Form.Select>
               </Form.Group>
 
               <Form.Group as={Col} controlId="formGridLLM">
