@@ -27,3 +27,4 @@ class ProjectModel(BaseModel):
     name: str
     embeddings: Union[str, None] = None
     llm: Union[str, None] = None
+    system: Union[str, None] = None

@@ -75,7 +75,7 @@ async def getProject(projectName: str):
         project = brain.findProject(projectName)
         dbInfo = project.db.get()
 
-        return {"project": project.model.name, "llm": project.model.llm, "embeddings": project.model.embeddings, "documents": len(dbInfo["documents"]), "metadatas": len(dbInfo["metadatas"])}
+        return {"project": project.model.name, "llm": project.model.llm, "embeddings": project.model.embeddings, "documents": len(dbInfo["documents"]), "metadatas": len(dbInfo["metadatas"]), "system": project.model.system}
     except Exception as e:
         logging.error(e)
         raise HTTPException(
