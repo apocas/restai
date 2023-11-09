@@ -20,6 +20,7 @@ class Project:
     def boot(self, model: ProjectModel):
         self.model = model
         self.initializePaths()
+        self.save()
 
     def delete(self):
         if os.path.exists(os.path.join(os.environ["PROJECTS_PATH"], f'{self.model.name}.json')):
@@ -34,16 +35,9 @@ class Project:
             
         if os.path.exists(os.path.join(os.environ["UPLOADS_PATH"], self.model.name)):
             shutil.rmtree(os.path.join(
-                os.environ["UPLOADS_PATH"], self.model.name), ignore_errors=True)
+                os.environ["UPLOADS_PATH"], self.model.name), ignore_errors=True)        
 
     def save(self):
-        if os.path.exists(os.path.join(os.environ["PROJECTS_PATH"], f'{self.model.name}.json')):
-            raise ValueError("Project already exists")
-          
-        self.initializePaths()
-        self.saveEdit()
-
-    def saveEdit(self):
         file_path = os.path.join(
             os.environ["PROJECTS_PATH"], f'{self.model.name}.json')
         model_json = json.dumps(self.model.model_dump(), indent=4)

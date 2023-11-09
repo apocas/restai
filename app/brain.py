@@ -51,6 +51,9 @@ class Brain:
         return [project.model.name for project in self.projects]
 
     def createProject(self, projectModel):
+        if os.path.exists(os.path.join(os.environ["PROJECTS_PATH"], f'{projectModel.name}.json')):
+            raise ValueError("Project already exists")
+          
         project = Project()
         project.boot(projectModel)
         self.initializeEmbeddings(project)
@@ -72,7 +75,7 @@ class Brain:
             changed = True
 
         if changed:
-            project.saveEdit()
+            project.save()
         return project
 
     def initializeEmbeddings(self, project):
