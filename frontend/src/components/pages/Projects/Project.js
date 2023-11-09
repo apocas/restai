@@ -13,7 +13,7 @@ import React, { useState, useEffect, useRef } from "react";
 
 function Project() {
 
-  const url = "";
+  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [data, setData] = useState({ projects: [] });
   const [files, setFiles] = useState({ files: [] });
   const [file, setFile] = useState(null);

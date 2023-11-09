@@ -17,6 +17,7 @@ from app.models import EmbeddingModel, IngestModel, ProjectModel, QuestionModel,
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
@@ -59,6 +60,15 @@ app = FastAPI(
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
     },
 )
+
+if "RESTAI_DEV" in os.environ:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 brain = Brain()
 

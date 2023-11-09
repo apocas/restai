@@ -13,7 +13,7 @@ import React, { useState, useEffect, useRef } from "react";
 
 function Chat() {
 
-  const url = "";
+  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   var { projectName } = useParams();
   const messageForm = useRef(null);
   const [messages, setMessages] = useState([]);
