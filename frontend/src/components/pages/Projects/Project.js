@@ -154,6 +154,7 @@ function Project() {
               <ListGroup.Item>Embeddings: {data.embeddings}</ListGroup.Item>
               <ListGroup.Item>Documents: {data.documents}</ListGroup.Item>
               <ListGroup.Item>Metadatas: {data.metadatas}</ListGroup.Item>
+              <ListGroup.Item>System: {data.system}</ListGroup.Item>
             </ListGroup>
           </Col>
           <Col sm={6}>

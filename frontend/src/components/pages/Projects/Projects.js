@@ -15,6 +15,7 @@ function Projects() {
   const [data, setData] = useState({ projects: [] });
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const projectNameForm = useRef(null)
+  const systemForm = useref(null)
   const embbeddingForm = useRef(null)
   const llmForm = useRef(null)
 
@@ -48,7 +49,8 @@ function Projects() {
       body: JSON.stringify({
         "name": projectNameForm.current.value,
         "embeddings": embbeddingForm.current.value,
-        "llm": llmForm.current.value
+        "llm": llmForm.current.value,
+        "system": systemForm.current.value
       }),
     })
       .then(response => response.json())
@@ -121,6 +123,11 @@ function Projects() {
               <Form.Group as={Col} controlId="formGridProjectName">
                 <Form.Label>Project Name</Form.Label>
                 <Form.Control ref={projectNameForm} />
+              </Form.Group>
+
+              <Form.Group as={Col} controlId="formGridSystem">
+                <Form.Label>System Message</Form.Label>
+                <Form.Control ref={systemForm} />
               </Form.Group>
 
               <Form.Group as={Col} controlId="formGridEmbeddings">
