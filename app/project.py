@@ -16,6 +16,7 @@ class Project:
     def __init__(self):
         self.chats = []
         self.db: Chroma
+        self.model: ProjectModel
 
     def boot(self, model: ProjectModel):
         self.model = model
@@ -32,10 +33,10 @@ class Project:
             shutil.rmtree(embeddingsPath, ignore_errors=True)
         except:
             pass
-            
+
         if os.path.exists(os.path.join(os.environ["UPLOADS_PATH"], self.model.name)):
             shutil.rmtree(os.path.join(
-                os.environ["UPLOADS_PATH"], self.model.name), ignore_errors=True)        
+                os.environ["UPLOADS_PATH"], self.model.name), ignore_errors=True)
 
     def save(self):
         file_path = os.path.join(
@@ -44,24 +45,24 @@ class Project:
 
         with open(file_path, 'w') as f:
             f.write(model_json)
-            
+
     def initializePaths(self):
-      if not os.path.exists(os.environ["PROJECTS_PATH"]):
-          os.makedirs(os.environ["PROJECTS_PATH"])
+        if not os.path.exists(os.environ["PROJECTS_PATH"]):
+            os.makedirs(os.environ["PROJECTS_PATH"])
 
-      if not os.path.exists(os.environ["EMBEDDINGS_PATH"]):
-          os.makedirs(os.environ["EMBEDDINGS_PATH"])
+        if not os.path.exists(os.environ["EMBEDDINGS_PATH"]):
+            os.makedirs(os.environ["EMBEDDINGS_PATH"])
 
-      try:
-          embeddingsPath = FindEmbeddingsPath(self.model.name)
-      except:
-          embeddingsPath = os.path.join(os.environ["EMBEDDINGS_PATH"], self.model.name + "_" + str(int(time.time())))
-          os.mkdir(embeddingsPath)
-          
-      if not os.path.exists(os.path.join(os.environ["UPLOADS_PATH"], self.model.name)):
-          os.mkdir(os.path.join(
-              os.environ["UPLOADS_PATH"], self.model.name))
+        try:
+            embeddingsPath = FindEmbeddingsPath(self.model.name)
+        except:
+            embeddingsPath = os.path.join(
+                os.environ["EMBEDDINGS_PATH"], self.model.name + "_" + str(int(time.time())))
+            os.mkdir(embeddingsPath)
 
+        if not os.path.exists(os.path.join(os.environ["UPLOADS_PATH"], self.model.name)):
+            os.mkdir(os.path.join(
+                os.environ["UPLOADS_PATH"], self.model.name))
 
     def load(self, name):
         if name is None:

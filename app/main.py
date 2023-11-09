@@ -112,10 +112,11 @@ async def deleteProject(projectName: str):
     except Exception as e:
         logging.error(e)
         if e.detail:
-          raise e
+            raise e
         else:
-          raise HTTPException(
-            status_code=500, detail='{"error": ' + str(e)+ '}')
+            raise HTTPException(
+                status_code=500, detail='{"error": ' + str(e) + '}')
+
 
 @app.patch("/projects/{projectName}")
 async def editProject(projectModel: ProjectModel):
@@ -128,10 +129,10 @@ async def editProject(projectModel: ProjectModel):
     except Exception as e:
         logging.error(e)
         if e.detail:
-          raise e
+            raise e
         else:
-          raise HTTPException(
-            status_code=500, detail='{"error": ' + str(e) + '}')
+            raise HTTPException(
+                status_code=500, detail='{"error": ' + str(e) + '}')
 
 
 @app.post("/projects")
@@ -221,7 +222,8 @@ def ingestFile(projectName: str, file: UploadFile):
         logger = logging.getLogger("embeddings_ingest_upload")
         project = brain.findProject(projectName)
 
-        dest = os.path.join(os.environ["UPLOADS_PATH"], project.model.name, file.filename)
+        dest = os.path.join(os.environ["UPLOADS_PATH"],
+                            project.model.name, file.filename)
         logger.info("Ingesting upload for destination: {}".format(dest))
 
         with open(dest, "wb") as buffer:
@@ -349,10 +351,15 @@ def chatProject(projectName: str, input: ChatModel):
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
+
 try:
-  app.mount("/admin/", StaticFiles(directory="frontend/html/", html=True), name="static_admin")
-  app.mount("/admin/static/js", StaticFiles(directory="frontend/html/static/js"), name="static_js")
-  app.mount("/admin/static/css", StaticFiles(directory="frontend/html/static/css"), name="static_css")
-  app.mount("/admin/static/media", StaticFiles(directory="frontend/html/static/media"), name="static_media")
+    app.mount("/admin/", StaticFiles(directory="frontend/html/",
+              html=True), name="static_admin")
+    app.mount("/admin/static/js",
+              StaticFiles(directory="frontend/html/static/js"), name="static_js")
+    app.mount("/admin/static/css",
+              StaticFiles(directory="frontend/html/static/css"), name="static_css")
+    app.mount("/admin/static/media",
+              StaticFiles(directory="frontend/html/static/media"), name="static_media")
 except:
-  print("Admin interface not available. Did you run 'make frontend'?")
+    print("Admin interface not available. Did you run 'make frontend'?")

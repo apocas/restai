@@ -6,11 +6,11 @@ class IngestModel(BaseModel):
     url: str
     recursive: bool = False
     depth: int = 2
-    
-    
+
+
 class EmbeddingModel(BaseModel):
     source: Union[str, None] = None
-    
+
 
 class QuestionModel(BaseModel):
     question: str

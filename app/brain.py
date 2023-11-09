@@ -21,7 +21,8 @@ class Brain:
 
         self.loadProjects()
 
-        self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=30)
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1024, chunk_overlap=30)
 
     def getLLM(self, llmModel, **kwargs):
         if llmModel in self.llmCache:
@@ -53,7 +54,7 @@ class Brain:
     def createProject(self, projectModel):
         if os.path.exists(os.path.join(os.environ["PROJECTS_PATH"], f'{projectModel.name}.json')):
             raise ValueError("Project already exists")
-          
+
         project = Project()
         project.boot(projectModel)
         self.initializeEmbeddings(project)
@@ -85,12 +86,12 @@ class Brain:
 
     def loadProjects(self):
         if os.path.isdir(os.environ["PROJECTS_PATH"]):
-          for file in os.listdir(os.environ["PROJECTS_PATH"]):
-              file_path = os.path.join(os.environ["PROJECTS_PATH"], file)
-              if os.path.isfile(file_path):
-                  projectname, ext = os.path.splitext(file or '')
-                  if ext == ".json":
-                    self.loadProject(projectname)
+            for file in os.listdir(os.environ["PROJECTS_PATH"]):
+                file_path = os.path.join(os.environ["PROJECTS_PATH"], file)
+                if os.path.isfile(file_path):
+                    projectname, ext = os.path.splitext(file or '')
+                    if ext == ".json":
+                        self.loadProject(projectname)
 
     def loadProject(self, name):
         project = Project()
@@ -135,11 +136,11 @@ class Brain:
             search_type="similarity", search_kwargs={"k": 2}
         )
 
-        self.conversationalChain = ConversationalRetrievalChain.from_llm(
+        conversationalChain = ConversationalRetrievalChain.from_llm(
             llm=llm, retriever=retriever
         )
 
-        result = self.conversationalChain(
+        result = conversationalChain(
             {"question": chatModel.message, "chat_history": chat.history}
         )
         chat.history.append((chatModel.message, result["answer"]))
@@ -147,8 +148,7 @@ class Brain:
 
     def questionContext(self, project, questionModel):
         llm = self.getLLM(questionModel.llm or project.model.llm)
-        
-        
+
         default_system = "You are a digital assistant, answer the following question about the following context:"
 
         prompt_template = """{system}
@@ -165,16 +165,16 @@ class Brain:
         chain = LLMChain(llm=llm, prompt=prompt)
 
         try:
-          docs = project.db.similarity_search(questionModel.question, k=1)
+            docs = project.db.similarity_search(questionModel.question, k=1)
         except:
-          docs = []
-          
+            docs = []
+
         if len(docs) == 0:
-          inputs = [{"context": "",
-                   "question": questionModel.question} ]
+            inputs = [{"context": "",
+                       "question": questionModel.question}]
         else:
-          inputs = [{"context": doc.page_content,
-                   "question": questionModel.question} for doc in docs]
-        
+            inputs = [{"context": doc.page_content,
+                       "question": questionModel.question} for doc in docs]
+
         output = chain.apply(inputs)
         return output[0]["text"].strip()
