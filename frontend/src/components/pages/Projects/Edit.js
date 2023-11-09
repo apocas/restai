@@ -6,19 +6,21 @@ import Col from 'react-bootstrap/Col';
 import Button from 'react-bootstrap/Button';
 
 import React, { useState, useEffect, useRef } from "react";
+import { useParams } from "react-router-dom";
 
 function Edit() {
 
-  const url = "";
-  const [setData] = useState({ projects: [] });
+  const url = process.env.REACT_APP_RESTAI_API_URL || "";
+  const [data, setData] = useState({ projects: [] });
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const projectNameForm = useRef(null)
   const systemForm = useRef(null)
   const llmForm = useRef(null)
+  var { projectName } = useParams();
 
   // TODO: error handling
-  const fetchProjects = () => {
-    return fetch(url + "/projects")
+  const fetchProject = (projectName) => {
+    return fetch(url + "/projects/" + projectName)
       .then((res) => res.json())
       .then((d) => setData(d))
   }
@@ -43,53 +45,53 @@ function Edit() {
       }),
     })
       .then(response => response.json())
-      .then(() => fetchProjects())
+      .then(() => fetchProject(projectName))
 
   }
 
   useEffect(() => {
     document.title = 'RestAI Projects';
-    fetchProjects();
+    fetchProject(projectName);
     fetchInfo();
-  }, []);
+  }, [projectName]);
 
 
   return (
     <>
       <CustomNavBar />
       <Container style={{ marginTop: "20px" }}>
-          <h1>Edit Project</h1>
-          <Form onSubmit={onSubmitHandler}>
-            <Row className="mb-3">
-              <Form.Group as={Col} controlId="formGridProjectName">
-                <Form.Label>Project Name</Form.Label>
-                <Form.Control ref={projectNameForm} />
-              </Form.Group>
+        <h1>Edit Project</h1>
+        <Form onSubmit={onSubmitHandler}>
+          <Row className="mb-3">
+            <Form.Group as={Col} controlId="formGridProjectName">
+              <Form.Label>Project Name</Form.Label>
+              <Form.Control ref={projectNameForm} defaultValue={projectName} />
+            </Form.Group>
 
-              <Form.Group as={Col} controlId="formGridSystem">
-                <Form.Label>System Message</Form.Label>
-                <Form.Control ref={systemForm} />
-              </Form.Group>
+            <Form.Group as={Col} controlId="formGridSystem">
+              <Form.Label>System Message</Form.Label>
+              <Form.Control ref={systemForm} defaultValue={data.system ? data.system : ""} />
+            </Form.Group>
 
-              <Form.Group as={Col} controlId="formGridLLM">
-                <Form.Label>LLM</Form.Label>
-                <Form.Select ref={llmForm} defaultValue="Choose...">
-                  <option>Choose...</option>
-                  {
-                    info.llms.map((llm, index) => {
-                      return (
-                        <option key={index}>{llm}</option>
-                      )
-                    }
+            <Form.Group as={Col} controlId="formGridLLM">
+              <Form.Label>LLM</Form.Label>
+              <Form.Select ref={llmForm} value={data.llm}>
+                <option>Choose...</option>
+                {
+                  info.llms.map((llm, index) => {
+                    return (
+                      <option key={index}>{llm}</option>
                     )
                   }
-                </Form.Select>
-              </Form.Group>
-            </Row>
-            <Button variant="dark" type="submit" className="mb-2">
-              Submit
-            </Button>
-          </Form>
+                  )
+                }
+              </Form.Select>
+            </Form.Group>
+          </Row>
+          <Button variant="dark" type="submit" className="mb-2">
+            Submit
+          </Button>
+        </Form>
       </Container>
     </>
   );

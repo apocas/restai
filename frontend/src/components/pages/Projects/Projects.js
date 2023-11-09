@@ -11,7 +11,7 @@ import React, { useState, useEffect, useRef } from "react";
 
 function Projects() {
 
-  const url = "";
+  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [data, setData] = useState({ projects: [] });
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const projectNameForm = useRef(null)

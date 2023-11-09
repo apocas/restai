@@ -14,12 +14,13 @@ import React, { useState, useEffect, useRef } from "react";
 
 function Question() {
 
-  const url = "";
+  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   var { projectName } = useParams();
   const systemForm = useRef(null);
   const questionForm = useRef(null);
   const [answers, setAnswers] = useState([]);
   const [canSubmit, setCanSubmit] = useState(true);
+  const [data, setData] = useState({ projects: [] });
 
   // TODO: error handling and response
   const onSubmitHandler = (event) => {
@@ -60,8 +61,16 @@ function Question() {
     }
   }
 
+  // TODO: error handling
+  const fetchProject = (projectName) => {
+    return fetch(url + "/projects/" + projectName)
+      .then((res) => res.json())
+      .then((d) => setData(d))
+  }
+
   useEffect(() => {
     document.title = 'RestAI  Question ' + projectName;
+    fetchProject(projectName);
   }, [projectName]);
 
   return (
@@ -71,10 +80,10 @@ function Question() {
         <h1>Question {projectName}</h1>
         <Form onSubmit={onSubmitHandler}>
           <Row>
-          <Col sm={12}>
+            <Col sm={12}>
               <InputGroup>
                 <InputGroup.Text>System</InputGroup.Text>
-                <Form.Control ref={systemForm} rows="5" as="textarea" aria-label="With textarea" />
+                <Form.Control ref={systemForm} rows="5" as="textarea" aria-label="With textarea" defaultValue={data.system ? data.system : ""} />
               </InputGroup>
             </Col>
             {answers.length > 0 &&
@@ -118,7 +127,7 @@ function Question() {
             <Col sm={2}>
               <div className="d-grid gap-2">
                 <Button variant="dark" type="submit" size="lg">
-                {
+                  {
                     canSubmit ? <span>Ask</span> : <Spinner animation="border" />
                   }
                 </Button>
