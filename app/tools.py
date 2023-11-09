@@ -1,7 +1,7 @@
 import os
 from fastapi import HTTPException
 from modules.loaders import LOADERS
-
+import yake
 
 def IndexDocuments(brain, project, documents):
     docs = brain.text_splitter.split_documents(documents)
@@ -17,6 +17,18 @@ def IndexDocuments(brain, project, documents):
     ids = project.db.add_texts(texts=texts, metadatas=metadatas)
     return ids
 
+def ExtractKeywordsForMetadata(documents):
+    max_ngram_size = 4
+    numOfKeywords = 10
+    metadataKeywords = ""
+    kw_extractor = yake.KeywordExtractor(n=max_ngram_size, top=numOfKeywords)
+    for document in documents:
+      keywords = kw_extractor.extract_keywords(document.page_content)
+      for kw in keywords:
+        metadataKeywords = metadataKeywords + kw[0] + ", "
+      document.metadata["keywords"] = metadataKeywords
+      
+    return documents
 
 def FindFileLoader(filepath, ext):
     if ext in LOADERS:

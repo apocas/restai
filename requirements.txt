@@ -15,3 +15,4 @@ tiktoken
 python-pptx
 bs4
 selenium
+yake

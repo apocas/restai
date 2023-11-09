@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from app.brain import Brain
 
 from app.models import EmbeddingModel, IngestModel, ProjectModel, QuestionModel, ChatModel
-from app.tools import FindFileLoader, IndexDocuments
+from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
 
@@ -177,6 +177,8 @@ def ingestURL(projectName: str, ingest: IngestModel):
 
         documents = loader.load()
 
+        documents = ExtractKeywordsForMetadata(documents)
+
         ids = IndexDocuments(brain, project, documents)
         project.db.persist()
 
@@ -205,6 +207,8 @@ def ingestFile(projectName: str, file: UploadFile):
         logger.debug("Extension: {}".format(ext))
         loader = FindFileLoader(dest, ext)
         documents = loader.load()
+
+        documents = ExtractKeywordsForMetadata(documents)
 
         ids = IndexDocuments(brain, project, documents)
         logger.debug("Documents: {}".format(len(ids)))
