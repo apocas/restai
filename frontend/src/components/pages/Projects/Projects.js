@@ -15,7 +15,7 @@ function Projects() {
   const [data, setData] = useState({ projects: [] });
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const projectNameForm = useRef(null)
-  const systemForm = useref(null)
+  const systemForm = useRef(null)
   const embbeddingForm = useRef(null)
   const llmForm = useRef(null)
 
