@@ -9,5 +9,7 @@ services:
     - '9000:9000'
     volumes:
     - '.:/app'
+    - '.cache:/home/user/.cache'
     environment:
+      LOG_LEVEL: DEBUG
       OPENAI_API_KEY: ${OPENAI_API_KEY}

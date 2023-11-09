@@ -7,6 +7,8 @@ WORKDIR /app
 
 COPY . /app
 
+ENV ANONYMIZED_TELEMETRY=False
+
 RUN pip install -r requirements.txt
 
 EXPOSE 9000

@@ -169,4 +169,5 @@ uploads/*
 .DS_Store
 pytest.ini
 frontend/html/*
-.env.local
+.env
+.local
