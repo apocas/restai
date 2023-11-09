@@ -149,7 +149,7 @@ class Brain:
         llm = self.getLLM(questionModel.llm or project.model.llm)
         
         
-        default_system = "Answer the following question about the following context:"
+        default_system = "You are a digital assistant, answer the following question about the following context:"
 
         prompt_template = """{system}
 
