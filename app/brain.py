@@ -154,7 +154,7 @@ class Brain:
             =========
             Context: {{context}}
             =========
-            Answer:""".format(system=project.model.system or questionModel.system)
+            Answer:""".format(system=questionModel.system or project.model.system)
 
         prompt = PromptTemplate(
             template=prompt_template, input_variables=["context", "question"]
