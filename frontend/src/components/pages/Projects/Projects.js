@@ -98,6 +98,11 @@ function Projects() {
                           <Button variant="dark">View</Button>{' '}
                         </NavLink>
                         <NavLink
+                          to={"/projects/" + project + "/edit"}
+                        >
+                          <Button variant="dark">Edit</Button>{' '}
+                        </NavLink>
+                        <NavLink
                           to={"/projects/" + project + "/chat"}
                         >
                           <Button variant="dark">Chat</Button>{' '}
