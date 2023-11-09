@@ -6,6 +6,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain.vectorstores import Chroma
 
+from app.models import EmbeddingModel, IngestModel, ProjectModel, QuestionModel, ChatModel
 from app.project import Project
 from app.tools import FindEmbeddingsPath
 from modules.embeddings import EMBEDDINGS
@@ -17,7 +18,7 @@ class Brain:
         self.projects = []
         self.llmCache = {}
         self.embeddingCache = {}
-                        
+
         self.loadProjects()
 
         self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=30)
@@ -55,12 +56,30 @@ class Brain:
         self.initializeEmbeddings(project)
         project.save()
         self.projects.append(project)
-        
+
+    def editProject(self, projectModel: ProjectModel):
+        project = self.findProject(projectModel.name)
+        if project is None:
+            return False
+
+        changed = False
+        if project.model.llm != projectModel.llm:
+            project.model.llm = projectModel.llm
+            changed = True
+
+        if project.model.system != projectModel.system:
+            project.model.system = projectModel.system
+            changed = True
+
+        if changed:
+            project.saveEdit()
+        return project
+
     def initializeEmbeddings(self, project):
         project.db = Chroma(
             persist_directory=FindEmbeddingsPath(project.model.name), embedding_function=self.getEmbedding(project.model.embeddings)
         )
-      
+
     def loadProjects(self):
         if os.path.isdir(os.environ["PROJECTS_PATH"]):
           for file in os.listdir(os.environ["PROJECTS_PATH"]):
@@ -76,7 +95,7 @@ class Brain:
         self.initializeEmbeddings(project)
         self.projects.append(project)
         return project
-      
+
     def findProject(self, name):
         for project in self.projects:
             if project.model.name == name:
@@ -92,7 +111,7 @@ class Brain:
 
     def question(self, project, questionModel):
         llm = self.getLLM(questionModel.llm or project.model.llm)
-        
+
         retriever = project.db.as_retriever(
             search_type="similarity", search_kwargs={"k": 2}
         )

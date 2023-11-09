@@ -41,7 +41,9 @@ class Project:
             raise ValueError("Project already exists")
           
         self.initializePaths()
-        
+        self.saveEdit()
+
+    def saveEdit(self):
         file_path = os.path.join(
             os.environ["PROJECTS_PATH"], f'{self.model.name}.json')
         model_json = json.dumps(self.model.model_dump(), indent=4)

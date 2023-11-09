@@ -107,6 +107,22 @@ async def deleteProject(projectName: str):
           raise HTTPException(
             status_code=500, detail='{"error": ' + str(e)+ '}')
 
+@app.patch("/projects/{projectName}")
+async def editProject(projectModel: ProjectModel):
+    try:
+        if brain.editProject(projectModel):
+            return {"project": projectModel.name}
+        else:
+            raise HTTPException(
+                status_code=404, detail='{"error": "Project not found"}')
+    except Exception as e:
+        logging.error(e)
+        if e.detail:
+          raise e
+        else:
+          raise HTTPException(
+            status_code=500, detail='{"error": ' + str(e) + '}')
+
 
 @app.post("/projects")
 async def createProject(projectModel: ProjectModel):

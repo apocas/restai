@@ -1,15 +1,13 @@
 import CustomNavBar from '../../common/navBar.js'
 import Container from 'react-bootstrap/Container';
-import Table from 'react-bootstrap/Table';
 import Row from 'react-bootstrap/Row';
 import Form from 'react-bootstrap/Form';
 import Col from 'react-bootstrap/Col';
 import Button from 'react-bootstrap/Button';
-import { NavLink } from "react-router-dom";
 
 import React, { useState, useEffect, useRef } from "react";
 
-function Projects() {
+function Edit() {
 
   const url = "";
   const [data, setData] = useState({ projects: [] });
@@ -18,13 +16,6 @@ function Projects() {
   const systemForm = useRef(null)
   const embbeddingForm = useRef(null)
   const llmForm = useRef(null)
-
-  // TODO: error handling
-  const handleDeleteClick = (projectName) => {
-    alert(projectName);
-    fetch(url + "/projects/" + projectName, { method: 'DELETE' })
-      .then(() => fetchProjects());
-  }
 
   // TODO: error handling
   const fetchProjects = () => {
@@ -43,12 +34,11 @@ function Projects() {
   // TODO: error handling and response
   const onSubmitHandler = (event) => {
     event.preventDefault();
-    fetch(url + "/projects", {
-      method: 'POST',
+    fetch(url + "/projects/" + projectNameForm.current.value, {
+      method: 'PATCH',
       headers: new Headers({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         "name": projectNameForm.current.value,
-        "embeddings": embbeddingForm.current.value,
         "llm": llmForm.current.value,
         "system": systemForm.current.value
       }),
@@ -64,65 +54,12 @@ function Projects() {
     fetchInfo();
   }, []);
 
+
   return (
     <>
       <CustomNavBar />
       <Container style={{ marginTop: "20px" }}>
-        <Row>
-          <h1>Projects</h1>
-          <Table striped bordered hover responsive>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Project Name</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {
-                data.projects.map((project, index) => {
-                  return (
-                    <tr key={index}>
-                      <td>{index}</td>
-                      <td>
-                        <NavLink
-                          to={"/projects/" + project}
-                        >
-                          {project}
-                        </NavLink>
-                      </td>
-                      <td>
-                        <NavLink
-                          to={"/projects/" + project}
-                        >
-                          <Button variant="dark">View</Button>{' '}
-                        </NavLink>
-                        <NavLink
-                          to={"/projects/" + project + "/edit"}
-                        >
-                          <Button variant="dark">Edit</Button>{' '}
-                        </NavLink>
-                        <NavLink
-                          to={"/projects/" + project + "/chat"}
-                        >
-                          <Button variant="dark">Chat</Button>{' '}
-                        </NavLink>
-                        <NavLink
-                          to={"/projects/" + project + "/question"}
-                        >
-                          <Button variant="dark">Question</Button>{' '}
-                        </NavLink>
-                        <Button onClick={() => handleDeleteClick(project)} variant="danger">Delete</Button>
-                      </td>
-                    </tr>
-                  )
-                })
-              }
-            </tbody>
-          </Table>
-        </Row>
-        <Row>
-          <h1>Create Project</h1>
+          <h1>Edit Project</h1>
           <Form onSubmit={onSubmitHandler}>
             <Row className="mb-3">
               <Form.Group as={Col} controlId="formGridProjectName">
@@ -138,7 +75,7 @@ function Projects() {
               <Form.Group as={Col} controlId="formGridEmbeddings">
                 <Form.Label>Embeddings</Form.Label>
                 <Form.Select ref={embbeddingForm} defaultValue="Choose...">
-                  <option>Choose...</option>
+                  <option isDisabled={true}>Choose...</option>
                   {
                     info.embeddings.map((embbedding, index) => {
                       return (
@@ -169,10 +106,9 @@ function Projects() {
               Submit
             </Button>
           </Form>
-        </Row>
       </Container>
     </>
   );
 }
 
-export default Projects;
+export default Edit;
