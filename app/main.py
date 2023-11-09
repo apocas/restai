@@ -316,7 +316,7 @@ def delete_file(projectName: str, fileName: str):
 def questionProject(projectName: str, input: QuestionModel):
     try:
         project = brain.findProject(projectName)
-        if input.system:
+        if input.system or project.model.system:
             answer = brain.questionContext(project, input)
         else:
             answer = brain.question(project, input)

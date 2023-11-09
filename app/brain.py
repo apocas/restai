@@ -147,6 +147,9 @@ class Brain:
 
     def questionContext(self, project, questionModel):
         llm = self.getLLM(questionModel.llm or project.model.llm)
+        
+        
+        default_system = "Answer the following question about the following context:"
 
         prompt_template = """{system}
 
@@ -154,14 +157,24 @@ class Brain:
             =========
             Context: {{context}}
             =========
-            Answer:""".format(system=questionModel.system or project.model.system)
+            Answer:""".format(system=questionModel.system or project.model.system or default_system)
 
         prompt = PromptTemplate(
             template=prompt_template, input_variables=["context", "question"]
         )
         chain = LLMChain(llm=llm, prompt=prompt)
 
-        docs = project.db.similarity_search(questionModel.question, k=1)
-        inputs = [{"context": doc.page_content,
+        try:
+          docs = project.db.similarity_search(questionModel.question, k=1)
+        except:
+          docs = []
+          
+        if len(docs) == 0:
+          inputs = [{"context": "",
+                   "question": questionModel.question} ]
+        else:
+          inputs = [{"context": doc.page_content,
                    "question": questionModel.question} for doc in docs]
-        return chain.apply(inputs)[0]["text"].strip()
+        
+        output = chain.apply(inputs)
+        return output[0]["text"].strip()
