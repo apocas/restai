@@ -177,7 +177,7 @@ def ingestURL(projectName: str, ingest: IngestModel):
 
         documents = loader.load()
 
-        ExtractKeywordsForMetadata(documents)
+        documents = ExtractKeywordsForMetadata(documents)
 
         ids = IndexDocuments(brain, project, documents)
         project.db.persist()
@@ -208,7 +208,7 @@ def ingestFile(projectName: str, file: UploadFile):
         loader = FindFileLoader(dest, ext)
         documents = loader.load()
 
-        ExtractKeywordsForMetadata(documents)
+        documents = ExtractKeywordsForMetadata(documents)
 
         ids = IndexDocuments(brain, project, documents)
         logger.debug("Documents: {}".format(len(ids)))
