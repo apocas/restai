@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 from tempfile import NamedTemporaryFile
+import traceback
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 from langchain.document_loaders import (
     WebBaseLoader,
@@ -109,6 +110,7 @@ async def getProject(projectName: str):
             "system": project.model.system}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=404, detail='{"error": ' + str(e) + '}')
 
@@ -123,6 +125,7 @@ async def deleteProject(projectName: str):
                 status_code=404, detail='{"error": "Project not found"}')
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         if e.detail:
             raise e
         else:
@@ -140,6 +143,7 @@ async def editProject(projectModel: ProjectModel):
                 status_code=404, detail='{"error": "Project not found"}')
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         if e.detail:
             raise e
         else:
@@ -154,6 +158,7 @@ async def createProject(projectModel: ProjectModel):
         return {"project": projectModel.name}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
@@ -168,6 +173,7 @@ def reset(projectName: str):
         return {"project": project.model.name}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=404, detail='{"error": ' + str(e) + '}')
 
@@ -226,6 +232,7 @@ def ingestURL(projectName: str, ingest: IngestModel):
         return {"url": ingest.url, "documents": len(ids)}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
@@ -263,6 +270,7 @@ def ingestFile(projectName: str, file: UploadFile):
             "documents": len(ids)}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
@@ -358,6 +366,7 @@ def questionProject(projectName: str, input: QuestionModel):
             return {"question": input.question, "answer": answer, "type": "question"}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
@@ -371,6 +380,7 @@ def chatProject(projectName: str, input: ChatModel):
         return {"message": input.message, "response": response, "id": chat.id}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
