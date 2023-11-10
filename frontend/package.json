@@ -11,6 +11,7 @@
     "react": "^18.2.0",
     "react-bootstrap": "^2.9.1",
     "react-dom": "^18.2.0",
+    "react-gauge-chart": "^0.4.1",
     "react-router-dom": "^6.18.0",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"

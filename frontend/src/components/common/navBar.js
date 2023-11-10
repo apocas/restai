@@ -7,21 +7,26 @@ function CustomNavBar() {
   return (
     <Navbar expand="lg" className="bg-body-tertiary">
       <Container>
-        <Navbar.Brand>
-          <NavLink
-            to="/"
-          >
+        <Navbar.Brand href="/admin">
             RestAI
-          </NavLink>
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="me-auto">
-            <NavLink
-              to="/"
-            >
-              Home
-            </NavLink>
+            <Nav.Link as="li">
+              <NavLink
+                to="/"
+              >
+                Home
+              </NavLink>
+            </Nav.Link>
+            <Nav.Link as="li">
+              <NavLink
+                to="/hardware"
+              >
+                Hardware
+              </NavLink>
+            </Nav.Link>
           </Nav>
         </Navbar.Collapse>
       </Container>
