@@ -7,6 +7,7 @@ import Project from './components/pages/Projects/Project.js';
 import Edit from './components/pages/Projects/Edit.js';
 import Chat from './components/pages/Projects/Chat.js';
 import Question from './components/pages/Projects/Question.js';
+import Hardware from './components/pages/Hardware/Hardware.js';
 import Error from './components/pages/Error/Error.js';
 import 'bootstrap/dist/css/bootstrap.css';
 
@@ -36,6 +37,10 @@ function Root() {
         <Route
           path={`/projects/:projectName/chat`}
           element={<Chat />}
+        />
+        <Route
+          path={`/hardware`}
+          element={<Hardware />}
         />
         <Route
           path={`/error`}
