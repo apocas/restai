@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 from tempfile import NamedTemporaryFile
+import traceback
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 from langchain.document_loaders import (
     WebBaseLoader,
@@ -23,6 +24,8 @@ from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
 from modules.loaders import LOADERS
 import logging
+import psutil
+import GPUtil
 
 load_dotenv()
 
@@ -79,7 +82,7 @@ async def get(request: Request):
 
 
 @app.get("/info")
-async def getInfo(request: Request):
+async def get_info(request: Request):
     return {
         "version": app.version, "embeddings": list(
             EMBEDDINGS.keys()), "llms": list(
@@ -87,13 +90,52 @@ async def getInfo(request: Request):
                 LOADERS.keys())}
 
 
+@app.get("/hardware")
+def get_hardware_info():
+    try:
+        cpu_load = psutil.cpu_percent()
+        ram_usage = psutil.virtual_memory().percent
+
+        gpu_load = None
+        gpu_temp = None
+        gpu_ram_usage = None
+        gpu_power_consumption = None
+
+        GPUs = GPUtil.getGPUs()
+        if len(GPUs) > 0:
+            gpu = GPUs[0]
+            gpu_load = getattr(gpu, 'load', None)
+            gpu_temp = getattr(gpu, 'temperature', None)
+            gpu_ram_usage = getattr(gpu, 'memoryUtil', None)
+
+        cpu_load = int(cpu_load)
+        if gpu_load is not None:
+            gpu_load = int(gpu_load * 100)
+        
+        if gpu_ram_usage is not None:
+            gpu_ram_usage = int(gpu_ram_usage * 100)
+
+        return {
+            "cpu_load": cpu_load,
+            "ram_usage": ram_usage,
+            "gpu_load": gpu_load,
+            "gpu_temp": gpu_temp,
+            "gpu_ram_usage": gpu_ram_usage,
+        }
+    except Exception as e:
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=404, detail='{"error": ' + str(e) + '}')
+
+
 @app.get("/projects")
-async def getProjects(request: Request):
+async def get_projects(request: Request):
     return {"projects": brain.listProjects()}
 
 
 @app.get("/projects/{projectName}")
-async def getProject(projectName: str):
+async def get_project(projectName: str):
     try:
         project = brain.findProject(projectName)
         dbInfo = project.db.get()
@@ -109,12 +151,13 @@ async def getProject(projectName: str):
             "system": project.model.system}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=404, detail='{"error": ' + str(e) + '}')
 
 
 @app.delete("/projects/{projectName}")
-async def deleteProject(projectName: str):
+async def delete_project(projectName: str):
     try:
         if brain.deleteProject(projectName):
             return {"project": projectName}
@@ -123,6 +166,7 @@ async def deleteProject(projectName: str):
                 status_code=404, detail='{"error": "Project not found"}')
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         if e.detail:
             raise e
         else:
@@ -131,7 +175,7 @@ async def deleteProject(projectName: str):
 
 
 @app.patch("/projects/{projectName}")
-async def editProject(projectModel: ProjectModel):
+async def edit_project(projectModel: ProjectModel):
     try:
         if brain.editProject(projectModel):
             return {"project": projectModel.name}
@@ -140,6 +184,7 @@ async def editProject(projectModel: ProjectModel):
                 status_code=404, detail='{"error": "Project not found"}')
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         if e.detail:
             raise e
         else:
@@ -148,18 +193,19 @@ async def editProject(projectModel: ProjectModel):
 
 
 @app.post("/projects")
-async def createProject(projectModel: ProjectModel):
+async def create_project(projectModel: ProjectModel):
     try:
         brain.createProject(projectModel)
         return {"project": projectModel.name}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
 
 @app.post("/projects/{projectName}/embeddings/reset")
-def reset(projectName: str):
+def project_reset(projectName: str):
     try:
         project = brain.findProject(projectName)
         project.db._client.reset()
@@ -168,12 +214,13 @@ def reset(projectName: str):
         return {"project": project.model.name}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=404, detail='{"error": ' + str(e) + '}')
 
 
 @app.post("/projects/{projectName}/embeddings/find")
-def getEmbedding(projectName: str, embedding: EmbeddingModel):
+def get_embedding(projectName: str, embedding: EmbeddingModel):
     project = brain.findProject(projectName)
     docs = None
 
@@ -191,7 +238,7 @@ def getEmbedding(projectName: str, embedding: EmbeddingModel):
 
 
 @app.delete("/projects/{projectName}/embeddings/{id}")
-def delete_Embedding(projectName: str, id: str):
+def delete_embedding(projectName: str, id: str):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
@@ -202,7 +249,7 @@ def delete_Embedding(projectName: str, id: str):
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/url")
-def ingestURL(projectName: str, ingest: IngestModel):
+def ingest_url(projectName: str, ingest: IngestModel):
     try:
         project = brain.findProject(projectName)
 
@@ -226,12 +273,13 @@ def ingestURL(projectName: str, ingest: IngestModel):
         return {"url": ingest.url, "documents": len(ids)}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/upload")
-def ingestFile(projectName: str, file: UploadFile):
+def ingest_file(projectName: str, file: UploadFile):
     try:
         logger = logging.getLogger("embeddings_ingest_upload")
         project = brain.findProject(projectName)
@@ -263,6 +311,7 @@ def ingestFile(projectName: str, file: UploadFile):
             "documents": len(ids)}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
@@ -347,7 +396,7 @@ def delete_file(projectName: str, fileName: str):
 
 
 @app.post("/projects/{projectName}/question")
-def questionProject(projectName: str, input: QuestionModel):
+def question_project(projectName: str, input: QuestionModel):
     try:
         project = brain.findProject(projectName)
         if input.system or project.model.system:
@@ -358,12 +407,13 @@ def questionProject(projectName: str, input: QuestionModel):
             return {"question": input.question, "answer": answer, "type": "question"}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
 
 @app.post("/projects/{projectName}/chat")
-def chatProject(projectName: str, input: ChatModel):
+def chat_project(projectName: str, input: ChatModel):
     try:
         project = brain.findProject(projectName)
         chat, response = brain.chat(project, input)
@@ -371,6 +421,7 @@ def chatProject(projectName: str, input: ChatModel):
         return {"message": input.message, "response": response, "id": chat.id}
     except Exception as e:
         logging.error(e)
+        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
