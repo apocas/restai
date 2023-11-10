@@ -41,7 +41,7 @@ function Edit() {
   // TODO: response handling
   const onSubmitHandler = (event) => {
     event.preventDefault();
-    fetch(url + "/projects/" + projectNameForm.current.value, {
+    fetch(url + "/projects/" + projectName, {
       method: 'PATCH',
       headers: new Headers({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
