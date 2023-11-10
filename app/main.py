@@ -96,26 +96,27 @@ def get_hardware_info():
         cpu_load = psutil.cpu_percent()
         ram_usage = psutil.virtual_memory().percent
 
+        gpu_load = None
+        gpu_temp = None
+        gpu_ram_usage = None
+        gpu_power_consumption = None
+
         GPUs = GPUtil.getGPUs()
         if len(GPUs) > 0:
-            gpu_load = GPUs[0].load
-            gpu_temp = GPUs[0].temperature
-            gpu_ram_usage = GPUs[0].memoryUtil
-            gpu_power_consumption = GPUs[0].powerDraw
+            gpu = GPUs[0]
+            gpu_load = getattr(gpu, 'load', None)
+            gpu_temp = getattr(gpu, 'temperature', None)
+            gpu_ram_usage = getattr(gpu, 'memoryUtil', None)
+            gpu_power_consumption = getattr(gpu, 'powerDraw', None)
 
-            return {
-                "cpu_load": cpu_load,
-                "ram_usage": ram_usage,
-                "gpu_load": gpu_load,
-                "gpu_temp": gpu_temp,
-                "gpu_ram_usage": gpu_ram_usage,
-                "gpu_power_consumption": gpu_power_consumption,
-            }
-        else:
-            return {
-                "cpu_load": cpu_load,
-                "ram_usage": ram_usage,
-            }
+        return {
+            "cpu_load": cpu_load,
+            "ram_usage": ram_usage,
+            "gpu_load": gpu_load,
+            "gpu_temp": gpu_temp,
+            "gpu_ram_usage": gpu_ram_usage,
+            "gpu_power_consumption": gpu_power_consumption,
+        }
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)

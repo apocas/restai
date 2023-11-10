@@ -17,3 +17,4 @@ bs4
 selenium
 yake
 GPUtil
+psutil
