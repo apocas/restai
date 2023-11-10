@@ -21,10 +21,10 @@ def IndexDocuments(brain, project, documents):
 
 def ExtractKeywordsForMetadata(documents):
     max_ngram_size = 4
-    numOfKeywords = 10
-    metadataKeywords = ""
+    numOfKeywords = 15
     kw_extractor = yake.KeywordExtractor(n=max_ngram_size, top=numOfKeywords)
     for document in documents:
+        metadataKeywords = ""
         keywords = kw_extractor.extract_keywords(document.page_content)
         for kw in keywords:
             metadataKeywords = metadataKeywords + kw[0] + ", "
