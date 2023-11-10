@@ -15,7 +15,6 @@ function Edit() {
   const [data, setData] = useState({ projects: [] });
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const [error, setError] = useState([]);
-  const projectNameForm = useRef(null)
   const systemForm = useRef(null)
   const llmForm = useRef(null)
   var { projectName } = useParams();
@@ -23,7 +22,10 @@ function Edit() {
   const fetchProject = (projectName) => {
     return fetch(url + "/projects/" + projectName)
       .then((res) => res.json())
-      .then((d) => setData(d)
+      .then((d) => {
+        setData(d)
+        llmForm.current.value = d.llm
+      }
       ).catch(err => {
         setError([...error, { "functionName": "fetchProject", "error": err.toString() }]);
       });
@@ -79,7 +81,7 @@ function Edit() {
           <Row className="mb-3">
             <Form.Group as={Col} controlId="formGridLLM">
               <Form.Label>LLM</Form.Label>
-              <Form.Select ref={llmForm} value={data.llm}>
+              <Form.Select ref={llmForm}>
                 <option>Choose...</option>
                 {
                   info.llms.map((llm, index) => {
