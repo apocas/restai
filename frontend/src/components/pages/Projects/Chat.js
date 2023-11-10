@@ -93,13 +93,13 @@ function Chat() {
                     {
                       messages.map((message, index) => {
                         return (message.response != null ?
-                          <div key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
+                          <div className='lineBreaks' key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
                             <span className='highlight'>MESSAGE:</span> {message.message} <br />
                             🤖<span className='highlight'>RESPONSE:</span> {message.response}
                             <hr />
                           </div>
                           :
-                          <div key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
+                          <div className='lineBreaks' key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
                             <span className='highlight'>MESSAGE:</span> {message.message} <br />
                             🤖<span className='highlight'>RESPONSE:</span> <Spinner animation="grow" size="sm" />
                             <hr />
