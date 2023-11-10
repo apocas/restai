@@ -181,4 +181,4 @@ class Brain:
                        "question": questionModel.question} for doc in docs]
 
         output = chain.apply(inputs)
-        return output[0]["text"].strip()
+        return output[0]["text"].strip(), len(docs)
