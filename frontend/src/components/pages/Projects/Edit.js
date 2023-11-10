@@ -45,7 +45,7 @@ function Edit() {
       method: 'PATCH',
       headers: new Headers({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
-        "name": projectNameForm.current.value,
+        "name": projectName,
         "llm": llmForm.current.value,
         "system": systemForm.current.value
       }),
@@ -74,13 +74,9 @@ function Edit() {
         </Alert>
       }
       <Container style={{ marginTop: "20px" }}>
-        <h1>Edit Project</h1>
+        <h1>Edit Project {projectName}</h1>
         <Form onSubmit={onSubmitHandler}>
           <Row className="mb-3">
-            <Form.Group as={Col} controlId="formGridProjectName">
-              <Form.Label>Project Name</Form.Label>
-              <Form.Control ref={projectNameForm} defaultValue={projectName} />
-            </Form.Group>
             <Form.Group as={Col} controlId="formGridLLM">
               <Form.Label>LLM</Form.Label>
               <Form.Select ref={llmForm} value={data.llm}>
