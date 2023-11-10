@@ -351,10 +351,11 @@ def questionProject(projectName: str, input: QuestionModel):
     try:
         project = brain.findProject(projectName)
         if input.system or project.model.system:
-            answer = brain.questionContext(project, input)
+            answer, hits = brain.questionContext(project, input)
+            return {"question": input.question, "answer": answer, "hits": hits, "type": "questioncontext"}
         else:
             answer = brain.question(project, input)
-        return {"question": input.question, "answer": answer}
+            return {"question": input.question, "answer": answer, "type": "question"}
     except Exception as e:
         logging.error(e)
         raise HTTPException(
