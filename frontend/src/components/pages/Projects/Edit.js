@@ -4,6 +4,7 @@ import Row from 'react-bootstrap/Row';
 import Form from 'react-bootstrap/Form';
 import Col from 'react-bootstrap/Col';
 import Button from 'react-bootstrap/Button';
+import Alert from 'react-bootstrap/Alert';
 
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
@@ -13,26 +14,31 @@ function Edit() {
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [data, setData] = useState({ projects: [] });
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
+  const [error, setError] = useState([]);
   const projectNameForm = useRef(null)
   const systemForm = useRef(null)
   const llmForm = useRef(null)
   var { projectName } = useParams();
 
-  // TODO: error handling
   const fetchProject = (projectName) => {
     return fetch(url + "/projects/" + projectName)
       .then((res) => res.json())
-      .then((d) => setData(d))
+      .then((d) => setData(d)
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchProject", "error": err.toString() }]);
+      });
   }
 
-  // TODO: error handling
   const fetchInfo = () => {
     return fetch(url + "/info")
       .then((res) => res.json())
-      .then((d) => setInfo(d))
+      .then((d) => setInfo(d)
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchInfo", "error": err.toString() }]);
+      });
   }
 
-  // TODO: error handling and response
+  // TODO: response handling
   const onSubmitHandler = (event) => {
     event.preventDefault();
     fetch(url + "/projects/" + projectNameForm.current.value, {
@@ -45,7 +51,10 @@ function Edit() {
       }),
     })
       .then(response => response.json())
-      .then(() => fetchProject(projectName))
+      .then(() => fetchProject(projectName)
+      ).catch(err => {
+        setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
+      });
 
   }
 
@@ -59,6 +68,11 @@ function Edit() {
   return (
     <>
       <CustomNavBar />
+      {error.length > 0 &&
+        <Alert variant="danger">
+          {JSON.stringify(error)}
+        </Alert>
+      }
       <Container style={{ marginTop: "20px" }}>
         <h1>Edit Project</h1>
         <Form onSubmit={onSubmitHandler}>
@@ -67,12 +81,6 @@ function Edit() {
               <Form.Label>Project Name</Form.Label>
               <Form.Control ref={projectNameForm} defaultValue={projectName} />
             </Form.Group>
-
-            <Form.Group as={Col} controlId="formGridSystem">
-              <Form.Label>System Message</Form.Label>
-              <Form.Control ref={systemForm} defaultValue={data.system ? data.system : ""} />
-            </Form.Group>
-
             <Form.Group as={Col} controlId="formGridLLM">
               <Form.Label>LLM</Form.Label>
               <Form.Select ref={llmForm} value={data.llm}>
@@ -86,6 +94,12 @@ function Edit() {
                   )
                 }
               </Form.Select>
+            </Form.Group>
+          </Row>
+          <Row className="mb-3">
+            <Form.Group as={Col} controlId="formGridSystem">
+              <Form.Label>System Message</Form.Label>
+              <Form.Control rows="2" as="textarea" ref={systemForm} defaultValue={data.system ? data.system : ""} />
             </Form.Group>
           </Row>
           <Button variant="dark" type="submit" className="mb-2">

@@ -7,6 +7,7 @@ import Col from 'react-bootstrap/Col';
 import Card from 'react-bootstrap/Card';
 import Button from 'react-bootstrap/Button';
 import Spinner from 'react-bootstrap/Spinner';
+import Alert from 'react-bootstrap/Alert';
 import { useParams } from "react-router-dom";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -18,8 +19,8 @@ function Chat() {
   const messageForm = useRef(null);
   const [messages, setMessages] = useState([]);
   const [canSubmit, setCanSubmit] = useState(true);
+  const [error, setError] = useState([]);
 
-  // TODO: error handling and response
   const onSubmitHandler = (event) => {
     event.preventDefault();
 
@@ -60,7 +61,11 @@ function Chat() {
           setMessages([...messages, { id: response.id, message: message, response: response.response }]);
           messageForm.current.value = "";
           setCanSubmit(true);
-        })
+        }).catch(err => {
+          setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
+          setMessages([...messages, { id: id, message: message, response: "Error, something went wrong with my transistors." }]);
+          setCanSubmit(true);
+        });
     }
   }
 
@@ -71,6 +76,11 @@ function Chat() {
   return (
     <>
       <CustomNavBar />
+      {error.length > 0 &&
+        <Alert variant="danger">
+          {JSON.stringify(error)}
+        </Alert>
+      }
       <Container style={{ marginTop: "20px" }}>
         <h1>Chat {projectName}</h1>
         <Form onSubmit={onSubmitHandler}>

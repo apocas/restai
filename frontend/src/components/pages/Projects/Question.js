@@ -7,6 +7,7 @@ import Col from 'react-bootstrap/Col';
 import Card from 'react-bootstrap/Card';
 import Button from 'react-bootstrap/Button';
 import Spinner from 'react-bootstrap/Spinner';
+import Alert from 'react-bootstrap/Alert';
 import { useParams } from "react-router-dom";
 
 
@@ -21,8 +22,8 @@ function Question() {
   const [answers, setAnswers] = useState([]);
   const [canSubmit, setCanSubmit] = useState(true);
   const [data, setData] = useState({ projects: [] });
+  const [error, setError] = useState([]);
 
-  // TODO: error handling and response
   const onSubmitHandler = (event) => {
     event.preventDefault();
 
@@ -57,15 +58,21 @@ function Question() {
           setAnswers([...answers, { question: question, answer: response.answer }]);
           questionForm.current.value = "";
           setCanSubmit(true);
-        })
+        }).catch(err => {
+          setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
+          setAnswers([...answers, { question: question, answer: "Error, something went wrong with my transistors." }]);
+          setCanSubmit(true);
+        });
     }
   }
 
-  // TODO: error handling
   const fetchProject = (projectName) => {
     return fetch(url + "/projects/" + projectName)
       .then((res) => res.json())
-      .then((d) => setData(d))
+      .then((d) => setData(d)
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchProject", "error": err.toString() }]);
+      });
   }
 
   useEffect(() => {
@@ -76,6 +83,11 @@ function Question() {
   return (
     <>
       <CustomNavBar />
+      {error.length > 0 &&
+        <Alert variant="danger">
+          {JSON.stringify(error)}
+        </Alert>
+      }
       <Container style={{ marginTop: "20px" }}>
         <h1>Question {projectName}</h1>
         <Form onSubmit={onSubmitHandler}>
