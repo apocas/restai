@@ -107,7 +107,6 @@ def get_hardware_info():
             gpu_load = getattr(gpu, 'load', None)
             gpu_temp = getattr(gpu, 'temperature', None)
             gpu_ram_usage = getattr(gpu, 'memoryUtil', None)
-            gpu_power_consumption = getattr(gpu, 'powerDraw', None)
 
         cpu_load = int(cpu_load)
         if gpu_load is not None:
@@ -122,7 +121,6 @@ def get_hardware_info():
             "gpu_load": gpu_load,
             "gpu_temp": gpu_temp,
             "gpu_ram_usage": gpu_ram_usage,
-            "gpu_power_consumption": gpu_power_consumption,
         }
     except Exception as e:
         logging.error(e)
