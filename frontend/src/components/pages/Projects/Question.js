@@ -106,13 +106,13 @@ function Question() {
                     {
                       answers.map((answer, index) => {
                         return (answer.answer != null ?
-                          <div key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
+                          <div className='lineBreaks' key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
                             <span className='highlight'>QUESTION:</span> {answer.question} <br />
                             🤖<span className='highlight'>ANSWER:</span> {answer.answer}
                             <hr />
                           </div>
                           :
-                          <div key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
+                          <div className='lineBreaks' key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
                             <span className='highlight'>QUESTION:</span> {answer.question} <br />
                             🤖<span className='highlight'>ANSWER:</span> <Spinner animation="grow" size="sm" />
                             <hr />
