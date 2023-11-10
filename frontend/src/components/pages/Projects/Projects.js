@@ -179,7 +179,7 @@ function Projects() {
             <Row className="mb-3">
               <Form.Group as={Col} controlId="formGridSystem">
                 <Form.Label>System Message</Form.Label>
-                <Form.Control ref={systemForm} rows="2" as="textarea"/>
+                <Form.Control ref={systemForm} rows="2" as="textarea" />
               </Form.Group>
             </Row>
             <Button variant="dark" type="submit" className="mb-2">
