@@ -6,6 +6,7 @@ import Form from 'react-bootstrap/Form';
 import Col from 'react-bootstrap/Col';
 import Button from 'react-bootstrap/Button';
 import ListGroup from 'react-bootstrap/ListGroup';
+import Alert from 'react-bootstrap/Alert';
 import { useParams } from "react-router-dom";
 
 
@@ -20,32 +21,41 @@ function Project() {
   const [urls, setUrls] = useState({ urls: [] });
   const [embeddings, setEmbeddings] = useState(null);
   const [uploadResponse, setUploadResponse] = useState({ type: null });
+  const [canSubmit, setCanSubmit] = useState(true);
+  const [error, setError] = useState([]);
   const urlForm = useRef(null);
   const depthForm = useRef(null);
   const fileForm = useRef(null);
   var { projectName } = useParams();
 
 
-  // TODO: error handling
   const fetchProject = (projectName) => {
     return fetch(url + "/projects/" + projectName)
       .then((res) => res.json())
-      .then((d) => setData(d))
+      .then((d) => setData(d)
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchProject", "error": err.toString() }]);
+      });
   }
-  // TODO: error handling
+
   const fetchFiles = (projectName) => {
     return fetch(url + "/projects/" + projectName + "/embeddings/files")
       .then((res) => res.json())
-      .then((d) => setFiles(d))
+      .then((d) => setFiles(d)
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchFiles", "error": err.toString() }]);
+      });
   }
-  // TODO: error handling
+
   const fetchUrls = (projectName) => {
     return fetch(url + "/projects/" + projectName + "/embeddings/urls")
       .then((res) => res.json())
-      .then((d) => setUrls(d))
+      .then((d) => setUrls(d)
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchUrls", "error": err.toString() }]);
+      });
   }
 
-  // TODO: error handling
   const handleDeleteClick = (source, type) => {
     alert(source);
     fetch(url + "/projects/" + projectName + "/embeddings/" + type + "/" + btoa(source), { method: 'DELETE' })
@@ -53,6 +63,8 @@ function Project() {
         fetchProject(projectName);
         fetchFiles(projectName);
         fetchUrls(projectName);
+      }).catch(err => {
+        setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
       });
   }
 
@@ -67,7 +79,9 @@ function Project() {
       .then(response => response.json())
       .then(response => {
         setEmbeddings(response);
-      })
+      }).catch(err => {
+        setError([...error, { "functionName": "handleViewClick", "error": err.toString() }]);
+      });
   }
 
   const handleFileChange = (e) => {
@@ -82,54 +96,64 @@ function Project() {
     fileForm.current.value = null;
   };
 
-  // TODO: error handling
   const onSubmitHandler = (event) => {
     event.preventDefault();
-    if (file) {
-      const formData = new FormData();
-      formData.append("file", file);
+    if (canSubmit) {
+      setCanSubmit(false);
+      if (file) {
+        const formData = new FormData();
+        formData.append("file", file);
 
-      fetch(url + "/projects/" + projectName + "/embeddings/ingest/upload", {
-        method: 'POST',
-        body: formData,
-      })
-        .then(response => response.json())
-        .then((response) => {
-          response.type = "file";
-          resetFileInput();
-          setUploadResponse(response);
-          fetchProject(projectName);
-          fetchFiles(projectName);
-        })
-    } else {
-      if (urlForm.current.value !== "") {
-        var ingestUrl = urlForm.current.value;
-        var ingestUrlDepth = depthForm.current.value;
-        var body = {};
-
-        if (ingestUrlDepth !== "") {
-          body = {
-            "url": ingestUrl,
-            "recursive": true,
-            "depth": parseInt(ingestUrlDepth)
-          }
-        } else {
-          body = {
-            "url": ingestUrl
-          }
-        }
-        fetch(url + "/projects/" + projectName + "/embeddings/ingest/url", {
+        fetch(url + "/projects/" + projectName + "/embeddings/ingest/upload", {
           method: 'POST',
-          headers: new Headers({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify(body),
+          body: formData,
         })
           .then(response => response.json())
           .then((response) => {
-            response.type = "url";
+            response.type = "file";
+            resetFileInput();
             setUploadResponse(response);
             fetchProject(projectName);
-            fetchUrls(projectName);
+            fetchFiles(projectName);
+            setCanSubmit(true);
+          }).catch(err => {
+            setError([...error, { "functionName": "onSubmitHandler FILE", "error": err.toString() }]);
+            setCanSubmit(true);
+          });
+      } else {
+        if (urlForm.current.value !== "") {
+          var ingestUrl = urlForm.current.value;
+          var ingestUrlDepth = depthForm.current.value;
+          var body = {};
+
+          if (ingestUrlDepth !== "") {
+            body = {
+              "url": ingestUrl,
+              "recursive": true,
+              "depth": parseInt(ingestUrlDepth)
+            }
+          } else {
+            body = {
+              "url": ingestUrl
+            }
+          }
+          fetch(url + "/projects/" + projectName + "/embeddings/ingest/url", {
+            method: 'POST',
+            headers: new Headers({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(body),
           })
+            .then(response => response.json())
+            .then((response) => {
+              response.type = "url";
+              setUploadResponse(response);
+              fetchProject(projectName);
+              fetchUrls(projectName);
+              setCanSubmit(true);
+            }).catch(err => {
+              setError([...error, { "functionName": "onSubmitHandler URL", "error": err.toString() }]);
+              setCanSubmit(true);
+            });
+        }
       }
     }
   }
@@ -144,6 +168,11 @@ function Project() {
   return (
     <>
       <CustomNavBar />
+      {error.length > 0 &&
+        <Alert variant="danger">
+          {JSON.stringify(error)}
+        </Alert>
+      }
       <Container style={{ marginTop: "20px" }}>
         <Row style={{ marginTop: "20px" }}>
           <Col sm={6}>
@@ -218,7 +247,7 @@ function Project() {
         </Row>
         <Row style={{ marginTop: "20px" }}>
           <h1>Files & Urls</h1>
-          <Col sm={12}>
+          <Col sm={12} style={files.files.length > 5 || urls.urls.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
             <Table striped bordered hover>
               <thead>
                 <tr>
@@ -271,22 +300,22 @@ function Project() {
                 }
               </tbody>
             </Table>
-            {
-              embeddings && (
-                <Row>
-                  <Col sm={12}>
-                    <h2>Embeddings:</h2>
-                    <ListGroup style={{ height: "200px", overflowY: "scroll" }}>
-                      <ListGroup.Item>IDS: {JSON.stringify(embeddings.ids)}</ListGroup.Item>
-                      <ListGroup.Item>Embeddings: {JSON.stringify(embeddings.embeddings)}</ListGroup.Item>
-                      <ListGroup.Item>Metadatas: {JSON.stringify(embeddings.metadatas)}</ListGroup.Item>
-                      <ListGroup.Item>Documents: {JSON.stringify(embeddings.documents)}</ListGroup.Item>
-                    </ListGroup>
-                  </Col>
-                </Row>
-              )
-            }
           </Col>
+          {
+            embeddings && (
+              <Row>
+                <Col sm={12}>
+                  <h2>Embeddings:</h2>
+                  <ListGroup style={{ height: "200px", overflowY: "scroll" }}>
+                    <ListGroup.Item>IDS: {JSON.stringify(embeddings.ids)}</ListGroup.Item>
+                    <ListGroup.Item>Embeddings: {JSON.stringify(embeddings.embeddings)}</ListGroup.Item>
+                    <ListGroup.Item>Metadatas: {JSON.stringify(embeddings.metadatas)}</ListGroup.Item>
+                    <ListGroup.Item>Documents: {JSON.stringify(embeddings.documents)}</ListGroup.Item>
+                  </ListGroup>
+                </Col>
+              </Row>
+            )
+          }
         </Row>
       </Container>
     </>
