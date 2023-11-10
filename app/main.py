@@ -109,6 +109,10 @@ def get_hardware_info():
             gpu_ram_usage = getattr(gpu, 'memoryUtil', None)
             gpu_power_consumption = getattr(gpu, 'powerDraw', None)
 
+        cpu_load = f"{cpu_load}%"
+        if gpu_load is not None:
+            gpu_load = f"{gpu_load * 100}%"
+
         return {
             "cpu_load": cpu_load,
             "ram_usage": ram_usage,
