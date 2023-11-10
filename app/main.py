@@ -24,6 +24,8 @@ from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
 from modules.loaders import LOADERS
 import logging
+import psutil
+import GPUtil
 
 load_dotenv()
 
@@ -80,7 +82,7 @@ async def get(request: Request):
 
 
 @app.get("/info")
-async def getInfo(request: Request):
+async def get_info(request: Request):
     return {
         "version": app.version, "embeddings": list(
             EMBEDDINGS.keys()), "llms": list(
@@ -88,13 +90,46 @@ async def getInfo(request: Request):
                 LOADERS.keys())}
 
 
+@app.get("/hardware")
+def get_hardware_info():
+    try:
+        cpu_load = psutil.cpu_percent()
+        ram_usage = psutil.virtual_memory().percent
+
+        GPUs = GPUtil.getGPUs()
+        if len(GPUs) > 0:
+            gpu_load = GPUs[0].load
+            gpu_temp = GPUs[0].temperature
+            gpu_ram_usage = GPUs[0].memoryUtil
+            gpu_power_consumption = GPUs[0].powerDraw
+
+            return {
+                "cpu_load": cpu_load,
+                "ram_usage": ram_usage,
+                "gpu_load": gpu_load,
+                "gpu_temp": gpu_temp,
+                "gpu_ram_usage": gpu_ram_usage,
+                "gpu_power_consumption": gpu_power_consumption,
+            }
+        else:
+            return {
+                "cpu_load": cpu_load,
+                "ram_usage": ram_usage,
+            }
+    except Exception as e:
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=404, detail='{"error": ' + str(e) + '}')
+
+
 @app.get("/projects")
-async def getProjects(request: Request):
+async def get_projects(request: Request):
     return {"projects": brain.listProjects()}
 
 
 @app.get("/projects/{projectName}")
-async def getProject(projectName: str):
+async def get_project(projectName: str):
     try:
         project = brain.findProject(projectName)
         dbInfo = project.db.get()
@@ -116,7 +151,7 @@ async def getProject(projectName: str):
 
 
 @app.delete("/projects/{projectName}")
-async def deleteProject(projectName: str):
+async def delete_project(projectName: str):
     try:
         if brain.deleteProject(projectName):
             return {"project": projectName}
@@ -134,7 +169,7 @@ async def deleteProject(projectName: str):
 
 
 @app.patch("/projects/{projectName}")
-async def editProject(projectModel: ProjectModel):
+async def edit_project(projectModel: ProjectModel):
     try:
         if brain.editProject(projectModel):
             return {"project": projectModel.name}
@@ -152,7 +187,7 @@ async def editProject(projectModel: ProjectModel):
 
 
 @app.post("/projects")
-async def createProject(projectModel: ProjectModel):
+async def create_project(projectModel: ProjectModel):
     try:
         brain.createProject(projectModel)
         return {"project": projectModel.name}
@@ -164,7 +199,7 @@ async def createProject(projectModel: ProjectModel):
 
 
 @app.post("/projects/{projectName}/embeddings/reset")
-def reset(projectName: str):
+def project_reset(projectName: str):
     try:
         project = brain.findProject(projectName)
         project.db._client.reset()
@@ -179,7 +214,7 @@ def reset(projectName: str):
 
 
 @app.post("/projects/{projectName}/embeddings/find")
-def getEmbedding(projectName: str, embedding: EmbeddingModel):
+def get_embedding(projectName: str, embedding: EmbeddingModel):
     project = brain.findProject(projectName)
     docs = None
 
@@ -197,7 +232,7 @@ def getEmbedding(projectName: str, embedding: EmbeddingModel):
 
 
 @app.delete("/projects/{projectName}/embeddings/{id}")
-def delete_Embedding(projectName: str, id: str):
+def delete_embedding(projectName: str, id: str):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
@@ -208,7 +243,7 @@ def delete_Embedding(projectName: str, id: str):
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/url")
-def ingestURL(projectName: str, ingest: IngestModel):
+def ingest_url(projectName: str, ingest: IngestModel):
     try:
         project = brain.findProject(projectName)
 
@@ -238,7 +273,7 @@ def ingestURL(projectName: str, ingest: IngestModel):
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/upload")
-def ingestFile(projectName: str, file: UploadFile):
+def ingest_file(projectName: str, file: UploadFile):
     try:
         logger = logging.getLogger("embeddings_ingest_upload")
         project = brain.findProject(projectName)
@@ -355,7 +390,7 @@ def delete_file(projectName: str, fileName: str):
 
 
 @app.post("/projects/{projectName}/question")
-def questionProject(projectName: str, input: QuestionModel):
+def question_project(projectName: str, input: QuestionModel):
     try:
         project = brain.findProject(projectName)
         if input.system or project.model.system:
@@ -372,7 +407,7 @@ def questionProject(projectName: str, input: QuestionModel):
 
 
 @app.post("/projects/{projectName}/chat")
-def chatProject(projectName: str, input: ChatModel):
+def chat_project(projectName: str, input: ChatModel):
     try:
         project = brain.findProject(projectName)
         chat, response = brain.chat(project, input)
