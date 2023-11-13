@@ -12,11 +12,13 @@ from langchain.document_loaders import (
 )
 from bs4 import BeautifulSoup as Soup
 from dotenv import load_dotenv
+from app.auth import get_current_username
 from app.brain import Brain
+from app.database import Database
+from app.databasemodels import UserDatabase
 
-from app.models import EmbeddingModel, IngestModel, ProjectModel, QuestionModel, ChatModel
-from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata
-from fastapi.openapi.utils import get_openapi
+from app.models import EmbeddingModel, IngestModel, ProjectModel, QuestionModel, ChatModel, User
+from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -27,24 +29,14 @@ import logging
 import psutil
 import GPUtil
 
+from typing import Annotated
+
+from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy.orm import Session
+
+
 load_dotenv()
-
-if "EMBEDDINGS_PATH" not in os.environ:
-    os.environ["EMBEDDINGS_PATH"] = "./embeddings/"
-
-if "UPLOADS_PATH" not in os.environ:
-    os.environ["UPLOADS_PATH"] = "./uploads/"
-
-if "PROJECTS_PATH" not in os.environ:
-    os.environ["PROJECTS_PATH"] = "./projects/"
-
-if "ANONYMIZED_TELEMETRY" not in os.environ:
-    os.environ["ANONYMIZED_TELEMETRY"] = "False"
-
-if "LOG_LEVEL" not in os.environ:
-    os.environ["LOG_LEVEL"] = "INFO"
-
-os.environ["ALLOW_RESET"] = "true"
+loadEnvVars()
 
 logging.basicConfig(level=os.environ["LOG_LEVEL"])
 
@@ -73,6 +65,17 @@ if "RESTAI_DEV" in os.environ:
         allow_headers=["*"],
     )
 
+dbc = Database()
+
+
+def get_db():
+    db = dbc.SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 brain = Brain()
 
 
@@ -90,6 +93,18 @@ async def get_info(request: Request):
                 LOADERS.keys())}
 
 
+@app.get("/users/me")
+def read_current_user(username: Annotated[str, Depends(get_current_username)]):
+    return {"username": username}
+
+
+@app.get("/users/", response_model=list[User])
+def read_users(db: Session = Depends(get_db)):
+    dbc.create_user(db, "admin", "admin", True)
+    users = db.query(UserDatabase).all()
+    return users
+
+
 @app.get("/hardware")
 def get_hardware_info():
     try:
@@ -99,7 +114,6 @@ def get_hardware_info():
         gpu_load = None
         gpu_temp = None
         gpu_ram_usage = None
-        gpu_power_consumption = None
 
         GPUs = GPUtil.getGPUs()
         if len(GPUs) > 0:
@@ -111,7 +125,7 @@ def get_hardware_info():
         cpu_load = int(cpu_load)
         if gpu_load is not None:
             gpu_load = int(gpu_load * 100)
-        
+
         if gpu_ram_usage is not None:
             gpu_ram_usage = int(gpu_ram_usage * 100)
 
@@ -401,10 +415,17 @@ def question_project(projectName: str, input: QuestionModel):
         project = brain.findProject(projectName)
         if input.system or project.model.system:
             answer, hits = brain.questionContext(project, input)
-            return {"question": input.question, "answer": answer, "hits": hits, "type": "questioncontext"}
+            return {
+                "question": input.question,
+                "answer": answer,
+                "hits": hits,
+                "type": "questioncontext"}
         else:
             answer = brain.question(project, input)
-            return {"question": input.question, "answer": answer, "type": "question"}
+            return {
+                "question": input.question,
+                "answer": answer,
+                "type": "question"}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -425,6 +446,8 @@ def chat_project(projectName: str, input: ChatModel):
         raise HTTPException(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
+
+dbc.create_tables()
 
 try:
     app.mount("/admin/", StaticFiles(directory="frontend/html/",

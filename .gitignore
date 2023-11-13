@@ -171,3 +171,4 @@ pytest.ini
 frontend/html/*
 .env
 .local
+restai.db

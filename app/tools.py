@@ -51,3 +51,22 @@ def FindEmbeddingsPath(projectName):
             return os.path.join(embeddings_path, dir)
 
     raise Exception("Project not found.")
+
+
+def loadEnvVars():
+    if "EMBEDDINGS_PATH" not in os.environ:
+        os.environ["EMBEDDINGS_PATH"] = "./embeddings/"
+
+    if "UPLOADS_PATH" not in os.environ:
+        os.environ["UPLOADS_PATH"] = "./uploads/"
+
+    if "PROJECTS_PATH" not in os.environ:
+        os.environ["PROJECTS_PATH"] = "./projects/"
+
+    if "ANONYMIZED_TELEMETRY" not in os.environ:
+        os.environ["ANONYMIZED_TELEMETRY"] = "False"
+
+    if "LOG_LEVEL" not in os.environ:
+        os.environ["LOG_LEVEL"] = "INFO"
+
+    os.environ["ALLOW_RESET"] = "true"

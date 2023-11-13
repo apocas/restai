@@ -28,3 +28,21 @@ class ProjectModel(BaseModel):
     embeddings: Union[str, None] = None
     llm: Union[str, None] = None
     system: Union[str, None] = None
+
+
+class UserProject(BaseModel):
+    id: int
+    owner_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class User(BaseModel):
+    id: int
+    username: str | None = None
+    is_admin: bool = False
+    projects: list[UserProject] = []
+
+    class Config:
+        from_attributes = True
