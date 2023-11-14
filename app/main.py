@@ -191,7 +191,7 @@ def get_hardware_info(user: User = Depends(get_current_username)):
             status_code=404, detail='{"error": ' + str(e) + '}')
 
 
-@app.get("/projects")
+@app.get("/projects", response_model=list[str])
 async def get_projects(request: Request, user: User = Depends(get_current_username)):
     if user.is_admin:
         return {"projects": brain.listProjects()}
