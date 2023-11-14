@@ -1,9 +1,8 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 
 from app.databasemodels import Base, ProjectDatabase, UserDatabase
-
 
 engine = create_engine(
     "sqlite:///./restai.db", connect_args={"check_same_thread": False}
@@ -20,11 +19,21 @@ def get_db():
         yield db
     finally:
         db.close()
-class Database:
+      
 
-    def create_tables(self):
-        print("Creating tables...")
-        Base.metadata.create_all(bind=engine)
+if "users" not in inspect(engine).get_table_names():
+    print("Initializing database...")
+    Base.metadata.create_all(bind=engine)
+    dbi = SessionLocal()
+    db_user = UserDatabase(
+        username="admin", hashed_password=pwd_context.hash("admin"), is_admin=True)
+    dbi.add(db_user)
+    dbi.commit()
+    dbi.refresh(db_user)
+    dbi.close()
+    print("Database initialized. Default admin user created (admin:admin).")
+        
+class Database:
 
     def create_user(self, db, username, password, admin=False):
         hash = pwd_context.hash(password)

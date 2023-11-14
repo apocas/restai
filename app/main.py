@@ -485,8 +485,6 @@ def chat_project(projectName: str, input: ChatModel, user: User = Depends(get_cu
             status_code=500, detail='{"error": ' + str(e) + '}')
 
 
-dbc.create_tables()
-
 try:
     app.mount("/admin/", StaticFiles(directory="frontend/html/",
               html=True), name="static_admin")
