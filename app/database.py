@@ -19,20 +19,23 @@ def get_db():
         yield db
     finally:
         db.close()
-      
+
 
 if "users" not in inspect(engine).get_table_names():
     print("Initializing database...")
     Base.metadata.create_all(bind=engine)
     dbi = SessionLocal()
     db_user = UserDatabase(
-        username="admin", hashed_password=pwd_context.hash("admin"), is_admin=True)
+        username="admin",
+        hashed_password=pwd_context.hash("admin"),
+        is_admin=True)
     dbi.add(db_user)
     dbi.commit()
     dbi.refresh(db_user)
     dbi.close()
     print("Database initialized. Default admin user created (admin:admin).")
-        
+
+
 class Database:
 
     def create_user(self, db, username, password, admin=False):
@@ -73,8 +76,10 @@ class Database:
         return db_project
 
     def delete_projects(self, db, user):
-        db.query(ProjectDatabase).filter(ProjectDatabase.owner_id == user.id).delete()
+        db.query(ProjectDatabase).filter(
+            ProjectDatabase.owner_id == user.id).delete()
         db.commit()
         return True
+
 
 dbc = Database()

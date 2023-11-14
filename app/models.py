@@ -35,7 +35,6 @@ class UserProject(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-
 class User(BaseModel):
     id: int
     username: str
@@ -43,7 +42,7 @@ class User(BaseModel):
     projects: list[UserProject] = []
     model_config = ConfigDict(from_attributes=True)
 
-        
+
 class UserBase(BaseModel):
     username: str
 
@@ -51,7 +50,8 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
     is_admin: bool = False
-    
+
+
 class UserUpdate(BaseModel):
     password: str = None
     is_admin: bool = None
