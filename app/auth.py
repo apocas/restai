@@ -18,9 +18,13 @@ def get_current_username(
 ):
     user = dbc.get_user_by_username(db, credentials.username)
 
-    is_correct_username = credentials.username == user.username
-    is_correct_password = pwd_context.verify(
-        credentials.password, user.hashed_password)
+    if user is not None:
+      is_correct_username = credentials.username == user.username
+      is_correct_password = pwd_context.verify(
+          credentials.password, user.hashed_password)
+    else:
+      is_correct_username = False
+      is_correct_password = False
 
     if not (is_correct_username and is_correct_password):
         raise HTTPException(
