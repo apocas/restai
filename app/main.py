@@ -12,12 +12,12 @@ from langchain.document_loaders import (
 )
 from bs4 import BeautifulSoup as Soup
 from dotenv import load_dotenv
-from app.auth import get_current_username
+from app.auth import get_current_username, get_current_username_admin
 from app.brain import Brain
-from app.database import Database
+from app.database import Database, get_db, dbc
 from app.databasemodels import UserDatabase
 
-from app.models import EmbeddingModel, IngestModel, ProjectModel, QuestionModel, ChatModel, User
+from app.models import EmbeddingModel, IngestModel, ProjectModel, QuestionModel, ChatModel, User, UserCreate, UserUpdate
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -65,17 +65,6 @@ if "RESTAI_DEV" in os.environ:
         allow_headers=["*"],
     )
 
-dbc = Database()
-
-
-def get_db():
-    db = dbc.SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 brain = Brain()
 
 
@@ -94,19 +83,63 @@ async def get_info(request: Request):
 
 
 @app.get("/users/me")
-def read_current_user(username: Annotated[str, Depends(get_current_username)]):
-    return {"username": username}
+def read_current_user(user: User = Depends(get_current_username)):
+    return user
 
 
 @app.get("/users/", response_model=list[User])
 def read_users(db: Session = Depends(get_db)):
-    dbc.create_user(db, "admin", "admin", True)
-    users = db.query(UserDatabase).all()
+    users = dbc.get_users(db)
     return users
 
+@app.post("/users/", response_model=User)
+def create_user(userc: UserCreate, db: Session = Depends(get_db), user: User = Depends(get_current_username_admin)):
+    try:
+      user = dbc.create_user(db, userc.username, userc.password, userc.is_admin)
+      return user
+    except Exception as e:
+      logging.error(e)
+      traceback.print_tb(e.__traceback__)
+      raise HTTPException(
+          status_code=500, detail='{"error": "failed to create user ' + userc.username + '"}')
+      
+@app.patch("/users/{username}", response_model=User)
+def update_user(username: str, userc: UserUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_username_admin)):
+    try:
+      user = dbc.get_user_by_username(db, username)
+      if user is None:
+          raise Exception("User not found")
+      if userc.is_admin is not None:
+          user.is_admin = userc.is_admin
+      if userc.password is not None:
+        user = dbc.update_user(db, user, userc.password)
+      if userc.projects is not None:
+        dbc.delete_projects(db, user)
+        for project in userc.projects:
+          project = dbc.add_project(db, user, project)
+      return user
+    except Exception as e:
+      logging.error(e)
+      traceback.print_tb(e.__traceback__)
+      raise HTTPException(
+          status_code=500, detail='{"error": ' + str(e) + '}')
+      
+@app.delete("/users/{username}")
+def delete_user(username: str, db: Session = Depends(get_db), user: User = Depends(get_current_username_admin)):
+    try:
+      user = dbc.get_user_by_username(db, username)
+      if user is None:
+          raise Exception("User not found")
+      dbc.delete_user(db, user)
+      return {"deleted": username}
+    except Exception as e:
+      logging.error(e)
+      traceback.print_tb(e.__traceback__)
+      raise HTTPException(
+          status_code=500, detail='{"error": ' + str(e) + '}')
 
 @app.get("/hardware")
-def get_hardware_info():
+def get_hardware_info(user: User = Depends(get_current_username)):
     try:
         cpu_load = psutil.cpu_percent()
         ram_usage = psutil.virtual_memory().percent
@@ -144,8 +177,11 @@ def get_hardware_info():
 
 
 @app.get("/projects")
-async def get_projects(request: Request):
-    return {"projects": brain.listProjects()}
+async def get_projects(request: Request, user: User = Depends(get_current_username)):
+    if user.is_admin:
+      return {"projects": brain.listProjects()}
+    else:
+      return {"projects": user.projects}
 
 
 @app.get("/projects/{projectName}")

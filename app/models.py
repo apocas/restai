@@ -31,18 +31,29 @@ class ProjectModel(BaseModel):
 
 
 class UserProject(BaseModel):
-    id: int
-    owner_id: int
-
+    name: str
     class Config:
         from_attributes = True
 
 
 class User(BaseModel):
     id: int
-    username: str | None = None
+    username: str
     is_admin: bool = False
     projects: list[UserProject] = []
 
     class Config:
         from_attributes = True
+        
+class UserBase(BaseModel):
+    username: str
+
+
+class UserCreate(UserBase):
+    password: str
+    is_admin: bool = False
+    
+class UserUpdate(BaseModel):
+    password: str = None
+    is_admin: bool = None
+    projects: list[str] = None
