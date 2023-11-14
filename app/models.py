@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Union
 
 
@@ -32,8 +32,8 @@ class ProjectModel(BaseModel):
 
 class UserProject(BaseModel):
     name: str
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
 
 
 class User(BaseModel):
@@ -41,9 +41,8 @@ class User(BaseModel):
     username: str
     is_admin: bool = False
     projects: list[UserProject] = []
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
         
 class UserBase(BaseModel):
     username: str

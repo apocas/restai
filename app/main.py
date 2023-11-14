@@ -12,7 +12,7 @@ from langchain.document_loaders import (
 )
 from bs4 import BeautifulSoup as Soup
 from dotenv import load_dotenv
-from app.auth import get_current_username, get_current_username_admin
+from app.auth import get_current_username, get_current_username_admin, get_current_username_project
 from app.brain import Brain
 from app.database import Database, get_db, dbc
 from app.databasemodels import UserDatabase
@@ -185,7 +185,7 @@ async def get_projects(request: Request, user: User = Depends(get_current_userna
 
 
 @app.get("/projects/{projectName}")
-async def get_project(projectName: str):
+async def get_project(projectName: str, user: User = Depends(get_current_username_project)):        
     try:
         project = brain.findProject(projectName)
         dbInfo = project.db.get()
@@ -204,10 +204,12 @@ async def get_project(projectName: str):
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=404, detail='{"error": ' + str(e) + '}')
+  
+
 
 
 @app.delete("/projects/{projectName}")
-async def delete_project(projectName: str):
+async def delete_project(projectName: str, user: User = Depends(get_current_username_project)):
     try:
         if brain.deleteProject(projectName):
             return {"project": projectName}
@@ -225,7 +227,7 @@ async def delete_project(projectName: str):
 
 
 @app.patch("/projects/{projectName}")
-async def edit_project(projectModel: ProjectModel):
+async def edit_project(projectModel: ProjectModel, user: User = Depends(get_current_username_project)):
     try:
         if brain.editProject(projectModel):
             return {"project": projectModel.name}
@@ -243,7 +245,7 @@ async def edit_project(projectModel: ProjectModel):
 
 
 @app.post("/projects")
-async def create_project(projectModel: ProjectModel):
+async def create_project(projectModel: ProjectModel, user: User = Depends(get_current_username_admin)):
     try:
         brain.createProject(projectModel)
         return {"project": projectModel.name}
@@ -255,7 +257,7 @@ async def create_project(projectModel: ProjectModel):
 
 
 @app.post("/projects/{projectName}/embeddings/reset")
-def project_reset(projectName: str):
+def project_reset(projectName: str, user: User = Depends(get_current_username_project)):
     try:
         project = brain.findProject(projectName)
         project.db._client.reset()
@@ -270,7 +272,7 @@ def project_reset(projectName: str):
 
 
 @app.post("/projects/{projectName}/embeddings/find")
-def get_embedding(projectName: str, embedding: EmbeddingModel):
+def get_embedding(projectName: str, embedding: EmbeddingModel, user: User = Depends(get_current_username_project)):
     project = brain.findProject(projectName)
     docs = None
 
@@ -288,7 +290,7 @@ def get_embedding(projectName: str, embedding: EmbeddingModel):
 
 
 @app.delete("/projects/{projectName}/embeddings/{id}")
-def delete_embedding(projectName: str, id: str):
+def delete_embedding(projectName: str, id: str, user: User = Depends(get_current_username_project)):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
@@ -299,7 +301,7 @@ def delete_embedding(projectName: str, id: str):
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/url")
-def ingest_url(projectName: str, ingest: IngestModel):
+def ingest_url(projectName: str, ingest: IngestModel, user: User = Depends(get_current_username_project)):
     try:
         project = brain.findProject(projectName)
 
@@ -329,7 +331,7 @@ def ingest_url(projectName: str, ingest: IngestModel):
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/upload")
-def ingest_file(projectName: str, file: UploadFile):
+def ingest_file(projectName: str, file: UploadFile, user: User = Depends(get_current_username_project)):
     try:
         logger = logging.getLogger("embeddings_ingest_upload")
         project = brain.findProject(projectName)
@@ -367,7 +369,7 @@ def ingest_file(projectName: str, file: UploadFile):
 
 
 @app.get('/projects/{projectName}/embeddings/urls')
-def list_urls(projectName: str):
+def list_urls(projectName: str, user: User = Depends(get_current_username_project)):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
@@ -387,7 +389,7 @@ def list_urls(projectName: str):
 
 
 @app.get('/projects/{projectName}/embeddings/files')
-def list_files(projectName: str):
+def list_files(projectName: str, user: User = Depends(get_current_username_project)):
     project = brain.findProject(projectName)
     project_path = os.path.join(os.environ["UPLOADS_PATH"], project.model.name)
 
@@ -403,7 +405,7 @@ def list_files(projectName: str):
 
 
 @app.delete('/projects/{projectName}/embeddings/url/{url}')
-def delete_url(projectName: str, url: str):
+def delete_url(projectName: str, url: str, user: User = Depends(get_current_username_project)):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
@@ -416,7 +418,7 @@ def delete_url(projectName: str, url: str):
 
 
 @app.delete('/projects/{projectName}/embeddings/files/{fileName}')
-def delete_file(projectName: str, fileName: str):
+def delete_file(projectName: str, fileName: str, user: User = Depends(get_current_username_project)):
     project = brain.findProject(projectName)
 
     collection = project.db._client.get_collection("langchain")
@@ -446,7 +448,7 @@ def delete_file(projectName: str, fileName: str):
 
 
 @app.post("/projects/{projectName}/question")
-def question_project(projectName: str, input: QuestionModel):
+def question_project(projectName: str, input: QuestionModel, user: User = Depends(get_current_username_project)):
     try:
         project = brain.findProject(projectName)
         if input.system or project.model.system:
@@ -470,7 +472,7 @@ def question_project(projectName: str, input: QuestionModel):
 
 
 @app.post("/projects/{projectName}/chat")
-def chat_project(projectName: str, input: ChatModel):
+def chat_project(projectName: str, input: ChatModel, user: User = Depends(get_current_username_project)):
     try:
         project = brain.findProject(projectName)
         chat, response = brain.chat(project, input)

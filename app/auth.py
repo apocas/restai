@@ -29,7 +29,7 @@ def get_current_username(
             headers={"WWW-Authenticate": "Basic"},
         )
     
-    return user
+    return User.model_validate(user)
 
 def get_current_username_admin(
     user: User = Depends(get_current_username)
@@ -41,3 +41,22 @@ def get_current_username_admin(
             headers={"WWW-Authenticate": "Basic"},
         )
     return user
+  
+def get_current_username_project(
+    projectName: str,
+    user: User = Depends(get_current_username)
+):    
+    found = False
+    if user.is_admin == False:
+      for project in user.projects:
+        if project.name == projectName:
+          found = True
+    else:
+      found = True
+    
+    if found == False:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found"
+        )
+  
