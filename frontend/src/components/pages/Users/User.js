@@ -14,7 +14,7 @@ function User() {
 
 
   const fetchUser = (username) => {
-    return fetch(url + "/user/" + username, { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+    return fetch(url + "/users/" + username, { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
       .then((d) => setData(d)
       ).catch(err => {
