@@ -2,7 +2,9 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 
-from app.databasemodels import Base, ProjectDatabase, UserDatabase
+from app.databasemodels import Base, ProjectDatabase, UserProjectDatabase, UserDatabase
+from app.models import ProjectModel, User, UserUpdate
+from app.project import Project
 
 engine = create_engine(
     "sqlite:///./restai.db", connect_args={"check_same_thread": False}
@@ -11,14 +13,6 @@ SessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=engine)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 if "users" not in inspect(engine).get_table_names():
@@ -37,49 +31,80 @@ if "users" not in inspect(engine).get_table_names():
 
 
 class Database:
+    def __init__(self):
+        self.db = SessionLocal()
 
-    def create_user(self, db, username, password, admin=False):
+    def create_user(self, username, password, admin=False):
         hash = pwd_context.hash(password)
         db_user = UserDatabase(
             username=username, hashed_password=hash, is_admin=admin)
-        db.add(db_user)
-        db.commit()
-        db.refresh(db_user)
+        self.db.add(db_user)
+        self.db.commit()
+        self.db.refresh(db_user)
         return db_user
 
-    def get_users(self, db):
-        return db.query(UserDatabase).all()
+    def get_users(self):
+        return self.db.query(UserDatabase).all()
 
-    def get_user_by_username(self, db, username):
-        return db.query(UserDatabase).filter(
+    def get_user_by_username(self, username):
+        return self.db.query(UserDatabase).filter(
             UserDatabase.username == username).first()
 
-    def update_user(self, db, user: UserDatabase, password):
-        hash = self.pwd_context.hash(password)
+    def update_user(self, user: User, userc: UserUpdate):
+        if userc.password is not None:
+            hash = pwd_context.hash(userc.password)
+            user.hashed_password = hash
+            
+        if userc.is_admin is not None:
+            user.is_admin = userc.is_admin
+
         user.hashed_password = hash
-        db.commit()
+        self.db.commit()
         return True
 
-    def get_user_by_id(self, db, id):
-        return db.query(UserDatabase).filter(UserDatabase.id == id).first()
+    def get_user_by_id(self, id):
+        return self.db.query(UserDatabase).filter(UserDatabase.id == id).first()
 
     def delete_user(self, db, user):
         db.delete(user)
         db.commit()
         return True
 
-    def add_project(self, db, user, name):
-        db_project = ProjectDatabase(name=name, owner_id=user.id)
-        db.add(db_project)
-        db.commit()
-        db.refresh(db_project)
+    def add_userproject(self, user, name):
+        db_project = UserProjectDatabase(name=name, owner_id=user.id)
+        self.db.add(db_project)
+        self.db.commit()
+        self.db.refresh(db_project)
         return db_project
 
-    def delete_projects(self, db, user):
-        db.query(ProjectDatabase).filter(
-            ProjectDatabase.owner_id == user.id).delete()
-        db.commit()
+    def delete_userprojects(self, user):
+        self.db.query(UserProjectDatabase).filter(
+            UserProjectDatabase.owner_id == user.id).delete()
+        self.db.commit()
         return True
 
+    def get_project_by_name(self, name):
+        return self.db.query(ProjectDatabase).filter(
+            ProjectDatabase.name == name).first()
+        
+    def create_project(self, name, embeddings, llm, system):
+        db_project = ProjectDatabase(
+            name=name, embeddings=embeddings, llm=llm, system=system)
+        self.db.add(db_project)
+        self.db.commit()
+        self.db.refresh(db_project)
+        return db_project
+      
+    def get_projects(self):
+        return self.db.query(ProjectDatabase).all()
+      
+    def delete_project(self, project):
+        self.db.delete(project)
+        self.db.commit()
+        return True
+
+    def update_project(self):
+        self.db.commit()
+        return True
 
 dbc = Database()

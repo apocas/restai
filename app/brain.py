@@ -11,6 +11,7 @@ from app.project import Project
 from app.tools import FindEmbeddingsPath
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
+from app.database import dbc
 
 
 class Brain:
@@ -19,10 +20,8 @@ class Brain:
         self.llmCache = {}
         self.embeddingCache = {}
 
-        self.loadProjects()
-
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1024, chunk_overlap=30)
+            separators=[" "], chunk_size=1024, chunk_overlap=30)
 
     def getLLM(self, llmModel, **kwargs):
         if llmModel in self.llmCache:
@@ -48,21 +47,32 @@ class Brain:
             else:
                 raise Exception("Invalid Embedding type.")
 
-    def listProjects(self):
-        return [project.model.name for project in self.projects]
+    def findProject(self, name):
+        for project in self.projects:
+            if project.model.name == name:
+                return project
+
+        proj = ProjectModel.model_validate(dbc.get_project_by_name(name))
+        if proj is not None:
+            project = Project()
+            project.model = proj
+            self.initializeEmbeddings(project)
+            self.projects.append(project)
+            return project
 
     def createProject(self, projectModel):
-        if os.path.exists(
-            os.path.join(
-                os.environ["PROJECTS_PATH"],
-                f'{projectModel.name}.json')):
-            raise ValueError("Project already exists")
-
+        dbc.create_project(projectModel.name,
+                           projectModel.embeddings, projectModel.llm, projectModel.system)
         project = Project()
         project.boot(projectModel)
         self.initializeEmbeddings(project)
-        project.save()
         self.projects.append(project)
+
+    def initializeEmbeddings(self, project):
+        project.db = Chroma(
+            persist_directory=FindEmbeddingsPath(
+                project.model.name), embedding_function=self.getEmbedding(
+                project.model.embeddings))
 
     def editProject(self, projectModel: ProjectModel):
         project = self.findProject(projectModel.name)
@@ -79,43 +89,18 @@ class Brain:
             changed = True
 
         if changed:
-            project.save()
+            dbc.update_project(project.model)
+
         return project
-
-    def initializeEmbeddings(self, project):
-        project.db = Chroma(
-            persist_directory=FindEmbeddingsPath(
-                project.model.name), embedding_function=self.getEmbedding(
-                project.model.embeddings))
-
-    def loadProjects(self):
-        if os.path.isdir(os.environ["PROJECTS_PATH"]):
-            for file in os.listdir(os.environ["PROJECTS_PATH"]):
-                file_path = os.path.join(os.environ["PROJECTS_PATH"], file)
-                if os.path.isfile(file_path):
-                    projectname, ext = os.path.splitext(file or '')
-                    if ext == ".json":
-                        self.loadProject(projectname)
-
-    def loadProject(self, name):
-        project = Project()
-        project.load(name)
-        self.initializeEmbeddings(project)
-        self.projects.append(project)
-        return project
-
-    def findProject(self, name):
-        for project in self.projects:
-            if project.model.name == name:
-                return project
 
     def deleteProject(self, name):
-        for project in self.projects:
-            if project.model.name == name:
-                project.delete()
-                self.projects.remove(project)
-                return True
-        return False
+        self.findProject(name)
+        dbc.delete_project(dbc.get_project_by_name(name))
+        proj = self.findProject(name)
+        if proj is not None:
+            proj.delete()
+            self.projects.remove(proj)
+        return True
 
     def question(self, project, questionModel):
         llm = self.getLLM(questionModel.llm or project.model.llm)

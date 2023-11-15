@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 
-from app.database import get_db, dbc, pwd_context
+from app.database import dbc, pwd_context
 from app.models import User
 
 
@@ -13,10 +13,9 @@ security = HTTPBasic()
 
 
 def get_current_username(
-    credentials: Annotated[HTTPBasicCredentials, Depends(security)],
-    db: Session = Depends(get_db),
+    credentials: Annotated[HTTPBasicCredentials, Depends(security)]
 ):
-    user = dbc.get_user_by_username(db, credentials.username)
+    user = dbc.get_user_by_username(credentials.username)
 
     if user is not None:
       is_correct_username = credentials.username == user.username

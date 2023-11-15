@@ -28,6 +28,12 @@ class ProjectModel(BaseModel):
     embeddings: Union[str, None] = None
     llm: Union[str, None] = None
     system: Union[str, None] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProjectInfo(ProjectModel):
+    documents: int = 0
+    metadatas: int = 0
 
 
 class UserProject(BaseModel):
@@ -56,3 +62,11 @@ class UserUpdate(BaseModel):
     password: str = None
     is_admin: bool = None
     projects: list[str] = None
+
+
+class HardwareInfo(BaseModel):
+    cpu_load: float
+    ram_usage: float
+    gpu_load:  Union[int, None] = None
+    gpu_temp:  Union[int, None] = None
+    gpu_ram_usage:  Union[int, None] = None

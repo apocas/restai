@@ -12,9 +12,6 @@ if "EMBEDDINGS_PATH" not in os.environ:
 if "UPLOADS_PATH" not in os.environ:
     os.environ["UPLOADS_PATH"] = "./uploads/"
 
-if "PROJECTS_PATH" not in os.environ:
-    os.environ["PROJECTS_PATH"] = "./projects/"
-
 brain = Brain()
 
 projectName = "test_openai"

@@ -14,10 +14,10 @@ from bs4 import BeautifulSoup as Soup
 from dotenv import load_dotenv
 from app.auth import get_current_username, get_current_username_admin, get_current_username_project
 from app.brain import Brain
-from app.database import Database, get_db, dbc
+from app.database import Database, dbc
 from app.databasemodels import UserDatabase
 
-from app.models import EmbeddingModel, IngestModel, ProjectModel, QuestionModel, ChatModel, User, UserCreate, UserUpdate
+from app.models import EmbeddingModel, HardwareInfo, IngestModel, ProjectInfo, ProjectModel, QuestionModel, ChatModel, User, UserCreate, UserUpdate
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -74,7 +74,7 @@ async def get(request: Request):
 
 
 @app.get("/info")
-async def get_info(request: Request):
+async def get_info(user: User = Depends(get_current_username)):
     return {
         "version": app.version, "embeddings": list(
             EMBEDDINGS.keys()), "llms": list(
@@ -88,17 +88,16 @@ def read_current_user(user: User = Depends(get_current_username)):
 
 
 @app.get("/users/", response_model=list[User])
-def read_users(db: Session = Depends(get_db)):
-    users = dbc.get_users(db)
+def read_users(user: User = Depends(get_current_username_admin)):
+    users = dbc.get_users()
     return users
 
 
 @app.post("/users/", response_model=User)
-def create_user(userc: UserCreate, db: Session = Depends(get_db),
+def create_user(userc: UserCreate,
                 user: User = Depends(get_current_username_admin)):
     try:
         user = dbc.create_user(
-            db,
             userc.username,
             userc.password,
             userc.is_admin)
@@ -115,20 +114,18 @@ def create_user(userc: UserCreate, db: Session = Depends(get_db),
 def update_user(
         username: str,
         userc: UserUpdate,
-        db: Session = Depends(get_db),
         user: User = Depends(get_current_username_admin)):
     try:
-        user = dbc.get_user_by_username(db, username)
+        user = dbc.get_user_by_username(username)
         if user is None:
             raise Exception("User not found")
-        if userc.is_admin is not None:
-            user.is_admin = userc.is_admin
-        if userc.password is not None:
-            user = dbc.update_user(db, user, userc.password)
+
+        user = dbc.update_user(user, userc)
+
         if userc.projects is not None:
-            dbc.delete_projects(db, user)
+            dbc.delete_userprojects(user)
             for project in userc.projects:
-                project = dbc.add_project(db, user, project)
+                project = dbc.add_userproject(user, project)
         return user
     except Exception as e:
         logging.error(e)
@@ -138,13 +135,13 @@ def update_user(
 
 
 @app.delete("/users/{username}")
-def delete_user(username: str, db: Session = Depends(get_db),
+def delete_user(username: str,
                 user: User = Depends(get_current_username_admin)):
     try:
-        user = dbc.get_user_by_username(db, username)
+        user = dbc.get_user_by_username(username)
         if user is None:
             raise Exception("User not found")
-        dbc.delete_user(db, user)
+        dbc.delete_user(user)
         return {"deleted": username}
     except Exception as e:
         logging.error(e)
@@ -153,7 +150,7 @@ def delete_user(username: str, db: Session = Depends(get_db),
             status_code=500, detail='{"error": ' + str(e) + '}')
 
 
-@app.get("/hardware")
+@app.get("/hardware", response_model=HardwareInfo)
 def get_hardware_info(user: User = Depends(get_current_username)):
     try:
         cpu_load = psutil.cpu_percent()
@@ -177,13 +174,13 @@ def get_hardware_info(user: User = Depends(get_current_username)):
         if gpu_ram_usage is not None:
             gpu_ram_usage = int(gpu_ram_usage * 100)
 
-        return {
-            "cpu_load": cpu_load,
-            "ram_usage": ram_usage,
-            "gpu_load": gpu_load,
-            "gpu_temp": gpu_temp,
-            "gpu_ram_usage": gpu_ram_usage,
-        }
+        return HardwareInfo(
+            cpu_load=cpu_load,
+            ram_usage=ram_usage,
+            gpu_load=gpu_load,
+            gpu_temp=gpu_temp,
+            gpu_ram_usage=gpu_ram_usage,
+        )
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -191,29 +188,26 @@ def get_hardware_info(user: User = Depends(get_current_username)):
             status_code=404, detail='{"error": ' + str(e) + '}')
 
 
-@app.get("/projects", response_model=list[str])
+@app.get("/projects", response_model=list[ProjectModel])
 async def get_projects(request: Request, user: User = Depends(get_current_username)):
     if user.is_admin:
-        return {"projects": brain.listProjects()}
+        return dbc.get_projects()
     else:
-        return {"projects": user.projects}
+        return user.projects
 
 
-@app.get("/projects/{projectName}")
+@app.get("/projects/{projectName}", response_model=ProjectInfo)
 async def get_project(projectName: str, user: User = Depends(get_current_username_project)):
     try:
         project = brain.findProject(projectName)
         dbInfo = project.db.get()
 
-        return {
-            "project": project.model.name,
-            "llm": project.model.llm,
-            "embeddings": project.model.embeddings,
-            "documents": len(
-                dbInfo["documents"]),
-            "metadatas": len(
-                dbInfo["metadatas"]),
-            "system": project.model.system}
+        output = ProjectInfo(name=project.model.name, embeddings=project.model.embeddings,
+                             llm=project.model.llm, system=project.model.system)
+        output.documents = len(dbInfo["documents"])
+        output.metadatas = len(dbInfo["metadatas"])
+
+        return output
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -232,11 +226,8 @@ async def delete_project(projectName: str, user: User = Depends(get_current_user
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
-        if e.detail:
-            raise e
-        else:
-            raise HTTPException(
-                status_code=500, detail='{"error": ' + str(e) + '}')
+        raise HTTPException(
+            status_code=500, detail='{"error": ' + str(e) + '}')
 
 
 @app.patch("/projects/{projectName}")

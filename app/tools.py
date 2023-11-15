@@ -60,9 +60,6 @@ def loadEnvVars():
     if "UPLOADS_PATH" not in os.environ:
         os.environ["UPLOADS_PATH"] = "./uploads/"
 
-    if "PROJECTS_PATH" not in os.environ:
-        os.environ["PROJECTS_PATH"] = "./projects/"
-
     if "ANONYMIZED_TELEMETRY" not in os.environ:
         os.environ["ANONYMIZED_TELEMETRY"] = "False"
 

@@ -12,14 +12,26 @@ class UserDatabase(Base):
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     is_admin = Column(Boolean, default=True)
-    projects = relationship("ProjectDatabase", back_populates="owner")
+    projects = relationship("UserProjectDatabase", back_populates="owner")
 
 
-class ProjectDatabase(Base):
+class UserProjectDatabase(Base):
     __tablename__ = "userprojects"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
     owner_id = Column(Integer, ForeignKey("users.id"))
+    project_id = Column(Integer, ForeignKey("projects.id"))
 
     owner = relationship("UserDatabase", back_populates="projects")
+
+
+class ProjectDatabase(Base):
+    __tablename__ = "projects"
+
+    id = Column(Integer, primary_key=True, index=True)
+    
+    name = Column(String, unique=True, index=True)
+    embeddings = Column(String)
+    llm = Column(String)
+    system = Column(String)
