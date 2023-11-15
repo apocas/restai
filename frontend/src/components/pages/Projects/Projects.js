@@ -1,30 +1,24 @@
-import CustomNavBar from '../../common/navBar.js'
-import Container from 'react-bootstrap/Container';
-import Table from 'react-bootstrap/Table';
-import Row from 'react-bootstrap/Row';
-import Form from 'react-bootstrap/Form';
-import Col from 'react-bootstrap/Col';
-import Button from 'react-bootstrap/Button';
-import Alert from 'react-bootstrap/Alert';
+import { Container, Table, Row, Form, Col, Button, Alert } from 'react-bootstrap';
 import { NavLink } from "react-router-dom";
-
-
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
+import { AuthContext } from '../../common/AuthProvider.js';
 
 function Projects() {
 
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
-  const [data, setData] = useState({ projects: [] });
+  const [data, setData] = useState([]);
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const [error, setError] = useState([]);
   const projectNameForm = useRef(null)
   const systemForm = useRef(null)
   const embbeddingForm = useRef(null)
   const llmForm = useRef(null)
+  const { getBasicAuth } = useContext(AuthContext);
+  const user = getBasicAuth();
 
   const handleDeleteClick = (projectName) => {
     alert(projectName);
-    fetch(url + "/projects/" + projectName, { method: 'DELETE' })
+    fetch(url + "/projects/" + projectName, { method: 'DELETE', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then(() => fetchProjects()
       ).catch(err => {
         setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
@@ -32,7 +26,7 @@ function Projects() {
   }
 
   const fetchProjects = () => {
-    return fetch(url + "/projects")
+    return fetch(url + "/projects", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
       .then((d) => setData(d)
       ).catch(err => {
@@ -41,7 +35,7 @@ function Projects() {
   }
 
   const fetchInfo = () => {
-    return fetch(url + "/info")
+    return fetch(url + "/info", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
       .then((d) => setInfo(d)
       ).catch(err => {
@@ -54,7 +48,7 @@ function Projects() {
     event.preventDefault();
     fetch(url + "/projects", {
       method: 'POST',
-      headers: new Headers({ 'Content-Type': 'application/json' }),
+      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
       body: JSON.stringify({
         "name": projectNameForm.current.value,
         "embeddings": embbeddingForm.current.value,
@@ -78,7 +72,6 @@ function Projects() {
 
   return (
     <>
-      <CustomNavBar />
       {error.length > 0 &&
         <Alert variant="danger">
           {JSON.stringify(error)}
@@ -97,39 +90,39 @@ function Projects() {
             </thead>
             <tbody>
               {
-                data.projects.map((project, index) => {
+                data.map((project, index) => {
                   return (
                     <tr key={index}>
                       <td>{index}</td>
                       <td>
                         <NavLink
-                          to={"/projects/" + project}
+                          to={"/projects/" + project.name}
                         >
-                          {project}
+                          {project.name}
                         </NavLink>
                       </td>
                       <td>
                         <NavLink
-                          to={"/projects/" + project}
+                          to={"/projects/" + project.name}
                         >
                           <Button variant="dark">View</Button>{' '}
                         </NavLink>
                         <NavLink
-                          to={"/projects/" + project + "/edit"}
+                          to={"/projects/" + project.name + "/edit"}
                         >
                           <Button variant="dark">Edit</Button>{' '}
                         </NavLink>
                         <NavLink
-                          to={"/projects/" + project + "/chat"}
+                          to={"/projects/" + project.name + "/chat"}
                         >
                           <Button variant="dark">Chat</Button>{' '}
                         </NavLink>
                         <NavLink
-                          to={"/projects/" + project + "/question"}
+                          to={"/projects/" + project.name + "/question"}
                         >
                           <Button variant="dark">Question</Button>{' '}
                         </NavLink>
-                        <Button onClick={() => handleDeleteClick(project)} variant="danger">Delete</Button>
+                        <Button onClick={() => handleDeleteClick(project.name)} variant="danger">Delete</Button>
                       </td>
                     </tr>
                   )

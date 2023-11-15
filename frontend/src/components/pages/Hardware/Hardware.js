@@ -1,19 +1,18 @@
-import CustomNavBar from '../../common/navBar.js'
 import GaugeChart from 'react-gauge-chart'
-import Container from 'react-bootstrap/Container';
-import Row from 'react-bootstrap/Row';
-import Col from 'react-bootstrap/Col';
-import Alert from 'react-bootstrap/Alert';
-import React, { useState, useEffect } from "react";
+import { Container, Row, Col, Alert } from 'react-bootstrap';
+import { AuthContext } from '../../common/AuthProvider.js';
+import React, { useState, useEffect, useContext } from "react";
 
 function Hardware() {
   const [hardware, setHardware] = useState({ "cpu_load": 0, "ram_usage": 0 });
   const [error, setError] = useState([]);
+  const { getBasicAuth } = useContext(AuthContext);
+  const user = getBasicAuth();
 
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
 
   const fetchHardware = () => {
-    return fetch(url + "/hardware")
+    return fetch(url + "/hardware", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
       .then((d) => setHardware(d)
       ).catch(err => {
@@ -35,7 +34,6 @@ function Hardware() {
   }, []);
   return (
     <>
-      <CustomNavBar />
       {error.length > 0 &&
         <Alert variant="danger">
           {JSON.stringify(error)}
