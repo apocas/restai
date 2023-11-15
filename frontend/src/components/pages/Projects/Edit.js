@@ -1,13 +1,7 @@
-import CustomNavBar from '../../common/navBar.js'
-import Container from 'react-bootstrap/Container';
-import Row from 'react-bootstrap/Row';
-import Form from 'react-bootstrap/Form';
-import Col from 'react-bootstrap/Col';
-import Button from 'react-bootstrap/Button';
-import Alert from 'react-bootstrap/Alert';
-
-import React, { useState, useEffect, useRef } from "react";
+import { Container, Row, Form, Col, Button, Alert } from 'react-bootstrap';
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { useParams } from "react-router-dom";
+import { AuthContext } from '../../common/AuthProvider.js';
 
 function Edit() {
 
@@ -18,9 +12,11 @@ function Edit() {
   const systemForm = useRef(null)
   const llmForm = useRef(null)
   var { projectName } = useParams();
+  const { getBasicAuth } = useContext(AuthContext);
+  const user = getBasicAuth();
 
   const fetchProject = (projectName) => {
-    return fetch(url + "/projects/" + projectName)
+    return fetch(url + "/projects/" + projectName, { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
       .then((d) => {
         setData(d)
@@ -32,7 +28,7 @@ function Edit() {
   }
 
   const fetchInfo = () => {
-    return fetch(url + "/info")
+    return fetch(url + "/info", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
       .then((d) => setInfo(d)
       ).catch(err => {
@@ -45,7 +41,7 @@ function Edit() {
     event.preventDefault();
     fetch(url + "/projects/" + projectName, {
       method: 'PATCH',
-      headers: new Headers({ 'Content-Type': 'application/json' }),
+      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
       body: JSON.stringify({
         "name": projectName,
         "llm": llmForm.current.value,
@@ -69,7 +65,6 @@ function Edit() {
 
   return (
     <>
-      <CustomNavBar />
       {error.length > 0 &&
         <Alert variant="danger">
           {JSON.stringify(error)}

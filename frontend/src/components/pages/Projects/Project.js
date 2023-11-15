@@ -1,16 +1,7 @@
-import CustomNavBar from '../../common/navBar.js'
-import Container from 'react-bootstrap/Container';
-import Table from 'react-bootstrap/Table';
-import Row from 'react-bootstrap/Row';
-import Form from 'react-bootstrap/Form';
-import Col from 'react-bootstrap/Col';
-import Button from 'react-bootstrap/Button';
-import ListGroup from 'react-bootstrap/ListGroup';
-import Alert from 'react-bootstrap/Alert';
+import { Container, Table, Row, Form, Col, Button, ListGroup, Alert } from 'react-bootstrap';
 import { useParams } from "react-router-dom";
-
-
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
+import { AuthContext } from '../../common/AuthProvider.js';
 
 function Project() {
 
@@ -27,10 +18,12 @@ function Project() {
   const depthForm = useRef(null);
   const fileForm = useRef(null);
   var { projectName } = useParams();
+  const { getBasicAuth } = useContext(AuthContext);
+  const user = getBasicAuth();
 
 
   const fetchProject = (projectName) => {
-    return fetch(url + "/projects/" + projectName)
+    return fetch(url + "/projects/" + projectName, { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
       .then((d) => setData(d)
       ).catch(err => {
@@ -39,7 +32,7 @@ function Project() {
   }
 
   const fetchFiles = (projectName) => {
-    return fetch(url + "/projects/" + projectName + "/embeddings/files")
+    return fetch(url + "/projects/" + projectName + "/embeddings/files", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
       .then((d) => setFiles(d)
       ).catch(err => {
@@ -48,7 +41,7 @@ function Project() {
   }
 
   const fetchUrls = (projectName) => {
-    return fetch(url + "/projects/" + projectName + "/embeddings/urls")
+    return fetch(url + "/projects/" + projectName + "/embeddings/urls", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
       .then((d) => setUrls(d)
       ).catch(err => {
@@ -58,8 +51,10 @@ function Project() {
 
   const handleDeleteClick = (source, type) => {
     alert(source);
-    fetch(url + "/projects/" + projectName + "/embeddings/" + type + "/" + btoa(source), { method: 'DELETE' })
-      .then(() => {
+    fetch(url + "/projects/" + projectName + "/embeddings/" + type + "/" + btoa(source),
+      {
+        method: 'DELETE', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
+      }).then(() => {
         fetchProject(projectName);
         fetchFiles(projectName);
         fetchUrls(projectName);
@@ -71,7 +66,7 @@ function Project() {
   const handleViewClick = (source) => {
     fetch(url + "/projects/" + projectName + "/embeddings/find", {
       method: 'POST',
-      headers: new Headers({ 'Content-Type': 'application/json' }),
+      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
       body: JSON.stringify({
         "source": source
       }),
@@ -106,6 +101,7 @@ function Project() {
 
         fetch(url + "/projects/" + projectName + "/embeddings/ingest/upload", {
           method: 'POST',
+          headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }),
           body: formData,
         })
           .then(response => response.json())
@@ -139,10 +135,15 @@ function Project() {
           }
           fetch(url + "/projects/" + projectName + "/embeddings/ingest/url", {
             method: 'POST',
-            headers: new Headers({ 'Content-Type': 'application/json' }),
+            headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
             body: JSON.stringify(body),
           })
-            .then(response => response.json())
+            .then(response => {
+              if (response.status === 500) {
+                setError([...error, { "functionName": "onSubmitHandler URL", "error": response.statusText }]);
+              }
+              return response.json();
+            })
             .then((response) => {
               response.type = "url";
               setUploadResponse(response);
@@ -167,7 +168,6 @@ function Project() {
 
   return (
     <>
-      <CustomNavBar />
       {error.length > 0 &&
         <Alert variant="danger">
           {JSON.stringify(error)}
