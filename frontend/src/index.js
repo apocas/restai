@@ -5,11 +5,12 @@ import Navigation from './components/common/Navigation.js'
 import './assets/css/index.css';
 import Projects from './components/pages/Projects/Projects.js';
 import Project from './components/pages/Projects/Project.js';
-import Edit from './components/pages/Projects/Edit.js';
+import ProjectsEdit from './components/pages/Projects/Edit.js';
 import Chat from './components/pages/Projects/Chat.js';
 import Question from './components/pages/Projects/Question.js';
 import Hardware from './components/pages/Hardware/Hardware.js';
 import Users from './components/pages/Users/Users.js';
+import UsersEdit from './components/pages/Users/Edit.js';
 import Login from './components/pages/Login/Login.js';
 import Error from './components/pages/Error/Error.js';
 import PrivateRoute from './components/common/PrivateRoute.js';
@@ -30,10 +31,11 @@ function Root() {
               <Route path={`/`} element={<Projects />} />
               <Route path={`/projects`} element={<Projects />} />
               <Route path={`/projects/:projectName`} element={<Project />} />
-              <Route path={`/projects/:projectName/edit`} element={<Edit />} />
+              <Route path={`/projects/:projectName/edit`} element={<ProjectsEdit />} />
               <Route path={`/projects/:projectName/question`} element={<Question />} />
               <Route path={`/projects/:projectName/chat`} element={<Chat />} />
               <Route path={`/users`} element={<Users />} />
+              <Route path={`/users/:username/edit`} element={<UsersEdit />} />
               <Route path={`/hardware`} element={<Hardware />} />
             </Route>
             {/* Public Routes */}
