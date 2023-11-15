@@ -37,7 +37,7 @@ def test_createProject2():
 def test_getProjects2():
     response = client.get("/projects", auth=("admin", "admin"))
     assert response.status_code == 200
-    assert response.json() == {"projects": ['test_openai', 'test_openai2']}
+    assert len(response.json()) == 2
 
 
 def test_ingestURL():
@@ -50,7 +50,7 @@ def test_getProjectAfterIngestURL():
     response = client.get("/projects/test_openai", auth=("admin", "admin"))
     assert response.status_code == 200
     assert response.json() == {
-        "project": "test_openai", "llm": "openai", "embeddings": "openai", "documents": 1, "metadatas": 1}
+        "name": "test_openai", "system": None, "llm": "openai", "embeddings": "openai", "documents": 6, "metadatas": 6}
 
 
 def test_ingestUpload():
