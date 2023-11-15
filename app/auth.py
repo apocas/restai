@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 
-from app.database import dbc, pwd_context
+from app.database import dbc, get_db, pwd_context
 from app.models import User
 
 
@@ -13,9 +13,10 @@ security = HTTPBasic()
 
 
 def get_current_username(
-    credentials: Annotated[HTTPBasicCredentials, Depends(security)]
+    credentials: HTTPBasicCredentials = Depends(security),
+    db: Session = Depends(get_db)
 ):
-    user = dbc.get_user_by_username(credentials.username)
+    user = dbc.get_user_by_username(db, credentials.username)
 
     if user is not None:
       is_correct_username = credentials.username == user.username
@@ -63,4 +64,21 @@ def get_current_username_project(
         raise HTTPException(
             status_code=404,
             detail="Project not found"
+        )
+
+def get_current_username_user(
+    username: str,
+    user: User = Depends(get_current_username)
+):
+    found = False
+    if not user.is_admin:
+        if user.username == username:
+            found = True
+    else:
+        found = True
+        
+    if not found:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
         )

@@ -12,12 +12,12 @@ from langchain.document_loaders import (
 )
 from bs4 import BeautifulSoup as Soup
 from dotenv import load_dotenv
-from app.auth import get_current_username, get_current_username_admin, get_current_username_project
+from app.auth import get_current_username, get_current_username_admin, get_current_username_project, get_current_username_user
 from app.brain import Brain
-from app.database import Database, dbc
+from app.database import Database, dbc, get_db
 from app.databasemodels import UserDatabase
 
-from app.models import EmbeddingModel, HardwareInfo, IngestModel, ProjectInfo, ProjectModel, QuestionModel, ChatModel, User, UserCreate, UserUpdate
+from app.models import EmbeddingModel, HardwareInfo, IngestModel, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, User, UserCreate, UserUpdate
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -82,22 +82,29 @@ async def get_info(user: User = Depends(get_current_username)):
                 LOADERS.keys())}
 
 
-@app.get("/users/me")
-def read_current_user(user: User = Depends(get_current_username)):
-    return user
+@app.get("/users/{username}", response_model=User)
+async def get_user(username: str, user: User = Depends(get_current_username_user), db: Session = Depends(get_db)):
+    try:
+        return User.model_validate(dbc.get_user_by_username(db, username))
+    except Exception as e:
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=404, detail='{"error": ' + str(e) + '}')
 
 
 @app.get("/users/", response_model=list[User])
-def read_users(user: User = Depends(get_current_username_admin)):
-    users = dbc.get_users()
+def read_users(user: User = Depends(get_current_username_admin), db: Session = Depends(get_db)):
+    users = dbc.get_users(db)
     return users
 
 
 @app.post("/users/", response_model=User)
 def create_user(userc: UserCreate,
-                user: User = Depends(get_current_username_admin)):
+                user: User = Depends(get_current_username_admin),
+                db: Session = Depends(get_db)):
     try:
-        user = dbc.create_user(
+        user = dbc.create_user(db, 
             userc.username,
             userc.password,
             userc.is_admin)
@@ -114,18 +121,19 @@ def create_user(userc: UserCreate,
 def update_user(
         username: str,
         userc: UserUpdate,
-        user: User = Depends(get_current_username_admin)):
+        user: User = Depends(get_current_username_admin),
+        db: Session = Depends(get_db)):
     try:
-        user = dbc.get_user_by_username(username)
+        user = dbc.get_user_by_username(db, username)
         if user is None:
             raise Exception("User not found")
 
-        user = dbc.update_user(user, userc)
+        user = dbc.update_user(db, user, userc)
 
         if userc.projects is not None:
-            dbc.delete_userprojects(user)
+            dbc.delete_userprojects(db, user)
             for project in userc.projects:
-                project = dbc.add_userproject(user, project)
+                project = dbc.add_userproject(db, user, project)
         return user
     except Exception as e:
         logging.error(e)
@@ -136,12 +144,13 @@ def update_user(
 
 @app.delete("/users/{username}")
 def delete_user(username: str,
-                user: User = Depends(get_current_username_admin)):
+                user: User = Depends(get_current_username_admin),
+                db: Session = Depends(get_db)):
     try:
-        user = dbc.get_user_by_username(username)
+        user = dbc.get_user_by_username(db, username)
         if user is None:
             raise Exception("User not found")
-        dbc.delete_user(user)
+        dbc.delete_user(db, user)
         return {"deleted": username}
     except Exception as e:
         logging.error(e)
@@ -189,17 +198,17 @@ def get_hardware_info(user: User = Depends(get_current_username)):
 
 
 @app.get("/projects", response_model=list[ProjectModel])
-async def get_projects(request: Request, user: User = Depends(get_current_username)):
+async def get_projects(request: Request, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
     if user.is_admin:
-        return dbc.get_projects()
+        return dbc.get_projects(db)
     else:
         return user.projects
 
 
 @app.get("/projects/{projectName}", response_model=ProjectInfo)
-async def get_project(projectName: str, user: User = Depends(get_current_username_project)):
+async def get_project(projectName: str, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
     try:
-        project = brain.findProject(projectName)
+        project = brain.findProject(projectName, db)
         dbInfo = project.db.get()
 
         output = ProjectInfo(name=project.model.name, embeddings=project.model.embeddings,
@@ -216,9 +225,9 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
 
 
 @app.delete("/projects/{projectName}")
-async def delete_project(projectName: str, user: User = Depends(get_current_username_project)):
+async def delete_project(projectName: str, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
     try:
-        if brain.deleteProject(projectName):
+        if brain.deleteProject(projectName, db):
             return {"project": projectName}
         else:
             raise HTTPException(
@@ -231,27 +240,24 @@ async def delete_project(projectName: str, user: User = Depends(get_current_user
 
 
 @app.patch("/projects/{projectName}")
-async def edit_project(projectModel: ProjectModel, user: User = Depends(get_current_username_project)):
+async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
     try:
-        if brain.editProject(projectModel):
-            return {"project": projectModel.name}
+        if brain.editProject(projectName, projectModelUpdate, db):
+            return {"project": projectName}
         else:
             raise HTTPException(
                 status_code=404, detail='{"error": "Project not found"}')
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
-        if e.detail:
-            raise e
-        else:
-            raise HTTPException(
+        raise HTTPException(
                 status_code=500, detail='{"error": ' + str(e) + '}')
 
 
 @app.post("/projects")
-async def create_project(projectModel: ProjectModel, user: User = Depends(get_current_username)):
+async def create_project(projectModel: ProjectModel, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
     try:
-        brain.createProject(projectModel)
+        brain.createProject(projectModel, db)
         return {"project": projectModel.name}
     except Exception as e:
         logging.error(e)
@@ -263,9 +269,10 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
 @app.post("/projects/{projectName}/embeddings/reset")
 def project_reset(
         projectName: str,
-        user: User = Depends(get_current_username_project)):
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
     try:
-        project = brain.findProject(projectName)
+        project = brain.findProject(projectName, db)
         project.db._client.reset()
         brain.initializeEmbeddings(project)
 
@@ -279,8 +286,9 @@ def project_reset(
 
 @app.post("/projects/{projectName}/embeddings/find")
 def get_embedding(projectName: str, embedding: EmbeddingModel,
-                  user: User = Depends(get_current_username_project)):
-    project = brain.findProject(projectName)
+                  user: User = Depends(get_current_username_project),
+                  db: Session = Depends(get_db)):
+    project = brain.findProject(projectName, db)
     docs = None
 
     collection = project.db._client.get_collection("langchain")
@@ -300,8 +308,9 @@ def get_embedding(projectName: str, embedding: EmbeddingModel,
 def delete_embedding(
         projectName: str,
         id: str,
-        user: User = Depends(get_current_username_project)):
-    project = brain.findProject(projectName)
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
+    project = brain.findProject(projectName, db)
 
     collection = project.db._client.get_collection("langchain")
     ids = collection.get(ids=[id])['ids']
@@ -312,9 +321,10 @@ def delete_embedding(
 
 @app.post("/projects/{projectName}/embeddings/ingest/url")
 def ingest_url(projectName: str, ingest: IngestModel,
-               user: User = Depends(get_current_username_project)):
+               user: User = Depends(get_current_username_project),
+               db: Session = Depends(get_db)):
     try:
-        project = brain.findProject(projectName)
+        project = brain.findProject(projectName, db)
 
         if ingest.recursive:
             loader = RecursiveUrlLoader(
@@ -345,10 +355,11 @@ def ingest_url(projectName: str, ingest: IngestModel,
 def ingest_file(
         projectName: str,
         file: UploadFile,
-        user: User = Depends(get_current_username_project)):
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
     try:
         logger = logging.getLogger("embeddings_ingest_upload")
-        project = brain.findProject(projectName)
+        project = brain.findProject(projectName, db)
 
         dest = os.path.join(os.environ["UPLOADS_PATH"],
                             project.model.name, file.filename)
@@ -384,8 +395,9 @@ def ingest_file(
 
 @app.get('/projects/{projectName}/embeddings/urls')
 def list_urls(projectName: str, user: User = Depends(
-        get_current_username_project)):
-    project = brain.findProject(projectName)
+        get_current_username_project),
+        db: Session = Depends(get_db)):
+    project = brain.findProject(projectName, db)
 
     collection = project.db._client.get_collection("langchain")
 
@@ -406,8 +418,9 @@ def list_urls(projectName: str, user: User = Depends(
 @app.get('/projects/{projectName}/embeddings/files')
 def list_files(
         projectName: str,
-        user: User = Depends(get_current_username_project)):
-    project = brain.findProject(projectName)
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
+    project = brain.findProject(projectName, db)
     project_path = os.path.join(os.environ["UPLOADS_PATH"], project.model.name)
 
     if not os.path.exists(project_path):
@@ -425,8 +438,9 @@ def list_files(
 def delete_url(
         projectName: str,
         url: str,
-        user: User = Depends(get_current_username_project)):
-    project = brain.findProject(projectName)
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
+    project = brain.findProject(projectName, db)
 
     collection = project.db._client.get_collection("langchain")
     ids = collection.get(
@@ -441,8 +455,9 @@ def delete_url(
 def delete_file(
         projectName: str,
         fileName: str,
-        user: User = Depends(get_current_username_project)):
-    project = brain.findProject(projectName)
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
+    project = brain.findProject(projectName, db)
 
     collection = project.db._client.get_collection("langchain")
     ids = collection.get(
@@ -474,9 +489,10 @@ def delete_file(
 def question_project(
         projectName: str,
         input: QuestionModel,
-        user: User = Depends(get_current_username_project)):
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
     try:
-        project = brain.findProject(projectName)
+        project = brain.findProject(projectName, db)
         if input.system or project.model.system:
             answer, hits = brain.questionContext(project, input)
             return {
@@ -501,9 +517,10 @@ def question_project(
 def chat_project(
         projectName: str,
         input: ChatModel,
-        user: User = Depends(get_current_username_project)):
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
     try:
-        project = brain.findProject(projectName)
+        project = brain.findProject(projectName, db)
         chat, response = brain.chat(project, input)
 
         return {"message": input.message, "response": response, "id": chat.id}

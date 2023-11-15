@@ -6,7 +6,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain.vectorstores import Chroma
 
-from app.models import EmbeddingModel, IngestModel, ProjectModel, QuestionModel, ChatModel
+from app.models import EmbeddingModel, IngestModel, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
 from app.project import Project
 from app.tools import FindEmbeddingsPath
 from modules.embeddings import EMBEDDINGS
@@ -47,12 +47,15 @@ class Brain:
             else:
                 raise Exception("Invalid Embedding type.")
 
-    def findProject(self, name):
+    def findProject(self, name, db):
         for project in self.projects:
             if project.model.name == name:
                 return project
-
-        proj = ProjectModel.model_validate(dbc.get_project_by_name(name))
+              
+        p = dbc.get_project_by_name(db, name)
+        if p is None:
+            raise Exception("Project not found")
+        proj = ProjectModel.model_validate(p)
         if proj is not None:
             project = Project()
             project.model = proj
@@ -60,8 +63,8 @@ class Brain:
             self.projects.append(project)
             return project
 
-    def createProject(self, projectModel):
-        dbc.create_project(projectModel.name,
+    def createProject(self, projectModel, db):
+        dbc.create_project(db, projectModel.name,
                            projectModel.embeddings, projectModel.llm, projectModel.system)
         project = Project()
         project.boot(projectModel)
@@ -74,29 +77,35 @@ class Brain:
                 project.model.name), embedding_function=self.getEmbedding(
                 project.model.embeddings))
 
-    def editProject(self, projectModel: ProjectModel):
-        project = self.findProject(projectModel.name)
+    def editProject(self, name, projectModel: ProjectModelUpdate, db):
+        project = self.findProject(name, db)
         if project is None:
             return False
 
+
+        proj_db = dbc.get_project_by_name(db, name)
+        if proj_db is None:
+            raise Exception("Project not found")
+
         changed = False
-        if project.model.llm != projectModel.llm:
-            project.model.llm = projectModel.llm
+        if projectModel.llm is not None and proj_db.llm != projectModel.llm:
+            proj_db.llm = projectModel.llm
             changed = True
 
-        if project.model.system != projectModel.system:
-            project.model.system = projectModel.system
+        if proj_db.system != projectModel.system:
+            proj_db.system = projectModel.system
             changed = True
 
         if changed:
-            dbc.update_project()
+            dbc.update_project(db)
+            project.model = ProjectModel.model_validate(proj_db)
 
         return project
 
-    def deleteProject(self, name):
-        self.findProject(name)
-        dbc.delete_project(dbc.get_project_by_name(name))
-        proj = self.findProject(name)
+    def deleteProject(self, name, db):
+        self.findProject(name, db)
+        dbc.delete_project(dbc.get_project_by_name(db, name))
+        proj = self.findProject(name, db)
         if proj is not None:
             proj.delete()
             self.projects.remove(proj)
