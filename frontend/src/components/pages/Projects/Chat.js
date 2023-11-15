@@ -1,16 +1,7 @@
-import CustomNavBar from '../../common/navBar.js'
-import Container from 'react-bootstrap/Container';
-import Row from 'react-bootstrap/Row';
-import Form from 'react-bootstrap/Form';
-import InputGroup from 'react-bootstrap/InputGroup';
-import Col from 'react-bootstrap/Col';
-import Card from 'react-bootstrap/Card';
-import Button from 'react-bootstrap/Button';
-import Spinner from 'react-bootstrap/Spinner';
-import Alert from 'react-bootstrap/Alert';
+import {Container, Row, Form, InputGroup, Col, Card, Button, Spinner, Alert} from 'react-bootstrap';
 import { useParams } from "react-router-dom";
-
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
+import { AuthContext } from '../../common/AuthProvider.js';
 
 function Chat() {
 
@@ -20,6 +11,8 @@ function Chat() {
   const [messages, setMessages] = useState([]);
   const [canSubmit, setCanSubmit] = useState(true);
   const [error, setError] = useState([]);
+  const { getBasicAuth } = useContext(AuthContext);
+  const user = getBasicAuth();
 
   const onSubmitHandler = (event) => {
     event.preventDefault();
@@ -53,7 +46,7 @@ function Chat() {
       setMessages([...messages, { id: id, message: message, response: null }]);
       fetch(url + "/projects/" + projectName + "/chat", {
         method: 'POST',
-        headers: new Headers({ 'Content-Type': 'application/json' }),
+        headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
         body: JSON.stringify(body),
       })
         .then(response => response.json())
@@ -75,7 +68,6 @@ function Chat() {
 
   return (
     <>
-      <CustomNavBar />
       {error.length > 0 &&
         <Alert variant="danger">
           {JSON.stringify(error)}

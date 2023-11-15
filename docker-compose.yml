@@ -13,3 +13,4 @@ services:
     environment:
       LOG_LEVEL: DEBUG
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      RESTAI_DEV: ${RESTAI_DEV}

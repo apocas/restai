@@ -1,14 +1,16 @@
-import Container from 'react-bootstrap/Container';
-import Navbar from 'react-bootstrap/Navbar';
+import React, { useContext } from 'react';
+import { Container, Navbar, Button, Nav } from 'react-bootstrap';
 import { NavLink } from "react-router-dom";
-import Nav from 'react-bootstrap/Nav';
+import { AuthContext } from './AuthProvider.js';
 
-function CustomNavBar() {
+function Navigation() {
+  const { logout, getBasicAuth } = useContext(AuthContext);
+  const user = getBasicAuth();
   return (
     <Navbar expand="lg" className="bg-body-tertiary">
       <Container>
         <Navbar.Brand href="/admin">
-            RestAI
+          RestAI
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
@@ -28,10 +30,20 @@ function CustomNavBar() {
               </NavLink>
             </Nav.Link>
           </Nav>
+          {user && (
+            <Nav>
+              <Navbar.Text>
+                Signed in as: <a href="#login">{user.username}</a>
+                <Button variant="link" onClick={logout}>
+                  Logout
+                </Button>
+              </Navbar.Text>
+            </Nav>
+          )}
         </Navbar.Collapse>
       </Container>
     </Navbar>
   );
 }
 
-export default CustomNavBar;
+export default Navigation;
