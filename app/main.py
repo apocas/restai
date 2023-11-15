@@ -249,7 +249,7 @@ async def edit_project(projectModel: ProjectModel, user: User = Depends(get_curr
 
 
 @app.post("/projects")
-async def create_project(projectModel: ProjectModel, user: User = Depends(get_current_username_admin)):
+async def create_project(projectModel: ProjectModel, user: User = Depends(get_current_username)):
     try:
         brain.createProject(projectModel)
         return {"project": projectModel.name}

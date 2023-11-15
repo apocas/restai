@@ -89,7 +89,7 @@ class Brain:
             changed = True
 
         if changed:
-            dbc.update_project(project.model)
+            dbc.update_project()
 
         return project
 

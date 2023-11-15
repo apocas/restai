@@ -65,9 +65,9 @@ class Database:
     def get_user_by_id(self, id):
         return self.db.query(UserDatabase).filter(UserDatabase.id == id).first()
 
-    def delete_user(self, db, user):
-        db.delete(user)
-        db.commit()
+    def delete_user(self, user):
+        self.db.delete(user)
+        self.db.commit()
         return True
 
     def add_userproject(self, user, name):
