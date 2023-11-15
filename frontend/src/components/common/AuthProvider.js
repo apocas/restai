@@ -6,17 +6,22 @@ export const AuthProvider = ({ children }) => {
   const login = (username, password) => {
     const url = process.env.REACT_APP_RESTAI_API_URL || "";
     const basicAuth = btoa(username + ":" + password);
-    fetch(url + "/info", {
+    fetch(url + "/users/me", {
       headers: new Headers({ 'Authorization': 'Basic ' + basicAuth }),
     })
       .then((res) => {
         if (res.status === 401) {
           setUser(null)
+          return null;
         } else if (res.status === 200) {
-          setUser({ username: username, basicAuth: basicAuth, expires: 43200, created: Math.floor(Date.now() / 1000) });
+          return res.json();
         } else {
           setUser(null)
+          return null;
         }
+      }).then((res) => {
+        if (res !== null)
+          setUser({ username: username, basicAuth: basicAuth, expires: 43200, created: Math.floor(Date.now() / 1000), admin: res.is_admin });
       })
   };
   const logout = () => {

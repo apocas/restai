@@ -9,6 +9,7 @@ import Edit from './components/pages/Projects/Edit.js';
 import Chat from './components/pages/Projects/Chat.js';
 import Question from './components/pages/Projects/Question.js';
 import Hardware from './components/pages/Hardware/Hardware.js';
+import Users from './components/pages/Users/Users.js';
 import Login from './components/pages/Login/Login.js';
 import Error from './components/pages/Error/Error.js';
 import PrivateRoute from './components/common/PrivateRoute.js';
@@ -32,6 +33,7 @@ function Root() {
               <Route path={`/projects/:projectName/edit`} element={<Edit />} />
               <Route path={`/projects/:projectName/question`} element={<Question />} />
               <Route path={`/projects/:projectName/chat`} element={<Chat />} />
+              <Route path={`/users`} element={<Users />} />
               <Route path={`/hardware`} element={<Hardware />} />
             </Route>
             {/* Public Routes */}

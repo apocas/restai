@@ -5,7 +5,7 @@ import { AuthContext } from './AuthProvider.js';
 
 function Navigation() {
   const { logout, getBasicAuth } = useContext(AuthContext);
-  const user = getBasicAuth();
+  const user = getBasicAuth() || { username: null, admin: null };
   return (
     <Navbar expand="lg" className="bg-body-tertiary">
       <Container>
@@ -22,6 +22,15 @@ function Navigation() {
                 Home
               </NavLink>
             </Nav.Link>
+            {user.admin && (
+              <Nav.Link as="li">
+                <NavLink
+                  to="/users"
+                >
+                  Users
+                </NavLink>
+              </Nav.Link>
+            )}
             <Nav.Link as="li">
               <NavLink
                 to="/hardware"
@@ -30,7 +39,7 @@ function Navigation() {
               </NavLink>
             </Nav.Link>
           </Nav>
-          {user && (
+          {user.username && (
             <Nav>
               <Navbar.Text>
                 Signed in as: <a href="#login">{user.username}</a>
