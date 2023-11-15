@@ -10,6 +10,7 @@ import Chat from './components/pages/Projects/Chat.js';
 import Question from './components/pages/Projects/Question.js';
 import Hardware from './components/pages/Hardware/Hardware.js';
 import Users from './components/pages/Users/Users.js';
+import User from './components/pages/Users/User.js';
 import UsersEdit from './components/pages/Users/Edit.js';
 import Login from './components/pages/Login/Login.js';
 import Error from './components/pages/Error/Error.js';
@@ -35,6 +36,7 @@ function Root() {
               <Route path={`/projects/:projectName/question`} element={<Question />} />
               <Route path={`/projects/:projectName/chat`} element={<Chat />} />
               <Route path={`/users`} element={<Users />} />
+              <Route path={`/users/:username`} element={<User />} />
               <Route path={`/users/:username/edit`} element={<UsersEdit />} />
               <Route path={`/hardware`} element={<Hardware />} />
             </Route>
