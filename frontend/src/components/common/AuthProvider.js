@@ -6,7 +6,7 @@ export const AuthProvider = ({ children }) => {
   const login = (username, password) => {
     const url = process.env.REACT_APP_RESTAI_API_URL || "";
     const basicAuth = btoa(username + ":" + password);
-    fetch(url + "/users/me", {
+    fetch(url + "/users/" + username, {
       headers: new Headers({ 'Authorization': 'Basic ' + basicAuth }),
     })
       .then((res) => {
