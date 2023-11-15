@@ -93,7 +93,7 @@ async def get_user(username: str, user: User = Depends(get_current_username_user
             status_code=404, detail='{"error": ' + str(e) + '}')
 
 
-@app.get("/users/", response_model=list[User])
+@app.get("/users", response_model=list[User])
 def read_users(
         user: User = Depends(get_current_username_admin),
         db: Session = Depends(get_db)):
@@ -101,7 +101,7 @@ def read_users(
     return users
 
 
-@app.post("/users/", response_model=User)
+@app.post("/users", response_model=User)
 def create_user(userc: UserCreate,
                 user: User = Depends(get_current_username_admin),
                 db: Session = Depends(get_db)):
