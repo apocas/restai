@@ -19,12 +19,12 @@ def get_current_username(
     user = dbc.get_user_by_username(db, credentials.username)
 
     if user is not None:
-      is_correct_username = credentials.username == user.username
-      is_correct_password = pwd_context.verify(
-          credentials.password, user.hashed_password)
+        is_correct_username = credentials.username == user.username
+        is_correct_password = pwd_context.verify(
+            credentials.password, user.hashed_password)
     else:
-      is_correct_username = False
-      is_correct_password = False
+        is_correct_username = False
+        is_correct_password = False
 
     if not (is_correct_username and is_correct_password):
         raise HTTPException(
@@ -66,6 +66,7 @@ def get_current_username_project(
             detail="Project not found"
         )
 
+
 def get_current_username_user(
     username: str,
     user: User = Depends(get_current_username)
@@ -76,7 +77,7 @@ def get_current_username_user(
             found = True
     else:
         found = True
-        
+
     if not found:
         raise HTTPException(
             status_code=404,

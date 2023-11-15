@@ -12,12 +12,14 @@ engine = create_engine(
 SessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=engine)
 
+
 def get_db():
     db = SessionLocal()
     try:
         return db
     finally:
         db.close()
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -35,6 +37,7 @@ if "users" not in inspect(engine).get_table_names():
     dbi.refresh(db_user)
     dbi.close()
     print("Database initialized. Default admin user created (admin:admin).")
+
 
 class Database:
 
@@ -60,7 +63,7 @@ class Database:
         if userc.password is not None:
             hash = pwd_context.hash(userc.password)
             user.hashed_password = hash
-            
+
         if userc.is_admin is not None:
             user.is_admin = userc.is_admin
 
@@ -94,7 +97,7 @@ class Database:
         project = db.query(ProjectDatabase).filter(
             ProjectDatabase.name == name).first()
         return project
-        
+
     def create_project(self, db, name, embeddings, llm, system):
         db_project = ProjectDatabase(
             name=name, embeddings=embeddings, llm=llm, system=system)
@@ -102,11 +105,11 @@ class Database:
         db.commit()
         db.refresh(db_project)
         return db_project
-      
+
     def get_projects(self, db):
         projects = db.query(ProjectDatabase).all()
         return projects
-      
+
     def delete_project(self, db, project):
         db.delete(project)
         db.commit()
@@ -115,5 +118,6 @@ class Database:
     def update_project(self, db):
         db.commit()
         return True
+
 
 dbc = Database()

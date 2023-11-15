@@ -42,7 +42,7 @@ def test_getProjects2():
 
 def test_ingestURL():
     response = client.post("/projects/test_openai/embeddings/ingest/url",
-                           json={"url": "https://www.google.com"}, auth=("admin", "admin"))
+                           json={"url": "https://info.cern.ch/"}, auth=("admin", "admin"))
     assert response.status_code == 200
 
 
@@ -50,7 +50,7 @@ def test_getProjectAfterIngestURL():
     response = client.get("/projects/test_openai", auth=("admin", "admin"))
     assert response.status_code == 200
     assert response.json() == {
-        "name": "test_openai", "system": None, "llm": "openai", "embeddings": "openai", "documents": 6, "metadatas": 6}
+        "name": "test_openai", "system": None, "llm": "openai", "embeddings": "openai", "documents": 1, "metadatas": 1}
 
 
 def test_ingestUpload():
@@ -63,7 +63,7 @@ def test_getProjectAfterIngestUpload():
     response = client.get("/projects/test_openai", auth=("admin", "admin"))
     assert response.status_code == 200
     assert response.json() == {
-        "project": "test_openai", "llm": "openai", "embeddings": "openai", "documents": 2, "metadatas": 2}
+        "name": "test_openai", "system":None, "llm": "openai", "embeddings": "openai", "documents": 2, "metadatas": 2}
 
 
 def test_ingestUpload2():
@@ -80,8 +80,8 @@ def test_getEmbeddings():
 
 
 def test_deleteEmbeddings():
-    response = client.post(
-        "/projects/test_openai/embeddings/delete", json={"source": "test2.txt"}, auth=("admin", "admin"))
+    response = client.delete(
+        "/projects/test_openai/embeddings/files/dGVzdDIudHh0", auth=("admin", "admin"))
     assert response.status_code == 200
     assert response.json() == {"deleted": 1}
 
@@ -98,7 +98,7 @@ def test_questionProject():
                            json={"question": "What is the secret?"}, auth=("admin", "admin"))
     assert response.status_code == 200
     assert response.json() == {"question": "What is the secret?",
-                               "answer": "The secret is that ingenuity should be bigger than politics and corporate greed."}
+                               "answer": "The secret is that ingenuity should be bigger than politics and corporate greed.", "type": "question"}
 
 
 def test_questionProject2():
@@ -156,8 +156,7 @@ def test_questionProjectAfterResetAfterIngest():
                            json={"question": "What is the secret?"}, auth=("admin", "admin"))
     assert response.status_code == 200
     assert response.json() == {"question": "What is the secret?",
-                               "answer": "The secret is that ingenuity should be bigger than politics and corporate greed."}
-
+                               "answer": "The secret is that ingenuity should be bigger than politics and corporate greed.", "type": "question"}
 
 def test_deleteProject():
     response = client.delete("/projects/test_openai", auth=("admin", "admin"))

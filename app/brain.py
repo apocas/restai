@@ -51,7 +51,7 @@ class Brain:
         for project in self.projects:
             if project.model.name == name:
                 return project
-              
+
         p = dbc.get_project_by_name(db, name)
         if p is None:
             raise Exception("Project not found")
@@ -64,8 +64,12 @@ class Brain:
             return project
 
     def createProject(self, projectModel, db):
-        dbc.create_project(db, projectModel.name,
-                           projectModel.embeddings, projectModel.llm, projectModel.system)
+        dbc.create_project(
+            db,
+            projectModel.name,
+            projectModel.embeddings,
+            projectModel.llm,
+            projectModel.system)
         project = Project()
         project.boot(projectModel)
         self.initializeEmbeddings(project)
@@ -81,7 +85,6 @@ class Brain:
         project = self.findProject(name, db)
         if project is None:
             return False
-
 
         proj_db = dbc.get_project_by_name(db, name)
         if proj_db is None:
@@ -104,7 +107,7 @@ class Brain:
 
     def deleteProject(self, name, db):
         self.findProject(name, db)
-        dbc.delete_project(dbc.get_project_by_name(db, name))
+        dbc.delete_project(db, dbc.get_project_by_name(db, name))
         proj = self.findProject(name, db)
         if proj is not None:
             proj.delete()

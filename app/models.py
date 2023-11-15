@@ -62,7 +62,8 @@ class UserUpdate(BaseModel):
     password: str = None
     is_admin: bool = None
     projects: list[str] = None
-    
+
+
 class ProjectModelUpdate(BaseModel):
     embeddings: Union[str, None] = None
     llm: Union[str, None] = None
@@ -72,6 +73,6 @@ class ProjectModelUpdate(BaseModel):
 class HardwareInfo(BaseModel):
     cpu_load: float
     ram_usage: float
-    gpu_load:  Union[int, None] = None
-    gpu_temp:  Union[int, None] = None
-    gpu_ram_usage:  Union[int, None] = None
+    gpu_load: Union[int, None] = None
+    gpu_temp: Union[int, None] = None
+    gpu_ram_usage: Union[int, None] = None

@@ -94,7 +94,9 @@ async def get_user(username: str, user: User = Depends(get_current_username_user
 
 
 @app.get("/users/", response_model=list[User])
-def read_users(user: User = Depends(get_current_username_admin), db: Session = Depends(get_db)):
+def read_users(
+        user: User = Depends(get_current_username_admin),
+        db: Session = Depends(get_db)):
     users = dbc.get_users(db)
     return users
 
@@ -104,10 +106,10 @@ def create_user(userc: UserCreate,
                 user: User = Depends(get_current_username_admin),
                 db: Session = Depends(get_db)):
     try:
-        user = dbc.create_user(db, 
-            userc.username,
-            userc.password,
-            userc.is_admin)
+        user = dbc.create_user(db,
+                               userc.username,
+                               userc.password,
+                               userc.is_admin)
         return user
     except Exception as e:
         logging.error(e)
@@ -211,8 +213,11 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
         project = brain.findProject(projectName, db)
         dbInfo = project.db.get()
 
-        output = ProjectInfo(name=project.model.name, embeddings=project.model.embeddings,
-                             llm=project.model.llm, system=project.model.system)
+        output = ProjectInfo(
+            name=project.model.name,
+            embeddings=project.model.embeddings,
+            llm=project.model.llm,
+            system=project.model.system)
         output.documents = len(dbInfo["documents"])
         output.metadatas = len(dbInfo["metadatas"])
 
@@ -251,7 +256,7 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-                status_code=500, detail='{"error": ' + str(e) + '}')
+            status_code=500, detail='{"error": ' + str(e) + '}')
 
 
 @app.post("/projects")

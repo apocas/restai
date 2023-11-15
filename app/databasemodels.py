@@ -30,7 +30,7 @@ class ProjectDatabase(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True)
-    
+
     name = Column(String, unique=True, index=True)
     embeddings = Column(String)
     llm = Column(String)
