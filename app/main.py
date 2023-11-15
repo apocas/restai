@@ -262,7 +262,14 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
 @app.post("/projects")
 async def create_project(projectModel: ProjectModel, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
     try:
+        proj = brain.findProject(projectModel.name, db)
+        if proj is not None:
+            raise HTTPException(
+                status_code=403,
+                detail='{"error": "Project already exists"}')
+            
         brain.createProject(projectModel, db)
+        dbc.add_userproject(db, user, projectModel.name)
         return {"project": projectModel.name}
     except Exception as e:
         logging.error(e)

@@ -54,7 +54,7 @@ class Brain:
 
         p = dbc.get_project_by_name(db, name)
         if p is None:
-            raise Exception("Project not found")
+            return None
         proj = ProjectModel.model_validate(p)
         if proj is not None:
             project = Project()
