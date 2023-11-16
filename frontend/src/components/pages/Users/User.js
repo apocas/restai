@@ -12,7 +12,7 @@ function User() {
   const [error, setError] = useState([]);
   var { username } = useParams();
   const { getBasicAuth } = useContext(AuthContext);
-  const user = getBasicAuth();
+  const user = getBasicAuth() || { username: null, admin: null };
 
   const fetchUser = (username) => {
     return fetch(url + "/users/" + username, { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
