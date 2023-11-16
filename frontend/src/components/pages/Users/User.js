@@ -58,7 +58,7 @@ function User() {
 
     var projectsi = [];
     for (var i = 0; i < data.projects.length; i++) {
-        projectsi.push(data.projects[i].name);
+      projectsi.push(data.projects[i].name);
     }
 
     projectsi.push(projectForm.current.value)
@@ -97,10 +97,11 @@ function User() {
               <ListGroup.Item>Id: {data.id}</ListGroup.Item>
               <ListGroup.Item>Username: {data.username}</ListGroup.Item>
               <ListGroup.Item>Projects Count: {data.projects.length}</ListGroup.Item>
+              <ListGroup.Item>Admin: {data.is_admin ? (<span>✅</span>) : (<span>❌</span>)}</ListGroup.Item>
             </ListGroup>
           </Col>
         </Row>
-        <Row>
+        <Row style={{ marginTop: "20px" }}>
           <h1>Projects</h1>
           {user.admin && (
             <Form onSubmit={onSubmitHandler}>
@@ -155,7 +156,7 @@ function User() {
             </tbody>
           </Table>
         </Row>
-      </Container>
+      </Container >
     </>
   );
 }
