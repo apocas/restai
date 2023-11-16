@@ -43,7 +43,7 @@ logging.basicConfig(level=os.environ["LOG_LEVEL"])
 app = FastAPI(
     title="RestAI",
     description="Modular REST API bootstrap on top of LangChain. Create embeddings associated with a project tenant and interact using a LLM. RAG as a service.",
-    version="2.1.0",
+    version="3.0.0",
     contact={
         "name": "Pedro Dias",
         "url": "https://github.com/apocas/restai",
@@ -128,6 +128,9 @@ def update_user(
         user = dbc.get_user_by_username(db, username)
         if user is None:
             raise Exception("User not found")
+
+        if not user.is_admin and userc.is_admin is not None:
+            raise Exception("Insuficient permissions")
 
         dbc.update_user(db, user, userc)
 
