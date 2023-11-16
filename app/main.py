@@ -122,14 +122,14 @@ def create_user(userc: UserCreate,
 def update_user(
         username: str,
         userc: UserUpdate,
-        user: User = Depends(get_current_username_admin),
+        user: User = Depends(get_current_username_user),
         db: Session = Depends(get_db)):
     try:
         user = dbc.get_user_by_username(db, username)
         if user is None:
             raise Exception("User not found")
 
-        user = dbc.update_user(db, user, userc)
+        dbc.update_user(db, user, userc)
 
         if userc.projects is not None:
             dbc.delete_userprojects(db, user)

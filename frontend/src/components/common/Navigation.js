@@ -42,7 +42,11 @@ function Navigation() {
           {user.username && (
             <Nav>
               <Navbar.Text>
-                Signed in as: <a href="#login">{user.username}</a>
+                Signed in as:                         <NavLink
+                  to={"/users/" + user.username}
+                >
+                  {user.username}{' '}
+                </NavLink>
                 <Button variant="link" onClick={logout}>
                   Logout
                 </Button>

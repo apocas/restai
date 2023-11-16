@@ -67,7 +67,6 @@ class Database:
         if userc.is_admin is not None:
             user.is_admin = userc.is_admin
 
-        user.hashed_password = hash
         db.commit()
         return True
 

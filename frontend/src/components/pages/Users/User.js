@@ -22,13 +22,25 @@ function User() {
       });
   }
 
-  const handleDeleteClick = (projectName) => {
-    alert(projectName);
-    fetch(url + "/projects/" + projectName, { method: 'DELETE', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
-      .then(() => fetchUser()
-      ).catch(err => {
-        setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
-      });
+  const handleRemoveClick = (projectName) => {
+    var projects = [];
+    for (var i = 0; i < data.projects.length; i++) {
+      if (data.projects[i].name !== projectName) {
+        projects.push(data.projects[i].name);
+      }
+    }
+
+    fetch(url + "/users/" + username, {
+        method: 'PATCH',
+        headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
+        body: JSON.stringify({
+          "projects": projects
+        }),
+      })
+        .then(response => fetchUser(username))
+        .catch(err => {
+          setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
+        });
   }
 
   useEffect(() => {
@@ -78,27 +90,7 @@ function User() {
                         </NavLink>
                       </td>
                       <td>
-                        <NavLink
-                          to={"/projects/" + project.name}
-                        >
-                          <Button variant="dark">View</Button>{' '}
-                        </NavLink>
-                        <NavLink
-                          to={"/projects/" + project.name + "/edit"}
-                        >
-                          <Button variant="dark">Edit</Button>{' '}
-                        </NavLink>
-                        <NavLink
-                          to={"/projects/" + project.name + "/chat"}
-                        >
-                          <Button variant="dark">Chat</Button>{' '}
-                        </NavLink>
-                        <NavLink
-                          to={"/projects/" + project.name + "/question"}
-                        >
-                          <Button variant="dark">Question</Button>{' '}
-                        </NavLink>
-                        <Button onClick={() => handleDeleteClick(project.name)} variant="danger">Delete</Button>
+                        <Button onClick={() => handleRemoveClick(project.name)} variant="danger">Remove</Button>
                       </td>
                     </tr>
                   )
