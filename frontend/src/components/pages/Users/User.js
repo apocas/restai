@@ -1,17 +1,18 @@
-import { Container, Table, Row, Col, Button, ListGroup, Alert } from 'react-bootstrap';
+import { Container, Table, Row, Form, Col, Button, ListGroup, Alert } from 'react-bootstrap';
 import { useParams, NavLink } from "react-router-dom";
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
 
 function User() {
 
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
+  const projectForm = useRef(null)
   const [data, setData] = useState({ projects: [] });
+  const [projects, setProjects] = useState([]);
   const [error, setError] = useState([]);
   var { username } = useParams();
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
-
 
   const fetchUser = (username) => {
     return fetch(url + "/users/" + username, { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
@@ -22,30 +23,63 @@ function User() {
       });
   }
 
+  const fetchProjects = () => {
+    return fetch(url + "/projects", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+      .then((res) => res.json())
+      .then((d) => setProjects(d)
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchProjects", "error": err.toString() }]);
+      });
+  }
+
   const handleRemoveClick = (projectName) => {
-    var projects = [];
+    var projectsi = [];
     for (var i = 0; i < data.projects.length; i++) {
       if (data.projects[i].name !== projectName) {
-        projects.push(data.projects[i].name);
+        projectsi.push(data.projects[i].name);
       }
     }
 
     fetch(url + "/users/" + username, {
-        method: 'PATCH',
-        headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
-        body: JSON.stringify({
-          "projects": projects
-        }),
-      })
-        .then(response => fetchUser(username))
-        .catch(err => {
-          setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
-        });
+      method: 'PATCH',
+      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
+      body: JSON.stringify({
+        "projects": projectsi
+      }),
+    })
+      .then(response => fetchUser(username))
+      .catch(err => {
+        setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
+      });
+  }
+
+  const onSubmitHandler = (event) => {
+    event.preventDefault();
+
+    var projectsi = [];
+    for (var i = 0; i < data.projects.length; i++) {
+        projectsi.push(data.projects[i].name);
+    }
+
+    projectsi.push(projectForm.current.value)
+
+    fetch(url + "/users/" + username, {
+      method: 'PATCH',
+      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
+      body: JSON.stringify({
+        "projects": projectsi
+      }),
+    })
+      .then(response => fetchUser(username))
+      .catch(err => {
+        setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
+      });
   }
 
   useEffect(() => {
     document.title = 'RestAI User ' + username;
     fetchUser(username);
+    fetchProjects();
   }, [username]);
 
   return (
@@ -68,6 +102,28 @@ function User() {
         </Row>
         <Row>
           <h1>Projects</h1>
+          {user.admin && (
+            <Form onSubmit={onSubmitHandler}>
+              <Row className="mb-3">
+                <Form.Group as={Col} controlId="formGridProjects">
+                  <Form.Label>Project</Form.Label>
+                  <Form.Select ref={projectForm} defaultValue="Choose...">
+                    <option>Choose...</option>
+                    {
+                      projects.map((project, index) => {
+                        return (
+                          <option key={index}>{project.name}</option>
+                        )
+                      })
+                    }
+                  </Form.Select>
+                </Form.Group>
+              </Row>
+              <Button variant="dark" type="submit" className="mb-2">
+                Add Project
+              </Button>
+            </Form>
+          )}
           <Table striped bordered hover responsive>
             <thead>
               <tr>

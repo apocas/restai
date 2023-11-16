@@ -203,7 +203,12 @@ async def get_projects(request: Request, user: User = Depends(get_current_userna
     if user.is_admin:
         return dbc.get_projects(db)
     else:
-        return user.projects
+        projects = []
+        for project in user.projects:
+            for p in dbc.get_projects(db):
+                if project.name == p.name:
+                    projects.append(p)
+        return projects
 
 
 @app.get("/projects/{projectName}", response_model=ProjectInfo)
