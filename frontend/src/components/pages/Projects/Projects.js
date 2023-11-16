@@ -57,7 +57,7 @@ function Projects() {
           arr[data[i].name] = []
           for (let j = 0; j < d.length; j++) {
             for (let z = 0; z < d[j].projects.length; z++) {
-              if (data[i].name == d[j].projects[z].name)
+              if (data[i].name === d[j].projects[z].name)
                 arr[data[i].name].push(d[j].username);
             }
           }
