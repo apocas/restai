@@ -129,7 +129,7 @@ def update_user(
         if user is None:
             raise Exception("User not found")
 
-        if not user.is_admin and userc.is_admin is not None:
+        if not user.is_admin and userc.is_admin is True:
             raise Exception("Insuficient permissions")
 
         dbc.update_user(db, user, userc)
