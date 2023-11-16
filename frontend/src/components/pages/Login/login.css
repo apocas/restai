@@ -25,7 +25,7 @@
 }
 
 .sign-in__wrapper form img {
-  width: 4rem;
+  width: 60%;
 }
 
 @keyframes showSignInForm {

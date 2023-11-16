@@ -17,14 +17,18 @@ function Edit() {
   const onSubmitHandler = (event) => {
     event.preventDefault();
     var body = "";
-    if (passwordForm.current.value === "") {
+    if (passwordForm.current.value === "" && user.admin) {
       body = JSON.stringify({
+        "is_admin": isadminForm.current.checked
+      })
+    } else if (passwordForm.current.value !== "" && user.admin) {
+      body = JSON.stringify({
+        "password": passwordForm.current.value,
         "is_admin": isadminForm.current.checked
       })
     } else {
       body = JSON.stringify({
-        "password": passwordForm.current.value,
-        "is_admin": isadminForm.current.checked
+        "password": passwordForm.current.value
       })
     }
 
@@ -60,10 +64,12 @@ function Edit() {
               <Form.Label>Password</Form.Label>
               <Form.Control ref={passwordForm} />
             </Form.Group>
-            <Form.Group as={Col} controlId="formGridAdmin">
-              <Form.Label>Admin</Form.Label>
-              <Form.Check ref={isadminForm} type="checkbox" label="Check me" />
-            </Form.Group>
+            {user.admin &&
+              <Form.Group as={Col} controlId="formGridAdmin">
+                <Form.Label>Admin</Form.Label>
+                <Form.Check ref={isadminForm} type="checkbox" label="Check me" />
+              </Form.Group>
+            }
           </Row>
           <Button variant="dark" type="submit" className="mb-2">
             Submit
