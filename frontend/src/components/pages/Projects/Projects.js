@@ -7,6 +7,7 @@ function Projects() {
 
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [data, setData] = useState([]);
+  const [users, setUsers] = useState({ "teste": [] });
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const [error, setError] = useState([]);
   const projectNameForm = useRef(null)
@@ -28,7 +29,11 @@ function Projects() {
   const fetchProjects = () => {
     return fetch(url + "/projects", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
-      .then((d) => setData(d)
+      .then((d) => {
+        setData(d)
+        if (user.admin)
+          fetchUsers(d);
+      }
       ).catch(err => {
         setError([...error, { "functionName": "fetchProjects", "error": err.toString() }]);
       });
@@ -40,6 +45,27 @@ function Projects() {
       .then((d) => setInfo(d)
       ).catch(err => {
         setError([...error, { "functionName": "fetchInfo", "error": err.toString() }]);
+      });
+  }
+
+  const fetchUsers = (data) => {
+    return fetch(url + "/users", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+      .then((res) => res.json())
+      .then((d) => {
+        var arr = {};
+        for (let i = 0; i < data.length; i++) {
+          arr[data[i].name] = []
+          for (let j = 0; j < d.length; j++) {
+            for (let z = 0; z < d[j].projects.length; z++) {
+              if (data[i].name === d[j].projects[z].name)
+                arr[data[i].name].push(d[j].username);
+            }
+          }
+        }
+        setUsers(arr)
+      }
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchUsers", "error": err.toString() }]);
       });
   }
 
@@ -86,6 +112,9 @@ function Projects() {
                 <th>#</th>
                 <th>Project Name</th>
                 <th>Actions</th>
+                {user.admin &&
+                  <th>Used by</th>
+                }
               </tr>
             </thead>
             <tbody>
@@ -124,6 +153,19 @@ function Projects() {
                         </NavLink>
                         <Button onClick={() => handleDeleteClick(project.name)} variant="danger">Delete</Button>
                       </td>
+                      {
+                        user.admin &&
+                        <td>
+                          {typeof users[project.name] !== "undefined" && (
+                            users[project.name].map((user, index) => {
+                              if (users[project.name].length - 1 === index)
+                                return <NavLink key={index} to={"/users/" + user}>{user}</NavLink>
+                              return <NavLink key={index} to={"/users/" + user}>{user + ", "}</NavLink>
+                            })
+                          )
+                          }
+                        </td>
+                      }
                     </tr>
                   )
                 })

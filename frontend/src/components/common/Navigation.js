@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { Container, Navbar, Button, Nav } from 'react-bootstrap';
 import { NavLink } from "react-router-dom";
 import { AuthContext } from './AuthProvider.js';
+import restaiLogo from '../../assets/img/restai-logo.png';
 
 function Navigation() {
   const { logout, getBasicAuth } = useContext(AuthContext);
@@ -10,6 +11,13 @@ function Navigation() {
     <Navbar expand="lg" className="bg-body-tertiary">
       <Container>
         <Navbar.Brand href="/admin">
+          <img
+            alt=""
+            src={restaiLogo}
+            width="30"
+            height="30"
+            className="d-inline-block align-top"
+          />{' '}
           RestAI
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
@@ -42,13 +50,19 @@ function Navigation() {
           {user.username && (
             <Nav>
               <Navbar.Text>
-                Signed in as:                         <NavLink
+                Signed in as:  {' '}
+                <NavLink
                   to={"/users/" + user.username}
                 >
-                  {user.username}{' '}
+                  👤{user.username}{' | '}
                 </NavLink>
-                <Button variant="link" onClick={logout}>
-                  Logout
+                <NavLink
+                  to={"/users/" + user.username + "/edit"}
+                >
+                  ⚙️Edit{' |'}
+                </NavLink>
+                <Button style={{ textDecoration: "none", color: "black", padding: "0px", verticalAlign: "0px" }} variant="link" onClick={logout}>
+                  🚪Logout
                 </Button>
               </Navbar.Text>
             </Nav>

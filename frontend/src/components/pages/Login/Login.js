@@ -2,6 +2,7 @@ import { Form, Button, Alert } from "react-bootstrap";
 import React, { useState, useContext } from "react";
 import { Navigate } from 'react-router-dom';
 import "./login.css";
+import restaiLogo from '../../../assets/img/restai-logo.png';
 import { AuthContext } from '../../common/AuthProvider.js';
 
 function Login() {
@@ -34,7 +35,7 @@ function Login() {
         <Form className="shadow p-4 bg-white rounded" onSubmit={handleSubmit}>
           <img
             className="img-thumbnail mx-auto d-block mb-2"
-            src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1150px-React-icon.svg.png"
+            src={restaiLogo}
             alt="logo"
           />
           <div className="h4 mb-2 text-center">LOGIN</div>
