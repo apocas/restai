@@ -114,11 +114,12 @@ class Brain:
             self.projects.remove(proj)
         return True
 
+
     def question(self, project, questionModel):
         llm = self.getLLM(questionModel.llm or project.model.llm)
 
         retriever = project.db.as_retriever(
-            search_type="similarity", search_kwargs={"k": 2}
+            search_type="similarity_score_threshold", search_kwargs={"score_threshold": questionModel.score or .6, "k": questionModel.k or 4}
         )
 
         qa = RetrievalQA.from_chain_type(
@@ -129,12 +130,13 @@ class Brain:
 
         return qa.run(questionModel.question).strip()
 
+
     def chat(self, project, chatModel):
         llm = self.getLLM(project.model.llm)
         chat = project.loadChat(chatModel)
 
         retriever = project.db.as_retriever(
-            search_type="similarity", search_kwargs={"k": 2}
+            search_type="similarity_score_threshold", search_kwargs={"score_threshold": chatModel.score or .6, "k": chatModel.k or 4}
         )
 
         conversationalChain = ConversationalRetrievalChain.from_llm(
@@ -147,13 +149,16 @@ class Brain:
         chat.history.append((chatModel.message, result["answer"]))
         return chat, result["answer"].strip()
 
+
     def questionContext(self, project, questionModel):
         llm = self.getLLM(questionModel.llm or project.model.llm)
 
-        default_system = "You are a digital assistant, answer the following question about the following context:"
+        default_system = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
 
         prompt_template = """{system}
-
+            Confine your answer within the given context and do not generate the next context.
+    Answer truthful answers, don't try to make up an answer.
+    
             Question: {{question}}
             =========
             Context: {{context}}
@@ -165,8 +170,12 @@ class Brain:
         )
         chain = LLMChain(llm=llm, prompt=prompt)
 
+        retriever = project.db.as_retriever(
+            search_type="similarity_score_threshold", search_kwargs={"score_threshold": questionModel.score or .6, "k": questionModel.k or 4}
+        )
+        
         try:
-            docs = project.db.similarity_search(questionModel.question, k=1)
+            docs = retriever.get_relevant_documents(questionModel.question)
         except BaseException:
             docs = []
 

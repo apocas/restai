@@ -12,13 +12,18 @@ class EmbeddingModel(BaseModel):
     source: Union[str, None] = None
 
 
-class QuestionModel(BaseModel):
+class InteractionModel(BaseModel):
+    score: float = 0.6
+    k: int = 4
+
+
+class QuestionModel(InteractionModel):
     question: str
     llm: Union[str, None] = None
     system: Union[str, None] = None
 
 
-class ChatModel(BaseModel):
+class ChatModel(InteractionModel):
     message: str
     id: Union[str, None] = None
 
