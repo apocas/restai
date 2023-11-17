@@ -23,8 +23,8 @@ function Question() {
 
     var system = systemForm.current.value;
     var question = questionForm.current.value;
-    var k = kForm.current.value;
-    var score = scoreForm.current.value;
+    var k = parseInt(kForm.current.value);
+    var score = parseFloat(scoreForm.current.value);
 
     var body = {};
     var submit = false;
@@ -136,13 +136,13 @@ function Question() {
             <Col sm={6}>
               <InputGroup>
                 <InputGroup.Text>Score Threshold</InputGroup.Text>
-                <Form.Control type="number" ref={scoreForm} defaultValue={0.6} />
+                <Form.Control ref={scoreForm} defaultValue={0.6} />
               </InputGroup>
             </Col>
             <Col sm={6}>
               <InputGroup>
                 <InputGroup.Text>k</InputGroup.Text>
-                <Form.Control type="number" ref={kForm} defaultValue={4} />
+                <Form.Control ref={kForm} defaultValue={4} />
               </InputGroup>
             </Col>
           </Row>
