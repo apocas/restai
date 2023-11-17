@@ -10,6 +10,7 @@ from langchain.document_loaders import (
     UnstructuredODTLoader,
     UnstructuredPowerPointLoader,
     UnstructuredWordDocumentLoader,
+    JSONLoader
 )
 
 LOADERS = {
@@ -26,4 +27,5 @@ LOADERS = {
     ".ppt": (UnstructuredPowerPointLoader, {}),
     ".pptx": (UnstructuredPowerPointLoader, {}),
     ".txt": (TextLoader, {"encoding": "utf8"}),
+    ".json": (JSONLoader, {})
 }

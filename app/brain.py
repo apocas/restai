@@ -6,7 +6,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain.vectorstores import Chroma
 
-from app.models import EmbeddingModel, IngestModel, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
+from app.models import EmbeddingModel, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
 from app.project import Project
 from app.tools import FindEmbeddingsPath
 from modules.embeddings import EMBEDDINGS
@@ -114,13 +114,14 @@ class Brain:
             self.projects.remove(proj)
         return True
 
-
     def question(self, project, questionModel):
         llm = self.getLLM(questionModel.llm or project.model.llm)
 
         retriever = project.db.as_retriever(
-            search_type="similarity_score_threshold", search_kwargs={"score_threshold": questionModel.score or .6, "k": questionModel.k or 4}
-        )
+            search_type="similarity_score_threshold",
+            search_kwargs={
+                "score_threshold": questionModel.score or .6,
+                "k": questionModel.k or 4})
 
         qa = RetrievalQA.from_chain_type(
             llm=llm,
@@ -130,14 +131,15 @@ class Brain:
 
         return qa.run(questionModel.question).strip()
 
-
     def chat(self, project, chatModel):
         llm = self.getLLM(project.model.llm)
         chat = project.loadChat(chatModel)
 
         retriever = project.db.as_retriever(
-            search_type="similarity_score_threshold", search_kwargs={"score_threshold": chatModel.score or .6, "k": chatModel.k or 4}
-        )
+            search_type="similarity_score_threshold",
+            search_kwargs={
+                "score_threshold": chatModel.score or .6,
+                "k": chatModel.k or 4})
 
         conversationalChain = ConversationalRetrievalChain.from_llm(
             llm=llm, retriever=retriever
@@ -149,7 +151,6 @@ class Brain:
         chat.history.append((chatModel.message, result["answer"]))
         return chat, result["answer"].strip()
 
-
     def questionContext(self, project, questionModel):
         llm = self.getLLM(questionModel.llm or project.model.llm)
 
@@ -158,7 +159,7 @@ class Brain:
         prompt_template = """{system}
             Confine your answer within the given context and do not generate the next context.
     Answer truthful answers, don't try to make up an answer.
-    
+
             Question: {{question}}
             =========
             Context: {{context}}
@@ -171,9 +172,11 @@ class Brain:
         chain = LLMChain(llm=llm, prompt=prompt)
 
         retriever = project.db.as_retriever(
-            search_type="similarity_score_threshold", search_kwargs={"score_threshold": questionModel.score or .6, "k": questionModel.k or 4}
-        )
-        
+            search_type="similarity_score_threshold",
+            search_kwargs={
+                "score_threshold": questionModel.score or .6,
+                "k": questionModel.k or 4})
+
         try:
             docs = retriever.get_relevant_documents(questionModel.question)
         except BaseException:

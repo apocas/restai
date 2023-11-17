@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import Union
 
 
-class IngestModel(BaseModel):
+class URLIngestModel(BaseModel):
     url: str
     recursive: bool = False
     depth: int = 2

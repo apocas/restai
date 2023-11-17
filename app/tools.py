@@ -33,9 +33,10 @@ def ExtractKeywordsForMetadata(documents):
     return documents
 
 
-def FindFileLoader(filepath, ext):
+def FindFileLoader(filepath, ext, eargs={}):
     if ext in LOADERS:
         loader_class, loader_args = LOADERS[ext]
+        loader_args.update(eargs)
         return loader_class(filepath, **loader_args)
     else:
         raise Exception("Invalid file type.")

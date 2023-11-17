@@ -1,0 +1,29 @@
+{
+  "image": {
+    "creation_timestamp": 1675549016,
+    "uri": "image_of_the_chat.jpg"
+  },
+  "is_still_participant": true,
+  "joinable_mode": {
+    "link": "",
+    "mode": 1
+  },
+  "magic_words": [],
+  "messages": [
+    {
+      "content": "The secret is that ingenuity should be bigger than politics and corporate greed.",
+      "sender_name": "User 2",
+      "timestamp_ms": 1675597571851
+    }
+  ],
+  "participants": [
+    {
+      "name": "User 1"
+    },
+    {
+      "name": "User 2"
+    }
+  ],
+  "thread_path": "inbox/User 1 and User 2 chat",
+  "title": "User 1 and User 2 chat"
+}
