@@ -1,4 +1,4 @@
-import {Container, Row, Form, InputGroup, Col, Card, Button, Spinner, Alert} from 'react-bootstrap';
+import { Container, Row, Form, InputGroup, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
 import { useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
@@ -8,6 +8,8 @@ function Chat() {
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
   var { projectName } = useParams();
   const messageForm = useRef(null);
+  const scoreForm = useRef(null);
+  const kForm = useRef(null);
   const [messages, setMessages] = useState([]);
   const [canSubmit, setCanSubmit] = useState(true);
   const [error, setError] = useState([]);
@@ -19,6 +21,8 @@ function Chat() {
 
     var message = messageForm.current.value;
     var id = "";
+    var k = kForm.current.value;
+    var score = scoreForm.current.value;
 
     if (messages.length === 0) {
       id = "";
@@ -30,13 +34,17 @@ function Chat() {
     var submit = false;
     if (message !== "" && id === "") {
       body = {
-        "message": message
+        "message": message,
+        "k": k,
+        "score": score
       }
       submit = true;
     } else if (message !== "" && id !== "") {
       body = {
         "message": message,
-        "id": id
+        "id": id,
+        "k": k,
+        "score": score
       }
       submit = true;
     }
@@ -109,6 +117,20 @@ function Chat() {
               <InputGroup>
                 <InputGroup.Text>Message</InputGroup.Text>
                 <Form.Control ref={messageForm} rows="5" as="textarea" aria-label="With textarea" />
+              </InputGroup>
+            </Col>
+          </Row>
+          <Row style={{ marginTop: "20px" }}>
+            <Col sm={6}>
+              <InputGroup>
+                <InputGroup.Text>Score Threshold</InputGroup.Text>
+                <Form.Control type="number" ref={scoreForm} defaultValue={0.6} />
+              </InputGroup>
+            </Col>
+            <Col sm={6}>
+              <InputGroup>
+                <InputGroup.Text>k</InputGroup.Text>
+                <Form.Control type="number" ref={kForm} defaultValue={4} />
               </InputGroup>
             </Col>
           </Row>
