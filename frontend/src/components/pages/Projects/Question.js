@@ -9,6 +9,8 @@ function Question() {
   var { projectName } = useParams();
   const systemForm = useRef(null);
   const questionForm = useRef(null);
+  const scoreForm = useRef(null);
+  const kForm = useRef(null);
   const [answers, setAnswers] = useState([]);
   const [canSubmit, setCanSubmit] = useState(true);
   const [data, setData] = useState({ projects: [] });
@@ -21,18 +23,24 @@ function Question() {
 
     var system = systemForm.current.value;
     var question = questionForm.current.value;
+    var k = kForm.current.value;
+    var score = scoreForm.current.value;
 
     var body = {};
     var submit = false;
     if (system === "" && question !== "") {
       body = {
-        "question": question
+        "question": question,
+        "k": k,
+        "score": score
       }
       submit = true;
     } else if (system !== "" && question !== "") {
       body = {
         "question": question,
-        "system": system
+        "system": system,
+        "k": k,
+        "score": score
       }
       submit = true;
     }
@@ -121,6 +129,20 @@ function Question() {
               <InputGroup>
                 <InputGroup.Text>Question</InputGroup.Text>
                 <Form.Control ref={questionForm} rows="5" as="textarea" aria-label="With textarea" />
+              </InputGroup>
+            </Col>
+          </Row>
+          <Row style={{ marginTop: "20px" }}>
+            <Col sm={6}>
+              <InputGroup>
+                <InputGroup.Text>Score Threshold</InputGroup.Text>
+                <Form.Control type="number" ref={scoreForm} defaultValue={0.6} />
+              </InputGroup>
+            </Col>
+            <Col sm={6}>
+              <InputGroup>
+                <InputGroup.Text>k</InputGroup.Text>
+                <Form.Control type="number" ref={kForm} defaultValue={4} />
               </InputGroup>
             </Col>
           </Row>
