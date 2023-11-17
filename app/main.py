@@ -1,10 +1,11 @@
 import base64
+import json
 import logging
 import os
 import shutil
 from tempfile import NamedTemporaryFile
 import traceback
-from fastapi import FastAPI, HTTPException, Request, UploadFile
+from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 from langchain.document_loaders import (
     WebBaseLoader,
     SeleniumURLLoader,
@@ -16,8 +17,9 @@ from app.auth import get_current_username, get_current_username_admin, get_curre
 from app.brain import Brain
 from app.database import Database, dbc, get_db
 from app.databasemodels import UserDatabase
+import urllib.parse
 
-from app.models import EmbeddingModel, HardwareInfo, IngestModel, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, User, UserCreate, UserUpdate
+from app.models import EmbeddingModel, HardwareInfo, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, URLIngestModel, User, UserCreate, UserUpdate
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -274,7 +276,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
             raise HTTPException(
                 status_code=403,
                 detail='{"error": "Project already exists"}')
-            
+
         brain.createProject(projectModel, db)
         dbc.add_userproject(db, user, projectModel.name)
         return {"project": projectModel.name}
@@ -339,7 +341,7 @@ def delete_embedding(
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/url")
-def ingest_url(projectName: str, ingest: IngestModel,
+def ingest_url(projectName: str, ingest: URLIngestModel,
                user: User = Depends(get_current_username_project),
                db: Session = Depends(get_db)):
     try:
@@ -374,6 +376,7 @@ def ingest_url(projectName: str, ingest: IngestModel,
 def ingest_file(
         projectName: str,
         file: UploadFile,
+        options: str = Form("{}"),
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
@@ -391,7 +394,10 @@ def ingest_file(
         logger.debug("Filename: {}".format(file.filename))
         logger.debug("ContentType: {}".format(file.content_type))
         logger.debug("Extension: {}".format(ext))
-        loader = FindFileLoader(dest, ext)
+
+        loader = FindFileLoader(
+            dest, ext, json.loads(
+                urllib.parse.unquote(options)))
         documents = loader.load()
 
         documents = ExtractKeywordsForMetadata(documents)

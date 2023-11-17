@@ -20,3 +20,4 @@ GPUtil
 psutil
 passlib
 SQLAlchemy
+jq

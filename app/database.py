@@ -7,8 +7,11 @@ from app.models import ProjectModel, User, UserUpdate
 from app.project import Project
 
 engine = create_engine(
-    "sqlite:///./restai.db", connect_args={"check_same_thread": False}, pool_size=20, max_overflow=40
-)
+    "sqlite:///./restai.db",
+    connect_args={
+        "check_same_thread": False},
+    pool_size=20,
+    max_overflow=40)
 SessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=engine)
 

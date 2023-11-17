@@ -63,7 +63,7 @@ def test_getProjectAfterIngestUpload():
     response = client.get("/projects/test_openai", auth=("admin", "admin"))
     assert response.status_code == 200
     assert response.json() == {
-        "name": "test_openai", "system":None, "llm": "openai", "embeddings": "openai", "documents": 2, "metadatas": 2}
+        "name": "test_openai", "system": None, "llm": "openai", "embeddings": "openai", "documents": 2, "metadatas": 2}
 
 
 def test_ingestUpload2():
@@ -127,7 +127,8 @@ def test_chatProject():
 
 
 def test_resetProject():
-    response = client.post("/projects/test_openai/embeddings/reset", auth=("admin", "admin"))
+    response = client.post(
+        "/projects/test_openai/embeddings/reset", auth=("admin", "admin"))
     assert response.status_code == 200
 
 
@@ -145,9 +146,11 @@ def test_getProjectAfterIngestUploadAfterReset():
         "name": "test_openai", "llm": "openai", "embeddings": "openai", "documents": 0, "metadatas": 0, "system": None}
 
 
-def test_ingestUploadAfterReset():
-    response = client.post("/projects/test_openai/embeddings/ingest/upload",
-                           files={"file": ("test.txt", open("tests/test.txt", "rb"))}, auth=("admin", "admin"))
+def test_ingestUploadJSONAfterReset():
+    # response = client.post("/projects/test_openai/embeddings/ingest/upload", files={"file": ("test.txt", open("tests/test.txt", "rb"))}, auth=("admin", "admin"))
+    options = {"options": "{\"jq_schema\": \".messages[].content\"}"}
+    response = client.post("/projects/test_openai/embeddings/ingest/upload", data=options,
+                           files={"file": ("test.json", open("tests/test.json", "rb"))}, auth=("admin", "admin"))
     assert response.status_code == 200
 
 
@@ -157,6 +160,7 @@ def test_questionProjectAfterResetAfterIngest():
     assert response.status_code == 200
     assert response.json() == {"question": "What is the secret?",
                                "answer": "The secret is that ingenuity should be bigger than politics and corporate greed.", "type": "question"}
+
 
 def test_deleteProject():
     response = client.delete("/projects/test_openai", auth=("admin", "admin"))
