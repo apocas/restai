@@ -43,7 +43,7 @@
 {"question": "What is the secret?", "answer": "Le secret est que l'ingéniosité doit être plus grande que la politique et la cupidité des entreprises."}
 ```
 
-## Endpoints:
+## Endpoints [(Swagger)](https://apocas.github.io/restai/):
 
 ### Users
 
