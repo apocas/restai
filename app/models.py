@@ -79,3 +79,22 @@ class HardwareInfo(BaseModel):
     gpu_load: Union[int, None] = None
     gpu_temp: Union[int, None] = None
     gpu_ram_usage: Union[int, None] = None
+
+
+class SourceModel(BaseModel):
+    source: str
+    content: str
+    keywords: str
+class QuestionResponse(BaseModel):
+    question: str
+    answer: str
+    type: str
+    sources: list[SourceModel]
+    
+class ChatResponse(BaseModel):
+    message: str
+    response: str
+    type: str
+    id: str
+    sources: list[SourceModel]
+    

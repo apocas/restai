@@ -19,7 +19,7 @@ from app.database import Database, dbc, get_db
 from app.databasemodels import UserDatabase
 import urllib.parse
 
-from app.models import EmbeddingModel, HardwareInfo, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, URLIngestModel, User, UserCreate, UserUpdate
+from app.models import ChatResponse, EmbeddingModel, HardwareInfo, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, URLIngestModel, User, UserCreate, UserUpdate
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,7 +45,7 @@ logging.basicConfig(level=os.environ["LOG_LEVEL"])
 app = FastAPI(
     title="RestAI",
     description="Modular REST API bootstrap on top of LangChain. Create embeddings associated with a project tenant and interact using a LLM. RAG as a service.",
-    version="3.0.0",
+    version="3.1.0",
     contact={
         "name": "Pedro Dias",
         "url": "https://github.com/apocas/restai",
@@ -508,7 +508,7 @@ def delete_file(
     return {"deleted": len(ids)}
 
 
-@app.post("/projects/{projectName}/question")
+@app.post("/projects/{projectName}/question", response_model=QuestionResponse)
 def question_project(
         projectName: str,
         input: QuestionModel,
@@ -543,7 +543,7 @@ def question_project(
             status_code=500, detail='{"error": ' + str(e) + '}')
 
 
-@app.post("/projects/{projectName}/chat")
+@app.post("/projects/{projectName}/chat", response_model=ChatResponse)
 def chat_project(
         projectName: str,
         input: ChatModel,
