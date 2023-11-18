@@ -51,24 +51,24 @@ A user represents a user of the system. It's used for authentication and authori
 
 [**GET /users**](https://apocas.github.io/restai/#/default/read_users_users_get)
 
-- Description: Lists all users.
+- Lists all users. Users and projects is a many-to-many relationship.
 
 [**POST /users**](https://apocas.github.io/restai/#/default/create_user_users_post)
 
-- Description: Create a user.
+- Create a user.
 
 [**GET /users/{username}**](https://apocas.github.io/restai/#/default/get_user_users__username__get)
 
-- Description: Get a specific user details.
+- Get a specific user details.
 
 
 [**DELETE /users/{username}**](https://apocas.github.io/restai/#/default/delete_user_users__username__delete)
 
-- Description: Delete a user
+- Delete a user
 
 [**PATCH /users/{username}**](https://apocas.github.io/restai/#/default/update_user_users__username__patch)
 
-- Description: Edit a user
+- Edit a user
 
 ### Projects
 
@@ -78,23 +78,23 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 
 [**GET /projects**](https://apocas.github.io/restai/#/projects/get_projects)
 
-- Description: Lists all the projects.
+- Lists all the projects. Users and projects is a many-to-many relationship.
 
 [**GET /projects/{projectName}**](https://apocas.github.io/restai/#/default/get_project_projects__projectName__get)
 
-- Description: Get the specific project details.
+- Get the specific project details.
 
 [**DELETE /projects/{projectName}**](https://apocas.github.io/restai/#/default/delete_project_projects__projectName__delete)
 
-- Description: Deletes the specific project.
+- Deletes the specific project.
 
 [**POST /projects**](https://apocas.github.io/restai/#/default/create_project_projects_post)
 
-- Description: Creates a new project.
+- Creates a new project.
 
 [**PATCH /projects/{projectName}**](https://apocas.github.io/restai/#/default/edit_project_projects__projectName__patch)
 
-- Description: Edit a project
+- Edit a project
 
 ### Embeddings - main endpoints
 
@@ -102,27 +102,27 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 
 [**POST /projects/{projectName}/embeddings/ingest/url**](https://apocas.github.io/restai/#/default/ingest_url_projects__projectName__embeddings_ingest_url_post)
 
-- Description: Ingests data into a specific project from a provided URL.
+- Ingests data into a specific project from a provided URL.
 
 [**POST /projects/{projectName}/embeddings/ingest/upload**](https://apocas.github.io/restai/#/default/ingest_file_projects__projectName__embeddings_ingest_upload_post)
 
 [**GET /projects/{projectName}/embeddings/urls**](https://apocas.github.io/restai/#/default/list_urls_projects__projectName__embeddings_urls_get)
-- Description: Lists all the ingested URLs from a specific project.
+- Lists all the ingested URLs from a specific project.
 
 [**GET /projects/{projectName}/embeddings/files**](https://apocas.github.io/restai/#/default/list_files_projects__projectName__embeddings_files_get)
-- Description: Lists all the ingested files from a specific project.
+- Lists all the ingested files from a specific project.
 
 [**DELETE /projects/{projectName}/embeddings/{id}**](https://apocas.github.io/restai/#/default/delete_embedding_projects__projectName__embeddings__id__delete)
 
-- Description: Deletes a specific embedding from a specific project.
+- Deletes a specific embedding from a specific project.
 
 [**DELETE /projects/{projectName}/embeddings/url/{url}**](https://apocas.github.io/restai/#/default/delete_url_projects__projectName__embeddings_url__url__delete)
 
-- Description: Deletes a specific embedding from a specific project. Providing a previously ingested URL.
+- Deletes a specific embedding from a specific project. Providing a previously ingested URL.
 
 [**DELETE /projects/{projectName}/embeddings/files/{fileName}**](https://apocas.github.io/restai/#/default/delete_file_projects__projectName__embeddings_files__fileName__delete)
 
-- Description: Deletes a specific embedding from a specific project. Providing a previously ingested filename.
+- Deletes a specific embedding from a specific project. Providing a previously ingested filename.
 
 ### LLMs
 
@@ -130,11 +130,11 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 
 [**POST /projects/{projectName}/question**](https://apocas.github.io/restai/#/default/question_project_projects__projectName__question_post)
 
-- Description: Asks a question to a specific project.
+- Asks a question to a specific project.
 
 [**POST /projects/{projectName}/chat**](https://apocas.github.io/restai/#/default/chat_project_projects__projectName__chat_post)
 
-- Description: Send a chat message to a specific project. Chat differs from question, because it holds conversation history. It's chat has an unique ID (id field).
+- Send a chat message to a specific project. Chat differs from question, because it holds conversation history. It's chat has an unique ID (id field).
 
 ## [All endpoints (Swagger)](https://apocas.github.io/restai/)
 
