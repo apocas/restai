@@ -1,13 +1,23 @@
 .PHONY: start
 start:
-	uvicorn app.main:app --reload --port 9000
+	uvicorn app.main:app --host 0.0.0.0 --port 9000
+
+.PHONY: devfrontend
+devfrontend:
+	cd frontend && REACT_APP_RESTAI_API_URL=http://127.0.0.1:9000 npm run start
+
+.PHONY: dev
+dev:
+	RESTAI_DEV=true uvicorn app.main:app --reload --port 9000
 
 .PHONY: prod
 prod:
-	uvicorn app.main:app --host 0.0.0.0 --port 9000
+	cd frontend && npm install && npm run build
+	make start
 
 .PHONY: install
 install:
+	cd frontend && npm install
 	pip install -r requirements.txt
 
 .PHONY: frontend
