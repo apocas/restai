@@ -49,31 +49,26 @@
 
 A user represents a user of the system. It's used for authentication and authorization. Each user may have access to multiple projects.
 
-**GET /users**
+[**GET /users**](https://apocas.github.io/restai/#/default/read_users_users_get)
 
 - Description: Lists all users.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/read_users_users_get)
 
-**POST /users**
+[**POST /users**](https://apocas.github.io/restai/#/default/create_user_users_post)
 
 - Description: Create a user.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/create_user_users_post)
 
-**GET /users/{username}**
+[**GET /users/{username}**](https://apocas.github.io/restai/#/default/get_user_users__username__get)
 
 - Description: Get a specific user details.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/get_user_users__username__get)
 
 
-**DELETE /users/{username}**
+[**DELETE /users/{username}**](https://apocas.github.io/restai/#/default/delete_user_users__username__delete)
 
 - Description: Delete a user
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/delete_user_users__username__delete)
 
-**PATCH /users/{username}**
+[**PATCH /users/{username}**](https://apocas.github.io/restai/#/default/update_user_users__username__patch)
 
 - Description: Edit a user
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/update_user_users__username__patch)
 
 ### Projects
 
@@ -81,81 +76,65 @@ A user represents a user of the system. It's used for authentication and authori
 
 A project is an abstract entity basically a tenant. You may have multiple projects and each project has its own embeddings, loaders and llms. Each project may have multiple users with access to it.
 
-**GET /projects**
+[**GET /projects**](https://apocas.github.io/restai/#/projects/get_projects)
 
 - Description: Lists all the projects.
-- Docs: [Swagger](https://apocas.github.io/restai/#/projects/get_projects)
 
-**GET /projects/{projectName}**
+[**GET /projects/{projectName}**](https://apocas.github.io/restai/#/default/get_project_projects__projectName__get)
 
 - Description: Get the specific project details.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/get_project_projects__projectName__get)
 
-**DELETE /projects/{projectName}**
+[**DELETE /projects/{projectName}**](https://apocas.github.io/restai/#/default/delete_project_projects__projectName__delete)
 
 - Description: Deletes the specific project.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/delete_project_projects__projectName__delete)
 
-**POST /projects**
+[**POST /projects**](https://apocas.github.io/restai/#/default/create_project_projects_post)
 
 - Description: Creates a new project.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/create_project_projects_post)
 
-**PATCH /projects/{projectName}**
+[**PATCH /projects/{projectName}**](https://apocas.github.io/restai/#/default/edit_project_projects__projectName__patch)
 
 - Description: Edit a project
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/edit_project_projects__projectName__patch)
 
 ### Embeddings - main endpoints
 
 ---
 
-**POST /projects/{projectName}/embeddings/ingest/url**
+[**POST /projects/{projectName}/embeddings/ingest/url**](https://apocas.github.io/restai/#/default/ingest_url_projects__projectName__embeddings_ingest_url_post)
 
 - Description: Ingests data into a specific project from a provided URL.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/ingest_url_projects__projectName__embeddings_ingest_url_post)
 
-**POST /projects/{projectName}/embeddings/ingest/upload**
+[**POST /projects/{projectName}/embeddings/ingest/upload**](https://apocas.github.io/restai/#/default/ingest_file_projects__projectName__embeddings_ingest_upload_post)
 
-- Description: Ingests data into a specific project's embeddings from an uploaded file.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/ingest_file_projects__projectName__embeddings_ingest_upload_post)
-
-**GET /projects/{projectName}/embeddings/urls**
+[**GET /projects/{projectName}/embeddings/urls**](https://apocas.github.io/restai/#/default/list_urls_projects__projectName__embeddings_urls_get)
 - Description: Lists all the ingested URLs from a specific project.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/list_urls_projects__projectName__embeddings_urls_get)
 
-**GET /projects/{projectName}/embeddings/files**
+[**GET /projects/{projectName}/embeddings/files**](https://apocas.github.io/restai/#/default/list_files_projects__projectName__embeddings_files_get)
 - Description: Lists all the ingested files from a specific project.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/list_files_projects__projectName__embeddings_files_get)
 
-**DELETE /projects/{projectName}/embeddings/{id}**
+[**DELETE /projects/{projectName}/embeddings/{id}**](https://apocas.github.io/restai/#/default/delete_embedding_projects__projectName__embeddings__id__delete)
 
 - Description: Deletes a specific embedding from a specific project.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/delete_embedding_projects__projectName__embeddings__id__delete)
 
-**DELETE /projects/{projectName}/embeddings/url/{url}**
+[**DELETE /projects/{projectName}/embeddings/url/{url}**](https://apocas.github.io/restai/#/default/delete_url_projects__projectName__embeddings_url__url__delete)
 
 - Description: Deletes a specific embedding from a specific project. Providing a previously ingested URL.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/delete_url_projects__projectName__embeddings_url__url__delete)
 
-**DELETE /projects/{projectName}/embeddings/files/{fileName}**
+[**DELETE /projects/{projectName}/embeddings/files/{fileName}**](https://apocas.github.io/restai/#/default/delete_file_projects__projectName__embeddings_files__fileName__delete)
 
 - Description: Deletes a specific embedding from a specific project. Providing a previously ingested filename.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/delete_file_projects__projectName__embeddings_files__fileName__delete)
 
 ### LLMs
 
 ---
 
-**POST /projects/{projectName}/question**
+[**POST /projects/{projectName}/question**](https://apocas.github.io/restai/#/default/question_project_projects__projectName__question_post)
 
 - Description: Asks a question to a specific project.
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/question_project_projects__projectName__question_post)
 
-**POST /projects/{projectName}/chat**
+[**POST /projects/{projectName}/chat**](https://apocas.github.io/restai/#/default/chat_project_projects__projectName__chat_post)
 
 - Description: Send a chat message to a specific project. Chat differs from question, because it holds conversation history. It's chat has an unique ID (id field).
-- Docs: [Swagger](https://apocas.github.io/restai/#/default/chat_project_projects__projectName__chat_post)
 
 ## [All endpoints (Swagger)](https://apocas.github.io/restai/)
 
