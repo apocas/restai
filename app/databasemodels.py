@@ -35,3 +35,4 @@ class ProjectDatabase(Base):
     embeddings = Column(String)
     llm = Column(String)
     system = Column(String)
+    sandboxed = Column(Boolean, default=False)

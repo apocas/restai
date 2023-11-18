@@ -31,6 +31,7 @@ class ProjectModel(BaseModel):
     embeddings: Union[str, None] = None
     llm: Union[str, None] = None
     system: Union[str, None] = None
+    sandboxed: bool = False
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -85,16 +86,18 @@ class SourceModel(BaseModel):
     source: str
     content: str
     keywords: str
+
+
 class QuestionResponse(BaseModel):
     question: str
     answer: str
     type: str
     sources: list[SourceModel]
-    
+
+
 class ChatResponse(BaseModel):
     message: str
     response: str
     type: str
     id: str
     sources: list[SourceModel]
-    

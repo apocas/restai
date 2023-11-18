@@ -129,7 +129,12 @@ class Brain:
             retriever=retriever,
             return_source_documents=True
         )
-        return qa(questionModel.question)
+        output = qa(questionModel.question)
+
+        if project.model.sandboxed and len(output["source_documents"]) == 0:
+            return "This question is outside of my scope. Please ask another question.", []
+
+        return output["result"].strip(), output["source_documents"]
 
     def chat(self, project, chatModel):
         llm = self.getLLM(project.model.llm)
@@ -149,7 +154,6 @@ class Brain:
             {"question": chatModel.message, "chat_history": chat.history}
         )
         chat.history.append((chatModel.message, result["answer"]))
-        #result["answer"].strip()
         return chat, result
 
     def questionContext(self, project, questionModel):
@@ -173,7 +177,7 @@ class Brain:
         Use the following information (context) to answer the question at the end. Answer truthful answers, don't try to make up an answer. Confine to the given context.
         <</SYS>>
         Context: {{context}}
-        
+
         {{question}} [/INST]
         """
 
@@ -199,8 +203,11 @@ class Brain:
             docs = []
 
         if len(docs) == 0:
-            inputs = [{"context": "",
-                       "question": questionModel.question}]
+            if project.model.sandboxed:
+                return "This question is outside of my scope. Please ask another question.", []
+            else:
+                inputs = [{"context": "",
+                           "question": questionModel.question}]
         else:
             inputs = [{"context": doc.page_content,
                        "question": questionModel.question} for doc in docs]

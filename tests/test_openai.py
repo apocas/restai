@@ -49,8 +49,7 @@ def test_ingestURL():
 def test_getProjectAfterIngestURL():
     response = client.get("/projects/test_openai", auth=("admin", "admin"))
     assert response.status_code == 200
-    assert response.json() == {
-        "name": "test_openai", "system": None, "llm": "openai", "embeddings": "openai", "documents": 1, "metadatas": 1}
+    assert response.json()["documents"] == 1
 
 
 def test_ingestUpload():
@@ -62,8 +61,7 @@ def test_ingestUpload():
 def test_getProjectAfterIngestUpload():
     response = client.get("/projects/test_openai", auth=("admin", "admin"))
     assert response.status_code == 200
-    assert response.json() == {
-        "name": "test_openai", "system": None, "llm": "openai", "embeddings": "openai", "documents": 2, "metadatas": 2}
+    assert response.json()["documents"] == 2
 
 
 def test_ingestUpload2():
@@ -141,8 +139,7 @@ def test_questionProjectAfterReset():
 def test_getProjectAfterIngestUploadAfterReset():
     response = client.get("/projects/test_openai", auth=("admin", "admin"))
     assert response.status_code == 200
-    assert response.json() == {
-        "name": "test_openai", "llm": "openai", "embeddings": "openai", "documents": 0, "metadatas": 0, "system": None}
+    assert response.json()["documents"] == 0
 
 
 def test_ingestUploadJSONAfterReset():

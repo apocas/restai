@@ -346,13 +346,13 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
                db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
-        
+
         collection = project.db._client.get_collection("langchain")
         docs = collection.get(where={'source': ingest.url})
-        
+
         if (len(docs['ids']) > 0):
             raise Exception("URL already ingested. Delete first.")
-        
+
         loader = loader = SeleniumURLLoader(urls=[ingest.url])
 
         documents = loader.load()
@@ -520,20 +520,20 @@ def question_project(
             answer, docs = brain.questionContext(project, input)
             sources = [{"content": doc.page_content,
                        "keywords": doc.metadata["keywords"],
-                       "source": doc.metadata["source"]} for doc in docs]
+                        "source": doc.metadata["source"]} for doc in docs]
             return {
                 "question": input.question,
                 "answer": answer,
                 "sources": sources,
                 "type": "questioncontext"}
         else:
-            output = brain.question(project, input)
+            answer, docs = brain.question(project, input)
             sources = [{"content": doc.page_content,
                        "keywords": doc.metadata["keywords"],
-                       "source": doc.metadata["source"]} for doc in output["source_documents"]]
+                        "source": doc.metadata["source"]} for doc in docs]
             return {
-                "question": output["query"],
-                "answer": output["result"].strip(),
+                "question": input.question,
+                "answer": answer,
                 "sources": sources,
                 "type": "question"}
     except Exception as e:
@@ -552,12 +552,16 @@ def chat_project(
     try:
         project = brain.findProject(projectName, db)
         chat, output = brain.chat(project, input)
-        
-        sources = [{"content": doc.page_content,
-                       "keywords": doc.metadata["keywords"],
-                       "source": doc.metadata["source"]} for doc in output["source_documents"]]
 
-        return {"message": output["question"], "response": output["answer"].strip(), "id": chat.id, "sources": sources, "type": "chat"}
+        sources = [{"content": doc.page_content, "keywords": doc.metadata["keywords"],
+                    "source": doc.metadata["source"]} for doc in output["source_documents"]]
+
+        return {
+            "message": output["question"],
+            "response": output["answer"].strip(),
+            "id": chat.id,
+            "sources": sources,
+            "type": "chat"}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
