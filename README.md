@@ -17,8 +17,8 @@
 
 ## Default support
 
-* Embeddings: `huggingface` (HuggingFace), `openai` (OpenAI)
-* LLM: `gpt4all` (ggml-gpt4all-j-v1.3-groovy.bin), `llamacpp` (ggml-model-q4_0.bin), `openai` (OpenAI)
+* Embeddings: `huggingface` (HuggingFace), `openai` (OpenAI), ...
+* LLM: `llamacpp` (ggml-model-q4_0.bin), `openai` (OpenAI, text-generation-webui), ...
 * It's very easy to add support for more [embeddings](modules/embeddings.py), [loaders](modules/loaders.py) and [LLMs](modules/llms.py).
 
 ## Example usage
@@ -30,7 +30,7 @@
 
 **POST /projects/test_openai/ingest/upload (upload a [test.txt](tests/test.txt))**
 ```json 
-{"project": "test_openai", "embeddings": "openai", "documents": 2, "metadatas": 2}
+{"project": "test_openai", "embeddings": "openai", "documents": 2}
 ```
 
 **POST /projects/test_openai/question ({"question": "What is the secret?"})**
@@ -54,50 +54,22 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 **GET /projects**
 
 - Description: Lists all the projects.
-- Response:
-    ```json
-    {
-      "projects": [
-        "test_openai",
-        "test_openai2"
-      ]
-    }
-    ```
+- Docs: [Swagger](https://apocas.github.io/restai/#/projects/get_projects)
 
 **GET /projects/{projectName}**
 
 - Description: Get the specific project details.
-- Response:
-    ```json
-    {
-      "project": "test_openai",
-      "embeddings": "openai",
-      "documents": 2,
-      "metadatas": 2,
-    }
-    ```
-- Errors: 404 if project not found.
+- Docs: [Swagger](https://apocas.github.io/restai/#/default/get_project_projects__projectName__get)
 
 **DELETE /projects/{projectName}**
 
 - Description: Deletes the specific project.
-- Request Payload: None.
-- Response: A JSON object with the name of the deleted project.
-- Errors: 500 if there is an error while deleting the project.
+- Docs: [Swagger](https://apocas.github.io/restai/#/default/delete_project_projects__projectName__delete)
 
 **POST /projects**
 
 - Description: Creates a new project.
-- Request Payload:
-    ```json
-    {
-      "name": "string",
-      "embeddings": "string (Optional)",
-      "llm": "string (Optional)"
-    }
-    ```
-- Response: A JSON object with the name of the created project.
-- Errors: 500 if there is an error while creating the project.
+- Docs: [Swagger](https://apocas.github.io/restai/#/default/create_project_projects_post)
 
 ### Embeddings - main endpoints
 
@@ -106,37 +78,12 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 **POST /projects/{projectName}/embeddings/ingest/url**
 
 - Description: Ingests data into a specific project from a provided URL.
-- Request Payload:
-    ```
-    {
-      "url": "https://www.example.com",
-    }
-    ```
-- Response:
-    ```json
-    {
-      "project": "test_openai",
-      "embeddings": "openai",
-      "documents": 2,
-      "metadatas": 2
-    }
-    ```
-- Errors: 500 if there is an error while ingesting the data.
+- Docs: [Swagger](https://apocas.github.io/restai/#/default/ingest_url_projects__projectName__embeddings_ingest_url_post)
 
 **POST /projects/{projectName}/embeddings/ingest/upload**
 
 - Description: Ingests data into a specific project's embeddings from an uploaded file.
-- Request Payload: File to be ingested into the system.
-- Response:
-    ```json
-    {
-      "project": "test_openai",
-      "embeddings": "openai",
-      "documents": 2,
-      "metadatas": 2
-    }
-    ```
-- Errors: 500 if there is an error while ingesting the data.
+- Docs: [Swagger](https://apocas.github.io/restai/#/default/ingest_file_projects__projectName__embeddings_ingest_upload_post)
 
 ### LLMs
 
@@ -145,41 +92,12 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 **POST /projects/{projectName}/question**
 
 - Description: Asks a question to a specific project.
-- Request Payload:
-    ```json
-    {
-      "question": "string",
-      "llm": "string (Optional)",
-      "system": "string (Optional - System message for LLMs that support it)"
-    }
-    ```
-- Response:
-    ```json
-    {
-      "question": "What is the secret?",
-      "answer": "The secret is that ingenuity should be bigger than politics and corporate greed."}
-    ```
-- Errors: 500 if there is an error while asking the question.
+- Docs: [Swagger](https://apocas.github.io/restai/#/default/question_project_projects__projectName__question_post)
 
 **POST /projects/{projectName}/chat**
 
 - Description: Send a chat message to a specific project.
-- Request Payload:
-    ```json
-    {
-      "message": "string",
-      "id": "string (Optional - if not provided, a new chat will be created)",
-    }
-    ```
-- Response:
-    ```json
-    {
-      "id": "string",
-      "message": "string",
-      "response": "string"
-    }
-    ```
-- Errors: 500 if there is an error while sending the message.
+- Docs: [Swagger](https://apocas.github.io/restai/#/default/chat_project_projects__projectName__chat_post)
 
 ## [All endpoints (Swagger)](https://apocas.github.io/restai/)
 
