@@ -97,8 +97,7 @@ def test_questionProject():
     response = client.post("/projects/test_openai/question",
                            json={"question": "What is the secret?"}, auth=("admin", "admin"))
     assert response.status_code == 200
-    assert response.json() == {"question": "What is the secret?",
-                               "answer": "The secret is that ingenuity should be bigger than politics and corporate greed.", "type": "question"}
+    assert response.json()["answer"] == "The secret is that ingenuity should be bigger than politics and corporate greed."
 
 
 def test_questionProject2():
@@ -158,8 +157,7 @@ def test_questionProjectAfterResetAfterIngest():
     response = client.post("/projects/test_openai/question",
                            json={"question": "What is the secret?"}, auth=("admin", "admin"))
     assert response.status_code == 200
-    assert response.json() == {"question": "What is the secret?",
-                               "answer": "The secret is that ingenuity should be bigger than politics and corporate greed.", "type": "question"}
+    assert response.json()["answer"] == "The secret is that ingenuity should be bigger than politics and corporate greed."
 
 
 def test_deleteProject():

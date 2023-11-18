@@ -127,9 +127,9 @@ class Brain:
             llm=llm,
             chain_type="stuff",
             retriever=retriever,
+            return_source_documents=True
         )
-
-        return qa.run(questionModel.question).strip()
+        return qa(questionModel.question)
 
     def chat(self, project, chatModel):
         llm = self.getLLM(project.model.llm)
@@ -142,29 +142,45 @@ class Brain:
                 "k": chatModel.k or 4})
 
         conversationalChain = ConversationalRetrievalChain.from_llm(
-            llm=llm, retriever=retriever
+            llm=llm, retriever=retriever, return_source_documents=True
         )
 
         result = conversationalChain(
             {"question": chatModel.message, "chat_history": chat.history}
         )
         chat.history.append((chatModel.message, result["answer"]))
-        return chat, result["answer"].strip()
+        #result["answer"].strip()
+        return chat, result
 
     def questionContext(self, project, questionModel):
         llm = self.getLLM(questionModel.llm or project.model.llm)
 
         default_system = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
 
-        prompt_template = """{system}
-            Confine your answer within the given context and do not generate the next context.
-    Answer truthful answers, don't try to make up an answer.
+        openai_default_template = """{system}
+        Confine your answer within the given context and do not generate the next context. Answer truthful answers, don't try to make up an answer.
 
-            Question: {{question}}
-            =========
-            Context: {{context}}
-            =========
-            Answer:""".format(system=questionModel.system or project.model.system or default_system)
+        Question: {{question}}
+        =========
+        Context: {{context}}
+        =========
+        Answer:
+        """
+
+        llama_default_template = """
+        [INST] <<SYS>>
+        {system}
+        Use the following information (context) to answer the question at the end. Answer truthful answers, don't try to make up an answer. Confine to the given context.
+        <</SYS>>
+        Context: {{context}}
+        
+        {{question}} [/INST]
+        """
+
+        prompt_template_txt = llama_default_template
+
+        prompt_template = prompt_template_txt.format(
+            system=questionModel.system or project.model.system or default_system)
 
         prompt = PromptTemplate(
             template=prompt_template, input_variables=["context", "question"]
@@ -190,4 +206,4 @@ class Brain:
                        "question": questionModel.question} for doc in docs]
 
         output = chain.apply(inputs)
-        return output[0]["text"].strip(), len(docs)
+        return output[0]["text"].strip(), docs

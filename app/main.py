@@ -519,17 +519,24 @@ def question_project(
     try:
         project = brain.findProject(projectName, db)
         if input.system or project.model.system:
-            answer, hits = brain.questionContext(project, input)
+            answer, docs = brain.questionContext(project, input)
+            sources = [{"content": doc.page_content,
+                       "keywords": doc.metadata["keywords"],
+                       "source": doc.metadata["source"]} for doc in docs]
             return {
                 "question": input.question,
                 "answer": answer,
-                "hits": hits,
+                "sources": sources,
                 "type": "questioncontext"}
         else:
-            answer = brain.question(project, input)
+            output = brain.question(project, input)
+            sources = [{"content": doc.page_content,
+                       "keywords": doc.metadata["keywords"],
+                       "source": doc.metadata["source"]} for doc in output["source_documents"]]
             return {
-                "question": input.question,
-                "answer": answer,
+                "question": output["query"],
+                "answer": output["result"].strip(),
+                "sources": sources,
                 "type": "question"}
     except Exception as e:
         logging.error(e)
@@ -546,9 +553,13 @@ def chat_project(
         db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
-        chat, response = brain.chat(project, input)
+        chat, output = brain.chat(project, input)
+        
+        sources = [{"content": doc.page_content,
+                       "keywords": doc.metadata["keywords"],
+                       "source": doc.metadata["source"]} for doc in output["source_documents"]]
 
-        return {"message": input.message, "response": response, "id": chat.id}
+        return {"message": output["question"], "response": output["answer"].strip(), "id": chat.id, "sources": sources, "type": "chat"}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
