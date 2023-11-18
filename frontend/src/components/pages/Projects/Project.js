@@ -15,7 +15,6 @@ function Project() {
   const [canSubmit, setCanSubmit] = useState(true);
   const [error, setError] = useState([]);
   const urlForm = useRef(null);
-  const depthForm = useRef(null);
   const fileForm = useRef(null);
   var { projectName } = useParams();
   const { getBasicAuth } = useContext(AuthContext);
@@ -119,20 +118,12 @@ function Project() {
       } else {
         if (urlForm.current.value !== "") {
           var ingestUrl = urlForm.current.value;
-          var ingestUrlDepth = depthForm.current.value;
           var body = {};
 
-          if (ingestUrlDepth !== "") {
-            body = {
-              "url": ingestUrl,
-              "recursive": true,
-              "depth": parseInt(ingestUrlDepth)
-            }
-          } else {
-            body = {
-              "url": ingestUrl
-            }
+          body = {
+            "url": ingestUrl
           }
+          
           fetch(url + "/projects/" + projectName + "/embeddings/ingest/url", {
             method: 'POST',
             headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
@@ -201,11 +192,8 @@ function Project() {
                 <Form.Label column sm={1}>
                   Url
                 </Form.Label>
-                <Col sm={8}>
+                <Col sm={11}>
                   <Form.Control ref={urlForm} type="url" placeholder="Enter url" />
-                </Col>
-                <Col sm={3}>
-                  <Form.Control ref={depthForm} type="number" placeholder="Depth" />
                 </Col>
               </Form.Group>
               <Col sm={2}>

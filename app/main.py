@@ -346,16 +346,14 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
                db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
-
-        if ingest.recursive:
-            loader = RecursiveUrlLoader(
-                url=ingest.url,
-                max_depth=ingest.depth,
-                extractor=lambda x: Soup(
-                    x,
-                    "html.parser").text)
-        else:
-            loader = loader = SeleniumURLLoader(urls=[ingest.url])
+        
+        collection = project.db._client.get_collection("langchain")
+        docs = collection.get(where={'source': ingest.url})
+        
+        if (len(docs['ids']) > 0):
+            raise Exception("URL already ingested. Delete first.")
+        
+        loader = loader = SeleniumURLLoader(urls=[ingest.url])
 
         documents = loader.load()
 
