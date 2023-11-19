@@ -10,6 +10,7 @@ function Edit() {
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const [error, setError] = useState([]);
   const systemForm = useRef(null)
+  const censorshipForm = useRef(null)
   const llmForm = useRef(null)
   const sandboxedForm = useRef(null)
   var { projectName } = useParams();
@@ -48,7 +49,8 @@ function Edit() {
         "name": projectName,
         "llm": llmForm.current.value,
         "system": systemForm.current.value,
-        "sandboxed": sandboxedForm.current.checked
+        "sandboxed": sandboxedForm.current.checked,
+        "censorship": censorshipForm.current.value,
       }),
     })
       .then(response => response.json())
@@ -97,8 +99,11 @@ function Edit() {
               <Form.Label>System Message</Form.Label>
               <Form.Control rows="2" as="textarea" ref={systemForm} defaultValue={data.system ? data.system : ""} />
             </Form.Group>
-            <Form.Group as={Col} controlId="formGridAdmin">
-              <Form.Check ref={sandboxedForm} type="checkbox" label="Sandboxed" />
+          </Row>
+          <Row className="mb-3">
+            <Form.Group as={Col} controlId="formGridCensorship">
+            <Form.Check ref={sandboxedForm} type="checkbox" label="Sandboxed" /> <Form.Label>Censorship Message</Form.Label>
+              <Form.Control rows="2" as="textarea" ref={censorshipForm} defaultValue={data.censorship ? data.censorship : ""} />
             </Form.Group>
           </Row>
           <Button variant="dark" type="submit" className="mb-2">

@@ -19,6 +19,7 @@ class Brain:
         self.projects = []
         self.llmCache = {}
         self.embeddingCache = {}
+        self.defaultCensorship = "This question is outside of my scope. Please ask another question."
 
         self.text_splitter = RecursiveCharacterTextSplitter(
             separators=[" "], chunk_size=1024, chunk_overlap=30)
@@ -69,7 +70,10 @@ class Brain:
             projectModel.name,
             projectModel.embeddings,
             projectModel.llm,
-            projectModel.system)
+            projectModel.system,
+            projectModel.sandboxed,
+            projectModel.censorship
+            )
         project = Project()
         project.boot(projectModel)
         self.initializeEmbeddings(project)
@@ -101,6 +105,10 @@ class Brain:
 
         if proj_db.system != projectModel.system:
             proj_db.system = projectModel.system
+            changed = True
+            
+        if proj_db.censorship != projectModel.censorship:
+            proj_db.censorship = projectModel.censorship
             changed = True
 
         if changed:
@@ -136,7 +144,7 @@ class Brain:
         output = qa(questionModel.question)
 
         if project.model.sandboxed and len(output["source_documents"]) == 0:
-            return "This question is outside of my scope. Please ask another question.", []
+            return project.model.censorship or self.defaultCensorship, []
 
         return output["result"].strip(), output["source_documents"]
 
@@ -157,6 +165,12 @@ class Brain:
         result = conversationalChain(
             {"question": chatModel.message, "chat_history": chat.history}
         )
+
+        if project.model.sandboxed and len(result["source_documents"]) == 0:
+            chat.history.append(
+                (project.model.censorship or self.defaultCensorship))
+            return project.model.censorship or self.defaultCensorship, []
+
         chat.history.append((chatModel.message, result["answer"]))
         return chat, result
 
@@ -208,7 +222,7 @@ class Brain:
 
         if len(docs) == 0:
             if project.model.sandboxed:
-                return "This question is outside of my scope. Please ask another question.", []
+                return project.model.censorship or self.defaultCensorship, []
             else:
                 inputs = [{"context": "",
                            "question": questionModel.question}]

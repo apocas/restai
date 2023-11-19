@@ -32,6 +32,7 @@ class ProjectModel(BaseModel):
     llm: Union[str, None] = None
     system: Union[str, None] = None
     sandboxed: Union[bool, None] = None
+    censorship: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -73,6 +74,7 @@ class ProjectModelUpdate(BaseModel):
     llm: Union[str, None] = None
     system: Union[str, None] = None
     sandboxed: Union[bool, None] = None
+    censorship: Union[str, None] = None
 
 
 class HardwareInfo(BaseModel):

@@ -13,6 +13,7 @@ function Projects() {
   const projectNameForm = useRef(null)
   const sandboxedForm = useRef(null)
   const systemForm = useRef(null)
+  const censorshipForm = useRef(null)
   const embbeddingForm = useRef(null)
   const llmForm = useRef(null)
   const { getBasicAuth } = useContext(AuthContext);
@@ -81,7 +82,8 @@ function Projects() {
         "embeddings": embbeddingForm.current.value,
         "llm": llmForm.current.value,
         "system": systemForm.current.value,
-        "sandboxed": sandboxedForm.current.checked
+        "sandboxed": sandboxedForm.current.checked,
+        "censorship": censorshipForm.current.value
       }),
     })
       .then(response => response.json())
@@ -220,8 +222,10 @@ function Projects() {
               </Form.Group>
             </Row>
             <Row className="mb-3">
-              <Form.Group as={Col} controlId="formGridSandboxed">
+              <Form.Group as={Col} controlId="formGridCensorship">
                 <Form.Check ref={sandboxedForm} type="checkbox" label="Sandboxed" />
+                <Form.Label>Censorship Message</Form.Label>
+                <Form.Control ref={censorshipForm} rows="2" as="textarea" />
               </Form.Group>
             </Row>
             <Button variant="dark" type="submit" className="mb-2">

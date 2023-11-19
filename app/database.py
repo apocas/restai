@@ -100,9 +100,9 @@ class Database:
             ProjectDatabase.name == name).first()
         return project
 
-    def create_project(self, db, name, embeddings, llm, system):
+    def create_project(self, db, name, embeddings, llm, system, sandboxed, censorship):
         db_project = ProjectDatabase(
-            name=name, embeddings=embeddings, llm=llm, system=system)
+            name=name, embeddings=embeddings, llm=llm, system=system, sandboxed=sandboxed, censorship=censorship)
         db.add(db_project)
         db.commit()
         db.refresh(db_project)

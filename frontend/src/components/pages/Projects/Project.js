@@ -175,6 +175,8 @@ function Project() {
               <ListGroup.Item>Documents: {data.documents}</ListGroup.Item>
               <ListGroup.Item>Metadatas: {data.metadatas}</ListGroup.Item>
               <ListGroup.Item>System: {data.system}</ListGroup.Item>
+              <ListGroup.Item>Sandboxed: {data.sandboxed ? (<span>✅</span>) : (<span>❌</span>)}</ListGroup.Item>
+              <ListGroup.Item>Censorship: {data.censorship}</ListGroup.Item>
             </ListGroup>
           </Col>
           <Col sm={6}>
