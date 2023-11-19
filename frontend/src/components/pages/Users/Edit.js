@@ -44,8 +44,20 @@ function Edit() {
 
   }
 
+  const fetchUser = (username) => {
+    return fetch(url + "/users/" + username, { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+      .then((res) => res.json())
+      .then((d) => {
+        isadminForm.current.checked = d.is_admin
+      }
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchUser", "error": err.toString() }]);
+      });
+  }
+
   useEffect(() => {
     document.title = 'RestAI Users';
+    fetchUser(username);
   }, []);
 
 
@@ -66,8 +78,7 @@ function Edit() {
             </Form.Group>
             {user.admin &&
               <Form.Group as={Col} controlId="formGridAdmin">
-                <Form.Label>Admin</Form.Label>
-                <Form.Check ref={isadminForm} type="checkbox" label="Check me" />
+                <Form.Check ref={isadminForm} type="checkbox" label="Admin" />
               </Form.Group>
             }
           </Row>

@@ -11,6 +11,7 @@ function Edit() {
   const [error, setError] = useState([]);
   const systemForm = useRef(null)
   const llmForm = useRef(null)
+  const sandboxedForm = useRef(null)
   var { projectName } = useParams();
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
@@ -21,6 +22,7 @@ function Edit() {
       .then((d) => {
         setData(d)
         llmForm.current.value = d.llm
+        sandboxedForm.current.checked = d.sandboxed
       }
       ).catch(err => {
         setError([...error, { "functionName": "fetchProject", "error": err.toString() }]);
@@ -45,7 +47,8 @@ function Edit() {
       body: JSON.stringify({
         "name": projectName,
         "llm": llmForm.current.value,
-        "system": systemForm.current.value
+        "system": systemForm.current.value,
+        "sandboxed": sandboxedForm.current.checked
       }),
     })
       .then(response => response.json())
@@ -58,8 +61,8 @@ function Edit() {
 
   useEffect(() => {
     document.title = 'RestAI Projects';
-    fetchProject(projectName);
     fetchInfo();
+    fetchProject(projectName);
   }, [projectName]);
 
 
@@ -93,6 +96,9 @@ function Edit() {
             <Form.Group as={Col} controlId="formGridSystem">
               <Form.Label>System Message</Form.Label>
               <Form.Control rows="2" as="textarea" ref={systemForm} defaultValue={data.system ? data.system : ""} />
+            </Form.Group>
+            <Form.Group as={Col} controlId="formGridAdmin">
+              <Form.Check ref={sandboxedForm} type="checkbox" label="Sandboxed" />
             </Form.Group>
           </Row>
           <Button variant="dark" type="submit" className="mb-2">

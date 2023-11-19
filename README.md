@@ -15,6 +15,17 @@
 * You may use [any LLM](modules/llms.py) supported by langchain.
 * There are two main ways to interact with the LLM: QA(questions and answers) and text generation aKa chat.
 
+## Installation
+
+### Development
+* make install
+* make dev (starts restai in development mode)
+* make devfrontend (starts restai's frontend in development mode)
+
+### Production
+* make install
+* make prod
+
 ## Default support
 
 * Embeddings: `huggingface` (HuggingFace), `openai` (OpenAI), ...
@@ -47,7 +58,9 @@
 
 ### Users
 
-A user represents a user of the system. It's used for authentication and authorization. Each user may have access to multiple projects.
+* A user represents a user of the system.
+* It's used for authentication and authorization. (basic auth)
+* Each user may have access to multiple projects.
 
 [**GET /users**](https://apocas.github.io/restai/#/default/read_users_users_get)
 
@@ -74,7 +87,9 @@ A user represents a user of the system. It's used for authentication and authori
 
 ---
 
-A project is an abstract entity basically a tenant. You may have multiple projects and each project has its own embeddings, loaders and llms. Each project may have multiple users with access to it.
+* A project is an abstract entity basically a tenant. You may have multiple projects and each project has its own embeddings, loaders and llms.
+* Each project may have multiple users with access to it.
+* Projects have "sandboxed" mode, which means that a locked default answer will be given when there aren't embeddings for the provided question. This is useful for chatbots, where you want to provide a default answer when the LLM doesn't know how to answer the question, reduncing hallucination.
 
 [**GET /projects**](https://apocas.github.io/restai/#/projects/get_projects)
 
@@ -137,6 +152,10 @@ A project is an abstract entity basically a tenant. You may have multiple projec
 - Send a chat message to a specific project. Chat differs from question, because it holds conversation history. It's chat has an unique ID (id field).
 
 ## [All endpoints (Swagger)](https://apocas.github.io/restai/)
+
+## Frontend
+
+* There is a default frontend provided by restai. It's a simple React app that allows you to interact with the API.
 
 ## Tests
 

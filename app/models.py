@@ -72,6 +72,7 @@ class ProjectModelUpdate(BaseModel):
     embeddings: Union[str, None] = None
     llm: Union[str, None] = None
     system: Union[str, None] = None
+    sandboxed: Union[bool, None] = None
 
 
 class HardwareInfo(BaseModel):

@@ -45,7 +45,7 @@ logging.basicConfig(level=os.environ["LOG_LEVEL"])
 app = FastAPI(
     title="RestAI",
     description="Modular REST API bootstrap on top of LangChain. Create embeddings associated with a project tenant and interact using a LLM. RAG as a service.",
-    version="3.1.0",
+    version="3.1.1",
     contact={
         "name": "Pedro Dias",
         "url": "https://github.com/apocas/restai",
@@ -226,7 +226,8 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             name=project.model.name,
             embeddings=project.model.embeddings,
             llm=project.model.llm,
-            system=project.model.system)
+            system=project.model.system,
+            sandboxed=project.model.sandboxed)
         output.documents = len(dbInfo["documents"])
         output.metadatas = len(dbInfo["metadatas"])
 

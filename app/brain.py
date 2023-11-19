@@ -95,6 +95,10 @@ class Brain:
             proj_db.llm = projectModel.llm
             changed = True
 
+        if proj_db.sandboxed != projectModel.sandboxed:
+            proj_db.sandboxed = projectModel.sandboxed
+            changed = True
+
         if proj_db.system != projectModel.system:
             proj_db.system = projectModel.system
             changed = True

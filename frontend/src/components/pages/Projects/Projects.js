@@ -11,6 +11,7 @@ function Projects() {
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const [error, setError] = useState([]);
   const projectNameForm = useRef(null)
+  const sandboxedForm = useRef(null)
   const systemForm = useRef(null)
   const embbeddingForm = useRef(null)
   const llmForm = useRef(null)
@@ -79,7 +80,8 @@ function Projects() {
         "name": projectNameForm.current.value,
         "embeddings": embbeddingForm.current.value,
         "llm": llmForm.current.value,
-        "system": systemForm.current.value
+        "system": systemForm.current.value,
+        "sandboxed": sandboxedForm.current.checked
       }),
     })
       .then(response => response.json())
@@ -215,6 +217,11 @@ function Projects() {
               <Form.Group as={Col} controlId="formGridSystem">
                 <Form.Label>System Message</Form.Label>
                 <Form.Control ref={systemForm} rows="2" as="textarea" />
+              </Form.Group>
+            </Row>
+            <Row className="mb-3">
+              <Form.Group as={Col} controlId="formGridSandboxed">
+                <Form.Check ref={sandboxedForm} type="checkbox" label="Sandboxed" />
               </Form.Group>
             </Row>
             <Button variant="dark" type="submit" className="mb-2">
