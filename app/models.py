@@ -11,7 +11,7 @@ class EmbeddingModel(BaseModel):
 
 
 class InteractionModel(BaseModel):
-    score: float = 0.3
+    score: float = 0.2
     k: int = 4
 
 
