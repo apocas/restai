@@ -124,7 +124,7 @@ class Brain:
         retriever = project.db.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
-                "score_threshold": questionModel.score or .4,
+                "score_threshold": questionModel.score,
                 "k": questionModel.k or 4})
 
         qa = RetrievalQA.from_chain_type(
@@ -147,7 +147,7 @@ class Brain:
         retriever = project.db.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
-                "score_threshold": chatModel.score or .4,
+                "score_threshold": chatModel.score,
                 "k": chatModel.k or 4})
 
         conversationalChain = ConversationalRetrievalChain.from_llm(
@@ -198,7 +198,7 @@ class Brain:
         retriever = project.db.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
-                "score_threshold": questionModel.score or .4,
+                "score_threshold": questionModel.score,
                 "k": questionModel.k or 4})
 
         try:

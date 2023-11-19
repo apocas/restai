@@ -136,7 +136,7 @@ function Question() {
             <Col sm={6}>
               <InputGroup>
                 <InputGroup.Text>Score Threshold</InputGroup.Text>
-                <Form.Control ref={scoreForm} defaultValue={0.4} />
+                <Form.Control ref={scoreForm} defaultValue={0.3} />
               </InputGroup>
             </Col>
             <Col sm={6}>
