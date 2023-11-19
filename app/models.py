@@ -31,7 +31,7 @@ class ProjectModel(BaseModel):
     embeddings: Union[str, None] = None
     llm: Union[str, None] = None
     system: Union[str, None] = None
-    sandboxed: bool = False
+    sandboxed: Union[bool, None] = None
     model_config = ConfigDict(from_attributes=True)
 
 
