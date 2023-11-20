@@ -15,6 +15,12 @@
 * You may use [any LLM](modules/llms.py) supported by langchain.
 * There are two main ways to interact with the LLM: QA(questions and answers) and text generation aKa chat.
 
+## Default support
+
+* Embeddings: `huggingface` (HuggingFace), `openai` (OpenAI), ...
+* LLM: `llamacpp` (ggml-model-q4_0.bin), `openai` (OpenAI, text-generation-webui), ...
+* It's very easy to add support for more [embeddings](modules/embeddings.py), [loaders](modules/loaders.py) and [LLMs](modules/llms.py).
+
 ## Installation
 
 ### Development
@@ -25,12 +31,6 @@
 ### Production
 * make install
 * make prod
-
-## Default support
-
-* Embeddings: `huggingface` (HuggingFace), `openai` (OpenAI), ...
-* LLM: `llamacpp` (ggml-model-q4_0.bin), `openai` (OpenAI, text-generation-webui), ...
-* It's very easy to add support for more [embeddings](modules/embeddings.py), [loaders](modules/loaders.py) and [LLMs](modules/llms.py).
 
 ## Example usage
 
