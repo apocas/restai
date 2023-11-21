@@ -169,7 +169,7 @@ function Project() {
           <Col sm={6}>
             <h1>Status</h1>
             <ListGroup>
-              <ListGroup.Item>Project: {data.project}</ListGroup.Item>
+              <ListGroup.Item>Project: {data.name}</ListGroup.Item>
               <ListGroup.Item>LLM: {data.llm}</ListGroup.Item>
               <ListGroup.Item>Embeddings: {data.embeddings}</ListGroup.Item>
               <ListGroup.Item>Documents: {data.documents}</ListGroup.Item>
