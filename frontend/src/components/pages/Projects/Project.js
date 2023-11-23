@@ -62,6 +62,20 @@ function Project() {
       });
   }
 
+  const handleResetEmbeddingsClick = () => {
+    alert("Reset " + projectName + " embeddings");
+    fetch(url + "/projects/" + projectName + "/embeddings/reset",
+      {
+        method: 'POST', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
+      }).then(() => {
+        fetchProject(projectName);
+        fetchFiles(projectName);
+        fetchUrls(projectName);
+      }).catch(err => {
+        setError([...error, { "functionName": "handleResetEmbeddingsClick", "error": err.toString() }]);
+      });
+  }
+
   const handleViewClick = (source) => {
     fetch(url + "/projects/" + projectName + "/embeddings/find", {
       method: 'POST',
@@ -123,7 +137,7 @@ function Project() {
           body = {
             "url": ingestUrl
           }
-          
+
           fetch(url + "/projects/" + projectName + "/embeddings/ingest/url", {
             method: 'POST',
             headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
@@ -169,9 +183,9 @@ function Project() {
           <Col sm={6}>
             <h1>Status</h1>
             <ListGroup>
-              <ListGroup.Item>Project: {data.project}</ListGroup.Item>
+              <ListGroup.Item>Project: {data.name}</ListGroup.Item>
               <ListGroup.Item>LLM: {data.llm}</ListGroup.Item>
-              <ListGroup.Item>Embeddings: {data.embeddings}</ListGroup.Item>
+              <ListGroup.Item>Embeddings: {data.embeddings} <Button onClick={() => handleResetEmbeddingsClick()} variant="danger">Reset</Button></ListGroup.Item>
               <ListGroup.Item>Documents: {data.documents}</ListGroup.Item>
               <ListGroup.Item>Metadatas: {data.metadatas}</ListGroup.Item>
               <ListGroup.Item>System: {data.system}</ListGroup.Item>
