@@ -140,7 +140,10 @@ def update_user(
         if userc.projects is not None:
             dbc.delete_userprojects(db, user)
             for project in userc.projects:
-                project = dbc.add_userproject(db, user, project)
+                projectdb = dbc.get_project_by_name(db, project)
+                if projectdb is None:
+                    raise Exception("Project not found")
+                dbc.add_userproject(db, user, project, projectdb.id)
         return user
     except Exception as e:
         logging.error(e)

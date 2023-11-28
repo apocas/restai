@@ -16,16 +16,6 @@ function Projects() {
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
 
-  const handleDeleteClick = (projectName) => {
-    if(window.confirm("Delete " + projectName + "?")) {
-      fetch(url + "/projects/" + projectName, { method: 'DELETE', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
-        .then(() => fetchProjects()
-        ).catch(err => {
-          setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
-        });
-    }
-  }
-
   const fetchProjects = () => {
     return fetch(url + "/projects", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
@@ -147,11 +137,6 @@ function Projects() {
                           <Button variant="dark">View</Button>{' '}
                         </NavLink>
                         <NavLink
-                          to={"/projects/" + project.name + "/edit"}
-                        >
-                          <Button variant="dark">Edit</Button>{' '}
-                        </NavLink>
-                        <NavLink
                           to={"/projects/" + project.name + "/chat"}
                         >
                           <Button variant="dark">Chat</Button>{' '}
@@ -161,7 +146,6 @@ function Projects() {
                         >
                           <Button variant="dark">Question</Button>{' '}
                         </NavLink>
-                        <Button onClick={() => handleDeleteClick(project.name)} variant="danger">Delete</Button>
                       </td>
                       {
                         user.admin &&

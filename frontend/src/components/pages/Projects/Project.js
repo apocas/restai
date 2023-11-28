@@ -1,5 +1,5 @@
 import { Container, Table, Row, Form, Col, Button, ListGroup, Alert } from 'react-bootstrap';
-import { useParams } from "react-router-dom";
+import { NavLink, useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
 
@@ -20,6 +20,24 @@ function Project() {
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
 
+  const handleDeleteProjectClick = (projectName) => {
+    if (window.confirm("Delete " + projectName + "?")) {
+      fetch(url + "/projects/" + projectName, { method: 'DELETE', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+        .then(function (response) {
+          if (!response.ok) {
+            response.json().then(function (data) {
+              setError([...error, { "functionName": "onSubmitHandler", "error": data.detail }]);
+            });
+            throw Error(response.statusText);
+          } else {
+            window.location = "/admin"
+          }
+        })
+        .catch(err => {
+          setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
+        });
+    }
+  }
 
   const fetchProject = (projectName) => {
     return fetch(url + "/projects/" + projectName, { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
@@ -49,7 +67,7 @@ function Project() {
   }
 
   const handleDeleteClick = (source, type) => {
-    if(window.confirm("Delete " + source + "?")) {
+    if (window.confirm("Delete " + source + "?")) {
       fetch(url + "/projects/" + projectName + "/embeddings/" + type + "/" + btoa(source),
         {
           method: 'DELETE', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
@@ -248,8 +266,27 @@ function Project() {
                   </Row>
                 )
             }
+            <hr />
+            <h1>Actions</h1>
+            <NavLink
+              to={"/projects/" + data.name + "/edit"}
+            >
+              <Button variant="dark">Edit</Button>{' '}
+            </NavLink>
+            <NavLink
+              to={"/projects/" + data.name + "/chat"}
+            >
+              <Button variant="dark">Chat</Button>{' '}
+            </NavLink>
+            <NavLink
+              to={"/projects/" + data.name + "/question"}
+            >
+              <Button variant="dark">Question</Button>{' '}
+            </NavLink>
+            <Button onClick={() => handleDeleteProjectClick(data.name)} variant="danger">Delete</Button>
           </Col>
         </Row>
+        <hr />
         <Row style={{ marginTop: "20px" }}>
           <h1>Files & Urls</h1>
           <Col sm={12} style={files.files.length > 5 || urls.urls.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>

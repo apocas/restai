@@ -102,6 +102,7 @@ function User() {
           </Col>
         </Row>
         <Row style={{ marginTop: "20px" }}>
+          <hr />
           <h1>Projects</h1>
           {user.admin && (
             <Form onSubmit={onSubmitHandler}>
@@ -125,6 +126,8 @@ function User() {
               </Button>
             </Form>
           )}
+          <hr />
+          <h1>List</h1>
           <Table striped bordered hover responsive>
             <thead>
               <tr>
