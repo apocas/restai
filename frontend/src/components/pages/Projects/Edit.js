@@ -57,9 +57,19 @@ function Edit() {
         "k": parseInt(kForm.current.value),
       }),
     })
-      .then(response => response.json())
-      .then(() => fetchProject(projectName)
-      ).catch(err => {
+      .then(function (response) {
+        if (!response.ok) {
+          response.json().then(function (data) {
+            setError([...error, { "functionName": "onSubmitHandler", "error": data.detail }]);
+          });
+          throw Error(response.statusText);
+        } else {
+          return response.json();
+        }
+      })
+      .then(() => {
+        window.location.href = "/admin/projects/" + projectName;
+      }).catch(err => {
         setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
       });
 
@@ -107,7 +117,7 @@ function Edit() {
           <hr />
           <Row className="mb-3">
             <Form.Group as={Col} controlId="formGridCensorship">
-            <Form.Check ref={sandboxedForm} type="checkbox" label="Sandboxed" /> <Form.Label>Censorship Message</Form.Label>
+              <Form.Check ref={sandboxedForm} type="checkbox" label="Sandboxed" /> <Form.Label>Censorship Message</Form.Label>
               <Form.Control rows="2" as="textarea" ref={censorshipForm} defaultValue={data.censorship ? data.censorship : ""} />
             </Form.Group>
           </Row>
