@@ -1,4 +1,4 @@
-import { Container, Row, Form, Col, Button, Alert } from 'react-bootstrap';
+import { Container, Row, Form, Col, Button, Alert, InputGroup } from 'react-bootstrap';
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useParams } from "react-router-dom";
 import { AuthContext } from '../../common/AuthProvider.js';
@@ -10,6 +10,8 @@ function Edit() {
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const [error, setError] = useState([]);
   const systemForm = useRef(null)
+  const scoreForm = useRef(null);
+  const kForm = useRef(null);
   const censorshipForm = useRef(null)
   const llmForm = useRef(null)
   const sandboxedForm = useRef(null)
@@ -51,6 +53,8 @@ function Edit() {
         "system": systemForm.current.value,
         "sandboxed": sandboxedForm.current.checked,
         "censorship": censorshipForm.current.value,
+        "score": parseFloat(scoreForm.current.value),
+        "k": parseInt(kForm.current.value),
       }),
     })
       .then(response => response.json())
@@ -100,14 +104,30 @@ function Edit() {
               <Form.Control rows="2" as="textarea" ref={systemForm} defaultValue={data.system ? data.system : ""} />
             </Form.Group>
           </Row>
+          <hr />
           <Row className="mb-3">
             <Form.Group as={Col} controlId="formGridCensorship">
             <Form.Check ref={sandboxedForm} type="checkbox" label="Sandboxed" /> <Form.Label>Censorship Message</Form.Label>
               <Form.Control rows="2" as="textarea" ref={censorshipForm} defaultValue={data.censorship ? data.censorship : ""} />
             </Form.Group>
           </Row>
-          <Button variant="dark" type="submit" className="mb-2">
-            Submit
+          <hr />
+          <Row>
+            <Col sm={6}>
+              <InputGroup>
+                <InputGroup.Text>Score Threshold</InputGroup.Text>
+                <Form.Control ref={scoreForm} defaultValue={data.score} />
+              </InputGroup>
+            </Col>
+            <Col sm={6}>
+              <InputGroup>
+                <InputGroup.Text>k</InputGroup.Text>
+                <Form.Control ref={kForm} defaultValue={data.k} />
+              </InputGroup>
+            </Col>
+          </Row>
+          <Button variant="dark" type="submit" className="mb-2" style={{ marginTop: "20px" }}>
+            Save
           </Button>
         </Form>
       </Container>

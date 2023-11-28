@@ -11,8 +11,8 @@ class EmbeddingModel(BaseModel):
 
 
 class InteractionModel(BaseModel):
-    score: float = 0.2
-    k: int = 4
+    score: Union[float, None] = None
+    k: Union[int, None] = None
 
 
 class QuestionModel(InteractionModel):
@@ -28,11 +28,13 @@ class ChatModel(InteractionModel):
 
 class ProjectModel(BaseModel):
     name: str
-    embeddings: Union[str, None] = None
-    llm: Union[str, None] = None
+    embeddings: str
+    llm: str
     system: Union[str, None] = None
     sandboxed: Union[bool, None] = None
     censorship: Union[str, None] = None
+    score: float = 0.2
+    k: int = 2
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -75,6 +77,8 @@ class ProjectModelUpdate(BaseModel):
     system: Union[str, None] = None
     sandboxed: Union[bool, None] = None
     censorship: Union[str, None] = None
+    score: Union[float, None] = None
+    k: Union[int, None] = None
 
 
 class HardwareInfo(BaseModel):

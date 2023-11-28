@@ -58,6 +58,7 @@ app = FastAPI(
 )
 
 if "RESTAI_DEV" in os.environ:
+    print("Running in development mode!")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -91,7 +92,7 @@ async def get_user(username: str, user: User = Depends(get_current_username_user
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=404, detail='{"error": ' + str(e) + '}')
+            status_code=404, detail=str(e))
 
 
 @app.get("/users", response_model=list[User])
@@ -117,7 +118,7 @@ def create_user(userc: UserCreate,
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500,
-            detail='{"error": "failed to create user ' + userc.username + '"}')
+            detail='Failed to create user ' + userc.username)
 
 
 @app.patch("/users/{username}", response_model=User)
@@ -145,7 +146,7 @@ def update_user(
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=500, detail='{"error": ' + str(e) + '}')
+            status_code=500, detail=str(e))
 
 
 @app.delete("/users/{username}")
@@ -162,7 +163,7 @@ def delete_user(username: str,
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=500, detail='{"error": ' + str(e) + '}')
+            status_code=500, detail=str(e))
 
 
 @app.get("/hardware", response_model=HardwareInfo)
@@ -200,7 +201,7 @@ def get_hardware_info(user: User = Depends(get_current_username)):
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=404, detail='{"error": ' + str(e) + '}')
+            status_code=404, detail=str(e))
 
 
 @app.get("/projects", response_model=list[ProjectModel])
@@ -228,7 +229,9 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             llm=project.model.llm,
             system=project.model.system,
             sandboxed=project.model.sandboxed,
-            censorship=project.model.censorship)
+            censorship=project.model.censorship,
+            score = project.model.score,
+            k=project.model.k)
         output.documents = len(dbInfo["documents"])
         output.metadatas = len(dbInfo["metadatas"])
 
@@ -237,7 +240,7 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=404, detail='{"error": ' + str(e) + '}')
+            status_code=404, detail=str(e))
 
 
 @app.delete("/projects/{projectName}")
@@ -247,12 +250,12 @@ async def delete_project(projectName: str, user: User = Depends(get_current_user
             return {"project": projectName}
         else:
             raise HTTPException(
-                status_code=404, detail='{"error": "Project not found"}')
+                status_code=404, detail='Project not found')
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=500, detail='{"error": ' + str(e) + '}')
+            status_code=500, detail=str(e))
 
 
 @app.patch("/projects/{projectName}")
@@ -262,31 +265,42 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
             return {"project": projectName}
         else:
             raise HTTPException(
-                status_code=404, detail='{"error": "Project not found"}')
+                status_code=404, detail='Project not found')
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=500, detail='{"error": ' + str(e) + '}')
+            status_code=500, detail=str(e))
 
 
 @app.post("/projects")
 async def create_project(projectModel: ProjectModel, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
+   
+    if projectModel.embeddings not in EMBEDDINGS:
+        raise HTTPException(
+            status_code=404,
+            detail='Embeddings not found')
+    if projectModel.llm not in LLMS:
+        raise HTTPException(
+            status_code=404,
+            detail='LLM not found')
+  
+    proj = brain.findProject(projectModel.name, db)
+    if proj is not None:
+        raise HTTPException(
+            status_code=403,
+            detail='Project already exists')
+        
     try:
-        proj = brain.findProject(projectModel.name, db)
-        if proj is not None:
-            raise HTTPException(
-                status_code=403,
-                detail='{"error": "Project already exists"}')
-
-        brain.createProject(projectModel, db)
-        dbc.add_userproject(db, user, projectModel.name)
+        project = brain.createProject(projectModel, db)
+        projectdb = dbc.get_project_by_name(db, project.model.name)
+        dbc.add_userproject(db, user, projectModel.name, projectdb.id)
         return {"project": projectModel.name}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=500, detail='{"error": ' + str(e) + '}')
+            status_code=500, detail=str(e))
 
 
 @app.post("/projects/{projectName}/embeddings/reset")
@@ -304,7 +318,7 @@ def project_reset(
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=404, detail='{"error": ' + str(e) + '}')
+            status_code=404, detail=str(e))
 
 
 @app.post("/projects/{projectName}/embeddings/find")
@@ -369,7 +383,7 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=500, detail='{"error": ' + str(e) + '}')
+            status_code=500, detail=str(e))
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/upload")
@@ -415,7 +429,7 @@ def ingest_file(
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=500, detail='{"error": ' + str(e) + '}')
+            status_code=500, detail=str(e))
 
 
 @app.get('/projects/{projectName}/embeddings/urls')
@@ -542,7 +556,7 @@ def question_project(
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=500, detail='{"error": ' + str(e) + '}')
+            status_code=500, detail=str(e))
 
 
 @app.post("/projects/{projectName}/chat", response_model=ChatResponse)
@@ -568,7 +582,7 @@ def chat_project(
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=500, detail='{"error": ' + str(e) + '}')
+            status_code=500, detail=str(e))
 
 
 try:

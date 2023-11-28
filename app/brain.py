@@ -64,7 +64,7 @@ class Brain:
             self.projects.append(project)
             return project
 
-    def createProject(self, projectModel, db):
+    def createProject(self, projectModel, db):  
         dbc.create_project(
             db,
             projectModel.name,
@@ -78,6 +78,7 @@ class Brain:
         project.boot(projectModel)
         self.initializeEmbeddings(project)
         self.projects.append(project)
+        return project
 
     def initializeEmbeddings(self, project):
         project.db = Chroma(
@@ -110,6 +111,14 @@ class Brain:
         if proj_db.censorship != projectModel.censorship:
             proj_db.censorship = projectModel.censorship
             changed = True
+            
+        if proj_db.k != projectModel.k:
+            proj_db.k = projectModel.k
+            changed = True
+            
+        if proj_db.score != projectModel.score:
+            proj_db.score = projectModel.score
+            changed = True
 
         if changed:
             dbc.update_project(db)
@@ -132,8 +141,8 @@ class Brain:
         retriever = project.db.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
-                "score_threshold": questionModel.score,
-                "k": questionModel.k or 4})
+                "score_threshold": questionModel.score or project.model.score or 0.2,
+                "k": questionModel.k or project.model.k or 2})
 
         qa = RetrievalQA.from_chain_type(
             llm=llm,
@@ -155,8 +164,8 @@ class Brain:
         retriever = project.db.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
-                "score_threshold": chatModel.score,
-                "k": chatModel.k or 4})
+                "score_threshold": chatModel.score or project.model.score or 0.2,
+                "k": chatModel.k or project.model.k or 4})
 
         conversationalChain = ConversationalRetrievalChain.from_llm(
             llm=llm, retriever=retriever, return_source_documents=True
@@ -212,8 +221,8 @@ class Brain:
         retriever = project.db.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
-                "score_threshold": questionModel.score,
-                "k": questionModel.k or 4})
+                "score_threshold": questionModel.score or project.model.score or 0.2,
+                "k": questionModel.k or project.model.k or 4})
 
         try:
             docs = retriever.get_relevant_documents(questionModel.question)

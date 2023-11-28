@@ -8,7 +8,10 @@
       "console": "integratedTerminal",
       "justMyCode": false,
       "args": [],
-      "purpose": ["debug-in-terminal"]
+      "purpose": ["debug-in-terminal"],
+      "env": {
+        "RESTAI_DEV": "true"
+      }
     },
     {
       "name": "Python: Current File",

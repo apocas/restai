@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -24,6 +24,7 @@ class UserProjectDatabase(Base):
     project_id = Column(Integer, ForeignKey("projects.id"))
 
     owner = relationship("UserDatabase", back_populates="projects")
+    project = relationship("ProjectDatabase", back_populates="owners")
 
 
 class ProjectDatabase(Base):
@@ -37,3 +38,7 @@ class ProjectDatabase(Base):
     system = Column(String)
     sandboxed = Column(Boolean, default=False)
     censorship = Column(String)
+    k = Column(Integer, default=2)
+    score = Column(Float, default=0.2)
+    
+    owners = relationship("UserProjectDatabase", back_populates="project")

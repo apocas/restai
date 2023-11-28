@@ -15,14 +15,15 @@ function Users() {
   const user = getBasicAuth() || { username: null, admin: null };
 
   const handleDeleteClick = (username) => {
-    alert(username);
-    fetch(url + "/users/" + username, {
-      method: 'DELETE',
-      headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
-    }).then(() => fetchUsers()
-    ).catch(err => {
-      setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
-    });
+    if(window.confirm("Delete " + username + "?")) {
+      fetch(url + "/users/" + username, {
+        method: 'DELETE',
+        headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
+      }).then(() => fetchUsers()
+      ).catch(err => {
+        setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
+      });
+    }
   }
 
   const fetchUsers = () => {
@@ -110,6 +111,7 @@ function Users() {
             </tbody>
           </Table>
         </Row>
+        <hr />
         <Row>
           <h1>Create User</h1>
           <Form onSubmit={onSubmitHandler}>
@@ -123,8 +125,7 @@ function Users() {
                 <Form.Control ref={passwordForm} />
               </Form.Group>
               <Form.Group as={Col} controlId="formGridAdmin">
-                <Form.Label>Admin</Form.Label>
-                <Form.Check ref={isadminForm} type="checkbox" label="Check me" />
+                <Form.Check ref={isadminForm} type="checkbox" label="Admin" />
               </Form.Group>
             </Row>
             <Button variant="dark" type="submit" className="mb-2">

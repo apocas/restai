@@ -12,6 +12,7 @@ function Chat() {
   const kForm = useRef(null);
   const [messages, setMessages] = useState([]);
   const [canSubmit, setCanSubmit] = useState(true);
+  const [data, setData] = useState({ projects: [] });
   const [error, setError] = useState([]);
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
@@ -70,8 +71,18 @@ function Chat() {
     }
   }
 
+  const fetchProject = (projectName) => {
+    return fetch(url + "/projects/" + projectName, { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+      .then((res) => res.json())
+      .then((d) => setData(d)
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchProject", "error": err.toString() }]);
+      });
+  }
+
   useEffect(() => {
     document.title = 'RestAI  Chat ' + projectName;
+    fetchProject(projectName);
   }, [projectName]);
 
   return (
@@ -124,13 +135,13 @@ function Chat() {
             <Col sm={6}>
               <InputGroup>
                 <InputGroup.Text>Score Threshold</InputGroup.Text>
-                <Form.Control ref={scoreForm} defaultValue={0.2} />
+                <Form.Control ref={scoreForm} defaultValue={data.score} />
               </InputGroup>
             </Col>
             <Col sm={6}>
               <InputGroup>
                 <InputGroup.Text>k</InputGroup.Text>
-                <Form.Control ref={kForm} defaultValue={4} />
+                <Form.Control ref={kForm} defaultValue={data.k} />
               </InputGroup>
             </Col>
           </Row>

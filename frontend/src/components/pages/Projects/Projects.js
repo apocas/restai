@@ -11,21 +11,19 @@ function Projects() {
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const [error, setError] = useState([]);
   const projectNameForm = useRef(null)
-  const sandboxedForm = useRef(null)
-  const systemForm = useRef(null)
-  const censorshipForm = useRef(null)
   const embbeddingForm = useRef(null)
   const llmForm = useRef(null)
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
 
   const handleDeleteClick = (projectName) => {
-    alert(projectName);
-    fetch(url + "/projects/" + projectName, { method: 'DELETE', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
-      .then(() => fetchProjects()
-      ).catch(err => {
-        setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
-      });
+    if(window.confirm("Delete " + projectName + "?")) {
+      fetch(url + "/projects/" + projectName, { method: 'DELETE', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+        .then(() => fetchProjects()
+        ).catch(err => {
+          setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
+        });
+    }
   }
 
   const fetchProjects = () => {
@@ -81,14 +79,22 @@ function Projects() {
         "name": projectNameForm.current.value,
         "embeddings": embbeddingForm.current.value,
         "llm": llmForm.current.value,
-        "system": systemForm.current.value,
-        "sandboxed": sandboxedForm.current.checked,
-        "censorship": censorshipForm.current.value
       }),
     })
-      .then(response => response.json())
-      .then(() => fetchProjects()
-      ).catch(err => {
+      .then(function (response) {
+        if (!response.ok) {
+          response.json().then(function (data) {
+            setError([...error, { "functionName": "onSubmitHandler", "error": data.detail }]);
+          });
+          throw Error(response.statusText);
+        } else {
+          return response.json();
+        }
+      })
+      .then(() => {
+        //fetchProjects()
+        window.location = "/admin/projects/" + projectNameForm.current.value + "/edit"
+      }).catch(err => {
         setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
       });
 
@@ -177,6 +183,7 @@ function Projects() {
             </tbody>
           </Table>
         </Row>
+        <hr />
         <Row>
           <h1>Create Project</h1>
           <Form onSubmit={onSubmitHandler}>
@@ -215,21 +222,8 @@ function Projects() {
                 </Form.Select>
               </Form.Group>
             </Row>
-            <Row className="mb-3">
-              <Form.Group as={Col} controlId="formGridSystem">
-                <Form.Label>System Message</Form.Label>
-                <Form.Control ref={systemForm} rows="2" as="textarea" />
-              </Form.Group>
-            </Row>
-            <Row className="mb-3">
-              <Form.Group as={Col} controlId="formGridCensorship">
-                <Form.Check ref={sandboxedForm} type="checkbox" label="Sandboxed" />
-                <Form.Label>Censorship Message</Form.Label>
-                <Form.Control ref={censorshipForm} rows="2" as="textarea" />
-              </Form.Group>
-            </Row>
             <Button variant="dark" type="submit" className="mb-2">
-              Submit
+              Create
             </Button>
           </Form>
         </Row>

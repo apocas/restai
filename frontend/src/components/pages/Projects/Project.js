@@ -49,17 +49,18 @@ function Project() {
   }
 
   const handleDeleteClick = (source, type) => {
-    alert(source);
-    fetch(url + "/projects/" + projectName + "/embeddings/" + type + "/" + btoa(source),
-      {
-        method: 'DELETE', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
-      }).then(() => {
-        fetchProject(projectName);
-        fetchFiles(projectName);
-        fetchUrls(projectName);
-      }).catch(err => {
-        setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
-      });
+    if(window.confirm("Delete " + source + "?")) {
+      fetch(url + "/projects/" + projectName + "/embeddings/" + type + "/" + btoa(source),
+        {
+          method: 'DELETE', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
+        }).then(() => {
+          fetchProject(projectName);
+          fetchFiles(projectName);
+          fetchUrls(projectName);
+        }).catch(err => {
+          setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
+        });
+    }
   }
 
   const handleResetEmbeddingsClick = () => {

@@ -84,8 +84,8 @@ class Database:
         db.commit()
         return True
 
-    def add_userproject(self, db, user, name):
-        db_project = UserProjectDatabase(name=name, owner_id=user.id)
+    def add_userproject(self, db, user, name, projectid):
+        db_project = UserProjectDatabase(name=name, owner_id=user.id, project_id=projectid)
         db.add(db_project)
         db.commit()
         db.refresh(db_project)
@@ -115,6 +115,10 @@ class Database:
         return projects
 
     def delete_project(self, db, project):
+        db.query(UserProjectDatabase).filter(
+            UserProjectDatabase.project_id == project.id).delete()
+        db.query(UserProjectDatabase).filter(
+            UserProjectDatabase.name == project.name).delete()
         db.delete(project)
         db.commit()
         return True
