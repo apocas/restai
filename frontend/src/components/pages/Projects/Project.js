@@ -84,17 +84,18 @@ function Project() {
   }
 
   const handleResetEmbeddingsClick = () => {
-    alert("Reset " + projectName + " embeddings");
-    fetch(url + "/projects/" + projectName + "/embeddings/reset",
-      {
-        method: 'POST', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
-      }).then(() => {
-        fetchProject(projectName);
-        fetchFiles(projectName);
-        fetchUrls(projectName);
-      }).catch(err => {
-        setError([...error, { "functionName": "handleResetEmbeddingsClick", "error": err.toString() }]);
-      });
+    if(window.confirm("Reset " + projectName + " embeddings?")) {
+      fetch(url + "/projects/" + projectName + "/embeddings/reset",
+        {
+          method: 'POST', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
+        }).then(() => {
+          fetchProject(projectName);
+          fetchFiles(projectName);
+          fetchUrls(projectName);
+        }).catch(err => {
+          setError([...error, { "functionName": "handleResetEmbeddingsClick", "error": err.toString() }]);
+        });
+    }
   }
 
   const handleViewClick = (source) => {
@@ -108,7 +109,9 @@ function Project() {
       .then(response => response.json())
       .then(response => {
         setEmbeddings(response);
-        ref.current?.scrollIntoView({ behavior: 'smooth' });
+        setTimeout(() => {
+          ref.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
       }).catch(err => {
         setError([...error, { "functionName": "handleViewClick", "error": err.toString() }]);
       });

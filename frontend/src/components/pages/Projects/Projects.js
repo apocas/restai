@@ -178,7 +178,7 @@ function Projects() {
               </Form.Group>
               <Form.Group as={Col} controlId="formGridEmbeddings">
                 <Form.Label>Embeddings</Form.Label>
-                <Form.Select ref={embbeddingForm} defaultValue="Choose...">
+                <Form.Select ref={embbeddingForm} defaultValue="">
                   <option>Choose...</option>
                   {
                     info.embeddings.map((embbedding, index) => {
@@ -193,7 +193,7 @@ function Projects() {
 
               <Form.Group as={Col} controlId="formGridLLM">
                 <Form.Label>LLM</Form.Label>
-                <Form.Select ref={llmForm} defaultValue="Choose...">
+                <Form.Select ref={llmForm} defaultValue="">
                   <option>Choose...</option>
                   {
                     info.llms.map((llm, index) => {

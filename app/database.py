@@ -85,7 +85,8 @@ class Database:
         return True
 
     def add_userproject(self, db, user, name, projectid):
-        db_project = UserProjectDatabase(name=name, owner_id=user.id, project_id=projectid)
+        db_project = UserProjectDatabase(
+            name=name, owner_id=user.id, project_id=projectid)
         db.add(db_project)
         db.commit()
         db.refresh(db_project)
@@ -102,9 +103,22 @@ class Database:
             ProjectDatabase.name == name).first()
         return project
 
-    def create_project(self, db, name, embeddings, llm, system, sandboxed, censorship):
+    def create_project(
+            self,
+            db,
+            name,
+            embeddings,
+            llm,
+            system,
+            sandboxed,
+            censorship):
         db_project = ProjectDatabase(
-            name=name, embeddings=embeddings, llm=llm, system=system, sandboxed=sandboxed, censorship=censorship)
+            name=name,
+            embeddings=embeddings,
+            llm=llm,
+            system=system,
+            sandboxed=sandboxed,
+            censorship=censorship)
         db.add(db_project)
         db.commit()
         db.refresh(db_project)

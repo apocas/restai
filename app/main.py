@@ -233,8 +233,9 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             system=project.model.system,
             sandboxed=project.model.sandboxed,
             censorship=project.model.censorship,
-            score = project.model.score,
-            k=project.model.k)
+            score=project.model.score,
+            k=project.model.k,
+            sandbox_project=project.model.sandbox_project,)
         output.documents = len(dbInfo["documents"])
         output.metadatas = len(dbInfo["metadatas"])
 
@@ -264,10 +265,17 @@ async def delete_project(projectName: str, user: User = Depends(get_current_user
 @app.patch("/projects/{projectName}")
 async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
     if projectModelUpdate is not None and projectModelUpdate.llm not in LLMS:
-      raise HTTPException(
-          status_code=404,
-          detail='LLM not found')
-      
+        raise HTTPException(
+            status_code=404,
+            detail='LLM not found')
+
+    if projectModelUpdate is not None and projectModelUpdate.sandbox_project is not None:
+        proj = brain.findProject(projectModelUpdate.sandbox_project, db)
+        if proj is None:
+            raise HTTPException(
+                status_code=404,
+                detail='Sandbox project not found')
+
     try:
         if brain.editProject(projectName, projectModelUpdate, db):
             return {"project": projectName}
@@ -283,7 +291,7 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
 
 @app.post("/projects")
 async def create_project(projectModel: ProjectModel, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
-   
+
     if projectModel.embeddings not in EMBEDDINGS:
         raise HTTPException(
             status_code=404,
@@ -292,13 +300,13 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
         raise HTTPException(
             status_code=404,
             detail='LLM not found')
-  
+
     proj = brain.findProject(projectModel.name, db)
     if proj is not None:
         raise HTTPException(
             status_code=403,
             detail='Project already exists')
-        
+
     try:
         project = brain.createProject(projectModel, db)
         projectdb = dbc.get_project_by_name(db, project.model.name)
@@ -541,25 +549,35 @@ def question_project(
     try:
         project = brain.findProject(projectName, db)
         if input.system or project.model.system:
-            answer, docs = brain.questionContext(project, input)
-            sources = [{"content": doc.page_content,
-                       "keywords": doc.metadata["keywords"],
-                        "source": doc.metadata["source"]} for doc in docs]
-            return {
-                "question": input.question,
-                "answer": answer,
-                "sources": sources,
-                "type": "questioncontext"}
+            answer, docs, censored = brain.questionContext(project, input)
+            type = "questioncontext"
+            if censored:
+                projectc = brain.findProject(project.model.sandbox_project, db)
+                if projectc is not None:
+                    answer, docs, censored = brain.questionContext(
+                        projectc, input)
         else:
-            answer, docs = brain.question(project, input)
-            sources = [{"content": doc.page_content,
-                       "keywords": doc.metadata["keywords"],
-                        "source": doc.metadata["source"]} for doc in docs]
-            return {
-                "question": input.question,
-                "answer": answer,
-                "sources": sources,
-                "type": "question"}
+            answer, docs, censored = brain.question(project, input)
+            type = "question"
+            if censored:
+                projectc = brain.findProject(project.model.sandbox_project, db)
+                if projectc is not None:
+                    if projectc.model.system:
+                        answer, docs, censored = brain.questionContext(
+                            projectc, input)
+                    else:
+                        answer, docs, censored = brain.question(
+                            projectc, input)
+
+        sources = [{"content": doc.page_content,
+                    "keywords": doc.metadata["keywords"],
+                    "source": doc.metadata["source"]} for doc in docs]
+
+        return {
+            "question": input.question,
+            "answer": answer,
+            "sources": sources,
+            "type": type}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -575,14 +593,24 @@ def chat_project(
         db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
-        chat, output = brain.chat(project, input)
+        chat, output, censored = brain.chat(project, input)
+        docs = output["source_documents"]
+        message = input.message
+        answer = output["answer"].strip()
 
-        sources = [{"content": doc.page_content, "keywords": doc.metadata["keywords"],
-                    "source": doc.metadata["source"]} for doc in output["source_documents"]]
+        if censored:
+            projectc = brain.findProject(project.model.sandbox_project, db)
+            if projectc is not None:
+                answer, docs, censored = brain.questionContext(projectc, input)
+            chat.history.append((message, answer))
+
+        sources = [{"content": doc.page_content,
+                    "keywords": doc.metadata["keywords"],
+                    "source": doc.metadata["source"]} for doc in docs]
 
         return {
-            "message": output["question"],
-            "response": output["answer"].strip(),
+            "message": message,
+            "response": answer,
             "id": chat.id,
             "sources": sources,
             "type": "chat"}

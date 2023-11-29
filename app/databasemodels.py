@@ -40,5 +40,6 @@ class ProjectDatabase(Base):
     censorship = Column(String)
     k = Column(Integer, default=2)
     score = Column(Float, default=0.2)
-    
+    sandbox_project = Column(String)
+
     owners = relationship("UserProjectDatabase", back_populates="project")

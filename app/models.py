@@ -35,6 +35,7 @@ class ProjectModel(BaseModel):
     censorship: Union[str, None] = None
     score: float = 0.2
     k: int = 2
+    sandbox_project: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -79,6 +80,7 @@ class ProjectModelUpdate(BaseModel):
     censorship: Union[str, None] = None
     score: Union[float, None] = None
     k: Union[int, None] = None
+    sandbox_project: Union[str, None] = None
 
 
 class HardwareInfo(BaseModel):

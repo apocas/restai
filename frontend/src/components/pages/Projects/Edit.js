@@ -11,6 +11,8 @@ function Edit() {
   const [error, setError] = useState([]);
   const systemForm = useRef(null)
   const scoreForm = useRef(null);
+  const projectForm = useRef(null)
+  const [projects, setProjects] = useState([]);
   const kForm = useRef(null);
   const censorshipForm = useRef(null)
   const llmForm = useRef(null)
@@ -25,10 +27,20 @@ function Edit() {
       .then((d) => {
         setData(d)
         llmForm.current.value = d.llm
+        projectForm.current.value = d.sandbox_project ? d.sandbox_project : "N/A"
         sandboxedForm.current.checked = d.sandboxed
       }
       ).catch(err => {
         setError([...error, { "functionName": "fetchProject", "error": err.toString() }]);
+      });
+  }
+
+  const fetchProjects = () => {
+    return fetch(url + "/projects", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+      .then((res) => res.json())
+      .then((d) => setProjects(d)
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchProjects", "error": err.toString() }]);
       });
   }
 
@@ -44,18 +56,34 @@ function Edit() {
   // TODO: response handling
   const onSubmitHandler = (event) => {
     event.preventDefault();
+
+    var opts = {
+      "name": projectName,
+      "llm": llmForm.current.value,
+      "system": systemForm.current.value,
+      "sandboxed": sandboxedForm.current.checked,
+      "censorship": censorshipForm.current.value,
+      "score": parseFloat(scoreForm.current.value),
+      "k": parseInt(kForm.current.value),
+      "sandbox_project": projectForm.current.value,
+    }
+
+    if(opts.sandbox_project === "" || opts.sandbox_project === "N/A") {
+      delete opts.sandbox_project;
+    }
+
+    if(opts.censorship.trim() === "") {
+      delete opts.censorship;
+    }
+
+    if(opts.system.trim() === "") {
+      delete opts.system;
+    }
+
     fetch(url + "/projects/" + projectName, {
       method: 'PATCH',
       headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
-      body: JSON.stringify({
-        "name": projectName,
-        "llm": llmForm.current.value,
-        "system": systemForm.current.value,
-        "sandboxed": sandboxedForm.current.checked,
-        "censorship": censorshipForm.current.value,
-        "score": parseFloat(scoreForm.current.value),
-        "k": parseInt(kForm.current.value),
-      }),
+      body: JSON.stringify(opts),
     })
       .then(function (response) {
         if (!response.ok) {
@@ -79,6 +107,7 @@ function Edit() {
     document.title = 'RestAI Projects';
     fetchInfo();
     fetchProject(projectName);
+    fetchProjects();
   }, [projectName]);
 
 
@@ -115,12 +144,34 @@ function Edit() {
             </Form.Group>
           </Row>
           <hr />
-          <Row className="mb-3">
-            <Form.Group as={Col} controlId="formGridCensorship">
-              <Form.Check ref={sandboxedForm} type="checkbox" label="Sandboxed" /> <Form.Label>Censorship Message</Form.Label>
-              <Form.Control rows="2" as="textarea" ref={censorshipForm} defaultValue={data.censorship ? data.censorship : ""} />
-            </Form.Group>
-          </Row>
+          <Form.Group as={Col} controlId="formGridCensorship">
+            <Row className="mb-3">
+              <Col sm={6}>
+                <Form.Check ref={sandboxedForm} type="checkbox" label="Sandboxed" />
+              </Col>
+            </Row>
+            <Row className="mb-3">
+              <Col sm={4}>
+                <Form.Group as={Col} controlId="formGridProjects">
+                  <Form.Label>Sandbox Project</Form.Label>
+                  <Form.Select ref={projectForm} defaultValue="N/A">
+                    <option>N/A</option>
+                    {
+                      projects.map((project, index) => {
+                        return (
+                          <option key={index}>{project.name}</option>
+                        )
+                      })
+                    }
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col sm={8}>
+                <Form.Label>Censorship Message</Form.Label>
+                <Form.Control rows="2" as="textarea" ref={censorshipForm} defaultValue={data.censorship ? data.censorship : ""} />
+              </Col>
+            </Row>
+          </Form.Group>
           <hr />
           <Row>
             <Col sm={6}>

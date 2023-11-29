@@ -109,7 +109,7 @@ function User() {
               <Row className="mb-3">
                 <Form.Group as={Col} controlId="formGridProjects">
                   <Form.Label>Project</Form.Label>
-                  <Form.Select ref={projectForm} defaultValue="Choose...">
+                  <Form.Select ref={projectForm} defaultValue="">
                     <option>Choose...</option>
                     {
                       projects.map((project, index) => {

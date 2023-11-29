@@ -64,7 +64,7 @@ class Brain:
             self.projects.append(project)
             return project
 
-    def createProject(self, projectModel, db):  
+    def createProject(self, projectModel, db):
         dbc.create_project(
             db,
             projectModel.name,
@@ -73,7 +73,7 @@ class Brain:
             projectModel.system,
             projectModel.sandboxed,
             projectModel.censorship
-            )
+        )
         project = Project()
         project.boot(projectModel)
         self.initializeEmbeddings(project)
@@ -107,17 +107,21 @@ class Brain:
         if proj_db.system != projectModel.system:
             proj_db.system = projectModel.system
             changed = True
-            
+
         if proj_db.censorship != projectModel.censorship:
             proj_db.censorship = projectModel.censorship
             changed = True
-            
+
         if proj_db.k != projectModel.k:
             proj_db.k = projectModel.k
             changed = True
-            
+
         if proj_db.score != projectModel.score:
             proj_db.score = projectModel.score
+            changed = True
+
+        if proj_db.sandbox_project != projectModel.sandbox_project:
+            proj_db.sandbox_project = projectModel.sandbox_project
             changed = True
 
         if changed:
@@ -153,9 +157,9 @@ class Brain:
         output = qa(questionModel.question)
 
         if project.model.sandboxed and len(output["source_documents"]) == 0:
-            return project.model.censorship or self.defaultCensorship, []
+            return project.model.censorship or self.defaultCensorship, [], True
 
-        return output["result"].strip(), output["source_documents"]
+        return output["result"].strip(), output["source_documents"], False
 
     def chat(self, project, chatModel):
         llm = self.getLLM(project.model.llm)
@@ -176,12 +180,11 @@ class Brain:
         )
 
         if project.model.sandboxed and len(result["source_documents"]) == 0:
-            chat.history.append(
-                (project.model.censorship or self.defaultCensorship))
-            return project.model.censorship or self.defaultCensorship, []
-
-        chat.history.append((chatModel.message, result["answer"]))
-        return chat, result
+            return chat, {"source_documents": [
+            ], "answer": project.model.censorship or self.defaultCensorship}, True
+        else:
+            chat.history.append((chatModel.message, result["answer"]))
+        return chat, result, False
 
     def questionContext(self, project, questionModel):
         llm = self.getLLM(questionModel.llm or project.model.llm)
@@ -208,7 +211,10 @@ class Brain:
         {{question}} [/INST]
         """
 
-        prompt_template_txt = llama_default_template
+        if "openai" in project.model.llm:
+            prompt_template_txt = openai_default_template
+        else:
+            prompt_template_txt = llama_default_template
 
         prompt_template = prompt_template_txt.format(
             system=questionModel.system or project.model.system or default_system)
@@ -231,7 +237,7 @@ class Brain:
 
         if len(docs) == 0:
             if project.model.sandboxed:
-                return project.model.censorship or self.defaultCensorship, []
+                return project.model.censorship or self.defaultCensorship, [], True
             else:
                 inputs = [{"context": "",
                            "question": questionModel.question}]
@@ -240,4 +246,4 @@ class Brain:
                        "question": questionModel.question} for doc in docs]
 
         output = chain.apply(inputs)
-        return output[0]["text"].strip(), docs
+        return output[0]["text"].strip(), docs, False
