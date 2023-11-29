@@ -2,6 +2,7 @@ import { Container, Table, Row, Form, Col, Button, ListGroup, Alert } from 'reac
 import { NavLink, useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
+import ReactJson from '@microlink/react-json-view';
 
 function Project() {
 
@@ -15,6 +16,7 @@ function Project() {
   const [canSubmit, setCanSubmit] = useState(true);
   const [error, setError] = useState([]);
   const urlForm = useRef(null);
+  const ref = useRef(null);
   const fileForm = useRef(null);
   var { projectName } = useParams();
   const { getBasicAuth } = useContext(AuthContext);
@@ -106,6 +108,7 @@ function Project() {
       .then(response => response.json())
       .then(response => {
         setEmbeddings(response);
+        ref.current?.scrollIntoView({ behavior: 'smooth' });
       }).catch(err => {
         setError([...error, { "functionName": "handleViewClick", "error": err.toString() }]);
       });
@@ -337,11 +340,11 @@ function Project() {
             embeddings && (
               <Row>
                 <Col sm={12}>
-                  <h2>Details:</h2>
+                  <h2 ref={ref}>Details:</h2>
                   <ListGroup style={{ height: "400px", overflowY: "scroll" }}>
-                    <ListGroup.Item><b>IDS:</b> <pre class="json">{JSON.stringify(embeddings.ids, null, 2)}</pre></ListGroup.Item>
-                    <ListGroup.Item><b>Metadatas:</b> <pre class="json">{JSON.stringify(embeddings.metadatas, null, 2)}</pre></ListGroup.Item>
-                    <ListGroup.Item><b>Documents:</b> <pre class="json">{JSON.stringify(embeddings.documents, null, 2)}</pre></ListGroup.Item>
+                    <ListGroup.Item><b>IDS:</b> <ReactJson src={embeddings.ids} enableClipboard={false} collapsed={0} /></ListGroup.Item>
+                    <ListGroup.Item><b>Metadatas:</b> <ReactJson src={embeddings.metadatas} enableClipboard={false} /></ListGroup.Item>
+                    <ListGroup.Item><b>Documents:</b> <ReactJson src={embeddings.documents} enableClipboard={false}/></ListGroup.Item>
                   </ListGroup>
                 </Col>
               </Row>

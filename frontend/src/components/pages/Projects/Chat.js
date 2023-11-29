@@ -1,7 +1,9 @@
-import { Container, Row, Form, InputGroup, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
+import { Container, Row, Form, InputGroup, Col, Card, Button, Spinner, Alert, Accordion } from 'react-bootstrap';
+import { useAccordionButton } from 'react-bootstrap/AccordionButton';
 import { useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
+import ReactJson from '@microlink/react-json-view';
 
 function Chat() {
 
@@ -16,6 +18,20 @@ function Chat() {
   const [error, setError] = useState([]);
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
+
+  function CustomToggle({ children, eventKey }) {
+    const decoratedOnClick = useAccordionButton(eventKey, () =>
+      console.log('totally custom!'),
+    );
+  
+    return (
+      <span
+        onClick={decoratedOnClick} style={{ cursor: 'pointer' }}
+      >
+        {children}
+      </span>
+    );
+  }
 
   const onSubmitHandler = (event) => {
     event.preventDefault();
@@ -52,7 +68,7 @@ function Chat() {
 
     if (submit && canSubmit) {
       setCanSubmit(false);
-      setMessages([...messages, { id: id, message: message, response: null }]);
+      setMessages([...messages, { id: id, message: message, response: null, sources: [] }]);
       fetch(url + "/projects/" + projectName + "/chat", {
         method: 'POST',
         headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
@@ -60,12 +76,12 @@ function Chat() {
       })
         .then(response => response.json())
         .then((response) => {
-          setMessages([...messages, { id: response.id, message: message, response: response.response }]);
+          setMessages([...messages, { id: response.id, message: message, response: response.response, sources: response.sources }]);
           messageForm.current.value = "";
           setCanSubmit(true);
         }).catch(err => {
           setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
-          setMessages([...messages, { id: id, message: message, response: "Error, something went wrong with my transistors." }]);
+          setMessages([...messages, { id: id, message: message, response: "Error, something went wrong with my transistors.", sources: [] }]);
           setCanSubmit(true);
         });
     }
@@ -105,13 +121,21 @@ function Chat() {
                       messages.map((message, index) => {
                         return (message.response != null ?
                           <div className='lineBreaks' key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
-                            <span className='highlight'>MESSAGE:</span> {message.message} <br />
+                            🧑<span className='highlight'>MESSAGE:</span> {message.message} <br />
                             🤖<span className='highlight'>RESPONSE:</span> {message.response}
+                            <Accordion>
+                              <Row style={{ textAlign: "right", marginBottom: "0px" }}>
+                                <CustomToggle eventKey="0">Details</CustomToggle>
+                              </Row>
+                              <Accordion.Collapse eventKey="0">
+                                <Card.Body><ReactJson src={message} enableClipboard={false}/></Card.Body>
+                              </Accordion.Collapse>
+                            </Accordion>
                             <hr />
                           </div>
                           :
                           <div className='lineBreaks' key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
-                            <span className='highlight'>MESSAGE:</span> {message.message} <br />
+                            🧑<span className='highlight'>MESSAGE:</span> {message.message} <br />
                             🤖<span className='highlight'>RESPONSE:</span> <Spinner animation="grow" size="sm" />
                             <hr />
                           </div>

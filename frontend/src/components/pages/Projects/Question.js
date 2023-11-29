@@ -1,7 +1,9 @@
-import { Container, Row, Form, InputGroup, Col, Card, Button, Spinner, Alert } from 'react-bootstrap';
+import { Container, Row, Form, InputGroup, Col, Card, Button, Spinner, Alert, Accordion } from 'react-bootstrap';
+import { useAccordionButton } from 'react-bootstrap/AccordionButton';
 import { useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
+import ReactJson from '@microlink/react-json-view';
 
 function Question() {
 
@@ -17,6 +19,21 @@ function Question() {
   const [error, setError] = useState([]);
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
+
+
+  function CustomToggle({ children, eventKey }) {
+    const decoratedOnClick = useAccordionButton(eventKey, () =>
+      console.log('totally custom!'),
+    );
+
+    return (
+      <span
+        onClick={decoratedOnClick} style={{ cursor: 'pointer' }}
+      >
+        {children}
+      </span>
+    );
+  }
 
   const onSubmitHandler = (event) => {
     event.preventDefault();
@@ -47,7 +64,7 @@ function Question() {
 
     if (submit && canSubmit) {
       setCanSubmit(false);
-      setAnswers([...answers, { question: question, answer: null }]);
+      setAnswers([...answers, { question: question, answer: null, sources: [] }]);
       fetch(url + "/projects/" + projectName + "/question", {
         method: 'POST',
         headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
@@ -55,12 +72,12 @@ function Question() {
       })
         .then(response => response.json())
         .then((response) => {
-          setAnswers([...answers, { question: question, answer: response.answer }]);
+          setAnswers([...answers, { question: question, answer: response.answer, sources: response.sources }]);
           questionForm.current.value = "";
           setCanSubmit(true);
         }).catch(err => {
           setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
-          setAnswers([...answers, { question: question, answer: "Error, something went wrong with my transistors." }]);
+          setAnswers([...answers, { question: question, answer: "Error, something went wrong with my transistors.", sources: [] }]);
           setCanSubmit(true);
         });
     }
@@ -98,7 +115,7 @@ function Question() {
               </InputGroup>
             </Col>
             {answers.length > 0 &&
-              <Col sm={12}>
+              <Col sm={12} style={{ marginTop: "20px" }}>
                 <Card>
                   <Card.Header>Results</Card.Header>
                   <Card.Body>
@@ -106,13 +123,21 @@ function Question() {
                       answers.map((answer, index) => {
                         return (answer.answer != null ?
                           <div className='lineBreaks' key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
-                            <span className='highlight'>QUESTION:</span> {answer.question} <br />
+                            🧑<span className='highlight'>QUESTION:</span> {answer.question} <br />
                             🤖<span className='highlight'>ANSWER:</span> {answer.answer}
+                            <Accordion>
+                              <Row style={{ textAlign: "right", marginBottom: "0px" }}>
+                                <CustomToggle eventKey="0">Details</CustomToggle>
+                              </Row>
+                              <Accordion.Collapse eventKey="0">
+                                <Card.Body><ReactJson src={answer} enableClipboard={false}/></Card.Body>
+                              </Accordion.Collapse>
+                            </Accordion>
                             <hr />
                           </div>
                           :
                           <div className='lineBreaks' key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
-                            <span className='highlight'>QUESTION:</span> {answer.question} <br />
+                            🧑<span className='highlight'>QUESTION:</span> {answer.question} <br />
                             🤖<span className='highlight'>ANSWER:</span> <Spinner animation="grow" size="sm" />
                             <hr />
                           </div>
