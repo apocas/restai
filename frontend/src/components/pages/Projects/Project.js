@@ -202,32 +202,26 @@ function Project() {
           <Col sm={6}>
             <h1>Status</h1>
             <ListGroup>
-              <ListGroup.Item>Project: {data.name}</ListGroup.Item>
-              <ListGroup.Item>LLM: {data.llm}</ListGroup.Item>
-              <ListGroup.Item>Embeddings: {data.embeddings} <Button onClick={() => handleResetEmbeddingsClick()} variant="danger">Reset</Button></ListGroup.Item>
-              <ListGroup.Item>Documents: {data.documents}</ListGroup.Item>
-              <ListGroup.Item>Metadatas: {data.metadatas}</ListGroup.Item>
-              <ListGroup.Item>System: {data.system}</ListGroup.Item>
-              <ListGroup.Item>Sandboxed: {data.sandboxed ? (<span>✅</span>) : (<span>❌</span>)}</ListGroup.Item>
-              <ListGroup.Item>Censorship: {data.censorship}</ListGroup.Item>
+              <ListGroup.Item><b>Project:</b> {data.name}</ListGroup.Item>
+              <ListGroup.Item><b>LLM:</b> {data.llm}</ListGroup.Item>
+              <ListGroup.Item><b>Embeddings:</b> {data.embeddings} <Button onClick={() => handleResetEmbeddingsClick()} variant="danger">Reset</Button></ListGroup.Item>
+              <ListGroup.Item><b>Documents:</b> {data.documents}</ListGroup.Item>
+              <ListGroup.Item><b>Metadatas:</b> {data.metadatas}</ListGroup.Item>
+              <ListGroup.Item><b>System:</b> {data.system}</ListGroup.Item>
+              <ListGroup.Item><b>Sandboxed:</b> {data.sandboxed ? (<span>✅</span>) : (<span>❌</span>)}</ListGroup.Item>
+              <ListGroup.Item><b>Censorship:</b> {data.censorship}</ListGroup.Item>
             </ListGroup>
           </Col>
           <Col sm={6}>
             <h1>Ingest</h1>
             <Form onSubmit={onSubmitHandler}>
               <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
-                <Form.Label column sm={1}>
-                  File
-                </Form.Label>
-                <Col sm={11}>
+                <Col sm={12}>
                   <Form.Control ref={fileForm} onChange={handleFileChange} type="file" />
                 </Col>
               </Form.Group>
               <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
-                <Form.Label column sm={1}>
-                  Url
-                </Form.Label>
-                <Col sm={11}>
+                <Col sm={12}>
                   <Form.Control ref={urlForm} type="url" placeholder="Enter url" />
                 </Col>
               </Form.Group>
@@ -238,9 +232,7 @@ function Project() {
             {
               uploadResponse.type === "file" ?
                 <Row>
-                  <Col sm={6}>
-                  </Col>
-                  <Col sm={6}>
+                  <Col sm={12}>
                     <h5>Ingest Result:</h5>
                     <ListGroup>
                       <ListGroup.Item>FileName: {uploadResponse.filename}</ListGroup.Item>
@@ -253,9 +245,7 @@ function Project() {
                 : (
                   uploadResponse.type === "url" &&
                   <Row>
-                    <Col sm={6}>
-                    </Col>
-                    <Col sm={6}>
+                    <Col sm={12}>
                       <h5>Ingest Result:</h5>
                       <ListGroup>
                         <ListGroup.Item>Url: {uploadResponse.url}</ListGroup.Item>
@@ -288,14 +278,14 @@ function Project() {
         </Row>
         <hr />
         <Row style={{ marginTop: "20px" }}>
-          <h1>Files & Urls</h1>
+          <h1>Embeddings</h1>
           <Col sm={12} style={files.files.length > 5 || urls.urls.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
             <Table striped bordered hover>
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Files</th>
                   <th>Type</th>
+                  <th>Source</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -347,12 +337,11 @@ function Project() {
             embeddings && (
               <Row>
                 <Col sm={12}>
-                  <h2>Embeddings:</h2>
-                  <ListGroup style={{ height: "200px", overflowY: "scroll" }}>
-                    <ListGroup.Item>IDS: {JSON.stringify(embeddings.ids)}</ListGroup.Item>
-                    <ListGroup.Item>Embeddings: {JSON.stringify(embeddings.embeddings)}</ListGroup.Item>
-                    <ListGroup.Item>Metadatas: {JSON.stringify(embeddings.metadatas)}</ListGroup.Item>
-                    <ListGroup.Item>Documents: {JSON.stringify(embeddings.documents)}</ListGroup.Item>
+                  <h2>Details:</h2>
+                  <ListGroup style={{ height: "400px", overflowY: "scroll" }}>
+                    <ListGroup.Item><b>IDS:</b> <pre class="json">{JSON.stringify(embeddings.ids, null, 2)}</pre></ListGroup.Item>
+                    <ListGroup.Item><b>Metadatas:</b> <pre class="json">{JSON.stringify(embeddings.metadatas, null, 2)}</pre></ListGroup.Item>
+                    <ListGroup.Item><b>Documents:</b> <pre class="json">{JSON.stringify(embeddings.documents, null, 2)}</pre></ListGroup.Item>
                   </ListGroup>
                 </Col>
               </Row>
