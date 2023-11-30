@@ -12,6 +12,7 @@ from app.tools import FindEmbeddingsPath
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
 from app.database import dbc
+from sqlalchemy.orm import Session
 
 
 class Brain:
@@ -20,6 +21,7 @@ class Brain:
         self.llmCache = {}
         self.embeddingCache = {}
         self.defaultCensorship = "This question is outside of my scope. Please ask another question."
+        self.loopFailsafe = 0
 
         self.text_splitter = RecursiveCharacterTextSplitter(
             separators=[" "], chunk_size=1024, chunk_overlap=30)
@@ -247,3 +249,20 @@ class Brain:
 
         output = chain.apply(inputs)
         return output[0]["text"].strip(), docs, False
+      
+    def entryQuestion(self, projectName: str, input: QuestionModel, db: Session):
+        self.loopFailsafe = 0
+        return self.recursiveQuestion(projectName, input, db)
+
+    def recursiveQuestion(self, projectName: str, input: QuestionModel, db: Session):
+        project = self.findProject(projectName, db)
+        answer, docs, censored = self.questionContext(project, input)
+        if censored:
+            projectc = self.findProject(project.model.sandbox_project, db)
+            if projectc is not None:
+                if self.loopFailsafe >= 10:
+                    return "I'm sorry, I can't answer that.", []
+                self.loopFailsafe += 1
+                answer, docs = self.recursiveQuestion(project.model.sandbox_project, input, db)
+
+        return answer, docs

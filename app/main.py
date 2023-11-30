@@ -547,27 +547,7 @@ def question_project(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
-        project = brain.findProject(projectName, db)
-        if input.system or project.model.system:
-            answer, docs, censored = brain.questionContext(project, input)
-            type = "questioncontext"
-            if censored:
-                projectc = brain.findProject(project.model.sandbox_project, db)
-                if projectc is not None:
-                    answer, docs, censored = brain.questionContext(
-                        projectc, input)
-        else:
-            answer, docs, censored = brain.question(project, input)
-            type = "question"
-            if censored:
-                projectc = brain.findProject(project.model.sandbox_project, db)
-                if projectc is not None:
-                    if projectc.model.system:
-                        answer, docs, censored = brain.questionContext(
-                            projectc, input)
-                    else:
-                        answer, docs, censored = brain.question(
-                            projectc, input)
+        answer, docs = brain.entryQuestion(projectName,input,db)
 
         sources = [{"content": doc.page_content,
                     "keywords": doc.metadata["keywords"],
@@ -577,7 +557,7 @@ def question_project(
             "question": input.question,
             "answer": answer,
             "sources": sources,
-            "type": type}
+            "type": "question"}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
