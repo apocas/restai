@@ -2,6 +2,8 @@ import { Container, Table, Row, Form, Col, Button, Alert } from 'react-bootstrap
 import { NavLink } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
+import Tooltip from 'react-bootstrap/Tooltip';
 
 function Projects() {
 
@@ -15,6 +17,12 @@ function Projects() {
   const llmForm = useRef(null)
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
+
+  const Link = ({ id, children, title }) => (
+    <OverlayTrigger overlay={<Tooltip id={id}>{title}</Tooltip>}>
+      <a href="#">{children}</a>
+    </OverlayTrigger>
+  );
 
   const fetchProjects = () => {
     return fetch(url + "/projects", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
@@ -169,7 +177,7 @@ function Projects() {
         </Row>
         <hr />
         <Row>
-          <h1>Create Project</h1>
+          <h1>Create Project <Link title="Default title" id="t-1" style=" height: 30px;width: 18px;">ℹ️</Link></h1>
           <Form onSubmit={onSubmitHandler}>
             <Row className="mb-3">
               <Form.Group as={Col} controlId="formGridProjectName">
