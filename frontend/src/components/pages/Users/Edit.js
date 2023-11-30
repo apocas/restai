@@ -2,6 +2,8 @@ import { Container, Row, Form, Col, Button, Alert } from 'react-bootstrap';
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useParams } from "react-router-dom";
 import { AuthContext } from '../../common/AuthProvider.js';
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
+import Tooltip from 'react-bootstrap/Tooltip';
 
 function Edit() {
 
@@ -12,6 +14,12 @@ function Edit() {
   var { username } = useParams();
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
+
+  const Link = ({ id, children, title }) => (
+    <OverlayTrigger overlay={<Tooltip id={id}>{title}</Tooltip>}>
+      <a href="#" style={{ fontSize: "small", margin: "3px" }}>{children}</a>
+    </OverlayTrigger>
+  );
 
   // TODO: response handling
   const onSubmitHandler = (event) => {
@@ -74,11 +82,12 @@ function Edit() {
           <Row className="mb-3">
             <Form.Group as={Col} controlId="formGridUserName">
               <Form.Label>Password</Form.Label>
-              <Form.Control ref={passwordForm} />
+              <Form.Control type="password" ref={passwordForm} />
             </Form.Group>
             {user.admin &&
               <Form.Group as={Col} controlId="formGridAdmin">
                 <Form.Check ref={isadminForm} type="checkbox" label="Admin" />
+                <Link title="Admins have access to all projects and can edit all users">ℹ️</Link>
               </Form.Group>
             }
           </Row>

@@ -2,6 +2,8 @@ import { Container, Table, Row, Form, Col, Button, ListGroup, Alert } from 'reac
 import { useParams, NavLink } from "react-router-dom";
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
+import Tooltip from 'react-bootstrap/Tooltip';
 
 function User() {
 
@@ -13,6 +15,12 @@ function User() {
   var { username } = useParams();
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth() || { username: null, admin: null };
+
+  const Link = ({ id, children, title }) => (
+    <OverlayTrigger overlay={<Tooltip id={id}>{title}</Tooltip>}>
+      <a href="#" style={{ fontSize: "small", margin: "3px" }}>{children}</a>
+    </OverlayTrigger>
+  );
 
   const fetchUser = (username) => {
     return fetch(url + "/users/" + username, { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
@@ -108,7 +116,7 @@ function User() {
             <Form onSubmit={onSubmitHandler}>
               <Row className="mb-3">
                 <Form.Group as={Col} controlId="formGridProjects">
-                  <Form.Label>Project</Form.Label>
+                  <Form.Label>Project<Link title="Allow this user to access this project">ℹ️</Link></Form.Label>
                   <Form.Select ref={projectForm} defaultValue="">
                     <option>Choose...</option>
                     {

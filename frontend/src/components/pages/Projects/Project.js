@@ -3,6 +3,8 @@ import { NavLink, useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
 import ReactJson from '@microlink/react-json-view';
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
+import Tooltip from 'react-bootstrap/Tooltip';
 
 function Project() {
 
@@ -21,6 +23,12 @@ function Project() {
   var { projectName } = useParams();
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
+
+  const Link = ({ id, children, title }) => (
+    <OverlayTrigger overlay={<Tooltip id={id}>{title}</Tooltip>}>
+      <a href="#" style={{ fontSize: "small", margin: "3px" }}>{children}</a>
+    </OverlayTrigger>
+  );
 
   const handleDeleteProjectClick = (projectName) => {
     if (window.confirm("Delete " + projectName + "?")) {
@@ -206,20 +214,22 @@ function Project() {
       <Container style={{ marginTop: "20px" }}>
         <Row style={{ marginTop: "20px" }}>
           <Col sm={6}>
-            <h1>Status</h1>
+            <h1>Details {data.name}</h1>
             <ListGroup>
-              <ListGroup.Item><b>Project:</b> {data.name}</ListGroup.Item>
               <ListGroup.Item><b>LLM:</b> {data.llm}</ListGroup.Item>
               <ListGroup.Item><b>Embeddings:</b> {data.embeddings} <Button onClick={() => handleResetEmbeddingsClick()} variant="danger">Reset</Button></ListGroup.Item>
               <ListGroup.Item><b>Documents:</b> {data.documents}</ListGroup.Item>
               <ListGroup.Item><b>Metadatas:</b> {data.metadatas}</ListGroup.Item>
               <ListGroup.Item><b>System:</b> {data.system}</ListGroup.Item>
+              <ListGroup.Item><b>K:</b> {data.k}</ListGroup.Item>
+              <ListGroup.Item><b>Score:</b> {data.score}</ListGroup.Item>
               <ListGroup.Item><b>Sandboxed:</b> {data.sandboxed ? (<span>✅</span>) : (<span>❌</span>)}</ListGroup.Item>
-              <ListGroup.Item><b>Censorship:</b> {data.censorship}</ListGroup.Item>
+              <ListGroup.Item><b>Sandbox Project:</b> {data.sandbox_project}</ListGroup.Item>
+              <ListGroup.Item><b>Sandbox Message:</b> {data.censorship}</ListGroup.Item>
             </ListGroup>
           </Col>
           <Col sm={6}>
-            <h1>Ingest</h1>
+            <h1>Ingest<Link title="Ingest a file or an URL">ℹ️</Link></h1>
             <Form onSubmit={onSubmitHandler}>
               <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
                 <Col sm={12}>
@@ -284,7 +294,7 @@ function Project() {
         </Row>
         <hr />
         <Row style={{ marginTop: "20px" }}>
-          <h1>Embeddings</h1>
+          <h1>Embeddings<Link title="Ingested files and URLs">ℹ️</Link></h1>
           <Col sm={12} style={files.files.length > 5 || urls.urls.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
             <Table striped bordered hover>
               <thead>

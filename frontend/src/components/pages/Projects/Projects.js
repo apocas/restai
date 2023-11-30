@@ -20,7 +20,7 @@ function Projects() {
 
   const Link = ({ id, children, title }) => (
     <OverlayTrigger overlay={<Tooltip id={id}>{title}</Tooltip>}>
-      <a href="#">{children}</a>
+      <a href="#" style={{ fontSize: "small", margin: "3px" }}>{children}</a>
     </OverlayTrigger>
   );
 
@@ -120,6 +120,7 @@ function Projects() {
                 <th>#</th>
                 <th>Project Name</th>
                 <th>Actions</th>
+                <th>Inference<Link title="Chat has memory. Question doesn't">ℹ️</Link></th>
                 {user.admin &&
                   <th>Used by</th>
                 }
@@ -144,6 +145,8 @@ function Projects() {
                         >
                           <Button variant="dark">View</Button>{' '}
                         </NavLink>
+                      </td>
+                      <td>
                         <NavLink
                           to={"/projects/" + project.name + "/chat"}
                         >
@@ -177,7 +180,7 @@ function Projects() {
         </Row>
         <hr />
         <Row>
-          <h1>Create Project <Link title="Default title" id="t-1" style=" height: 30px;width: 18px;">ℹ️</Link></h1>
+          <h1>Create Project</h1>
           <Form onSubmit={onSubmitHandler}>
             <Row className="mb-3">
               <Form.Group as={Col} controlId="formGridProjectName">
@@ -185,7 +188,7 @@ function Projects() {
                 <Form.Control ref={projectNameForm} />
               </Form.Group>
               <Form.Group as={Col} controlId="formGridEmbeddings">
-                <Form.Label>Embeddings</Form.Label>
+                <Form.Label>Embeddings<Link title="Model used to compute embeddings">ℹ️</Link></Form.Label>
                 <Form.Select ref={embbeddingForm} defaultValue="">
                   <option>Choose...</option>
                   {

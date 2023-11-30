@@ -2,6 +2,8 @@ import { Container, Row, Form, Col, Button, Alert, InputGroup } from 'react-boot
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useParams } from "react-router-dom";
 import { AuthContext } from '../../common/AuthProvider.js';
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
+import Tooltip from 'react-bootstrap/Tooltip';
 
 function Edit() {
 
@@ -20,6 +22,12 @@ function Edit() {
   var { projectName } = useParams();
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
+
+  const Link = ({ id, children, title }) => (
+    <OverlayTrigger overlay={<Tooltip id={id}>{title}</Tooltip>}>
+      <a href="#" style={{ fontSize: "small", margin: "3px" }}>{children}</a>
+    </OverlayTrigger>
+  );
 
   const fetchProject = (projectName) => {
     return fetch(url + "/projects/" + projectName, { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
@@ -68,15 +76,15 @@ function Edit() {
       "sandbox_project": projectForm.current.value,
     }
 
-    if(opts.sandbox_project === "" || opts.sandbox_project === "N/A") {
+    if (opts.sandbox_project === "" || opts.sandbox_project === "N/A") {
       delete opts.sandbox_project;
     }
 
-    if(opts.censorship.trim() === "") {
+    if (opts.censorship.trim() === "") {
       delete opts.censorship;
     }
 
-    if(opts.system.trim() === "") {
+    if (opts.system.trim() === "") {
       delete opts.system;
     }
 
@@ -139,7 +147,7 @@ function Edit() {
           </Row>
           <Row className="mb-3">
             <Form.Group as={Col} controlId="formGridSystem">
-              <Form.Label>System Message</Form.Label>
+              <Form.Label>System Message<Link title="Instructions for the LLM know how to behave">ℹ️</Link></Form.Label>
               <Form.Control rows="2" as="textarea" ref={systemForm} defaultValue={data.system ? data.system : ""} />
             </Form.Group>
           </Row>
@@ -147,13 +155,13 @@ function Edit() {
           <Form.Group as={Col} controlId="formGridCensorship">
             <Row className="mb-3">
               <Col sm={6}>
-                <Form.Check ref={sandboxedForm} type="checkbox" label="Sandboxed" />
+                <Form.Check ref={sandboxedForm} type="checkbox" label="Sandboxed" /><Link title="In sandbox mode, answers will be stricked to the ingested knowledge.">ℹ️</Link>
               </Col>
             </Row>
             <Row className="mb-3">
               <Col sm={4}>
                 <Form.Group as={Col} controlId="formGridProjects">
-                  <Form.Label>Sandbox Project</Form.Label>
+                  <Form.Label>Sandbox Project<Link title="When sandboxed, questions that miss ingested knowledge will be passed to this project.">ℹ️</Link></Form.Label>
                   <Form.Select ref={projectForm} defaultValue="N/A">
                     <option>N/A</option>
                     {
@@ -167,7 +175,7 @@ function Edit() {
                 </Form.Group>
               </Col>
               <Col sm={8}>
-                <Form.Label>Censorship Message</Form.Label>
+                <Form.Label>Censorship Message<Link title="When sandboxed, if a censorship message is set it will be used on questions that miss ingested knowledge.">ℹ️</Link></Form.Label>
                 <Form.Control rows="2" as="textarea" ref={censorshipForm} defaultValue={data.censorship ? data.censorship : ""} />
               </Col>
             </Row>
@@ -176,13 +184,13 @@ function Edit() {
           <Row>
             <Col sm={6}>
               <InputGroup>
-                <InputGroup.Text>Score Threshold</InputGroup.Text>
+                <InputGroup.Text>Score Threshold<Link title="Minimum score acceptable to match with ingested knowledge (embeddings)">ℹ️</Link></InputGroup.Text>
                 <Form.Control ref={scoreForm} defaultValue={data.score} />
               </InputGroup>
             </Col>
             <Col sm={6}>
               <InputGroup>
-                <InputGroup.Text>k</InputGroup.Text>
+                <InputGroup.Text>k<Link title="Number of embeddings used to compute an answer">ℹ️</Link></InputGroup.Text>
                 <Form.Control ref={kForm} defaultValue={data.k} />
               </InputGroup>
             </Col>
