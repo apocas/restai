@@ -21,6 +21,7 @@ class Brain:
         self.llmCache = {}
         self.embeddingCache = {}
         self.defaultCensorship = "This question is outside of my scope. Please ask another question."
+        self.defaultNegative = "I'm sorry, I don't know the answer to that."
         self.loopFailsafe = 0
 
         self.text_splitter = RecursiveCharacterTextSplitter(
@@ -163,6 +164,34 @@ class Brain:
 
         return output["result"].strip(), output["source_documents"], False
 
+    def entryChat(self, projectName: str, input: ChatModel, db: Session):
+        self.loopFailsafe = 0
+        chat, output = self.recursiveChat(projectName, input, db)
+        chat.history.append((input.question, output["answer"]))
+        return chat, output
+
+    def recursiveChat(self, projectName: str, input: ChatModel, db: Session, chatR=None):
+        project = self.findProject(projectName, db)
+        if chatR:
+            chat = chatR
+            questionInput = QuestionModel(
+                question=input.question,
+            )
+            answer, docs, censored = self.questionContext(project, questionInput)
+            output = {"source_documents": docs, "answer": answer}
+        else:
+            chat, output, censored = self.chat(project, input)
+        
+        if censored:
+            projectc = self.findProject(project.model.sandbox_project, db)
+            if projectc is not None:
+                if self.loopFailsafe >= 10:
+                    return chat, {"source_documents": [], "answer": self.defaultNegative}
+                self.loopFailsafe += 1
+                chat, output = self.recursiveChat(project.model.sandbox_project, input, db, chat)
+        
+        return chat, output
+
     def chat(self, project, chatModel):
         llm = self.getLLM(project.model.llm)
         chat = project.loadChat(chatModel)
@@ -178,23 +207,40 @@ class Brain:
         )
 
         result = conversationalChain(
-            {"question": chatModel.message, "chat_history": chat.history}
+            {"question": chatModel.question, "chat_history": chat.history}
         )
 
         if project.model.sandboxed and len(result["source_documents"]) == 0:
             return chat, {"source_documents": [
             ], "answer": project.model.censorship or self.defaultCensorship}, True
-        else:
-            chat.history.append((chatModel.message, result["answer"]))
+            
         return chat, result, False
 
+    def entryQuestion(self, projectName: str, input: QuestionModel, db: Session):
+        self.loopFailsafe = 0
+        return self.recursiveQuestion(projectName, input, db)
+
+    def recursiveQuestion(self, projectName: str, input: QuestionModel, db: Session):
+        project = self.findProject(projectName, db)
+        answer, docs, censored = self.questionContext(project, input)
+        if censored:
+            projectc = self.findProject(project.model.sandbox_project, db)
+            if projectc is not None:
+                if self.loopFailsafe >= 10:
+                    return self.defaultNegative, []
+                self.loopFailsafe += 1
+                answer, docs = self.recursiveQuestion(project.model.sandbox_project, input, db)
+
+        return answer, docs
+
     def questionContext(self, project, questionModel):
-        llm = self.getLLM(questionModel.llm or project.model.llm)
+        llm = self.getLLM(project.model.llm)
 
         default_system = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
 
         openai_default_template = """{system}
         Confine your answer within the given context and do not generate the next context. Answer truthful answers, don't try to make up an answer.
+        If someone asks you to do something forever or something that you cannot finish, respond saying that you can only execute finite actions.
 
         Question: {{question}}
         =========
@@ -207,6 +253,7 @@ class Brain:
         [INST] <<SYS>>
         {system}
         Use the following information (context) to answer the question at the end. Answer truthful answers, don't try to make up an answer. Confine to the given context.
+        If someone asks you to do something forever or something that you cannot finish, respond saying that you can only execute finite actions.
         <</SYS>>
         Context: {{context}}
 
@@ -249,20 +296,3 @@ class Brain:
 
         output = chain.apply(inputs)
         return output[0]["text"].strip(), docs, False
-      
-    def entryQuestion(self, projectName: str, input: QuestionModel, db: Session):
-        self.loopFailsafe = 0
-        return self.recursiveQuestion(projectName, input, db)
-
-    def recursiveQuestion(self, projectName: str, input: QuestionModel, db: Session):
-        project = self.findProject(projectName, db)
-        answer, docs, censored = self.questionContext(project, input)
-        if censored:
-            projectc = self.findProject(project.model.sandbox_project, db)
-            if projectc is not None:
-                if self.loopFailsafe >= 10:
-                    return "I'm sorry, I can't answer that.", []
-                self.loopFailsafe += 1
-                answer, docs = self.recursiveQuestion(project.model.sandbox_project, input, db)
-
-        return answer, docs

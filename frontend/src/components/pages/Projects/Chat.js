@@ -36,7 +36,7 @@ function Chat() {
   const onSubmitHandler = (event) => {
     event.preventDefault();
 
-    var message = messageForm.current.value;
+    var question = messageForm.current.value;
     var id = "";
     var k = parseInt(kForm.current.value);
     var score = parseFloat(scoreForm.current.value);
@@ -49,16 +49,16 @@ function Chat() {
 
     var body = {};
     var submit = false;
-    if (message !== "" && id === "") {
+    if (question !== "" && id === "") {
       body = {
-        "message": message,
+        "question": question,
         "k": k,
         "score": score
       }
       submit = true;
-    } else if (message !== "" && id !== "") {
+    } else if (question !== "" && id !== "") {
       body = {
-        "message": message,
+        "question": question,
         "id": id,
         "k": k,
         "score": score
@@ -68,7 +68,7 @@ function Chat() {
 
     if (submit && canSubmit) {
       setCanSubmit(false);
-      setMessages([...messages, { id: id, message: message, response: null, sources: [] }]);
+      setMessages([...messages, { id: id, question: question, answer: null, sources: [] }]);
       fetch(url + "/projects/" + projectName + "/chat", {
         method: 'POST',
         headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
@@ -76,12 +76,12 @@ function Chat() {
       })
         .then(response => response.json())
         .then((response) => {
-          setMessages([...messages, { id: response.id, message: message, response: response.response, sources: response.sources }]);
+          setMessages([...messages, { id: response.id, question: response.question, answer: response.answer, sources: response.sources }]);
           messageForm.current.value = "";
           setCanSubmit(true);
         }).catch(err => {
           setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
-          setMessages([...messages, { id: id, message: message, response: "Error, something went wrong with my transistors.", sources: [] }]);
+          setMessages([...messages, { id: id, question: question, answer: "Error, something went wrong with my transistors.", sources: [] }]);
           setCanSubmit(true);
         });
     }
@@ -119,10 +119,10 @@ function Chat() {
                   <Card.Body>
                     {
                       messages.map((message, index) => {
-                        return (message.response != null ?
+                        return (message.answer != null ?
                           <div className='lineBreaks' key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
-                            🧑<span className='highlight'>MESSAGE:</span> {message.message} <br />
-                            🤖<span className='highlight'>RESPONSE:</span> {message.response}
+                            🧑<span className='highlight'>MESSAGE:</span> {message.question} <br />
+                            🤖<span className='highlight'>RESPONSE:</span> {message.answer}
                             <Accordion>
                               <Row style={{ textAlign: "right", marginBottom: "0px" }}>
                                 <CustomToggle eventKey="0">Details</CustomToggle>
@@ -135,7 +135,7 @@ function Chat() {
                           </div>
                           :
                           <div className='lineBreaks' key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
-                            🧑<span className='highlight'>MESSAGE:</span> {message.message} <br />
+                            🧑<span className='highlight'>MESSAGE:</span> {message.question} <br />
                             🤖<span className='highlight'>RESPONSE:</span> <Spinner animation="grow" size="sm" />
                             <hr />
                           </div>

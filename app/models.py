@@ -17,12 +17,11 @@ class InteractionModel(BaseModel):
 
 class QuestionModel(InteractionModel):
     question: str
-    llm: Union[str, None] = None
     system: Union[str, None] = None
 
 
 class ChatModel(InteractionModel):
-    message: str
+    question: str
     id: Union[str, None] = None
 
 
@@ -104,9 +103,5 @@ class QuestionResponse(BaseModel):
     sources: list[SourceModel]
 
 
-class ChatResponse(BaseModel):
-    message: str
-    response: str
-    type: str
+class ChatResponse(QuestionResponse):
     id: str
-    sources: list[SourceModel]

@@ -572,25 +572,17 @@ def chat_project(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
-        project = brain.findProject(projectName, db)
-        chat, output, censored = brain.chat(project, input)
+        chat, output = brain.entryChat(projectName, input, db)
         docs = output["source_documents"]
-        message = input.message
         answer = output["answer"].strip()
-
-        if censored:
-            projectc = brain.findProject(project.model.sandbox_project, db)
-            if projectc is not None:
-                answer, docs, censored = brain.questionContext(projectc, input)
-            chat.history.append((message, answer))
 
         sources = [{"content": doc.page_content,
                     "keywords": doc.metadata["keywords"],
                     "source": doc.metadata["source"]} for doc in docs]
 
         return {
-            "message": message,
-            "response": answer,
+            "question": input.question,
+            "answer": answer,
             "id": chat.id,
             "sources": sources,
             "type": "chat"}
