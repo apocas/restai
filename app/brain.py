@@ -220,20 +220,20 @@ class Brain:
         self.loopFailsafe = 0
         return self.recursiveQuestion(projectName, input, db)
 
-    def recursiveQuestion(self, projectName: str, input: QuestionModel, db: Session):
+    def recursiveQuestion(self, projectName: str, input: QuestionModel, db: Session, recursive = False):
         project = self.findProject(projectName, db)
-        answer, docs, censored = self.questionContext(project, input)
+        answer, docs, censored = self.questionContext(project, input, recursive)
         if censored:
             projectc = self.findProject(project.model.sandbox_project, db)
             if projectc is not None:
                 if self.loopFailsafe >= 10:
                     return self.defaultNegative, []
                 self.loopFailsafe += 1
-                answer, docs = self.recursiveQuestion(project.model.sandbox_project, input, db)
+                answer, docs = self.recursiveQuestion(project.model.sandbox_project, input, db, True)
 
         return answer, docs
 
-    def questionContext(self, project, questionModel):
+    def questionContext(self, project, questionModel, child=False):
         llm = self.getLLM(project.model.llm)
 
         default_system = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
@@ -265,8 +265,12 @@ class Brain:
         else:
             prompt_template_txt = llama_default_template
 
-        prompt_template = prompt_template_txt.format(
-            system=questionModel.system or project.model.system or default_system)
+        if child:
+            sysTemplate = project.model.system or default_system
+        else:
+            sysTemplate = questionModel.system or project.model.system or default_system
+            
+        prompt_template = prompt_template_txt.format(system=sysTemplate)
 
         prompt = PromptTemplate(
             template=prompt_template, input_variables=["context", "question"]
