@@ -32,7 +32,7 @@ class Brain:
             return self.llmCache[llmModel]
         else:
             if llmModel in LLMS:
-                llm_class, llm_args = LLMS[llmModel]
+                llm_class, llm_args, prompt = LLMS[llmModel]
                 llm = llm_class(**llm_args, **kwargs)
                 self.llmCache[llmModel] = llm
                 return llm
