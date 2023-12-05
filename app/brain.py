@@ -5,6 +5,7 @@ from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain.vectorstores import Chroma
+from app.model import Model
 
 from app.models import EmbeddingModel, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
 from app.project import Project
@@ -13,6 +14,8 @@ from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
 from app.database import dbc
 from sqlalchemy.orm import Session
+
+from modules.prompts import PROMPTS
 
 
 class Brain:
@@ -32,10 +35,11 @@ class Brain:
             return self.llmCache[llmModel]
         else:
             if llmModel in LLMS:
-                llm_class, llm_args, prompt = LLMS[llmModel]
+                llm_class, llm_args, prompt, privacy = LLMS[llmModel]
                 llm = llm_class(**llm_args, **kwargs)
-                self.llmCache[llmModel] = llm
-                return llm
+                m = Model(llmModel, llm, prompt, privacy)
+                self.llmCache[llmModel] = m
+                return m
             else:
                 raise Exception("Invalid LLM type.")
 
@@ -143,7 +147,7 @@ class Brain:
         return True
 
     def question(self, project, questionModel):
-        llm = self.getLLM(questionModel.llm or project.model.llm)
+        model = self.getLLM(questionModel.llm or project.model.llm)
 
         retriever = project.db.as_retriever(
             search_type="similarity_score_threshold",
@@ -152,7 +156,7 @@ class Brain:
                 "k": questionModel.k or project.model.k or 2})
 
         qa = RetrievalQA.from_chain_type(
-            llm=llm,
+            llm=model.llm,
             chain_type="stuff",
             retriever=retriever,
             return_source_documents=True
@@ -193,7 +197,7 @@ class Brain:
         return chat, output
 
     def chat(self, project, chatModel):
-        llm = self.getLLM(project.model.llm)
+        model = self.getLLM(project.model.llm)
         chat = project.loadChat(chatModel)
 
         retriever = project.db.as_retriever(
@@ -203,7 +207,7 @@ class Brain:
                 "k": chatModel.k or project.model.k or 4})
 
         conversationalChain = ConversationalRetrievalChain.from_llm(
-            llm=llm, retriever=retriever, return_source_documents=True
+            llm=model.llm, retriever=retriever, return_source_documents=True
         )
 
         result = conversationalChain(
@@ -234,36 +238,11 @@ class Brain:
         return answer, docs
 
     def questionContext(self, project, questionModel, child=False):
-        llm = self.getLLM(project.model.llm)
+        model = self.getLLM(project.model.llm)
 
         default_system = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
 
-        openai_default_template = """{system}
-        Confine your answer within the given context and do not generate the next context. Answer truthful answers, don't try to make up an answer.
-        If someone asks you to do something forever or something that you cannot finish, respond saying that you can only execute finite actions.
-
-        Question: {{question}}
-        =========
-        Context: {{context}}
-        =========
-        Answer:
-        """
-
-        llama_default_template = """
-        [INST] <<SYS>>
-        {system}
-        Use the following information (context) to answer the question at the end. Answer truthful answers, don't try to make up an answer. Confine to the given context.
-        If someone asks you to do something forever or something that you cannot finish, respond saying that you can only execute finite actions.
-        <</SYS>>
-        Context: {{context}}
-
-        {{question}} [/INST]
-        """
-
-        if "openai" in project.model.llm:
-            prompt_template_txt = openai_default_template
-        else:
-            prompt_template_txt = llama_default_template
+        prompt_template_txt = PROMPTS[model.prompt]
 
         if child:
             sysTemplate = project.model.system or default_system
@@ -275,7 +254,7 @@ class Brain:
         prompt = PromptTemplate(
             template=prompt_template, input_variables=["context", "question"]
         )
-        chain = LLMChain(llm=llm, prompt=prompt)
+        chain = LLMChain(llm=model.llm, prompt=prompt)
 
         retriever = project.db.as_retriever(
             search_type="similarity_score_threshold",
