@@ -21,4 +21,6 @@ psutil
 passlib
 SQLAlchemy
 jq
-transformers
+transformers==4.35.2
+accelerate==0.24.1
+optimum==1.13.1

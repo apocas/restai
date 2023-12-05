@@ -2,6 +2,7 @@ import os
 from fastapi import HTTPException
 from modules.loaders import LOADERS
 import yake
+import re
 
 
 def IndexDocuments(brain, project, documents):
@@ -48,7 +49,7 @@ def FindEmbeddingsPath(projectName):
         embeddings_path) if os.path.isdir(os.path.join(embeddings_path, d))]
 
     for dir in project_dirs:
-        if dir.startswith(projectName + "_"):
+        if re.match(f'^{projectName}_[0-9]+$', dir):
             return os.path.join(embeddings_path, dir)
 
     raise Exception("Project not found.")
