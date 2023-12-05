@@ -12,3 +12,6 @@ class Chat:
 
     def clearHistory(self):
         self.history = []
+
+    def __eq__(self, other):
+        return self.id == other.id

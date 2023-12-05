@@ -21,3 +21,4 @@ psutil
 passlib
 SQLAlchemy
 jq
+transformers
