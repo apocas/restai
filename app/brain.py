@@ -205,9 +205,20 @@ class Brain:
             search_kwargs={
                 "score_threshold": chatModel.score or project.model.score or 0.2,
                 "k": chatModel.k or project.model.k or 4})
+        
+        default_system = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
+
+        prompt_template_txt = PROMPTS[model.prompt]
+        sysTemplate = project.model.system or default_system
+        prompt_template = prompt_template_txt.format(system=sysTemplate, history="Chat History: {chat_history}")
+        
+        custom_prompt = PromptTemplate(
+          template=prompt_template,
+          input_variables=["context", "question", "chat_history"],
+        )
 
         conversationalChain = ConversationalRetrievalChain.from_llm(
-            llm=model.llm, retriever=retriever, return_source_documents=True
+            llm=model.llm, retriever=retriever, return_source_documents=True, combine_docs_chain_kwargs={"prompt": custom_prompt}
         )
 
         result = conversationalChain(
@@ -249,7 +260,7 @@ class Brain:
         else:
             sysTemplate = questionModel.system or project.model.system or default_system
             
-        prompt_template = prompt_template_txt.format(system=sysTemplate)
+        prompt_template = prompt_template_txt.format(system=sysTemplate, history="")
 
         prompt = PromptTemplate(
             template=prompt_template, input_variables=["context", "question"]

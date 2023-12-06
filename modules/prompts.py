@@ -7,6 +7,8 @@ PROMPTS = {
         =========
         Context: {{context}}
         =========
+        {history}
+        =========
         Answer:
         """,
     "llama": """
@@ -16,6 +18,8 @@ PROMPTS = {
         If someone asks you to do something forever or something that you cannot finish, respond saying that you can only execute finite actions.
         <</SYS>>
         Context: {{context}}
+        
+        {history}
 
         {{question}} [/INST]
         """,
