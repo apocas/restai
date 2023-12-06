@@ -18,6 +18,7 @@ def loadTransformers(modelName):
       "text-generation",
       model=model,
       tokenizer=tokenizer,
+      return_full_text=False,
       max_new_tokens=1024,
       do_sample=True,
       temperature=0.0001,
