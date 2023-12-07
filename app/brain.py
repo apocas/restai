@@ -38,19 +38,21 @@ class Brain:
         if llmModel in self.llmCache:
             return self.llmCache[llmModel]
         else:
-            for llmModel, llm in self.llmCache.items():
-                if isinstance(llm, HuggingFacePipeline):
+            models_to_unload = []
+            for llmModel, m in self.llmCache.items():
+                if isinstance(m.llm, HuggingFacePipeline):
                     print("UNLOADING MODEL " + llmModel)
-                    del llm.model
-                    del llm.tokenizer
-                    del self.llmCache[llmModel]
-                    gc.collect()
-                    torch.cuda.empty_cache()
+                    models_to_unload.append(llmModel)
+                    
+            for model in models_to_unload:
+                del self.llmCache[model]
+                gc.collect()
+                torch.cuda.empty_cache()
                     
             if llmModel in LLMS:
                 llm_class, llm_args, prompt, privacy = LLMS[llmModel]
                 llm = llm_class(**llm_args, **kwargs)
-                m = Model(llmModel, llm, prompt, privacy)
+                m = Model(llmModel, llm)
                 self.llmCache[llmModel] = m
                 return m
             else:
