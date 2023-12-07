@@ -1,9 +1,11 @@
 class Model:
-    def __init__(self, model_name, llm, prompt, privacy):
+    def __init__(self, model_name, llm, prompt, privacy, model = None, tokenizer = None):
         self.model_name = model_name
         self.llm = llm
         self.prompt = prompt
         self.privacy = privacy
+        self.model = model
+        self.tokenizer = tokenizer
   
     def __str__(self):
         return self.model_name

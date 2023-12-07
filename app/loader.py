@@ -27,5 +27,5 @@ def loadTransformers(modelName):
       repetition_penalty=1.15
   )
 
-  return HuggingFacePipeline(pipeline=pipe)
+  return HuggingFacePipeline(pipeline=pipe), model, tokenizer
     
