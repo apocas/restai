@@ -39,13 +39,13 @@ class Brain:
             return self.llmCache[llmModel]
         else:
             models_to_unload = []
-            for llmModel, m in self.llmCache.items():
-                if isinstance(m.llm, HuggingFacePipeline):
-                    print("UNLOADING MODEL " + llmModel)
-                    models_to_unload.append(llmModel)
+            for llmr, mr in self.llmCache.items():
+                if isinstance(mr.llm, HuggingFacePipeline):
+                    print("UNLOADING MODEL " + llmr)
+                    models_to_unload.append(llmr)
                     
-            for model in models_to_unload:
-                del self.llmCache[model]
+            for modelr in models_to_unload:
+                del self.llmCache[modelr]
                 gc.collect()
                 torch.cuda.empty_cache()
                     
