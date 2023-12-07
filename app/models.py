@@ -33,7 +33,7 @@ class ProjectModel(BaseModel):
     sandboxed: Union[bool, None] = None
     censorship: Union[str, None] = None
     score: float = 0.2
-    k: int = 2
+    k: int = 1
     sandbox_project: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 

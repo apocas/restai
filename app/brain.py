@@ -25,6 +25,7 @@ class Brain:
         self.embeddingCache = {}
         self.defaultCensorship = "This question is outside of my scope. Please ask another question."
         self.defaultNegative = "I'm sorry, I don't know the answer to that."
+        self.defaultSystem = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
         self.loopFailsafe = 0
 
         self.text_splitter = RecursiveCharacterTextSplitter(
@@ -146,28 +147,6 @@ class Brain:
             self.projects.remove(proj)
         return True
 
-    def question(self, project, questionModel):
-        model = self.getLLM(questionModel.llm or project.model.llm)
-
-        retriever = project.db.as_retriever(
-            search_type="similarity_score_threshold",
-            search_kwargs={
-                "score_threshold": questionModel.score or project.model.score or 0.2,
-                "k": questionModel.k or project.model.k or 2})
-
-        qa = RetrievalQA.from_chain_type(
-            llm=model.llm,
-            chain_type="stuff",
-            retriever=retriever,
-            return_source_documents=True
-        )
-        output = qa(questionModel.question)
-
-        if project.model.sandboxed and len(output["source_documents"]) == 0:
-            return project.model.censorship or self.defaultCensorship, [], True
-
-        return output["result"].strip(), output["source_documents"], False
-
     def entryChat(self, projectName: str, input: ChatModel, db: Session):
         self.loopFailsafe = 0
         chat, output = self.recursiveChat(projectName, input, db)
@@ -204,12 +183,10 @@ class Brain:
             search_type="similarity_score_threshold",
             search_kwargs={
                 "score_threshold": chatModel.score or project.model.score or 0.2,
-                "k": chatModel.k or project.model.k or 4})
-        
-        default_system = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
+                "k": chatModel.k or project.model.k or 1})
 
         prompt_template_txt = PROMPTS[model.prompt]
-        sysTemplate = project.model.system or default_system
+        sysTemplate = project.model.system or self.defaultSystem
         prompt_template = prompt_template_txt.format(system=sysTemplate, history="Chat History: {chat_history}")
         
         custom_prompt = PromptTemplate(
@@ -251,14 +228,12 @@ class Brain:
     def questionContext(self, project, questionModel, child=False):
         model = self.getLLM(project.model.llm)
 
-        default_system = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
-
         prompt_template_txt = PROMPTS[model.prompt]
 
         if child:
-            sysTemplate = project.model.system or default_system
+            sysTemplate = project.model.system or self.defaultSystem
         else:
-            sysTemplate = questionModel.system or project.model.system or default_system
+            sysTemplate = questionModel.system or project.model.system or self.defaultSystem
             
         prompt_template = prompt_template_txt.format(system=sysTemplate, history="")
 
@@ -271,7 +246,7 @@ class Brain:
             search_type="similarity_score_threshold",
             search_kwargs={
                 "score_threshold": questionModel.score or project.model.score or 0.2,
-                "k": questionModel.k or project.model.k or 4})
+                "k": questionModel.k or project.model.k or 1})
 
         try:
             docs = retriever.get_relevant_documents(questionModel.question)
