@@ -9,13 +9,14 @@ from app.models import ProjectModel
 from langchain.vectorstores import Chroma
 
 from app.tools import FindEmbeddingsPath
+from app.vectordb import VectorDB
 
 
 class Project:
 
     def __init__(self):
         self.chats = []
-        self.db: Chroma
+        self.vector: VectorDB
         self.model: ProjectModel
 
     def boot(self, model: ProjectModel):
@@ -43,9 +44,9 @@ class Project:
         if not os.path.exists(os.environ["EMBEDDINGS_PATH"]):
             os.makedirs(os.environ["EMBEDDINGS_PATH"])
 
-        try:
-            embeddingsPath = FindEmbeddingsPath(self.model.name)
-        except BaseException:
+        embeddingsPath = FindEmbeddingsPath(self.model.name)
+        
+        if embeddingsPath is None:
             embeddingsPath = os.path.join(
                 os.environ["EMBEDDINGS_PATH"], self.model.name + "_" + str(int(time.time())))
             os.mkdir(embeddingsPath)

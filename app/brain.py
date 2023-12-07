@@ -10,6 +10,7 @@ from app.model import Model
 from app.models import EmbeddingModel, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
 from app.project import Project
 from app.tools import FindEmbeddingsPath
+from app.vectordb import VectorDB
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
 from app.database import dbc
@@ -89,11 +90,8 @@ class Brain:
         return project
 
     def initializeEmbeddings(self, project):
-        project.db = Chroma(
-            persist_directory=FindEmbeddingsPath(
-                project.model.name), embedding_function=self.getEmbedding(
-                project.model.embeddings))
-
+        project.vector = VectorDB(project)
+          
     def editProject(self, name, projectModel: ProjectModelUpdate, db):
         project = self.findProject(name, db)
         if project is None:
@@ -179,7 +177,7 @@ class Brain:
         model = self.getLLM(project.model.llm)
         chat = project.loadChat(chatModel)
 
-        retriever = project.db.as_retriever(
+        retriever = project.vector.db.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
                 "score_threshold": chatModel.score or project.model.score or 0.2,
@@ -242,7 +240,7 @@ class Brain:
         )
         chain = LLMChain(llm=model.llm, prompt=prompt)
 
-        retriever = project.db.as_retriever(
+        retriever = project.vector.db.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
                 "score_threshold": questionModel.score or project.model.score or 0.2,

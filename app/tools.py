@@ -16,7 +16,7 @@ def IndexDocuments(brain, project, documents):
             if value is None:
                 del metadata[key]
 
-    ids = project.db.add_texts(texts=texts, metadatas=metadatas)
+    ids = project.vector.db.add_texts(texts=texts, metadatas=metadatas)
     return ids
 
 
@@ -52,7 +52,7 @@ def FindEmbeddingsPath(projectName):
         if re.match(f'^{projectName}_[0-9]+$', dir):
             return os.path.join(embeddings_path, dir)
 
-    raise Exception("Project not found.")
+    return None
 
 
 def loadEnvVars():

@@ -29,6 +29,6 @@ if os.path.isdir(project_path):
             documents = loader.load()
 
             texts = IndexDocuments(brain, project, documents)
-            project.db.persist()
+            project.vector.db.persist()
 else:
     print("UPLOADS_PATH is not a valid directory")

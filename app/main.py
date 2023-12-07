@@ -224,7 +224,7 @@ async def get_projects(request: Request, user: User = Depends(get_current_userna
 async def get_project(projectName: str, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
-        dbInfo = project.db.get()
+        dbInfo = project.vector.db.get()
 
         output = ProjectInfo(
             name=project.model.name,
@@ -235,7 +235,8 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             censorship=project.model.censorship,
             score=project.model.score,
             k=project.model.k,
-            sandbox_project=project.model.sandbox_project,)
+            sandbox_project=project.model.sandbox_project,
+            vectorstore=project.model.vectorstore,)
         output.documents = len(dbInfo["documents"])
         output.metadatas = len(dbInfo["metadatas"])
 
@@ -326,7 +327,7 @@ def project_reset(
         db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
-        project.db._client.reset()
+        project.vector.db._client.reset()
         brain.initializeEmbeddings(project)
 
         return {"project": project.model.name}
@@ -344,7 +345,7 @@ def get_embedding(projectName: str, embedding: EmbeddingModel,
     project = brain.findProject(projectName, db)
     docs = None
 
-    collection = project.db._client.get_collection("langchain")
+    collection = project.vector.db._client.get_collection("langchain")
     if embedding.source.startswith(('http://', 'https://')):
         docs = collection.get(where={'source': embedding.source})
     else:
@@ -365,7 +366,7 @@ def delete_embedding(
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    collection = project.db._client.get_collection("langchain")
+    collection = project.vector.db._client.get_collection("langchain")
     ids = collection.get(ids=[id])['ids']
     if len(ids):
         collection.delete(ids)
@@ -379,7 +380,7 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
     try:
         project = brain.findProject(projectName, db)
 
-        collection = project.db._client.get_collection("langchain")
+        collection = project.vector.db._client.get_collection("langchain")
         docs = collection.get(where={'source': ingest.url})
 
         if (len(docs['ids']) > 0):
@@ -392,7 +393,7 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
         documents = ExtractKeywordsForMetadata(documents)
 
         ids = IndexDocuments(brain, project, documents)
-        project.db.persist()
+        project.vector.save()
 
         return {"url": ingest.url, "documents": len(ids)}
     except Exception as e:
@@ -434,7 +435,7 @@ def ingest_file(
 
         ids = IndexDocuments(brain, project, documents)
         logger.debug("Documents: {}".format(len(ids)))
-        project.db.persist()
+        project.vector.save()
         logger.debug("Persisten project to DB")
 
         return {
@@ -454,7 +455,7 @@ def list_urls(projectName: str, user: User = Depends(
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    collection = project.db._client.get_collection("langchain")
+    collection = project.vector.db._client.get_collection("langchain")
 
     docs = collection.get(
         include=["metadatas"]
@@ -497,7 +498,7 @@ def delete_url(
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    collection = project.db._client.get_collection("langchain")
+    collection = project.vector.db._client.get_collection("langchain")
     ids = collection.get(
         where={'source': base64.b64decode(url).decode('utf-8')})['ids']
     if len(ids):
@@ -514,7 +515,7 @@ def delete_file(
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    collection = project.db._client.get_collection("langchain")
+    collection = project.vector.db._client.get_collection("langchain")
     ids = collection.get(
         where={
             'source': os.path.join(
