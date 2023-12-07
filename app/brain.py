@@ -50,6 +50,7 @@ class Brain:
                 torch.cuda.empty_cache()
                     
             if llmModel in LLMS:
+                print("LOADING MODEL " + llmModel)
                 llm_class, llm_args, prompt, privacy = LLMS[llmModel]
                 llm = llm_class(**llm_args, **kwargs)
                 m = Model(llmModel, llm, prompt, privacy)
