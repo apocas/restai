@@ -1,7 +1,7 @@
 import gc
 import os
 from fastapi import HTTPException
-from langchain import HuggingFacePipeline
+from langchain.llms.huggingface_pipeline import HuggingFacePipeline
 from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
@@ -40,6 +40,7 @@ class Brain:
         else:
             for llmModel, llm in self.llmCache.items():
                 if isinstance(llm, HuggingFacePipeline):
+                    print("UNLOADING MODEL " + llmModel)
                     del llm.model
                     del llm.tokenizer
                     del self.llmCache[llmModel]
