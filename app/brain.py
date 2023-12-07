@@ -1,10 +1,13 @@
+import gc
 import os
 from fastapi import HTTPException
+from langchain import HuggingFacePipeline
 from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain.vectorstores import Chroma
+import torch
 from app.model import Model
 
 from app.models import EmbeddingModel, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
@@ -35,6 +38,14 @@ class Brain:
         if llmModel in self.llmCache:
             return self.llmCache[llmModel]
         else:
+            for llmModel, llm in self.llmCache.items():
+                if isinstance(llm, HuggingFacePipeline):
+                    del llm.model
+                    del llm.tokenizer
+                    del self.llmCache[llmModel]
+                    gc.collect()
+                    torch.cuda.empty_cache()
+                    
             if llmModel in LLMS:
                 llm_class, llm_args, prompt, privacy = LLMS[llmModel]
                 llm = llm_class(**llm_args, **kwargs)
