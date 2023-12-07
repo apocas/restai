@@ -6,7 +6,7 @@ python-multipart
 python-dotenv
 pdfminer.six
 unstructured
-pydantic
+pydantic>2.5.0
 pygpt4all
 llama-cpp-python
 sentence_transformers
@@ -24,3 +24,5 @@ jq
 transformers==4.35.2
 accelerate==0.24.1
 optimum==1.13.1
+redis
+redisvl

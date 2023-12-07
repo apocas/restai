@@ -9,14 +9,13 @@ from app.models import ProjectModel
 from langchain.vectorstores import Chroma
 
 from app.tools import FindEmbeddingsPath
-from app.vectordb import VectorDB
 
 
 class Project:
 
     def __init__(self):
         self.chats = []
-        self.vector: VectorDB
+        self.db: None
         self.model: ProjectModel
 
     def boot(self, model: ProjectModel):

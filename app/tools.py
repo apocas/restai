@@ -16,7 +16,7 @@ def IndexDocuments(brain, project, documents):
             if value is None:
                 del metadata[key]
 
-    ids = project.vector.db.add_texts(texts=texts, metadatas=metadatas)
+    ids = project.db.add_texts(texts=texts, metadatas=metadatas)
     return ids
 
 
