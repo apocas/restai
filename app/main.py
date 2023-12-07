@@ -23,7 +23,7 @@ from app.models import ChatResponse, EmbeddingModel, HardwareInfo, ProjectInfo, 
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from app.vectordb import vector_delete, vector_find, vector_info, vector_save, vector_urls
+from app.vectordb import vector_delete, vector_delete_id, vector_find, vector_info, vector_init, vector_save, vector_urls
 
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
@@ -329,8 +329,8 @@ def project_reset(
         db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
-        project.db._client.reset()
-        brain.initializeEmbeddings(project)
+        
+        vector_init(brain, project)
 
         return {"project": project.model.name}
     except Exception as e:
@@ -363,11 +363,9 @@ def delete_embedding(
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    collection = project.db._client.get_collection("langchain")
-    ids = collection.get(ids=[id])['ids']
-    if len(ids):
-        collection.delete(ids)
-    return {"deleted": len(ids)}
+    vector_delete_id(project, id)
+    
+    return {"deleted": id}
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/url")
@@ -439,6 +437,9 @@ def ingest_file(
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
+        
+        os.remove(dest)
+        
         raise HTTPException(
             status_code=500, detail=str(e))
 

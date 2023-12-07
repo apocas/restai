@@ -69,7 +69,7 @@ class Brain:
         if proj is not None:
             project = Project()
             project.model = proj
-            self.initializeEmbeddings(project)
+            project.db = vector_init(self, project)
             self.projects.append(project)
             return project
 
@@ -85,12 +85,9 @@ class Brain:
         )
         project = Project()
         project.boot(projectModel)
-        self.initializeEmbeddings(project)
+        project.db = vector_init(self, project)
         self.projects.append(project)
         return project
-
-    def initializeEmbeddings(self, project):
-        project.db = vector_init(self, project)
           
     def editProject(self, name, projectModel: ProjectModelUpdate, db):
         project = self.findProject(name, db)

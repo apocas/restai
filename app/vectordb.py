@@ -21,7 +21,7 @@ def vector_init(brain, project):
     elif project.model.vectorstore == "redis":
         if path is None or len(os.listdir(path)) == 0:
             schema = {'text': [{'name': 'source'}, {'name': 'keywords'}]}
-            return Redis(redis_url="redis://192.168.1.152:6379", index_name=project.model.name,
+            return Redis(redis_url="redis://" + os.environ["REDIS_HOST"] + ":" + os.environ["REDIS_PORT"], index_name=project.model.name,
                          embedding=brain.getEmbedding(project.model.embeddings), index_schema=schema)
         else:
             return vector_load(brain, project)
@@ -47,7 +47,7 @@ def vector_load(brain, project):
         return Redis.from_existing_index(
             brain.getEmbedding(project.model.embeddings),
             index_name=project.model.name,
-            redis_url="redis://192.168.1.152:6379",
+            redis_url="redis://" + os.environ["REDIS_HOST"] + ":" + os.environ["REDIS_PORT"],
             schema=FindEmbeddingsPath(
                 project.model.name) + "/schema.yaml"
         )
@@ -69,7 +69,7 @@ def vector_urls(project):
                 urls.append(metadata["source"])
 
     elif project.model.vectorstore == "redis":        
-        lredis = redis.Redis(host='brain.lan', port=6379, decode_responses=True)
+        lredis = redis.Redis(host=os.environ["REDIS_HOST"], port=os.environ["REDIS_PORT"], decode_responses=True)
         keys = lredis.keys(project.db.key_prefix + "*")
         for key in keys:
             source = lredis.hget(key, "source")
@@ -84,7 +84,9 @@ def vector_info(project):
         dbInfo = project.db.get()
         return len(dbInfo["documents"]), len(dbInfo["metadatas"])
     elif project.model.vectorstore == "redis":
-        return 0, 0
+        lredis = redis.Redis(host=os.environ["REDIS_HOST"], port=os.environ["REDIS_PORT"], decode_responses=True)
+        keys = lredis.keys(project.db.key_prefix + "*")
+        return len(keys), len(keys)
       
 def vector_find(project, source):
     docs = []
@@ -96,7 +98,7 @@ def vector_find(project, source):
             docs = collection.get(where={'source': os.path.join(
                 os.environ["UPLOADS_PATH"], project.model.name, source)})
     elif project.model.vectorstore == "redis":
-        lredis = redis.Redis(host='brain.lan', port=6379, decode_responses=True)
+        lredis = redis.Redis(host=os.environ["REDIS_HOST"], port=os.environ["REDIS_PORT"], decode_responses=True)
         keys = lredis.keys(project.db.key_prefix + "*")
         ids = []
         metadatas = []
@@ -120,7 +122,7 @@ def vector_delete(project, source):
         if len(ids):
             collection.delete(ids)
     elif project.model.vectorstore == "redis":
-        lredis = redis.Redis(host='brain.lan', port=6379, decode_responses=True)
+        lredis = redis.Redis(host=os.environ["REDIS_HOST"], port=os.environ["REDIS_PORT"], decode_responses=True)
         keys = lredis.keys(project.db.key_prefix + "*")
         for key in keys:
             lsource = lredis.hget(key, "source")
@@ -128,3 +130,22 @@ def vector_delete(project, source):
                 ids.append(key)
                 lredis.delete(key)
     return ids
+  
+def vector_delete_id(project, id):
+    if project.model.vectorstore == "chroma":
+        collection = project.db._client.get_collection("langchain")
+        ids = collection.get(ids=[id])['ids']
+        if len(ids):
+            collection.delete(ids)
+    elif project.model.vectorstore == "redis":
+        lredis = redis.Redis(host=os.environ["REDIS_HOST"], port=os.environ["REDIS_PORT"], decode_responses=True)
+        lredis.delete(id)
+    return id
+  
+def vector_reset(brain, project):
+    if project.model.vectorstore == "chroma":
+        project.db._client.reset()
+    elif project.model.vectorstore == "redis":
+        project.db.drop_index(project.model.name, delete_documents=True)
+        
+    project.db = vector_init(brain, project)

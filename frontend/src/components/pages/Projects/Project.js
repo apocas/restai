@@ -217,6 +217,7 @@ function Project() {
             <h1>Details {data.name}</h1>
             <ListGroup>
               <ListGroup.Item><b>LLM:</b> {data.llm}</ListGroup.Item>
+              <ListGroup.Item><b>Vectorstore:</b> {data.vectorstore}</ListGroup.Item>
               <ListGroup.Item><b>Embeddings:</b> {data.embeddings} <Button onClick={() => handleResetEmbeddingsClick()} variant="danger">Reset</Button></ListGroup.Item>
               <ListGroup.Item><b>Documents:</b> {data.documents}</ListGroup.Item>
               <ListGroup.Item><b>Metadatas:</b> {data.metadatas}</ListGroup.Item>
