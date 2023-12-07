@@ -52,7 +52,7 @@ class Brain:
             if llmModel in LLMS:
                 llm_class, llm_args, prompt, privacy = LLMS[llmModel]
                 llm = llm_class(**llm_args, **kwargs)
-                m = Model(llmModel, llm)
+                m = Model(llmModel, llm, prompt, privacy)
                 self.llmCache[llmModel] = m
                 return m
             else:
