@@ -526,10 +526,7 @@ def question_project(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
-        brain.queue.get()
         answer, docs = brain.entryQuestion(projectName, input, db)
-        brain.queue.task_done()
-        brain.queue.put("infering")
 
         sources = [{"content": doc.page_content,
                     "keywords": doc.metadata["keywords"],
@@ -541,6 +538,8 @@ def question_project(
             "sources": sources,
             "type": "question"}
     except Exception as e:
+        if brain.queue.empty() == True:
+            brain.queue.put("infering")
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
@@ -554,10 +553,7 @@ def chat_project(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
-        brain.queue.get()
         chat, output = brain.entryChat(projectName, input, db)
-        brain.queue.task_done()
-        brain.queue.put("infering")
         
         docs = output["source_documents"]
         answer = output["answer"].strip()
@@ -573,6 +569,8 @@ def chat_project(
             "sources": sources,
             "type": "chat"}
     except Exception as e:
+        if brain.queue.empty() == True:
+            brain.queue.put("infering")
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(

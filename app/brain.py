@@ -32,7 +32,7 @@ class Brain:
         self.defaultNegative = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
         self.loopFailsafe = 0
-        self.queue = queue.Queue()
+        self.queue = queue.SimpleQueue(maxsize=1)
         self.queue.put("infering")
 
         self.text_splitter = RecursiveCharacterTextSplitter(
@@ -42,6 +42,7 @@ class Brain:
         models_to_unload = []
         for llmr, mr in self.llmCache.items():
             if mr.model is not None or mr.tokenizer is not None:
+                self.queue.get()
                 print("UNLOADING MODEL " + llmr)
                 models_to_unload.append(llmr)
 
@@ -253,6 +254,9 @@ class Brain:
         result = conversationalChain(
             {"question": chatModel.question, "chat_history": chat.history}
         )
+        
+        if self.queue.empty() == True:
+            self.queue.put("infering")
 
         if project.model.sandboxed and len(result["source_documents"]) == 0:
             return chat, {"source_documents": [
@@ -328,4 +332,6 @@ class Brain:
                        "question": questionModel.question} for doc in docs]
 
         output = chain.apply(inputs)
+        if self.queue.empty() == True:
+            self.queue.put("infering")
         return output[0]["text"].strip(), docs, False
