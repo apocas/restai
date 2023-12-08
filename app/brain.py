@@ -1,5 +1,6 @@
 import gc
 import os
+import queue
 from fastapi import HTTPException
 from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
@@ -31,6 +32,8 @@ class Brain:
         self.defaultNegative = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
         self.loopFailsafe = 0
+        self.queue = queue.Queue()
+        self.queue.put("infering")
 
         self.text_splitter = RecursiveCharacterTextSplitter(
             separators=[" "], chunk_size=1024, chunk_overlap=30)

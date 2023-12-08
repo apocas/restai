@@ -526,7 +526,10 @@ def question_project(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
+        brain.queue.get()
         answer, docs = brain.entryQuestion(projectName, input, db)
+        brain.queue.task_done()
+        brain.queue.put("infering")
 
         sources = [{"content": doc.page_content,
                     "keywords": doc.metadata["keywords"],
@@ -551,7 +554,11 @@ def chat_project(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
+        brain.queue.get()
         chat, output = brain.entryChat(projectName, input, db)
+        brain.queue.task_done()
+        brain.queue.put("infering")
+        
         docs = output["source_documents"]
         answer = output["answer"].strip()
 
