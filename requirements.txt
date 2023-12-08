@@ -27,3 +27,4 @@ optimum==1.13.1
 redis
 redisvl
 openpyxl
+pydantic>2.5.0
