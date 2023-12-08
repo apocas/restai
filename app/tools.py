@@ -70,7 +70,14 @@ def loadEnvVars():
         os.environ["LOG_LEVEL"] = "INFO"
 
     os.environ["ALLOW_RESET"] = "true"
-    
+
 
 def print_cuda_mem():
-    print(f"allocated: {torch.cuda.memory_allocated() / 1e6}MB, max: {torch.cuda.max_memory_allocated() / 1e6}MB, reserved: {torch.cuda.memory_reserved() / 1e6}MB")
+    print(
+        f"allocated: {
+            torch.cuda.memory_allocated() /
+            1e6}MB, max: {
+            torch.cuda.max_memory_allocated() /
+            1e6}MB, reserved: {
+                torch.cuda.memory_reserved() /
+            1e6}MB")

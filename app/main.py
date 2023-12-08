@@ -225,7 +225,7 @@ async def get_projects(request: Request, user: User = Depends(get_current_userna
 async def get_project(projectName: str, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
-        
+
         docs, metas = vector_info(project)
 
         output = ProjectInfo(
@@ -329,7 +329,7 @@ def project_reset(
         db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
-        
+
         vector_init(brain, project)
 
         return {"project": project.model.name}
@@ -364,7 +364,7 @@ def delete_embedding(
     project = brain.findProject(projectName, db)
 
     vector_delete_id(project, id)
-    
+
     return {"deleted": id}
 
 
@@ -437,9 +437,9 @@ def ingest_file(
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
-        
+
         os.remove(dest)
-        
+
         raise HTTPException(
             status_code=500, detail=str(e))
 
@@ -495,11 +495,11 @@ def delete_file(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
-    
+
     source = os.path.join(
-                os.environ["UPLOADS_PATH"],
-                project.model.name,
-                base64.b64decode(fileName).decode('utf-8'))
+        os.environ["UPLOADS_PATH"],
+        project.model.name,
+        base64.b64decode(fileName).decode('utf-8'))
 
     ids = vector_delete(project, source)
 
@@ -526,7 +526,7 @@ def question_project(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
-        answer, docs = brain.entryQuestion(projectName,input,db)
+        answer, docs = brain.entryQuestion(projectName, input, db)
 
         sources = [{"content": doc.page_content,
                     "keywords": doc.metadata["keywords"],

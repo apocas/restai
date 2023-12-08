@@ -44,7 +44,7 @@ class Project:
             os.makedirs(os.environ["EMBEDDINGS_PATH"])
 
         embeddingsPath = FindEmbeddingsPath(self.model.name)
-        
+
         if embeddingsPath is None:
             embeddingsPath = os.path.join(
                 os.environ["EMBEDDINGS_PATH"], self.model.name + "_" + str(int(time.time())))

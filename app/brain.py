@@ -41,7 +41,7 @@ class Brain:
             if mr.model is not None or mr.tokenizer is not None:
                 print("UNLOADING MODEL " + llmr)
                 models_to_unload.append(llmr)
-                
+
         for modelr in models_to_unload:
             print_cuda_mem()
             self.llmCache[modelr].model = None
@@ -63,17 +63,25 @@ class Brain:
             return self.llmCache[llmModel]
         else:
             self.unloadLLMs()
-            
+
             if llmModel in LLMS:
                 llm_class, llm_args, prompt, privacy = LLMS[llmModel]
-                
+
                 if llm_class == localLoader:
-                    llm, model, tokenizer, pipe = llm_class(**llm_args, **kwargs)
-                    m = Model(llmModel, llm, prompt, privacy, model, tokenizer, pipe)
+                    llm, model, tokenizer, pipe = llm_class(
+                        **llm_args, **kwargs)
+                    m = Model(
+                        llmModel,
+                        llm,
+                        prompt,
+                        privacy,
+                        model,
+                        tokenizer,
+                        pipe)
                 else:
                     llm = llm_class(**llm_args, **kwargs)
                     m = Model(llmModel, llm, prompt, privacy)
-                    
+
                 self.llmCache[llmModel] = m
                 return m
             else:
@@ -122,7 +130,7 @@ class Brain:
         project.db = vector_init(self, project)
         self.projects.append(project)
         return project
-          
+
     def editProject(self, name, projectModel: ProjectModelUpdate, db):
         project = self.findProject(name, db)
         if project is None:
@@ -182,26 +190,34 @@ class Brain:
         chat.history.append((input.question, output["answer"]))
         return chat, output
 
-    def recursiveChat(self, projectName: str, input: ChatModel, db: Session, chatR=None):
+    def recursiveChat(
+            self,
+            projectName: str,
+            input: ChatModel,
+            db: Session,
+            chatR=None):
         project = self.findProject(projectName, db)
         if chatR:
             chat = chatR
             questionInput = QuestionModel(
                 question=input.question,
             )
-            answer, docs, censored = self.questionContext(project, questionInput)
+            answer, docs, censored = self.questionContext(
+                project, questionInput)
             output = {"source_documents": docs, "answer": answer}
         else:
             chat, output, censored = self.chat(project, input)
-        
+
         if censored:
             projectc = self.findProject(project.model.sandbox_project, db)
             if projectc is not None:
                 if self.loopFailsafe >= 10:
-                    return chat, {"source_documents": [], "answer": self.defaultNegative}
+                    return chat, {"source_documents": [],
+                                  "answer": self.defaultNegative}
                 self.loopFailsafe += 1
-                chat, output = self.recursiveChat(project.model.sandbox_project, input, db, chat)
-        
+                chat, output = self.recursiveChat(
+                    project.model.sandbox_project, input, db, chat)
+
         return chat, output
 
     def chat(self, project, chatModel):
@@ -216,16 +232,20 @@ class Brain:
 
         prompt_template_txt = PROMPTS[model.prompt]
         sysTemplate = project.model.system or self.defaultSystem
-        prompt_template = prompt_template_txt.format(system=sysTemplate, history="Chat History: {chat_history}")
-        
+        prompt_template = prompt_template_txt.format(
+            system=sysTemplate, history="Chat History: {chat_history}")
+
         custom_prompt = PromptTemplate(
-          template=prompt_template,
-          input_variables=["context", "question", "chat_history"],
+            template=prompt_template,
+            input_variables=["context", "question", "chat_history"],
         )
 
         conversationalChain = ConversationalRetrievalChain.from_llm(
-            llm=model.llm, retriever=retriever, return_source_documents=True, combine_docs_chain_kwargs={"prompt": custom_prompt}
-        )
+            llm=model.llm,
+            retriever=retriever,
+            return_source_documents=True,
+            combine_docs_chain_kwargs={
+                "prompt": custom_prompt})
 
         result = conversationalChain(
             {"question": chatModel.question, "chat_history": chat.history}
@@ -234,23 +254,34 @@ class Brain:
         if project.model.sandboxed and len(result["source_documents"]) == 0:
             return chat, {"source_documents": [
             ], "answer": project.model.censorship or self.defaultCensorship}, True
-            
+
         return chat, result, False
 
-    def entryQuestion(self, projectName: str, input: QuestionModel, db: Session):
+    def entryQuestion(
+            self,
+            projectName: str,
+            input: QuestionModel,
+            db: Session):
         self.loopFailsafe = 0
         return self.recursiveQuestion(projectName, input, db)
 
-    def recursiveQuestion(self, projectName: str, input: QuestionModel, db: Session, recursive = False):
+    def recursiveQuestion(
+            self,
+            projectName: str,
+            input: QuestionModel,
+            db: Session,
+            recursive=False):
         project = self.findProject(projectName, db)
-        answer, docs, censored = self.questionContext(project, input, recursive)
+        answer, docs, censored = self.questionContext(
+            project, input, recursive)
         if censored:
             projectc = self.findProject(project.model.sandbox_project, db)
             if projectc is not None:
                 if self.loopFailsafe >= 10:
                     return self.defaultNegative, []
                 self.loopFailsafe += 1
-                answer, docs = self.recursiveQuestion(project.model.sandbox_project, input, db, True)
+                answer, docs = self.recursiveQuestion(
+                    project.model.sandbox_project, input, db, True)
 
         return answer, docs
 
@@ -263,8 +294,9 @@ class Brain:
             sysTemplate = project.model.system or self.defaultSystem
         else:
             sysTemplate = questionModel.system or project.model.system or self.defaultSystem
-            
-        prompt_template = prompt_template_txt.format(system=sysTemplate, history="")
+
+        prompt_template = prompt_template_txt.format(
+            system=sysTemplate, history="")
 
         prompt = PromptTemplate(
             template=prompt_template, input_variables=["context", "question"]
