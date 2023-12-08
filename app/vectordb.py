@@ -1,4 +1,5 @@
 import os
+import shutil
 from langchain.vectorstores import Chroma, FAISS, Redis
 import redis
 
@@ -138,8 +139,17 @@ def vector_find(project, source):
 
     return docs
 
+def vector_delete(project):
+    if project.model.vectorstore == "chroma":
+        try:
+            embeddingsPath = FindEmbeddingsPath(project.model.name)
+            shutil.rmtree(embeddingsPath, ignore_errors=True)
+        except BaseException:
+            pass
+    elif project.model.vectorstore == "redis":
+        project.db.drop_index(project.model.name, delete_documents=True)
 
-def vector_delete(project, source):
+def vector_delete_source(project, source):
     ids = []
     if project.model.vectorstore == "chroma":
         collection = project.db._client.get_collection("langchain")

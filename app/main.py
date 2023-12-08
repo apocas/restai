@@ -23,7 +23,7 @@ from app.models import ChatResponse, EmbeddingModel, HardwareInfo, ProjectInfo, 
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from app.vectordb import vector_delete, vector_delete_id, vector_find, vector_info, vector_init, vector_save, vector_urls
+from app.vectordb import vector_delete_source, vector_delete_id, vector_find, vector_info, vector_init, vector_save, vector_urls
 
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
@@ -483,7 +483,7 @@ def delete_url(
     project = brain.findProject(projectName, db)
 
     source = base64.b64decode(url).decode('utf-8')
-    ids = vector_delete(project, source)
+    ids = vector_delete_source(project, source)
 
     return {"deleted": len(ids)}
 
@@ -501,7 +501,7 @@ def delete_file(
         project.model.name,
         base64.b64decode(fileName).decode('utf-8'))
 
-    ids = vector_delete(project, source)
+    ids = vector_delete_source(project, source)
 
     project_path = os.path.join(os.environ["UPLOADS_PATH"], project.model.name)
 

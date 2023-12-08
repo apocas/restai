@@ -9,6 +9,7 @@ from app.models import ProjectModel
 from langchain.vectorstores import Chroma
 
 from app.tools import FindEmbeddingsPath
+from app.vectordb import vector_delete
 
 
 class Project:
@@ -23,11 +24,7 @@ class Project:
         self.initializePaths()
 
     def delete(self):
-        try:
-            embeddingsPath = FindEmbeddingsPath(self.model.name)
-            shutil.rmtree(embeddingsPath, ignore_errors=True)
-        except BaseException:
-            pass
+        vector_delete(self)
 
         if os.path.exists(
             os.path.join(
