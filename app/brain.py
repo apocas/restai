@@ -32,7 +32,7 @@ class Brain:
         self.defaultNegative = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
         self.loopFailsafe = 0
-        self.queue = queue.SimpleQueue(maxsize=1)
+        self.queue = queue.SimpleQueue()
         self.queue.put("infering")
 
         self.text_splitter = RecursiveCharacterTextSplitter(
