@@ -147,7 +147,10 @@ def vector_delete(project):
         except BaseException:
             pass
     elif project.model.vectorstore == "redis":
-        project.db.drop_index(project.model.name, delete_documents=True)
+        project.db.drop_index(project.model.name, delete_documents=True, redis_url="redis://" +
+            os.environ["REDIS_HOST"] +
+            ":" +
+            os.environ["REDIS_PORT"])
 
 def vector_delete_source(project, source):
     ids = []
@@ -190,6 +193,9 @@ def vector_reset(brain, project):
     if project.model.vectorstore == "chroma":
         project.db._client.reset()
     elif project.model.vectorstore == "redis":
-        project.db.drop_index(project.model.name, delete_documents=True)
+        project.db.drop_index(project.model.name, delete_documents=True, redis_url="redis://" +
+            os.environ["REDIS_HOST"] +
+            ":" +
+            os.environ["REDIS_PORT"])
 
     project.db = vector_init(brain, project)
