@@ -47,12 +47,12 @@ class Brain:
             self.llmCache[modelr].model = None
             self.llmCache[modelr].tokenizer = None
             self.llmCache[modelr].pipe = None
-            self.llmCache[modelr] = None
             gc.collect()
             torch.cuda.empty_cache()
             del self.llmCache[modelr].model
             del self.llmCache[modelr].tokenizer
             del self.llmCache[modelr].pipe
+            self.llmCache[modelr] = None
             del self.llmCache[modelr]
             gc.collect()
             torch.cuda.empty_cache()
