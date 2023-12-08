@@ -8,6 +8,7 @@
 ### Embeddings
 * Create embeddings from your data. You are able to ingest data by uploading files ou directly parsing an URL content.
 * You may [pick whatever](modules/embeddings.py) embeddings model thats supported by langchain, cloud based (ex: Openai) or private (HuggingFace model).
+* You can easily manage embeddings per project, view, delete and ingest new data.
 
 ### Loaders
 * You may use [any loader](modules/loaders.py) supported by langchain.
