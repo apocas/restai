@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from modules.loaders import LOADERS
 import yake
 import re
+import torch
 
 
 def IndexDocuments(brain, project, documents):
@@ -52,7 +53,7 @@ def FindEmbeddingsPath(projectName):
         if re.match(f'^{projectName}_[0-9]+$', dir):
             return os.path.join(embeddings_path, dir)
 
-    raise Exception("Project not found.")
+    return None
 
 
 def loadEnvVars():
@@ -69,3 +70,7 @@ def loadEnvVars():
         os.environ["LOG_LEVEL"] = "INFO"
 
     os.environ["ALLOW_RESET"] = "true"
+    
+
+def print_cuda_mem():
+    print(f"allocated: {torch.cuda.memory_allocated() / 1e6}MB, max: {torch.cuda.max_memory_allocated() / 1e6}MB, reserved: {torch.cuda.memory_reserved() / 1e6}MB")

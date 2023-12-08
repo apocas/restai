@@ -15,6 +15,7 @@ function Projects() {
   const projectNameForm = useRef(null)
   const embbeddingForm = useRef(null)
   const llmForm = useRef(null)
+  const vectorForm = useRef(null)
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
 
@@ -77,6 +78,7 @@ function Projects() {
         "name": projectNameForm.current.value,
         "embeddings": embbeddingForm.current.value,
         "llm": llmForm.current.value,
+        "vectorstore": vectorForm.current.value,
       }),
     })
       .then(function (response) {
@@ -214,6 +216,14 @@ function Projects() {
                     }
                     )
                   }
+                </Form.Select>
+              </Form.Group>
+
+              <Form.Group as={Col} controlId="formGridVector">
+                <Form.Label>Vectorstore<Link title="Chroma is monolithic and only recommended for testing. Redis is distributed.">ℹ️</Link></Form.Label>
+                <Form.Select ref={vectorForm} defaultValue="chroma">
+                  <option>chroma</option>
+                  <option>redis</option>
                 </Form.Select>
               </Form.Group>
             </Row>

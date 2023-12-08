@@ -35,6 +35,7 @@ class ProjectModel(BaseModel):
     score: float = 0.2
     k: int = 1
     sandbox_project: Union[str, None] = None
+    vectorstore: str = "chroma"
     model_config = ConfigDict(from_attributes=True)
 
 

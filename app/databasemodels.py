@@ -38,8 +38,9 @@ class ProjectDatabase(Base):
     system = Column(String)
     sandboxed = Column(Boolean, default=False)
     censorship = Column(String)
-    k = Column(Integer, default=2)
+    k = Column(Integer, default=1)
     score = Column(Float, default=0.2)
+    vectorstore = Column(String, default="chroma")
     sandbox_project = Column(String)
 
     owners = relationship("UserProjectDatabase", back_populates="project")

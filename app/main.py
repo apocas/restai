@@ -23,6 +23,7 @@ from app.models import ChatResponse, EmbeddingModel, HardwareInfo, ProjectInfo, 
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from app.vectordb import vector_delete, vector_delete_id, vector_find, vector_info, vector_init, vector_save, vector_urls
 
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
@@ -224,7 +225,8 @@ async def get_projects(request: Request, user: User = Depends(get_current_userna
 async def get_project(projectName: str, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
-        dbInfo = project.db.get()
+        
+        docs, metas = vector_info(project)
 
         output = ProjectInfo(
             name=project.model.name,
@@ -235,9 +237,10 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             censorship=project.model.censorship,
             score=project.model.score,
             k=project.model.k,
-            sandbox_project=project.model.sandbox_project,)
-        output.documents = len(dbInfo["documents"])
-        output.metadatas = len(dbInfo["metadatas"])
+            sandbox_project=project.model.sandbox_project,
+            vectorstore=project.model.vectorstore,)
+        output.documents = docs
+        output.metadatas = metas
 
         return output
     except Exception as e:
@@ -326,8 +329,8 @@ def project_reset(
         db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
-        project.db._client.reset()
-        brain.initializeEmbeddings(project)
+        
+        vector_init(brain, project)
 
         return {"project": project.model.name}
     except Exception as e:
@@ -344,12 +347,7 @@ def get_embedding(projectName: str, embedding: EmbeddingModel,
     project = brain.findProject(projectName, db)
     docs = None
 
-    collection = project.db._client.get_collection("langchain")
-    if embedding.source.startswith(('http://', 'https://')):
-        docs = collection.get(where={'source': embedding.source})
-    else:
-        docs = collection.get(where={'source': os.path.join(
-            os.environ["UPLOADS_PATH"], project.model.name, embedding.source)})
+    docs = vector_find(project, embedding.source)
 
     if (len(docs['ids']) == 0):
         return {"ids": []}
@@ -365,11 +363,9 @@ def delete_embedding(
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    collection = project.db._client.get_collection("langchain")
-    ids = collection.get(ids=[id])['ids']
-    if len(ids):
-        collection.delete(ids)
-    return {"deleted": len(ids)}
+    vector_delete_id(project, id)
+    
+    return {"deleted": id}
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/url")
@@ -379,20 +375,17 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
     try:
         project = brain.findProject(projectName, db)
 
-        collection = project.db._client.get_collection("langchain")
-        docs = collection.get(where={'source': ingest.url})
-
-        if (len(docs['ids']) > 0):
+        urls = vector_urls(project)
+        if (ingest.url in urls):
             raise Exception("URL already ingested. Delete first.")
 
         loader = loader = SeleniumURLLoader(urls=[ingest.url])
 
         documents = loader.load()
-
         documents = ExtractKeywordsForMetadata(documents)
 
         ids = IndexDocuments(brain, project, documents)
-        project.db.persist()
+        vector_save(project)
 
         return {"url": ingest.url, "documents": len(ids)}
     except Exception as e:
@@ -434,8 +427,8 @@ def ingest_file(
 
         ids = IndexDocuments(brain, project, documents)
         logger.debug("Documents: {}".format(len(ids)))
-        project.db.persist()
-        logger.debug("Persisten project to DB")
+        vector_save(project)
+        logger.debug("Persisting project to DB")
 
         return {
             "filename": file.filename,
@@ -444,6 +437,9 @@ def ingest_file(
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
+        
+        os.remove(dest)
+        
         raise HTTPException(
             status_code=500, detail=str(e))
 
@@ -454,18 +450,7 @@ def list_urls(projectName: str, user: User = Depends(
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    collection = project.db._client.get_collection("langchain")
-
-    docs = collection.get(
-        include=["metadatas"]
-    )
-
-    urls = []
-
-    for metadata in docs["metadatas"]:
-        if metadata["source"].startswith(
-                ('http://', 'https://')) and metadata["source"] not in urls:
-            urls.append(metadata["source"])
+    urls = vector_urls(project)
 
     return {'urls': urls}
 
@@ -497,11 +482,8 @@ def delete_url(
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    collection = project.db._client.get_collection("langchain")
-    ids = collection.get(
-        where={'source': base64.b64decode(url).decode('utf-8')})['ids']
-    if len(ids):
-        collection.delete(ids)
+    source = base64.b64decode(url).decode('utf-8')
+    ids = vector_delete(project, source)
 
     return {"deleted": len(ids)}
 
@@ -513,16 +495,13 @@ def delete_file(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
-
-    collection = project.db._client.get_collection("langchain")
-    ids = collection.get(
-        where={
-            'source': os.path.join(
+    
+    source = os.path.join(
                 os.environ["UPLOADS_PATH"],
                 project.model.name,
-                base64.b64decode(fileName).decode('utf-8'))})['ids']
-    if len(ids):
-        collection.delete(ids)
+                base64.b64decode(fileName).decode('utf-8'))
+
+    ids = vector_delete(project, source)
 
     project_path = os.path.join(os.environ["UPLOADS_PATH"], project.model.name)
 
