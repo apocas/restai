@@ -26,3 +26,4 @@ accelerate==0.24.1
 optimum==1.13.1
 redis
 redisvl
+openpyxl

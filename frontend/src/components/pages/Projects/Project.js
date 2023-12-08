@@ -92,7 +92,7 @@ function Project() {
   }
 
   const handleResetEmbeddingsClick = () => {
-    if(window.confirm("Reset " + projectName + " embeddings?")) {
+    if (window.confirm("Reset " + projectName + " embeddings?")) {
       fetch(url + "/projects/" + projectName + "/embeddings/reset",
         {
           method: 'POST', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
@@ -150,7 +150,16 @@ function Project() {
           headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }),
           body: formData,
         })
-          .then(response => response.json())
+          .then(function (response) {
+            if (!response.ok) {
+              response.json().then(function (data) {
+                setError([...error, { "functionName": "onSubmitHandler", "error": data.detail }]);
+              });
+              throw Error(response.statusText);
+            } else {
+              return response.json();
+            }
+          })
           .then((response) => {
             response.type = "file";
             resetFileInput();
@@ -358,7 +367,7 @@ function Project() {
                   <ListGroup style={{ height: "400px", overflowY: "scroll" }}>
                     <ListGroup.Item><b>IDS:</b> <ReactJson src={embeddings.ids} enableClipboard={false} collapsed={0} /></ListGroup.Item>
                     <ListGroup.Item><b>Metadatas:</b> <ReactJson src={embeddings.metadatas} enableClipboard={false} /></ListGroup.Item>
-                    <ListGroup.Item><b>Documents:</b> <ReactJson src={embeddings.documents} enableClipboard={false}/></ListGroup.Item>
+                    <ListGroup.Item><b>Documents:</b> <ReactJson src={embeddings.documents} enableClipboard={false} /></ListGroup.Item>
                   </ListGroup>
                 </Col>
               </Row>
