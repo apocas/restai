@@ -220,7 +220,7 @@ function Projects() {
               </Form.Group>
 
               <Form.Group as={Col} controlId="formGridVector">
-                <Form.Label>Vectorstore</Form.Label>
+                <Form.Label>Vectorstore<Link title="Chroma is monolithic and only recommended for testing. Redis is distributed.">ℹ️</Link></Form.Label>
                 <Form.Select ref={vectorForm} defaultValue="chroma">
                   <option>chroma</option>
                   <option>redis</option>
