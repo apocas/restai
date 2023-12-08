@@ -2,7 +2,8 @@
 
 * RESTAI is a simple generic REST API that allows to create embeddings from multiple datatypes and then interact with them using a LLM.
 * This LLM may be an OpenAI based model, llamacpp, gpt4all or any other LLM supported by langchain.
-* If you want to be completely offline, you may use (for example) the `gpt4all` LLM and `huggingface` embeddings.
+* If you want to be completely offline, you may use (for example) the `llama2` LLM and `huggingface` embeddings.
+* RESTAI features an abstraction layer supporting multiple vectorstores, right now Chroma and Redis is supported.
 ## Details
 ### Embeddings
 * Create embeddings from your data. You are able to ingest data by uploading files ou directly parsing an URL content.
@@ -12,8 +13,9 @@
 * You may use [any loader](modules/loaders.py) supported by langchain.
 
 ### LLMs
-* You may use [any LLM](modules/llms.py) supported by langchain.
-* There are two main ways to interact with the LLM: QA(questions and answers) and text generation aKa chat.
+* You may use [any LLM](modules/llms.py) supported by langchain and/or transformers pipes.
+* You may declare [PROMPTs](modules/prompts.py) templates and then use these prompts in the [LLMs](modules/llms.py).
+* There are two main ways to interact with the LLM: QA(questions and answers) and text generation aKa chat (memory).
 
 ## Default support
 
