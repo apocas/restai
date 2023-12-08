@@ -1,3 +1,4 @@
+import gc
 import os
 from fastapi import HTTPException
 from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
@@ -5,11 +6,13 @@ from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain.vectorstores import Chroma
+import torch
+from app.loader import localLoader
 from app.model import Model
 
 from app.models import EmbeddingModel, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
 from app.project import Project
-from app.tools import FindEmbeddingsPath
+from app.tools import FindEmbeddingsPath, print_cuda_mem
 from app.vectordb import vector_init
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
@@ -32,14 +35,45 @@ class Brain:
         self.text_splitter = RecursiveCharacterTextSplitter(
             separators=[" "], chunk_size=1024, chunk_overlap=30)
 
+    def unloadLLMs(self):
+        models_to_unload = []
+        for llmr, mr in self.llmCache.items():
+            if mr.model is not None or mr.tokenizer is not None:
+                print("UNLOADING MODEL " + llmr)
+                models_to_unload.append(llmr)
+                
+        for modelr in models_to_unload:
+            print_cuda_mem()
+            self.llmCache[modelr].model = None
+            self.llmCache[modelr].tokenizer = None
+            self.llmCache[modelr].pipe = None
+            self.llmCache[modelr] = None
+            gc.collect()
+            torch.cuda.empty_cache()
+            del self.llmCache[modelr].model
+            del self.llmCache[modelr].tokenizer
+            del self.llmCache[modelr].pipe
+            del self.llmCache[modelr]
+            gc.collect()
+            torch.cuda.empty_cache()
+            print_cuda_mem()
+
     def getLLM(self, llmModel, **kwargs):
         if llmModel in self.llmCache:
             return self.llmCache[llmModel]
         else:
+            self.unloadLLMs()
+            
             if llmModel in LLMS:
                 llm_class, llm_args, prompt, privacy = LLMS[llmModel]
-                llm = llm_class(**llm_args, **kwargs)
-                m = Model(llmModel, llm, prompt, privacy)
+                
+                if llm_class == localLoader:
+                    llm, model, tokenizer, pipe = llm_class(**llm_args, **kwargs)
+                    m = Model(llmModel, llm, prompt, privacy, model, tokenizer, pipe)
+                else:
+                    llm = llm_class(**llm_args, **kwargs)
+                    m = Model(llmModel, llm, prompt, privacy)
+                    
                 self.llmCache[llmModel] = m
                 return m
             else:
