@@ -43,7 +43,7 @@ class Brain:
                 models_to_unload.append(llmr)
 
         for modelr in models_to_unload:
-            print_cuda_mem()
+            #print_cuda_mem()
             self.llmCache[modelr].model = None
             self.llmCache[modelr].tokenizer = None
             self.llmCache[modelr].pipe = None
@@ -56,7 +56,7 @@ class Brain:
             del self.llmCache[modelr]
             gc.collect()
             torch.cuda.empty_cache()
-            print_cuda_mem()
+            #print_cuda_mem()
 
     def getLLM(self, llmModel, **kwargs):
         if llmModel in self.llmCache:
