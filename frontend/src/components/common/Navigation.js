@@ -1,12 +1,31 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Container, Navbar, Button, Nav } from 'react-bootstrap';
 import { NavLink } from "react-router-dom";
 import { AuthContext } from './AuthProvider.js';
 import restaiLogo from '../../assets/img/restai-logo.png';
 
+
 function Navigation() {
   const { logout, getBasicAuth } = useContext(AuthContext);
+  const [hardware, setHardware] = useState({ "gpu_ram_usage": 0 });
   const user = getBasicAuth() || { username: null, admin: null };
+  const [error, setError] = useState([]);
+
+  const url = process.env.REACT_APP_RESTAI_API_URL || "";
+
+  const fetchHardware = () => {
+    return fetch(url + "/hardware", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+      .then((res) => res.json())
+      .then((d) => setHardware(d)
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchHardware", "error": err.toString() }]);
+      });
+  }
+
+  useEffect(() => {
+    fetchHardware();
+  }, []);
+
   return (
     <Navbar expand="lg" className="bg-body-tertiary">
       <Container>
@@ -49,6 +68,9 @@ function Navigation() {
           </Nav>
           {user.username && (
             <Nav>
+              <Navbar.Text style={{ color: hardware && hardware.gpu_ram_usage > 80 ? 'red' : 'inherit', marginRight: '5px' }}>
+                VRAM: {hardware && hardware.gpu_ram_usage}{'% -'}
+              </Navbar.Text>
               <Navbar.Text>
                 Signed in as:  {' '}
                 <NavLink
