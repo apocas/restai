@@ -7,7 +7,7 @@ import restaiLogo from '../../assets/img/restai-logo.png';
 
 function Navigation() {
   const { logout, getBasicAuth } = useContext(AuthContext);
-  const [hardware, setHardware] = useState({ "gpu_ram_usage": 0 });
+  const [hardware, setHardware] = useState({ "gpu_ram_usage": 0, "models_vram": [] });
   const user = getBasicAuth() || { username: null, admin: null };
   const [error, setError] = useState([]);
 
@@ -24,6 +24,9 @@ function Navigation() {
 
   useEffect(() => {
     fetchHardware();
+    const intervalCall = setInterval(() => {
+      fetchHardware();
+    }, 10000);
   }, []);
 
   return (
@@ -68,11 +71,14 @@ function Navigation() {
           </Nav>
           {user.username && (
             <Nav>
+              <Navbar.Text style={{  marginRight: '5px' }}>
+                <b>Models@VRAM:</b> {hardware && hardware.models_vram.join(', ')}{' -'}
+              </Navbar.Text>
               <Navbar.Text style={{ color: hardware && hardware.gpu_ram_usage > 80 ? 'red' : 'inherit', marginRight: '5px' }}>
-                VRAM: {hardware && hardware.gpu_ram_usage}{'% -'}
+              <b>VRAM:</b> {hardware && hardware.gpu_ram_usage}{'% -'}
               </Navbar.Text>
               <Navbar.Text>
-                Signed in as:  {' '}
+              <b>Signed in as:</b>  {' '}
                 <NavLink
                   to={"/users/" + user.username}
                 >

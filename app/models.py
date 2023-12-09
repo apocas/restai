@@ -89,7 +89,7 @@ class HardwareInfo(BaseModel):
     gpu_load: Union[int, None] = None
     gpu_temp: Union[int, None] = None
     gpu_ram_usage: Union[int, None] = None
-
+    models_vram: list[str] = None
 
 class SourceModel(BaseModel):
     source: str

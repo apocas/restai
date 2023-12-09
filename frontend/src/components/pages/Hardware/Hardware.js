@@ -26,7 +26,7 @@ function Hardware() {
     fetchHardware();
     const intervalCall = setInterval(() => {
       fetchHardware();
-    }, 5000);
+    }, 10000);
     return () => {
       // clean up
       clearInterval(intervalCall);

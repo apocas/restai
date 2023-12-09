@@ -1,5 +1,7 @@
 import gc
 import os
+import queue
+import threading
 from fastapi import HTTPException
 from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
@@ -31,11 +33,19 @@ class Brain:
         self.defaultNegative = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
         self.loopFailsafe = 0
+        self.semaphore = threading.BoundedSemaphore()
 
         self.text_splitter = RecursiveCharacterTextSplitter(
             separators=[" "], chunk_size=1024, chunk_overlap=30)
+        
+    def memoryModelsInfo(self):
+        models = []
+        for llmr, mr in self.llmCache.items():
+            models.append(llmr)
+        return models
 
     def unloadLLMs(self):
+        unloaded = False
         models_to_unload = []
         for llmr, mr in self.llmCache.items():
             if mr.model is not None or mr.tokenizer is not None:
@@ -57,17 +67,23 @@ class Brain:
             gc.collect()
             torch.cuda.empty_cache()
             #print_cuda_mem()
+            unloaded = True
+        return unloaded
 
     def getLLM(self, llmModel, **kwargs):
+        new = False
         if llmModel in self.llmCache:
-            return self.llmCache[llmModel]
+            return self.llmCache[llmModel], False
         else:
-            self.unloadLLMs()
+            new = True
+            self.semaphore.acquire()
+            unloaded = self.unloadLLMs()
 
             if llmModel in LLMS:
                 llm_class, llm_args, prompt, privacy = LLMS[llmModel]
 
                 if llm_class == localLoader:
+                    print("LOADING MODEL " + llmModel)
                     llm, model, tokenizer, pipe = llm_class(
                         **llm_args, **kwargs)
                     m = Model(
@@ -83,7 +99,7 @@ class Brain:
                     m = Model(llmModel, llm, prompt, privacy)
 
                 self.llmCache[llmModel] = m
-                return m
+                return m, new
             else:
                 raise Exception("Invalid LLM type.")
 
@@ -221,7 +237,7 @@ class Brain:
         return chat, output
 
     def chat(self, project, chatModel):
-        model = self.getLLM(project.model.llm)
+        model, loaded = self.getLLM(project.model.llm)
         chat = project.loadChat(chatModel)
 
         retriever = project.db.as_retriever(
@@ -250,6 +266,9 @@ class Brain:
         result = conversationalChain(
             {"question": chatModel.question, "chat_history": chat.history}
         )
+        
+        if loaded == True:
+            self.semaphore.release()
 
         if project.model.sandboxed and len(result["source_documents"]) == 0:
             return chat, {"source_documents": [
@@ -286,7 +305,7 @@ class Brain:
         return answer, docs
 
     def questionContext(self, project, questionModel, child=False):
-        model = self.getLLM(project.model.llm)
+        model, loaded = self.getLLM(project.model.llm)
 
         prompt_template_txt = PROMPTS[model.prompt]
 
@@ -325,4 +344,8 @@ class Brain:
                        "question": questionModel.question} for doc in docs]
 
         output = chain.apply(inputs)
+        
+        if loaded == True:
+            self.semaphore.release()
+            
         return output[0]["text"].strip(), docs, False

@@ -200,6 +200,7 @@ def get_hardware_info(user: User = Depends(get_current_username)):
             gpu_load=gpu_load,
             gpu_temp=gpu_temp,
             gpu_ram_usage=gpu_ram_usage,
+            models_vram=brain.memoryModelsInfo()
         )
     except Exception as e:
         logging.error(e)
@@ -538,6 +539,10 @@ def question_project(
             "sources": sources,
             "type": "question"}
     except Exception as e:
+        try:
+            brain.semaphore.release()
+        except ValueError:
+            pass
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
@@ -552,6 +557,7 @@ def chat_project(
         db: Session = Depends(get_db)):
     try:
         chat, output = brain.entryChat(projectName, input, db)
+        
         docs = output["source_documents"]
         answer = output["answer"].strip()
 
@@ -566,6 +572,10 @@ def chat_project(
             "sources": sources,
             "type": "chat"}
     except Exception as e:
+        try:
+            brain.semaphore.release()
+        except ValueError:
+            pass
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
