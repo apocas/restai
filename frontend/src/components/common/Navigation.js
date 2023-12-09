@@ -24,6 +24,9 @@ function Navigation() {
 
   useEffect(() => {
     fetchHardware();
+    const intervalCall = setInterval(() => {
+      fetchHardware();
+    }, 10000);
   }, []);
 
   return (
@@ -68,6 +71,9 @@ function Navigation() {
           </Nav>
           {user.username && (
             <Nav>
+              <Navbar.Text style={{ color: hardware && hardware.gpu_ram_usage > 80 ? 'red' : 'inherit', marginRight: '5px' }}>
+                Loaded Models: {hardware && hardware.models_vram}{' -'}
+              </Navbar.Text>
               <Navbar.Text style={{ color: hardware && hardware.gpu_ram_usage > 80 ? 'red' : 'inherit', marginRight: '5px' }}>
                 VRAM: {hardware && hardware.gpu_ram_usage}{'% -'}
               </Navbar.Text>

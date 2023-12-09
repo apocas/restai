@@ -37,6 +37,12 @@ class Brain:
 
         self.text_splitter = RecursiveCharacterTextSplitter(
             separators=[" "], chunk_size=1024, chunk_overlap=30)
+        
+    def memoryModelsInfo(self):
+        models = []
+        for llmr, mr in self.llmCache.items():
+            models.append(llmr)
+        return models
 
     def unloadLLMs(self):
         models_to_unload = []
@@ -72,6 +78,7 @@ class Brain:
                 llm_class, llm_args, prompt, privacy = LLMS[llmModel]
 
                 if llm_class == localLoader:
+                    print("LOADING MODEL " + llmModel)
                     llm, model, tokenizer, pipe = llm_class(
                         **llm_args, **kwargs)
                     m = Model(
