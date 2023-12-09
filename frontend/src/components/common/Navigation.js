@@ -71,7 +71,7 @@ function Navigation() {
           </Nav>
           {user.username && (
             <Nav>
-              <Navbar.Text>
+              <Navbar.Text style={{  marginRight: '5px' }}>
                 <b>Models@VRAM:</b> {hardware && hardware.models_vram.join(', ')}{' -'}
               </Navbar.Text>
               <Navbar.Text style={{ color: hardware && hardware.gpu_ram_usage > 80 ? 'red' : 'inherit', marginRight: '5px' }}>

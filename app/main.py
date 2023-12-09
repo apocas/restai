@@ -539,6 +539,10 @@ def question_project(
             "sources": sources,
             "type": "question"}
     except Exception as e:
+        try:
+            brain.semaphore.release()
+        except ValueError:
+            pass
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
@@ -568,6 +572,10 @@ def chat_project(
             "sources": sources,
             "type": "chat"}
     except Exception as e:
+        try:
+            brain.semaphore.release()
+        except ValueError:
+            pass
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(

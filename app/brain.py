@@ -237,7 +237,7 @@ class Brain:
         return chat, output
 
     def chat(self, project, chatModel):
-        model, unloaded = self.getLLM(project.model.llm)
+        model, loaded = self.getLLM(project.model.llm)
         chat = project.loadChat(chatModel)
 
         retriever = project.db.as_retriever(
@@ -267,7 +267,7 @@ class Brain:
             {"question": chatModel.question, "chat_history": chat.history}
         )
         
-        if unloaded == True:
+        if loaded == True:
             self.semaphore.release()
 
         if project.model.sandboxed and len(result["source_documents"]) == 0:
@@ -305,7 +305,7 @@ class Brain:
         return answer, docs
 
     def questionContext(self, project, questionModel, child=False):
-        model, unloaded = self.getLLM(project.model.llm)
+        model, loaded = self.getLLM(project.model.llm)
 
         prompt_template_txt = PROMPTS[model.prompt]
 
@@ -345,7 +345,7 @@ class Brain:
 
         output = chain.apply(inputs)
         
-        if unloaded == True:
+        if loaded == True:
             self.semaphore.release()
             
         return output[0]["text"].strip(), docs, False
