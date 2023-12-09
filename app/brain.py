@@ -49,7 +49,6 @@ class Brain:
         models_to_unload = []
         for llmr, mr in self.llmCache.items():
             if mr.model is not None or mr.tokenizer is not None:
-                self.semaphore.acquire()
                 print("UNLOADING MODEL " + llmr)
                 models_to_unload.append(llmr)
 
@@ -72,9 +71,12 @@ class Brain:
         return unloaded
 
     def getLLM(self, llmModel, **kwargs):
+        new = False
         if llmModel in self.llmCache:
             return self.llmCache[llmModel], False
         else:
+            new = True
+            self.semaphore.acquire()
             unloaded = self.unloadLLMs()
 
             if llmModel in LLMS:
@@ -97,7 +99,7 @@ class Brain:
                     m = Model(llmModel, llm, prompt, privacy)
 
                 self.llmCache[llmModel] = m
-                return m, unloaded
+                return m, new
             else:
                 raise Exception("Invalid LLM type.")
 
