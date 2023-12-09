@@ -78,7 +78,7 @@ function Navigation() {
               <b>VRAM:</b> {hardware && hardware.gpu_ram_usage}{'% -'}
               </Navbar.Text>
               <Navbar.Text>
-                Signed in as:  {' '}
+              <b>Signed in as:</b>  {' '}
                 <NavLink
                   to={"/users/" + user.username}
                 >
