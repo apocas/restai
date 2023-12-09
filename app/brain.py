@@ -1,6 +1,7 @@
 import gc
 import os
 import queue
+import threading
 from fastapi import HTTPException
 from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
@@ -32,8 +33,7 @@ class Brain:
         self.defaultNegative = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
         self.loopFailsafe = 0
-        self.queue = queue.SimpleQueue()
-        self.queue.put("infering")
+        self.semaphore = threading.BoundedSemaphore()
 
         self.text_splitter = RecursiveCharacterTextSplitter(
             separators=[" "], chunk_size=1024, chunk_overlap=30)
@@ -49,7 +49,7 @@ class Brain:
         models_to_unload = []
         for llmr, mr in self.llmCache.items():
             if mr.model is not None or mr.tokenizer is not None:
-                self.queue.get()
+                self.semaphore.acquire()
                 print("UNLOADING MODEL " + llmr)
                 models_to_unload.append(llmr)
 
@@ -265,8 +265,8 @@ class Brain:
             {"question": chatModel.question, "chat_history": chat.history}
         )
         
-        if self.queue.empty() == True and unloaded == True:
-            self.queue.put("infering")
+        if unloaded == True:
+            self.semaphore.release()
 
         if project.model.sandboxed and len(result["source_documents"]) == 0:
             return chat, {"source_documents": [
@@ -343,7 +343,7 @@ class Brain:
 
         output = chain.apply(inputs)
         
-        if self.queue.empty() == True and unloaded == True:
-            self.queue.put("infering")
+        if unloaded == True:
+            self.semaphore.release()
             
         return output[0]["text"].strip(), docs, False
