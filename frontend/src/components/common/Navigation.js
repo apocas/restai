@@ -7,7 +7,7 @@ import restaiLogo from '../../assets/img/restai-logo.png';
 
 function Navigation() {
   const { logout, getBasicAuth } = useContext(AuthContext);
-  const [hardware, setHardware] = useState({ "gpu_ram_usage": 0 });
+  const [hardware, setHardware] = useState({ "gpu_ram_usage": 0, "models_vram": [] });
   const user = getBasicAuth() || { username: null, admin: null };
   const [error, setError] = useState([]);
 
