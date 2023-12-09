@@ -71,11 +71,11 @@ function Navigation() {
           </Nav>
           {user.username && (
             <Nav>
-              <Navbar.Text style={{ color: hardware && hardware.gpu_ram_usage > 80 ? 'red' : 'inherit', marginRight: '5px' }}>
-                Loaded Models: {hardware && hardware.models_vram}{' -'}
+              <Navbar.Text>
+                <b>Models@VRAM:</b> {hardware && hardware.models_vram.join(', ')}{' -'}
               </Navbar.Text>
               <Navbar.Text style={{ color: hardware && hardware.gpu_ram_usage > 80 ? 'red' : 'inherit', marginRight: '5px' }}>
-                VRAM: {hardware && hardware.gpu_ram_usage}{'% -'}
+              <b>VRAM:</b> {hardware && hardware.gpu_ram_usage}{'% -'}
               </Navbar.Text>
               <Navbar.Text>
                 Signed in as:  {' '}

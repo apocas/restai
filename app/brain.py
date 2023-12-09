@@ -45,6 +45,7 @@ class Brain:
         return models
 
     def unloadLLMs(self):
+        unloaded = False
         models_to_unload = []
         for llmr, mr in self.llmCache.items():
             if mr.model is not None or mr.tokenizer is not None:
@@ -67,12 +68,14 @@ class Brain:
             gc.collect()
             torch.cuda.empty_cache()
             #print_cuda_mem()
+            unloaded = True
+        return unloaded
 
     def getLLM(self, llmModel, **kwargs):
         if llmModel in self.llmCache:
-            return self.llmCache[llmModel]
+            return self.llmCache[llmModel], False
         else:
-            self.unloadLLMs()
+            unloaded = self.unloadLLMs()
 
             if llmModel in LLMS:
                 llm_class, llm_args, prompt, privacy = LLMS[llmModel]
@@ -94,7 +97,7 @@ class Brain:
                     m = Model(llmModel, llm, prompt, privacy)
 
                 self.llmCache[llmModel] = m
-                return m
+                return m, unloaded
             else:
                 raise Exception("Invalid LLM type.")
 
@@ -232,7 +235,7 @@ class Brain:
         return chat, output
 
     def chat(self, project, chatModel):
-        model = self.getLLM(project.model.llm)
+        model, unloaded = self.getLLM(project.model.llm)
         chat = project.loadChat(chatModel)
 
         retriever = project.db.as_retriever(
@@ -262,7 +265,7 @@ class Brain:
             {"question": chatModel.question, "chat_history": chat.history}
         )
         
-        if self.queue.empty() == True:
+        if self.queue.empty() == True and unloaded == True:
             self.queue.put("infering")
 
         if project.model.sandboxed and len(result["source_documents"]) == 0:
@@ -300,7 +303,7 @@ class Brain:
         return answer, docs
 
     def questionContext(self, project, questionModel, child=False):
-        model = self.getLLM(project.model.llm)
+        model, unloaded = self.getLLM(project.model.llm)
 
         prompt_template_txt = PROMPTS[model.prompt]
 
@@ -339,6 +342,8 @@ class Brain:
                        "question": questionModel.question} for doc in docs]
 
         output = chain.apply(inputs)
-        if self.queue.empty() == True:
+        
+        if self.queue.empty() == True and unloaded == True:
             self.queue.put("infering")
+            
         return output[0]["text"].strip(), docs, False
