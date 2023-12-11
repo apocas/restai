@@ -1,9 +1,10 @@
 # restai
 
-* RESTAI is a simple generic REST API that allows to create embeddings from multiple datatypes and then interact with them using a LLM.
-* This LLM may be an OpenAI based model, llamacpp, gpt4all or any other LLM supported by langchain.
+* RESTAI is a generic REST API that allows to create embeddings from multiple datatypes and then interact with them using a LLM. An API for the RAG process.
+* This LLM may be an OpenAI based model, llamacpp, transformer or any other LLM supported by langchain or compatible with OpenAI API.
 * If you want to be completely offline, you may use (for example) the `llama2` LLM and `huggingface` embeddings.
 * RESTAI features an abstraction layer supporting multiple vectorstores, right now Chroma and Redis is supported.
+* It was built thinking on low vram enviromnents, it loads and unloads LLMs automatically allowing to use multiple LLMs even if they don't all fit in VRAM simultaneously.
 ## Details
 ### Embeddings
 * Create embeddings from your data. You are able to ingest data by uploading files ou directly parsing an URL content.
