@@ -41,7 +41,8 @@ class Brain:
     def memoryModelsInfo(self):
         models = []
         for llmr, mr in self.llmCache.items():
-            models.append(llmr)
+            if mr.privacy == "private":
+                models.append(llmr)
         return models
 
     def unloadLLMs(self):
@@ -80,7 +81,7 @@ class Brain:
             unloaded = self.unloadLLMs()
 
             if llmModel in LLMS:
-                llm_class, llm_args, prompt, privacy = LLMS[llmModel]
+                llm_class, llm_args, prompt, privacy, description = LLMS[llmModel]
 
                 if llm_class == localLoader:
                     print("LOADING MODEL " + llmModel)
@@ -161,27 +162,27 @@ class Brain:
             proj_db.llm = projectModel.llm
             changed = True
 
-        if proj_db.sandboxed != projectModel.sandboxed:
+        if projectModel.sandboxed is not None and proj_db.sandboxed != projectModel.sandboxed:
             proj_db.sandboxed = projectModel.sandboxed
             changed = True
 
-        if proj_db.system != projectModel.system:
+        if projectModel.system is not None and proj_db.system != projectModel.system:
             proj_db.system = projectModel.system
             changed = True
 
-        if proj_db.censorship != projectModel.censorship:
+        if projectModel.censorship is not None and proj_db.censorship != projectModel.censorship:
             proj_db.censorship = projectModel.censorship
             changed = True
 
-        if proj_db.k != projectModel.k:
+        if projectModel.k is not None and proj_db.k != projectModel.k:
             proj_db.k = projectModel.k
             changed = True
 
-        if proj_db.score != projectModel.score:
+        if projectModel.score is not None and proj_db.score != projectModel.score:
             proj_db.score = projectModel.score
             changed = True
 
-        if proj_db.sandbox_project != projectModel.sandbox_project:
+        if projectModel.sandbox_project is not None and proj_db.sandbox_project != projectModel.sandbox_project:
             proj_db.sandbox_project = projectModel.sandbox_project
             changed = True
 
