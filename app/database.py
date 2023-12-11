@@ -111,14 +111,16 @@ class Database:
             llm,
             system,
             sandboxed,
-            censorship):
+            censorship,
+            vectorstore):
         db_project = ProjectDatabase(
             name=name,
             embeddings=embeddings,
             llm=llm,
             system=system,
             sandboxed=sandboxed,
-            censorship=censorship)
+            censorship=censorship,
+            vectorstore=vectorstore)
         db.add(db_project)
         db.commit()
         db.refresh(db_project)

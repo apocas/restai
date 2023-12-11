@@ -140,7 +140,8 @@ class Brain:
             projectModel.llm,
             projectModel.system,
             projectModel.sandboxed,
-            projectModel.censorship
+            projectModel.censorship,
+            projectModel.vectorstore,
         )
         project = Project()
         project.boot(projectModel)
