@@ -151,6 +151,11 @@ def vector_delete(project):
             os.environ["REDIS_HOST"] +
             ":" +
             os.environ["REDIS_PORT"])
+        try:
+            embeddingsPath = FindEmbeddingsPath(project.model.name)
+            shutil.rmtree(embeddingsPath, ignore_errors=True)
+        except BaseException:
+            pass
 
 def vector_delete_source(project, source):
     ids = []
