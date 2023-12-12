@@ -11,6 +11,7 @@ function Edit() {
   const [error, setError] = useState([]);
   const passwordForm = useRef(null)
   const isadminForm = useRef(null)
+  const isprivateForm = useRef(null)
   var { username } = useParams();
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
@@ -24,26 +25,18 @@ function Edit() {
   // TODO: response handling
   const onSubmitHandler = (event) => {
     event.preventDefault();
-    var body = "";
-    if (passwordForm.current.value === "" && user.admin) {
-      body = JSON.stringify({
-        "is_admin": isadminForm.current.checked
-      })
-    } else if (passwordForm.current.value !== "" && user.admin) {
-      body = JSON.stringify({
-        "password": passwordForm.current.value,
-        "is_admin": isadminForm.current.checked
-      })
-    } else {
-      body = JSON.stringify({
-        "password": passwordForm.current.value
-      })
+    var update = {
+      "is_admin": isadminForm.current.checked,
+      "is_private": isprivateForm.current.checked
+    };
+    if (passwordForm.current.value !== "") {
+      update.password = passwordForm.current.value
     }
 
     fetch(url + "/users/" + username, {
       method: 'PATCH',
       headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
-      body: body,
+      body: JSON.stringify(update),
     })
       .then(response => response.json())
       .catch(err => {
@@ -57,6 +50,7 @@ function Edit() {
       .then((res) => res.json())
       .then((d) => {
         isadminForm.current.checked = d.is_admin
+        isprivateForm.current.checked = d.is_private
       }
       ).catch(err => {
         setError([...error, { "functionName": "fetchUser", "error": err.toString() }]);
@@ -88,6 +82,12 @@ function Edit() {
               <Form.Group as={Col} controlId="formGridAdmin">
                 <Form.Check ref={isadminForm} type="checkbox" label="Admin" />
                 <Link title="Admins have access to all projects and can edit all users">ℹ️</Link>
+              </Form.Group>
+            }
+                {user.admin &&
+              <Form.Group as={Col} controlId="formGridAdmin">
+                <Form.Check ref={isprivateForm} type="checkbox" label="Private models only" />
+                <Link title="Can only use private/local models">ℹ️</Link>
               </Form.Group>
             }
           </Row>

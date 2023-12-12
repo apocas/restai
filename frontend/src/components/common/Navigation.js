@@ -49,7 +49,7 @@ function Navigation() {
               <NavLink
                 to="/"
               >
-                Home
+                Projects
               </NavLink>
             </Nav.Link>
             {user.admin && (
@@ -61,12 +61,23 @@ function Navigation() {
                 </NavLink>
               </Nav.Link>
             )}
+            <Nav.Link as="li">|</Nav.Link>
             <Nav.Link as="li">
               <NavLink
                 to="/hardware"
               >
                 Hardware
               </NavLink>
+            </Nav.Link>
+            <Nav.Link as="li">
+              <NavLink
+                to="/Models"
+              >
+                Models
+              </NavLink>
+            </Nav.Link>
+            <Nav.Link as="li">
+              <a href="/docs">API</a>
             </Nav.Link>
           </Nav>
           {user.username && (

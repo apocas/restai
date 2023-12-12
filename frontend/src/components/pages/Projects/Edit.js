@@ -137,7 +137,7 @@ function Edit() {
                 {
                   info.llms.map((llm, index) => {
                     return (
-                      <option key={index}>{llm}</option>
+                      <option key={index}>{llm.name}</option>
                     )
                   }
                   )

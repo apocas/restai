@@ -53,6 +53,7 @@ class User(BaseModel):
     id: int
     username: str
     is_admin: bool = False
+    is_private: bool = False
     projects: list[UserProject] = []
     model_config = ConfigDict(from_attributes=True)
 
@@ -64,11 +65,13 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
     is_admin: bool = False
+    is_private: bool = False
 
 
 class UserUpdate(BaseModel):
     password: str = None
     is_admin: bool = None
+    is_private: bool = None
     projects: list[str] = None
 
 
