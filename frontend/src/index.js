@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import Navigation from './components/common/Navigation.js'
 import './assets/css/index.css';
 import Projects from './components/pages/Projects/Projects.js';
+import Models from './components/pages/Projects/Models.js';
 import Project from './components/pages/Projects/Project.js';
 import ProjectsEdit from './components/pages/Projects/Edit.js';
 import Chat from './components/pages/Projects/Chat.js';
@@ -31,6 +32,7 @@ function Root() {
             <Route path={'/'} element={<PrivateRoute />}>
               <Route path={`/`} element={<Projects />} />
               <Route path={`/projects`} element={<Projects />} />
+              <Route path={`/models`} element={<Models />} />
               <Route path={`/projects/:projectName`} element={<Project />} />
               <Route path={`/projects/:projectName/edit`} element={<ProjectsEdit />} />
               <Route path={`/projects/:projectName/question`} element={<Question />} />

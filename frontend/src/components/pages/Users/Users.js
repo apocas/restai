@@ -11,6 +11,7 @@ function Users() {
   const usernameForm = useRef(null)
   const passwordForm = useRef(null)
   const isadminForm = useRef(null)
+  const isprivateForm = useRef(null)
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth() || { username: null, admin: null };
 
@@ -45,6 +46,7 @@ function Users() {
         "username": usernameForm.current.value,
         "password": passwordForm.current.value,
         "is_admin": isadminForm.current.checked,
+        "is_private": isprivateForm.current.checked,
       }),
     })
       .then(response => response.json())
@@ -126,6 +128,9 @@ function Users() {
               </Form.Group>
               <Form.Group as={Col} controlId="formGridAdmin">
                 <Form.Check ref={isadminForm} type="checkbox" label="Admin" />
+              </Form.Group>
+              <Form.Group as={Col} controlId="formGridPrivate">
+                <Form.Check ref={isprivateForm} type="checkbox" label="Private only models" />
               </Form.Group>
             </Row>
             <Button variant="dark" type="submit" className="mb-2">

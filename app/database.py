@@ -46,10 +46,10 @@ if "users" not in inspect(engine).get_table_names():
 
 class Database:
 
-    def create_user(self, db, username, password, admin=False):
+    def create_user(self, db, username, password, admin=False, private=False):
         hash = pwd_context.hash(password)
         db_user = UserDatabase(
-            username=username, hashed_password=hash, is_admin=admin)
+            username=username, hashed_password=hash, is_admin=admin, is_private=private)
         db.add(db_user)
         db.commit()
         db.refresh(db_user)
@@ -71,6 +71,9 @@ class Database:
 
         if userc.is_admin is not None:
             user.is_admin = userc.is_admin
+            
+        if userc.is_private is not None:
+            user.is_private = userc.is_private
 
         db.commit()
         return True

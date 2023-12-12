@@ -196,7 +196,7 @@ function Projects() {
                   {
                     info.embeddings.map((embbedding, index) => {
                       return (
-                        <option key={index}>{embbedding}</option>
+                        <option key={index}>{embbedding.name}</option>
                       )
                     }
                     )
@@ -211,7 +211,7 @@ function Projects() {
                   {
                     info.llms.map((llm, index) => {
                       return (
-                        <option key={index}>{llm}</option>
+                        <option key={index}>{llm.name}</option>
                       )
                     }
                     )

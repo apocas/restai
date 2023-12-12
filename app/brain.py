@@ -109,7 +109,7 @@ class Brain:
             return self.embeddingCache[embeddingModel]
         else:
             if embeddingModel in EMBEDDINGS:
-                embedding_class, embedding_args = EMBEDDINGS[embeddingModel]
+                embedding_class, embedding_args, privacy, description = EMBEDDINGS[embeddingModel]
                 model = embedding_class(**embedding_args)
                 self.embeddingCache[embeddingModel] = model
                 return model

@@ -106,6 +106,7 @@ function User() {
               <ListGroup.Item>Username: {data.username}</ListGroup.Item>
               <ListGroup.Item>Projects Count: {data.projects.length}</ListGroup.Item>
               <ListGroup.Item>Admin: {data.is_admin ? (<span>✅</span>) : (<span>❌</span>)}</ListGroup.Item>
+              <ListGroup.Item>Private models only: {data.is_private ? (<span>✅</span>) : (<span>❌</span>)}</ListGroup.Item>
             </ListGroup>
           </Col>
         </Row>

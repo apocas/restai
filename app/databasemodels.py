@@ -11,7 +11,8 @@ class UserDatabase(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-    is_admin = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
+    is_private = Column(Boolean, default=False)
     projects = relationship("UserProjectDatabase", back_populates="owner")
 
 

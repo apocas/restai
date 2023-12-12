@@ -78,11 +78,30 @@ async def get(request: Request):
 
 @app.get("/info")
 async def get_info(user: User = Depends(get_current_username)):
-    return {
-        "version": app.version, "embeddings": list(
-            EMBEDDINGS.keys()), "llms": list(
-            LLMS.keys()), "loaders": list(
-                LOADERS.keys())}
+    output = {
+        "version": app.version,
+        "loaders": list(LOADERS.keys()),
+        "embeddings": [],
+        "llms": []
+    }
+    
+    for llm in LLMS:
+        llm_class, llm_args, prompt, privacy, description = LLMS[llm]
+        output["llms"].append({
+            "name": llm,
+            "prompt": prompt,
+            "privacy": privacy,
+            "description": description
+        })
+        
+    for embedding in EMBEDDINGS:
+        embedding_class, embedding_args, privacy, description = EMBEDDINGS[embedding]
+        output["embeddings"].append({
+            "name": embedding,
+            "privacy": privacy,
+            "description": description
+        })
+    return output
 
 
 @app.get("/users/{username}", response_model=User)
@@ -112,7 +131,8 @@ def create_user(userc: UserCreate,
         user = dbc.create_user(db,
                                userc.username,
                                userc.password,
-                               userc.is_admin)
+                               userc.is_admin,
+                               userc.is_private)
         return user
     except Exception as e:
         logging.error(e)
@@ -279,6 +299,13 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
             raise HTTPException(
                 status_code=404,
                 detail='Sandbox project not found')
+    
+    if user.is_private:
+        llm_class, llm_args, prompt, privacy, description = LLMS[projectModelUpdate.llm]
+        if privacy != "private":
+            raise HTTPException(
+                status_code=403,
+                detail='User allowed to private models only')
 
     try:
         if brain.editProject(projectName, projectModelUpdate, db):
@@ -310,6 +337,19 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
         raise HTTPException(
             status_code=403,
             detail='Project already exists')
+
+    if user.is_private:
+        llm_class, llm_args, prompt, privacy, description = LLMS[projectModel.llm]
+        if privacy != "private":
+            raise HTTPException(
+                status_code=403,
+                detail='User allowed to private models only')
+            
+        embedding_class, embedding_args, embedding_privacy, embedding_description = EMBEDDINGS[projectModel.embeddings]
+        if embedding_privacy != "private":
+            raise HTTPException(
+                status_code=403,
+                detail='User allowed to private models only')
 
     try:
         project = brain.createProject(projectModel, db)
