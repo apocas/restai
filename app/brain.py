@@ -337,6 +337,8 @@ class Brain:
 
         if len(docs) == 0:
             if project.model.sandboxed:
+                if loaded == True:
+                    self.semaphore.release()
                 return project.model.censorship or self.defaultCensorship, [], True
             else:
                 inputs = [{"context": "",
