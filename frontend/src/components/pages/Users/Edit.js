@@ -39,6 +39,9 @@ function Edit() {
       body: JSON.stringify(update),
     })
       .then(response => response.json())
+      .then(response => {
+        window.location.href = "/admin/users/" + username;
+      })
       .catch(err => {
         setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
       });
