@@ -65,6 +65,7 @@ def get_current_username_project(
             status_code=404,
             detail="Project not found"
         )
+    return user
 
 
 def get_current_username_user(
