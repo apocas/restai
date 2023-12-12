@@ -20,7 +20,7 @@ from app.databasemodels import UserDatabase
 import urllib.parse
 
 from app.models import ChatResponse, EmbeddingModel, HardwareInfo, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, URLIngestModel, User, UserCreate, UserUpdate
-from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, loadEnvVars
+from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from app.vectordb import vector_delete_source, vector_delete_id, vector_find, vector_info, vector_init, vector_save, vector_urls
@@ -572,12 +572,17 @@ def question_project(
         sources = [{"content": doc.page_content,
                     "keywords": doc.metadata["keywords"],
                     "source": doc.metadata["source"]} for doc in docs]
-
-        return {
+        
+        output = {
             "question": input.question,
             "answer": answer,
             "sources": sources,
-            "type": "question"}
+            "type": "question"
+        }
+        
+        get_logger("inference").info({"user": user.username, "output": output})
+        
+        return output
     except Exception as e:
         try:
             brain.semaphore.release()
@@ -605,12 +610,16 @@ def chat_project(
                     "keywords": doc.metadata["keywords"],
                     "source": doc.metadata["source"]} for doc in docs]
 
-        return {
+        output = {
             "question": input.question,
             "answer": answer,
             "id": chat.id,
             "sources": sources,
             "type": "chat"}
+
+        get_logger("inference").info({"user": user.username, "output": output})
+
+        return output
     except Exception as e:
         try:
             brain.semaphore.release()

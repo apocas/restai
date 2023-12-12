@@ -1,3 +1,4 @@
+import logging
 import os
 from fastapi import HTTPException
 from modules.loaders import LOADERS
@@ -83,3 +84,17 @@ def print_cuda_mem():
           (torch.cuda.memory_reserved() /
               1e6) +
           "MB")
+
+
+def get_logger(name, level=logging.INFO):
+    """To setup as many loggers as you want"""
+
+    handler = logging.FileHandler("./logs/" + name + ".log") 
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(handler)
+
+    return logger
