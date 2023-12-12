@@ -28,3 +28,4 @@ redis
 redisvl
 openpyxl
 pydantic>2.5.0
+google-cloud-aiplatform
