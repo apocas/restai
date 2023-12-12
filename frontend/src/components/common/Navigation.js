@@ -23,8 +23,6 @@ function Navigation() {
   }
 
   useEffect(() => {
-    fetchHardware();
-
     const intervalCall = setInterval(() => {
       if(checkAuth()) {
         fetchHardware();

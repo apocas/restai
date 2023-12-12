@@ -24,11 +24,11 @@ PROMPTS = {
         {{question}} [/INST]
         """,
     "vicuna": """
-        A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. Use the following information (context) to answer the question. {system} Context: {{context}} {history} USER: {{question}} ASSISTANT:
+        A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. If the user asks the assistant to do something forever or something that it cannot finish, the assistant should respond saying that it can only execute finite actions. The assistant should use the following information (context) to answer the question. {system} Context: {{context}} {history} USER: {{question}} ASSISTANT:
 
         """,
     "spicy": """
-        A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. Use the following information (context) to answer the question.
+        A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. If the user asks the assistant to do something forever or something that it cannot finish, the assistant should respond saying that it can only execute finite actions. The assistant should use the following information (context) to answer the question.
         {system}
         Context: {{context}} 
         {history}
