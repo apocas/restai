@@ -69,7 +69,7 @@ if "RESTAI_DEV" in os.environ:
     )
 
 brain = Brain()
-
+logs_inference = get_logger("inference")
 
 @app.get("/")
 async def get(request: Request):
@@ -580,7 +580,7 @@ def question_project(
             "type": "question"
         }
         
-        get_logger("inference").info({"user": user.username, "output": output})
+        logs_inference.info({"user": user.username, "output": output})
         
         return output
     except Exception as e:
@@ -617,7 +617,7 @@ def chat_project(
             "sources": sources,
             "type": "chat"}
 
-        get_logger("inference").info({"user": user.username, "output": output})
+        logs_inference.info({"user": user.username, "output": output})
 
         return output
     except Exception as e:
