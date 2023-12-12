@@ -149,23 +149,23 @@ def update_user(
         user: User = Depends(get_current_username_user),
         db: Session = Depends(get_db)):
     try:
-        user = dbc.get_user_by_username(db, username)
-        if user is None:
+        useru = dbc.get_user_by_username(db, username)
+        if useru is None:
             raise Exception("User not found")
 
         if not user.is_admin and userc.is_admin is True:
             raise Exception("Insuficient permissions")
 
-        dbc.update_user(db, user, userc)
+        dbc.update_user(db, useru, userc)
 
         if userc.projects is not None:
-            dbc.delete_userprojects(db, user)
+            dbc.delete_userprojects(db, useru)
             for project in userc.projects:
                 projectdb = dbc.get_project_by_name(db, project)
                 if projectdb is None:
                     raise Exception("Project not found")
-                dbc.add_userproject(db, user, project, projectdb.id)
-        return user
+                dbc.add_userproject(db, useru, project, projectdb.id)
+        return useru
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
