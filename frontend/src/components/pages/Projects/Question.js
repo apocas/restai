@@ -118,7 +118,7 @@ function Question() {
             <Col sm={12}>
               <InputGroup>
                 <InputGroup.Text>System</InputGroup.Text>
-                <Form.Control ref={systemForm} rows="5" as="textarea" aria-label="With textarea" defaultValue={data.system ? data.system : "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."} />
+                <Form.Control ref={systemForm} rows="5" as="textarea" aria-label="With textarea" defaultValue={data.system ? data.system : ""} />
               </InputGroup>
             </Col>
             {answers.length > 0 &&
