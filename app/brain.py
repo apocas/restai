@@ -246,7 +246,7 @@ class Brain:
         prompt_template_txt = PROMPTS[model.prompt]
         sysTemplate = project.model.system or self.defaultSystem
         prompt_template = prompt_template_txt.format(
-            system=sysTemplate, history="Chat History: {chat_history}", context="Context: {{context}}")
+            system=sysTemplate, history="Chat History: {chat_history}", context="Context: {context}")
 
         custom_prompt = PromptTemplate(
             template=prompt_template,
@@ -325,7 +325,7 @@ class Brain:
         if len(docs) == 0:
             contextsub = ""
         else:
-            contextsub = "Context: {{context}}"
+            contextsub = "Context: {context}"
 
         prompt_template = prompt_template_txt.format(
             system=sysTemplate, history="", context=contextsub)

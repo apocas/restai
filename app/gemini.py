@@ -3,7 +3,6 @@ from typing import Any, List, Mapping, Optional
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain_core.language_models.llms import LLM
 
-import vertexai
 from vertexai.preview.generative_models import GenerativeModel, Part
 
 class GeminiLLM(LLM):
