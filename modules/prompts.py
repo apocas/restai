@@ -14,12 +14,8 @@ PROMPTS = {
     "gemini": """{system}
     
         Question: {{question}}
-        =========
         {context}
-        =========
         {history}
-        =========
-        Answer:
         """,
     "llama": """
         [INST] <<SYS>>
