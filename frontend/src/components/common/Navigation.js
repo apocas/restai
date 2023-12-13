@@ -23,12 +23,13 @@ function Navigation() {
   }
 
   useEffect(() => {
-    setInterval(() => {
-      if(user.username !== null) {
+    if (user.username !== null) {
+      fetchHardware();
+      setInterval(() => {
         fetchHardware();
-      }
-    }, 15000);
-  }, []);
+      }, 15000);
+    }
+  }, [user]);
 
   return (
     <Navbar expand="lg" className="bg-body-tertiary">
@@ -83,14 +84,14 @@ function Navigation() {
           </Nav>
           {user.username && (
             <Nav>
-              <Navbar.Text style={{  marginRight: '5px' }}>
+              <Navbar.Text style={{ marginRight: '5px' }}>
                 <b>Models@VRAM:</b> {hardware && hardware.models_vram && hardware.models_vram.join(', ')}{' -'}
               </Navbar.Text>
               <Navbar.Text style={{ color: hardware && hardware.gpu_ram_usage > 80 ? 'red' : 'inherit', marginRight: '5px' }}>
-              <b>VRAM:</b> {hardware && hardware.gpu_ram_usage}{'% -'}
+                <b>VRAM:</b> {hardware && hardware.gpu_ram_usage}{'% -'}
               </Navbar.Text>
               <Navbar.Text>
-              <b>Signed in as:</b>  {' '}
+                <b>Signed in as:</b>  {' '}
                 <NavLink
                   to={"/users/" + user.username}
                 >
