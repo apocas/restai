@@ -6,7 +6,7 @@ import restaiLogo from '../../assets/img/restai-logo.png';
 
 
 function Navigation() {
-  const { logout, getBasicAuth, checkAuth } = useContext(AuthContext);
+  const { logout, getBasicAuth } = useContext(AuthContext);
   const [hardware, setHardware] = useState({ "gpu_ram_usage": 0, "models_vram": [] });
   const user = getBasicAuth() || { username: null, admin: null };
   const [error, setError] = useState([]);
@@ -23,8 +23,8 @@ function Navigation() {
   }
 
   useEffect(() => {
-    const intervalCall = setInterval(() => {
-      if(checkAuth()) {
+    setInterval(() => {
+      if(user.username !== null) {
         fetchHardware();
       }
     }, 15000);
