@@ -1,10 +1,6 @@
 import gc
-import os
-import queue
 import threading
-from fastapi import HTTPException
-from langchain.text_splitter import CharacterTextSplitter, RecursiveCharacterTextSplitter
-from langchain.chains import RetrievalQA
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain.vectorstores import Chroma
@@ -12,9 +8,8 @@ import torch
 from app.loader import localLoader
 from app.model import Model
 
-from app.models import EmbeddingModel, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
+from app.models import ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
 from app.project import Project
-from app.tools import FindEmbeddingsPath, print_cuda_mem
 from app.vectordb import vector_init
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
@@ -31,7 +26,7 @@ class Brain:
         self.embeddingCache = {}
         self.defaultCensorship = "This question is outside of my scope. Please ask another question."
         self.defaultNegative = "I'm sorry, I don't know the answer to that."
-        self.defaultSystem = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
+        self.defaultSystem = ""
         self.loopFailsafe = 0
         self.semaphore = threading.BoundedSemaphore()
 
@@ -251,7 +246,7 @@ class Brain:
         prompt_template_txt = PROMPTS[model.prompt]
         sysTemplate = project.model.system or self.defaultSystem
         prompt_template = prompt_template_txt.format(
-            system=sysTemplate, history="Chat History: {chat_history}")
+            system=sysTemplate, history="Chat History: {chat_history}", context="Context: {{context}}")
 
         custom_prompt = PromptTemplate(
             template=prompt_template,
@@ -316,14 +311,6 @@ class Brain:
         else:
             sysTemplate = questionModel.system or project.model.system or self.defaultSystem
 
-        prompt_template = prompt_template_txt.format(
-            system=sysTemplate, history="")
-
-        prompt = PromptTemplate(
-            template=prompt_template, input_variables=["context", "question"]
-        )
-        chain = LLMChain(llm=model.llm, prompt=prompt)
-
         retriever = project.db.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
@@ -334,6 +321,19 @@ class Brain:
             docs = retriever.get_relevant_documents(questionModel.question)
         except BaseException:
             docs = []
+            
+        if len(docs) == 0:
+            contextsub = ""
+        else:
+            contextsub = "Context: {{context}}"
+
+        prompt_template = prompt_template_txt.format(
+            system=sysTemplate, history="", context=contextsub)
+
+        prompt = PromptTemplate(
+            template=prompt_template, input_variables=["context", "question"]
+        )
+        chain = LLMChain(llm=model.llm, prompt=prompt)
 
         if len(docs) == 0:
             if project.model.sandboxed:
