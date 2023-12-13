@@ -242,11 +242,21 @@ class Brain:
             search_kwargs={
                 "score_threshold": chatModel.score or project.model.score or 0.2,
                 "k": chatModel.k or project.model.k or 1})
+        
+        try:
+            docs = retriever.get_relevant_documents(chatModel.question)
+        except BaseException:
+            docs = []
+            
+        if len(docs) == 0:
+            contextsub = "{context}"
+        else:
+            contextsub = "Context: {context}"
 
         prompt_template_txt = PROMPTS[model.prompt]
         sysTemplate = project.model.system or self.defaultSystem
         prompt_template = prompt_template_txt.format(
-            system=sysTemplate, history="Chat History: {chat_history}", context="Context: {context}")
+            system=sysTemplate, history="Chat History: {chat_history}", context=contextsub)
 
         custom_prompt = PromptTemplate(
             template=prompt_template,
