@@ -124,7 +124,7 @@ function Question() {
               </InputGroup>
             </Col>
             <Col sm={2}>
-            <h5>Templates:</h5>
+            <h5>System Templates:</h5>
             <InputGroup>
                 <Button variant="dark" onClick={ragTemplate} size="sm">Classic RAG</Button>
               </InputGroup>
