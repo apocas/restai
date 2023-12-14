@@ -28,10 +28,12 @@ function Question() {
     </OverlayTrigger>
   );
 
+  function ragTemplate() {
+    systemForm.current.value = "You are a digital assistant, answer the question about the following context. NEVER invent an answer, if you don't know the answer, just say you don't know. If you don't understand the question, just say you don't understand."
+  }
+
   function CustomToggle({ children, eventKey }) {
-    const decoratedOnClick = useAccordionButton(eventKey, () =>
-      console.log('totally custom!'),
-    );
+    const decoratedOnClick = useAccordionButton(eventKey);
 
     return (
       <span
@@ -115,10 +117,16 @@ function Question() {
         <h1>Question {projectName}</h1>
         <Form onSubmit={onSubmitHandler}>
           <Row>
-            <Col sm={12}>
+            <Col sm={10}>
               <InputGroup>
                 <InputGroup.Text>System</InputGroup.Text>
                 <Form.Control ref={systemForm} rows="5" as="textarea" aria-label="With textarea" defaultValue={data.system ? data.system : ""} />
+              </InputGroup>
+            </Col>
+            <Col sm={2}>
+            <h5>System Templates:</h5>
+            <InputGroup>
+                <Button variant="dark" onClick={ragTemplate} size="sm">Classic RAG</Button>
               </InputGroup>
             </Col>
             {answers.length > 0 &&
