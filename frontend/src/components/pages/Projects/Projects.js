@@ -182,6 +182,7 @@ function Projects() {
               <tr>
                 <th>#</th>
                 <th>Project Name</th>
+                <th>Model</th>
                 <th>Actions</th>
                 <th>Inference<Link title="Chat has memory. Question doesn't">ℹ️</Link></th>
                 {user.admin &&
@@ -201,6 +202,9 @@ function Projects() {
                         >
                           {project.name}
                         </NavLink>
+                      </td>
+                      <td>
+                        {project.llm}
                       </td>
                       <td>
                         <NavLink
