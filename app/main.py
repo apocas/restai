@@ -570,8 +570,8 @@ def question_project(
         answer, docs = brain.entryQuestion(projectName, input, db)
 
         sources = [{"content": doc.page_content,
-                    "keywords": doc.metadata["keywords"],
-                    "source": doc.metadata["source"]} for doc in docs]
+                    "keywords": doc.metadata.get("keywords", ""),
+                    "source": doc.metadata.get("source", "")} for doc in docs]
         
         output = {
             "question": input.question,
@@ -607,8 +607,8 @@ def chat_project(
         answer = output["answer"].strip()
 
         sources = [{"content": doc.page_content,
-                    "keywords": doc.metadata["keywords"],
-                    "source": doc.metadata["source"]} for doc in docs]
+                    "keywords": doc.metadata.get("keywords", ""),
+                    "source": doc.metadata.get("source", "")} for doc in docs]
 
         output = {
             "question": input.question,

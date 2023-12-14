@@ -9,6 +9,12 @@ class GeminiLLM(LLM):
     top_p:          Optional[float] = 1
     max_output_tokens:     Optional[int]   = 2048
     temperature:           Optional[float] = 0.1
+    
+    def __init__(self, **kwargs: Any):
+        super(GeminiLLM, self).__init__()
+        self.top_p = kwargs.get("top_p", self.top_p)
+        self.max_output_tokens = kwargs.get("max_output_tokens", self.max_output_tokens)
+        self.temperature = kwargs.get("temperature", self.temperature)
 
     @property
     def _llm_type(self) -> str:
