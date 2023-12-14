@@ -9,6 +9,7 @@ function Projects() {
 
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [data, setData] = useState([]);
+  const [displayData, setDisplayData] = useState([]);
   const [users, setUsers] = useState({ "teste": [] });
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const [error, setError] = useState([]);
@@ -16,6 +17,9 @@ function Projects() {
   const embbeddingForm = useRef(null)
   const llmForm = useRef(null)
   const vectorForm = useRef(null)
+  const embbeddingFilter = useRef(null)
+  const llmFilter = useRef(null)
+  const vectorFilter = useRef(null)
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
 
@@ -30,6 +34,7 @@ function Projects() {
       .then((res) => res.json())
       .then((d) => {
         setData(d)
+        setDisplayData(d)
         if (user.admin)
           fetchUsers(d);
       }
@@ -66,6 +71,20 @@ function Projects() {
       ).catch(err => {
         setError([...error, { "functionName": "fetchUsers", "error": err.toString() }]);
       });
+  }
+
+  const handleFilterChange = () => {
+    var newData = [];
+    var embFilterValue = embbeddingFilter.current.value;
+    var llmFilterValue = llmFilter.current.value;
+    var vectorFilterValue = vectorFilter.current.value;
+    if (embFilterValue === "All" && llmFilterValue === "All" && vectorFilterValue === "All") {
+      newData = [...data];
+      setDisplayData(newData);
+    } else {
+      newData = data.filter(element => element.embeddings === embFilterValue || element.llm === llmFilterValue || element.vectorstore === vectorFilterValue)
+      setDisplayData(newData);
+    }
   }
 
   // TODO: response handling
@@ -114,8 +133,50 @@ function Projects() {
         </Alert>
       }
       <Container style={{ marginTop: "20px" }}>
+        <h1>Projects</h1>
+        <Row style={{ marginBottom: "10px" }}>
+          <h5>Filters</h5>
+
+          <Form.Group as={Col} controlId="formGridLLM">
+            <Form.Label>LLM</Form.Label>
+            <Form.Select ref={llmFilter} onClick={handleFilterChange} defaultValue="All">
+              <option>All</option>
+              {
+                info.llms.map((llm, index) => {
+                  return (
+                    <option key={index}>{llm.name}</option>
+                  )
+                }
+                )
+              }
+            </Form.Select>
+          </Form.Group>
+
+          <Form.Group as={Col} controlId="formGridEmbeddings">
+            <Form.Label>Embeddings<Link title="Model used to compute embeddings">ℹ️</Link></Form.Label>
+            <Form.Select ref={embbeddingFilter} onClick={handleFilterChange} defaultValue="All">
+              <option>All</option>
+              {
+                info.embeddings.map((embbedding, index) => {
+                  return (
+                    <option key={index}>{embbedding.name}</option>
+                  )
+                }
+                )
+              }
+            </Form.Select>
+          </Form.Group>
+
+          <Form.Group as={Col} controlId="formGridVector">
+            <Form.Label>Vectorstore<Link title="Chroma is monolithic and only recommended for testing. Redis is distributed.">ℹ️</Link></Form.Label>
+            <Form.Select ref={vectorFilter} onClick={handleFilterChange} defaultValue="All">
+              <option>All</option>
+              <option>chroma</option>
+              <option>redis</option>
+            </Form.Select>
+          </Form.Group>
+        </Row>
         <Row>
-          <h1>Projects</h1>
           <Table striped bordered hover responsive>
             <thead>
               <tr>
@@ -130,7 +191,7 @@ function Projects() {
             </thead>
             <tbody>
               {
-                data.map((project, index) => {
+                displayData.map((project, index) => {
                   return (
                     <tr key={index}>
                       <td>{index}</td>
@@ -232,7 +293,7 @@ function Projects() {
             </Button>
           </Form>
         </Row>
-      </Container>
+      </Container >
     </>
   );
 }
