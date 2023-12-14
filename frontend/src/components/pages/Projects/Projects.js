@@ -136,45 +136,48 @@ function Projects() {
         <h1>Projects</h1>
         <Row style={{ marginBottom: "10px" }}>
           <h5>Filters</h5>
-
-          <Form.Group as={Col} controlId="formGridLLM">
-            <Form.Label>LLM</Form.Label>
-            <Form.Select ref={llmFilter} onClick={handleFilterChange} defaultValue="All">
-              <option>All</option>
-              {
-                info.llms.map((llm, index) => {
-                  return (
-                    <option key={index}>{llm.name}</option>
+          <Col sm={4}>
+            <Form.Group as={Col} controlId="formGridLLM">
+              <Form.Label>LLM</Form.Label>
+              <Form.Select ref={llmFilter} onChange={handleFilterChange} defaultValue="All">
+                <option>All</option>
+                {
+                  info.llms.map((llm, index) => {
+                    return (
+                      <option key={index}>{llm.name}</option>
+                    )
+                  }
                   )
                 }
-                )
-              }
-            </Form.Select>
-          </Form.Group>
-
-          <Form.Group as={Col} controlId="formGridEmbeddings">
-            <Form.Label>Embeddings<Link title="Model used to compute embeddings">ℹ️</Link></Form.Label>
-            <Form.Select ref={embbeddingFilter} onClick={handleFilterChange} defaultValue="All">
-              <option>All</option>
-              {
-                info.embeddings.map((embbedding, index) => {
-                  return (
-                    <option key={index}>{embbedding.name}</option>
+              </Form.Select>
+            </Form.Group>
+          </Col>
+          <Col sm={4}>
+            <Form.Group as={Col} controlId="formGridEmbeddings">
+              <Form.Label>Embeddings<Link title="Model used to compute embeddings">ℹ️</Link></Form.Label>
+              <Form.Select ref={embbeddingFilter} onChange={handleFilterChange} defaultValue="All">
+                <option>All</option>
+                {
+                  info.embeddings.map((embbedding, index) => {
+                    return (
+                      <option key={index}>{embbedding.name}</option>
+                    )
+                  }
                   )
                 }
-                )
-              }
-            </Form.Select>
-          </Form.Group>
-
-          <Form.Group as={Col} controlId="formGridVector">
-            <Form.Label>Vectorstore<Link title="Chroma is monolithic and only recommended for testing. Redis is distributed.">ℹ️</Link></Form.Label>
-            <Form.Select ref={vectorFilter} onClick={handleFilterChange} defaultValue="All">
-              <option>All</option>
-              <option>chroma</option>
-              <option>redis</option>
-            </Form.Select>
-          </Form.Group>
+              </Form.Select>
+            </Form.Group>
+          </Col>
+          <Col sm={4}>
+            <Form.Group as={Col} controlId="formGridVector">
+              <Form.Label>Vectorstore<Link title="Chroma is monolithic and only recommended for testing. Redis is distributed.">ℹ️</Link></Form.Label>
+              <Form.Select ref={vectorFilter} onChange={handleFilterChange} defaultValue="All">
+                <option>All</option>
+                <option>chroma</option>
+                <option>redis</option>
+              </Form.Select>
+            </Form.Group>
+          </Col>
         </Row>
         <Row>
           <Table striped bordered hover responsive>
