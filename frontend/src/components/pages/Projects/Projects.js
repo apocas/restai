@@ -135,7 +135,6 @@ function Projects() {
       <Container style={{ marginTop: "20px" }}>
         <h1>Projects</h1>
         <Row style={{ marginBottom: "10px" }}>
-          <h5>Filters</h5>
           <Col sm={4}>
             <Form.Group as={Col} controlId="formGridLLM">
               <Form.Label>LLM</Form.Label>
@@ -220,7 +219,7 @@ function Projects() {
                         <NavLink
                           to={"/projects/" + project.name + "/chat"}
                         >
-                          <Button variant="dark">Chat</Button>{' '}
+                          <Button variant="dark">Chat<Link title="Models need to support Chat mode, unstable otherwise. GPT's and models with 'chat' in the name support it. Example: OpenAI GPT4, LLama based Chat models.">⚠️</Link></Button>{' '}
                         </NavLink>
                         <NavLink
                           to={"/projects/" + project.name + "/question"}
