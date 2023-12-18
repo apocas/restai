@@ -100,7 +100,13 @@ function User() {
       <Container style={{ marginTop: "20px" }}>
         <Row style={{ marginTop: "20px" }}>
           <Col sm={12}>
-            <h1>Status</h1>
+            <h1>
+              Details
+              <NavLink to={"/users/" + data.username + "/edit"} >
+                <Button variant="dark" style={{ marginLeft: "10px" }}>Edit</Button>{' '}
+              </NavLink>
+            </h1>
+
             <ListGroup>
               <ListGroup.Item>Id: {data.id}</ListGroup.Item>
               <ListGroup.Item>Username: {data.username}</ListGroup.Item>

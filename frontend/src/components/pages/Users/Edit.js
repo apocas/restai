@@ -1,6 +1,6 @@
 import { Container, Row, Form, Col, Button, Alert } from 'react-bootstrap';
 import React, { useState, useEffect, useRef, useContext } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, NavLink } from "react-router-dom";
 import { AuthContext } from '../../common/AuthProvider.js';
 import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import Tooltip from 'react-bootstrap/Tooltip';
@@ -95,8 +95,11 @@ function Edit() {
             }
           </Row>
           <Button variant="dark" type="submit" className="mb-2">
-            Submit
+            Save
           </Button>
+          <NavLink to={"/users/" + username} >
+              <Button variant="danger" style={{ marginLeft: "10px", marginTop: "-8px" }}>Cancel</Button>{' '}
+          </NavLink>
         </Form>
       </Container>
     </>
