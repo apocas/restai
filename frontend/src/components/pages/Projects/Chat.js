@@ -13,6 +13,7 @@ function Chat() {
   var { projectName } = useParams();
   const messageForm = useRef(null);
   const scoreForm = useRef(null);
+  const systemForm = useRef(null);
   const kForm = useRef(null);
   const [messages, setMessages] = useState([]);
   const [canSubmit, setCanSubmit] = useState(true);
@@ -118,8 +119,17 @@ function Chat() {
       }
       <Container style={{ marginTop: "20px" }}>
         <h1>Chat {projectName}</h1>
+        <Row style={{ textAlign: "right", marginLeft: "4px", marginBottom: "15px", marginTop: "-9px" }}>
+            (Remember that the LLM needs to support Chat mode for this to work, unstable otherwise)
+        </Row>
         <Form onSubmit={onSubmitHandler}>
           <Row>
+            <Col sm={12}>
+              <InputGroup>
+                <InputGroup.Text>System</InputGroup.Text>
+                <Form.Control disabled ref={systemForm} rows="5" as="textarea" aria-label="With textarea" defaultValue={data.system ? data.system : ""} />
+              </InputGroup>
+            </Col>
             {messages.length > 0 &&
               <Col sm={12}>
                 <Card>

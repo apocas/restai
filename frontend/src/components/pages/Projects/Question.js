@@ -115,6 +115,9 @@ function Question() {
       }
       <Container style={{ marginTop: "20px" }}>
         <h1>Question {projectName}</h1>
+        <Row style={{ textAlign: "right", marginLeft: "4px", marginBottom: "15px", marginTop: "-9px" }}>
+            (Remember that in Question mode, every question is stateless there is no memory of previous questions)
+        </Row>
         <Form onSubmit={onSubmitHandler}>
           <Row>
             <Col sm={10}>
@@ -129,6 +132,8 @@ function Question() {
                 <Button variant="dark" onClick={ragTemplate} size="sm">Classic RAG</Button>
               </InputGroup>
             </Col>
+          </Row>
+          <Row>
             {answers.length > 0 &&
               <Col sm={12} style={{ marginTop: "20px" }}>
                 <Card>
