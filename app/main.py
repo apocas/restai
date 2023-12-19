@@ -236,14 +236,20 @@ def get_hardware_info(user: User = Depends(get_current_username)):
 @app.get("/projects", response_model=list[ProjectModel])
 async def get_projects(request: Request, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
     if user.is_admin:
-        return dbc.get_projects(db)
+        projects = dbc.get_projects(db)
     else:
         projects = []
         for project in user.projects:
             for p in dbc.get_projects(db):
                 if project.name == p.name:
                     projects.append(p)
-        return projects
+
+    for project in projects:
+        llm_class, llm_args, prompt, llm_privacy, description, llm_type = LLMS[project.llm]
+        project.llm_type = llm_type
+        project.llm_privacy = llm_privacy
+
+    return projects
 
 
 @app.get("/projects/{projectName}", response_model=ProjectInfo)

@@ -21,7 +21,7 @@ psutil
 passlib
 SQLAlchemy
 jq
-transformers==4.35.2
+transformers==4.36.2
 accelerate==0.24.1
 optimum==1.13.1
 redis
@@ -29,3 +29,4 @@ redisvl
 openpyxl
 pydantic>2.5.0
 google-cloud-aiplatform
+bitsandbytes
