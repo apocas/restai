@@ -8,7 +8,7 @@ class Model:
             model=None,
             tokenizer=None,
             pipe=None,
-            typel=None):
+            type=None):
         self.model_name = model_name
         self.llm = llm
         self.prompt = prompt
