@@ -4,6 +4,8 @@ import { useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
 import ReactJson from '@microlink/react-json-view';
+import ModalImage from "react-modal-image";
+import NoImage from '../../../assets/img/no-image.jpg'
 
 function Vision() {
 
@@ -151,12 +153,19 @@ function Vision() {
           <Row style={{ marginTop: "20px" }}>
             <Col sm={8}>
               <InputGroup>
-                <InputGroup.Text>Question</InputGroup.Text>
-                <Form.Control ref={questionForm} rows="5" as="textarea" aria-label="With textarea" />
+                <InputGroup.Text>{file ? "Question" : "Prompt"}</InputGroup.Text>
+                <Form.Control ref={questionForm} rows="9" as="textarea" aria-label="Question textarea" />
               </InputGroup>
             </Col>
             <Col sm={4}>
-              <center><img style={{ borderStyle: "solid" }} width="50%" src={file}></img></center>
+              <center>
+                <ModalImage
+                  width="50%"
+                  small={file ? file : NoImage}
+                  large={file ? file : NoImage}
+                  alt="Image preview"
+                />
+              </center>
             </Col>
           </Row>
           <Row style={{ marginTop: "20px" }}>
