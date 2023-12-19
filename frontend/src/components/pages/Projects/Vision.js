@@ -39,9 +39,16 @@ function Vision() {
     var body = {};
     var submit = false;
     if (question !== "" && file) {
-      body = {
-        "question": question,
-        "image": file
+      if (file.includes("base64,")) {
+        body = {
+          "question": question,
+          "image": file.split(",")[1]
+        }
+      } else {
+        body = {
+          "question": question,
+          "image": file
+        }
       }
       submit = true;
     }
