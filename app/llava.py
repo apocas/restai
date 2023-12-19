@@ -5,7 +5,7 @@ import requests
 from PIL import Image
 
 class LlavaLLM:
-    def __init__(self, modelid):
+    def __init__(self, model):
         self.modelid = modelid
     
     def llavaInference(self, prompt, imageb64):
