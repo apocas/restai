@@ -220,161 +220,189 @@ function Project() {
           {JSON.stringify(error)}
         </Alert>
       }
-      <Container style={{ marginTop: "20px" }}>
-        <Row style={{ marginTop: "20px" }}>
-          <Col sm={6}>
-            <h1>Details {data.name}</h1>
-            <ListGroup>
-              <ListGroup.Item><b>LLM:</b> {data.llm}</ListGroup.Item>
-              <ListGroup.Item><b>Vectorstore:</b> {data.vectorstore}</ListGroup.Item>
-              <ListGroup.Item><b>Embeddings:</b> {data.embeddings} <Button onClick={() => handleResetEmbeddingsClick()} variant="danger">Reset</Button></ListGroup.Item>
-              <ListGroup.Item><b>Documents:</b> {data.documents}</ListGroup.Item>
-              <ListGroup.Item><b>Metadatas:</b> {data.metadatas}</ListGroup.Item>
-              <ListGroup.Item><b>System:</b> {data.system}</ListGroup.Item>
-              <ListGroup.Item><b>K:</b> {data.k}</ListGroup.Item>
-              <ListGroup.Item><b>Score:</b> {data.score}</ListGroup.Item>
-              <ListGroup.Item><b>Sandboxed:</b> {data.sandboxed ? (<span>✅</span>) : (<span>❌</span>)}</ListGroup.Item>
-              <ListGroup.Item><b>Sandbox Project:</b> {data.sandbox_project}</ListGroup.Item>
-              <ListGroup.Item><b>Sandbox Message:</b> {data.censorship}</ListGroup.Item>
-            </ListGroup>
-          </Col>
-          <Col sm={6}>
-            <h1>Ingest<Link title="Ingest a file or an URL">ℹ️</Link></h1>
-            <Form onSubmit={onSubmitHandler}>
-              <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
-                <Col sm={12}>
-                  <Form.Control ref={fileForm} onChange={handleFileChange} type="file" />
-                </Col>
-              </Form.Group>
-              <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
-                <Col sm={12}>
-                  <Form.Control ref={urlForm} type="url" placeholder="Enter url" />
-                </Col>
-              </Form.Group>
-              <Col sm={2}>
-                <Button variant="dark" type="submit">Ingest</Button>
-              </Col>
-            </Form>
-            {
-              uploadResponse.type === "file" ?
-                <Row>
+      {data.llm_type === "vision" ?
+        <Container style={{ marginTop: "20px" }}>
+          <Row style={{ marginTop: "20px" }}>
+            <Col sm={6}>
+              <h1>Details {data.name}</h1>
+              <ListGroup>
+                <ListGroup.Item><b>LLM:</b> {data.llm}</ListGroup.Item>
+                <ListGroup.Item><b>Vectorstore:</b> {data.vectorstore}</ListGroup.Item>
+              </ListGroup>
+            </Col>
+            <Col sm={6}>
+              <h1>Actions</h1>
+              <NavLink
+                to={"/projects/" + data.name + "/edit"}
+              >
+                <Button variant="dark">Edit</Button>{' '}
+              </NavLink>
+              < NavLink
+                to={"/projects/" + data.name + "/vision"}
+              >
+                <Button variant="dark">Vision</Button>{' '}
+              </NavLink>
+              <Button onClick={() => handleDeleteProjectClick(data.name)} variant="danger">Delete</Button>
+            </Col>
+          </Row>
+        </Container>
+        :
+        <Container style={{ marginTop: "20px" }}>
+          <Row style={{ marginTop: "20px" }}>
+            <Col sm={6}>
+              <h1>Details {data.name}</h1>
+              <ListGroup>
+                <ListGroup.Item><b>LLM:</b> {data.llm}</ListGroup.Item>
+                <ListGroup.Item><b>Vectorstore:</b> {data.vectorstore}</ListGroup.Item>
+                <ListGroup.Item><b>Embeddings:</b> {data.embeddings} <Button onClick={() => handleResetEmbeddingsClick()} variant="danger">Reset</Button></ListGroup.Item>
+                <ListGroup.Item><b>Documents:</b> {data.documents}</ListGroup.Item>
+                <ListGroup.Item><b>Metadatas:</b> {data.metadatas}</ListGroup.Item>
+                <ListGroup.Item><b>System:</b> {data.system}</ListGroup.Item>
+                <ListGroup.Item><b>K:</b> {data.k}</ListGroup.Item>
+                <ListGroup.Item><b>Score:</b> {data.score}</ListGroup.Item>
+                <ListGroup.Item><b>Sandboxed:</b> {data.sandboxed ? (<span>✅</span>) : (<span>❌</span>)}</ListGroup.Item>
+                <ListGroup.Item><b>Sandbox Project:</b> {data.sandbox_project}</ListGroup.Item>
+                <ListGroup.Item><b>Sandbox Message:</b> {data.censorship}</ListGroup.Item>
+              </ListGroup>
+            </Col>
+            <Col sm={6}>
+              <h1>Ingest<Link title="Ingest a file or an URL">ℹ️</Link></h1>
+              <Form onSubmit={onSubmitHandler}>
+                <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
                   <Col sm={12}>
-                    <h5>Ingest Result:</h5>
-                    <ListGroup>
-                      <ListGroup.Item>FileName: {uploadResponse.filename}</ListGroup.Item>
-                      <ListGroup.Item>Type: {uploadResponse.type}</ListGroup.Item>
-                      <ListGroup.Item>Texts: {uploadResponse.texts}</ListGroup.Item>
-                      <ListGroup.Item>Documents: {uploadResponse.documents}</ListGroup.Item>
-                    </ListGroup>
+                    <Form.Control ref={fileForm} onChange={handleFileChange} type="file" />
                   </Col>
-                </Row>
-                : (
-                  uploadResponse.type === "url" &&
+                </Form.Group>
+                <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
+                  <Col sm={12}>
+                    <Form.Control ref={urlForm} type="url" placeholder="Enter url" />
+                  </Col>
+                </Form.Group>
+                <Col sm={2}>
+                  <Button variant="dark" type="submit">Ingest</Button>
+                </Col>
+              </Form>
+              {
+                uploadResponse.type === "file" ?
                   <Row>
                     <Col sm={12}>
                       <h5>Ingest Result:</h5>
                       <ListGroup>
-                        <ListGroup.Item>Url: {uploadResponse.url}</ListGroup.Item>
+                        <ListGroup.Item>FileName: {uploadResponse.filename}</ListGroup.Item>
+                        <ListGroup.Item>Type: {uploadResponse.type}</ListGroup.Item>
                         <ListGroup.Item>Texts: {uploadResponse.texts}</ListGroup.Item>
                         <ListGroup.Item>Documents: {uploadResponse.documents}</ListGroup.Item>
                       </ListGroup>
                     </Col>
                   </Row>
-                )
+                  : (
+                    uploadResponse.type === "url" &&
+                    <Row>
+                      <Col sm={12}>
+                        <h5>Ingest Result:</h5>
+                        <ListGroup>
+                          <ListGroup.Item>Url: {uploadResponse.url}</ListGroup.Item>
+                          <ListGroup.Item>Texts: {uploadResponse.texts}</ListGroup.Item>
+                          <ListGroup.Item>Documents: {uploadResponse.documents}</ListGroup.Item>
+                        </ListGroup>
+                      </Col>
+                    </Row>
+                  )
+              }
+              <hr />
+              <h1>Actions</h1>
+              <NavLink
+                to={"/projects/" + data.name + "/edit"}
+              >
+                <Button variant="dark">Edit</Button>{' '}
+              </NavLink>
+              <NavLink
+                to={"/projects/" + data.name + "/chat"}
+              >
+                <Button variant="dark">Chat</Button>{' '}
+              </NavLink>
+              <NavLink
+                to={"/projects/" + data.name + "/question"}
+              >
+                <Button variant="dark">Question</Button>{' '}
+              </NavLink>
+              <Button onClick={() => handleDeleteProjectClick(data.name)} variant="danger">Delete</Button>
+            </Col>
+          </Row>
+          <hr />
+          <Row style={{ marginTop: "20px" }}>
+            <h1>Embeddings<Link title="Ingested files and URLs">ℹ️</Link></h1>
+            <Col sm={12} style={files.files.length > 5 || urls.urls.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
+              <Table striped bordered hover>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Type</th>
+                    <th>Source</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {
+                    files.files.map((file, index) => {
+                      return (
+                        <tr key={index}>
+                          <td>{index}</td>
+                          <td>File</td>
+                          <td>
+                            {file}
+                          </td>
+                          <td>
+                            <Button onClick={() => handleViewClick(file)} variant="dark">View</Button>{' '}
+                            <Button onClick={() => handleDeleteClick(file, "files")} variant="danger">Delete</Button>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  }
+                  <tr>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                  </tr>
+                  {
+                    urls.urls.map((url, index) => {
+                      return (
+                        <tr key={index}>
+                          <td>{index}</td>
+                          <td>Url</td>
+                          <td>
+                            {url}
+                          </td>
+                          <td>
+                            <Button onClick={() => handleViewClick(url)} variant="dark">View</Button>{' '}
+                            <Button onClick={() => handleDeleteClick(url, "url")} variant="danger">Delete</Button>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  }
+                </tbody>
+              </Table>
+            </Col>
+            {
+              embeddings && (
+                <Row>
+                  <Col sm={12}>
+                    <h2 ref={ref}>Details:</h2>
+                    <ListGroup style={{ height: "400px", overflowY: "scroll" }}>
+                      <ListGroup.Item><b>IDS:</b> <ReactJson src={embeddings.ids} enableClipboard={false} collapsed={0} /></ListGroup.Item>
+                      <ListGroup.Item><b>Metadatas:</b> <ReactJson src={embeddings.metadatas} enableClipboard={false} /></ListGroup.Item>
+                      <ListGroup.Item><b>Documents:</b> <ReactJson src={embeddings.documents} enableClipboard={false} /></ListGroup.Item>
+                    </ListGroup>
+                  </Col>
+                </Row>
+              )
             }
-            <hr />
-            <h1>Actions</h1>
-            <NavLink
-              to={"/projects/" + data.name + "/edit"}
-            >
-              <Button variant="dark">Edit</Button>{' '}
-            </NavLink>
-            <NavLink
-              to={"/projects/" + data.name + "/chat"}
-            >
-              <Button variant="dark">Chat</Button>{' '}
-            </NavLink>
-            <NavLink
-              to={"/projects/" + data.name + "/question"}
-            >
-              <Button variant="dark">Question</Button>{' '}
-            </NavLink>
-            <Button onClick={() => handleDeleteProjectClick(data.name)} variant="danger">Delete</Button>
-          </Col>
-        </Row>
-        <hr />
-        <Row style={{ marginTop: "20px" }}>
-          <h1>Embeddings<Link title="Ingested files and URLs">ℹ️</Link></h1>
-          <Col sm={12} style={files.files.length > 5 || urls.urls.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
-            <Table striped bordered hover>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Type</th>
-                  <th>Source</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {
-                  files.files.map((file, index) => {
-                    return (
-                      <tr key={index}>
-                        <td>{index}</td>
-                        <td>File</td>
-                        <td>
-                          {file}
-                        </td>
-                        <td>
-                          <Button onClick={() => handleViewClick(file)} variant="dark">View</Button>{' '}
-                          <Button onClick={() => handleDeleteClick(file, "files")} variant="danger">Delete</Button>
-                        </td>
-                      </tr>
-                    )
-                  })
-                }
-                <tr>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                </tr>
-                {
-                  urls.urls.map((url, index) => {
-                    return (
-                      <tr key={index}>
-                        <td>{index}</td>
-                        <td>Url</td>
-                        <td>
-                          {url}
-                        </td>
-                        <td>
-                          <Button onClick={() => handleViewClick(url)} variant="dark">View</Button>{' '}
-                          <Button onClick={() => handleDeleteClick(url, "url")} variant="danger">Delete</Button>
-                        </td>
-                      </tr>
-                    )
-                  })
-                }
-              </tbody>
-            </Table>
-          </Col>
-          {
-            embeddings && (
-              <Row>
-                <Col sm={12}>
-                  <h2 ref={ref}>Details:</h2>
-                  <ListGroup style={{ height: "400px", overflowY: "scroll" }}>
-                    <ListGroup.Item><b>IDS:</b> <ReactJson src={embeddings.ids} enableClipboard={false} collapsed={0} /></ListGroup.Item>
-                    <ListGroup.Item><b>Metadatas:</b> <ReactJson src={embeddings.metadatas} enableClipboard={false} /></ListGroup.Item>
-                    <ListGroup.Item><b>Documents:</b> <ReactJson src={embeddings.documents} enableClipboard={false} /></ListGroup.Item>
-                  </ListGroup>
-                </Col>
-              </Row>
-            )
-          }
-        </Row>
-      </Container>
+          </Row>
+        </Container>
+      }
     </>
   );
 }

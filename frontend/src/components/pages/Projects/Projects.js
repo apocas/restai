@@ -216,16 +216,26 @@ function Projects() {
                         </NavLink>
                       </td>
                       <td>
-                        <NavLink
-                          to={"/projects/" + project.name + "/chat"}
-                        >
-                          <Button variant="dark">Chat<Link title="Models need to support Chat mode, unstable otherwise. GPT's and models with 'chat' in the name support it. Example: OpenAI GPT4, LLama based Chat models.">⚠️</Link></Button>{' '}
-                        </NavLink>
-                        <NavLink
-                          to={"/projects/" + project.name + "/question"}
-                        >
-                          <Button variant="dark">Question</Button>{' '}
-                        </NavLink>
+                        {project.llm_type === "vision" ?
+                          <NavLink
+                            to={"/projects/" + project.name + "/vision"}
+                          >
+                            <Button variant="dark">Vision</Button>{' '}
+                          </NavLink>
+                          :
+                          <div>
+                            <NavLink
+                              to={"/projects/" + project.name + "/chat"}
+                            >
+                              <Button variant="dark">Chat<Link title="Models need to support Chat mode, unstable otherwise. GPT's and models with 'chat' in the name support it. Example: OpenAI GPT4, LLama based Chat models.">⚠️</Link></Button>{' '}
+                            </NavLink>
+                            <NavLink
+                              to={"/projects/" + project.name + "/question"}
+                            >
+                              <Button variant="dark">Question</Button>{' '}
+                            </NavLink>
+                          </div>
+                        }
                       </td>
                       {
                         user.admin &&
