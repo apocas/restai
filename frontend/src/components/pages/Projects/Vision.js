@@ -4,6 +4,8 @@ import { useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
 import ReactJson from '@microlink/react-json-view';
+import ModalImage from "react-modal-image";
+import NoImage from '../../../assets/img/no-image.jpg'
 
 function Vision() {
 
@@ -150,20 +152,28 @@ function Vision() {
           </Row>
           <Row style={{ marginTop: "20px" }}>
             <Col sm={8}>
-              <InputGroup>
-                <InputGroup.Text>Question</InputGroup.Text>
-                <Form.Control ref={questionForm} rows="5" as="textarea" aria-label="With textarea" />
+              <InputGroup style={{height: "100%"}}>
+                <InputGroup.Text>{file ? "Question" : "Prompt"}</InputGroup.Text>
+                <Form.Control ref={questionForm} rows="5" as="textarea" aria-label="Question textarea" />
               </InputGroup>
             </Col>
             <Col sm={4}>
-              <center><img style={{ borderStyle: "solid" }} width="50%" src={file}></img></center>
+              <center>
+                <ModalImage
+                  width="50%"
+                  small={file ? file : NoImage}
+                  large={file ? file : NoImage}
+                  alt="Image preview"
+                />
+              </center>
             </Col>
           </Row>
+          <hr/>
           <Row style={{ marginTop: "20px" }}>
             <Col sm={5}>
               <Form.Control ref={uploadForm} onChange={handleFileUpload} type="file" />
             </Col>
-            <Col style={{ marginTop: "0.5px", paddingLeft: "3%" }} sm={1}>
+            <Col style={{ marginTop: "0.5%", paddingLeft: "3%" }} sm={1}>
               OR
             </Col>
             <Col sm={6}>
