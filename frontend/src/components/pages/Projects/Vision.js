@@ -168,11 +168,12 @@ function Vision() {
               </center>
             </Col>
           </Row>
+          <hr/>
           <Row style={{ marginTop: "20px" }}>
             <Col sm={5}>
               <Form.Control ref={uploadForm} onChange={handleFileUpload} type="file" />
             </Col>
-            <Col style={{ marginTop: "0.5px", paddingLeft: "3%" }} sm={1}>
+            <Col style={{ marginTop: "0.5%", paddingLeft: "3%" }} sm={1}>
               OR
             </Col>
             <Col sm={6}>
