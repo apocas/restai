@@ -30,6 +30,10 @@ class LlavaLLM:
         output_tensor = self.model.generate(**inputs, max_new_tokens=200, do_sample=False)
         output = self.processor.decode(output_tensor[0][2:], skip_special_tokens=True)
         
+        split_output = output.split("ASSISTANT:", 1)
+        if len(split_output) > 1:
+            output = split_output[1]
+        
         return output
 
 
