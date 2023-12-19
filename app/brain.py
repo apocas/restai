@@ -5,10 +5,11 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain.vectorstores import Chroma
 import torch
+from app.llava import LlavaLLM
 from app.loader import localLoader
 from app.model import Model
 
-from app.models import ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
+from app.models import ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, VisionModel
 from app.project import Project
 from app.vectordb import vector_init
 from modules.embeddings import EMBEDDINGS
@@ -76,7 +77,7 @@ class Brain:
             unloaded = self.unloadLLMs()
 
             if llmModel in LLMS:
-                llm_class, llm_args, prompt, privacy, description = LLMS[llmModel]
+                llm_class, llm_args, prompt, privacy, description, type = LLMS[llmModel]
 
                 if llm_class == localLoader:
                     print("LOADING MODEL " + llmModel)
@@ -91,6 +92,8 @@ class Brain:
                         tokenizer,
                         pipe)
                 else:
+                    if llm_class == LlavaLLM:
+                        print("LOADING MODEL " + llmModel)
                     llm = llm_class(**llm_args, **kwargs)
                     m = Model(llmModel, llm, prompt, privacy)
 
@@ -363,3 +366,21 @@ class Brain:
             self.semaphore.release()
             
         return output[0]["text"].strip(), docs, False
+
+    def entryVision(self, projectName, visionInput, db: Session):
+        project = self.findProject(projectName, db)
+        if project is None:
+            raise Exception("Project not found")
+        
+        model, loaded = self.getLLM(project.model.llm)
+        
+        prompt_template_txt = PROMPTS[model.prompt]
+        input = prompt_template_txt.format(question=visionInput.question)
+        
+        output = model.llm.llavaInference(input, visionInput.image)
+        
+        if loaded == True:
+            self.semaphore.release()
+            
+        return output, [], 
+        
