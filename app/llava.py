@@ -17,7 +17,7 @@ class LlavaLLM:
             torch_dtype=torch.float16,
             low_cpu_mem_usage=True,
             load_in_4bit=True,
-            use_flash_attention_2=True
+            attn_implementation="flash_attention_2"
         )
 
         processor = AutoProcessor.from_pretrained(self.modelid)
