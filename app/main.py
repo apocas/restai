@@ -89,12 +89,13 @@ async def get_info(user: User = Depends(get_current_username)):
     }
 
     for llm in LLMS:
-        llm_class, llm_args, prompt, privacy, description, type = LLMS[llm]
+        llm_class, llm_args, prompt, privacy, description, typel = LLMS[llm]
         output["llms"].append({
             "name": llm,
             "prompt": prompt,
             "privacy": privacy,
-            "description": description
+            "description": description,
+            "type": typel
         })
 
     for embedding in EMBEDDINGS:
@@ -249,6 +250,8 @@ async def get_projects(request: Request, user: User = Depends(get_current_userna
 async def get_project(projectName: str, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
+        
+        llm_class, llm_args, prompt, llm_privacy, description, llm_type = LLMS[project.model.llm]
 
         docs, metas = vector_info(project)
 
@@ -256,6 +259,8 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             name=project.model.name,
             embeddings=project.model.embeddings,
             llm=project.model.llm,
+            llm_type=llm_type,
+            llm_privacy=llm_privacy,
             system=project.model.system,
             sandboxed=project.model.sandboxed,
             censorship=project.model.censorship,

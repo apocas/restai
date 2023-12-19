@@ -18,4 +18,5 @@ LLMS = {
     "wizardlm13b_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/WizardLM-13B-V1.2-GPTQ"}, "vicuna", "private", "https://huggingface.co/TheBloke/WizardLM-13B-V1.2-GPTQ", "text"),
     "spicyboros13b_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/Spicyboros-13B-2.2-GPTQ"}, "spicy", "private", "https://huggingface.co/TheBloke/Spicyboros-13B-2.2-GPTQ", "text"),
     "llava_1.5_13b": (LlavaLLM, {"model": "llava-hf/llava-1.5-13b-hf"}, "llava", "private", "https://huggingface.co/llava-hf/llava-1.5-13b-hf", "vision"),
+    "bakllava_v1": (LlavaLLM, {"model": "llava-hf/bakLlava-v1-hf"}, "llava", "private", "https://huggingface.co/llava-hf/bakLlava-v1-hf", "vision"),
 }

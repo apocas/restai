@@ -5,6 +5,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain.vectorstores import Chroma
 import torch
+from app.llava import LlavaLLM
 from app.loader import localLoader
 from app.model import Model
 
@@ -91,6 +92,8 @@ class Brain:
                         tokenizer,
                         pipe)
                 else:
+                    if llm_class == LlavaLLM:
+                        print("LOADING MODEL " + llmModel)
                     llm = llm_class(**llm_args, **kwargs)
                     m = Model(llmModel, llm, prompt, privacy)
 
@@ -366,6 +369,8 @@ class Brain:
 
     def entryVision(self, projectName, visionInput, db: Session):
         project = self.findProject(projectName, db)
+        if project is None:
+            raise Exception("Project not found")
         
         model, loaded = self.getLLM(project.model.llm)
         

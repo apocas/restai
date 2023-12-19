@@ -10,10 +10,6 @@ class LlavaLLM:
     def llavaInference(self, prompt, imageb64):
         import torch
         from transformers import AutoProcessor, LlavaForConditionalGeneration
-
-        #prompt = "USER: <image>\nGenerate a prompt that describes this image in a detail manner\nASSISTANT:"
-        
-        #image_file = "http://images.cocodataset.org/val2017/000000039769.jpg"
         
         model = LlavaForConditionalGeneration.from_pretrained(
             self.model,

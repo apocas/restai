@@ -20,7 +20,7 @@ class QuestionModel(InteractionModel):
     system: Union[str, None] = None
 
 
-class VisionModel(InteractionModel):
+class VisionModel(BaseModel):
     question: str
     image: Union[str, None] = None
 
