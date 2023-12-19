@@ -380,6 +380,7 @@ class Brain:
         output = model.llm.llavaInference(input, visionInput.image)
         
         if loaded == True:
+            del self.llmCache[project.model.llm]
             self.semaphore.release()
             
         return output, [], 
