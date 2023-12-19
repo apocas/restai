@@ -45,7 +45,7 @@ class Brain:
         unloaded = False
         models_to_unload = []
         for llmr, mr in self.llmCache.items():
-            if mr.model is not None or mr.tokenizer is not None or mr.type == "llava":
+            if mr.model is not None or mr.tokenizer is not None or isinstance(mr.llm, LlavaLLM):
                 print("UNLOADING MODEL " + llmr)
                 models_to_unload.append(llmr)
 
@@ -53,9 +53,10 @@ class Brain:
             self.llmCache[modelr].model = None
             self.llmCache[modelr].tokenizer = None
             self.llmCache[modelr].pipe = None
-            if self.llmCache[modelr].llm.type == "llava":
+            if isinstance(self.llmCache[modelr].llm, LlavaLLM):
                 self.llmCache[modelr].llm.model = None
                 self.llmCache[modelr].llm.processor = None
+                self.llmCache[modelr].llm = None
                 
             gc.collect()
             torch.cuda.empty_cache()
@@ -64,9 +65,10 @@ class Brain:
             del self.llmCache[modelr].tokenizer
             del self.llmCache[modelr].pipe
             
-            if self.llmCache[modelr].type == "llava":
+            if isinstance(self.llmCache[modelr].llm, LlavaLLM):
                 del self.llmCache[modelr].llm.model
                 del self.llmCache[modelr].llm.processor
+                del self.llmCache[modelr].llm
             
             self.llmCache[modelr] = None
             del self.llmCache[modelr]
