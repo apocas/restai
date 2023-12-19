@@ -6,7 +6,7 @@ from PIL import Image
 
 class LlavaLLM:
     def __init__(self, model):
-        self.modelid = modelid
+        self.modelid = model
     
     def llavaInference(self, prompt, imageb64):
         import torch
