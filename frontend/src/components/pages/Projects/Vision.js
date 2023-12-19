@@ -152,9 +152,9 @@ function Vision() {
           </Row>
           <Row style={{ marginTop: "20px" }}>
             <Col sm={8}>
-              <InputGroup>
+              <InputGroup style={{height: "100%"}}>
                 <InputGroup.Text>{file ? "Question" : "Prompt"}</InputGroup.Text>
-                <Form.Control ref={questionForm} rows="9" as="textarea" aria-label="Question textarea" />
+                <Form.Control ref={questionForm} rows="5" as="textarea" aria-label="Question textarea" />
               </InputGroup>
             </Col>
             <Col sm={4}>
