@@ -46,6 +46,8 @@ class ProjectModel(BaseModel):
 class ProjectInfo(ProjectModel):
     documents: int = 0
     metadatas: int = 0
+    llm_type: str
+    llm_privacy: str
 
 
 class UserProject(BaseModel):
