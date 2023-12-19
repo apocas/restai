@@ -8,7 +8,7 @@ import torch
 from app.loader import localLoader
 from app.model import Model
 
-from app.models import ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
+from app.models import ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, VisionModel
 from app.project import Project
 from app.vectordb import vector_init
 from modules.embeddings import EMBEDDINGS
@@ -76,7 +76,7 @@ class Brain:
             unloaded = self.unloadLLMs()
 
             if llmModel in LLMS:
-                llm_class, llm_args, prompt, privacy, description = LLMS[llmModel]
+                llm_class, llm_args, prompt, privacy, description, type = LLMS[llmModel]
 
                 if llm_class == localLoader:
                     print("LOADING MODEL " + llmModel)
@@ -363,3 +363,19 @@ class Brain:
             self.semaphore.release()
             
         return output[0]["text"].strip(), docs, False
+
+    def entryVision(self, projectName, visionInput, db: Session):
+        project = self.findProject(projectName, db)
+        
+        model, loaded = self.getLLM(project.model.llm)
+        
+        prompt_template_txt = PROMPTS[model.prompt]
+        input = prompt_template_txt.format(question=visionInput.question)
+        
+        output = model.llm.llavaInference(input, visionInput.image)
+        
+        if loaded == True:
+            self.semaphore.release()
+            
+        return output, [], 
+        

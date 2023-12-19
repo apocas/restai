@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+import re
 import shutil
 from tempfile import NamedTemporaryFile
 import traceback
@@ -13,13 +14,14 @@ from langchain.document_loaders import (
 )
 from bs4 import BeautifulSoup as Soup
 from dotenv import load_dotenv
+import requests
 from app.auth import get_current_username, get_current_username_admin, get_current_username_project, get_current_username_user
 from app.brain import Brain
 from app.database import Database, dbc, get_db
 from app.databasemodels import UserDatabase
 import urllib.parse
 
-from app.models import ChatResponse, EmbeddingModel, HardwareInfo, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, URLIngestModel, User, UserCreate, UserUpdate
+from app.models import ChatResponse, EmbeddingModel, HardwareInfo, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, URLIngestModel, User, UserCreate, UserUpdate, VisionModel
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -71,6 +73,7 @@ if "RESTAI_DEV" in os.environ:
 brain = Brain()
 logs_inference = get_logger("inference")
 
+
 @app.get("/")
 async def get(request: Request):
     return "RESTAI, so many 'A's and 'I's, so little time..."
@@ -84,16 +87,16 @@ async def get_info(user: User = Depends(get_current_username)):
         "embeddings": [],
         "llms": []
     }
-    
+
     for llm in LLMS:
-        llm_class, llm_args, prompt, privacy, description = LLMS[llm]
+        llm_class, llm_args, prompt, privacy, description, type = LLMS[llm]
         output["llms"].append({
             "name": llm,
             "prompt": prompt,
             "privacy": privacy,
             "description": description
         })
-        
+
     for embedding in EMBEDDINGS:
         embedding_class, embedding_args, privacy, description = EMBEDDINGS[embedding]
         output["embeddings"].append({
@@ -299,9 +302,9 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
             raise HTTPException(
                 status_code=404,
                 detail='Sandbox project not found')
-    
+
     if user.is_private:
-        llm_class, llm_args, prompt, privacy, description = LLMS[projectModelUpdate.llm]
+        llm_class, llm_args, prompt, privacy, description, type = LLMS[projectModelUpdate.llm]
         if privacy != "private":
             raise HTTPException(
                 status_code=403,
@@ -339,13 +342,14 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
             detail='Project already exists')
 
     if user.is_private:
-        llm_class, llm_args, prompt, privacy, description = LLMS[projectModel.llm]
+        llm_class, llm_args, prompt, privacy, description, type = LLMS[projectModel.llm]
         if privacy != "private":
             raise HTTPException(
                 status_code=403,
                 detail='User allowed to private models only')
-            
-        embedding_class, embedding_args, embedding_privacy, embedding_description = EMBEDDINGS[projectModel.embeddings]
+
+        embedding_class, embedding_args, embedding_privacy, embedding_description = EMBEDDINGS[
+            projectModel.embeddings]
         if embedding_privacy != "private":
             raise HTTPException(
                 status_code=403,
@@ -560,6 +564,48 @@ def delete_file(
     return {"deleted": len(ids)}
 
 
+@app.post("/projects/{projectName}/vision", response_model=QuestionResponse)
+def vision_project(
+        projectName: str,
+        input: VisionModel,
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
+
+    try:
+        if input.image:
+            url_pattern = re.compile(
+                r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+            is_url = re.match(url_pattern, input.image) is not None
+
+            if is_url:
+                response = requests.get(input.image)
+                response.raise_for_status()
+                image_data = response.content
+                input.image = base64.b64encode(image_data).decode('utf-8')
+
+        answer, docs = brain.entryVision(projectName, input, db)
+
+        output = {
+            "question": input.question,
+            "answer": answer,
+            "sources": docs,
+            "type": "vision"
+        }
+
+        logs_inference.info({"user": user.username, "output": output})
+
+        return output
+    except Exception as e:
+        try:
+            brain.semaphore.release()
+        except ValueError:
+            pass
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=500, detail=str(e))
+
+
 @app.post("/projects/{projectName}/question", response_model=QuestionResponse)
 def question_project(
         projectName: str,
@@ -572,16 +618,16 @@ def question_project(
         sources = [{"content": doc.page_content,
                     "keywords": doc.metadata.get("keywords", ""),
                     "source": doc.metadata.get("source", "")} for doc in docs]
-        
+
         output = {
             "question": input.question,
             "answer": answer,
             "sources": sources,
             "type": "question"
         }
-        
+
         logs_inference.info({"user": user.username, "output": output})
-        
+
         return output
     except Exception as e:
         try:
@@ -602,7 +648,7 @@ def chat_project(
         db: Session = Depends(get_db)):
     try:
         chat, output = brain.entryChat(projectName, input, db)
-        
+
         docs = output["source_documents"]
         answer = output["answer"].strip()
 

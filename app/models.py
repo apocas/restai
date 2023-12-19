@@ -20,6 +20,10 @@ class QuestionModel(InteractionModel):
     system: Union[str, None] = None
 
 
+class VisionModel(InteractionModel):
+    question: str
+    image: Union[str, None] = None
+
 class ChatModel(InteractionModel):
     question: str
     id: Union[str, None] = None
