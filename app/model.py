@@ -16,7 +16,7 @@ class Model:
         self.model = model
         self.tokenizer = tokenizer
         self.pipe = pipe
-        self.type = typel
+        self.type = type
 
     def __str__(self):
         return self.model_name
