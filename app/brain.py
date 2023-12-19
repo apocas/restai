@@ -45,25 +45,35 @@ class Brain:
         unloaded = False
         models_to_unload = []
         for llmr, mr in self.llmCache.items():
-            if mr.model is not None or mr.tokenizer is not None:
+            if mr.model is not None or mr.tokenizer is not None or mr.type == "llava":
                 print("UNLOADING MODEL " + llmr)
                 models_to_unload.append(llmr)
 
         for modelr in models_to_unload:
-            #print_cuda_mem()
             self.llmCache[modelr].model = None
             self.llmCache[modelr].tokenizer = None
             self.llmCache[modelr].pipe = None
+            if self.llmCache[modelr].llm.type == "llava":
+                self.llmCache[modelr].llm.model = None
+                self.llmCache[modelr].llm.processor = None
+                
             gc.collect()
             torch.cuda.empty_cache()
+            
             del self.llmCache[modelr].model
             del self.llmCache[modelr].tokenizer
             del self.llmCache[modelr].pipe
+            
+            if self.llmCache[modelr].type == "llava":
+                del self.llmCache[modelr].llm.model
+                del self.llmCache[modelr].llm.processor
+            
             self.llmCache[modelr] = None
             del self.llmCache[modelr]
+            
             gc.collect()
             torch.cuda.empty_cache()
-            #print_cuda_mem()
+
             unloaded = True
         return unloaded
 
@@ -77,7 +87,7 @@ class Brain:
             unloaded = self.unloadLLMs()
 
             if llmModel in LLMS:
-                llm_class, llm_args, prompt, privacy, description, type = LLMS[llmModel]
+                llm_class, llm_args, prompt, privacy, description, typel = LLMS[llmModel]
 
                 if llm_class == localLoader:
                     print("LOADING MODEL " + llmModel)
@@ -90,12 +100,13 @@ class Brain:
                         privacy,
                         model,
                         tokenizer,
-                        pipe)
+                        pipe,
+                        typel)
                 else:
                     if llm_class == LlavaLLM:
                         print("LOADING MODEL " + llmModel)
                     llm = llm_class(**llm_args, **kwargs)
-                    m = Model(llmModel, llm, prompt, privacy)
+                    m = Model(llmModel, llm, prompt, privacy, type=typel)
 
                 self.llmCache[llmModel] = m
                 return m, new

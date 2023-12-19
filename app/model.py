@@ -7,7 +7,8 @@ class Model:
             privacy,
             model=None,
             tokenizer=None,
-            pipe=None):
+            pipe=None,
+            typel=None):
         self.model_name = model_name
         self.llm = llm
         self.prompt = prompt
@@ -15,6 +16,7 @@ class Model:
         self.model = model
         self.tokenizer = tokenizer
         self.pipe = pipe
+        self.type = typel
 
     def __str__(self):
         return self.model_name
