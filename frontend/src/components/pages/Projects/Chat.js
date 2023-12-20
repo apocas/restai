@@ -1,4 +1,4 @@
-import { Container, Row, Form, InputGroup, Col, Card, Button, Spinner, Alert, Accordion } from 'react-bootstrap';
+import { Container, Row, Form, InputGroup, Col, Card, Button, Spinner, Alert, Accordion, Badge } from 'react-bootstrap';
 import { useAccordionButton } from 'react-bootstrap/AccordionButton';
 import { useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
@@ -143,16 +143,16 @@ function Chat() {
       }
       <Container style={{ marginTop: "20px" }}>
         <h1>Chat {projectName}</h1>
-        <Row style={{ marginBottom: "15px", marginTop: "-9px" }}>
-          <Col sm={10}>
-            (Remember that the LLM needs to support Chat mode for this to work, unstable otherwise)
-          </Col>
-          <Col sm={2}>
+        <h5>
             {checkPrivacy() ?
-              <span style={{color: "green"}}><b>PRIVATE DATA CHAT</b></span>
-              :
-              <span style={{color: "red"}}><b>REMOTE DATA CHAT</b></span>
+            <Badge bg="success">Private Mode <Link title="You are NOT SHARING any data with external entities.">ℹ️</Link></Badge>
+            :
+            <Badge bg="danger">Public Mode <Link title="You ARE SHARING data with external entities.">ℹ️</Link></Badge>
             }
+        </h5>
+        <Row style={{ marginBottom: "15px", marginTop: "-9px" }}>
+          <Col sm={12}>
+            (Remember that the LLM needs to support Chat mode for this to work, unstable otherwise)
           </Col>
         </Row>
         <Form onSubmit={onSubmitHandler}>

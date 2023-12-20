@@ -1,4 +1,4 @@
-import { Container, Row, Form, InputGroup, Col, Card, Button, Spinner, Alert, Accordion } from 'react-bootstrap';
+import { Container, Row, Form, InputGroup, Col, Card, Button, Spinner, Alert, Accordion, Badge } from 'react-bootstrap';
 import { useAccordionButton } from 'react-bootstrap/AccordionButton';
 import { useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
@@ -139,16 +139,16 @@ function Question() {
       }
       <Container style={{ marginTop: "20px" }}>
         <h1>Question {projectName}</h1>
-        <Row style={{ marginBottom: "15px" }}>
-          <Col sm={9}>
-            (Remember that in Question mode, every question is stateless there is no memory of previous questions)
-          </Col>
-          <Col sm={3}>
+        <h5>
             {checkPrivacy() ?
-              <span style={{ color: "green" }}><b>PRIVATE DATA QUESTION</b></span>
-              :
-              <span style={{ color: "red" }}><b>REMOTE DATA QUESTION</b></span>
+            <Badge bg="success">Private Mode <Link title="You are NOT SHARING any data with external entities.">ℹ️</Link></Badge>
+            :
+            <Badge bg="danger">Public Mode <Link title="You ARE SHARING data with external entities.">ℹ️</Link></Badge>
             }
+        </h5>
+        <Row style={{ marginBottom: "15px" }}>
+          <Col sm={12}>
+            (Remember that in Question mode, every question is stateless there is no memory of previous questions)
           </Col>
         </Row>
         <Form onSubmit={onSubmitHandler}>

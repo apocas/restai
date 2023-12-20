@@ -1,4 +1,4 @@
-import { Container, Table, Row, Form, Col, Button, ListGroup, Alert } from 'react-bootstrap';
+import { Container, Table, Row, Form, Col, Button, ListGroup, Alert, Badge } from 'react-bootstrap';
 import { NavLink, useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
@@ -276,12 +276,13 @@ function Project() {
             <Col sm={6}>
               <h1>Details {data.name}</h1>
               <ListGroup>
-                <ListGroup.Item><b>Privacy:</b>
+                <ListGroup.Item><b>Privacy: </b>
                   {checkPrivacy() ?
-                    <span style={{ color: "green" }}><b> PRIVATE DATA</b></span>
+                    <Badge bg="success">Private Mode <Link title="You are NOT SHARING any data with external entities.">ℹ️</Link></Badge>
                     :
-                    <span style={{ color: "red" }}><b> REMOTE DATA</b></span>
-                  }</ListGroup.Item>
+                    <Badge bg="danger">Public Mode <Link title="You ARE SHARING data with external entities.">ℹ️</Link></Badge>
+                  }
+                </ListGroup.Item>
                 <ListGroup.Item><b>LLM:</b> {data.llm}</ListGroup.Item>
                 <ListGroup.Item><b>Vectorstore:</b> {data.vectorstore}</ListGroup.Item>
                 <ListGroup.Item><b>Embeddings:</b> {data.embeddings} <Button onClick={() => handleResetEmbeddingsClick()} variant="danger">Reset</Button></ListGroup.Item>
