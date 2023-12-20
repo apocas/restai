@@ -51,9 +51,11 @@ class Brain:
                 models_to_unload.append(llmr)
 
         for modelr in models_to_unload:
-            self.llmCache[modelr].model = None
-            self.llmCache[modelr].tokenizer = None
+            self.llmCache[modelr].llm = None
             self.llmCache[modelr].pipe = None
+            self.llmCache[modelr].tokenizer = None
+            self.llmCache[modelr].model = None
+            
             if isinstance(self.llmCache[modelr].llm, LlavaLLM):
                 self.llmCache[modelr].llm.model = None
                 self.llmCache[modelr].llm.processor = None
@@ -62,9 +64,10 @@ class Brain:
             gc.collect()
             torch.cuda.empty_cache()
             
-            del self.llmCache[modelr].model
-            del self.llmCache[modelr].tokenizer
+            del self.llmCache[modelr].llm
             del self.llmCache[modelr].pipe
+            del self.llmCache[modelr].tokenizer
+            del self.llmCache[modelr].model
             
             if isinstance(self.llmCache[modelr].llm, LlavaLLM):
                 del self.llmCache[modelr].llm.model
