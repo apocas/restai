@@ -1,6 +1,10 @@
 import base64
 import io
-import multiprocessing
+from torch.multiprocessing import Process, set_start_method, Manager
+try:
+     set_start_method('spawn')
+except RuntimeError:
+    pass
 from langchain.tools import BaseTool
 from langchain.chains import LLMChain
 from langchain.llms import OpenAI
@@ -89,10 +93,10 @@ class StableDiffusionImage(BaseTool):
         
         fprompt = chain.run(query)
 
-        manager = multiprocessing.Manager()
+        manager = Manager()
         sharedmem = manager.dict()
 
-        p = multiprocessing.Process(target=sd_worker, args=(fprompt, sharedmem))
+        p = Process(target=sd_worker, args=(fprompt, sharedmem))
         p.start()
         p.join()
 
