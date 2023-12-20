@@ -12,6 +12,7 @@
     "react": "^18.2.0",
     "react-bootstrap": "^2.9.1",
     "react-dom": "^18.2.0",
+    "react-drag-drop-files": "^2.3.10",
     "react-gauge-chart": "^0.4.1",
     "react-modal-image": "^2.6.0",
     "react-router-dom": "^6.18.0",
