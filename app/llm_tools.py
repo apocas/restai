@@ -44,7 +44,7 @@ class StableDiffusionImage(BaseTool):
     description = "use this tool when you need to generate an image using Stable Diffusion."
     return_direct = True
     
-    def worker(prompt, sharedmem):
+    def sd_worker(prompt, sharedmem):
         base = DiffusionPipeline.from_pretrained(
             "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16, variant="fp16", use_safetensors=True
         )
@@ -87,16 +87,16 @@ class StableDiffusionImage(BaseTool):
         )
         chain = LLMChain(llm=llm, prompt=prompt)
         
-        prompt = chain.run(query)
+        fprompt = chain.run(query)
 
         manager = multiprocessing.Manager()
         sharedmem = manager.dict()
 
-        p = multiprocessing.Process(target=self.worker, args=(prompt, sharedmem))
+        p = multiprocessing.Process(target=self.sd_worker, args=(fprompt, sharedmem))
         p.start()
         p.join()
 
-        return {"image": sharedmem["image"], "prompt": prompt}
+        return {"image": sharedmem["image"], "prompt": fprompt}
 
     async def _arun(self, query: str) -> str:
         raise NotImplementedError("N/A")
