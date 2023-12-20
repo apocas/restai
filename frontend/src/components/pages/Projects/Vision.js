@@ -6,6 +6,9 @@ import { AuthContext } from '../../common/AuthProvider.js';
 import ReactJson from '@microlink/react-json-view';
 import ModalImage from "react-modal-image";
 import NoImage from '../../../assets/img/no-image.jpg'
+import { FileUploader } from "react-drag-drop-files";
+
+const fileTypes = ["JPG", "PNG", "GIF", "JPEGZ"];
 
 function Vision() {
 
@@ -13,7 +16,7 @@ function Vision() {
   var { projectName } = useParams();
   const questionForm = useRef(null);
   const urlForm = useRef(null);
-  const uploadForm = useRef(null);
+  const [uploadForm, setUploadForm] = useState(null);
   const [file, setFile] = useState(null);
   const [answers, setAnswers] = useState([]);
   const [canSubmit, setCanSubmit] = useState(true);
@@ -97,17 +100,31 @@ function Vision() {
       };
     });
   };
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
+  const handleFileUpload = async (file) => {
+    //const file = e.target.files[0];
     const base64 = await convertToBase64(file);
     urlForm.current.value = "";
     setFile(base64);
   };
 
   const handleSaveClick = () => {
-    uploadForm.current.value = null;
-    setFile(urlForm.current.value);
+    if (isValidUrl(urlForm.current.value)) {
+      setUploadForm(null);
+      setFile(urlForm.current.value);
+    } else {
+      alert("Url provided is not a valid one!");
+    }
   };
+
+  const isValidUrl = urlString => {
+    var urlPattern = new RegExp('^(https?:\\/\\/)?' + // validate protocol
+      '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // validate domain name
+      '((\\d{1,3}\\.){3}\\d{1,3}))' + // validate OR ip (v4) address
+      '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // validate port and path
+      '(\\?[;&a-z\\d%_.~+=-]*)?' + // validate query string
+      '(\\#[-a-z\\d_]*)?$', 'i'); // validate fragment locator
+    return !!urlPattern.test(urlString);
+  }
 
   useEffect(() => {
     document.title = 'RestAI  Question ' + projectName;
@@ -135,13 +152,15 @@ function Vision() {
                           <div className='lineBreaks' key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
                             🧑<span className='highlight'>QUESTION:</span> {answer.question} <br />
                             🤖<span className='highlight'>ANSWER:</span> {answer.answer}
-                            <Col sm={4}>
-                              <ModalImage
-                                small={answer.image  ? `data:image/jpg;base64,${answer.image}` : NoImage}
-                                large={answer.image ? `data:image/jpg;base64,${answer.image}` : NoImage}
-                                alt="Image preview"
-                              />
-                            </Col>
+                            {answer.image &&
+                              <Col sm={4}>
+                                <ModalImage
+                                  small={`data:image/jpg;base64,${answer.image}`}
+                                  large={`data:image/jpg;base64,${answer.image}`}
+                                  alt="Image preview"
+                                />
+                              </Col>
+                            }
                             <Accordion>
                               <Row style={{ textAlign: "right", marginBottom: "0px" }}>
                                 <CustomToggle eventKey="0">Details</CustomToggle>
@@ -168,7 +187,7 @@ function Vision() {
           </Row>
           <Row style={{ marginTop: "20px" }}>
             <Col sm={8}>
-              <InputGroup style={{height: "100%"}}>
+              <InputGroup style={{ height: "100%" }}>
                 <InputGroup.Text>{file ? "Question" : "Prompt"}</InputGroup.Text>
                 <Form.Control ref={questionForm} rows="5" as="textarea" aria-label="Question textarea" />
               </InputGroup>
@@ -184,16 +203,16 @@ function Vision() {
               </center>
             </Col>
           </Row>
-          <hr/>
+          <hr />
           <Row style={{ marginTop: "20px" }}>
             <Col sm={5}>
-              <Form.Control ref={uploadForm} onChange={handleFileUpload} type="file" />
+              <FileUploader fileOrFiles={uploadForm} classes="dragging" handleChange={handleFileUpload} name="file" types={fileTypes} />
             </Col>
-            <Col style={{ marginTop: "0.5%", paddingLeft: "3%" }} sm={1}>
+            <Col style={{ marginTop: "0.9%", paddingLeft: "2.5%" }} sm={1}>
               OR
             </Col>
             <Col sm={6}>
-              <InputGroup className="mb-3">
+              <InputGroup style={{ height: "90%" }} className="mb-3">
                 <Form.Control ref={urlForm}
                   placeholder="Enter url"
                   aria-label="Enter url"
