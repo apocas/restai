@@ -1,5 +1,6 @@
 import base64
 import io
+import multiprocessing
 from langchain.tools import BaseTool
 from langchain.chains import LLMChain
 from langchain.llms import OpenAI
@@ -42,21 +43,13 @@ class StableDiffusionImage(BaseTool):
     name = "Stable Diffusion Image Generator"
     description = "use this tool when you need to generate an image using Stable Diffusion."
     return_direct = True
-
-    def _run(self, query: str) -> str:
-        llm = OpenAI(temperature=0.9)
-        prompt = PromptTemplate(
-            input_variables=["image_desc"],
-            template="Generate a detailed prompt to generate an image based on the following description: {image_desc}",
-        )
-        chain = LLMChain(llm=llm, prompt=prompt)
-
-        model_id = "stabilityai/stable-diffusion-xl-base-1.0"
-
+    
+    def worker(prompt, sharedmem):
         base = DiffusionPipeline.from_pretrained(
-            model_id, torch_dtype=torch.float16, variant="fp16", use_safetensors=True
+            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16, variant="fp16", use_safetensors=True
         )
         base.to("cuda")
+
         refiner = DiffusionPipeline.from_pretrained(
             "stabilityai/stable-diffusion-xl-refiner-1.0",
             text_encoder_2=base.text_encoder_2,
@@ -67,22 +60,16 @@ class StableDiffusionImage(BaseTool):
         )
         refiner.to("cuda")
 
-        n_steps = 40
-        high_noise_frac = 0.8
-
-        prompt = chain.run(query)
-
         image = base(
             prompt=prompt,
-            num_inference_steps=n_steps,
-            denoising_end=high_noise_frac,
+            num_inference_steps=40,
+            denoising_end=0.8,
             output_type="latent",
         ).images
-
         image = refiner(
             prompt=prompt,
-            num_inference_steps=n_steps,
-            denoising_start=high_noise_frac,
+            num_inference_steps=40,
+            denoising_start=0.8,
             image=image,
         ).images[0]
 
@@ -90,7 +77,26 @@ class StableDiffusionImage(BaseTool):
         image.save(image_data, format="JPEG")
         image_base64 = base64.b64encode(image_data.getvalue()).decode('utf-8')
 
-        return {"image": image_base64, "prompt": prompt}
+        sharedmem["image"] = image_base64
+
+    def _run(self, query: str) -> str:
+        llm = OpenAI(temperature=0.9)
+        prompt = PromptTemplate(
+            input_variables=["image_desc"],
+            template="Generate a detailed prompt to generate an image based on the following description: {image_desc}",
+        )
+        chain = LLMChain(llm=llm, prompt=prompt)
+        
+        prompt = chain.run(query)
+
+        manager = multiprocessing.Manager()
+        sharedmem = manager.dict()
+
+        p = multiprocessing.Process(target=self.worker, args=(prompt, sharedmem))
+        p.start()
+        p.join()
+
+        return {"image": sharedmem["image"], "prompt": prompt}
 
     async def _arun(self, query: str) -> str:
         raise NotImplementedError("N/A")

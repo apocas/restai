@@ -387,16 +387,33 @@ class Brain:
         if project is None:
             raise Exception("Project not found")
         
-        if visionInput.image is None:
+        if visionInput.image is None:            
+            unloaded = self.unloadLLMs()
+            
             tools = [
                 DalleImage(),
-                #StableDiffusionImage()
+                StableDiffusionImage()
             ]
             model, loaded = self.getLLM("openai_gpt4_turbo")
+            try:
+                self.semaphore.release()
+            except ValueError:
+                pass
+            self.semaphore.acquire()
             agent = initialize_agent(tools, model.llm, agent="zero-shot-react-description", verbose=True)
             outputAgent = agent.run(visionInput.question)
-            output = outputAgent["prompt"]
-            image = outputAgent["image"]
+            
+            if isinstance(outputAgent, str):
+                output = outputAgent
+                image = None
+            else:
+                output = outputAgent["prompt"]
+                image = outputAgent["image"]
+            
+            try:
+                self.semaphore.release()
+            except ValueError:
+                pass
         else:
             model, loaded = self.getLLM(project.model.llm)
             
