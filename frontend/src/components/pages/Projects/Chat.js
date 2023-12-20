@@ -15,6 +15,7 @@ function Chat() {
   const scoreForm = useRef(null);
   const systemForm = useRef(null);
   const kForm = useRef(null);
+  const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const [messages, setMessages] = useState([]);
   const [canSubmit, setCanSubmit] = useState(true);
   const [data, setData] = useState({ projects: [] });
@@ -32,7 +33,7 @@ function Chat() {
     const decoratedOnClick = useAccordionButton(eventKey, () =>
       console.log('totally custom!'),
     );
-  
+
     return (
       <span
         onClick={decoratedOnClick} style={{ cursor: 'pointer' }}
@@ -105,9 +106,32 @@ function Chat() {
       });
   }
 
+  const fetchInfo = () => {
+    return fetch(url + "/info", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+      .then((res) => res.json())
+      .then((d) => setInfo(d)
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchInfo", "error": err.toString() }]);
+      });
+  }
+
+  const checkPrivacy = () => {
+    var embbeddingPrivacy = true;
+    info.embeddings.forEach(function (element) {
+      if (element.name === data.embeddings && element.privacy === "public")
+        embbeddingPrivacy = false;
+    })
+    if (embbeddingPrivacy && data.llm_privacy === "private") {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   useEffect(() => {
     document.title = 'RestAI  Chat ' + projectName;
     fetchProject(projectName);
+    fetchInfo();
   }, [projectName]);
 
   return (
@@ -119,8 +143,17 @@ function Chat() {
       }
       <Container style={{ marginTop: "20px" }}>
         <h1>Chat {projectName}</h1>
-        <Row style={{ textAlign: "right", marginLeft: "4px", marginBottom: "15px", marginTop: "-9px" }}>
+        <Row style={{ marginBottom: "15px", marginTop: "-9px" }}>
+          <Col sm={10}>
             (Remember that the LLM needs to support Chat mode for this to work, unstable otherwise)
+          </Col>
+          <Col sm={2}>
+            {checkPrivacy() ?
+              <span style={{color: "green"}}><b>PRIVATE DATA CHAT</b></span>
+              :
+              <span style={{color: "red"}}><b>REMOTE DATA CHAT</b></span>
+            }
+          </Col>
         </Row>
         <Form onSubmit={onSubmitHandler}>
           <Row>
@@ -146,7 +179,7 @@ function Chat() {
                                 <CustomToggle eventKey="0">Details</CustomToggle>
                               </Row>
                               <Accordion.Collapse eventKey="0">
-                                <Card.Body><ReactJson src={message} enableClipboard={false}/></Card.Body>
+                                <Card.Body><ReactJson src={message} enableClipboard={false} /></Card.Body>
                               </Accordion.Collapse>
                             </Accordion>
                             <hr />

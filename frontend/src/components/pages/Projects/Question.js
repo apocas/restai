@@ -15,6 +15,7 @@ function Question() {
   const questionForm = useRef(null);
   const scoreForm = useRef(null);
   const kForm = useRef(null);
+  const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const [answers, setAnswers] = useState([]);
   const [canSubmit, setCanSubmit] = useState(true);
   const [data, setData] = useState({ projects: [] });
@@ -101,9 +102,32 @@ function Question() {
       });
   }
 
+  const fetchInfo = () => {
+    return fetch(url + "/info", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+      .then((res) => res.json())
+      .then((d) => setInfo(d)
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchInfo", "error": err.toString() }]);
+      });
+  }
+
+  const checkPrivacy = () => {
+    var embbeddingPrivacy = true;
+    info.embeddings.forEach(function (element) {
+      if (element.name === data.embeddings && element.privacy === "public")
+        embbeddingPrivacy = false;
+    })
+    if (embbeddingPrivacy && data.llm_privacy === "private") {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   useEffect(() => {
     document.title = 'RestAI  Question ' + projectName;
     fetchProject(projectName);
+    fetchInfo();
   }, [projectName]);
 
   return (
@@ -115,8 +139,17 @@ function Question() {
       }
       <Container style={{ marginTop: "20px" }}>
         <h1>Question {projectName}</h1>
-        <Row style={{ textAlign: "right", marginLeft: "4px", marginBottom: "15px", marginTop: "-9px" }}>
+        <Row style={{ marginBottom: "15px" }}>
+          <Col sm={9}>
             (Remember that in Question mode, every question is stateless there is no memory of previous questions)
+          </Col>
+          <Col sm={3}>
+            {checkPrivacy() ?
+              <span style={{ color: "green" }}><b>PRIVATE DATA QUESTION</b></span>
+              :
+              <span style={{ color: "red" }}><b>REMOTE DATA QUESTION</b></span>
+            }
+          </Col>
         </Row>
         <Form onSubmit={onSubmitHandler}>
           <Row>
@@ -127,8 +160,8 @@ function Question() {
               </InputGroup>
             </Col>
             <Col sm={2}>
-            <h5>System Templates:</h5>
-            <InputGroup>
+              <h5>System Templates:</h5>
+              <InputGroup>
                 <Button variant="dark" onClick={ragTemplate} size="sm">Classic RAG</Button>
               </InputGroup>
             </Col>
@@ -150,7 +183,7 @@ function Question() {
                                 <CustomToggle eventKey="0">Details</CustomToggle>
                               </Row>
                               <Accordion.Collapse eventKey="0">
-                                <Card.Body><ReactJson src={answer} enableClipboard={false}/></Card.Body>
+                                <Card.Body><ReactJson src={answer} enableClipboard={false} /></Card.Body>
                               </Accordion.Collapse>
                             </Accordion>
                             <hr />

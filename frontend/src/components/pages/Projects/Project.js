@@ -9,6 +9,7 @@ import Tooltip from 'react-bootstrap/Tooltip';
 function Project() {
 
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
+  const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const [data, setData] = useState({ projects: [] });
   const [files, setFiles] = useState({ files: [] });
   const [file, setFile] = useState(null);
@@ -206,11 +207,34 @@ function Project() {
     }
   }
 
+  const fetchInfo = () => {
+    return fetch(url + "/info", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+      .then((res) => res.json())
+      .then((d) => setInfo(d)
+      ).catch(err => {
+        setError([...error, { "functionName": "fetchInfo", "error": err.toString() }]);
+      });
+  }
+
+  const checkPrivacy = () => {
+    var embbeddingPrivacy = true;
+    info.embeddings.forEach(function (element) {
+      if (element.name === data.embeddings && element.privacy === "public")
+        embbeddingPrivacy = false;
+    })
+    if (embbeddingPrivacy && data.llm_privacy === "private") {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   useEffect(() => {
     document.title = 'RestAI Project ' + projectName;
     fetchProject(projectName);
     fetchFiles(projectName);
     fetchUrls(projectName);
+    fetchInfo();
   }, [projectName]);
 
   return (
@@ -252,6 +276,12 @@ function Project() {
             <Col sm={6}>
               <h1>Details {data.name}</h1>
               <ListGroup>
+                <ListGroup.Item><b>Privacy:</b>
+                  {checkPrivacy() ?
+                    <span style={{ color: "green" }}><b> PRIVATE DATA</b></span>
+                    :
+                    <span style={{ color: "red" }}><b> REMOTE DATA</b></span>
+                  }</ListGroup.Item>
                 <ListGroup.Item><b>LLM:</b> {data.llm}</ListGroup.Item>
                 <ListGroup.Item><b>Vectorstore:</b> {data.vectorstore}</ListGroup.Item>
                 <ListGroup.Item><b>Embeddings:</b> {data.embeddings} <Button onClick={() => handleResetEmbeddingsClick()} variant="danger">Reset</Button></ListGroup.Item>
