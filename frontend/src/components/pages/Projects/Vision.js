@@ -139,6 +139,9 @@ function Vision() {
       }
       <Container style={{ marginTop: "20px" }}>
         <h1>Vision {projectName}</h1>
+        <Row style={{ textAlign: "right", marginLeft: "4px", marginBottom: "15px", marginTop: "-9px" }}>
+            (For generation remember to specify if you want to use dall-e or stable diffusion in plain english)
+        </Row>
         <Form onSubmit={onSubmitHandler}>
           <Row>
             {answers.length > 0 &&
