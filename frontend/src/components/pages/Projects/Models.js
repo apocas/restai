@@ -39,6 +39,7 @@ function Models() {
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Type</th>
                 <th>Privacy</th>
                 <th>Description</th>
               </tr>
@@ -49,6 +50,7 @@ function Models() {
                   return (
                     <tr key={index}>
                       <td>{llm.name}</td>
+                      <td>{llm.type}</td>
                       <td>{llm.privacy}</td>
                       <td>{llm.description}</td>
                     </tr>
