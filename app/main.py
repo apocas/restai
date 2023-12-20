@@ -594,11 +594,12 @@ def vision_project(
                 image_data = response.content
                 input.image = base64.b64encode(image_data).decode('utf-8')
 
-        answer, docs = brain.entryVision(projectName, input, db)
+        answer, docs, image = brain.entryVision(projectName, input, db)
 
         output = {
             "question": input.question,
             "answer": answer,
+            "image": image,
             "sources": docs,
             "type": "vision"
         }

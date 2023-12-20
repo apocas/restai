@@ -40,8 +40,8 @@ function Vision() {
 
     var body = {};
     var submit = false;
-    if (question !== "" && file) {
-      if (file.includes("base64,")) {
+    if (question !== "") {
+      if (file && file.includes("base64,")) {
         body = {
           "question": question,
           "image": file.split(",")[1]
@@ -63,14 +63,23 @@ function Vision() {
         headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
         body: JSON.stringify(body),
       })
-        .then(response => response.json())
+        .then(function (response) {
+          if (!response.ok) {
+            response.json().then(function (data) {
+              setError([...error, { "functionName": "onSubmitHandler", "error": data.detail }]);
+            });
+            throw Error(response.statusText);
+          } else {
+            return response.json();
+          }
+        })
         .then((response) => {
-          setAnswers([...answers, { question: question, answer: response.answer, sources: response.sources }]);
+          setAnswers([...answers, { question: question, answer: response.answer, sources: response.sources, image: response.image }]);
           questionForm.current.value = "";
           setCanSubmit(true);
         }).catch(err => {
           setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
-          setAnswers([...answers, { question: question, answer: "Error, something went wrong with my transistors.", sources: [] }]);
+          setAnswers([...answers, { question: question, answer: "Error, something went wrong with my transistors.", sources: [], image: null }]);
           setCanSubmit(true);
         });
     }
@@ -126,6 +135,13 @@ function Vision() {
                           <div className='lineBreaks' key={index} style={index === 0 ? { marginTop: "0px" } : { marginTop: "10px" }}>
                             🧑<span className='highlight'>QUESTION:</span> {answer.question} <br />
                             🤖<span className='highlight'>ANSWER:</span> {answer.answer}
+                            <Col sm={4}>
+                              <ModalImage
+                                small={answer.image  ? `data:image/jpg;base64,${answer.image}` : NoImage}
+                                large={answer.image ? `data:image/jpg;base64,${answer.image}` : NoImage}
+                                alt="Image preview"
+                              />
+                            </Col>
                             <Accordion>
                               <Row style={{ textAlign: "right", marginBottom: "0px" }}>
                                 <CustomToggle eventKey="0">Details</CustomToggle>

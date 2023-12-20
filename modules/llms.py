@@ -1,8 +1,8 @@
 from langchain.llms import GPT4All, LlamaCpp, OpenAI
 from langchain.chat_models import ChatOpenAI, ChatVertexAI
-from app.gemini import GeminiLLM
-from app.llava import LlavaLLM
-from app.loader import localLoader
+from app.llms.gemini import GeminiLLM
+from app.llms.llava import LlavaLLM
+from app.llms.loader import localLoader
 
 LLMS = {
     "openai": (OpenAI, {"temperature": 0, "model_name": "text-davinci-003"}, "openai", "public", "OpenAI Davinci", "text"),

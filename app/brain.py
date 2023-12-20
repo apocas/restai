@@ -3,10 +3,11 @@ import threading
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain, LLMChain
-from langchain.vectorstores import Chroma
+from langchain.agents import initialize_agent, load_tools
 import torch
-from app.llava import LlavaLLM
-from app.loader import localLoader
+from app.llm_tools import DalleImage, StableDiffusionImage
+from app.llms.llava import LlavaLLM
+from app.llms.loader import localLoader
 from app.model import Model
 
 from app.models import ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, VisionModel
@@ -381,19 +382,31 @@ class Brain:
         return output[0]["text"].strip(), docs, False
 
     def entryVision(self, projectName, visionInput, db: Session):
+        image  = None
         project = self.findProject(projectName, db)
         if project is None:
             raise Exception("Project not found")
         
-        model, loaded = self.getLLM(project.model.llm)
-        
-        prompt_template_txt = PROMPTS[model.prompt]
-        input = prompt_template_txt.format(question=visionInput.question)
-        
-        output = model.llm.llavaInference(input, visionInput.image)
-        
-        if loaded == True:
-            self.semaphore.release()
+        if visionInput.image is None:
+            tools = [
+                DalleImage(),
+                StableDiffusionImage()
+            ]
+            model, loaded = self.getLLM("openai_gpt4_turbo")
+            agent = initialize_agent(tools, model.llm, agent="zero-shot-react-description", verbose=True)
+            outputAgent = agent.run(visionInput.question)
+            output = outputAgent["prompt"]
+            image = outputAgent["image"]
+        else:
+            model, loaded = self.getLLM(project.model.llm)
             
-        return output, [], 
+            prompt_template_txt = PROMPTS[model.prompt]
+            input = prompt_template_txt.format(question=visionInput.question)
+            
+            output = model.llm.llavaInference(input, visionInput.image)
+            
+            if loaded == True:
+                self.semaphore.release()
+              
+        return output, [], image
         

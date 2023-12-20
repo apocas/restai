@@ -111,6 +111,7 @@ class SourceModel(BaseModel):
 class QuestionResponse(BaseModel):
     question: str
     answer: str
+    image: Union[str, None] = None
     type: str
     sources: list[SourceModel]
 

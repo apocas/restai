@@ -31,3 +31,4 @@ pydantic>2.5.0
 google-cloud-aiplatform
 bitsandbytes
 flash_attn
+diffusers
