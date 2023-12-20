@@ -390,7 +390,7 @@ class Brain:
         if visionInput.image is None:
             tools = [
                 DalleImage(),
-                StableDiffusionImage()
+                #StableDiffusionImage()
             ]
             model, loaded = self.getLLM("openai_gpt4_turbo")
             agent = initialize_agent(tools, model.llm, agent="zero-shot-react-description", verbose=True)
