@@ -24,6 +24,18 @@ function Vision() {
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
 
+  function sdTemplate() {
+    questionForm.current.value = "Using stable diffusion generate a picture of a happy cat."
+  }
+
+  function dalleTemplate() {
+    questionForm.current.value = "Using dall-e generate a picture of a happy cat."
+  }
+
+  function describeTemplate() {
+    questionForm.current.value = "Describe this image, be detailed."
+  }
+
   function CustomToggle({ children, eventKey }) {
     const decoratedOnClick = useAccordionButton(eventKey);
 
@@ -140,7 +152,7 @@ function Vision() {
       <Container style={{ marginTop: "20px" }}>
         <h1>Vision {projectName}</h1>
         <Row style={{ textAlign: "right", marginLeft: "4px", marginBottom: "15px", marginTop: "-9px" }}>
-            (For generation remember to specify if you want to use dall-e or stable diffusion in plain english)
+          (For generation remember to specify if you want to use dall-e or stable diffusion in plain english)
         </Row>
         <Form onSubmit={onSubmitHandler}>
           <Row>
@@ -204,6 +216,18 @@ function Vision() {
                   alt="Image preview"
                 />
               </center>
+            </Col>
+          </Row>
+          <Row>
+            <Col sm={1}>
+              Templates:
+              </Col>
+              <Col sm={11}>
+              
+                <Button variant="dark" onClick={sdTemplate} size="sm">Generate Stable Diffusion</Button>
+                <Button variant="dark" onClick={dalleTemplate} size="sm">Generate Dall-e</Button>
+                <Button variant="dark" onClick={describeTemplate} size="sm">Describe image</Button>
+            
             </Col>
           </Row>
           <hr />

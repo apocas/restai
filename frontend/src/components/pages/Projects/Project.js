@@ -278,9 +278,9 @@ function Project() {
               <ListGroup>
                 <ListGroup.Item><b>Privacy: </b>
                   {checkPrivacy() ?
-                    <Badge bg="success">Private Mode <Link title="You are NOT SHARING any data with external entities.">ℹ️</Link></Badge>
+                    <Badge bg="success">Local AI <Link title="You are NOT SHARING any data with external entities.">ℹ️</Link></Badge>
                     :
-                    <Badge bg="danger">Public Mode <Link title="You ARE SHARING data with external entities.">ℹ️</Link></Badge>
+                    <Badge bg="danger">Public AI <Link title="You ARE SHARING data with external entities.">ℹ️</Link></Badge>
                   }
                 </ListGroup.Item>
                 <ListGroup.Item><b>LLM:</b> {data.llm}</ListGroup.Item>

@@ -145,9 +145,9 @@ function Chat() {
         <h1>Chat {projectName}</h1>
         <h5>
             {checkPrivacy() ?
-            <Badge bg="success">Private Mode <Link title="You are NOT SHARING any data with external entities.">ℹ️</Link></Badge>
+            <Badge bg="success">Local AI <Link title="You are NOT SHARING any data with external entities.">ℹ️</Link></Badge>
             :
-            <Badge bg="danger">Public Mode <Link title="You ARE SHARING data with external entities.">ℹ️</Link></Badge>
+            <Badge bg="danger">Public AI <Link title="You ARE SHARING data with external entities.">ℹ️</Link></Badge>
             }
         </h5>
         <Row style={{ marginBottom: "15px", marginTop: "-9px" }}>
