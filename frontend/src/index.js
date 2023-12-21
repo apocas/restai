@@ -60,7 +60,7 @@ function Root() {
             />
           </Routes>
 
-          <Container style={{ marginTop: "20px", textAlign: "center" }}>
+          <Container style={{ marginTop: "20px", marginBottom: "20px", textAlign: "center" }}>
             <Row>
               <Col sm={12}>
                 <hr />
