@@ -224,9 +224,9 @@ function Vision() {
               </Col>
               <Col sm={11}>
               
-                <Button variant="dark" onClick={sdTemplate} size="sm">Generate Stable Diffusion</Button>
-                <Button variant="dark" onClick={dalleTemplate} size="sm">Generate Dall-e</Button>
-                <Button variant="dark" onClick={describeTemplate} size="sm">Describe image</Button>
+                <Button variant="dark" onClick={sdTemplate} size="sm">Generate Stable Diffusion (local)</Button>
+                <Button variant="dark" onClick={dalleTemplate} size="sm">Generate Dall-e (openai)</Button>
+                <Button variant="dark" onClick={describeTemplate} size="sm">Describe image (local)</Button>
             
             </Col>
           </Row>
