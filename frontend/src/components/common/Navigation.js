@@ -73,7 +73,7 @@ function Navigation() {
             </Nav.Link>
             <Nav.Link as="li">
               <NavLink
-                to="/Models"
+                to="/models"
               >
                 Models
               </NavLink>

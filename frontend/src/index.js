@@ -19,6 +19,7 @@ import Error from './components/pages/Error/Error.js';
 import PrivateRoute from './components/common/PrivateRoute.js';
 import AuthProvider from './components/common/AuthProvider.js';
 import 'bootstrap/dist/css/bootstrap.css';
+import { Container, Row, Form, InputGroup, Col, Card, Button, Spinner, Alert, Accordion, Badge } from 'react-bootstrap';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
@@ -58,6 +59,15 @@ function Root() {
               element={<Navigate to="/error" />}
             />
           </Routes>
+
+          <Container style={{ marginTop: "20px", textAlign: "center" }}>
+            <Row>
+              <Col sm={12}>
+                <hr />
+                <a href="https://github.com/apocas/restai"><b>RestAI</b>, so many 'A's and 'I's, so little time...</a>
+              </Col>
+            </Row>
+          </Container>
         </AuthProvider>
       </BrowserRouter>
     </>
