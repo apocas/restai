@@ -21,11 +21,12 @@ from app.database import Database, dbc, get_db
 from app.databasemodels import UserDatabase
 import urllib.parse
 
-from app.models import ChatResponse, EmbeddingModel, HardwareInfo, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, URLIngestModel, User, UserCreate, UserUpdate, VisionModel
+from app.models import ChatResponse, EmbeddingModel, HardwareInfo, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from app.vectordb import vector_delete_source, vector_delete_id, vector_find, vector_info, vector_init, vector_save, vector_urls
+from app.vectordb import vector_delete_source, vector_delete_id, vector_find, vector_info, vector_init, vector_reset, vector_save, vector_list
+from langchain_core.documents import Document
 
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
@@ -256,8 +257,9 @@ async def get_projects(request: Request, user: User = Depends(get_current_userna
 async def get_project(projectName: str, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
-        
-        llm_class, llm_args, prompt, llm_privacy, description, llm_type = LLMS[project.model.llm]
+
+        llm_class, llm_args, prompt, llm_privacy, description, llm_type = LLMS[
+            project.model.llm]
 
         docs, metas = vector_info(project)
 
@@ -386,7 +388,7 @@ def project_reset(
     try:
         project = brain.findProject(projectName, db)
 
-        vector_init(brain, project)
+        vector_reset(brain, project)
 
         return {"project": project.model.name}
     except Exception as e:
@@ -424,6 +426,30 @@ def delete_embedding(
     return {"deleted": id}
 
 
+@app.post("/projects/{projectName}/embeddings/ingest/text")
+def ingest_url(projectName: str, ingest: TextIngestModel,
+               user: User = Depends(get_current_username_project),
+               db: Session = Depends(get_db)):
+
+    try:
+        project = brain.findProject(projectName, db)
+
+        metadata = {"source": ingest.source}
+        documents = [Document(page_content=ingest.text, metadata=metadata)]
+
+        documents = ExtractKeywordsForMetadata(documents)
+
+        ids = IndexDocuments(brain, project, documents)
+        vector_save(project)
+
+        return {"name": ingest.source, "documents": len(ids)}
+    except Exception as e:
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=500, detail=str(e))
+
+
 @app.post("/projects/{projectName}/embeddings/ingest/url")
 def ingest_url(projectName: str, ingest: URLIngestModel,
                user: User = Depends(get_current_username_project),
@@ -431,7 +457,7 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
     try:
         project = brain.findProject(projectName, db)
 
-        urls = vector_urls(project)
+        urls = vector_list(project, "url")["urls"]
         if (ingest.url in urls):
             raise Exception("URL already ingested. Delete first.")
 
@@ -459,32 +485,33 @@ def ingest_file(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
-        logger = logging.getLogger("embeddings_ingest_upload")
         project = brain.findProject(projectName, db)
-
-        dest = os.path.join(os.environ["UPLOADS_PATH"],
-                            project.model.name, file.filename)
-        logger.info("Ingesting upload for destination: {}".format(dest))
-
-        with open(dest, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+           
+        temp = NamedTemporaryFile(delete=False) 
+        try:
+            contents = file.file.read()
+            with temp as f:
+                f.write(contents)
+        except Exception:
+            raise HTTPException(
+                status_code=500, detail='{"error": "Error while saving file."}')
+        finally:
+            file.file.close()
 
         _, ext = os.path.splitext(file.filename or '')
-        logger.debug("Filename: {}".format(file.filename))
-        logger.debug("ContentType: {}".format(file.content_type))
-        logger.debug("Extension: {}".format(ext))
-
+        
         loader = FindFileLoader(
-            dest, ext, json.loads(
+            temp.name, ext, json.loads(
                 urllib.parse.unquote(options)))
         documents = loader.load()
+        
+        for document in documents:
+            document.metadata["source"] = file.filename
 
         documents = ExtractKeywordsForMetadata(documents)
 
         ids = IndexDocuments(brain, project, documents)
-        logger.debug("Documents: {}".format(len(ids)))
         vector_save(project)
-        logger.debug("Persisting project to DB")
 
         return {
             "filename": file.filename,
@@ -494,40 +521,26 @@ def ingest_file(
         logging.error(e)
         traceback.print_tb(e.__traceback__)
 
-        os.remove(dest)
-
         raise HTTPException(
             status_code=500, detail=str(e))
 
 
-@app.get('/projects/{projectName}/embeddings/urls')
-def list_urls(projectName: str, user: User = Depends(
-        get_current_username_project),
-        db: Session = Depends(get_db)):
-    project = brain.findProject(projectName, db)
-
-    urls = vector_urls(project)
-
-    return {'urls': urls}
-
-
-@app.get('/projects/{projectName}/embeddings/files')
+@app.get('/projects/{projectName}/embeddings/{embeddingType}')
 def list_files(
         projectName: str,
+        embeddingType: str,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
-    project_path = os.path.join(os.environ["UPLOADS_PATH"], project.model.name)
 
-    if not os.path.exists(project_path):
-        return {'error': f'Project {projectName} not found'}
+    output = vector_list(project, embeddingType)
 
-    if not os.path.isdir(project_path):
-        return {'error': f'{project_path} is not a directory'}
+    if embeddingType == "url" or embeddingType == "urls":
+        output = {embeddingType: output["urls"]}
+    elif embeddingType == "other":
+        output = {embeddingType: output["other"]}
 
-    files = [f for f in os.listdir(project_path) if os.path.isfile(
-        os.path.join(project_path, f))]
-    return {'files': files}
+    return output
 
 
 @app.delete('/projects/{projectName}/embeddings/url/{url}')
@@ -552,25 +565,7 @@ def delete_file(
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    source = os.path.join(
-        os.environ["UPLOADS_PATH"],
-        project.model.name,
-        base64.b64decode(fileName).decode('utf-8'))
-
-    ids = vector_delete_source(project, source)
-
-    project_path = os.path.join(os.environ["UPLOADS_PATH"], project.model.name)
-
-    file_path = os.path.join(
-        project_path, base64.b64decode(fileName).decode('utf-8'))
-    if not os.path.exists(file_path):
-        raise HTTPException(
-            status_code=404, detail="{'error': f'File {fileName} not found'}")
-    if not os.path.isfile(file_path):
-        raise HTTPException(
-            status_code=404, detail="{'error': f'File {fileName} not found'}")
-
-    os.remove(file_path)
+    ids = vector_delete_source(project, base64.b64decode(fileName).decode('utf-8'))
 
     return {"deleted": len(ids)}
 

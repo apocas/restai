@@ -4,7 +4,10 @@ from typing import Union
 
 class URLIngestModel(BaseModel):
     url: str
-
+    
+class TextIngestModel(BaseModel):
+    text: str
+    source: str
 
 class EmbeddingModel(BaseModel):
     source: Union[str, None] = None

@@ -65,8 +65,10 @@ def vector_load(brain, project):
             "/schema.yaml")
 
 
-def vector_urls(project):
+def vector_list(project, type="all"):
     urls = []
+    files = []
+    other = []
     if project.model.vectorstore == "chroma":
         collection = project.db._client.get_collection("langchain")
 
@@ -74,11 +76,22 @@ def vector_urls(project):
             include=["metadatas"]
         )
 
-        urls = []
         for metadata in docs["metadatas"]:
-            if metadata["source"].startswith(
-                    ('http://', 'https://')) and metadata["source"] not in urls:
-                urls.append(metadata["source"])
+            if type == "url" or type == "urls":
+                if metadata["source"].startswith(
+                        ('http://', 'https://')) and metadata["source"] not in urls:
+                    urls.append(metadata["source"])
+            elif type == "other":
+                if not metadata["source"].startswith(
+                        ('http://', 'https://')) and metadata["source"] not in other:
+                    other.append(metadata["source"])
+            elif type == "all":
+                if metadata["source"].startswith(
+                        ('http://', 'https://')) and metadata["source"] not in urls:
+                    urls.append(metadata["source"])
+                if not metadata["source"].startswith(
+                        ('http://', 'https://')) and metadata["source"] not in other:
+                    other.append(metadata["source"])
 
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
@@ -88,11 +101,23 @@ def vector_urls(project):
         keys = lredis.keys(project.db.key_prefix + "*")
         for key in keys:
             source = lredis.hget(key, "source")
-            if source.startswith(
-                    ('http://', 'https://')) and source not in urls:
-                urls.append(source)
+            if type == "url" or type == "urls":
+                if source.startswith(
+                        ('http://', 'https://')) and source not in urls:
+                    urls.append(source)
+            elif type == "other" or type == "others":
+                if not source.startswith(
+                        ('http://', 'https://')) and source not in other:
+                    other.append(source)
+            elif type == "all":
+                if source.startswith(
+                        ('http://', 'https://')) and source not in urls:
+                    urls.append(source)
+                if not source.startswith(
+                        ('http://', 'https://')) and source not in other:
+                    other.append(source)
 
-    return urls
+    return {"urls": urls, "other": other}
 
 
 def vector_info(project):
@@ -112,11 +137,7 @@ def vector_find(project, source):
     docs = []
     if project.model.vectorstore == "chroma":
         collection = project.db._client.get_collection("langchain")
-        if source.startswith(('http://', 'https://')):
-            docs = collection.get(where={'source': source})
-        else:
-            docs = collection.get(where={'source': os.path.join(
-                os.environ["UPLOADS_PATH"], project.model.name, source)})
+        docs = collection.get(where={'source': source})
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
             host=os.environ["REDIS_HOST"],
@@ -128,8 +149,7 @@ def vector_find(project, source):
         documents = []
         for key in keys:
             lsource = lredis.hget(key, "source")
-            if lsource == source or lsource == os.path.join(
-                    os.environ["UPLOADS_PATH"], project.model.name, source):
+            if lsource == source:
                 ids.append(key)
                 metadatas.append(
                     {"source": lsource, "keywords": lredis.hget(key, "keywords")})
@@ -138,6 +158,7 @@ def vector_find(project, source):
         docs = {"ids": ids, "metadatas": metadatas, "documents": documents}
 
     return docs
+
 
 def vector_delete(project):
     if project.model.vectorstore == "chroma":
@@ -148,14 +169,15 @@ def vector_delete(project):
             pass
     elif project.model.vectorstore == "redis":
         project.db.drop_index(project.model.name, delete_documents=True, redis_url="redis://" +
-            os.environ["REDIS_HOST"] +
-            ":" +
-            os.environ["REDIS_PORT"])
+                              os.environ["REDIS_HOST"] +
+                              ":" +
+                              os.environ["REDIS_PORT"])
         try:
             embeddingsPath = FindEmbeddingsPath(project.model.name)
             shutil.rmtree(embeddingsPath, ignore_errors=True)
         except BaseException:
             pass
+
 
 def vector_delete_source(project, source):
     ids = []
@@ -199,8 +221,8 @@ def vector_reset(brain, project):
         project.db._client.reset()
     elif project.model.vectorstore == "redis":
         project.db.drop_index(project.model.name, delete_documents=True, redis_url="redis://" +
-            os.environ["REDIS_HOST"] +
-            ":" +
-            os.environ["REDIS_PORT"])
+                              os.environ["REDIS_HOST"] +
+                              ":" +
+                              os.environ["REDIS_PORT"])
 
     project.db = vector_init(brain, project)

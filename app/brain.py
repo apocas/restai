@@ -202,6 +202,10 @@ class Brain:
         if projectModel.sandbox_project is not None and proj_db.sandbox_project != projectModel.sandbox_project:
             proj_db.sandbox_project = projectModel.sandbox_project
             changed = True
+            
+        if proj_db.sandboxed == True and projectModel.sandbox_project is None:
+            proj_db.sandbox_project = None
+            changed = True
 
         if changed:
             dbc.update_project(db)

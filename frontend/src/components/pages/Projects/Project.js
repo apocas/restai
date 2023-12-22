@@ -1,4 +1,4 @@
-import { Container, Table, Row, Form, Col, Button, ListGroup, Alert, Badge } from 'react-bootstrap';
+import { Container, Table, Row, Form, Col, Button, ListGroup, Alert, Badge, Tab, Tabs } from 'react-bootstrap';
 import { NavLink, useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
@@ -11,9 +11,11 @@ function Project() {
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const [data, setData] = useState({ projects: [] });
-  const [files, setFiles] = useState({ files: [] });
+  const [files, setFiles] = useState({ other: [] });
   const [file, setFile] = useState(null);
   const [urls, setUrls] = useState({ urls: [] });
+  const contentForm = useRef(null)
+  const contentNameForm = useRef(null)
   const [embeddings, setEmbeddings] = useState(null);
   const [uploadResponse, setUploadResponse] = useState({ type: null });
   const [canSubmit, setCanSubmit] = useState(true);
@@ -60,7 +62,7 @@ function Project() {
   }
 
   const fetchFiles = (projectName) => {
-    return fetch(url + "/projects/" + projectName + "/embeddings/files", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+    return fetch(url + "/projects/" + projectName + "/embeddings/other", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
       .then((d) => setFiles(d)
       ).catch(err => {
@@ -172,37 +174,65 @@ function Project() {
             setError([...error, { "functionName": "onSubmitHandler FILE", "error": err.toString() }]);
             setCanSubmit(true);
           });
-      } else {
-        if (urlForm.current.value !== "") {
-          var ingestUrl = urlForm.current.value;
-          var body = {};
+      } else if (urlForm.current.value !== "") {
+        var ingestUrl = urlForm.current.value;
+        var body = {};
 
-          body = {
-            "url": ingestUrl
-          }
-
-          fetch(url + "/projects/" + projectName + "/embeddings/ingest/url", {
-            method: 'POST',
-            headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
-            body: JSON.stringify(body),
-          })
-            .then(response => {
-              if (response.status === 500) {
-                setError([...error, { "functionName": "onSubmitHandler URL", "error": response.statusText }]);
-              }
-              return response.json();
-            })
-            .then((response) => {
-              response.type = "url";
-              setUploadResponse(response);
-              fetchProject(projectName);
-              fetchUrls(projectName);
-              setCanSubmit(true);
-            }).catch(err => {
-              setError([...error, { "functionName": "onSubmitHandler URL", "error": err.toString() }]);
-              setCanSubmit(true);
-            });
+        body = {
+          "url": ingestUrl
         }
+
+        fetch(url + "/projects/" + projectName + "/embeddings/ingest/url", {
+          method: 'POST',
+          headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
+          body: JSON.stringify(body),
+        })
+          .then(response => {
+            if (response.status === 500) {
+              setError([...error, { "functionName": "onSubmitHandler URL", "error": response.statusText }]);
+            }
+            return response.json();
+          })
+          .then((response) => {
+            response.type = "url";
+            urlForm.current.value = "";
+            setUploadResponse(response);
+            fetchProject(projectName);
+            fetchUrls(projectName);
+            setCanSubmit(true);
+          }).catch(err => {
+            setError([...error, { "functionName": "onSubmitHandler URL", "error": err.toString() }]);
+            setCanSubmit(true);
+          });
+      } else if (contentForm.current.value !== "") {
+        var body = {
+          "text": contentForm.current.value,
+          "source": contentNameForm.current.value
+        }
+
+        fetch(url + "/projects/" + projectName + "/embeddings/ingest/text", {
+          method: 'POST',
+          headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
+          body: JSON.stringify(body),
+        })
+          .then(response => {
+            if (response.status === 500) {
+              setError([...error, { "functionName": "onSubmitHandler Text", "error": response.statusText }]);
+            }
+            return response.json();
+          })
+          .then((response) => {
+            response.type = "text";
+            setUploadResponse(response);
+            fetchProject(projectName);
+            fetchFiles(projectName);
+            setCanSubmit(true);
+            contentNameForm.current.value = "";
+            contentForm.current.value = "";
+          }).catch(err => {
+            setError([...error, { "functionName": "onSubmitHandler URL", "error": err.toString() }]);
+            setCanSubmit(true);
+          });
       }
     }
   }
@@ -299,16 +329,34 @@ function Project() {
             <Col sm={6}>
               <h1>Ingest<Link title="Ingest a file or an URL">ℹ️</Link></h1>
               <Form onSubmit={onSubmitHandler}>
-                <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
-                  <Col sm={12}>
-                    <Form.Control ref={fileForm} onChange={handleFileChange} type="file" />
-                  </Col>
-                </Form.Group>
-                <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
-                  <Col sm={12}>
-                    <Form.Control ref={urlForm} type="url" placeholder="Enter url" />
-                  </Col>
-                </Form.Group>
+
+                <Tabs
+                  defaultActiveKey="file"
+                  id="ingestTabs"
+                >
+                  <Tab eventKey="file" title="File">
+                    <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
+                      <Col sm={12}>
+                        <Form.Control ref={fileForm} onChange={handleFileChange} type="file" />
+                      </Col>
+                    </Form.Group>
+                  </Tab>
+                  <Tab eventKey="url" title="URL">
+                    <Form.Group as={Row} className="mb-3" controlId="formHorizontalEmail">
+                      <Col sm={12}>
+                        <Form.Control ref={urlForm} type="url" placeholder="Enter url" />
+                      </Col>
+                    </Form.Group>
+                  </Tab>
+                  <Tab eventKey="text" title="Text">
+                    <Form.Group as={Col} controlId="formGridSystem">
+                      <Form.Label>Name</Form.Label>
+                      <Form.Control ref={contentNameForm} />
+                      <Form.Label>Content<Link title="Instructions for the LLM know how to behave">ℹ️</Link></Form.Label>
+                      <Form.Control rows="4" as="textarea" ref={contentForm} defaultValue={""} />
+                    </Form.Group>
+                  </Tab>
+                </Tabs>
                 <Col sm={2}>
                   <Button variant="dark" type="submit">Ingest</Button>
                 </Col>
@@ -363,7 +411,7 @@ function Project() {
           <hr />
           <Row style={{ marginTop: "20px" }}>
             <h1>Embeddings<Link title="Ingested files and URLs">ℹ️</Link></h1>
-            <Col sm={12} style={files.files.length > 5 || urls.urls.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
+            <Col sm={12} style={files.other.length > 5 || urls.urls.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
               <Table striped bordered hover>
                 <thead>
                   <tr>
@@ -375,11 +423,11 @@ function Project() {
                 </thead>
                 <tbody>
                   {
-                    files.files.map((file, index) => {
+                    files.other.map((file, index) => {
                       return (
                         <tr key={index}>
                           <td>{index}</td>
-                          <td>File</td>
+                          <td>Other</td>
                           <td>
                             {file}
                           </td>
@@ -432,7 +480,7 @@ function Project() {
               )
             }
           </Row>
-        </Container>
+        </Container >
       }
     </>
   );
