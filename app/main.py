@@ -419,7 +419,8 @@ def get_embedding(projectName: str, embedding: FindModel,
             docs = []
 
         for doc in docs:
-            output.append(doc.metadata["source"])
+            if doc.metadata["source"] not in output:
+                output.append(doc.metadata["source"])
 
     elif (embedding.source):
         output = vector_list_source(project, embedding.source)

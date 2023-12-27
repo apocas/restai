@@ -75,7 +75,8 @@ def vector_list(project):
         )
 
         for metadata in docs["metadatas"]:
-            output.append(metadata["source"])
+            if metadata["source"] not in output:
+                output.append(metadata["source"])
 
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
@@ -85,7 +86,8 @@ def vector_list(project):
         keys = lredis.keys(project.db.key_prefix + "*")
         for key in keys:
             source = lredis.hget(key, "source")
-            output.append(source)
+            if source not in output:
+                output.append(source)
 
     return {"embeddings": output}
   
