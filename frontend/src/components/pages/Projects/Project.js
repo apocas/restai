@@ -85,9 +85,9 @@ function Project() {
       });
   }
 
-  const handleDeleteClick = (source, type) => {
+  const handleDeleteClick = (source) => {
     if (window.confirm("Delete " + source + "?")) {
-      fetch(url + "/projects/" + projectName + "/embeddings/" + type + "/" + btoa(source),
+      fetch(url + "/projects/" + projectName + "/embeddings/" + btoa(source),
         {
           method: 'DELETE', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
         }).then(() => {
@@ -120,12 +120,9 @@ function Project() {
   }
 
   const handleViewClick = (source) => {
-    fetch(url + "/projects/" + projectName + "/embeddings/find", {
-      method: 'POST',
+    fetch(url + "/projects/" + projectName + "/embeddings/" + btoa(source), {
+      method: 'GET',
       headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
-      body: JSON.stringify({
-        "source": source
-      }),
     })
       .then(response => response.json())
       .then(response => {
@@ -452,7 +449,7 @@ function Project() {
                               </td>
                               <td>
                                 <Button onClick={() => handleViewClick(file)} variant="dark">View</Button>{' '}
-                                <Button onClick={() => handleDeleteClick(file, "files")} variant="danger">Delete</Button>
+                                <Button onClick={() => handleDeleteClick(file)} variant="danger">Delete</Button>
                               </td>
                             </tr>
                           )
@@ -475,7 +472,7 @@ function Project() {
                               </td>
                               <td>
                                 <Button onClick={() => handleViewClick(url)} variant="dark">View</Button>{' '}
-                                <Button onClick={() => handleDeleteClick(url, "url")} variant="danger">Delete</Button>
+                                <Button onClick={() => handleDeleteClick(url)} variant="danger">Delete</Button>
                               </td>
                             </tr>
                           )
