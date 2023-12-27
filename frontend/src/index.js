@@ -19,7 +19,7 @@ import Error from './components/pages/Error/Error.js';
 import PrivateRoute from './components/common/PrivateRoute.js';
 import AuthProvider from './components/common/AuthProvider.js';
 import 'bootstrap/dist/css/bootstrap.css';
-import { Container, Row, Form, InputGroup, Col, Card, Button, Spinner, Alert, Accordion, Badge } from 'react-bootstrap';
+import { Container, Row, Col } from 'react-bootstrap';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
