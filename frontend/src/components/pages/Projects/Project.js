@@ -28,7 +28,7 @@ function Project() {
 
   const Link = ({ id, children, title }) => (
     <OverlayTrigger overlay={<Tooltip id={id}>{title}</Tooltip>}>
-      <a href="#" style={{ fontSize: "small", margin: "3px" }}>{children}</a>
+      <span style={{ fontSize: "small", margin: "3px" }}>{children}</span>
     </OverlayTrigger>
   );
 
@@ -419,7 +419,6 @@ function Project() {
                     <thead>
                       <tr>
                         <th>#</th>
-                        <th>Type</th>
                         <th>Source</th>
                         <th>Actions</th>
                       </tr>
@@ -430,7 +429,6 @@ function Project() {
                           return (
                             <tr key={index}>
                               <td>{index}</td>
-                              <td>Other</td>
                               <td>
                                 {file}
                               </td>
