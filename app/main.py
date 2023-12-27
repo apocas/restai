@@ -21,11 +21,11 @@ from app.database import Database, dbc, get_db
 from app.databasemodels import UserDatabase
 import urllib.parse
 
-from app.models import ChatResponse, EmbeddingModel, HardwareInfo, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel
+from app.models import ChatResponse, FindModel, HardwareInfo, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from app.vectordb import vector_delete_source, vector_delete_id, vector_find, vector_info, vector_init, vector_reset, vector_save, vector_list
+from app.vectordb import vector_delete_source, vector_delete_id, vector_find, vector_info, vector_init, vector_list_source, vector_reset, vector_save, vector_list
 from langchain_core.documents import Document
 
 from modules.embeddings import EMBEDDINGS
@@ -399,31 +399,45 @@ def project_reset(
 
 
 @app.post("/projects/{projectName}/embeddings/find")
-def get_embedding(projectName: str, embedding: EmbeddingModel,
+def get_embedding(projectName: str, embedding: FindModel,
                   user: User = Depends(get_current_username_project),
                   db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
-    docs = None
 
-    docs = vector_find(project, embedding.source)
+    output = []
+
+    if (embedding.text):
+        retriever = project.db.as_retriever(
+            search_type="similarity_score_threshold",
+            search_kwargs={
+                "score_threshold": project.model.score or 0.2,
+                "k": project.model.k or 1})
+
+        try:
+            docs = retriever.get_relevant_documents(embedding.text)
+        except BaseException:
+            docs = []
+
+        for doc in docs:
+            output.append(doc.metadata["source"])
+
+    elif (embedding.source):
+        output = vector_list_source(project, embedding.source)
+
+    return {"embeddings": output}
+
+@app.get("/projects/{projectName}/embeddings/{source}")
+def get_embedding(projectName: str, source: str,
+                  user: User = Depends(get_current_username_project),
+                  db: Session = Depends(get_db)):
+    project = brain.findProject(projectName, db)
+
+    docs = vector_find(project, base64.b64decode(source).decode('utf-8'))
 
     if (len(docs['ids']) == 0):
         return {"ids": []}
     else:
         return docs
-
-
-@app.delete("/projects/{projectName}/embeddings/{id}")
-def delete_embedding(
-        projectName: str,
-        id: str,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
-    project = brain.findProject(projectName, db)
-
-    vector_delete_id(project, id)
-
-    return {"deleted": id}
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/text")
@@ -486,8 +500,8 @@ def ingest_file(
         db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
-           
-        temp = NamedTemporaryFile(delete=False) 
+
+        temp = NamedTemporaryFile(delete=False)
         try:
             contents = file.file.read()
             with temp as f:
@@ -499,12 +513,12 @@ def ingest_file(
             file.file.close()
 
         _, ext = os.path.splitext(file.filename or '')
-        
+
         loader = FindFileLoader(
             temp.name, ext, json.loads(
                 urllib.parse.unquote(options)))
         documents = loader.load()
-        
+
         for document in documents:
             document.metadata["source"] = file.filename
 
@@ -525,47 +539,28 @@ def ingest_file(
             status_code=500, detail=str(e))
 
 
-@app.get('/projects/{projectName}/embeddings/{embeddingType}')
+@app.get('/projects/{projectName}/embeddings')
 def list_files(
         projectName: str,
-        embeddingType: str,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    output = vector_list(project, embeddingType)
-
-    if embeddingType == "url" or embeddingType == "urls":
-        output = {embeddingType: output["urls"]}
-    elif embeddingType == "other":
-        output = {embeddingType: output["other"]}
+    output = vector_list(project)
 
     return output
 
 
-@app.delete('/projects/{projectName}/embeddings/url/{url}')
-def delete_url(
-        projectName: str,
-        url: str,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
-    project = brain.findProject(projectName, db)
-
-    source = base64.b64decode(url).decode('utf-8')
-    ids = vector_delete_source(project, source)
-
-    return {"deleted": len(ids)}
-
-
-@app.delete('/projects/{projectName}/embeddings/files/{fileName}')
+@app.delete('/projects/{projectName}/embeddings/{source}')
 def delete_file(
         projectName: str,
-        fileName: str,
+        source: str,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    ids = vector_delete_source(project, base64.b64decode(fileName).decode('utf-8'))
+    ids = vector_delete_source(
+        project, base64.b64decode(source).decode('utf-8'))
 
     return {"deleted": len(ids)}
 

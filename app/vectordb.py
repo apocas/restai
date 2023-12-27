@@ -65,10 +65,8 @@ def vector_load(brain, project):
             "/schema.yaml")
 
 
-def vector_list(project, type="all"):
-    urls = []
-    files = []
-    other = []
+def vector_list(project):
+    output = []
     if project.model.vectorstore == "chroma":
         collection = project.db._client.get_collection("langchain")
 
@@ -77,21 +75,7 @@ def vector_list(project, type="all"):
         )
 
         for metadata in docs["metadatas"]:
-            if type == "url" or type == "urls":
-                if metadata["source"].startswith(
-                        ('http://', 'https://')) and metadata["source"] not in urls:
-                    urls.append(metadata["source"])
-            elif type == "other":
-                if not metadata["source"].startswith(
-                        ('http://', 'https://')) and metadata["source"] not in other:
-                    other.append(metadata["source"])
-            elif type == "all":
-                if metadata["source"].startswith(
-                        ('http://', 'https://')) and metadata["source"] not in urls:
-                    urls.append(metadata["source"])
-                if not metadata["source"].startswith(
-                        ('http://', 'https://')) and metadata["source"] not in other:
-                    other.append(metadata["source"])
+            output.append(metadata["source"])
 
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
@@ -101,23 +85,36 @@ def vector_list(project, type="all"):
         keys = lredis.keys(project.db.key_prefix + "*")
         for key in keys:
             source = lredis.hget(key, "source")
-            if type == "url" or type == "urls":
-                if source.startswith(
-                        ('http://', 'https://')) and source not in urls:
-                    urls.append(source)
-            elif type == "other" or type == "others":
-                if not source.startswith(
-                        ('http://', 'https://')) and source not in other:
-                    other.append(source)
-            elif type == "all":
-                if source.startswith(
-                        ('http://', 'https://')) and source not in urls:
-                    urls.append(source)
-                if not source.startswith(
-                        ('http://', 'https://')) and source not in other:
-                    other.append(source)
+            output.append(source)
 
-    return {"urls": urls, "other": other}
+    return {"embeddings": output}
+  
+
+def vector_list_source(project, source):
+    output = []
+    if project.model.vectorstore == "chroma":
+        collection = project.db._client.get_collection("langchain")
+
+        docs = collection.get(
+            include=["metadatas"]
+        )
+
+        for metadata in docs["metadatas"]:
+            if metadata["source"] == source:
+                output.append(metadata["source"])
+
+    elif project.model.vectorstore == "redis":
+        lredis = redis.Redis(
+            host=os.environ["REDIS_HOST"],
+            port=os.environ["REDIS_PORT"],
+            decode_responses=True)
+        keys = lredis.keys(project.db.key_prefix + "*")
+        for key in keys:
+            sourcer = lredis.hget(key, "source")
+            if source == sourcer:
+                output.append(sourcer)
+
+    return {"embeddings": output}
 
 
 def vector_info(project):

@@ -9,8 +9,9 @@ class TextIngestModel(BaseModel):
     text: str
     source: str
 
-class EmbeddingModel(BaseModel):
-    source: Union[str, None] = None
+class FindModel(BaseModel):
+    source: Union[str, None] = None,
+    text: Union[str, None] = None
 
 
 class InteractionModel(BaseModel):
