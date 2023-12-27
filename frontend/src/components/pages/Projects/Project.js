@@ -55,7 +55,13 @@ function Project() {
   const fetchProject = (projectName) => {
     return fetch(url + "/projects/" + projectName, { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
-      .then((d) => setData(d)
+      .then((d) => {
+        setData(d)
+        if (d.documents < 20000) {
+          fetchFiles(projectName);
+          fetchUrls(projectName);
+        }
+      }
       ).catch(err => {
         setError([...error, { "functionName": "fetchProject", "error": err.toString() }]);
       });
@@ -86,8 +92,10 @@ function Project() {
           method: 'DELETE', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
         }).then(() => {
           fetchProject(projectName);
-          fetchFiles(projectName);
-          fetchUrls(projectName);
+          if (data.documents < 20000) {
+            fetchFiles(projectName);
+            fetchUrls(projectName);
+          }
         }).catch(err => {
           setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
         });
@@ -101,8 +109,10 @@ function Project() {
           method: 'POST', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
         }).then(() => {
           fetchProject(projectName);
-          fetchFiles(projectName);
-          fetchUrls(projectName);
+          if (data.documents < 20000) {
+            fetchFiles(projectName);
+            fetchUrls(projectName);
+          }
         }).catch(err => {
           setError([...error, { "functionName": "handleResetEmbeddingsClick", "error": err.toString() }]);
         });
@@ -168,7 +178,9 @@ function Project() {
             resetFileInput();
             setUploadResponse(response);
             fetchProject(projectName);
-            fetchFiles(projectName);
+            if (data.documents < 20000) {
+              fetchFiles(projectName);
+            }
             setCanSubmit(true);
           }).catch(err => {
             setError([...error, { "functionName": "onSubmitHandler FILE", "error": err.toString() }]);
@@ -198,7 +210,9 @@ function Project() {
             urlForm.current.value = "";
             setUploadResponse(response);
             fetchProject(projectName);
-            fetchUrls(projectName);
+            if (data.documents < 20000) {
+              fetchUrls(projectName);
+            }
             setCanSubmit(true);
           }).catch(err => {
             setError([...error, { "functionName": "onSubmitHandler URL", "error": err.toString() }]);
@@ -225,7 +239,9 @@ function Project() {
             response.type = "text";
             setUploadResponse(response);
             fetchProject(projectName);
-            fetchFiles(projectName);
+            if (data.documents < 20000) {
+              fetchFiles(projectName);
+            }
             setCanSubmit(true);
             contentNameForm.current.value = "";
             contentForm.current.value = "";
@@ -262,8 +278,6 @@ function Project() {
   useEffect(() => {
     document.title = 'RestAI Project ' + projectName;
     fetchProject(projectName);
-    fetchFiles(projectName);
-    fetchUrls(projectName);
     fetchInfo();
   }, [projectName]);
 
@@ -411,60 +425,66 @@ function Project() {
           <hr />
           <Row style={{ marginTop: "20px" }}>
             <h1>Embeddings<Link title="Ingested files and URLs">ℹ️</Link></h1>
-            <Col sm={12} style={files.other.length > 5 || urls.urls.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
-              <Table striped bordered hover>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Type</th>
-                    <th>Source</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {
-                    files.other.map((file, index) => {
-                      return (
-                        <tr key={index}>
-                          <td>{index}</td>
-                          <td>Other</td>
-                          <td>
-                            {file}
-                          </td>
-                          <td>
-                            <Button onClick={() => handleViewClick(file)} variant="dark">View</Button>{' '}
-                            <Button onClick={() => handleDeleteClick(file, "files")} variant="danger">Delete</Button>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  }
-                  <tr>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                  </tr>
-                  {
-                    urls.urls.map((url, index) => {
-                      return (
-                        <tr key={index}>
-                          <td>{index}</td>
-                          <td>Url</td>
-                          <td>
-                            {url}
-                          </td>
-                          <td>
-                            <Button onClick={() => handleViewClick(url)} variant="dark">View</Button>{' '}
-                            <Button onClick={() => handleDeleteClick(url, "url")} variant="danger">Delete</Button>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  }
-                </tbody>
-              </Table>
-            </Col>
+            {data.documents > 20000 ?
+              <Col sm={12}>
+                Too many embeddings to be listed, use the search box
+              </Col>
+              : (
+                <Col sm={12} style={files.other.length > 5 || urls.urls.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
+                  <Table striped bordered hover>
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Type</th>
+                        <th>Source</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {
+                        files.other.map((file, index) => {
+                          return (
+                            <tr key={index}>
+                              <td>{index}</td>
+                              <td>Other</td>
+                              <td>
+                                {file}
+                              </td>
+                              <td>
+                                <Button onClick={() => handleViewClick(file)} variant="dark">View</Button>{' '}
+                                <Button onClick={() => handleDeleteClick(file, "files")} variant="danger">Delete</Button>
+                              </td>
+                            </tr>
+                          )
+                        })
+                      }
+                      <tr>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                      </tr>
+                      {
+                        urls.urls.map((url, index) => {
+                          return (
+                            <tr key={index}>
+                              <td>{index}</td>
+                              <td>Url</td>
+                              <td>
+                                {url}
+                              </td>
+                              <td>
+                                <Button onClick={() => handleViewClick(url)} variant="dark">View</Button>{' '}
+                                <Button onClick={() => handleDeleteClick(url, "url")} variant="danger">Delete</Button>
+                              </td>
+                            </tr>
+                          )
+                        })
+                      }
+                    </tbody>
+                  </Table>
+                </Col>
+              )}
             {
               embeddings && (
                 <Row>
