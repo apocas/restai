@@ -11,12 +11,11 @@ function Project() {
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const [data, setData] = useState({ projects: [] });
-  const [files, setFiles] = useState({ other: [] });
+  const [embeddings, setEmbeddings] = useState({ embeddings: [] });
   const [file, setFile] = useState(null);
-  const [urls, setUrls] = useState({ urls: [] });
   const contentForm = useRef(null)
   const contentNameForm = useRef(null)
-  const [embeddings, setEmbeddings] = useState(null);
+  const [embedding, setEmbedding] = useState(null);
   const [uploadResponse, setUploadResponse] = useState({ type: null });
   const [canSubmit, setCanSubmit] = useState(true);
   const [error, setError] = useState([]);
@@ -58,8 +57,7 @@ function Project() {
       .then((d) => {
         setData(d)
         if (d.documents < 20000) {
-          fetchFiles(projectName);
-          fetchUrls(projectName);
+          fetchEmbeddings(projectName);
         }
       }
       ).catch(err => {
@@ -67,21 +65,12 @@ function Project() {
       });
   }
 
-  const fetchFiles = (projectName) => {
-    return fetch(url + "/projects/" + projectName + "/embeddings/other", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+  const fetchEmbeddings = (projectName) => {
+    return fetch(url + "/projects/" + projectName + "/embeddings", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
       .then((res) => res.json())
-      .then((d) => setFiles(d)
+      .then((d) => setEmbeddings(d)
       ).catch(err => {
-        setError([...error, { "functionName": "fetchFiles", "error": err.toString() }]);
-      });
-  }
-
-  const fetchUrls = (projectName) => {
-    return fetch(url + "/projects/" + projectName + "/embeddings/urls", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
-      .then((res) => res.json())
-      .then((d) => setUrls(d)
-      ).catch(err => {
-        setError([...error, { "functionName": "fetchUrls", "error": err.toString() }]);
+        setError([...error, { "functionName": "fetchEmbeddings", "error": err.toString() }]);
       });
   }
 
@@ -93,8 +82,7 @@ function Project() {
         }).then(() => {
           fetchProject(projectName);
           if (data.documents < 20000) {
-            fetchFiles(projectName);
-            fetchUrls(projectName);
+            fetchEmbeddings(projectName);
           }
         }).catch(err => {
           setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
@@ -110,8 +98,7 @@ function Project() {
         }).then(() => {
           fetchProject(projectName);
           if (data.documents < 20000) {
-            fetchFiles(projectName);
-            fetchUrls(projectName);
+            fetchEmbeddings(projectName);
           }
         }).catch(err => {
           setError([...error, { "functionName": "handleResetEmbeddingsClick", "error": err.toString() }]);
@@ -126,7 +113,7 @@ function Project() {
     })
       .then(response => response.json())
       .then(response => {
-        setEmbeddings(response);
+        setEmbedding(response);
         setTimeout(() => {
           ref.current?.scrollIntoView({ behavior: 'smooth' });
         }, 150);
@@ -176,7 +163,7 @@ function Project() {
             setUploadResponse(response);
             fetchProject(projectName);
             if (data.documents < 20000) {
-              fetchFiles(projectName);
+              fetchEmbeddings(projectName);
             }
             setCanSubmit(true);
           }).catch(err => {
@@ -208,7 +195,7 @@ function Project() {
             setUploadResponse(response);
             fetchProject(projectName);
             if (data.documents < 20000) {
-              fetchUrls(projectName);
+              fetchEmbeddings(projectName);
             }
             setCanSubmit(true);
           }).catch(err => {
@@ -237,7 +224,7 @@ function Project() {
             setUploadResponse(response);
             fetchProject(projectName);
             if (data.documents < 20000) {
-              fetchFiles(projectName);
+              fetchEmbeddings(projectName);
             }
             setCanSubmit(true);
             contentNameForm.current.value = "";
@@ -427,7 +414,7 @@ function Project() {
                 Too many embeddings to be listed, use the search box
               </Col>
               : (
-                <Col sm={12} style={files.other.length > 5 || urls.urls.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
+                <Col sm={12} style={embeddings.other.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
                   <Table striped bordered hover>
                     <thead>
                       <tr>
@@ -439,7 +426,7 @@ function Project() {
                     </thead>
                     <tbody>
                       {
-                        files.other.map((file, index) => {
+                        embeddings.other.map((file, index) => {
                           return (
                             <tr key={index}>
                               <td>{index}</td>
@@ -455,42 +442,19 @@ function Project() {
                           )
                         })
                       }
-                      <tr>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                      </tr>
-                      {
-                        urls.urls.map((url, index) => {
-                          return (
-                            <tr key={index}>
-                              <td>{index}</td>
-                              <td>Url</td>
-                              <td>
-                                {url}
-                              </td>
-                              <td>
-                                <Button onClick={() => handleViewClick(url)} variant="dark">View</Button>{' '}
-                                <Button onClick={() => handleDeleteClick(url)} variant="danger">Delete</Button>
-                              </td>
-                            </tr>
-                          )
-                        })
-                      }
                     </tbody>
                   </Table>
                 </Col>
               )}
             {
-              embeddings && (
+              embedding && (
                 <Row>
                   <Col sm={12}>
                     <h2 ref={ref}>Details:</h2>
                     <ListGroup style={{ height: "400px", overflowY: "scroll" }}>
-                      <ListGroup.Item><b>IDS:</b> <ReactJson src={embeddings.ids} enableClipboard={false} collapsed={0} /></ListGroup.Item>
-                      <ListGroup.Item><b>Metadatas:</b> <ReactJson src={embeddings.metadatas} enableClipboard={false} /></ListGroup.Item>
-                      <ListGroup.Item><b>Documents:</b> <ReactJson src={embeddings.documents} enableClipboard={false} /></ListGroup.Item>
+                      <ListGroup.Item><b>IDS:</b> <ReactJson src={embedding.ids} enableClipboard={false} collapsed={0} /></ListGroup.Item>
+                      <ListGroup.Item><b>Metadatas:</b> <ReactJson src={embedding.metadatas} enableClipboard={false} /></ListGroup.Item>
+                      <ListGroup.Item><b>Documents:</b> <ReactJson src={embedding.documents} enableClipboard={false} /></ListGroup.Item>
                     </ListGroup>
                   </Col>
                 </Row>
