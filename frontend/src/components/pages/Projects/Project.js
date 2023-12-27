@@ -414,7 +414,7 @@ function Project() {
                 Too many embeddings to be listed, use the search box
               </Col>
               : (
-                <Col sm={12} style={embeddings.other.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
+                <Col sm={12} style={embeddings.embeddings.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
                   <Table striped bordered hover>
                     <thead>
                       <tr>
@@ -426,7 +426,7 @@ function Project() {
                     </thead>
                     <tbody>
                       {
-                        embeddings.other.map((file, index) => {
+                        embeddings.embeddings.map((file, index) => {
                           return (
                             <tr key={index}>
                               <td>{index}</td>
