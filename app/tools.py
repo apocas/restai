@@ -12,11 +12,11 @@ def IndexDocuments(brain, project, documents):
 
     texts = [doc.page_content for doc in docs]
     metadatas = [doc.metadata for doc in docs]
- 
+
     for metadata in metadatas:
-      for key, value in list(metadata.items()):
-          if key == 'languages' or value is None:
-              del metadata[key]
+        for key, value in list(metadata.items()):
+            if key == 'languages' or value is None:
+                del metadata[key]
 
     ids = project.db.add_texts(texts=texts, metadatas=metadatas)
     return ids
@@ -89,7 +89,7 @@ def print_cuda_mem():
 def get_logger(name, level=logging.INFO):
     """To setup as many loggers as you want"""
 
-    handler = logging.FileHandler("./logs/" + name + ".log") 
+    handler = logging.FileHandler("./logs/" + name + ".log")
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
     handler.setFormatter(formatter)
 

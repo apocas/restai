@@ -36,9 +36,9 @@ docs:
 test:
 	pytest tests
 
-.PHONY: codestyle
+.PHONY: code
 codestyle:
-	autopep8 --in-place --aggressive --aggressive app/*.py
+	autopep8 --in-place app/*.py
 
 .PHONY: clean
 clean:

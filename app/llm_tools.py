@@ -2,7 +2,7 @@ import base64
 import io
 from torch.multiprocessing import Process, set_start_method, Manager
 try:
-     set_start_method('spawn')
+    set_start_method('spawn')
 except RuntimeError:
     pass
 from langchain.tools import BaseTool
@@ -31,7 +31,7 @@ class DalleImage(BaseTool):
 
         model = DallEAPIWrapper()
         model.model_name = "dall-e-3"
-        
+
         image_url = model.run(prompt)
 
         response = requests.get(image_url)
@@ -78,6 +78,7 @@ def sd_worker(prompt, sharedmem):
 
     sharedmem["image"] = image_base64
 
+
 class StableDiffusionImage(BaseTool):
     name = "Stable Diffusion Image Generator"
     description = "use this tool when you need to generate an image using Stable Diffusion."
@@ -90,7 +91,7 @@ class StableDiffusionImage(BaseTool):
             template="Generate a detailed prompt to generate an image based on the following description: {image_desc}",
         )
         chain = LLMChain(llm=llm, prompt=prompt)
-        
+
         fprompt = chain.run(query)
 
         manager = Manager()

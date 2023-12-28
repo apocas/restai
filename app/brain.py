@@ -34,7 +34,7 @@ class Brain:
 
         self.text_splitter = RecursiveCharacterTextSplitter(
             separators=[" "], chunk_size=1024, chunk_overlap=30)
-        
+
     def memoryModelsInfo(self):
         models = []
         for llmr, mr in self.llmCache.items():
@@ -60,10 +60,10 @@ class Brain:
                 self.llmCache[modelr].pipe = None
                 self.llmCache[modelr].tokenizer = None
                 self.llmCache[modelr].model = None
-                
+
             gc.collect()
             torch.cuda.empty_cache()
-                        
+
             if isinstance(self.llmCache[modelr].llm, LlavaLLM):
                 del self.llmCache[modelr].llm.model
                 del self.llmCache[modelr].llm.processor
@@ -73,11 +73,10 @@ class Brain:
                 del self.llmCache[modelr].pipe
                 del self.llmCache[modelr].tokenizer
                 del self.llmCache[modelr].model
-              
-            
+
             self.llmCache[modelr] = None
             del self.llmCache[modelr]
-            
+
             gc.collect()
             torch.cuda.empty_cache()
 
@@ -202,7 +201,7 @@ class Brain:
         if projectModel.sandbox_project is not None and proj_db.sandbox_project != projectModel.sandbox_project:
             proj_db.sandbox_project = projectModel.sandbox_project
             changed = True
-            
+
         if proj_db.sandboxed == True and projectModel.sandbox_project is None:
             proj_db.sandbox_project = None
             changed = True
@@ -267,12 +266,12 @@ class Brain:
             search_kwargs={
                 "score_threshold": chatModel.score or project.model.score or 0.2,
                 "k": chatModel.k or project.model.k or 1})
-        
+
         try:
             docs = retriever.get_relevant_documents(chatModel.question)
         except BaseException:
             docs = []
-            
+
         if len(docs) == 0:
             contextsub = "{context}"
         else:
@@ -298,7 +297,7 @@ class Brain:
         result = conversationalChain(
             {"question": chatModel.question, "chat_history": chat.history}
         )
-        
+
         if loaded == True:
             self.semaphore.release()
 
@@ -356,7 +355,7 @@ class Brain:
             docs = retriever.get_relevant_documents(questionModel.question)
         except BaseException:
             docs = []
-            
+
         if len(docs) == 0:
             contextsub = ""
         else:
@@ -383,21 +382,21 @@ class Brain:
                        "question": questionModel.question} for doc in docs]
 
         output = chain.apply(inputs)
-        
+
         if loaded == True:
             self.semaphore.release()
-            
+
         return output[0]["text"].strip(), docs, False
 
     def entryVision(self, projectName, visionInput, db: Session):
-        image  = None
+        image = None
         project = self.findProject(projectName, db)
         if project is None:
             raise Exception("Project not found")
-        
-        if visionInput.image is None:            
+
+        if visionInput.image is None:
             unloaded = self.unloadLLMs()
-            
+
             tools = [
                 DalleImage(),
                 StableDiffusionImage()
@@ -408,30 +407,30 @@ class Brain:
             except ValueError:
                 pass
             self.semaphore.acquire()
-            agent = initialize_agent(tools, model.llm, agent="zero-shot-react-description", verbose=True)
+            agent = initialize_agent(
+                tools, model.llm, agent="zero-shot-react-description", verbose=True)
             outputAgent = agent.run(visionInput.question)
-            
+
             if isinstance(outputAgent, str):
                 output = outputAgent
                 image = None
             else:
                 output = outputAgent["prompt"]
                 image = outputAgent["image"]
-            
+
             try:
                 self.semaphore.release()
             except ValueError:
                 pass
         else:
             model, loaded = self.getLLM(project.model.llm)
-            
+
             prompt_template_txt = PROMPTS[model.prompt]
             input = prompt_template_txt.format(question=visionInput.question)
-            
+
             output = model.llm.llavaInference(input, visionInput.image)
-            
+
             if loaded == True:
                 self.semaphore.release()
-              
+
         return output, [], image
-        

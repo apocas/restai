@@ -90,7 +90,7 @@ def vector_list(project):
                 output.append(source)
 
     return {"embeddings": output}
-  
+
 
 def vector_list_source(project, source):
     output = []

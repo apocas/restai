@@ -71,7 +71,7 @@ class Database:
 
         if userc.is_admin is not None:
             user.is_admin = userc.is_admin
-            
+
         if userc.is_private is not None:
             user.is_private = userc.is_private
 
