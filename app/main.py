@@ -21,7 +21,7 @@ from app.database import Database, dbc, get_db
 from app.databasemodels import UserDatabase
 import urllib.parse
 
-from app.models import ChatResponse, FindModel, HardwareInfo, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel
+from app.models import ChatResponse, FindModel, HardwareInfo, IngestResponse, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -442,7 +442,7 @@ def get_embedding(projectName: str, source: str,
         return docs
 
 
-@app.post("/projects/{projectName}/embeddings/ingest/text")
+@app.post("/projects/{projectName}/embeddings/ingest/text", response_model=IngestResponse)
 def ingest_text(projectName: str, ingest: TextIngestModel,
                user: User = Depends(get_current_username_project),
                db: Session = Depends(get_db)):
@@ -462,7 +462,7 @@ def ingest_text(projectName: str, ingest: TextIngestModel,
         ids = IndexDocuments(brain, project, documents)
         vector_save(project)
 
-        return {"name": ingest.source, "documents": len(ids)}
+        return {"source": ingest.source, "documents": len(ids)}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -470,7 +470,7 @@ def ingest_text(projectName: str, ingest: TextIngestModel,
             status_code=500, detail=str(e))
 
 
-@app.post("/projects/{projectName}/embeddings/ingest/url")
+@app.post("/projects/{projectName}/embeddings/ingest/url", response_model=IngestResponse)
 def ingest_url(projectName: str, ingest: URLIngestModel,
                user: User = Depends(get_current_username_project),
                db: Session = Depends(get_db)):
@@ -489,7 +489,7 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
         ids = IndexDocuments(brain, project, documents)
         vector_save(project)
 
-        return {"url": ingest.url, "documents": len(ids)}
+        return {"source": ingest.url, "documents": len(ids)}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -497,7 +497,7 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
             status_code=500, detail=str(e))
 
 
-@app.post("/projects/{projectName}/embeddings/ingest/upload")
+@app.post("/projects/{projectName}/embeddings/ingest/upload", response_model=IngestResponse)
 def ingest_file(
         projectName: str,
         file: UploadFile,
@@ -534,8 +534,7 @@ def ingest_file(
         vector_save(project)
 
         return {
-            "filename": file.filename,
-            "type": file.content_type,
+            "source": file.filename,
             "documents": len(ids)}
     except Exception as e:
         logging.error(e)

@@ -127,3 +127,8 @@ class QuestionResponse(BaseModel):
 
 class ChatResponse(QuestionResponse):
     id: str
+
+
+class IngestResponse(BaseModel):
+    source: str
+    documents: int

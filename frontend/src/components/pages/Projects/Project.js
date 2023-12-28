@@ -169,7 +169,6 @@ function Project() {
             }
           })
           .then((response) => {
-            response.type = "file";
             resetFileInput();
             setUploadResponse(response);
             fetchProject(projectName);
@@ -201,7 +200,6 @@ function Project() {
             return response.json();
           })
           .then((response) => {
-            response.type = "url";
             urlForm.current.value = "";
             setUploadResponse(response);
             fetchProject(projectName);
@@ -235,7 +233,6 @@ function Project() {
             return response.json();
           })
           .then((response) => {
-            response.type = "text";
             setUploadResponse(response);
             fetchProject(projectName);
             if (data.documents < 20000) {
@@ -373,8 +370,8 @@ function Project() {
                         delimiters={[188, 13]}
                         handleDelete={handleDelete}
                         handleAddition={handleAddition}
-                        handleDrag={function(){}}
-                        handleTagClick={function(){}}
+                        handleDrag={function () { }}
+                        handleTagClick={function () { }}
                         inputFieldPosition="bottom"
                         autocomplete
                       />
@@ -388,31 +385,18 @@ function Project() {
                 </Col>
               </Form>
               {
-                uploadResponse.type === "file" ?
+                (
+                  uploadResponse.source &&
                   <Row>
                     <Col sm={12}>
                       <h5>Ingest Result:</h5>
                       <ListGroup>
-                        <ListGroup.Item>FileName: {uploadResponse.filename}</ListGroup.Item>
-                        <ListGroup.Item>Type: {uploadResponse.type}</ListGroup.Item>
-                        <ListGroup.Item>Texts: {uploadResponse.texts}</ListGroup.Item>
+                        <ListGroup.Item>Source: {uploadResponse.source}</ListGroup.Item>
                         <ListGroup.Item>Documents: {uploadResponse.documents}</ListGroup.Item>
                       </ListGroup>
                     </Col>
                   </Row>
-                  : (
-                    uploadResponse.type === "url" &&
-                    <Row>
-                      <Col sm={12}>
-                        <h5>Ingest Result:</h5>
-                        <ListGroup>
-                          <ListGroup.Item>Url: {uploadResponse.url}</ListGroup.Item>
-                          <ListGroup.Item>Texts: {uploadResponse.texts}</ListGroup.Item>
-                          <ListGroup.Item>Documents: {uploadResponse.documents}</ListGroup.Item>
-                        </ListGroup>
-                      </Col>
-                    </Row>
-                  )
+                )
               }
               <hr />
               <h1>Actions</h1>
