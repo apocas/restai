@@ -10,7 +10,8 @@ from app.models import User, UserUpdate
 if os.environ["MYSQL_HOST"]:
     database = os.environ["MYSQL_DB"] or "restai"
 
-    engine = create_engine('mysql+pymysql://' + os.environ["MYSQL_USER"] + ':' + os.environ["MYSQL_PASSWORD"] + '@' + os.environ["MYSQL_HOST"] + '/' + database,
+    engine = create_engine('mysql+pymysql://' + (os.environ["MYSQL_USER"] or "restai") + ':' + os.environ["MYSQL_PASSWORD"] + '@' + (
+    os.environ["MYSQL_HOST"] or "127.0.0.1") + '/' + (os.environ["MYSQL_DB"] or "restai"),
                            pool_size=30,
                            max_overflow=100,
                            pool_recycle=900)
