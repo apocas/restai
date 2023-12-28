@@ -2,7 +2,7 @@ import os
 from sqlalchemy import create_engine, select
 from app.databasemodels import Base
 
-engine_lite = create_engine('sqlite:////home/pedrodias/restai/restai.db')
+engine_lite = create_engine('sqlite:///' + os.environ["SQLITE_PATH"])
 
 database = os.environ["MYSQL_DB"] or "restai"
 engine_mysql = create_engine('mysql+pymysql://' + os.environ["MYSQL_USER"] + ':' + os.environ["MYSQL_PASSWORD"] + '@' + os.environ["MYSQL_HOST"] + '/' + database)
