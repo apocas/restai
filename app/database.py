@@ -8,12 +8,14 @@ from app.models import User, UserUpdate
 
 
 if os.environ.get("MYSQL_PASSWORD"):
+    print("Using MySQL database.")
     engine = create_engine('mysql+pymysql://' + (os.environ.get("MYSQL_USER") or "restai") + ':' + os.environ.get("MYSQL_PASSWORD") + '@' + (
     os.environ.get("MYSQL_HOST") or "127.0.0.1") + '/' + (os.environ.get("MYSQL_DB") or "restai"),
                            pool_size=30,
                            max_overflow=100,
                            pool_recycle=900)
 else:
+    print("Using sqlite database.")
     engine = create_engine(
         "sqlite:///./restai.db",
         connect_args={

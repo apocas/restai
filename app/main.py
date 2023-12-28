@@ -39,6 +39,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
+from unidecode import unidecode
 
 
 load_dotenv()
@@ -133,6 +134,7 @@ def create_user(userc: UserCreate,
                 user: User = Depends(get_current_username_admin),
                 db: Session = Depends(get_db)):
     try:
+        userc.username = unidecode(userc.username.strip().lower().replace(" ", "."))
         user = dbc.create_user(db,
                                userc.username,
                                userc.password,
@@ -338,6 +340,7 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
 
 @app.post("/projects")
 async def create_project(projectModel: ProjectModel, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
+    projectModel.name = unidecode(projectModel.name.strip().lower().replace(" ", "_"))
 
     if projectModel.embeddings not in EMBEDDINGS:
         raise HTTPException(
