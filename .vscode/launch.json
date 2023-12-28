@@ -1,4 +1,5 @@
-{"version": "0.1.0",
+{
+  "version": "0.1.0",
   "configurations": [
     {
       "name": "Python: Main File",
@@ -8,7 +9,9 @@
       "console": "integratedTerminal",
       "justMyCode": false,
       "args": [],
-      "purpose": ["debug-in-terminal"],
+      "purpose": [
+        "debug-in-terminal"
+      ],
       "env": {
         "RESTAI_DEV": "true"
       }
@@ -22,7 +25,23 @@
       "justMyCode": false,
       "cwd": "${fileDirname}",
       "args": [],
-      "purpose": ["debug-in-terminal"]
+      "purpose": [
+        "debug-in-terminal"
+      ]
+    },
+    {
+      "name": "Python: Remote",
+      "type": "python",
+      "request": "attach",
+      "host": "localhost",
+      "port": 5678,
+      "justMyCode": false,
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "."
+        }
+      ]
     }
   ]
 }

@@ -121,7 +121,7 @@ async def get_user(username: str, user: User = Depends(get_current_username_user
 
 
 @app.get("/users", response_model=list[User])
-def read_users(
+def get_users(
         user: User = Depends(get_current_username_admin),
         db: Session = Depends(get_db)):
     users = dbc.get_users(db)
@@ -381,7 +381,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
 
 
 @app.post("/projects/{projectName}/embeddings/reset")
-def project_reset(
+def reset_embeddings(
         projectName: str,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
@@ -399,7 +399,7 @@ def project_reset(
 
 
 @app.post("/projects/{projectName}/embeddings/find")
-def get_embedding(projectName: str, embedding: FindModel,
+def find_embedding(projectName: str, embedding: FindModel,
                   user: User = Depends(get_current_username_project),
                   db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
@@ -443,7 +443,7 @@ def get_embedding(projectName: str, source: str,
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/text")
-def ingest_url(projectName: str, ingest: TextIngestModel,
+def ingest_text(projectName: str, ingest: TextIngestModel,
                user: User = Depends(get_current_username_project),
                db: Session = Depends(get_db)):
 
@@ -546,7 +546,7 @@ def ingest_file(
 
 
 @app.get('/projects/{projectName}/embeddings')
-def list_files(
+def get_embeddings(
         projectName: str,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
@@ -558,7 +558,7 @@ def list_files(
 
 
 @app.delete('/projects/{projectName}/embeddings/{source}')
-def delete_file(
+def delete_embedding(
         projectName: str,
         source: str,
         user: User = Depends(get_current_username_project),
@@ -572,7 +572,7 @@ def delete_file(
 
 
 @app.post("/projects/{projectName}/vision", response_model=QuestionResponse)
-def vision_project(
+def vision_query(
         projectName: str,
         input: VisionModel,
         user: User = Depends(get_current_username_project),
@@ -615,7 +615,7 @@ def vision_project(
 
 
 @app.post("/projects/{projectName}/question", response_model=QuestionResponse)
-def question_project(
+def question_query(
         projectName: str,
         input: QuestionModel,
         user: User = Depends(get_current_username_project),
@@ -649,7 +649,7 @@ def question_project(
 
 
 @app.post("/projects/{projectName}/chat", response_model=ChatResponse)
-def chat_project(
+def chat_query(
         projectName: str,
         input: ChatModel,
         user: User = Depends(get_current_username_project),

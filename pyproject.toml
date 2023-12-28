@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "restai"
 version = "3.3.0"
-description = "AI gateway"
+description = "RESTAI, so many 'A's and 'I's, so little time..."
 authors = ["Pedro Dias <petermdias@gmail.com>"]
 license = "Apache-2.0"
 readme = "README.md"
@@ -47,7 +47,7 @@ torch = { version = "*", optional = true }
 pylint = "3.0.2"
 autopep8 = "2.0.4"
 httpx = "0.25.1"
-
+debugpy = "^1.8.0"
 
 [tool.poetry.extras]
 gpu = ["torch", "flash_attn"]

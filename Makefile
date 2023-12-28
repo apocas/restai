@@ -2,6 +2,11 @@
 start:
 	uvicorn app.main:app --host 0.0.0.0 --port 9000
 
+#make remote host=user@1.2.3.4 path=/home/user/restai/
+.PHONY: remote
+remote:
+	ssh -2 -L 5678:127.0.0.1:5678 $(host) "cd $(path); python3 -m debugpy --listen 127.0.0.1:5678 --wait-for-client main.py"
+
 .PHONY: devfrontend
 devfrontend:
 	cd frontend && REACT_APP_RESTAI_API_URL=http://127.0.0.1:9000 npm run start
