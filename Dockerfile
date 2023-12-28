@@ -9,7 +9,8 @@ COPY . /app
 
 ENV ANONYMIZED_TELEMETRY=False
 
-RUN pip install -r requirements.txt
+RUN pip install poetry
+RUN poetry install --no-dev
 
 EXPOSE 9000
 
