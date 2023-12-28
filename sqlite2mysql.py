@@ -4,8 +4,8 @@ from app.databasemodels import Base
 
 engine_lite = create_engine('sqlite:///' + os.environ["SQLITE_PATH"])
 
-engine_mysql = create_engine('mysql+pymysql://' + (os.environ["MYSQL_USER"] or "restai") + ':' + os.environ["MYSQL_PASSWORD"] + '@' + (
-    os.environ["MYSQL_HOST"] or "127.0.0.1") + '/' + (os.environ["MYSQL_DB"] or "restai"))
+engine_mysql = create_engine('mysql+pymysql://' + (os.environ.get("MYSQL_USER") or "restai") + ':' + os.environ.get("MYSQL_PASSWORD") + '@' + (
+    os.environ.get("MYSQL_HOST") or "127.0.0.1") + '/' + (os.environ.get("MYSQL_DB") or "restai"))
 
 Base.metadata.create_all(engine_mysql)
 

@@ -7,11 +7,9 @@ from app.databasemodels import Base, ProjectDatabase, UserProjectDatabase, UserD
 from app.models import User, UserUpdate
 
 
-if os.environ["MYSQL_HOST"]:
-    database = os.environ["MYSQL_DB"] or "restai"
-
-    engine = create_engine('mysql+pymysql://' + (os.environ["MYSQL_USER"] or "restai") + ':' + os.environ["MYSQL_PASSWORD"] + '@' + (
-    os.environ["MYSQL_HOST"] or "127.0.0.1") + '/' + (os.environ["MYSQL_DB"] or "restai"),
+if os.environ.get("MYSQL_PASSWORD"):
+    engine = create_engine('mysql+pymysql://' + (os.environ.get("MYSQL_USER") or "restai") + ':' + os.environ.get("MYSQL_PASSWORD") + '@' + (
+    os.environ.get("MYSQL_HOST") or "127.0.0.1") + '/' + (os.environ.get("MYSQL_DB") or "restai"),
                            pool_size=30,
                            max_overflow=100,
                            pool_recycle=900)
