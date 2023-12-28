@@ -1,18 +1,28 @@
+import os
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 
 from app.databasemodels import Base, ProjectDatabase, UserProjectDatabase, UserDatabase
-from app.models import ProjectModel, User, UserUpdate
-from app.project import Project
+from app.models import User, UserUpdate
 
-engine = create_engine(
-    "sqlite:///./restai.db",
-    connect_args={
-        "check_same_thread": False},
-    pool_size=30,
-    max_overflow=100,
-    pool_recycle=900)
+
+if os.environ["MYSQL_HOST"]:
+    database = os.environ["MYSQL_DB"] or "restai"
+
+    engine = create_engine('mysql+pymysql://' + os.environ["MYSQL_USER"] + ':' + os.environ["MYSQL_PASSWORD"] + '@' + os.environ["MYSQL_HOST"] + '/' + database,
+                           pool_size=30,
+                           max_overflow=100,
+                           pool_recycle=900)
+else:
+    engine = create_engine(
+        "sqlite:///./restai.db",
+        connect_args={
+            "check_same_thread": False},
+        pool_size=30,
+        max_overflow=100,
+        pool_recycle=900)
+
 
 SessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=engine)

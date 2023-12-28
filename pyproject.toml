@@ -42,6 +42,7 @@ bitsandbytes = "*"
 flash_attn = { version = "*", optional = true }
 diffusers = "*"
 torch = { version = "*", optional = true }
+pymysql = "^1.1.0"
 
 [tool.poetry.dev-dependencies]
 pylint = "3.0.2"

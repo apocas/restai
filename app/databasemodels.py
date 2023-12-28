@@ -9,8 +9,8 @@ class UserDatabase(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
+    username = Column(String(255), unique=True, index=True)
+    hashed_password = Column(String(255))
     is_admin = Column(Boolean, default=False)
     is_private = Column(Boolean, default=False)
     projects = relationship("UserProjectDatabase", back_populates="owner")
@@ -20,7 +20,7 @@ class UserProjectDatabase(Base):
     __tablename__ = "userprojects"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
+    name = Column(String(255), index=True)
     owner_id = Column(Integer, ForeignKey("users.id"))
     project_id = Column(Integer, ForeignKey("projects.id"))
 
@@ -33,15 +33,15 @@ class ProjectDatabase(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    name = Column(String, unique=True, index=True)
-    embeddings = Column(String)
-    llm = Column(String)
-    system = Column(String)
+    name = Column(String(255), unique=True, index=True)
+    embeddings = Column(String(255))
+    llm = Column(String(255))
+    system = Column(String(255))
     sandboxed = Column(Boolean, default=False)
-    censorship = Column(String)
+    censorship = Column(String(1024))
     k = Column(Integer, default=1)
     score = Column(Float, default=0.2)
-    vectorstore = Column(String, default="chroma")
-    sandbox_project = Column(String)
+    vectorstore = Column(String(255), default="chroma")
+    sandbox_project = Column(String(255))
 
     owners = relationship("UserProjectDatabase", back_populates="project")
