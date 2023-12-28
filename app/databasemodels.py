@@ -38,7 +38,7 @@ class ProjectDatabase(Base):
     llm = Column(String(255))
     system = Column(String(255))
     sandboxed = Column(Boolean, default=False)
-    censorship = Column(String(1024))
+    censorship = Column(String(10000))
     k = Column(Integer, default=1)
     score = Column(Float, default=0.2)
     vectorstore = Column(String(255), default="chroma")
