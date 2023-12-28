@@ -1,10 +1,11 @@
-import { Container, Table, Row, Form, Col, Button, ListGroup, Alert, Badge, Tab, Tabs } from 'react-bootstrap';
+import { Container, Table, Row, Form, Col, Button, ListGroup, Alert, Badge, Tab, Tabs, DropdownButton, Dropdown } from 'react-bootstrap';
 import { NavLink, useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
 import ReactJson from '@microlink/react-json-view';
 import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import Tooltip from 'react-bootstrap/Tooltip';
+import { WithContext as ReactTags } from 'react-tag-input';
 
 function Project() {
 
@@ -25,6 +26,7 @@ function Project() {
   var { projectName } = useParams();
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
+  const [tags, setTags] = React.useState([]);
 
   const Link = ({ id, children, title }) => (
     <OverlayTrigger overlay={<Tooltip id={id}>{title}</Tooltip>}>
@@ -134,6 +136,15 @@ function Project() {
     fileForm.current.value = null;
   };
 
+  const handleDelete = i => {
+    setTags(tags.filter((tag, index) => index !== i));
+  };
+
+  const handleAddition = tag => {
+    setTags([...tags, tag]);
+  };
+
+
   const onSubmitHandler = (event) => {
     event.preventDefault();
     if (canSubmit) {
@@ -208,6 +219,10 @@ function Project() {
           "source": contentNameForm.current.value
         }
 
+        if (tags.length > 0) {
+          body.keywords = tags.map((tag) => tag.text);
+        }
+
         fetch(url + "/projects/" + projectName + "/embeddings/ingest/text", {
           method: 'POST',
           headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
@@ -229,6 +244,7 @@ function Project() {
             setCanSubmit(true);
             contentNameForm.current.value = "";
             contentForm.current.value = "";
+            setTags([]);
           }).catch(err => {
             setError([...error, { "functionName": "onSubmitHandler URL", "error": err.toString() }]);
             setCanSubmit(true);
@@ -350,6 +366,18 @@ function Project() {
                     <Form.Group as={Col} controlId="formGridSystem">
                       <Form.Label>Name</Form.Label>
                       <Form.Control ref={contentNameForm} />
+                      <Form.Label>Keywords<Link title="Optional, if not provided system will automatically calculate them.">ℹ️</Link></Form.Label>
+                      <ReactTags
+                        tags={tags}
+                        suggestions={[]}
+                        delimiters={[188, 13]}
+                        handleDelete={handleDelete}
+                        handleAddition={handleAddition}
+                        handleDrag={function(){}}
+                        handleTagClick={function(){}}
+                        inputFieldPosition="bottom"
+                        autocomplete
+                      />
                       <Form.Label>Content<Link title="Instructions for the LLM know how to behave">ℹ️</Link></Form.Label>
                       <Form.Control rows="4" as="textarea" ref={contentForm} defaultValue={""} />
                     </Form.Group>

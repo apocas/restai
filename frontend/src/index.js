@@ -2,7 +2,6 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import Navigation from './components/common/Navigation.js'
-import './assets/css/index.css';
 import Projects from './components/pages/Projects/Projects.js';
 import Models from './components/pages/Projects/Models.js';
 import Project from './components/pages/Projects/Project.js';
@@ -19,6 +18,7 @@ import Error from './components/pages/Error/Error.js';
 import PrivateRoute from './components/common/PrivateRoute.js';
 import AuthProvider from './components/common/AuthProvider.js';
 import 'bootstrap/dist/css/bootstrap.css';
+import './assets/css/index.css';
 import { Container, Row, Col } from 'react-bootstrap';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
