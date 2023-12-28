@@ -36,7 +36,7 @@ class ProjectDatabase(Base):
     name = Column(String(255), unique=True, index=True)
     embeddings = Column(String(255))
     llm = Column(String(255))
-    system = Column(String(255))
+    system = Column(String(10000))
     sandboxed = Column(Boolean, default=False)
     censorship = Column(String(10000))
     k = Column(Integer, default=1)
