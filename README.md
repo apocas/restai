@@ -27,6 +27,8 @@
 
 ## Installation
 
+* RestAI uses [Poetry](https://python-poetry.org/) to manage dependencies. Install it with `pip install poetry`.
+
 ### Development
 * make install
 * make dev (starts restai in development mode)
