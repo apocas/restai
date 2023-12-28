@@ -427,6 +427,7 @@ def get_embedding(projectName: str, embedding: FindModel,
 
     return {"embeddings": output}
 
+
 @app.get("/projects/{projectName}/embeddings/{source}")
 def get_embedding(projectName: str, source: str,
                   user: User = Depends(get_current_username_project),
@@ -452,7 +453,11 @@ def ingest_url(projectName: str, ingest: TextIngestModel,
         metadata = {"source": ingest.source}
         documents = [Document(page_content=ingest.text, metadata=metadata)]
 
-        documents = ExtractKeywordsForMetadata(documents)
+        if ingest.keywords and len(ingest.keywords) > 0:
+            for document in documents:
+                document.metadata["keywords"] = ", ".join(ingest.keywords)
+        else:
+            documents = ExtractKeywordsForMetadata(documents)
 
         ids = IndexDocuments(brain, project, documents)
         vector_save(project)

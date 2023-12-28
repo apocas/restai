@@ -4,10 +4,13 @@ from typing import Union
 
 class URLIngestModel(BaseModel):
     url: str
-    
+
+
 class TextIngestModel(BaseModel):
     text: str
     source: str
+    keywords: Union[list[str], None] = None
+
 
 class FindModel(BaseModel):
     source: Union[str, None] = None,
@@ -27,6 +30,7 @@ class QuestionModel(InteractionModel):
 class VisionModel(BaseModel):
     question: str
     image: Union[str, None] = None
+
 
 class ChatModel(InteractionModel):
     question: str
@@ -105,6 +109,7 @@ class HardwareInfo(BaseModel):
     gpu_temp: Union[int, None] = None
     gpu_ram_usage: Union[int, None] = None
     models_vram: list[str] = None
+
 
 class SourceModel(BaseModel):
     source: str

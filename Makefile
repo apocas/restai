@@ -18,7 +18,11 @@ prod:
 .PHONY: install
 install:
 	cd frontend && npm install
-	pip install -r requirements.txt
+	poetry install
+
+.PHONY: installgpu
+installgpu:
+	poetry install -E gpu
 
 .PHONY: frontend
 frontend:
