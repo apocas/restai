@@ -1,3 +1,4 @@
+import datetime
 import uuid
 
 
@@ -9,6 +10,8 @@ class Chat:
             self.id = str(uuid.uuid4())
 
         self.history = []
+
+        self.created = datetime.datetime.now()
 
     def clearHistory(self):
         self.history = []

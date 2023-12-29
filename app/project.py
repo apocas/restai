@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import shutil
@@ -39,6 +40,11 @@ class Project:
 
 
     def loadChat(self, chatModel):
+        current_time = datetime.datetime.now()
+        one_day_ago = current_time - datetime.timedelta(days=1)
+
+        self.chats = [chat for chat in self.chats if hasattr(chat, 'id') and chat.created >= one_day_ago]
+
         for chat in self.chats:
             if chat.id == chatModel.id:
                 return chat
