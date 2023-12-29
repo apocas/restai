@@ -9,7 +9,6 @@ import ProjectsEdit from './components/pages/Projects/Edit.js';
 import Chat from './components/pages/Projects/Chat.js';
 import Question from './components/pages/Projects/Question.js';
 import Vision from './components/pages/Projects/Vision.js';
-import Hardware from './components/pages/Hardware/Hardware.js';
 import Users from './components/pages/Users/Users.js';
 import User from './components/pages/Users/User.js';
 import UsersEdit from './components/pages/Users/Edit.js';
@@ -43,7 +42,6 @@ function Root() {
               <Route path={`/users`} element={<Users />} />
               <Route path={`/users/:username`} element={<User />} />
               <Route path={`/users/:username/edit`} element={<UsersEdit />} />
-              <Route path={`/hardware`} element={<Hardware />} />
             </Route>
             {/* Public Routes */}
             <Route

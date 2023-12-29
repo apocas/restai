@@ -50,8 +50,13 @@ function Users() {
       }),
     })
       .then(response => response.json())
-      .then(() => fetchUsers()
-      ).catch(err => {
+      .then(() => {
+        fetchUsers()
+        usernameForm.current.value = ""
+        passwordForm.current.value = ""
+        isadminForm.current.checked = false
+        isprivateForm.current.checked = false
+      }).catch(err => {
         setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
       });
 
@@ -128,7 +133,7 @@ function Users() {
               </Form.Group>
               <Form.Group as={Col} controlId="formGridUserName">
                 <Form.Label>Password</Form.Label>
-                <Form.Control ref={passwordForm} />
+                <Form.Control type="password" ref={passwordForm} />
               </Form.Group>
               <Form.Group as={Col} controlId="formGridAdmin">
                 <Form.Check ref={isadminForm} type="checkbox" label="Admin" />

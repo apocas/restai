@@ -404,7 +404,7 @@ def reset_embeddings(
             status_code=404, detail=str(e))
 
 
-@app.post("/projects/{projectName}/embeddings/find")
+@app.post("/projects/{projectName}/embeddings/search")
 def find_embedding(projectName: str, embedding: FindModel,
                    user: User = Depends(get_current_username_project),
                    db: Session = Depends(get_db)):
@@ -416,8 +416,8 @@ def find_embedding(projectName: str, embedding: FindModel,
         retriever = project.db.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
-                "score_threshold": project.model.score or 0.2,
-                "k": project.model.k or 1})
+                "score_threshold": embedding.score or project.model.score or 0.2,
+                "k": embedding.k or project.model.k or 1})
 
         try:
             docs = retriever.get_relevant_documents(embedding.text)

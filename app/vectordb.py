@@ -116,7 +116,7 @@ def vector_list_source(project, source):
             if source == sourcer:
                 output.append(sourcer)
 
-    return {"embeddings": output}
+    return output
 
 
 def vector_info(project):

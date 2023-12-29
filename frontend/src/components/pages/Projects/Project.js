@@ -1,4 +1,4 @@
-import { Container, Table, Row, Form, Col, Button, ListGroup, Alert, Badge, Tab, Tabs, DropdownButton, Dropdown } from 'react-bootstrap';
+import { Container, Table, Row, Form, Col, Button, ListGroup, Alert, Badge, Tab, Tabs } from 'react-bootstrap';
 import { NavLink, useParams } from "react-router-dom";
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { AuthContext } from '../../common/AuthProvider.js';
@@ -27,12 +27,51 @@ function Project() {
   const { getBasicAuth } = useContext(AuthContext);
   const user = getBasicAuth();
   const [tags, setTags] = React.useState([]);
+  const typeForm = useRef(null)
+  const searchForm = useRef(null)
+  const kSearchForm = useRef(null)
+  const thresholdSearchForm = useRef(null)
 
   const Link = ({ id, children, title }) => (
     <OverlayTrigger overlay={<Tooltip id={id}>{title}</Tooltip>}>
       <span style={{ fontSize: "small", margin: "3px" }}>{children}</span>
     </OverlayTrigger>
   );
+
+  const onSubmitSearchHandler = (event) => {
+    event.preventDefault();
+
+    var data = {}
+    if (typeForm.current.value === "text") {
+      data.text = searchForm.current.value
+      data.k = kSearchForm.current.value
+      data.score = thresholdSearchForm.current.value
+    } else if (typeForm.current.value === "source") {
+      data.source = searchForm.current.value
+    }
+
+    fetch(url + "/projects/" + projectName + "/embeddings/search", {
+      method: 'POST',
+      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
+      body: JSON.stringify(data),
+    })
+      .then(function (response) {
+        if (!response.ok) {
+          response.json().then(function (data) {
+            setError([...error, { "functionName": "onSubmitHandler", "error": data.detail }]);
+          });
+          throw Error(response.statusText);
+        } else {
+          return response.json();
+        }
+      })
+      .then((response) => {
+        setEmbeddings(response)
+      }).catch(err => {
+        setError([...error, { "functionName": "onSubmitHandler", "error": err.toString() }]);
+      });
+
+  }
 
   const handleDeleteProjectClick = (projectName) => {
     if (window.confirm("Delete " + projectName + "?")) {
@@ -68,12 +107,15 @@ function Project() {
   }
 
   const fetchEmbeddings = (projectName) => {
-    return fetch(url + "/projects/" + projectName + "/embeddings", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
-      .then((res) => res.json())
-      .then((d) => setEmbeddings(d)
-      ).catch(err => {
-        setError([...error, { "functionName": "fetchEmbeddings", "error": err.toString() }]);
-      });
+    if (data.documents < 20000 || !data.documents) {
+      searchForm.current.value = "";
+      return fetch(url + "/projects/" + projectName + "/embeddings", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
+        .then((res) => res.json())
+        .then((d) => setEmbeddings(d)
+        ).catch(err => {
+          setError([...error, { "functionName": "fetchEmbeddings", "error": err.toString() }]);
+        });
+    }
   }
 
   const handleDeleteClick = (source) => {
@@ -83,9 +125,7 @@ function Project() {
           method: 'DELETE', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
         }).then(() => {
           fetchProject(projectName);
-          if (data.documents < 20000) {
-            fetchEmbeddings(projectName);
-          }
+          fetchEmbeddings(projectName);
         }).catch(err => {
           setError([...error, { "functionName": "handleDeleteClick", "error": err.toString() }]);
         });
@@ -99,9 +139,7 @@ function Project() {
           method: 'POST', headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth })
         }).then(() => {
           fetchProject(projectName);
-          if (data.documents < 20000) {
-            fetchEmbeddings(projectName);
-          }
+          fetchEmbeddings(projectName);
         }).catch(err => {
           setError([...error, { "functionName": "handleResetEmbeddingsClick", "error": err.toString() }]);
         });
@@ -115,6 +153,7 @@ function Project() {
     })
       .then(response => response.json())
       .then(response => {
+        response.source = source;
         setEmbedding(response);
         setTimeout(() => {
           ref.current?.scrollIntoView({ behavior: 'smooth' });
@@ -172,9 +211,7 @@ function Project() {
             resetFileInput();
             setUploadResponse(response);
             fetchProject(projectName);
-            if (data.documents < 20000) {
-              fetchEmbeddings(projectName);
-            }
+            fetchEmbeddings(projectName);
             setCanSubmit(true);
           }).catch(err => {
             setError([...error, { "functionName": "onSubmitHandler FILE", "error": err.toString() }]);
@@ -203,9 +240,7 @@ function Project() {
             urlForm.current.value = "";
             setUploadResponse(response);
             fetchProject(projectName);
-            if (data.documents < 20000) {
-              fetchEmbeddings(projectName);
-            }
+            fetchEmbeddings(projectName);
             setCanSubmit(true);
           }).catch(err => {
             setError([...error, { "functionName": "onSubmitHandler URL", "error": err.toString() }]);
@@ -235,9 +270,7 @@ function Project() {
           .then((response) => {
             setUploadResponse(response);
             fetchProject(projectName);
-            if (data.documents < 20000) {
-              fetchEmbeddings(projectName);
-            }
+            fetchEmbeddings(projectName);
             setCanSubmit(true);
             contentNameForm.current.value = "";
             contentForm.current.value = "";
@@ -421,55 +454,95 @@ function Project() {
           <hr />
           <Row style={{ marginTop: "20px" }}>
             <h1>Embeddings<Link title="Ingested files and URLs">ℹ️</Link></h1>
-            {data.documents > 20000 ?
-              <Col sm={12}>
-                Too many embeddings to be listed, use the search box
-              </Col>
-              : (
-                <Col sm={12} style={embeddings.embeddings.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
-                  <Table striped bordered hover>
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>Source</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {
-                        embeddings.embeddings.map((file, index) => {
-                          return (
-                            <tr key={index}>
-                              <td>{index}</td>
-                              <td>
-                                {file}
-                              </td>
-                              <td>
-                                <Button onClick={() => handleViewClick(file)} variant="dark">View</Button>{' '}
-                                <Button onClick={() => handleDeleteClick(file)} variant="danger">Delete</Button>
-                              </td>
-                            </tr>
-                          )
-                        })
-                      }
-                    </tbody>
-                  </Table>
+            <Row style={{ marginTop: "20px" }}>
+              <h3>Search</h3>
+              <Form onSubmit={onSubmitSearchHandler}>
+                <Col sm={12}>
+                  <Row sm={12}>
+                    <Col sm={2}>
+                      <Form.Label>Type</Form.Label>
+                      <Form.Select ref={typeForm}>
+                        <option value="text">Text</option>
+                        <option value="source">Source</option>
+                      </Form.Select>
+                    </Col>
+                    <Col sm={2}>
+                      <Form.Label>K</Form.Label>
+                      <Form.Control ref={kSearchForm} defaultValue={data.k} />
+                    </Col>
+                    <Col sm={2}>
+                      <Form.Label>Threshold</Form.Label>
+                      <Form.Control ref={thresholdSearchForm} defaultValue={data.score} />
+                    </Col>
+                  </Row>
+                  <Row sm={12}>
+                    <Col sm={10}>
+                      <Form.Control
+                        ref={searchForm}
+                      />
+                    </Col>
+                    <Col sm={1}>
+                      <Button variant="success" type="submit">Search</Button>
+                    </Col>
+                    <Col sm={1}>
+                      <Button variant="danger" onClick={() => fetchEmbeddings(data.name)}>Clear</Button>
+                    </Col>
+                  </Row>
                 </Col>
-              )}
-            {
-              embedding && (
-                <Row>
-                  <Col sm={12}>
-                    <h2 ref={ref}>Details:</h2>
-                    <ListGroup style={{ height: "400px", overflowY: "scroll" }}>
-                      <ListGroup.Item><b>IDS:</b> <ReactJson src={embedding.ids} enableClipboard={false} collapsed={0} /></ListGroup.Item>
-                      <ListGroup.Item><b>Metadatas:</b> <ReactJson src={embedding.metadatas} enableClipboard={false} /></ListGroup.Item>
-                      <ListGroup.Item><b>Documents:</b> <ReactJson src={embedding.documents} enableClipboard={false} /></ListGroup.Item>
-                    </ListGroup>
+              </Form>
+            </Row>
+            <Row style={{ marginTop: "20px" }}>
+              <h3>List</h3>
+              {data.documents > 20000 && embeddings.embeddings.length === 0 ?
+                <Col sm={12}>
+                  Too many embeddings to be listed, use the search box
+                </Col>
+                : (
+                  <Col sm={12} style={embeddings.embeddings.length > 5 ? { height: "400px", overflowY: "scroll" } : {}}>
+                    <Table striped bordered hover>
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Source</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {
+                          embeddings.embeddings.map((file, index) => {
+                            return (
+                              <tr key={index}>
+                                <td>{index}</td>
+                                <td>
+                                  {file}
+                                </td>
+                                <td>
+                                  <Button onClick={() => handleViewClick(file)} variant="dark">View</Button>{' '}
+                                  <Button onClick={() => handleDeleteClick(file)} variant="danger">Delete</Button>
+                                </td>
+                              </tr>
+                            )
+                          })
+                        }
+                      </tbody>
+                    </Table>
                   </Col>
-                </Row>
-              )
-            }
+                )}
+              {
+                embedding && (
+                  <Row>
+                    <Col sm={12}>
+                      <h2 ref={ref}>Details ({embedding.source}):</h2>
+                      <ListGroup style={{ height: "400px", overflowY: "scroll" }}>
+                        <ListGroup.Item><b>IDS:</b> <ReactJson src={embedding.ids} enableClipboard={false} collapsed={0} /></ListGroup.Item>
+                        <ListGroup.Item><b>Metadatas:</b> <ReactJson src={embedding.metadatas} enableClipboard={false} /></ListGroup.Item>
+                        <ListGroup.Item><b>Documents:</b> <ReactJson src={embedding.documents} enableClipboard={false} /></ListGroup.Item>
+                      </ListGroup>
+                    </Col>
+                  </Row>
+                )
+              }
+            </Row>
           </Row>
         </Container >
       }

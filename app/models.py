@@ -15,6 +15,8 @@ class TextIngestModel(BaseModel):
 class FindModel(BaseModel):
     source: Union[str, None] = None,
     text: Union[str, None] = None
+    score: Union[float, None] = None
+    k: Union[int, None] = None
 
 
 class InteractionModel(BaseModel):

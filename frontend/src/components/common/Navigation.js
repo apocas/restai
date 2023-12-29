@@ -7,29 +7,10 @@ import restaiLogo from '../../assets/img/restai-logo.png';
 
 function Navigation() {
   const { logout, getBasicAuth } = useContext(AuthContext);
-  const [hardware, setHardware] = useState({ "gpu_ram_usage": 0, "models_vram": [] });
   const user = getBasicAuth() || { username: null, admin: null };
   const [error, setError] = useState([]);
 
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
-
-  const fetchHardware = () => {
-    return fetch(url + "/hardware", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
-      .then((res) => res.json())
-      .then((d) => setHardware(d)
-      ).catch(err => {
-        setError([...error, { "functionName": "fetchHardware", "error": err.toString() }]);
-      });
-  }
-
-  useEffect(() => {
-    if (user.username !== null) {
-      fetchHardware();
-      setInterval(() => {
-        fetchHardware();
-      }, 15000);
-    }
-  }, [user]);
 
   return (
     <Navbar expand="lg" className="bg-body-tertiary">
@@ -66,13 +47,6 @@ function Navigation() {
             <Nav.Link as="li">|</Nav.Link>
             <Nav.Link as="li">
               <NavLink
-                to="/hardware"
-              >
-                Hardware
-              </NavLink>
-            </Nav.Link>
-            <Nav.Link as="li">
-              <NavLink
                 to="/models"
               >
                 Models
@@ -84,12 +58,6 @@ function Navigation() {
           </Nav>
           {user.username && (
             <Nav>
-              <Navbar.Text style={{ marginRight: '5px' }}>
-                <b>Models@VRAM:</b> {hardware && hardware.models_vram && hardware.models_vram.join(', ')}{' -'}
-              </Navbar.Text>
-              <Navbar.Text style={{ color: hardware && hardware.gpu_ram_usage > 80 ? 'red' : 'inherit', marginRight: '5px' }}>
-                <b>VRAM:</b> {hardware && hardware.gpu_ram_usage}{'% -'}
-              </Navbar.Text>
               <Navbar.Text>
                 <b>Signed in as:</b>  {' '}
                 <NavLink
