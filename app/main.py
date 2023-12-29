@@ -673,31 +673,53 @@ async def question_query(
 
 
 @app.post("/projects/{projectName}/chat", response_model=ChatResponse)
-def chat_query(
+async def chat_query(
+        request: Request,
         projectName: str,
         input: ChatModel,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
-        chat, output = brain.entryChat(projectName, input, db)
+        project = brain.findProject(projectName, db)
+        llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
+            project.model.llm]
+        if llm_node != os.environ["RESTAI_NODE"]:
+            client = httpx.AsyncClient(
+                base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
+            url = httpx.URL(path=request.url.path.lstrip("/"),
+                            query=request.url.query.encode("utf-8"))
+            xpto = request.body()
+            rp_req = client.build_request(request.method, url,
+                                          headers=request.headers.raw,
+                                          content=await request.body())
+            rp_req.headers["host"] = llm_node + os.environ["RESTAI_HOST"]
+            rp_resp = await client.send(rp_req, stream=True)
+            return StreamingResponse(
+                rp_resp.aiter_raw(),
+                status_code=rp_resp.status_code,
+                headers=rp_resp.headers,
+                background=BackgroundTask(rp_resp.aclose),
+            )
+        else:
+            chat, output = brain.entryChat(projectName, input, db)
 
-        docs = output["source_documents"]
-        answer = output["answer"].strip()
+            docs = output["source_documents"]
+            answer = output["answer"].strip()
 
-        sources = [{"content": doc.page_content,
-                    "keywords": doc.metadata.get("keywords", ""),
-                    "source": doc.metadata.get("source", "")} for doc in docs]
+            sources = [{"content": doc.page_content,
+                        "keywords": doc.metadata.get("keywords", ""),
+                        "source": doc.metadata.get("source", "")} for doc in docs]
 
-        output = {
-            "question": input.question,
-            "answer": answer,
-            "id": chat.id,
-            "sources": sources,
-            "type": "chat"}
+            output = {
+                "question": input.question,
+                "answer": answer,
+                "id": chat.id,
+                "sources": sources,
+                "type": "chat"}
 
-        logs_inference.info({"user": user.username, "output": output})
+            logs_inference.info({"user": user.username, "output": output})
 
-        return output
+            return output
     except Exception as e:
         try:
             brain.semaphore.release()
