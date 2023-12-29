@@ -247,7 +247,8 @@ async def get_projects(request: Request, user: User = Depends(get_current_userna
                     projects.append(p)
 
     for project in projects:
-        llm_class, llm_args, prompt, llm_privacy, description, llm_type, llm_node = LLMS[project.llm]
+        llm_class, llm_args, prompt, llm_privacy, description, llm_type, llm_node = LLMS[
+            project.llm]
         project.llm_type = llm_type
         project.llm_privacy = llm_privacy
 
@@ -318,7 +319,8 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
                 detail='Sandbox project not found')
 
     if user.is_private:
-        llm_class, llm_args, prompt, privacy, description, type, llm_node = LLMS[projectModelUpdate.llm]
+        llm_class, llm_args, prompt, privacy, description, type, llm_node = LLMS[
+            projectModelUpdate.llm]
         if privacy != "private":
             raise HTTPException(
                 status_code=403,
@@ -358,7 +360,8 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
             detail='Project already exists')
 
     if user.is_private:
-        llm_class, llm_args, prompt, privacy, description, type, llm_node = LLMS[projectModel.llm]
+        llm_class, llm_args, prompt, privacy, description, type, llm_node = LLMS[
+            projectModel.llm]
         if privacy != "private":
             raise HTTPException(
                 status_code=403,
