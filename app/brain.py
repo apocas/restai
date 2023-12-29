@@ -93,7 +93,7 @@ class Brain:
             unloaded = self.unloadLLMs()
 
             if llmModel in LLMS:
-                llm_class, llm_args, prompt, privacy, description, typel = LLMS[llmModel]
+                llm_class, llm_args, prompt, privacy, description, typel, llm_node = LLMS[llmModel]
 
                 if llm_class == localLoader:
                     print("LOADING MODEL " + llmModel)
