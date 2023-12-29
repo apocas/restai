@@ -1,11 +1,11 @@
-def localLoader(type, model):
+def localLoader(type, model, temperature=0.0001):
     if type == "gptq":
-        return loadTransformers(model)
+        return loadTransformers(model, temperature)
     else:
         raise Exception("Invalid LLM type.")
 
 
-def loadTransformers(modelName):
+def loadTransformers(modelName, temp):
     from langchain.llms.huggingface_pipeline import HuggingFacePipeline
     from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline, logging
 
@@ -23,7 +23,7 @@ def loadTransformers(modelName):
         return_full_text=False,
         max_new_tokens=512,
         do_sample=True,
-        temperature=0.0001,
+        temperature=temp or 0.0001,
         top_p=0.95,
         top_k=40,
         repetition_penalty=1.15
