@@ -629,12 +629,14 @@ async def question_query(
             project.model.llm]
         if llm_node != os.environ["RESTAI_NODE"]:
             client = httpx.AsyncClient(
-                base_url="https://" + llm_node + os.environ["RESTAI_HOST"] + "/")
-            url = httpx.URL(path=request.url.path,
+                base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
+            url = httpx.URL(path=request.url.path.lstrip("/"),
                             query=request.url.query.encode("utf-8"))
+            xpto = request.body()
             rp_req = client.build_request(request.method, url,
                                           headers=request.headers.raw,
                                           content=await request.body())
+            rp_req.headers["host"] = llm_node + os.environ["RESTAI_HOST"]
             rp_resp = await client.send(rp_req, stream=True)
             return StreamingResponse(
                 rp_resp.aiter_raw(),

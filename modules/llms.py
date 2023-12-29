@@ -22,4 +22,5 @@ LLMS = {
     "llava_1.5_13b": (LlavaLLM, {"model": "llava-hf/llava-1.5-13b-hf"}, "llava", "private", "https://huggingface.co/llava-hf/llava-1.5-13b-hf", "vision", "node1"),
     "bakllava_v1": (LlavaLLM, {"model": "llava-hf/bakLlava-v1-hf"}, "llava", "private", "https://huggingface.co/llava-hf/bakLlava-v1-hf", "vision", "node1"),
     "mixtral8x7b_instruct_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ", "temperature": 0.7}, "mistral", "private", "https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ", "text", "node2"),
+    "llama2_70b_chat_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/Llama-2-70B-Chat-GPTQ"}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-70B-Chat-GPTQ", "text", "node2"),
 }

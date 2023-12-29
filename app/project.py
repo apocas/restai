@@ -26,16 +26,6 @@ class Project:
     def delete(self):
         vector_delete(self)
 
-        if os.path.exists(
-            os.path.join(
-                os.environ["UPLOADS_PATH"],
-                self.model.name)):
-            shutil.rmtree(
-                os.path.join(
-                    os.environ["UPLOADS_PATH"],
-                    self.model.name),
-                ignore_errors=True)
-
     def initializePaths(self):
         if not os.path.exists(os.environ["EMBEDDINGS_PATH"]):
             os.makedirs(os.environ["EMBEDDINGS_PATH"])
@@ -47,12 +37,6 @@ class Project:
                 os.environ["EMBEDDINGS_PATH"], self.model.name + "_" + str(int(time.time())))
             os.mkdir(embeddingsPath)
 
-        if not os.path.exists(
-            os.path.join(
-                os.environ["UPLOADS_PATH"],
-                self.model.name)):
-            os.mkdir(os.path.join(
-                os.environ["UPLOADS_PATH"], self.model.name))
 
     def loadChat(self, chatModel):
         for chat in self.chats:
