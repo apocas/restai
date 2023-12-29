@@ -635,7 +635,6 @@ async def question_query(
                 base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
             url = httpx.URL(path=request.url.path.lstrip("/"),
                             query=request.url.query.encode("utf-8"))
-            xpto = request.body()
             rp_req = client.build_request(request.method, url,
                                           headers=request.headers.raw,
                                           content=await request.body())
@@ -691,7 +690,6 @@ async def chat_query(
                 base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
             url = httpx.URL(path=request.url.path.lstrip("/"),
                             query=request.url.query.encode("utf-8"))
-            xpto = request.body()
             rp_req = client.build_request(request.method, url,
                                           headers=request.headers.raw,
                                           content=await request.body())
