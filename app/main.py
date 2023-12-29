@@ -3,29 +3,25 @@ import json
 import logging
 import os
 import re
-import shutil
 from tempfile import NamedTemporaryFile
 import traceback
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
+import httpx
 from langchain.document_loaders import (
-    WebBaseLoader,
     SeleniumURLLoader,
-    RecursiveUrlLoader
 )
-from bs4 import BeautifulSoup as Soup
 from dotenv import load_dotenv
 import requests
 from app.auth import get_current_username, get_current_username_admin, get_current_username_project, get_current_username_user
 from app.brain import Brain
-from app.database import Database, dbc, get_db
-from app.databasemodels import UserDatabase
+from app.database import dbc, get_db
 import urllib.parse
 
 from app.models import ChatResponse, FindModel, HardwareInfo, IngestResponse, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from app.vectordb import vector_delete_source, vector_delete_id, vector_find, vector_info, vector_init, vector_list_source, vector_reset, vector_save, vector_list
+from app.vectordb import vector_delete_source, vector_find, vector_info, vector_list_source, vector_reset, vector_save, vector_list
 from langchain_core.documents import Document
 
 from modules.embeddings import EMBEDDINGS
@@ -35,11 +31,13 @@ import logging
 import psutil
 import GPUtil
 
-from typing import Annotated
-
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 from unidecode import unidecode
+
+from starlette.requests import Request
+from starlette.responses import StreamingResponse
+from starlette.background import BackgroundTask
 
 
 load_dotenv()
@@ -134,7 +132,8 @@ def create_user(userc: UserCreate,
                 user: User = Depends(get_current_username_admin),
                 db: Session = Depends(get_db)):
     try:
-        userc.username = unidecode(userc.username.strip().lower().replace(" ", "."))
+        userc.username = unidecode(
+            userc.username.strip().lower().replace(" ", "."))
         user = dbc.create_user(db,
                                userc.username,
                                userc.password,
@@ -340,7 +339,8 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
 
 @app.post("/projects")
 async def create_project(projectModel: ProjectModel, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
-    projectModel.name = unidecode(projectModel.name.strip().lower().replace(" ", "_"))
+    projectModel.name = unidecode(
+        projectModel.name.strip().lower().replace(" ", "_"))
 
     if projectModel.embeddings not in EMBEDDINGS:
         raise HTTPException(
@@ -403,8 +403,8 @@ def reset_embeddings(
 
 @app.post("/projects/{projectName}/embeddings/find")
 def find_embedding(projectName: str, embedding: FindModel,
-                  user: User = Depends(get_current_username_project),
-                  db: Session = Depends(get_db)):
+                   user: User = Depends(get_current_username_project),
+                   db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
     output = []
@@ -447,8 +447,8 @@ def get_embedding(projectName: str, source: str,
 
 @app.post("/projects/{projectName}/embeddings/ingest/text", response_model=IngestResponse)
 def ingest_text(projectName: str, ingest: TextIngestModel,
-               user: User = Depends(get_current_username_project),
-               db: Session = Depends(get_db)):
+                user: User = Depends(get_current_username_project),
+                db: Session = Depends(get_db)):
 
     try:
         project = brain.findProject(projectName, db)
@@ -617,28 +617,48 @@ def vision_query(
 
 
 @app.post("/projects/{projectName}/question", response_model=QuestionResponse)
-def question_query(
+async def question_query(
+        request: Request,
         projectName: str,
         input: QuestionModel,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
-        answer, docs = brain.entryQuestion(projectName, input, db)
+        project = brain.findProject(projectName, db)
+        llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
+            project.model.llm]
+        if llm_node != os.environ["RESTAI_NODE"]:
+            client = httpx.AsyncClient(
+                base_url="https://" + llm_node + os.environ["RESTAI_HOST"] + "/")
+            url = httpx.URL(path=request.url.path,
+                            query=request.url.query.encode("utf-8"))
+            rp_req = client.build_request(request.method, url,
+                                          headers=request.headers.raw,
+                                          content=await request.body())
+            rp_resp = await client.send(rp_req, stream=True)
+            return StreamingResponse(
+                rp_resp.aiter_raw(),
+                status_code=rp_resp.status_code,
+                headers=rp_resp.headers,
+                background=BackgroundTask(rp_resp.aclose),
+            )
+        else:
+            answer, docs = brain.entryQuestion(projectName, input, db)
 
-        sources = [{"content": doc.page_content,
-                    "keywords": doc.metadata.get("keywords", ""),
-                    "source": doc.metadata.get("source", "")} for doc in docs]
+            sources = [{"content": doc.page_content,
+                        "keywords": doc.metadata.get("keywords", ""),
+                        "source": doc.metadata.get("source", "")} for doc in docs]
 
-        output = {
-            "question": input.question,
-            "answer": answer,
-            "sources": sources,
-            "type": "question"
-        }
+            output = {
+                "question": input.question,
+                "answer": answer,
+                "sources": sources,
+                "type": "question"
+            }
 
-        logs_inference.info({"user": user.username, "output": output})
+            logs_inference.info({"user": user.username, "output": output})
 
-        return output
+            return output
     except Exception as e:
         try:
             brain.semaphore.release()

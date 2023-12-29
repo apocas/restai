@@ -58,6 +58,12 @@ def FindEmbeddingsPath(projectName):
 
 
 def loadEnvVars():
+    if "RESTAI_NODE" not in os.environ:
+        os.environ["RESTAI_NODE"] = "node1"
+
+    if "RESTAI_HOST" not in os.environ:
+        os.environ["RESTAI_HOST"] = ".ai.lan"
+
     if "EMBEDDINGS_PATH" not in os.environ:
         os.environ["EMBEDDINGS_PATH"] = "./embeddings/"
 

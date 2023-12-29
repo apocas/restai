@@ -44,5 +44,6 @@ PROMPTS = {
         {history}
         {{question}}
         """,
-    "llava": """USER: <image>\n{question}\nASSISTANT:"""
+    "llava": """USER: <image>\n{question}\nASSISTANT:""",
+    "mistral": """[INST] {system} {context} {history} {{question}} [/INST]"""
 }
