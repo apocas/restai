@@ -172,3 +172,4 @@ frontend/html/*
 .env
 .local
 restai.db
+frontend
