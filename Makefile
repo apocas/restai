@@ -28,8 +28,7 @@ installgpu:
 
 .PHONY: frontend
 frontend:
-	git clone https://github.com/apocas/restai-frontend frontend
-	cd frontend && npm install && npm run build
+	cd frontend && git pull && npm install && npm run build
 
 .PHONY: docs
 docs:
@@ -45,7 +44,7 @@ codestyle:
 
 .PHONY: clean
 clean:
-	rm -rf frontend/html/*
+	rm -rf frontend
 
 .PHONY: dockershell
 dockershell:
