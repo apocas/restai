@@ -32,6 +32,7 @@ class QuestionModel(InteractionModel):
 class VisionModel(BaseModel):
     question: str
     image: Union[str, None] = None
+    disableboost: Union[bool, None] = None
 
 
 class ChatModel(InteractionModel):

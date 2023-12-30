@@ -7,10 +7,6 @@ start:
 remote:
 	ssh -2 -L 5678:127.0.0.1:5678 $(host) "cd $(path); python3 -m debugpy --listen 127.0.0.1:5678 --wait-for-client main.py"
 
-.PHONY: devfrontend
-devfrontend:
-	cd frontend && REACT_APP_RESTAI_API_URL=http://127.0.0.1:9000 npm run start
-
 .PHONY: dev
 dev:
 	RESTAI_DEV=true uvicorn app.main:app --reload --port 9000
@@ -22,6 +18,7 @@ prod:
 
 .PHONY: install
 install:
+	git clone https://github.com/apocas/restai-frontend frontend
 	cd frontend && npm install
 	poetry install
 
@@ -31,6 +28,7 @@ installgpu:
 
 .PHONY: frontend
 frontend:
+	git clone https://github.com/apocas/restai-frontend frontend
 	cd frontend && npm install && npm run build
 
 .PHONY: docs
