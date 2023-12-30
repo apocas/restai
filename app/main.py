@@ -21,7 +21,7 @@ from app.models import ChatResponse, FindModel, HardwareInfo, IngestResponse, Pr
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from app.vectordb import vector_delete_source, vector_find, vector_info, vector_list_source, vector_reset, vector_save, vector_list
+from app.vectordb import vector_delete_source, vector_find_source, vector_info, vector_list_source, vector_reset, vector_save, vector_list, vector_find_id
 from langchain_core.documents import Document
 
 from modules.embeddings import EMBEDDINGS
@@ -426,21 +426,33 @@ def find_embedding(projectName: str, embedding: FindModel,
 
         for doc in docs:
             if doc.metadata["source"] not in output:
-                output.append(doc.metadata["source"])
-
+                output.append({"source": doc.metadata["source"], "id": ""})
     elif (embedding.source):
         output = vector_list_source(project, embedding.source)
 
     return {"embeddings": output}
 
 
-@app.get("/projects/{projectName}/embeddings/{source}")
+@app.get("/projects/{projectName}/embeddings/source/{source}")
 def get_embedding(projectName: str, source: str,
                   user: User = Depends(get_current_username_project),
                   db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    docs = vector_find(project, base64.b64decode(source).decode('utf-8'))
+    docs = vector_find_source(project, base64.b64decode(source).decode('utf-8'))
+
+    if (len(docs['ids']) == 0):
+        return {"ids": []}
+    else:
+        return docs
+    
+@app.get("/projects/{projectName}/embeddings/id/{id}")
+def get_embedding(projectName: str, id: str,
+                  user: User = Depends(get_current_username_project),
+                  db: Session = Depends(get_db)):
+    project = brain.findProject(projectName, db)
+
+    docs = vector_find_id(project, id)
 
     if (len(docs['ids']) == 0):
         return {"ids": []}

@@ -107,8 +107,9 @@ function Project() {
   }
 
   const fetchEmbeddings = (projectName) => {
+    searchForm.current.value = "";
+    setEmbeddings({ "embeddings": [] });
     if (data.documents < 20000 || !data.documents) {
-      searchForm.current.value = "";
       return fetch(url + "/projects/" + projectName + "/embeddings", { headers: new Headers({ 'Authorization': 'Basic ' + user.basicAuth }) })
         .then((res) => res.json())
         .then((d) => setEmbeddings(d)
@@ -147,7 +148,7 @@ function Project() {
   }
 
   const handleViewClick = (source) => {
-    fetch(url + "/projects/" + projectName + "/embeddings/" + btoa(source), {
+    fetch(url + "/projects/" + projectName + "/embeddings/source/" + btoa(source), {
       method: 'GET',
       headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + user.basicAuth }),
     })
@@ -503,22 +504,26 @@ function Project() {
                       <thead>
                         <tr>
                           <th>#</th>
+                          <th>ID</th>
                           <th>Source</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {
-                          embeddings.embeddings.map((file, index) => {
+                          embeddings.embeddings.map((emb, index) => {
                             return (
                               <tr key={index}>
                                 <td>{index}</td>
                                 <td>
-                                  {file}
+                                  {emb.id}
                                 </td>
                                 <td>
-                                  <Button onClick={() => handleViewClick(file)} variant="dark">View</Button>{' '}
-                                  <Button onClick={() => handleDeleteClick(file)} variant="danger">Delete</Button>
+                                  {emb.source}
+                                </td>
+                                <td>
+                                  <Button onClick={() => handleViewClick(emb.source)} variant="dark">View</Button>{' '}
+                                  <Button onClick={() => handleDeleteClick(emb.source)} variant="danger">Delete</Button>
                                 </td>
                               </tr>
                             )

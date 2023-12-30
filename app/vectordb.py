@@ -74,9 +74,12 @@ def vector_list(project):
             include=["metadatas"]
         )
 
+        index = 0
         for metadata in docs["metadatas"]:
             if metadata["source"] not in output:
-                output.append(metadata["source"])
+                output.append(
+                    {"source": metadata["source"], "id": docs["ids"][index]})
+            index = index + 1
 
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
@@ -87,7 +90,8 @@ def vector_list(project):
         for key in keys:
             source = lredis.hget(key, "source")
             if source not in output:
-                output.append(source)
+                output.append({"source": source, "id": key.split(
+                    project.db.key_prefix + ":")[1]})
 
     return {"embeddings": output}
 
@@ -101,9 +105,12 @@ def vector_list_source(project, source):
             include=["metadatas"]
         )
 
+        index = 0
         for metadata in docs["metadatas"]:
             if metadata["source"] == source:
-                output.append(metadata["source"])
+                output.append(
+                    {"source": metadata["source"], "id": docs["ids"][index]})
+            index = index + 1
 
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
@@ -114,7 +121,8 @@ def vector_list_source(project, source):
         for key in keys:
             sourcer = lredis.hget(key, "source")
             if source == sourcer:
-                output.append(sourcer)
+                output.append({"source": sourcer, "id": key.split(
+                    project.db.key_prefix + ":")[1]})
 
     return output
 
@@ -132,7 +140,7 @@ def vector_info(project):
         return len(keys), len(keys)
 
 
-def vector_find(project, source):
+def vector_find_source(project, source):
     docs = []
     if project.model.vectorstore == "chroma":
         collection = project.db._client.get_collection("langchain")
@@ -157,6 +165,19 @@ def vector_find(project, source):
         docs = {"ids": ids, "metadatas": metadatas, "documents": documents}
 
     return docs
+
+def vector_find_id(project, id):
+    if project.model.vectorstore == "chroma":
+        collection = project.db._client.get_collection("langchain")
+        docs = collection.get(ids=[id])
+        
+    elif project.model.vectorstore == "redis":
+        lredis = redis.Redis(
+            host=os.environ["REDIS_HOST"],
+            port=os.environ["REDIS_PORT"],
+            decode_responses=True)
+        lsource = lredis.hgetall(project.db.key_prefix + ":" + id, "source")
+    return id
 
 
 def vector_delete(project):
