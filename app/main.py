@@ -17,7 +17,7 @@ from app.brain import Brain
 from app.database import dbc, get_db
 import urllib.parse
 
-from app.models import ChatResponse, FindModel, HardwareInfo, IngestResponse, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel
+from app.models import ChatResponse, FindModel, IngestResponse, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,8 +28,6 @@ from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
 from modules.loaders import LOADERS
 import logging
-import psutil
-import GPUtil
 
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
@@ -194,45 +192,6 @@ def delete_user(username: str,
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail=str(e))
-
-
-@app.get("/hardware", response_model=HardwareInfo)
-def get_hardware_info(user: User = Depends(get_current_username)):
-    try:
-        cpu_load = psutil.cpu_percent()
-        ram_usage = psutil.virtual_memory().percent
-
-        gpu_load = None
-        gpu_temp = None
-        gpu_ram_usage = None
-
-        GPUs = GPUtil.getGPUs()
-        if len(GPUs) > 0:
-            gpu = GPUs[0]
-            gpu_load = getattr(gpu, 'load', None)
-            gpu_temp = getattr(gpu, 'temperature', None)
-            gpu_ram_usage = getattr(gpu, 'memoryUtil', None)
-
-        cpu_load = int(cpu_load)
-        if gpu_load is not None:
-            gpu_load = int(gpu_load * 100)
-
-        if gpu_ram_usage is not None:
-            gpu_ram_usage = int(gpu_ram_usage * 100)
-
-        return HardwareInfo(
-            cpu_load=cpu_load,
-            ram_usage=ram_usage,
-            gpu_load=gpu_load,
-            gpu_temp=gpu_temp,
-            gpu_ram_usage=gpu_ram_usage,
-            models_vram=brain.memoryModelsInfo()
-        )
-    except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=404, detail=str(e))
 
 
 @app.get("/projects", response_model=list[ProjectModel])

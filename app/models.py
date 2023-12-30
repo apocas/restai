@@ -104,15 +104,6 @@ class ProjectModelUpdate(BaseModel):
     sandbox_project: Union[str, None] = None
 
 
-class HardwareInfo(BaseModel):
-    cpu_load: float
-    ram_usage: float
-    gpu_load: Union[int, None] = None
-    gpu_temp: Union[int, None] = None
-    gpu_ram_usage: Union[int, None] = None
-    models_vram: list[str] = None
-
-
 class SourceModel(BaseModel):
     source: str
     content: str
