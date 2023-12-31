@@ -413,17 +413,11 @@ class Brain:
             RefineImage(),
             DescribeImage(),
         ]
-        if visionInput.disableboost:
-            tools[0].disableboost = visionInput.disableboost
-            tools[1].disableboost = visionInput.disableboost
 
         model, loaded = self.getLLM("openai", True)
 
         self.semaphore.acquire()
         self.unloadLLMs()
-
-        if visionInput.image is not None:
-            tools[2].img = visionInput.image
 
         agent = initialize_agent(
             tools, model.llm, agent="zero-shot-react-description", verbose=True)

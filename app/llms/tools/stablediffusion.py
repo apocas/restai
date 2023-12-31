@@ -11,6 +11,10 @@ from langchain.llms import OpenAI
 from langchain.prompts import PromptTemplate
 from diffusers import DiffusionPipeline
 import torch
+from typing import Optional
+from langchain.callbacks.manager import (
+    CallbackManagerForToolRun,
+)
 
 
 def sd_worker(prompt, sharedmem):
@@ -55,8 +59,8 @@ class StableDiffusionImage(BaseTool):
     return_direct = True
     disableboost = False
 
-    def _run(self, query: str) -> str:
-        if self.disableboost == False:
+    def _run(self, query: str, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
+        if run_manager.tags[0].disableboost == False:
             llm = OpenAI(temperature=0.9)
             prompt = PromptTemplate(
                 input_variables=["image_desc"],
@@ -66,7 +70,7 @@ class StableDiffusionImage(BaseTool):
 
             fprompt = chain.run(query)
         else:
-            fprompt = query
+            fprompt = run_manager.tags[0].question
 
         manager = Manager()
         sharedmem = manager.dict()

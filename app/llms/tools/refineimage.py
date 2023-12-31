@@ -12,11 +12,10 @@ from langchain.tools import BaseTool
 from diffusers import DiffusionPipeline
 import torch
 from PIL import Image
-from typing import Optional, Type
+from typing import Optional
 
 
 from langchain.callbacks.manager import (
-    AsyncCallbackManagerForToolRun,
     CallbackManagerForToolRun,
 )
 
@@ -48,15 +47,15 @@ class RefineImage(BaseTool):
     name = "Image refiner"
     description = "use this tool when you need to refine an image."
     return_direct = True
-    img = ""
 
     def _run(self, query: str, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
         manager = Manager()
         sharedmem = manager.dict()
 
         sharedmem["model"] = run_manager.tags[0]
+        query = run_manager.tags[0].question
 
-        p = Process(target=refine_worker, args=(run_manager.tags[0].question, sharedmem))
+        p = Process(target=refine_worker, args=(query, sharedmem))
         p.start()
         p.join()
 

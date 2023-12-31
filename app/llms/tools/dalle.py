@@ -5,16 +5,20 @@ from langchain.llms import OpenAI
 from langchain.prompts import PromptTemplate
 from langchain.utilities.dalle_image_generator import DallEAPIWrapper
 import requests
+from typing import Optional
+from langchain.callbacks.manager import (
+    CallbackManagerForToolRun,
+)
 
 
 class DalleImage(BaseTool):
     name = "Dall-E Image Generator"
     description = "use this tool when you need to generate an image using Dall-E."
     return_direct = True
-    disableboost = False
 
-    def _run(self, query: str) -> str:
-        if self.disableboost == False:
+    def _run(self, query: str, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
+        
+        if run_manager.tags[0].disableboost == False:
             llm = OpenAI(temperature=0.9)
             prompt = PromptTemplate(
                 input_variables=["image_desc"],
@@ -28,7 +32,7 @@ class DalleImage(BaseTool):
 
             image_url = model.run(prompt)
         else:
-            image_url = model.run(query)
+            image_url = model.run(run_manager.tags[0].question)
 
         response = requests.get(image_url)
         response.raise_for_status()
