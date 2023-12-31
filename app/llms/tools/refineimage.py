@@ -26,9 +26,9 @@ def refine_worker(prompt, sharedmem):
 
     image = refiner(
         prompt=prompt,
-        num_inference_steps=40,
+        num_inference_steps=1,
         denoising_start=0.8,
-        image=Image.open(io.BytesIO(base64.b64decode(sharedmem["image"]))),
+        image=Image.open(io.BytesIO(base64.b64decode(sharedmem["image"]))).convert("RGB"),
     ).images[0]
 
     image_data = io.BytesIO()
