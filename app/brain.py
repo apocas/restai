@@ -422,6 +422,9 @@ class Brain:
         self.semaphore.acquire()
         self.unloadLLMs()
 
+        if visionInput.image is not None:
+            tools[2].img = visionInput.image
+
         agent = initialize_agent(
             tools, model.llm, agent="zero-shot-react-description", verbose=True)
         outputAgent = agent.run(visionInput.question)

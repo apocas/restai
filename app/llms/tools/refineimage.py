@@ -1,6 +1,9 @@
 import base64
 import io
+from pydantic import BaseModel
 from torch.multiprocessing import Process, set_start_method, Manager
+
+from app.models import VisionModel
 try:
     set_start_method('spawn')
 except RuntimeError:
@@ -9,6 +12,7 @@ from langchain.tools import BaseTool
 from diffusers import DiffusionPipeline
 import torch
 from PIL import Image
+from typing import Optional, Type
 
 
 def refine_worker(prompt, sharedmem):
@@ -38,10 +42,13 @@ class RefineImage(BaseTool):
     name = "Image refiner"
     description = "use this tool when you need to refine an image."
     return_direct = True
+    img = ""
 
     def _run(self, query: str) -> str:
         manager = Manager()
         sharedmem = manager.dict()
+
+        sharedmem["image"] = self.img
 
         p = Process(target=refine_worker, args=(query, sharedmem))
         p.start()
