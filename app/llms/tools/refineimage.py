@@ -15,6 +15,12 @@ from PIL import Image
 from typing import Optional, Type
 
 
+from langchain.callbacks.manager import (
+    AsyncCallbackManagerForToolRun,
+    CallbackManagerForToolRun,
+)
+
+
 def refine_worker(prompt, sharedmem):
     refiner = DiffusionPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-refiner-1.0",
@@ -28,7 +34,7 @@ def refine_worker(prompt, sharedmem):
         prompt=prompt,
         num_inference_steps=40,
         denoising_start=0.8,
-        image=Image.open(io.BytesIO(base64.b64decode(sharedmem["in_image"]))),
+        image=Image.open(io.BytesIO(base64.b64decode(sharedmem["model"].image))),
     ).images[0]
 
     image_data = io.BytesIO()
@@ -44,13 +50,13 @@ class RefineImage(BaseTool):
     return_direct = True
     img = ""
 
-    def _run(self, query: str) -> str:
+    def _run(self, query: str, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
         manager = Manager()
         sharedmem = manager.dict()
 
-        sharedmem["in_image"] = self.img
+        sharedmem["model"] = run_manager.tags[0]
 
-        p = Process(target=refine_worker, args=(query, sharedmem))
+        p = Process(target=refine_worker, args=(run_manager.tags[0].question, sharedmem))
         p.start()
         p.join()
 

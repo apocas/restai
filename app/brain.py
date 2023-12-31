@@ -427,7 +427,7 @@ class Brain:
 
         agent = initialize_agent(
             tools, model.llm, agent="zero-shot-react-description", verbose=True)
-        outputAgent = agent.run(visionInput.question)
+        outputAgent = agent.run(visionInput.question, tags=[visionInput])
 
         if isinstance(outputAgent, str):
             output = outputAgent
