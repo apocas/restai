@@ -6,13 +6,9 @@ try:
 except RuntimeError:
     pass
 from langchain.tools import BaseTool
-from langchain.chains import LLMChain
-from langchain.llms import OpenAI
-from langchain.prompts import PromptTemplate
-from langchain.utilities.dalle_image_generator import DallEAPIWrapper
 from diffusers import DiffusionPipeline
-import requests
 import torch
+from PIL import Image
 
 
 def refine_worker(prompt, sharedmem):
@@ -28,7 +24,7 @@ def refine_worker(prompt, sharedmem):
         prompt=prompt,
         num_inference_steps=40,
         denoising_start=0.8,
-        image=base64.b64decode(sharedmem["image"]),
+        image=Image.open(io.BytesIO(base64.b64decode(sharedmem["image"]))),
     ).images[0]
 
     image_data = io.BytesIO()
