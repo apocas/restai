@@ -9,6 +9,7 @@ import torch
 from app.llms.llava import LlavaLLM
 from app.llms.loader import localLoader
 from app.llms.tools.dalle import DalleImage
+from app.llms.tools.describeimage import DescribeImage
 from app.llms.tools.refineimage import RefineImage
 from app.llms.tools.stablediffusion import StableDiffusionImage
 from app.model import Model
@@ -410,12 +411,13 @@ class Brain:
             DalleImage(),
             StableDiffusionImage(),
             RefineImage(),
+            DescribeImage(),
         ]
         if visionInput.disableboost:
             tools[0].disableboost = visionInput.disableboost
             tools[1].disableboost = visionInput.disableboost
 
-        model, loaded = self.getLLM("openai_gpt4_turbo", True)
+        model, loaded = self.getLLM("openai", True)
 
         self.semaphore.acquire()
         self.unloadLLMs()
