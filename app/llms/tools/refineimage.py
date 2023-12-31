@@ -26,9 +26,9 @@ def refine_worker(prompt, sharedmem):
 
     image = refiner(
         prompt=prompt,
-        num_inference_steps=1,
+        num_inference_steps=40,
         denoising_start=0.8,
-        image=Image.open(io.BytesIO(base64.b64decode(sharedmem["image"]))).convert("RGB"),
+        image=Image.open(io.BytesIO(base64.b64decode(sharedmem["in_image"]))),
     ).images[0]
 
     image_data = io.BytesIO()
@@ -48,7 +48,7 @@ class RefineImage(BaseTool):
         manager = Manager()
         sharedmem = manager.dict()
 
-        sharedmem["image"] = self.img
+        sharedmem["in_image"] = self.img
 
         p = Process(target=refine_worker, args=(query, sharedmem))
         p.start()
