@@ -26,13 +26,12 @@ class DalleImage(BaseTool):
             )
             chain = LLMChain(llm=llm, prompt=prompt)
             prompt = chain.run(query)
-
-            model = DallEAPIWrapper()
-            model.model_name = "dall-e-3"
-
-            image_url = model.run(prompt)
         else:
-            image_url = model.run(run_manager.tags[0].question)
+            prompt = run_manager.tags[0].question
+
+        model = DallEAPIWrapper()
+        model.model_name = "dall-e-3"
+        image_url = model.run(prompt)
 
         response = requests.get(image_url)
         response.raise_for_status()
