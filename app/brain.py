@@ -1,8 +1,19 @@
 import gc
 import os
 import threading
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.prompts import PromptTemplate
+from llama_index import ServiceContext
+from llama_index.text_splitter import TokenTextSplitter
+from llama_index import (
+    VectorStoreIndex,
+    get_response_synthesizer,
+)
+from llama_index.embeddings.langchain import LangchainEmbedding
+from llama_index.retrievers import VectorIndexRetriever
+from llama_index.query_engine import RetrieverQueryEngine
+from llama_index.postprocessor import SimilarityPostprocessor
+from llama_index.prompts.prompts import RefinePrompt, QuestionAnswerPrompt
+from llama_index.prompts.prompt_type import PromptType
+from llama_index.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain.agents import initialize_agent
 import torch
@@ -21,6 +32,7 @@ from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
 from app.database import dbc
 from sqlalchemy.orm import Session
+from llama_index.llms import LangChainLLM
 
 from modules.prompts import PROMPTS
 
@@ -36,8 +48,8 @@ class Brain:
         self.loopFailsafe = 0
         self.semaphore = threading.BoundedSemaphore()
 
-        self.text_splitter = RecursiveCharacterTextSplitter(
-            separators=[" "], chunk_size=1024, chunk_overlap=30)
+        self.text_splitter = TokenTextSplitter(
+            separator=" ", chunk_size=2048, chunk_overlap=20)
 
     def memoryModelsInfo(self):
         models = []
@@ -98,7 +110,8 @@ class Brain:
                 unloaded = self.unloadLLMs()
 
             if llmModel in LLMS:
-                llm_class, llm_args, prompt, privacy, description, typel, llm_node = LLMS[llmModel]
+                llm_class, llm_args, prompt, privacy, description, typel, llm_node = LLMS[
+                    llmModel]
 
                 if llm_class == localLoader:
                     print("LOADING MODEL " + llmModel)
@@ -130,7 +143,7 @@ class Brain:
         else:
             if embeddingModel in EMBEDDINGS:
                 embedding_class, embedding_args, privacy, description = EMBEDDINGS[embeddingModel]
-                model = embedding_class(**embedding_args)
+                model = LangchainEmbedding(embedding_class(**embedding_args))
                 self.embeddingCache[embeddingModel] = model
                 return model
             else:
@@ -333,7 +346,7 @@ class Brain:
             db: Session,
             recursive=False):
         project = self.findProject(projectName, db)
-        answer, docs, censored = self.questionContext(
+        output, censored = self.questionContext(
             project, input, recursive)
         if censored:
             projectc = self.findProject(project.model.sandbox_project, db)
@@ -341,10 +354,10 @@ class Brain:
                 if self.loopFailsafe >= 10:
                     return self.defaultNegative, []
                 self.loopFailsafe += 1
-                answer, docs = self.recursiveQuestion(
+                output, censored = self.recursiveQuestion(
                     project.model.sandbox_project, input, db, True)
 
-        return answer, docs
+        return output
 
     def questionContext(self, project, questionModel, child=False):
         model, loaded = self.getLLM(project.model.llm)
@@ -356,48 +369,75 @@ class Brain:
         else:
             sysTemplate = questionModel.system or project.model.system or self.defaultSystem
 
-        retriever = project.db.as_retriever(
-            search_type="similarity_score_threshold",
-            search_kwargs={
-                "score_threshold": questionModel.score or project.model.score or 0.2,
-                "k": questionModel.k or project.model.k or 1})
-
-        try:
-            docs = retriever.get_relevant_documents(questionModel.question)
-        except BaseException:
-            docs = []
-
-        if len(docs) == 0:
-            contextsub = ""
-        else:
-            contextsub = "Context: {context}"
-
         prompt_template = prompt_template_txt.format(
-            system=sysTemplate, history="", context=contextsub)
+            system=sysTemplate)
+        query_wrapper_prompt = PromptTemplate(prompt_template)
 
-        prompt = PromptTemplate(
-            template=prompt_template, input_variables=["context", "question"]
+        k = questionModel.k or project.model.k or 2
+        threshold = questionModel.score or project.model.score or 0.2
+
+        service_context = ServiceContext.from_defaults(
+            llm=LangChainLLM(llm=model.llm)
         )
-        chain = LLMChain(llm=model.llm, prompt=prompt)
 
-        if len(docs) == 0:
-            if project.model.sandboxed:
-                if loaded == True:
-                    self.semaphore.release()
-                return project.model.censorship or self.defaultCensorship, [], True
-            else:
-                inputs = [{"context": "",
-                           "question": questionModel.question}]
-        else:
-            inputs = [{"context": doc.page_content,
-                       "question": questionModel.question} for doc in docs]
+        retriever = VectorIndexRetriever(
+            index=project.db,
+            similarity_top_k=k,
+        )
 
-        output = chain.apply(inputs)
+        qa_prompt_tmpl = (
+            "Context information is below.\n"
+            "---------------------\n"
+            "{context_str}\n"
+            "---------------------\n"
+            "Given the context information and not prior knowledge, "
+            "answer the query.\n"
+            "Query: {query_str}\n"
+            "Answer: "
+        )
+        
+        qa_prompt_tmpl = sysTemplate + "\n" + qa_prompt_tmpl
+
+        qa_prompt = PromptTemplate(qa_prompt_tmpl)
+
+        response_synthesizer = get_response_synthesizer(
+            service_context=service_context, text_qa_template=qa_prompt)
+
+        query_engine = RetrieverQueryEngine(
+            retriever=retriever,
+            response_synthesizer=response_synthesizer,
+            node_postprocessors=[SimilarityPostprocessor(
+                similarity_cutoff=threshold)]
+        )
+
+        response = query_engine.query(questionModel.question)
+
+        output_nodes = []
+        for node in response.source_nodes:
+            output_nodes.append(
+                {"source": node.metadata["source"], "keywords": node.metadata["keywords"], "score": node.score, "id": node.node_id, "text": node.text})
+
+        output = {
+            "question": questionModel.question,
+            "answer": response.response,
+            "sources": output_nodes,
+            "type": "question"
+        }
 
         if loaded == True:
             self.semaphore.release()
 
-        return output[0]["text"].strip(), docs, False
+        censored = False
+        if project.model.sandboxed and len(response.source_nodes) == 0:
+            censored = True
+            output = {
+                "question": questionModel.question,
+                "answer": project.model.censorship or self.defaultCensorship,
+                "sources": output_nodes,
+                "type": "question"
+            }
+
+        return output, censored
 
     def entryVision(self, projectName, visionInput, db: Session):
         image = None
@@ -430,7 +470,8 @@ class Brain:
                 model, loaded = self.getLLM(project.model.llm, True)
 
                 prompt_template_txt = PROMPTS[model.prompt]
-                input = prompt_template_txt.format(question=visionInput.question)
+                input = prompt_template_txt.format(
+                    question=visionInput.question)
 
                 output = model.llm.llavaInference(input, visionInput.image)
             else:

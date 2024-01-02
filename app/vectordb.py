@@ -1,9 +1,11 @@
 import os
 import shutil
-from langchain.vectorstores import Chroma, FAISS, Redis
+from langchain.vectorstores import Chroma
+from llama_index import ServiceContext, StorageContext, VectorStoreIndex
 import redis
 
 from app.tools import FindEmbeddingsPath
+from llama_index.vector_stores import RedisVectorStore
 
 
 def vector_init(brain, project):
@@ -13,56 +15,50 @@ def vector_init(brain, project):
         return Chroma(
             persist_directory=path, embedding_function=brain.getEmbedding(
                 project.model.embeddings))
-    elif project.model.vectorstore == "faiss":
-        if path is None or len(os.listdir(path)) == 0:
-            return FAISS(embedding_function=brain.getEmbedding(
-                project.model.embeddings))
-        else:
-            return vector_load(brain, project)
     elif project.model.vectorstore == "redis":
         if path is None or len(os.listdir(path)) == 0:
-            schema = {'text': [{'name': 'source'}, {'name': 'keywords'}]}
-            return Redis(
+            vector_store =  RedisVectorStore(
                 redis_url="redis://" +
                 os.environ["REDIS_HOST"] +
                 ":" +
                 os.environ["REDIS_PORT"],
                 index_name=project.model.name,
-                embedding=brain.getEmbedding(
-                    project.model.embeddings),
-                index_schema=schema)
+                metadata_fields=["source", "keywords"],
+                index_prefix="llama_" + project.model.name,
+                overwrite=False)
+        
+            storage_context = StorageContext.from_defaults(vector_store=vector_store)
+            service_context = ServiceContext.from_defaults(embed_model=brain.getEmbedding(
+                project.model.embeddings))
+            index = VectorStoreIndex.from_vector_store(
+                vector_store, storage_context=storage_context, service_context=service_context)
+            
+            return index
         else:
             return vector_load(brain, project)
 
 
 def vector_save(project):
-    if project.model.vectorstore == "faiss":
-        project.db.save_local(FindEmbeddingsPath(
-            project.model.name))
-    elif project.model.vectorstore == "chroma":
+    if project.model.vectorstore == "chroma":
         project.db.persist()
     elif project.model.vectorstore == "redis":
-        project.db.write_schema(FindEmbeddingsPath(
-            project.model.name) + "/schema.yaml")
+        project.db.vector_store.persist(persist_path="")
 
 
 def vector_load(brain, project):
-    if project.model.vectorstore == "faiss":
-        return FAISS.load_local(FindEmbeddingsPath(
-            project.model.name), brain.getEmbedding(
-            project.model.embeddings))
-    elif project.model.vectorstore == "redis":
-        return Redis.from_existing_index(
-            brain.getEmbedding(
-                project.model.embeddings),
-            index_name=project.model.name,
+    if project.model.vectorstore == "redis":
+        vector_store = RedisVectorStore(
             redis_url="redis://" +
             os.environ["REDIS_HOST"] +
             ":" +
             os.environ["REDIS_PORT"],
-            schema=FindEmbeddingsPath(
-                project.model.name) +
-            "/schema.yaml")
+            index_name=project.model.name,
+            metadata_fields=["source", "keywords"],
+            index_prefix="llama_" + project.model.name,
+            overwrite=False)
+        service_context = ServiceContext.from_defaults(embed_model=brain.getEmbedding(
+                project.model.embeddings))
+        return VectorStoreIndex.from_vector_store(vector_store=vector_store, service_context=service_context)
 
 
 def vector_list(project):
@@ -86,12 +82,12 @@ def vector_list(project):
             host=os.environ["REDIS_HOST"],
             port=os.environ["REDIS_PORT"],
             decode_responses=True)
-        keys = lredis.keys(project.db.key_prefix + "*")
+        keys = lredis.keys("llama_" + project.model.name + "/*")
         for key in keys:
             source = lredis.hget(key, "source")
             if source not in output:
                 output.append({"source": source, "id": key.split(
-                    project.db.key_prefix + ":")[1]})
+                    "llama_" + project.model.name + "/")[1]})
 
     return {"embeddings": output}
 
@@ -117,12 +113,12 @@ def vector_list_source(project, source):
             host=os.environ["REDIS_HOST"],
             port=os.environ["REDIS_PORT"],
             decode_responses=True)
-        keys = lredis.keys(project.db.key_prefix + "*")
+        keys = lredis.keys("llama_" + project.model.name + "/*")
         for key in keys:
             sourcer = lredis.hget(key, "source")
             if source == sourcer:
                 output.append({"source": sourcer, "id": key.split(
-                    project.db.key_prefix + ":")[1]})
+                    "llama_" + project.model.name + "/")[1]})
 
     return output
 
@@ -136,7 +132,7 @@ def vector_info(project):
             host=os.environ["REDIS_HOST"],
             port=os.environ["REDIS_PORT"],
             decode_responses=True)
-        keys = lredis.keys(project.db.key_prefix + "*")
+        keys = lredis.keys("llama_" + project.model.name + "/*")
         return len(keys), len(keys)
 
 
@@ -150,7 +146,7 @@ def vector_find_source(project, source):
             host=os.environ["REDIS_HOST"],
             port=os.environ["REDIS_PORT"],
             decode_responses=True)
-        keys = lredis.keys(project.db.key_prefix + "*")
+        keys = lredis.keys("llama_" + project.model.name + "/*")
         ids = []
         metadatas = []
         documents = []
@@ -160,23 +156,24 @@ def vector_find_source(project, source):
                 ids.append(key)
                 metadatas.append(
                     {"source": lsource, "keywords": lredis.hget(key, "keywords")})
-                documents.append(lredis.hget(key, "content"))
+                documents.append(lredis.hget(key, "text"))
 
         docs = {"ids": ids, "metadatas": metadatas, "documents": documents}
 
     return docs
 
+
 def vector_find_id(project, id):
     if project.model.vectorstore == "chroma":
         collection = project.db._client.get_collection("langchain")
         docs = collection.get(ids=[id])
-        
+
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
             host=os.environ["REDIS_HOST"],
             port=os.environ["REDIS_PORT"],
             decode_responses=True)
-        lsource = lredis.hgetall(project.db.key_prefix + ":" + id, "source")
+        lsource = lredis.hgetall("llama_" + project.model.name + "/" + id, "source")
     return id
 
 
@@ -211,7 +208,7 @@ def vector_delete_source(project, source):
             host=os.environ["REDIS_HOST"],
             port=os.environ["REDIS_PORT"],
             decode_responses=True)
-        keys = lredis.keys(project.db.key_prefix + "*")
+        keys = lredis.keys("llama_" + project.model.name + "/*")
         for key in keys:
             lsource = lredis.hget(key, "source")
             if lsource == source or lsource == os.path.join(

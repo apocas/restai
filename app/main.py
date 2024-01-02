@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+from pathlib import Path
 import re
 from tempfile import NamedTemporaryFile
 import traceback
@@ -11,6 +12,7 @@ from langchain.document_loaders import (
     SeleniumURLLoader,
 )
 from dotenv import load_dotenv
+from llama_index import ServiceContext
 import requests
 from app.auth import get_current_username, get_current_username_admin, get_current_username_project, get_current_username_user
 from app.brain import Brain
@@ -36,7 +38,6 @@ from unidecode import unidecode
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 from starlette.background import BackgroundTask
-
 
 load_dotenv()
 loadEnvVars()
@@ -398,13 +399,15 @@ def get_embedding(projectName: str, source: str,
                   db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    docs = vector_find_source(project, base64.b64decode(source).decode('utf-8'))
+    docs = vector_find_source(
+        project, base64.b64decode(source).decode('utf-8'))
 
     if (len(docs['ids']) == 0):
         return {"ids": []}
     else:
         return docs
-    
+
+
 @app.get("/projects/{projectName}/embeddings/id/{id}")
 def get_embedding(projectName: str, id: str,
                   user: User = Depends(get_current_username_project),
@@ -484,7 +487,8 @@ def ingest_file(
     try:
         project = brain.findProject(projectName, db)
 
-        temp = NamedTemporaryFile(delete=False)
+        _, ext = os.path.splitext(file.filename or '')
+        temp = NamedTemporaryFile(delete=False, suffix=ext)
         try:
             contents = file.file.read()
             with temp as f:
@@ -495,24 +499,22 @@ def ingest_file(
         finally:
             file.file.close()
 
-        _, ext = os.path.splitext(file.filename or '')
-
-        loader = FindFileLoader(
-            temp.name, ext, json.loads(
-                urllib.parse.unquote(options)))
-        documents = loader.load()
+        loader = FindFileLoader(ext, json.loads(
+            urllib.parse.unquote(options)))
+        documents = loader.load_data(file=Path(temp.name))
 
         for document in documents:
+            del document.metadata["filename"]
             document.metadata["source"] = file.filename
 
         documents = ExtractKeywordsForMetadata(documents)
 
-        ids = IndexDocuments(brain, project, documents)
+        IndexDocuments(brain, project, documents)
         vector_save(project)
 
         return {
             "source": file.filename,
-            "documents": len(ids)}
+            "documents": len(documents)}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -618,18 +620,7 @@ async def question_query(
                 background=BackgroundTask(rp_resp.aclose),
             )
         else:
-            answer, docs = brain.entryQuestion(projectName, input, db)
-
-            sources = [{"content": doc.page_content,
-                        "keywords": doc.metadata.get("keywords", ""),
-                        "source": doc.metadata.get("source", "")} for doc in docs]
-
-            output = {
-                "question": input.question,
-                "answer": answer,
-                "sources": sources,
-                "type": "question"
-            }
+            output = brain.entryQuestion(projectName, input, db)
 
             logs_inference.info({"user": user.username, "output": output})
 

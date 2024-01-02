@@ -107,9 +107,10 @@ class ProjectModelUpdate(BaseModel):
 
 class SourceModel(BaseModel):
     source: str
-    content: str
     keywords: str
-
+    text: str
+    score: float
+    id: str
 
 class QuestionResponse(BaseModel):
     question: str
