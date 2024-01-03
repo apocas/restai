@@ -8,9 +8,8 @@ from tempfile import NamedTemporaryFile
 import traceback
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 import httpx
-from langchain.document_loaders import (
-    SeleniumURLLoader,
-)
+from llama_index.query_engine import RetrieverQueryEngine
+from llama_index.postprocessor import SimilarityPostprocessor
 from dotenv import load_dotenv
 from llama_index import ServiceContext
 import requests
@@ -18,6 +17,9 @@ from app.auth import get_current_username, get_current_username_admin, get_curre
 from app.brain import Brain
 from app.database import dbc, get_db
 import urllib.parse
+from app.loaders.url import SeleniumWebReader
+
+from llama_index.retrievers import VectorIndexRetriever
 
 from app.models import ChatResponse, FindModel, IngestResponse, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
@@ -372,21 +374,29 @@ def find_embedding(projectName: str, embedding: FindModel,
 
     output = []
 
+
     if (embedding.text):
-        retriever = project.db.as_retriever(
-            search_type="similarity_score_threshold",
-            search_kwargs={
-                "score_threshold": embedding.score or project.model.score or 0.2,
-                "k": embedding.k or project.model.k or 1})
+        k = embedding.k or project.model.k or 2
+        threshold = embedding.score or project.model.score or 0.2
+     
 
-        try:
-            docs = retriever.get_relevant_documents(embedding.text)
-        except BaseException:
-            docs = []
+        retriever = VectorIndexRetriever(
+            index=project.db,
+            similarity_top_k=k,
+        )
 
-        for doc in docs:
-            if doc.metadata["source"] not in output:
-                output.append({"source": doc.metadata["source"], "id": ""})
+        query_engine = RetrieverQueryEngine.from_args(
+            retriever=retriever,
+            node_postprocessors=[SimilarityPostprocessor(
+                similarity_cutoff=threshold)],
+            response_mode="no_text"
+        )
+
+        response = query_engine.query(embedding.text)
+
+        for node in response.source_nodes:
+            output.append(node.metadata["source"])
+
     elif (embedding.source):
         output = vector_list_source(project, embedding.source)
 
@@ -457,19 +467,19 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
     try:
         project = brain.findProject(projectName, db)
 
-        urls = vector_list(project, "url")["urls"]
+        urls = vector_list(project)["embeddings"]
         if (ingest.url in urls):
             raise Exception("URL already ingested. Delete first.")
 
-        loader = loader = SeleniumURLLoader(urls=[ingest.url])
+        loader = loader = SeleniumWebReader()
 
-        documents = loader.load()
+        documents = loader.load_data(urls=[ingest.url])
         documents = ExtractKeywordsForMetadata(documents)
 
-        ids = IndexDocuments(brain, project, documents)
+        IndexDocuments(brain, project, documents)
         vector_save(project)
 
-        return {"source": ingest.url, "documents": len(ids)}
+        return {"source": ingest.url, "documents": len(documents)}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -504,7 +514,8 @@ def ingest_file(
         documents = loader.load_data(file=Path(temp.name))
 
         for document in documents:
-            del document.metadata["filename"]
+            if  "filename" in document.metadata:
+                del document.metadata["filename"]
             document.metadata["source"] = file.filename
 
         documents = ExtractKeywordsForMetadata(documents)

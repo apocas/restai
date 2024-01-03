@@ -42,7 +42,10 @@ def vector_save(project):
     if project.model.vectorstore == "chroma":
         project.db.persist()
     elif project.model.vectorstore == "redis":
-        project.db.vector_store.persist(persist_path="")
+        try:
+            project.db.vector_store.persist(persist_path="")
+        except BaseException:
+            print("REDIS - Error saving vectors")
 
 
 def vector_load(brain, project):
@@ -73,8 +76,7 @@ def vector_list(project):
         index = 0
         for metadata in docs["metadatas"]:
             if metadata["source"] not in output:
-                output.append(
-                    {"source": metadata["source"], "id": docs["ids"][index]})
+                output.append(metadata["source"])
             index = index + 1
 
     elif project.model.vectorstore == "redis":
@@ -86,8 +88,7 @@ def vector_list(project):
         for key in keys:
             source = lredis.hget(key, "source")
             if source not in output:
-                output.append({"source": source, "id": key.split(
-                    "llama_" + project.model.name + "/")[1]})
+                output.append(source)
 
     return {"embeddings": output}
 
@@ -104,8 +105,7 @@ def vector_list_source(project, source):
         index = 0
         for metadata in docs["metadatas"]:
             if metadata["source"] == source:
-                output.append(
-                    {"source": metadata["source"], "id": docs["ids"][index]})
+                output.append(metadata["source"])
             index = index + 1
 
     elif project.model.vectorstore == "redis":
@@ -117,8 +117,7 @@ def vector_list_source(project, source):
         for key in keys:
             sourcer = lredis.hget(key, "source")
             if source == sourcer:
-                output.append({"source": sourcer, "id": key.split(
-                    "llama_" + project.model.name + "/")[1]})
+                output.append(sourcer)
 
     return output
 
@@ -237,9 +236,10 @@ def vector_reset(brain, project):
     if project.model.vectorstore == "chroma":
         project.db._client.reset()
     elif project.model.vectorstore == "redis":
-        project.db.drop_index(project.model.name, delete_documents=True, redis_url="redis://" +
-                              os.environ["REDIS_HOST"] +
-                              ":" +
-                              os.environ["REDIS_PORT"])
+        lredis = redis.Redis(
+            host=os.environ["REDIS_HOST"],
+            port=os.environ["REDIS_PORT"],
+            decode_responses=True)
+        lredis.ft(project.model.name).dropindex(True)
 
     project.db = vector_init(brain, project)

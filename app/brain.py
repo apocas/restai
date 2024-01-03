@@ -4,19 +4,14 @@ import threading
 from llama_index import ServiceContext
 from llama_index.text_splitter import TokenTextSplitter
 from llama_index import (
-    VectorStoreIndex,
     get_response_synthesizer,
 )
 from llama_index.embeddings.langchain import LangchainEmbedding
 from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.postprocessor import SimilarityPostprocessor
-from llama_index.prompts.prompts import RefinePrompt, QuestionAnswerPrompt
-from llama_index.prompts.prompt_type import PromptType
 from llama_index.prompts import PromptTemplate
-from langchain.chains import ConversationalRetrievalChain, LLMChain
 from llama_index.chat_engine.condense_plus_context  import CondensePlusContextChatEngine
-from llama_index.memory import ChatMemoryBuffer
 from langchain.agents import initialize_agent
 import torch
 from app.llms.llava import LlavaLLM
