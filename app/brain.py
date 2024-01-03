@@ -15,6 +15,8 @@ from llama_index.prompts.prompts import RefinePrompt, QuestionAnswerPrompt
 from llama_index.prompts.prompt_type import PromptType
 from llama_index.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain, LLMChain
+from llama_index.chat_engine.condense_plus_context  import CondensePlusContextChatEngine
+from llama_index.memory import ChatMemoryBuffer
 from langchain.agents import initialize_agent
 import torch
 from app.llms.llava import LlavaLLM
@@ -33,6 +35,7 @@ from modules.llms import LLMS
 from app.database import dbc
 from sqlalchemy.orm import Session
 from llama_index.llms import LangChainLLM
+from langchain.chat_models import ChatOpenAI
 
 from modules.prompts import PROMPTS
 
@@ -247,9 +250,8 @@ class Brain:
 
     def entryChat(self, projectName: str, input: ChatModel, db: Session):
         self.loopFailsafe = 0
-        chat, output = self.recursiveChat(projectName, input, db)
-        chat.history.append((input.question, output["answer"]))
-        return chat, output
+        output = self.recursiveChat(projectName, input, db)
+        return output
 
     def recursiveChat(
             self,
@@ -267,7 +269,7 @@ class Brain:
                 project, questionInput)
             output = {"source_documents": docs, "answer": answer}
         else:
-            chat, output, censored = self.chat(project, input)
+            output, censored = self.chat(project, input)
 
         if censored:
             projectc = self.findProject(project.model.sandbox_project, db)
@@ -276,60 +278,77 @@ class Brain:
                     return chat, {"source_documents": [],
                                   "answer": self.defaultNegative}
                 self.loopFailsafe += 1
-                chat, output = self.recursiveChat(
+                output = self.recursiveChat(
                     project.model.sandbox_project, input, db, chat)
 
-        return chat, output
+        return output
 
     def chat(self, project, chatModel):
         model, loaded = self.getLLM(project.model.llm)
         chat = project.loadChat(chatModel)
 
-        retriever = project.db.as_retriever(
-            search_type="similarity_score_threshold",
-            search_kwargs={
-                "score_threshold": chatModel.score or project.model.score or 0.2,
-                "k": chatModel.k or project.model.k or 1})
-
-        try:
-            docs = retriever.get_relevant_documents(chatModel.question)
-        except BaseException:
-            docs = []
-
-        if len(docs) == 0:
-            contextsub = "{context}"
-        else:
-            contextsub = "Context: {context}"
+        threshold = chatModel.score or project.model.score or 0.2
+        k = chatModel.k or project.model.k or 1
 
         prompt_template_txt = PROMPTS[model.prompt]
         sysTemplate = project.model.system or self.defaultSystem
+
         prompt_template = prompt_template_txt.format(
-            system=sysTemplate, history="Chat History: {chat_history}", context=contextsub)
+            system=sysTemplate)
 
-        custom_prompt = PromptTemplate(
-            template=prompt_template,
-            input_variables=["context", "question", "chat_history"],
+
+        service_context = ServiceContext.from_defaults(
+            llm=LangChainLLM(llm=model.llm)
+        )
+        service_context.llm.query_wrapper_prompt = prompt_template
+
+        retriever = VectorIndexRetriever(
+            index=project.db,
+            similarity_top_k=k,
         )
 
-        conversationalChain = ConversationalRetrievalChain.from_llm(
-            llm=model.llm,
+        llm = LangChainLLM(model.llm)
+        #llm.query_wrapper_prompt = prompt_template
+
+        chat_engine = CondensePlusContextChatEngine(
             retriever=retriever,
-            return_source_documents=True,
-            combine_docs_chain_kwargs={
-                "prompt": custom_prompt})
-
-        result = conversationalChain(
-            {"question": chatModel.question, "chat_history": chat.history}
+            llm=llm,
+            node_postprocessors=[SimilarityPostprocessor(
+                similarity_cutoff=threshold)],
+            memory=chat.history,
+            verbose=True,
+            context_prompt=(
+                "You are a chatbot, able to have normal interactions, as well as talk about the provided context.\n"
+                "Here are the relevant documents for the context:\n"
+                "{context_str}"
+                "\nInstruction: Use the previous chat history, or the context above, to interact and help the user."
+            )
         )
+
+        response = chat_engine.chat(chatModel.question)
 
         if loaded == True:
             self.semaphore.release()
 
-        if project.model.sandboxed and len(result["source_documents"]) == 0:
-            return chat, {"source_documents": [
-            ], "answer": project.model.censorship or self.defaultCensorship}, True
+        output_nodes = []
+        for node in response.source_nodes:
+            output_nodes.append(
+                {"source": node.metadata["source"], "keywords": node.metadata["keywords"], "score": node.score, "id": node.node_id, "text": node.text})
 
-        return chat, result, False
+        output = {
+            "id": chat.id,
+            "question": chatModel.question,
+            "answer": response.response,
+            "sources": output_nodes,
+            "type": "chat"
+        }
+
+        censored = False
+        if project.model.sandboxed and len(response.source_nodes) == 0:
+            censored = True
+            output["answer"] = project.model.censorship or self.defaultCensorship
+
+        return output, censored
 
     def entryQuestion(
             self,
@@ -369,9 +388,8 @@ class Brain:
         else:
             sysTemplate = questionModel.system or project.model.system or self.defaultSystem
 
-        prompt_template = prompt_template_txt.format(
-            system=sysTemplate)
-        query_wrapper_prompt = PromptTemplate(prompt_template)
+        prompt_template = prompt_template_txt.format(system=sysTemplate)
+        #query_wrapper_prompt = PromptTemplate(prompt_template)
 
         k = questionModel.k or project.model.k or 2
         threshold = questionModel.score or project.model.score or 0.2
@@ -379,6 +397,7 @@ class Brain:
         service_context = ServiceContext.from_defaults(
             llm=LangChainLLM(llm=model.llm)
         )
+        service_context.llm.query_wrapper_prompt = prompt_template
 
         retriever = VectorIndexRetriever(
             index=project.db,
@@ -395,8 +414,9 @@ class Brain:
             "Query: {query_str}\n"
             "Answer: "
         )
-        
-        qa_prompt_tmpl = sysTemplate + "\n" + qa_prompt_tmpl
+
+        if isinstance(model.llm, ChatOpenAI):
+            qa_prompt_tmpl = sysTemplate + "\n" + qa_prompt_tmpl
 
         qa_prompt = PromptTemplate(qa_prompt_tmpl)
 
@@ -412,6 +432,9 @@ class Brain:
 
         response = query_engine.query(questionModel.question)
 
+        if loaded == True:
+            self.semaphore.release()
+
         output_nodes = []
         for node in response.source_nodes:
             output_nodes.append(
@@ -424,18 +447,10 @@ class Brain:
             "type": "question"
         }
 
-        if loaded == True:
-            self.semaphore.release()
-
         censored = False
         if project.model.sandboxed and len(response.source_nodes) == 0:
             censored = True
-            output = {
-                "question": questionModel.question,
-                "answer": project.model.censorship or self.defaultCensorship,
-                "sources": output_nodes,
-                "type": "question"
-            }
+            output["answer"] = project.model.censorship or self.defaultCensorship
 
         return output, censored
 
@@ -471,7 +486,7 @@ class Brain:
 
                 prompt_template_txt = PROMPTS[model.prompt]
                 input = prompt_template_txt.format(
-                    question=visionInput.question)
+                    query_str=visionInput.question)
 
                 output = model.llm.llavaInference(input, visionInput.image)
             else:

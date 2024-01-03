@@ -24,7 +24,7 @@ from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from app.vectordb import vector_delete_source, vector_find_source, vector_info, vector_list_source, vector_reset, vector_save, vector_list, vector_find_id
-from langchain_core.documents import Document
+from llama_index import Document
 
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
@@ -431,7 +431,7 @@ def ingest_text(projectName: str, ingest: TextIngestModel,
         project = brain.findProject(projectName, db)
 
         metadata = {"source": ingest.source}
-        documents = [Document(page_content=ingest.text, metadata=metadata)]
+        documents = [Document(text=ingest.text, metadata=metadata)]
 
         if ingest.keywords and len(ingest.keywords) > 0:
             for document in documents:
@@ -439,10 +439,10 @@ def ingest_text(projectName: str, ingest: TextIngestModel,
         else:
             documents = ExtractKeywordsForMetadata(documents)
 
-        ids = IndexDocuments(brain, project, documents)
+        IndexDocuments(brain, project, documents)
         vector_save(project)
 
-        return {"source": ingest.source, "documents": len(ids)}
+        return {"source": ingest.source, "documents": len(documents)}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -603,7 +603,7 @@ async def question_query(
         project = brain.findProject(projectName, db)
         llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
             project.model.llm]
-        if llm_node != os.environ["RESTAI_NODE"]:
+        if llm_node != "node1" and llm_node != os.environ["RESTAI_NODE"]:
             client = httpx.AsyncClient(
                 base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
             url = httpx.URL(path=request.url.path.lstrip("/"),
@@ -647,7 +647,7 @@ async def chat_query(
         project = brain.findProject(projectName, db)
         llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
             project.model.llm]
-        if llm_node != os.environ["RESTAI_NODE"]:
+        if llm_node != "node1" and llm_node != os.environ["RESTAI_NODE"]:
             client = httpx.AsyncClient(
                 base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
             url = httpx.URL(path=request.url.path.lstrip("/"),
@@ -664,21 +664,7 @@ async def chat_query(
                 background=BackgroundTask(rp_resp.aclose),
             )
         else:
-            chat, output = brain.entryChat(projectName, input, db)
-
-            docs = output["source_documents"]
-            answer = output["answer"].strip()
-
-            sources = [{"content": doc.page_content,
-                        "keywords": doc.metadata.get("keywords", ""),
-                        "source": doc.metadata.get("source", "")} for doc in docs]
-
-            output = {
-                "question": input.question,
-                "answer": answer,
-                "id": chat.id,
-                "sources": sources,
-                "type": "chat"}
+            output = brain.entryChat(projectName, input, db)
 
             logs_inference.info({"user": user.username, "output": output})
 
