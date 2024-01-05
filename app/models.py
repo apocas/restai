@@ -1,5 +1,5 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Union
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional, Union
 
 
 class URLIngestModel(BaseModel):
@@ -25,7 +25,7 @@ class FindModel(BaseModel):
 
 class InteractionModel(BaseModel):
     score: Union[float, None] = None
-    k: Union[int, None] = None
+    k: Optional[int] = Field(None, ge=1, le=25)
 
 
 class QuestionModel(InteractionModel):
@@ -61,8 +61,7 @@ class ProjectModel(BaseModel):
 
 
 class ProjectInfo(ProjectModel):
-    documents: int = 0
-    metadatas: int = 0
+    chunks: int = 0
     llm_type: str
     llm_privacy: str
 

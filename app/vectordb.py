@@ -127,9 +127,10 @@ def vector_list_source(project, source):
             decode_responses=True)
         keys = lredis.keys("llama_" + project.model.name + "/*")
         for key in keys:
-            sourcer = lredis.hget(key, "source")
+            sourcer = lredis.hget(key, "source").strip()
+            id = lredis.hget(key, "id").strip()
             if source == sourcer:
-                output.append(sourcer)
+                output.append({"source": source, "id": id, "score": 1})
 
     return output
 
@@ -143,14 +144,14 @@ def vector_info(project):
         docs = collection.get(
             include=["metadatas"]
         )
-        return len(docs), len(docs)
+        return len(docs)
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
             host=os.environ["REDIS_HOST"],
             port=os.environ["REDIS_PORT"],
             decode_responses=True)
         keys = lredis.keys("llama_" + project.model.name + "/*")
-        return len(keys), len(keys)
+        return len(keys)
 
 
 def vector_find_source(project, source):

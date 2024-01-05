@@ -121,7 +121,7 @@ async def get_user(username: str, user: User = Depends(get_current_username_user
 
 
 @app.get("/users", response_model=list[User])
-def get_users(
+async def get_users(
         user: User = Depends(get_current_username_admin),
         db: Session = Depends(get_db)):
     users = dbc.get_users(db)
@@ -129,7 +129,7 @@ def get_users(
 
 
 @app.post("/users", response_model=User)
-def create_user(userc: UserCreate,
+async def create_user(userc: UserCreate,
                 user: User = Depends(get_current_username_admin),
                 db: Session = Depends(get_db)):
     try:
@@ -150,7 +150,7 @@ def create_user(userc: UserCreate,
 
 
 @app.patch("/users/{username}", response_model=User)
-def update_user(
+async def update_user(
         username: str,
         userc: UserUpdate,
         user: User = Depends(get_current_username_user),
@@ -181,7 +181,7 @@ def update_user(
 
 
 @app.delete("/users/{username}")
-def delete_user(username: str,
+async def delete_user(username: str,
                 user: User = Depends(get_current_username_admin),
                 db: Session = Depends(get_db)):
     try:
@@ -225,7 +225,7 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
         llm_class, llm_args, prompt, llm_privacy, description, llm_type, llm_node = LLMS[
             project.model.llm]
 
-        docs, metas = vector_info(project)
+        chunks = vector_info(project)
 
         output = ProjectInfo(
             name=project.model.name,
@@ -240,8 +240,7 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             k=project.model.k,
             sandbox_project=project.model.sandbox_project,
             vectorstore=project.model.vectorstore,)
-        output.documents = docs
-        output.metadatas = metas
+        output.chunks = chunks
 
         return output
     except Exception as e:
@@ -349,7 +348,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
 
 
 @app.post("/projects/{projectName}/embeddings/reset")
-def reset_embeddings(
+async def reset_embeddings(
         projectName: str,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
@@ -367,7 +366,7 @@ def reset_embeddings(
 
 
 @app.post("/projects/{projectName}/embeddings/search")
-def find_embedding(projectName: str, embedding: FindModel,
+async def find_embedding(projectName: str, embedding: FindModel,
                    user: User = Depends(get_current_username_project),
                    db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
@@ -408,7 +407,7 @@ def find_embedding(projectName: str, embedding: FindModel,
 
 
 @app.get("/projects/{projectName}/embeddings/source/{source}")
-def get_embedding(projectName: str, source: str,
+async def get_embedding(projectName: str, source: str,
                   user: User = Depends(get_current_username_project),
                   db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
@@ -423,7 +422,7 @@ def get_embedding(projectName: str, source: str,
 
 
 @app.get("/projects/{projectName}/embeddings/id/{id}")
-def get_embedding(projectName: str, id: str,
+async def get_embedding(projectName: str, id: str,
                   user: User = Depends(get_current_username_project),
                   db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
@@ -433,7 +432,7 @@ def get_embedding(projectName: str, id: str,
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/text", response_model=IngestResponse)
-def ingest_text(projectName: str, ingest: TextIngestModel,
+async def ingest_text(projectName: str, ingest: TextIngestModel,
                 user: User = Depends(get_current_username_project),
                 db: Session = Depends(get_db)):
 
@@ -449,10 +448,13 @@ def ingest_text(projectName: str, ingest: TextIngestModel,
         else:
             documents = ExtractKeywordsForMetadata(documents)
 
-        IndexDocuments(brain, project, documents, ingest.splitter, ingest.chunks)
+        #for document in documents:
+        #    document.text = document.text.decode('utf-8')
+
+        nchunks = IndexDocuments(brain, project, documents, ingest.splitter, ingest.chunks)
         vector_save(project)
 
-        return {"source": ingest.source, "documents": len(documents)}
+        return {"source": ingest.source, "documents": len(documents), "chunks": nchunks}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -461,7 +463,7 @@ def ingest_text(projectName: str, ingest: TextIngestModel,
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/url", response_model=IngestResponse)
-def ingest_url(projectName: str, ingest: URLIngestModel,
+async def ingest_url(projectName: str, ingest: URLIngestModel,
                user: User = Depends(get_current_username_project),
                db: Session = Depends(get_db)):
     try:
@@ -471,7 +473,7 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
         if (ingest.url in urls):
             raise Exception("URL already ingested. Delete first.")
 
-        loader = loader = SeleniumWebReader()
+        loader = SeleniumWebReader()
 
         documents = loader.load_data(urls=[ingest.url])
         documents = ExtractKeywordsForMetadata(documents)
@@ -488,7 +490,7 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/upload", response_model=IngestResponse)
-def ingest_file(
+async def ingest_file(
         projectName: str,
         file: UploadFile,
         options: str = Form("{}"),
@@ -521,12 +523,12 @@ def ingest_file(
 
         documents = ExtractKeywordsForMetadata(documents)
 
-        IndexDocuments(brain, project, documents)
+        nchunks = IndexDocuments(brain, project, documents)
         vector_save(project)
 
         return {
             "source": file.filename,
-            "documents": len(documents)}
+            "documents": len(documents), "chunks": nchunks}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -536,7 +538,7 @@ def ingest_file(
 
 
 @app.get('/projects/{projectName}/embeddings')
-def get_embeddings(
+async def get_embeddings(
         projectName: str,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
@@ -548,7 +550,7 @@ def get_embeddings(
 
 
 @app.delete('/projects/{projectName}/embeddings/{source}')
-def delete_embedding(
+async def delete_embedding(
         projectName: str,
         source: str,
         user: User = Depends(get_current_username_project),
@@ -562,7 +564,7 @@ def delete_embedding(
 
 
 @app.post("/projects/{projectName}/vision", response_model=QuestionResponse)
-def vision_query(
+async def vision_query(
         projectName: str,
         input: VisionModel,
         user: User = Depends(get_current_username_project),
