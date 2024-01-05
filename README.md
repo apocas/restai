@@ -2,7 +2,7 @@
 
 * RESTAI is a generic REST API that allows to create embeddings from multiple datatypes and then interact with them using a LLM. An API for the RAG process.
 * This LLM may be an OpenAI based model, llamacpp, transformer or any other LLM supported by langchain or compatible with OpenAI API.
-* If you want to be completely offline, you may use (for example) the `llama2` LLM and `huggingface` embeddings.
+* If you want to be completely offline, you may use (for example) the `llama13b_chat_gptq` LLM and `all-mpnet-base-v2` embeddings.
 * RESTAI features an abstraction layer supporting multiple vectorstores, right now Chroma and Redis is supported.
 * It was built thinking on low vram enviromnents, it loads and unloads LLMs automatically allowing to use multiple LLMs even if they don't all fit in VRAM simultaneously.
 ## Details
@@ -12,12 +12,11 @@
 * You can easily manage embeddings per project, view, delete and ingest new data.
 
 ### Loaders
-* You may use [any loader](modules/loaders.py) supported by langchain.
+* You may use [any loader](modules/loaders.py) supported by llamaindex.
 
 ### LLMs
 * You may use [any LLM](modules/llms.py) supported by langchain and/or transformers pipes.
 * You may declare [PROMPTs](modules/prompts.py) templates and then use these prompts in the [LLMs](modules/llms.py).
-* There are two main ways to interact with the LLM: QA(questions and answers) and text generation aKa chat (memory).
 
 ## Default support
 
@@ -161,7 +160,8 @@
 
 ## Frontend
 
-* There is a default frontend provided by restai. It's a simple React app that allows you to interact with the API.
+* There is a frontend available at [https://github.com/apocas/restai-frontend](https://github.com/apocas/restai-frontend).
+* `make install` also installs the frontend.
 
 ## Tests
 
