@@ -28,7 +28,7 @@ installgpu:
 	poetry install -E gpu
 
 installfix:
-	$(echo $(poetry env info -p)/bin/pip3 help) install flash-attn --no-build-isolation
+	$(echo $(poetry env info -p)/bin/pip3 install flash-attn --no-build-isolation)
 
 .PHONY: frontend
 frontend:
