@@ -2,7 +2,7 @@ import gc
 import os
 import threading
 from llama_index import ServiceContext
-from llama_index.text_splitter import TokenTextSplitter
+from llama_index.text_splitter import TokenTextSplitter, SentenceSplitter
 from llama_index import (
     get_response_synthesizer,
 )
@@ -46,8 +46,11 @@ class Brain:
         self.loopFailsafe = 0
         self.semaphore = threading.BoundedSemaphore()
 
-        self.text_splitter = TokenTextSplitter(
+        self.token_text_splitter = TokenTextSplitter(
             separator=" ", chunk_size=2048, chunk_overlap=20)
+        
+        self.sentence_text_splitter = SentenceSplitter(
+            separator=" ", paragraph_separator="\n", chunk_size=2048, chunk_overlap=20)
 
     def memoryModelsInfo(self):
         models = []
@@ -371,7 +374,7 @@ class Brain:
                 output, censored = self.recursiveQuestion(
                     project.model.sandbox_project, input, db, True)
 
-        return output
+        return output, censored
 
     def questionContext(self, project, questionModel, child=False):
         model, loaded = self.getLLM(project.model.llm)

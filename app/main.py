@@ -49,7 +49,7 @@ logging.basicConfig(level=os.environ["LOG_LEVEL"])
 app = FastAPI(
     title="RestAI",
     description="Modular REST API bootstrap on top of LangChain. Create embeddings associated with a project tenant and interact using a LLM. RAG as a service.",
-    version="3.3.0",
+    version="4.0.0",
     contact={
         "name": "Pedro Dias",
         "url": "https://github.com/apocas/restai",
@@ -377,7 +377,11 @@ def find_embedding(projectName: str, embedding: FindModel,
 
     if (embedding.text):
         k = embedding.k or project.model.k or 2
-        threshold = embedding.score or project.model.score or 0.2
+
+        if (embedding.score  != None):
+            threshold = embedding.score
+        else:
+            threshold = embedding.score or project.model.score or 0.2
      
 
         retriever = VectorIndexRetriever(
@@ -395,7 +399,7 @@ def find_embedding(projectName: str, embedding: FindModel,
         response = query_engine.query(embedding.text)
 
         for node in response.source_nodes:
-            output.append(node.metadata["source"])
+            output.append({"source": node.metadata["source"], "score": node.score})
 
     elif (embedding.source):
         output = vector_list_source(project, embedding.source)
@@ -449,7 +453,7 @@ def ingest_text(projectName: str, ingest: TextIngestModel,
         else:
             documents = ExtractKeywordsForMetadata(documents)
 
-        IndexDocuments(brain, project, documents)
+        IndexDocuments(brain, project, documents, ingest.splitter)
         vector_save(project)
 
         return {"source": ingest.source, "documents": len(documents)}
@@ -476,7 +480,7 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
         documents = loader.load_data(urls=[ingest.url])
         documents = ExtractKeywordsForMetadata(documents)
 
-        IndexDocuments(brain, project, documents)
+        IndexDocuments(brain, project, documents, ingest.splitter)
         vector_save(project)
 
         return {"source": ingest.url, "documents": len(documents)}
@@ -509,8 +513,9 @@ def ingest_file(
         finally:
             file.file.close()
 
-        loader = FindFileLoader(ext, json.loads(
-            urllib.parse.unquote(options)))
+        opts = json.loads(urllib.parse.unquote(options))
+
+        loader = FindFileLoader(ext, opts)
         documents = loader.load_data(file=Path(temp.name))
 
         for document in documents:
@@ -631,7 +636,7 @@ async def question_query(
                 background=BackgroundTask(rp_resp.aclose),
             )
         else:
-            output = brain.entryQuestion(projectName, input, db)
+            output, censored = brain.entryQuestion(projectName, input, db)
 
             logs_inference.info({"user": user.username, "output": output})
 

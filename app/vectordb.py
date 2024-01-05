@@ -1,20 +1,27 @@
 import os
 import shutil
-from langchain.vectorstores import Chroma
+import chromadb
 from llama_index import ServiceContext, StorageContext, VectorStoreIndex
 import redis
 
 from app.tools import FindEmbeddingsPath
-from llama_index.vector_stores import RedisVectorStore
+from llama_index.vector_stores import RedisVectorStore, ChromaVectorStore
 
 
 def vector_init(brain, project):
     path = FindEmbeddingsPath(project.model.name)
 
     if project.model.vectorstore == "chroma":
-        return Chroma(
-            persist_directory=path, embedding_function=brain.getEmbedding(
-                project.model.embeddings))
+        db = chromadb.PersistentClient(path=path)
+        chroma_collection = db.get_or_create_collection(project.model.name)
+        vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+
+        storage_context = StorageContext.from_defaults(vector_store=vector_store)
+        service_context = ServiceContext.from_defaults(embed_model=brain.getEmbedding(
+            project.model.embeddings))
+        index = VectorStoreIndex.from_vector_store(
+            vector_store, storage_context=storage_context, service_context=service_context)
+        return index
     elif project.model.vectorstore == "redis":
         if path is None or len(os.listdir(path)) == 0:
             vector_store =  RedisVectorStore(
@@ -32,7 +39,6 @@ def vector_init(brain, project):
                 project.model.embeddings))
             index = VectorStoreIndex.from_vector_store(
                 vector_store, storage_context=storage_context, service_context=service_context)
-            
             return index
         else:
             return vector_load(brain, project)
@@ -40,7 +46,7 @@ def vector_init(brain, project):
 
 def vector_save(project):
     if project.model.vectorstore == "chroma":
-        project.db.persist()
+        pass
     elif project.model.vectorstore == "redis":
         try:
             project.db.vector_store.persist(persist_path="")
@@ -49,6 +55,8 @@ def vector_save(project):
 
 
 def vector_load(brain, project):
+    if project.model.vectorstore == "chroma":
+        return vector_init(brain, project)
     if project.model.vectorstore == "redis":
         vector_store = RedisVectorStore(
             redis_url="redis://" +
@@ -67,7 +75,9 @@ def vector_load(brain, project):
 def vector_list(project):
     output = []
     if project.model.vectorstore == "chroma":
-        collection = project.db._client.get_collection("langchain")
+        path = FindEmbeddingsPath(project.model.name)
+        db = chromadb.PersistentClient(path=path)
+        collection = db.get_or_create_collection(project.model.name)
 
         docs = collection.get(
             include=["metadatas"]
@@ -96,7 +106,9 @@ def vector_list(project):
 def vector_list_source(project, source):
     output = []
     if project.model.vectorstore == "chroma":
-        collection = project.db._client.get_collection("langchain")
+        path = FindEmbeddingsPath(project.model.name)
+        db = chromadb.PersistentClient(path=path)
+        collection = db.get_or_create_collection(project.model.name)
 
         docs = collection.get(
             include=["metadatas"]
@@ -124,8 +136,14 @@ def vector_list_source(project, source):
 
 def vector_info(project):
     if project.model.vectorstore == "chroma":
-        dbInfo = project.db.get()
-        return len(dbInfo["documents"]), len(dbInfo["metadatas"])
+        path = FindEmbeddingsPath(project.model.name)
+        db = chromadb.PersistentClient(path=path)
+        collection = db.get_or_create_collection(project.model.name)
+
+        docs = collection.get(
+            include=["metadatas"]
+        )
+        return len(docs), len(docs)
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
             host=os.environ["REDIS_HOST"],
@@ -138,7 +156,9 @@ def vector_info(project):
 def vector_find_source(project, source):
     docs = []
     if project.model.vectorstore == "chroma":
-        collection = project.db._client.get_collection("langchain")
+        path = FindEmbeddingsPath(project.model.name)
+        db = chromadb.PersistentClient(path=path)
+        collection = db.get_or_create_collection(project.model.name)
         docs = collection.get(where={'source': source})
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
@@ -164,7 +184,9 @@ def vector_find_source(project, source):
 
 def vector_find_id(project, id):
     if project.model.vectorstore == "chroma":
-        collection = project.db._client.get_collection("langchain")
+        path = FindEmbeddingsPath(project.model.name)
+        db = chromadb.PersistentClient(path=path)
+        collection = db.get_or_create_collection(project.model.name)
         docs = collection.get(ids=[id])
 
     elif project.model.vectorstore == "redis":
@@ -198,7 +220,9 @@ def vector_delete(project):
 def vector_delete_source(project, source):
     ids = []
     if project.model.vectorstore == "chroma":
-        collection = project.db._client.get_collection("langchain")
+        path = FindEmbeddingsPath(project.model.name)
+        db = chromadb.PersistentClient(path=path)
+        collection = db.get_or_create_collection(project.model.name)
         ids = collection.get(where={'source': source})['ids']
         if len(ids):
             collection.delete(ids)
@@ -219,7 +243,9 @@ def vector_delete_source(project, source):
 
 def vector_delete_id(project, id):
     if project.model.vectorstore == "chroma":
-        collection = project.db._client.get_collection("langchain")
+        path = FindEmbeddingsPath(project.model.name)
+        db = chromadb.PersistentClient(path=path)
+        collection = db.get_or_create_collection(project.model.name)
         ids = collection.get(ids=[id])['ids']
         if len(ids):
             collection.delete(ids)
@@ -234,7 +260,9 @@ def vector_delete_id(project, id):
 
 def vector_reset(brain, project):
     if project.model.vectorstore == "chroma":
-        project.db._client.reset()
+        path = FindEmbeddingsPath(project.model.name)
+        db = chromadb.PersistentClient(path=path)
+        db.reset()
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
             host=os.environ["REDIS_HOST"],

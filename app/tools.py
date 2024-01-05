@@ -8,9 +8,13 @@ import re
 import torch
 
 
-def IndexDocuments(brain, project, documents):
+def IndexDocuments(brain, project, documents, splitter = "sentence"):
     for document in documents:
-        text_chunks = brain.text_splitter.split_text(document.text)
+        
+        if splitter == "sentence":
+            text_chunks = brain.sentence_text_splitter.split_text(document.text)
+        elif splitter == "token":
+            text_chunks = brain.token_text_splitter.split_text(document.text)
 
         doc_chunks = [Document(text=t, metadata=document.metadata) for t in text_chunks]
 

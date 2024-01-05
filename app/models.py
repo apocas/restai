@@ -4,16 +4,18 @@ from typing import Union
 
 class URLIngestModel(BaseModel):
     url: str
+    splitter: str = "sentence"
 
 
 class TextIngestModel(BaseModel):
     text: str
     source: str
+    splitter: str = "sentence"
     keywords: Union[list[str], None] = None
 
 
 class FindModel(BaseModel):
-    source: Union[str, None] = None,
+    source: Union[str, None] = None
     text: Union[str, None] = None
     score: Union[float, None] = None
     k: Union[int, None] = None
