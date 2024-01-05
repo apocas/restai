@@ -216,10 +216,11 @@ def vector_delete(project):
         except BaseException:
             pass
     elif project.model.vectorstore == "redis":
-        project.db.drop_index(project.model.name, delete_documents=True, redis_url="redis://" +
-                              os.environ["REDIS_HOST"] +
-                              ":" +
-                              os.environ["REDIS_PORT"])
+        lredis = redis.Redis(
+            host=os.environ["REDIS_HOST"],
+            port=os.environ["REDIS_PORT"],
+            decode_responses=True)
+        lredis.ft(project.model.name).dropindex(True)
         try:
             embeddingsPath = FindEmbeddingsPath(project.model.name)
             shutil.rmtree(embeddingsPath, ignore_errors=True)
