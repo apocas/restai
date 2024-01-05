@@ -56,7 +56,7 @@ autopep8 = "2.0.4"
 debugpy = "^1.8.0"
 
 [tool.poetry.extras]
-gpu = ["torch", "flash_attn"]
+gpu = ["torch", "auto-gptq", "flash_attn"]
 
 [build-system]
 requires = ["poetry-core"]
