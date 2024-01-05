@@ -216,6 +216,41 @@ tests = ["attrs[tests-no-zope]", "zope-interface"]
 tests-no-zope = ["cloudpickle", "hypothesis", "mypy (>=1.1.1)", "pympler", "pytest (>=4.3.0)", "pytest-mypy-plugins", "pytest-xdist[psutil]"]
 
 [[package]]
+name = "auto-gptq"
+version = "0.6.0"
+description = "An easy-to-use LLMs quantization package with user-friendly apis, based on GPTQ algorithm."
+optional = false
+python-versions = ">=3.8.0"
+files = [
+    {file = "auto_gptq-0.6.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:823061f742e6372794a0c760f870794c4513ebbc340f1bbf933878aecb1cfab2"},
+    {file = "auto_gptq-0.6.0-cp310-cp310-win_amd64.whl", hash = "sha256:45fa4fe6db35101893f8138864f365d52717d831a12e5a48e2a03a3cce8fdb28"},
+    {file = "auto_gptq-0.6.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f7b61f26484454b41238cf64eae467b928a621abfc9217474c88aac9c08470e6"},
+    {file = "auto_gptq-0.6.0-cp311-cp311-win_amd64.whl", hash = "sha256:43316503a9360320e0f2d3e2545c9b06513e10f538afd9e6ff26e7c1216f7292"},
+    {file = "auto_gptq-0.6.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3d57fe5076ad36a39e80c432125233edc756044cdd0c4f26183c3ef04aa05bf1"},
+    {file = "auto_gptq-0.6.0-cp38-cp38-win_amd64.whl", hash = "sha256:28e1b40d010cf7a4f6cc0b86af293020a9bcafa32987fad52d95eb0de852784d"},
+    {file = "auto_gptq-0.6.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:dead798d57aae3abe12c76e4ba17d75f969a8b9915fb23a906daf658e765d2cd"},
+    {file = "auto_gptq-0.6.0-cp39-cp39-win_amd64.whl", hash = "sha256:ec6a6dbdee0fba36c2f9a2108eab09c6c07491c7d7d1c937562285586072b9df"},
+    {file = "auto_gptq-0.6.0.tar.gz", hash = "sha256:2c9232d1f6d96faf628f1d255f39554ce9e1ce9f8eb1b90b681870cafe4b4bb4"},
+]
+
+[package.dependencies]
+accelerate = ">=0.22.0"
+datasets = "*"
+gekko = "*"
+numpy = "*"
+peft = ">=0.5.0"
+rouge = "*"
+safetensors = "*"
+sentencepiece = "*"
+torch = ">=1.13.0"
+tqdm = "*"
+transformers = ">=4.31.0"
+
+[package.extras]
+test = ["parameterized", "pytest"]
+triton = ["triton (==2.0.0)"]
+
+[[package]]
 name = "autopep8"
 version = "2.0.4"
 description = "A tool that automatically formats Python code to conform to the PEP 8 style guide"
@@ -1090,6 +1125,20 @@ sftp = ["paramiko"]
 smb = ["smbprotocol"]
 ssh = ["paramiko"]
 tqdm = ["tqdm"]
+
+[[package]]
+name = "gekko"
+version = "1.0.6"
+description = "Machine learning and optimization for dynamic systems"
+optional = false
+python-versions = ">=2.6"
+files = [
+    {file = "gekko-1.0.6-py3-none-any.whl", hash = "sha256:8e6c7cdc8ad1592f382d9dc04c14accf032b4caf0fbff651aaa02caebcb78c10"},
+    {file = "gekko-1.0.6.tar.gz", hash = "sha256:58dc847495c15df86b0f52f2c01049dc4864f829d44bc5586c914af26a4a576d"},
+]
+
+[package.dependencies]
+numpy = ">=1.8"
 
 [[package]]
 name = "google-api-core"
@@ -3060,6 +3109,35 @@ docs = ["sphinx", "sphinx-argparse"]
 image = ["Pillow"]
 
 [[package]]
+name = "peft"
+version = "0.7.1"
+description = "Parameter-Efficient Fine-Tuning (PEFT)"
+optional = false
+python-versions = ">=3.8.0"
+files = [
+    {file = "peft-0.7.1-py3-none-any.whl", hash = "sha256:a1b7dc222254ce2161b32b88cc6f2bd7387712d20c478c98c586c59112112e46"},
+    {file = "peft-0.7.1.tar.gz", hash = "sha256:cd8fd190e1aacfdcb6c70df4e13c3e3b0006b1e9cc16ecf0a9804632edfcecd3"},
+]
+
+[package.dependencies]
+accelerate = ">=0.21.0"
+huggingface-hub = ">=0.17.0"
+numpy = ">=1.17"
+packaging = ">=20.0"
+psutil = "*"
+pyyaml = "*"
+safetensors = "*"
+torch = ">=1.13.0"
+tqdm = "*"
+transformers = "*"
+
+[package.extras]
+dev = ["black (>=22.0,<23.0)", "hf-doc-builder", "ruff (>=0.0.241)", "urllib3 (<=2.0.0)"]
+docs-specific = ["hf-doc-builder"]
+quality = ["black (>=22.0,<23.0)", "ruff (>=0.0.241)", "urllib3 (<=2.0.0)"]
+test = ["black (>=22.0,<23.0)", "datasets", "diffusers (<0.21.0)", "hf-doc-builder", "parameterized", "pytest", "pytest-cov", "pytest-xdist", "ruff (>=0.0.241)", "scipy", "urllib3 (<=2.0.0)"]
+
+[[package]]
 name = "pillow"
 version = "10.1.0"
 description = "Python Imaging Library (Fork)"
@@ -4131,6 +4209,20 @@ urllib3 = ">=1.21.1,<3"
 [package.extras]
 socks = ["PySocks (>=1.5.6,!=1.5.7)"]
 use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
+
+[[package]]
+name = "rouge"
+version = "1.0.1"
+description = "Full Python ROUGE Score Implementation (not a wrapper)"
+optional = false
+python-versions = "*"
+files = [
+    {file = "rouge-1.0.1-py3-none-any.whl", hash = "sha256:28d118536e8c774dc47d1d15ec266479b4dd0914c4672ce117d4002789bdc644"},
+    {file = "rouge-1.0.1.tar.gz", hash = "sha256:12b48346ca47d6bcf3c45061f315452b9ccec0620ee895ec85b7efc3d54aae34"},
+]
+
+[package.dependencies]
+six = "*"
 
 [[package]]
 name = "rsa"
@@ -5609,6 +5701,20 @@ files = [
 ]
 
 [[package]]
+name = "wheel"
+version = "0.42.0"
+description = "A built-package format for Python"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "wheel-0.42.0-py3-none-any.whl", hash = "sha256:177f9c9b0d45c47873b619f5b650346d632cdc35fb5e4d25058e09c9e581433d"},
+    {file = "wheel-0.42.0.tar.gz", hash = "sha256:c45be39f7882c9d34243236f2d63cbd58039e360f85d0913425fbd7ceea617a8"},
+]
+
+[package.extras]
+test = ["pytest (>=6.0.0)", "setuptools (>=65)"]
+
+[[package]]
 name = "wrapt"
 version = "1.16.0"
 description = "Module for decorators, wrappers and monkey patching."
@@ -5972,4 +6078,4 @@ gpu = ["flash_attn", "torch"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "e81a3c6928f5b011e680e756097b16ede40cf8d6764475ac527a84e47c1fe65a"
+content-hash = "89f50da16d066fe4616059fb241cc89a06a28574cef34f14e6e51d4700b5726a"
