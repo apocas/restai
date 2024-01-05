@@ -1,3 +1,9 @@
+from dotenv import load_dotenv
+from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
+
+load_dotenv()
+loadEnvVars()
+
 import base64
 import json
 import logging
@@ -10,7 +16,7 @@ from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 import httpx
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.postprocessor import SimilarityPostprocessor
-from dotenv import load_dotenv
+
 from llama_index import ServiceContext
 import requests
 from app.auth import get_current_username, get_current_username_admin, get_current_username_project, get_current_username_user
@@ -41,8 +47,6 @@ from starlette.requests import Request
 from starlette.responses import StreamingResponse
 from starlette.background import BackgroundTask
 
-load_dotenv()
-loadEnvVars()
 
 logging.basicConfig(level=os.environ["LOG_LEVEL"])
 
