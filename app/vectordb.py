@@ -183,19 +183,28 @@ def vector_find_source(project, source):
 
 
 def vector_find_id(project, id):
+    output = {"id": id}
     if project.model.vectorstore == "chroma":
         path = FindEmbeddingsPath(project.model.name)
         db = chromadb.PersistentClient(path=path)
         collection = db.get_or_create_collection(project.model.name)
         docs = collection.get(ids=[id])
-
+        output["metadata"]  = {k: v for k, v in docs["metadatas"][0].items() if not k.startswith('_')}
+        output["document"] = docs["documents"][0]
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
             host=os.environ["REDIS_HOST"],
             port=os.environ["REDIS_PORT"],
             decode_responses=True)
-        lsource = lredis.hgetall("llama_" + project.model.name + "/" + id, "source")
-    return id
+        ids = "llama_" + project.model.name + "/vector_" + id
+        keys = lredis.hkeys(ids)
+        keys = [k for k in keys if not k.startswith('_') and k != "vector" and k != "text" and k != "doc_id" and k != "id"]
+        data = lredis.hmget(ids, keys)
+        text = lredis.hget(ids, "text")
+        output["metadata"] = dict(zip(keys, data))
+        output["document"] = text
+
+    return output
 
 
 def vector_delete(project):

@@ -5,12 +5,14 @@ from typing import Union
 class URLIngestModel(BaseModel):
     url: str
     splitter: str = "sentence"
+    chunks: int = 256
 
 
 class TextIngestModel(BaseModel):
     text: str
     source: str
     splitter: str = "sentence"
+    chunks: int = 256
     keywords: Union[list[str], None] = None
 
 
@@ -49,8 +51,8 @@ class ProjectModel(BaseModel):
     system: Union[str, None] = None
     sandboxed: Union[bool, None] = None
     censorship: Union[str, None] = None
-    score: float = 0.2
-    k: int = 1
+    score: float = 0.3
+    k: int = 2
     sandbox_project: Union[str, None] = None
     llm_type: Union[str, None] = None
     llm_privacy: Union[str, None] = None
@@ -129,3 +131,4 @@ class ChatResponse(QuestionResponse):
 class IngestResponse(BaseModel):
     source: str
     documents: int
+    chunks: int

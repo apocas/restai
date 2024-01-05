@@ -2,7 +2,6 @@ import gc
 import os
 import threading
 from llama_index import ServiceContext
-from llama_index.text_splitter import TokenTextSplitter, SentenceSplitter
 from llama_index import (
     get_response_synthesizer,
 )
@@ -45,12 +44,6 @@ class Brain:
         self.defaultSystem = ""
         self.loopFailsafe = 0
         self.semaphore = threading.BoundedSemaphore()
-
-        self.token_text_splitter = TokenTextSplitter(
-            separator=" ", chunk_size=2048, chunk_overlap=20)
-        
-        self.sentence_text_splitter = SentenceSplitter(
-            separator=" ", paragraph_separator="\n", chunk_size=2048, chunk_overlap=20)
 
     def memoryModelsInfo(self):
         models = []

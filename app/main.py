@@ -399,7 +399,7 @@ def find_embedding(projectName: str, embedding: FindModel,
         response = query_engine.query(embedding.text)
 
         for node in response.source_nodes:
-            output.append({"source": node.metadata["source"], "score": node.score})
+            output.append({"source": node.metadata["source"], "score": node.score, "id": node.node_id})
 
     elif (embedding.source):
         output = vector_list_source(project, embedding.source)
@@ -428,12 +428,8 @@ def get_embedding(projectName: str, id: str,
                   db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    docs = vector_find_id(project, id)
-
-    if (len(docs['ids']) == 0):
-        return {"ids": []}
-    else:
-        return docs
+    chunk = vector_find_id(project, id)
+    return chunk
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/text", response_model=IngestResponse)
@@ -453,7 +449,7 @@ def ingest_text(projectName: str, ingest: TextIngestModel,
         else:
             documents = ExtractKeywordsForMetadata(documents)
 
-        IndexDocuments(brain, project, documents, ingest.splitter)
+        IndexDocuments(brain, project, documents, ingest.splitter, ingest.chunks)
         vector_save(project)
 
         return {"source": ingest.source, "documents": len(documents)}
@@ -480,10 +476,10 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
         documents = loader.load_data(urls=[ingest.url])
         documents = ExtractKeywordsForMetadata(documents)
 
-        IndexDocuments(brain, project, documents, ingest.splitter)
+        nchunks = IndexDocuments(brain, project, documents, ingest.splitter, ingest.chunks)
         vector_save(project)
 
-        return {"source": ingest.url, "documents": len(documents)}
+        return {"source": ingest.url, "documents": len(documents), "chunks": nchunks}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)

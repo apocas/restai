@@ -1,6 +1,6 @@
 import logging
 import os
-from fastapi import HTTPException
+from llama_index.text_splitter import TokenTextSplitter, SentenceSplitter
 from llama_index import Document, download_loader
 from modules.loaders import LOADERS
 import yake
@@ -8,18 +8,23 @@ import re
 import torch
 
 
-def IndexDocuments(brain, project, documents, splitter = "sentence"):
+def IndexDocuments(brain, project, documents, splitter = "sentence", chunks = 256):
+    if splitter == "sentence":
+        splitter_o = TokenTextSplitter(
+                separator=" ", chunk_size=chunks, chunk_overlap=30)
+    elif splitter == "token":  
+        splitter_o = SentenceSplitter(
+                separator=" ", paragraph_separator="\n", chunk_size=chunks, chunk_overlap=30)
+
     for document in documents:
-        
-        if splitter == "sentence":
-            text_chunks = brain.sentence_text_splitter.split_text(document.text)
-        elif splitter == "token":
-            text_chunks = brain.token_text_splitter.split_text(document.text)
+        text_chunks = splitter_o.split_text(document.text)
 
         doc_chunks = [Document(text=t, metadata=document.metadata) for t in text_chunks]
 
         for doc_chunk in doc_chunks:
             project.db.insert(doc_chunk)
+    
+    return len(doc_chunks)
 
 
 def ExtractKeywordsForMetadata(documents):
