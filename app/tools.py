@@ -6,6 +6,7 @@ from modules.loaders import LOADERS
 import yake
 import re
 import torch
+import time
 
 
 def IndexDocuments(brain, project, documents, splitter = "sentence", chunks = 256):
@@ -52,14 +53,24 @@ def FindFileLoader(ext, eargs={}):
 
 def FindEmbeddingsPath(projectName):
     embeddings_path = os.environ["EMBEDDINGS_PATH"]
+    embeddingsPathProject = None
+
+    if not os.path.exists(embeddings_path):
+        os.makedirs(embeddings_path)
+
     project_dirs = [d for d in os.listdir(
         embeddings_path) if os.path.isdir(os.path.join(embeddings_path, d))]
 
     for dir in project_dirs:
         if re.match(f'^{projectName}_[0-9]+$', dir):
-            return os.path.join(embeddings_path, dir)
+            embeddingsPathProject = os.path.join(embeddings_path, dir)
 
-    return None
+    if embeddingsPathProject is None:
+        embeddingsPathProject = os.path.join(
+            embeddings_path, projectName + "_" + str(int(time.time())))
+        os.mkdir(embeddingsPathProject)
+
+    return embeddingsPathProject
 
 
 def loadEnvVars():

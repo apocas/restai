@@ -24,22 +24,10 @@ class Project:
 
     def boot(self, model: ProjectModel):
         self.model = model
-        self.initializePaths()
+        FindEmbeddingsPath(self.model.name)
 
     def delete(self):
         vector_delete(self)
-
-    def initializePaths(self):
-        if not os.path.exists(os.environ["EMBEDDINGS_PATH"]):
-            os.makedirs(os.environ["EMBEDDINGS_PATH"])
-
-        embeddingsPath = FindEmbeddingsPath(self.model.name)
-
-        if embeddingsPath is None:
-            embeddingsPath = os.path.join(
-                os.environ["EMBEDDINGS_PATH"], self.model.name + "_" + str(int(time.time())))
-            os.mkdir(embeddingsPath)
-
 
     def loadChat(self, chatModel):
         current_time = datetime.datetime.now()
