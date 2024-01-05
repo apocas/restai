@@ -18,9 +18,9 @@ prod:
 
 .PHONY: install
 install:
+	poetry install
 	git clone https://github.com/apocas/restai-frontend frontend
 	cd frontend && npm install
-	poetry install
 
 .PHONY: installgpu
 installgpu:

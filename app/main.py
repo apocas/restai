@@ -2,27 +2,31 @@ import base64
 import json
 import logging
 import os
+from pathlib import Path
 import re
 from tempfile import NamedTemporaryFile
 import traceback
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 import httpx
-from langchain.document_loaders import (
-    SeleniumURLLoader,
-)
+from llama_index.query_engine import RetrieverQueryEngine
+from llama_index.postprocessor import SimilarityPostprocessor
 from dotenv import load_dotenv
+from llama_index import ServiceContext
 import requests
 from app.auth import get_current_username, get_current_username_admin, get_current_username_project, get_current_username_user
 from app.brain import Brain
 from app.database import dbc, get_db
 import urllib.parse
+from app.loaders.url import SeleniumWebReader
+
+from llama_index.retrievers import VectorIndexRetriever
 
 from app.models import ChatResponse, FindModel, IngestResponse, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from app.vectordb import vector_delete_source, vector_find_source, vector_info, vector_list_source, vector_reset, vector_save, vector_list, vector_find_id
-from langchain_core.documents import Document
+from llama_index import Document
 
 from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
@@ -37,7 +41,6 @@ from starlette.requests import Request
 from starlette.responses import StreamingResponse
 from starlette.background import BackgroundTask
 
-
 load_dotenv()
 loadEnvVars()
 
@@ -46,7 +49,7 @@ logging.basicConfig(level=os.environ["LOG_LEVEL"])
 app = FastAPI(
     title="RestAI",
     description="Modular REST API bootstrap on top of LangChain. Create embeddings associated with a project tenant and interact using a LLM. RAG as a service.",
-    version="3.3.0",
+    version="4.0.0",
     contact={
         "name": "Pedro Dias",
         "url": "https://github.com/apocas/restai",
@@ -118,7 +121,7 @@ async def get_user(username: str, user: User = Depends(get_current_username_user
 
 
 @app.get("/users", response_model=list[User])
-def get_users(
+async def get_users(
         user: User = Depends(get_current_username_admin),
         db: Session = Depends(get_db)):
     users = dbc.get_users(db)
@@ -126,7 +129,7 @@ def get_users(
 
 
 @app.post("/users", response_model=User)
-def create_user(userc: UserCreate,
+async def create_user(userc: UserCreate,
                 user: User = Depends(get_current_username_admin),
                 db: Session = Depends(get_db)):
     try:
@@ -147,7 +150,7 @@ def create_user(userc: UserCreate,
 
 
 @app.patch("/users/{username}", response_model=User)
-def update_user(
+async def update_user(
         username: str,
         userc: UserUpdate,
         user: User = Depends(get_current_username_user),
@@ -178,7 +181,7 @@ def update_user(
 
 
 @app.delete("/users/{username}")
-def delete_user(username: str,
+async def delete_user(username: str,
                 user: User = Depends(get_current_username_admin),
                 db: Session = Depends(get_db)):
     try:
@@ -222,7 +225,7 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
         llm_class, llm_args, prompt, llm_privacy, description, llm_type, llm_node = LLMS[
             project.model.llm]
 
-        docs, metas = vector_info(project)
+        chunks = vector_info(project)
 
         output = ProjectInfo(
             name=project.model.name,
@@ -237,8 +240,7 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             k=project.model.k,
             sandbox_project=project.model.sandbox_project,
             vectorstore=project.model.vectorstore,)
-        output.documents = docs
-        output.metadatas = metas
+        output.chunks = chunks
 
         return output
     except Exception as e:
@@ -346,7 +348,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
 
 
 @app.post("/projects/{projectName}/embeddings/reset")
-def reset_embeddings(
+async def reset_embeddings(
         projectName: str,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
@@ -364,28 +366,40 @@ def reset_embeddings(
 
 
 @app.post("/projects/{projectName}/embeddings/search")
-def find_embedding(projectName: str, embedding: FindModel,
+async def find_embedding(projectName: str, embedding: FindModel,
                    user: User = Depends(get_current_username_project),
                    db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
     output = []
 
+
     if (embedding.text):
-        retriever = project.db.as_retriever(
-            search_type="similarity_score_threshold",
-            search_kwargs={
-                "score_threshold": embedding.score or project.model.score or 0.2,
-                "k": embedding.k or project.model.k or 1})
+        k = embedding.k or project.model.k or 2
 
-        try:
-            docs = retriever.get_relevant_documents(embedding.text)
-        except BaseException:
-            docs = []
+        if (embedding.score  != None):
+            threshold = embedding.score
+        else:
+            threshold = embedding.score or project.model.score or 0.2
+     
 
-        for doc in docs:
-            if doc.metadata["source"] not in output:
-                output.append({"source": doc.metadata["source"], "id": ""})
+        retriever = VectorIndexRetriever(
+            index=project.db,
+            similarity_top_k=k,
+        )
+
+        query_engine = RetrieverQueryEngine.from_args(
+            retriever=retriever,
+            node_postprocessors=[SimilarityPostprocessor(
+                similarity_cutoff=threshold)],
+            response_mode="no_text"
+        )
+
+        response = query_engine.query(embedding.text)
+
+        for node in response.source_nodes:
+            output.append({"source": node.metadata["source"], "score": node.score, "id": node.node_id})
+
     elif (embedding.source):
         output = vector_list_source(project, embedding.source)
 
@@ -393,34 +407,32 @@ def find_embedding(projectName: str, embedding: FindModel,
 
 
 @app.get("/projects/{projectName}/embeddings/source/{source}")
-def get_embedding(projectName: str, source: str,
+async def get_embedding(projectName: str, source: str,
                   user: User = Depends(get_current_username_project),
                   db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    docs = vector_find_source(project, base64.b64decode(source).decode('utf-8'))
+    docs = vector_find_source(
+        project, base64.b64decode(source).decode('utf-8'))
 
     if (len(docs['ids']) == 0):
         return {"ids": []}
     else:
         return docs
-    
+
+
 @app.get("/projects/{projectName}/embeddings/id/{id}")
-def get_embedding(projectName: str, id: str,
+async def get_embedding(projectName: str, id: str,
                   user: User = Depends(get_current_username_project),
                   db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
-    docs = vector_find_id(project, id)
-
-    if (len(docs['ids']) == 0):
-        return {"ids": []}
-    else:
-        return docs
+    chunk = vector_find_id(project, id)
+    return chunk
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/text", response_model=IngestResponse)
-def ingest_text(projectName: str, ingest: TextIngestModel,
+async def ingest_text(projectName: str, ingest: TextIngestModel,
                 user: User = Depends(get_current_username_project),
                 db: Session = Depends(get_db)):
 
@@ -428,7 +440,7 @@ def ingest_text(projectName: str, ingest: TextIngestModel,
         project = brain.findProject(projectName, db)
 
         metadata = {"source": ingest.source}
-        documents = [Document(page_content=ingest.text, metadata=metadata)]
+        documents = [Document(text=ingest.text, metadata=metadata)]
 
         if ingest.keywords and len(ingest.keywords) > 0:
             for document in documents:
@@ -436,10 +448,13 @@ def ingest_text(projectName: str, ingest: TextIngestModel,
         else:
             documents = ExtractKeywordsForMetadata(documents)
 
-        ids = IndexDocuments(brain, project, documents)
+        #for document in documents:
+        #    document.text = document.text.decode('utf-8')
+
+        nchunks = IndexDocuments(brain, project, documents, ingest.splitter, ingest.chunks)
         vector_save(project)
 
-        return {"source": ingest.source, "documents": len(ids)}
+        return {"source": ingest.source, "documents": len(documents), "chunks": nchunks}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -448,25 +463,25 @@ def ingest_text(projectName: str, ingest: TextIngestModel,
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/url", response_model=IngestResponse)
-def ingest_url(projectName: str, ingest: URLIngestModel,
+async def ingest_url(projectName: str, ingest: URLIngestModel,
                user: User = Depends(get_current_username_project),
                db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
 
-        urls = vector_list(project, "url")["urls"]
+        urls = vector_list(project)["embeddings"]
         if (ingest.url in urls):
             raise Exception("URL already ingested. Delete first.")
 
-        loader = loader = SeleniumURLLoader(urls=[ingest.url])
+        loader = SeleniumWebReader()
 
-        documents = loader.load()
+        documents = loader.load_data(urls=[ingest.url])
         documents = ExtractKeywordsForMetadata(documents)
 
-        ids = IndexDocuments(brain, project, documents)
+        nchunks = IndexDocuments(brain, project, documents, ingest.splitter, ingest.chunks)
         vector_save(project)
 
-        return {"source": ingest.url, "documents": len(ids)}
+        return {"source": ingest.url, "documents": len(documents), "chunks": nchunks}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -475,7 +490,7 @@ def ingest_url(projectName: str, ingest: URLIngestModel,
 
 
 @app.post("/projects/{projectName}/embeddings/ingest/upload", response_model=IngestResponse)
-def ingest_file(
+async def ingest_file(
         projectName: str,
         file: UploadFile,
         options: str = Form("{}"),
@@ -484,7 +499,8 @@ def ingest_file(
     try:
         project = brain.findProject(projectName, db)
 
-        temp = NamedTemporaryFile(delete=False)
+        _, ext = os.path.splitext(file.filename or '')
+        temp = NamedTemporaryFile(delete=False, suffix=ext)
         try:
             contents = file.file.read()
             with temp as f:
@@ -495,24 +511,24 @@ def ingest_file(
         finally:
             file.file.close()
 
-        _, ext = os.path.splitext(file.filename or '')
+        opts = json.loads(urllib.parse.unquote(options))
 
-        loader = FindFileLoader(
-            temp.name, ext, json.loads(
-                urllib.parse.unquote(options)))
-        documents = loader.load()
+        loader = FindFileLoader(ext, opts)
+        documents = loader.load_data(file=Path(temp.name))
 
         for document in documents:
+            if  "filename" in document.metadata:
+                del document.metadata["filename"]
             document.metadata["source"] = file.filename
 
         documents = ExtractKeywordsForMetadata(documents)
 
-        ids = IndexDocuments(brain, project, documents)
+        nchunks = IndexDocuments(brain, project, documents)
         vector_save(project)
 
         return {
             "source": file.filename,
-            "documents": len(ids)}
+            "documents": len(documents), "chunks": nchunks}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -522,7 +538,7 @@ def ingest_file(
 
 
 @app.get('/projects/{projectName}/embeddings')
-def get_embeddings(
+async def get_embeddings(
         projectName: str,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
@@ -534,7 +550,7 @@ def get_embeddings(
 
 
 @app.delete('/projects/{projectName}/embeddings/{source}')
-def delete_embedding(
+async def delete_embedding(
         projectName: str,
         source: str,
         user: User = Depends(get_current_username_project),
@@ -548,7 +564,7 @@ def delete_embedding(
 
 
 @app.post("/projects/{projectName}/vision", response_model=QuestionResponse)
-def vision_query(
+async def vision_query(
         projectName: str,
         input: VisionModel,
         user: User = Depends(get_current_username_project),
@@ -601,7 +617,7 @@ async def question_query(
         project = brain.findProject(projectName, db)
         llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
             project.model.llm]
-        if llm_node != os.environ["RESTAI_NODE"]:
+        if llm_node != "node1" and llm_node != os.environ["RESTAI_NODE"]:
             client = httpx.AsyncClient(
                 base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
             url = httpx.URL(path=request.url.path.lstrip("/"),
@@ -618,18 +634,7 @@ async def question_query(
                 background=BackgroundTask(rp_resp.aclose),
             )
         else:
-            answer, docs = brain.entryQuestion(projectName, input, db)
-
-            sources = [{"content": doc.page_content,
-                        "keywords": doc.metadata.get("keywords", ""),
-                        "source": doc.metadata.get("source", "")} for doc in docs]
-
-            output = {
-                "question": input.question,
-                "answer": answer,
-                "sources": sources,
-                "type": "question"
-            }
+            output, censored = brain.entryQuestion(projectName, input, db)
 
             logs_inference.info({"user": user.username, "output": output})
 
@@ -656,7 +661,7 @@ async def chat_query(
         project = brain.findProject(projectName, db)
         llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
             project.model.llm]
-        if llm_node != os.environ["RESTAI_NODE"]:
+        if llm_node != "node1" and llm_node != os.environ["RESTAI_NODE"]:
             client = httpx.AsyncClient(
                 base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
             url = httpx.URL(path=request.url.path.lstrip("/"),
@@ -673,21 +678,7 @@ async def chat_query(
                 background=BackgroundTask(rp_resp.aclose),
             )
         else:
-            chat, output = brain.entryChat(projectName, input, db)
-
-            docs = output["source_documents"]
-            answer = output["answer"].strip()
-
-            sources = [{"content": doc.page_content,
-                        "keywords": doc.metadata.get("keywords", ""),
-                        "source": doc.metadata.get("source", "")} for doc in docs]
-
-            output = {
-                "question": input.question,
-                "answer": answer,
-                "id": chat.id,
-                "sources": sources,
-                "type": "chat"}
+            output = brain.entryChat(projectName, input, db)
 
             logs_inference.info({"user": user.username, "output": output})
 

@@ -168,7 +168,6 @@ uploads/*
 !uploads/.gitkeep
 .DS_Store
 pytest.ini
-frontend/html/*
 .env
 .local
 restai.db

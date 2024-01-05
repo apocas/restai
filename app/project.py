@@ -7,6 +7,8 @@ import time
 from app.chat import Chat
 from app.models import ProjectModel
 
+from llama_index.memory import ChatMemoryBuffer
+
 from langchain.vectorstores import Chroma
 
 from app.tools import FindEmbeddingsPath
@@ -51,4 +53,5 @@ class Project:
 
         chat = Chat(chatModel)
         self.chats.append(chat)
+
         return chat

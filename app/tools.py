@@ -1,25 +1,30 @@
 import logging
 import os
-from fastapi import HTTPException
+from llama_index.text_splitter import TokenTextSplitter, SentenceSplitter
+from llama_index import Document, download_loader
 from modules.loaders import LOADERS
 import yake
 import re
 import torch
 
 
-def IndexDocuments(brain, project, documents):
-    docs = brain.text_splitter.split_documents(documents)
+def IndexDocuments(brain, project, documents, splitter = "sentence", chunks = 256):
+    if splitter == "sentence":
+        splitter_o = TokenTextSplitter(
+                separator=" ", chunk_size=chunks, chunk_overlap=30)
+    elif splitter == "token":  
+        splitter_o = SentenceSplitter(
+                separator=" ", paragraph_separator="\n", chunk_size=chunks, chunk_overlap=30)
 
-    texts = [doc.page_content for doc in docs]
-    metadatas = [doc.metadata for doc in docs]
+    for document in documents:
+        text_chunks = splitter_o.split_text(document.text)
 
-    for metadata in metadatas:
-        for key, value in list(metadata.items()):
-            if key == 'languages' or value is None:
-                del metadata[key]
+        doc_chunks = [Document(text=t, metadata=document.metadata) for t in text_chunks]
 
-    ids = project.db.add_texts(texts=texts, metadatas=metadatas)
-    return ids
+        for doc_chunk in doc_chunks:
+            project.db.insert(doc_chunk)
+    
+    return len(doc_chunks)
 
 
 def ExtractKeywordsForMetadata(documents):
@@ -28,7 +33,7 @@ def ExtractKeywordsForMetadata(documents):
     kw_extractor = yake.KeywordExtractor(n=max_ngram_size, top=numOfKeywords)
     for document in documents:
         metadataKeywords = ""
-        keywords = kw_extractor.extract_keywords(document.page_content)
+        keywords = kw_extractor.extract_keywords(document.text)
         for kw in keywords:
             metadataKeywords = metadataKeywords + kw[0] + ", "
         document.metadata["keywords"] = metadataKeywords
@@ -36,11 +41,11 @@ def ExtractKeywordsForMetadata(documents):
     return documents
 
 
-def FindFileLoader(filepath, ext, eargs={}):
+def FindFileLoader(ext, eargs={}):
     if ext in LOADERS:
-        loader_class, loader_args = LOADERS[ext]
-        loader_args.update(eargs)
-        return loader_class(filepath, **loader_args)
+        loader_name, loader_args = LOADERS[ext]
+        loader = download_loader(loader_name)()
+        return loader
     else:
         raise Exception("Invalid file type.")
 

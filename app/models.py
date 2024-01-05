@@ -1,19 +1,23 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Union
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional, Union
 
 
 class URLIngestModel(BaseModel):
     url: str
+    splitter: str = "sentence"
+    chunks: int = 256
 
 
 class TextIngestModel(BaseModel):
     text: str
     source: str
+    splitter: str = "sentence"
+    chunks: int = 256
     keywords: Union[list[str], None] = None
 
 
 class FindModel(BaseModel):
-    source: Union[str, None] = None,
+    source: Union[str, None] = None
     text: Union[str, None] = None
     score: Union[float, None] = None
     k: Union[int, None] = None
@@ -21,7 +25,7 @@ class FindModel(BaseModel):
 
 class InteractionModel(BaseModel):
     score: Union[float, None] = None
-    k: Union[int, None] = None
+    k: Optional[int] = Field(None, ge=1, le=25)
 
 
 class QuestionModel(InteractionModel):
@@ -47,8 +51,8 @@ class ProjectModel(BaseModel):
     system: Union[str, None] = None
     sandboxed: Union[bool, None] = None
     censorship: Union[str, None] = None
-    score: float = 0.2
-    k: int = 1
+    score: float = 0.3
+    k: int = 2
     sandbox_project: Union[str, None] = None
     llm_type: Union[str, None] = None
     llm_privacy: Union[str, None] = None
@@ -57,8 +61,7 @@ class ProjectModel(BaseModel):
 
 
 class ProjectInfo(ProjectModel):
-    documents: int = 0
-    metadatas: int = 0
+    chunks: int = 0
     llm_type: str
     llm_privacy: str
 
@@ -107,9 +110,10 @@ class ProjectModelUpdate(BaseModel):
 
 class SourceModel(BaseModel):
     source: str
-    content: str
     keywords: str
-
+    text: str
+    score: float
+    id: str
 
 class QuestionResponse(BaseModel):
     question: str
@@ -126,3 +130,4 @@ class ChatResponse(QuestionResponse):
 class IngestResponse(BaseModel):
     source: str
     documents: int
+    chunks: int
