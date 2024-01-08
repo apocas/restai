@@ -27,7 +27,7 @@ from app.loaders.url import SeleniumWebReader
 
 from llama_index.retrievers import VectorIndexRetriever
 
-from app.models import ChatResponse, FindModel, IngestResponse, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel
+from app.models import ChatResponse, FindModel, IngestResponse, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel, VisionResponse
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -271,7 +271,7 @@ async def delete_project(projectName: str, user: User = Depends(get_current_user
 
 @app.patch("/projects/{projectName}")
 async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
-    if projectModelUpdate is not None and projectModelUpdate.llm not in LLMS:
+    if projectModelUpdate.llm is not None and projectModelUpdate.llm not in LLMS:
         raise HTTPException(
             status_code=404,
             detail='LLM not found')
@@ -567,7 +567,7 @@ async def delete_embedding(
     return {"deleted": len(ids)}
 
 
-@app.post("/projects/{projectName}/vision", response_model=QuestionResponse)
+@app.post("/projects/{projectName}/vision", response_model=VisionResponse)
 async def vision_query(
         projectName: str,
         input: VisionModel,

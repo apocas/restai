@@ -115,12 +115,16 @@ class SourceModel(BaseModel):
     score: float
     id: str
 
+
 class QuestionResponse(BaseModel):
     question: str
     answer: str
-    image: Union[str, None] = None
     type: str
     sources: list[SourceModel]
+
+
+class VisionResponse(QuestionResponse):
+    image: Union[str, None] = None
 
 
 class ChatResponse(QuestionResponse):
