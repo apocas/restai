@@ -7,14 +7,17 @@ class Project {
   protected $modem;
   protected $llm;
   protected $embeddings;
+  protected $type;
 
-  public function __construct($name, $url, $username, $password) {
+  public function __construct($name, $type, $url, $username, $password) {
     $this->name = $name;
+    $this->type = $type;
     $this->modem = new Modem($url, $username, $password);
   }
 
   public function create($opts) {
     $opts['name'] = $this->name;
+    $opts['type'] = $this->type;
     return $this->modem->execute('POST', '/projects', $opts);
   }
 

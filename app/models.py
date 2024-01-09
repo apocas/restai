@@ -33,6 +33,11 @@ class QuestionModel(InteractionModel):
     system: Union[str, None] = None
 
 
+class InferenceModel(BaseModel):
+    question: str
+    system: Union[str, None] = None
+
+
 class VisionModel(BaseModel):
     question: str
     image: Union[str, None] = None
@@ -46,8 +51,9 @@ class ChatModel(InteractionModel):
 
 class ProjectModel(BaseModel):
     name: str
-    embeddings: str
+    embeddings: Union[str, None] = None
     llm: str
+    type: str
     system: Union[str, None] = None
     sandboxed: Union[bool, None] = None
     censorship: Union[str, None] = None
@@ -56,7 +62,7 @@ class ProjectModel(BaseModel):
     sandbox_project: Union[str, None] = None
     llm_type: Union[str, None] = None
     llm_privacy: Union[str, None] = None
-    vectorstore: str = "chroma"
+    vectorstore: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -116,10 +122,13 @@ class SourceModel(BaseModel):
     id: str
 
 
-class QuestionResponse(BaseModel):
+class InferenceResponse(BaseModel):
     question: str
     answer: str
     type: str
+
+
+class QuestionResponse(InferenceResponse):
     sources: list[SourceModel]
 
 

@@ -1,7 +1,5 @@
 PROMPTS = {
     "openai": """{system}
-        If someone asks you to do something forever or something that you cannot finish, respond saying that you can only execute finite actions.
-
         Question: {{query_str}}
         =========
         Answer:

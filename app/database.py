@@ -8,9 +8,10 @@ from app.models import User, UserUpdate
 
 
 if os.environ.get("MYSQL_PASSWORD"):
-    print("Using MySQL database.")
-    engine = create_engine('mysql+pymysql://' + (os.environ.get("MYSQL_USER") or "restai") + ':' + os.environ.get("MYSQL_PASSWORD") + '@' + (
-    os.environ.get("MYSQL_HOST") or "127.0.0.1") + '/' + (os.environ.get("MYSQL_DB") or "restai"),
+    host = os.environ.get("MYSQL_HOST") or "127.0.0.1"
+    print("Using MySQL database: " + host)
+    engine = create_engine('mysql+pymysql://' + (os.environ.get("MYSQL_USER") or "restai") + ':' + os.environ.get("MYSQL_PASSWORD") + '@' + 
+    host + '/' + (os.environ.get("MYSQL_DB") or "restai"),
                            pool_size=30,
                            max_overflow=100,
                            pool_recycle=900)
@@ -126,7 +127,8 @@ class Database:
             system,
             sandboxed,
             censorship,
-            vectorstore):
+            vectorstore,
+            type):
         db_project = ProjectDatabase(
             name=name,
             embeddings=embeddings,
@@ -134,7 +136,8 @@ class Database:
             system=system,
             sandboxed=sandboxed,
             censorship=censorship,
-            vectorstore=vectorstore)
+            vectorstore=vectorstore,
+            type=type)
         db.add(db_project)
         db.commit()
         db.refresh(db_project)

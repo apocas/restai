@@ -24,7 +24,8 @@ class Project:
 
     def boot(self, model: ProjectModel):
         self.model = model
-        FindEmbeddingsPath(self.model.name)
+        if self.model.type == "rag":
+            FindEmbeddingsPath(self.model.name)
 
     def delete(self):
         vector_delete(self)

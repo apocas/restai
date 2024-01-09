@@ -1,6 +1,7 @@
 import gc
 import os
 import threading
+import langchain
 from llama_index import ServiceContext
 from llama_index import (
     get_response_synthesizer,
@@ -30,6 +31,8 @@ from app.database import dbc
 from sqlalchemy.orm import Session
 from llama_index.llms import LangChainLLM
 from langchain.chat_models import ChatOpenAI
+
+from langchain.chains import LLMChain
 
 from modules.prompts import PROMPTS
 
@@ -175,6 +178,7 @@ class Brain:
             projectModel.sandboxed,
             projectModel.censorship,
             projectModel.vectorstore,
+            projectModel.type,
         )
         project = Project()
         project.boot(projectModel)
@@ -490,3 +494,32 @@ class Brain:
             pass
 
         return output, [], image
+
+    def inference(self, projectName, inferenceModel, db: Session):
+        project = self.findProject(projectName, db)
+        if project is None:
+            raise Exception("Project not found")
+        
+        model, loaded = self.getLLM(project.model.llm)
+
+        prompt_template_txt = PROMPTS[model.prompt]
+        sysTemplate = inferenceModel.system or project.model.system or self.defaultSystem
+        prompt_template = prompt_template_txt.format(system=sysTemplate)
+
+        prompt = langchain.prompts.PromptTemplate(
+            template=prompt_template, input_variables=["query_str"]
+        )
+        chain = LLMChain(llm=model.llm, prompt=prompt)
+        inputs = [{"query_str": inferenceModel.question}]
+        resp = chain.apply(inputs)
+
+        output = {
+            "question": inferenceModel.question,
+            "answer": resp[0]["text"].strip(),
+            "type": "inference"
+        }
+
+        if loaded == True:
+            self.semaphore.release()
+
+        return output
