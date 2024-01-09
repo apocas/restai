@@ -2,8 +2,8 @@
 
 require_once('Project.php');
 
-//project name, url, username, password
-$proj = new Project('phptest', 'http://restai.local', 'username', 'password');
+//project name, type, url, username, password
+$proj = new Project('phptest', 'rag', 'http://restai.local', 'username', 'password');
 
 https://ai.ptisp.systems/docs#/default/create_project_projects_post
 $output = $proj->create(array("llm" => "openai_gpt4_turbo", "embeddings" => "all-mpnet-base-v2", "vectorstore" => "redis"));

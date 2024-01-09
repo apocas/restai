@@ -17,7 +17,6 @@ import httpx
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.postprocessor import SimilarityPostprocessor
 
-from llama_index import ServiceContext
 import requests
 from app.auth import get_current_username, get_current_username_admin, get_current_username_project, get_current_username_user
 from app.brain import Brain
@@ -27,7 +26,7 @@ from app.loaders.url import SeleniumWebReader
 
 from llama_index.retrievers import VectorIndexRetriever
 
-from app.models import ChatResponse, FindModel, IngestResponse, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel, VisionResponse
+from app.models import ChatResponse, FindModel, InferenceModel, InferenceResponse, IngestResponse, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel, VisionResponse
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -243,7 +242,8 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             score=project.model.score,
             k=project.model.k,
             sandbox_project=project.model.sandbox_project,
-            vectorstore=project.model.vectorstore,)
+            vectorstore=project.model.vectorstore,
+            type=project.model.type,)
         output.chunks = chunks
 
         return output
@@ -309,7 +309,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
     projectModel.name = unidecode(
         projectModel.name.strip().lower().replace(" ", "_"))
 
-    if projectModel.embeddings not in EMBEDDINGS:
+    if projectModel.type == "rag" and projectModel.embeddings not in EMBEDDINGS:
         raise HTTPException(
             status_code=404,
             detail='Embeddings not found')
@@ -359,6 +359,9 @@ async def reset_embeddings(
     try:
         project = brain.findProject(projectName, db)
 
+        if project.model.type != "rag":
+            raise HTTPException(status_code=400, detail='{"error": "Only available for RAG projects."}')
+
         vector_reset(brain, project)
 
         return {"project": project.model.name}
@@ -374,6 +377,9 @@ async def find_embedding(projectName: str, embedding: FindModel,
                    user: User = Depends(get_current_username_project),
                    db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
+
+    if project.model.type != "rag":
+        raise HTTPException(status_code=400, detail='{"error": "Only available for RAG projects."}')
 
     output = []
 
@@ -416,6 +422,9 @@ async def get_embedding(projectName: str, source: str,
                   db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
+    if project.model.type != "rag":
+        raise HTTPException(status_code=400, detail='{"error": "Only available for RAG projects."}')
+
     docs = vector_find_source(
         project, base64.b64decode(source).decode('utf-8'))
 
@@ -431,6 +440,9 @@ async def get_embedding(projectName: str, id: str,
                   db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
+    if project.model.type != "rag":
+        raise HTTPException(status_code=400, detail='{"error": "Only available for RAG projects."}')
+
     chunk = vector_find_id(project, id)
     return chunk
 
@@ -442,6 +454,9 @@ async def ingest_text(projectName: str, ingest: TextIngestModel,
 
     try:
         project = brain.findProject(projectName, db)
+
+        if project.model.type != "rag":
+            raise HTTPException(status_code=400, detail='{"error": "Only available for RAG projects."}')
 
         metadata = {"source": ingest.source}
         documents = [Document(text=ingest.text, metadata=metadata)]
@@ -473,6 +488,9 @@ async def ingest_url(projectName: str, ingest: URLIngestModel,
     try:
         project = brain.findProject(projectName, db)
 
+        if project.model.type != "rag":
+            raise HTTPException(status_code=400, detail='{"error": "Only available for RAG projects."}')
+
         urls = vector_list(project)["embeddings"]
         if (ingest.url in urls):
             raise Exception("URL already ingested. Delete first.")
@@ -503,6 +521,10 @@ async def ingest_file(
     try:
         project = brain.findProject(projectName, db)
 
+        if project.model.type != "rag":
+            raise HTTPException(status_code=400, detail='{"error": "Only available for RAG projects."}')
+
+
         _, ext = os.path.splitext(file.filename or '')
         temp = NamedTemporaryFile(delete=False, suffix=ext)
         try:
@@ -510,8 +532,7 @@ async def ingest_file(
             with temp as f:
                 f.write(contents)
         except Exception:
-            raise HTTPException(
-                status_code=500, detail='{"error": "Error while saving file."}')
+            raise HTTPException(status_code=500, detail='{"error": "Error while saving file."}')
         finally:
             file.file.close()
 
@@ -548,6 +569,9 @@ async def get_embeddings(
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
+    if project.model.type != "rag":
+        raise HTTPException(status_code=400, detail='{"error": "Only available for RAG projects."}')
+
     output = vector_list(project)
 
     return output
@@ -560,6 +584,9 @@ async def delete_embedding(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
+
+    if project.model.type != "rag":
+        raise HTTPException(status_code=400, detail='{"error": "Only available for RAG projects."}')
 
     ids = vector_delete_source(
         project, base64.b64decode(source).decode('utf-8'))
@@ -575,6 +602,11 @@ async def vision_query(
         db: Session = Depends(get_db)):
 
     try:
+        project = brain.findProject(projectName, db)
+
+        if project.model.type != "vision":
+            raise HTTPException(status_code=400, detail='{"error": "Only available for VISION projects."}')
+    
         if input.image:
             url_pattern = re.compile(
                 r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
@@ -619,6 +651,10 @@ async def question_query(
         db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
+
+        if project.model.type != "rag":
+            raise HTTPException(status_code=400, detail='{"error": "Only available for RAG projects."}')
+
         llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
             project.model.llm]
         if llm_node != "node1" and llm_node != os.environ["RESTAI_NODE"]:
@@ -663,6 +699,10 @@ async def chat_query(
         db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
+
+        if project.model.type != "rag":
+            raise HTTPException(status_code=400, detail='{"error": "Only available for RAG projects."}')
+
         llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
             project.model.llm]
         if llm_node != "node1" and llm_node != os.environ["RESTAI_NODE"]:
@@ -683,6 +723,54 @@ async def chat_query(
             )
         else:
             output = brain.entryChat(projectName, input, db)
+
+            logs_inference.info({"user": user.username, "output": output})
+
+            return output
+    except Exception as e:
+        try:
+            brain.semaphore.release()
+        except ValueError:
+            pass
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=500, detail=str(e))
+    
+
+@app.post("/projects/{projectName}/inference", response_model=InferenceResponse)
+async def question_query(
+        request: Request,
+        projectName: str,
+        input: InferenceModel,
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
+    try:
+        project = brain.findProject(projectName, db)
+
+        if project.model.type != "inference":
+            raise HTTPException(status_code=400, detail='{"error": "Only available for INFERENCE projects."}')
+
+        llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
+            project.model.llm]
+        if llm_node != "node1" and llm_node != os.environ["RESTAI_NODE"]:
+            client = httpx.AsyncClient(
+                base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
+            url = httpx.URL(path=request.url.path.lstrip("/"),
+                            query=request.url.query.encode("utf-8"))
+            rp_req = client.build_request(request.method, url,
+                                          headers=request.headers.raw,
+                                          content=await request.body())
+            rp_req.headers["host"] = llm_node + os.environ["RESTAI_HOST"]
+            rp_resp = await client.send(rp_req, stream=True)
+            return StreamingResponse(
+                rp_resp.aiter_raw(),
+                status_code=rp_resp.status_code,
+                headers=rp_resp.headers,
+                background=BackgroundTask(rp_resp.aclose),
+            )
+        else:
+            output = brain.inference(projectName, input, db)
 
             logs_inference.info({"user": user.username, "output": output})
 

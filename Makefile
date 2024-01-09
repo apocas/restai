@@ -1,6 +1,5 @@
 .PHONY: start
 start:
-#uvicorn app.main:app --host 0.0.0.0 --port 9000
 	poetry run python main.py
 
 #make remote host=user@1.2.3.4 path=/home/user/restai/
