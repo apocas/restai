@@ -164,7 +164,8 @@ class Brain:
         if proj is not None:
             project = Project()
             project.model = proj
-            project.db = vector_init(self, project)
+            if project.model.type == "rag":
+                project.db = vector_init(self, project)
             self.projects.append(project)
             return project
 
