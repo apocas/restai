@@ -7,10 +7,6 @@ import time
 from app.chat import Chat
 from app.models import ProjectModel
 
-from llama_index.memory import ChatMemoryBuffer
-
-from langchain.vectorstores import Chroma
-
 from app.tools import FindEmbeddingsPath
 from app.vectordb import vector_delete
 

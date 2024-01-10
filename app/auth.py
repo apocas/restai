@@ -1,5 +1,3 @@
-import secrets
-from typing import Annotated
 from fastapi import Depends, HTTPException
 
 from fastapi.security import HTTPBasic, HTTPBasicCredentials

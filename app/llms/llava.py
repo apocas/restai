@@ -1,8 +1,6 @@
 import base64
-import gc
 from io import BytesIO
 import os
-import requests
 from PIL import Image
 import torch
 
