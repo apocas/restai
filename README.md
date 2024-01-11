@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/main/readme/assets/restai-logo.png"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai-logo.png"/>
 </div>
 
 <h1 align="center">RestAI</h1>
@@ -11,5 +11,5 @@
 
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/main/readme/assets/out.gif"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/out.gif"/>
 </div>
