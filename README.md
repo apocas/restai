@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai-logo.png"/>
-  RestAI
+  </br>RestAI
 </h1>
 
 
