@@ -4,7 +4,7 @@
 </h1>
 
 <p align="center">
-  <strong>An AI framework built using LLamaindex, Langchain and Transformers Pipes.</strong>
+  <strong>An AI framework built using Langchain, LLamaindex and Transformers Pipes.</strong>
 </p>
 
 <p align="center">
