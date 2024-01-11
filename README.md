@@ -50,8 +50,8 @@
 #### LLaVA
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/llava.png" width="50%"  style="margin: 10px;"/>
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/vision_sd.png" width="50%"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/llava.png" width="40%"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/vision_sd.png" width="40%"  style="margin: 10px;"/>
 </div>
 
 #### Stable Diffusion
