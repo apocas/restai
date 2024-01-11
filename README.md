@@ -1,8 +1,7 @@
-<div align="center">
+<h1 align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai-logo.png"/>
-</div>
-
-<p align="center" style="font-size:40px; font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen,Ubuntu,Cantarell,Fira Sans,Droid Sans,Helvetica Neue,sans-serif;">RestAI</p>
+  RestAI
+</h1>
 
 
 <p align="center">
