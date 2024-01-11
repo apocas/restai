@@ -5,8 +5,11 @@
 
 <p align="center">
   <strong>An AI framework built using LLamaindex, Langchain and Transformers Pipes.</strong>
-  Demo: <a href="https://ai.ince.pt">https://ai.ince.pt</a> Username: <code>demo</code> Password: <code>demo</code>
 </p>
+
+<h2>
+  Demo: <a href="https://ai.ince.pt">https://ai.ince.pt</a> Username: <code>demo</code> Password: <code>demo</code>
+</h2>
 
 <p align="center">
   AIaaS (AI as a Service) for everyone. Create projects and consume them using a simple REST API.
