@@ -2,7 +2,7 @@
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai-logo.png"/>
 </div>
 
-<h1 align="center" style="margin-top: -20px;">RestAI</h1>
+<p align="center">RestAI</p>
 
 
 <p align="center">
