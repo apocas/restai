@@ -28,7 +28,7 @@ class LlavaLLM:
     def llavaInference(self, prompt, imageb64):
         raw_image = Image.open(BytesIO(base64.b64decode(imageb64)))
         
-        inputs = self.processor(prompt, raw_image, return_tensors='pt').to(os.environ.get("RESTAI_DEFAULT_DEVICE") or '0', torch.float16)
+        inputs = self.processor(prompt, raw_image, return_tensors='pt').to(os.environ.get("RESTAI_DEFAULT_DEVICE") or 'cuda:0', torch.float16)
 
         output_tensor = self.model.generate(**inputs, max_new_tokens=200, do_sample=False)
         output = self.processor.decode(output_tensor[0][2:], skip_special_tokens=True)
