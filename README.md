@@ -72,4 +72,26 @@
 * make install
 * make prod
 
-## API [(Swagger)](https://apocas.github.io/restai/):
+## API
+
+*[Swagger](https://apocas.github.io/restai/):
+
+## Frontend
+
+* There is a frontend available at [https://github.com/apocas/restai-frontend](https://github.com/apocas/restai-frontend).
+* `make install` also installs the frontend.
+
+## Tests
+
+ * Tests are implemented using `pytest`. Run them with `make test`.
+ * Running on a Macmini M1 8gb takes around 5~10mins to run the HuggingFace tests. Which uses an local LLM and a local embeddings model from HuggingFace.
+
+## License
+
+Pedro Dias - [@pedromdias](https://twitter.com/pedromdias)
+
+Licensed under the Apache license, version 2.0 (the "license"); You may not use this file except in compliance with the license. You may obtain a copy of the license at:
+
+    http://www.apache.org/licenses/LICENSE-2.0.html
+
+Unless required by applicable law or agreed to in writing, software distributed under the license is distributed on an "as is" basis, without warranties or conditions of any kind, either express or implied. See the license for the specific language governing permissions and limitations under the license.
