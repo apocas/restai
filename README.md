@@ -20,7 +20,7 @@
 - **Users**: A user represents a user of the system. It's used for authentication and authorization (basic auth). Each user may have access to multiple projects.
 - **LLMs**: You may use any LLM supported by langchain and/or transformers pipes.
 - **Prompts**: You may declare PROMPTs templates and then use these prompts in the LLMs.
-- **API**: All endpoints are documented using [Swagger](https://apocas.github.io/restai/).
+- **API**: The API is a first citizen of RestAI. All endpoints are documented using [Swagger](https://apocas.github.io/restai/).
 - **Frontend**: There is a frontend available at [restai-frontend](https://github.com/apocas/restai-frontend)
 
 ## Project Types
@@ -50,13 +50,14 @@
 #### LLaVA
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/llava.png" width="750"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/llava.png" width="50%"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/vision_sd.png" width="50%"  style="margin: 10px;"/>
 </div>
 
 #### Stable Diffusion
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/vision_sd.png" width="750"  style="margin: 10px;"/>
+  
 </div>
 
 ## LLMs
