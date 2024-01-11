@@ -5,6 +5,7 @@
 
 <p align="center">
   <strong>An AI framework built using LLamaindex, Langchain and Transformers Pipes.</strong>
+  Demo: <a href="https://ai.ince.pt">https://ai.ince.pt</a> Username: <code>demo</code> Password: <code>demo</code>
 </p>
 
 <p align="center">
@@ -32,7 +33,8 @@
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/rag.png" width="750"  style="margin: 10px;"/>
 </div>
 
-- **Embeddings**: You may use any embeddings supported by llamaindex.
+- **Embeddings**: You may use any embeddings model supported by llamaindex. Check embeddings [definition](modules/embeddings.py).
+- **Vectorstore**: There are two vectorstores supported: `Chroma` and `Redis`
 - **Search**: It features an embeddings search and score evaluator, which allows you to evaluate the quality of your embeddings and simulate the RAG process before the LLM.
 - **Loaders**: You may use any loader supported by llamaindex.
 - **Sandboxed mode**: RAG Projects have "sandboxed" mode, which means that a locked default answer will be given when there aren't embeddings for the provided question. This is useful for chatbots, where you want to provide a default answer when the LLM doesn't know how to answer the question, reduncing hallucination.
