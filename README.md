@@ -79,8 +79,8 @@
 
 ## Frontend
 
-* There is a frontend available at [https://github.com/apocas/restai-frontend](https://github.com/apocas/restai-frontend).
-* `make install` also installs the frontend.
+* Source code at [https://github.com/apocas/restai-frontend](https://github.com/apocas/restai-frontend).
+* `make install` automatically installs the frontend.
 
 ## Tests
 
