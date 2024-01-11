@@ -85,7 +85,6 @@
 ## Tests
 
  * Tests are implemented using `pytest`. Run them with `make test`.
- * Running on a Macmini M1 8gb takes around 5~10mins to run the HuggingFace tests. Which uses an local LLM and a local embeddings model from HuggingFace.
 
 ## License
 
