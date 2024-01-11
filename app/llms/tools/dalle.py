@@ -1,7 +1,7 @@
 import base64
 from langchain.tools import BaseTool
 from langchain.chains import LLMChain
-from langchain.llms import OpenAI
+from langchain.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from langchain.utilities.dalle_image_generator import DallEAPIWrapper
 import requests
@@ -19,7 +19,7 @@ class DalleImage(BaseTool):
     def _run(self, query: str, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
         
         if run_manager.tags[0].disableboost == False:
-            llm = OpenAI(temperature=0.9)
+            llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo")
             prompt = PromptTemplate(
                 input_variables=["image_desc"],
                 template="Generate a detailed prompt to generate an image based on the following description: {image_desc}",

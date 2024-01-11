@@ -1,5 +1,6 @@
 import base64
 import io
+import os
 from torch.multiprocessing import Process, set_start_method, Manager
 try:
     set_start_method('spawn')
@@ -7,7 +8,7 @@ except RuntimeError:
     pass
 from langchain.tools import BaseTool
 from langchain.chains import LLMChain
-from langchain.llms import OpenAI
+from langchain.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from diffusers import DiffusionPipeline
 import torch
@@ -21,7 +22,7 @@ def sd_worker(prompt, sharedmem):
     base = DiffusionPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16, variant="fp16", use_safetensors=True
     )
-    base.to("cuda")
+    base.to(os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda")
 
     refiner = DiffusionPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-refiner-1.0",
@@ -31,7 +32,7 @@ def sd_worker(prompt, sharedmem):
         use_safetensors=True,
         variant="fp16",
     )
-    refiner.to("cuda")
+    refiner.to(os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda")
 
     image = base(
         prompt=prompt,
@@ -61,7 +62,7 @@ class StableDiffusionImage(BaseTool):
 
     def _run(self, query: str, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
         if run_manager.tags[0].disableboost == False:
-            llm = OpenAI(temperature=0.9)
+            llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo")
             prompt = PromptTemplate(
                 input_variables=["image_desc"],
                 template="Generate a detailed prompt to generate an image based on the following description: {image_desc}",

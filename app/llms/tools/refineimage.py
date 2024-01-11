@@ -1,5 +1,6 @@
 import base64
 import io
+import os
 from pydantic import BaseModel
 from torch.multiprocessing import Process, set_start_method, Manager
 
@@ -26,8 +27,9 @@ def refine_worker(prompt, sharedmem):
         torch_dtype=torch.float16,
         use_safetensors=True,
         variant="fp16",
+        device_map=os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda:0",
     )
-    refiner.to("cuda")
+    refiner.to(os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda")
 
     image = refiner(
         prompt=prompt,
