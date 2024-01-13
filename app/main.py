@@ -289,7 +289,7 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
         if privacy != "private":
             raise HTTPException(
                 status_code=403,
-                detail='User allowed to private models only')
+                detail='User not allowed to use public models')
 
     try:
         if brain.editProject(projectName, projectModelUpdate, db):

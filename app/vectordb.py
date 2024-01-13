@@ -144,7 +144,7 @@ def vector_info(project):
         docs = collection.get(
             include=["metadatas"]
         )
-        return len(docs)
+        return len(docs["ids"])
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
             host=os.environ["REDIS_HOST"],
