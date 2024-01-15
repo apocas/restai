@@ -2,7 +2,7 @@ import gc
 import os
 import threading
 import langchain
-from llama_index import ServiceContext
+from llama_index import LLMPredictor, SQLDatabase, ServiceContext
 from llama_index import (
     get_response_synthesizer,
 )
@@ -13,6 +13,7 @@ from llama_index.postprocessor import SimilarityPostprocessor
 from llama_index.prompts import PromptTemplate
 from llama_index.chat_engine.condense_plus_context  import CondensePlusContextChatEngine
 from langchain.agents import initialize_agent
+from sqlalchemy import create_engine
 import torch
 from app.llms.llava import LlavaLLM
 from app.llms.loader import localLoader
@@ -31,6 +32,8 @@ from app.database import dbc
 from sqlalchemy.orm import Session
 from llama_index.llms import LangChainLLM
 from langchain.chat_models import ChatOpenAI
+from llama_index.indices.struct_store.sql_query import NLSQLTableQueryEngine
+
 
 from langchain.chains import LLMChain
 
@@ -180,6 +183,7 @@ class Brain:
             projectModel.censorship,
             projectModel.vectorstore,
             projectModel.type,
+            projectModel.connection,
         )
         project = Project()
         project.boot(projectModel)
@@ -219,6 +223,10 @@ class Brain:
 
         if projectModel.score is not None and proj_db.score != projectModel.score:
             proj_db.score = projectModel.score
+            changed = True
+
+        if projectModel.connection is not None and proj_db.system != projectModel.connection and "://xxxx:xxxx@" not in projectModel.connection:
+            proj_db.connection = projectModel.connection
             changed = True
 
         if projectModel.sandbox_project is not None and proj_db.sandbox_project != projectModel.sandbox_project:
@@ -518,6 +526,44 @@ class Brain:
             "question": inferenceModel.question,
             "answer": resp[0]["text"].strip(),
             "type": "inference"
+        }
+
+        if loaded == True:
+            self.semaphore.release()
+
+        return output
+    
+    def ragSQL(self, projectName, questionModel, db: Session):
+        project = self.findProject(projectName, db)
+        if project is None:
+            raise Exception("Project not found")
+        
+        model, loaded = self.getLLM(project.model.llm)
+
+        engine = create_engine(project.model.connection)
+
+        sql_database = SQLDatabase(engine)
+
+        llm_predictor = LLMPredictor(llm=model.llm)
+        service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
+
+        tables = None
+        if hasattr(questionModel, 'tables') and questionModel.tables is not None:
+            tables = questionModel.tables
+
+        query_engine = NLSQLTableQueryEngine(
+            sql_database=sql_database,
+            service_context=service_context,
+            tables=tables,
+        )
+
+        response = query_engine.query(questionModel.question)
+
+        output = {
+            "question": questionModel.question,
+            "answer": response.response,
+            "sources": [response.metadata['sql_query']],
+            "type": "questionsql"
         }
 
         if loaded == True:

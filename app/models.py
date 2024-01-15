@@ -32,6 +32,9 @@ class QuestionModel(InteractionModel):
     question: str
     system: Union[str, None] = None
 
+class RagSqlModel(BaseModel):
+    question: str
+    tables: Union[list[str], None] = None
 
 class InferenceModel(BaseModel):
     question: str
@@ -63,6 +66,7 @@ class ProjectModel(BaseModel):
     llm_type: Union[str, None] = None
     llm_privacy: Union[str, None] = None
     vectorstore: Union[str, None] = None
+    connection: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -112,6 +116,7 @@ class ProjectModelUpdate(BaseModel):
     score: Union[float, None] = None
     k: Union[int, None] = None
     sandbox_project: Union[str, None] = None
+    connection: Union[str, None] = None
 
 
 class SourceModel(BaseModel):
@@ -131,6 +136,8 @@ class InferenceResponse(BaseModel):
 class QuestionResponse(InferenceResponse):
     sources: list[SourceModel]
 
+class RagSqlResponse(InferenceResponse):
+    sources: list[str]
 
 class VisionResponse(QuestionResponse):
     image: Union[str, None] = None

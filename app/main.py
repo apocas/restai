@@ -26,7 +26,7 @@ from app.loaders.url import SeleniumWebReader
 
 from llama_index.retrievers import VectorIndexRetriever
 
-from app.models import ChatResponse, FindModel, InferenceModel, InferenceResponse, IngestResponse, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel, VisionResponse
+from app.models import ChatResponse, FindModel, InferenceModel, InferenceResponse, IngestResponse, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, RagSqlModel, RagSqlResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel, VisionResponse
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -243,8 +243,12 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             k=project.model.k,
             sandbox_project=project.model.sandbox_project,
             vectorstore=project.model.vectorstore,
-            type=project.model.type,)
+            type=project.model.type,
+            connection=project.model.connection,)
         output.chunks = chunks
+
+        if output.connection:
+            output.connection = re.sub(r'(?<=://).+?(?=@)', "xxxx:xxxx", output.connection)
 
         return output
     except Exception as e:
@@ -785,6 +789,53 @@ async def question_query(
         raise HTTPException(
             status_code=500, detail=str(e))
 
+
+@app.post("/projects/{projectName}/questionsql", response_model=RagSqlResponse)
+async def question_query(
+        request: Request,
+        projectName: str,
+        input: RagSqlModel,
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
+    try:
+        project = brain.findProject(projectName, db)
+
+        if project.model.type != "ragsql":
+            raise HTTPException(status_code=400, detail='{"error": "Only available for RAGSQL projects."}')
+
+        llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
+            project.model.llm]
+        if llm_node != "node1" and llm_node != os.environ["RESTAI_NODE"]:
+            client = httpx.AsyncClient(
+                base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
+            url = httpx.URL(path=request.url.path.lstrip("/"),
+                            query=request.url.query.encode("utf-8"))
+            rp_req = client.build_request(request.method, url,
+                                          headers=request.headers.raw,
+                                          content=await request.body())
+            rp_req.headers["host"] = llm_node + os.environ["RESTAI_HOST"]
+            rp_resp = await client.send(rp_req, stream=True)
+            return StreamingResponse(
+                rp_resp.aiter_raw(),
+                status_code=rp_resp.status_code,
+                headers=rp_resp.headers,
+                background=BackgroundTask(rp_resp.aclose),
+            )
+        else:
+            output = brain.ragSQL(projectName, input, db)
+
+            logs_inference.info({"user": user.username, "output": output})
+
+            return output
+    except Exception as e:
+        try:
+            brain.semaphore.release()
+        except ValueError:
+            pass
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=500, detail=str(e))
 
 try:
     app.mount("/admin/", StaticFiles(directory="frontend/html/",

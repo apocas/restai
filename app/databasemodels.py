@@ -44,5 +44,6 @@ class ProjectDatabase(Base):
     score = Column(Float, default=0.3)
     vectorstore = Column(String(255), default="chroma")
     sandbox_project = Column(String(255))
+    connection = Column(String(4096))
 
     owners = relationship("UserProjectDatabase", back_populates="project")

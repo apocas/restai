@@ -8,7 +8,7 @@ LLMS = {
     # "name": (LOADER, {"args": "here"}, "Prompt (check prompts.py)", "Privacy (public/private)", "Description...", "type (text/vision)", "Execution node", "chat/qa/both"),
 
     # "llama2_7b_cpp": (LlamaCpp, {"temperature": 0, "model_path": "./models/llama-2-7b.Q4_K_M.gguf"}, "llama", "private", "Llamacpp", "qa", "node1"),
-    "openai_gpt3.5": (ChatOpenAI, {"temperature": 0, "model_name": "gpt-3.5-turbo"}, "openai", "public", "OpenAI GPT-3.5 Turbo", "chat", "node1"),
+    "openai_gpt3.5_turbo": (ChatOpenAI, {"temperature": 0, "model_name": "gpt-3.5-turbo"}, "openai", "public", "OpenAI GPT-3.5 Turbo", "chat", "node1"),
     "openai_gpt4": (ChatOpenAI, {"temperature": 0, "model_name": "gpt-4"}, "openai", "public", "OpenAI GPT-4 ", "chat", "node1"),
     "openai_gpt4_turbo": (ChatOpenAI, {"temperature": 0, "model_name": "gpt-4-1106-preview"}, "openai", "public", "OpenAI GPT-4 Turbo", "chat", "node1"),
     "google_vertexai_bison": (ChatVertexAI, {"model_name": "chat-bison@002", "max_output_tokens": 1000, "temperature": 0.1}, "openai", "public", "Google Vertex AI chat-bison@002", "qa", "node1"),
