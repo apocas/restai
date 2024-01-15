@@ -473,7 +473,7 @@ class Brain:
             DescribeImage(),
         ]
 
-        model, loaded = self.getLLM("openai_gpt3.5", True)
+        model, loaded = self.getLLM("openai_gpt3.5_turbo", True)
 
         self.semaphore.acquire()
         self.unloadLLMs()
