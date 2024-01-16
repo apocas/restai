@@ -336,12 +336,13 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
                 status_code=403,
                 detail='User allowed to private models only')
 
-        embedding_class, embedding_args, embedding_privacy, embedding_description = EMBEDDINGS[
-            projectModel.embeddings]
-        if embedding_privacy != "private":
-            raise HTTPException(
-                status_code=403,
-                detail='User allowed to private models only')
+        if projectModel.type == "rag":
+            embedding_class, embedding_args, embedding_privacy, embedding_description = EMBEDDINGS[
+                projectModel.embeddings]
+            if embedding_privacy != "private":
+                raise HTTPException(
+                    status_code=403,
+                    detail='User allowed to private models only')
 
     try:
         project = brain.createProject(projectModel, db)
