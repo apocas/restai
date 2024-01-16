@@ -27,13 +27,12 @@ def refine_worker(prompt, sharedmem):
         torch_dtype=torch.float16,
         use_safetensors=True,
         variant="fp16",
-        device_map=os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda:0",
     )
     refiner.to(os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda")
 
     image = refiner(
         prompt=prompt,
-        num_inference_steps=5,
+        num_inference_steps=20,
         denoising_start=0.8,
         image=Image.open(io.BytesIO(base64.b64decode(sharedmem["model"].image))),
     ).images[0]
