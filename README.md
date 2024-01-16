@@ -20,7 +20,7 @@
 </div>
 
 ## Features
-- **Projects**: There are multiple types of projects, each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision))
+- **Projects**: There are multiple types of projects, each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision))
 - **Users**: A user represents a user of the system. It's used for authentication and authorization (basic auth). Each user may have access to multiple projects.
 - **LLMs**: You may use any LLM supported by langchain and/or transformers pipes.
 - **VRAM**: Automatic VRAM management. RestAI will manage the VRAM usage, automatically loading and unloading models as needed and requested.
@@ -41,6 +41,14 @@
 - **Search**: It features an embeddings search and score evaluator, which allows you to evaluate the quality of your embeddings and simulate the RAG process before the LLM.
 - **Loaders**: You may use any loader supported by llamaindex.
 - **Sandboxed mode**: RAG Projects have "sandboxed" mode, which means that a locked default answer will be given when there aren't embeddings for the provided question. This is useful for chatbots, where you want to provide a default answer when the LLM doesn't know how to answer the question, reduncing hallucination.
+
+### RAGSQL
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/ragsql.jpg" width="750"  style="margin: 10px;"/>
+</div>
+
+- **Connection**: Supply a mySQL or PostgreSQL connection string and it will automatically crawl the DB schema, using table and column names it’s able to figure out how to translate the question to sql and then write a response.
 
 ### Inference
 
