@@ -458,7 +458,7 @@ class Brain:
 
         return output, censored
 
-    def entryVision(self, projectName, visionInput, db: Session):
+    def entryVision(self, projectName, visionInput, isprivate, db: Session):
         image = None
         output = ""
 
@@ -472,6 +472,9 @@ class Brain:
             RefineImage(),
             DescribeImage(),
         ]
+
+        if isprivate:
+            tools.pop(0)
 
         model, loaded = self.getLLM("openai_gpt3.5_turbo", True)
 

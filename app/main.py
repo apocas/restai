@@ -623,7 +623,7 @@ async def vision_query(
                 image_data = response.content
                 input.image = base64.b64encode(image_data).decode('utf-8')
 
-        answer, docs, image = brain.entryVision(projectName, input, db)
+        answer, docs, image = brain.entryVision(projectName, input, user.is_private, db)
 
         output = {
             "question": input.question,
