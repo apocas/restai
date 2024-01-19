@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  AIaaS (AI as a Service) for everyone. Create projects and consume them using a simple REST API.
+  AIaaS (AI as a Service) for everyone. Create agents (projects) and consume them using a simple REST API.
 </p>
 
 <h2 align="center">
@@ -20,7 +20,7 @@
 </div>
 
 ## Features
-- **Projects**: There are multiple types of projects, each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision))
+- **Projects**: There are multiple types of agents (projects), each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision))
 - **Users**: A user represents a user of the system. It's used for authentication and authorization (basic auth). Each user may have access to multiple projects.
 - **LLMs**: You may use any LLM supported by langchain and/or transformers pipes.
 - **VRAM**: Automatic VRAM management. RestAI will manage the VRAM usage, automatically loading and unloading models as needed and requested.
@@ -40,7 +40,7 @@
 - **Vectorstore**: There are two vectorstores supported: `Chroma` and `Redis`
 - **Search**: It features an embeddings search and score evaluator, which allows you to evaluate the quality of your embeddings and simulate the RAG process before the LLM.
 - **Loaders**: You may use any loader supported by llamaindex.
-- **Sandboxed mode**: RAG Projects have "sandboxed" mode, which means that a locked default answer will be given when there aren't embeddings for the provided question. This is useful for chatbots, where you want to provide a default answer when the LLM doesn't know how to answer the question, reduncing hallucination.
+- **Sandboxed mode**: RAG agents (projects) have "sandboxed" mode, which means that a locked default answer will be given when there aren't embeddings for the provided question. This is useful for chatbots, where you want to provide a default answer when the LLM doesn't know how to answer the question, reduncing hallucination.
 
 ### RAGSQL
 
