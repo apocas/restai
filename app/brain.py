@@ -294,17 +294,10 @@ class Brain:
         threshold = chatModel.score or project.model.score or 0.2
         k = chatModel.k or project.model.k or 1
 
-        prompt_template_txt = PROMPTS[model.prompt]
+        #prompt_template_txt = PROMPTS[model.prompt]
         sysTemplate = project.model.system or self.defaultSystem
 
-        prompt_template = prompt_template_txt.format(
-            system=sysTemplate)
-
-
-        service_context = ServiceContext.from_defaults(
-            llm=LangChainLLM(llm=model.llm)
-        )
-        service_context.llm.query_wrapper_prompt = prompt_template
+        #prompt_template = prompt_template_txt.format(system=sysTemplate)
 
         retriever = VectorIndexRetriever(
             index=project.db,
@@ -321,6 +314,7 @@ class Brain:
                 similarity_cutoff=threshold)],
             memory=chat.history,
             verbose=True,
+            system_prompt=sysTemplate,
             context_prompt=(
                 "You are a chatbot, able to have normal interactions, as well as talk about the provided context.\n"
                 "Here are the relevant documents for the context:\n"
