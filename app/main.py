@@ -625,7 +625,9 @@ async def vision_query(
             "type": "vision"
         }
 
-        logs_inference.info({"user": user.username, "output": output})
+        output_copy = dict(output)
+        output_copy["image"] = "..."
+        logs_inference.info({"user": user.username, "output": output_copy})
 
         return output
     except Exception as e:
