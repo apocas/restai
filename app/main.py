@@ -241,7 +241,6 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             censorship=project.model.censorship,
             score=project.model.score,
             k=project.model.k,
-            sandbox_project=project.model.sandbox_project,
             vectorstore=project.model.vectorstore,
             type=project.model.type,
             connection=project.model.connection,)
@@ -279,13 +278,6 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
         raise HTTPException(
             status_code=404,
             detail='LLM not found')
-
-    if projectModelUpdate is not None and projectModelUpdate.sandbox_project is not None:
-        proj = brain.findProject(projectModelUpdate.sandbox_project, db)
-        if proj is None:
-            raise HTTPException(
-                status_code=404,
-                detail='Sandbox project not found')
 
     if user.is_private:
         llm_class, llm_args, prompt, privacy, description, type, llm_node = LLMS[
@@ -727,7 +719,7 @@ async def chat_query(
                 background=BackgroundTask(rp_resp.aclose),
             )
         else:
-            output = brain.entryChat(projectName, input, db)
+            output, censored = brain.entryChat(projectName, input, db)
 
             logs_inference.info({"user": user.username, "output": output})
 

@@ -62,7 +62,6 @@ class ProjectModel(BaseModel):
     censorship: Union[str, None] = None
     score: float = 0.3
     k: int = 2
-    sandbox_project: Union[str, None] = None
     llm_type: Union[str, None] = None
     llm_privacy: Union[str, None] = None
     vectorstore: Union[str, None] = None
@@ -115,7 +114,6 @@ class ProjectModelUpdate(BaseModel):
     censorship: Union[str, None] = None
     score: Union[float, None] = None
     k: Union[int, None] = None
-    sandbox_project: Union[str, None] = None
     connection: Union[str, None] = None
 
 

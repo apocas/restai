@@ -229,14 +229,6 @@ class Brain:
             proj_db.connection = projectModel.connection
             changed = True
 
-        if projectModel.sandbox_project is not None and proj_db.sandbox_project != projectModel.sandbox_project:
-            proj_db.sandbox_project = projectModel.sandbox_project
-            changed = True
-
-        if proj_db.sandboxed == True and projectModel.sandbox_project is None:
-            proj_db.sandbox_project = None
-            changed = True
-
         if changed:
             dbc.update_project(db)
             project.model = ProjectModel.model_validate(proj_db)
@@ -252,42 +244,10 @@ class Brain:
             self.projects.remove(proj)
         return True
 
-    def entryChat(self, projectName: str, input: ChatModel, db: Session):
-        self.loopFailsafe = 0
-        output = self.recursiveChat(projectName, input, db)
-        return output
 
-    def recursiveChat(
-            self,
-            projectName: str,
-            input: ChatModel,
-            db: Session,
-            chatR=None):
+    def entryChat(self, projectName: str, chatModel: ChatModel, db: Session):
         project = self.findProject(projectName, db)
-        if chatR:
-            chat = chatR
-            questionInput = QuestionModel(
-                question=input.question,
-            )
-            answer, docs, censored = self.questionContext(
-                project, questionInput)
-            output = {"source_documents": docs, "answer": answer}
-        else:
-            output, censored = self.chat(project, input)
 
-        if censored:
-            projectc = self.findProject(project.model.sandbox_project, db)
-            if projectc is not None:
-                if self.loopFailsafe >= 10:
-                    return chat, {"source_documents": [],
-                                  "answer": self.defaultNegative}
-                self.loopFailsafe += 1
-                output = self.recursiveChat(
-                    project.model.sandbox_project, input, db, chat)
-
-        return output
-
-    def chat(self, project, chatModel):
         model, loaded = self.getLLM(project.model.llm)
         chat = project.loadChat(chatModel)
 
@@ -348,43 +308,15 @@ class Brain:
 
         return output, censored
 
-    def entryQuestion(
-            self,
-            projectName: str,
-            input: QuestionModel,
-            db: Session):
-        self.loopFailsafe = 0
-        return self.recursiveQuestion(projectName, input, db)
 
-    def recursiveQuestion(
-            self,
-            projectName: str,
-            input: QuestionModel,
-            db: Session,
-            recursive=False):
-        project = self.findProject(projectName, db)
-        output, censored = self.questionContext(
-            project, input, recursive)
-        if censored:
-            projectc = self.findProject(project.model.sandbox_project, db)
-            if projectc is not None:
-                if self.loopFailsafe >= 10:
-                    return self.defaultNegative, []
-                self.loopFailsafe += 1
-                output, censored = self.recursiveQuestion(
-                    project.model.sandbox_project, input, db, True)
-
-        return output, censored
-
-    def questionContext(self, project, questionModel, child=False):
+    def entryQuestion(self, projectName: str, questionModel: QuestionModel, db: Session):
+        project= self.findProject(projectName, db)
+        
         model, loaded = self.getLLM(project.model.llm)
 
         prompt_template_txt = PROMPTS[model.prompt]
 
-        if child:
-            sysTemplate = project.model.system or self.defaultSystem
-        else:
-            sysTemplate = questionModel.system or project.model.system or self.defaultSystem
+        sysTemplate = questionModel.system or project.model.system or self.defaultSystem
 
         prompt_template = prompt_template_txt.format(system=sysTemplate)
         #query_wrapper_prompt = PromptTemplate(prompt_template)
