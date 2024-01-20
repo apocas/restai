@@ -17,8 +17,10 @@ from sqlalchemy import create_engine
 import torch
 from app.llms.llava import LlavaLLM
 from app.llms.loader import localLoader
+from app.llms.qwen import QwenLLM
 from app.llms.tools.dalle import DalleImage
 from app.llms.tools.describeimage import DescribeImage
+from app.llms.tools.drawimage import DrawImage
 from app.llms.tools.refineimage import RefineImage
 from app.llms.tools.stablediffusion import StableDiffusionImage
 from app.model import Model
@@ -62,7 +64,7 @@ class Brain:
         unloaded = False
         models_to_unload = []
         for llmr, mr in self.llmCache.items():
-            if mr.model is not None or mr.tokenizer is not None or isinstance(mr.llm, LlavaLLM):
+            if mr.model is not None or mr.tokenizer is not None or isinstance(mr.llm, LlavaLLM) or isinstance(mr.llm, QwenLLM):
                 print("UNLOADING MODEL " + llmr)
                 models_to_unload.append(llmr)
 
@@ -127,7 +129,7 @@ class Brain:
                         pipe,
                         typel)
                 else:
-                    if llm_class == LlavaLLM:
+                    if llm_class == LlavaLLM or llm_class == QwenLLM:
                         print("LOADING MODEL " + llmModel)
                     llm = llm_class(**llm_args, **kwargs)
                     m = Model(llmModel, llm, prompt, privacy, type=typel)
@@ -396,6 +398,7 @@ class Brain:
             DalleImage(),
             StableDiffusionImage(),
             RefineImage(),
+            DrawImage(),
             DescribeImage(),
         ]
 
@@ -419,9 +422,9 @@ class Brain:
 
                 prompt_template_txt = PROMPTS[model.prompt]
                 input = prompt_template_txt.format(
-                    query_str=visionInput.question)
+                    query_str=visionInput.question, system="")
 
-                output = model.llm.llavaInference(input, visionInput.image)
+                output, image, history = model.llm.inference(input, visionInput.image)
             else:
                 output = outputAgent["prompt"]
                 image = outputAgent["image"]

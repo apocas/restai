@@ -25,7 +25,7 @@ class LlavaLLM:
         self.processor = AutoProcessor.from_pretrained(self.modelid)
         
     
-    def llavaInference(self, prompt, imageb64):
+    def inference(self, prompt, imageb64):
         raw_image = Image.open(BytesIO(base64.b64decode(imageb64)))
         
         inputs = self.processor(prompt, raw_image, return_tensors='pt').to(os.environ.get("RESTAI_DEFAULT_DEVICE") or 'cuda:0', torch.float16)
@@ -37,7 +37,7 @@ class LlavaLLM:
         if len(split_output) > 1:
             output = split_output[1]
         
-        return output
+        return output, None, None
 
 
 

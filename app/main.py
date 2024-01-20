@@ -627,8 +627,7 @@ async def vision_query(
 
         output_copy = dict(output)
         output_copy["image"] = "..."
-        output_copy["project"] = projectName
-        logs_inference.info({"user": user.username, "output": output_copy})
+        logs_inference.info({"user": user.username, "project": projectName, "output": output_copy})
 
         return output
     except Exception as e:
@@ -676,9 +675,7 @@ async def question_query(
         else:
             output, censored = brain.entryQuestion(projectName, input, db)
 
-            output_copy = dict(output)
-            output_copy["project"] = projectName
-            logs_inference.info({"user": user.username, "output": output_copy})
+            logs_inference.info({"user": user.username, "project": projectName, "output": output})
 
             return output
     except Exception as e:
@@ -726,9 +723,7 @@ async def chat_query(
         else:
             output, censored = brain.entryChat(projectName, input, db)
 
-            output_copy = dict(output)
-            output_copy["project"] = projectName
-            logs_inference.info({"user": user.username, "output": output_copy})
+            logs_inference.info({"user": user.username, "project": projectName, "output": output})
 
             return output
     except Exception as e:
@@ -776,9 +771,7 @@ async def question_query(
         else:
             output = brain.inference(projectName, input, db)
 
-            output_copy = dict(output)
-            output_copy["project"] = projectName
-            logs_inference.info({"user": user.username, "output": output_copy})
+            logs_inference.info({"user": user.username, "project": projectName, "output": output})
 
             return output
     except Exception as e:
@@ -826,9 +819,7 @@ async def question_query(
         else:
             output = brain.ragSQL(projectName, input, db)
 
-            output_copy = dict(output)
-            output_copy["project"] = projectName
-            logs_inference.info({"user": user.username, "output": output_copy})
+            logs_inference.info({"user": user.username, "project": projectName, "output": output})
 
             return output
     except Exception as e:
