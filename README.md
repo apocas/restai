@@ -59,13 +59,14 @@
 ### Vision
 
 - **text2img**: RestAI supports local Stable Diffusion and Dall-E. It features prompt boosting, a LLM is internally used to boost the user prompt with more detail.
-- **img2text**: RestAI supports LLaVA and BakLLaVA by default. It supports any LLM supported by transformers pipes.
+- **img2text**: RestAI supports LLaVA, BakLLaVA and Qwen-VL by default. It supports any LLM supported by transformers pipes.
 
-#### LLaVA & Stable Diffusion
+#### LLaVA & Stable Diffusion & Qwen-VL
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/llava.png" width="40%"  style="margin: 10px;"/>
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/vision_sd.png" width="40%"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/llava.png" width="25%"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/vision_sd.png" width="25%"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/qwen_vl.png" width="25%"  style="margin: 10px;"/>
 </div>
 
 ## LLMs
