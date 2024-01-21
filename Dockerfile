@@ -1,16 +1,18 @@
 FROM python:3.11
 
-RUN useradd -m user
-
-USER user
-WORKDIR /app
-
-COPY . /app
-
 ENV ANONYMIZED_TELEMETRY=False
 
-RUN pip install poetry
-RUN poetry install --no-dev
+RUN useradd --user-group --system --create-home --no-log-init user
+USER user
+
+WORKDIR /app
+COPY . /app
+
+RUN mkdir -p /home/user/.local/share
+RUN curl -sSL https://install.python-poetry.org | python3 -
+ENV PATH="/home/user/.local/bin:$PATH"
+
+RUN poetry install
 
 EXPOSE 9000
 
