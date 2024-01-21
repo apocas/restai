@@ -12,7 +12,7 @@ RUN mkdir -p /home/user/.local/share
 RUN curl -sSL https://install.python-poetry.org | python3 -
 ENV PATH="/home/user/.local/bin:$PATH"
 
-RUN poetry install
+RUN poetry install --only main
 
 EXPOSE 9000
 
