@@ -10,8 +10,9 @@ from app.models import User, UserUpdate
 if os.environ.get("MYSQL_PASSWORD"):
     host = os.environ.get("MYSQL_HOST") or "127.0.0.1"
     print("Using MySQL database: " + host)
-    engine = create_engine('mysql+pymysql://' + (os.environ.get("MYSQL_USER") or "restai") + ':' + os.environ.get("MYSQL_PASSWORD") + '@' + 
-    host + '/' + (os.environ.get("MYSQL_DB") or "restai"),
+    engine = create_engine('mysql+pymysql://' + (os.environ.get("MYSQL_USER") or "restai") + ':' + os.environ.get("MYSQL_PASSWORD") + '@' +
+                           host + '/' +
+                           (os.environ.get("MYSQL_DB") or "restai"),
                            pool_size=30,
                            max_overflow=100,
                            pool_recycle=900)
@@ -71,6 +72,11 @@ class Database:
         users = db.query(UserDatabase).all()
         return users
 
+    def get_user_by_apikey(self, db, apikey):
+        user = db.query(UserDatabase).filter(
+            UserDatabase.api_key == apikey).first()
+        return user
+
     def get_user_by_username(self, db, username):
         user = db.query(UserDatabase).filter(
             UserDatabase.username == username).first()
@@ -86,6 +92,9 @@ class Database:
 
         if userc.is_private is not None:
             user.is_private = userc.is_private
+
+        if userc.sso is not None:
+            user.sso = userc.sso
 
         db.commit()
         return True

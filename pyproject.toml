@@ -49,6 +49,7 @@ llama-index = "^0.9.24"
 exceptiongroup = "^1.2.0"
 wheel = "^0.42.0"
 auto-gptq = { version = "*", optional = true }
+pyjwt = "^2.8.0"
 
 [tool.poetry.dev-dependencies]
 pylint = "3.0.2"

@@ -16,7 +16,8 @@ def vector_init(brain, project):
         chroma_collection = db.get_or_create_collection(project.model.name)
         vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 
-        storage_context = StorageContext.from_defaults(vector_store=vector_store)
+        storage_context = StorageContext.from_defaults(
+            vector_store=vector_store)
         service_context = ServiceContext.from_defaults(embed_model=brain.getEmbedding(
             project.model.embeddings))
         index = VectorStoreIndex.from_vector_store(
@@ -24,7 +25,7 @@ def vector_init(brain, project):
         return index
     elif project.model.vectorstore == "redis":
         if path is None or len(os.listdir(path)) == 0:
-            vector_store =  RedisVectorStore(
+            vector_store = RedisVectorStore(
                 redis_url="redis://" +
                 os.environ["REDIS_HOST"] +
                 ":" +
@@ -33,8 +34,9 @@ def vector_init(brain, project):
                 metadata_fields=["source", "keywords"],
                 index_prefix="llama_" + project.model.name,
                 overwrite=False)
-        
-            storage_context = StorageContext.from_defaults(vector_store=vector_store)
+
+            storage_context = StorageContext.from_defaults(
+                vector_store=vector_store)
             service_context = ServiceContext.from_defaults(embed_model=brain.getEmbedding(
                 project.model.embeddings))
             index = VectorStoreIndex.from_vector_store(
@@ -68,7 +70,7 @@ def vector_load(brain, project):
             index_prefix="llama_" + project.model.name,
             overwrite=False)
         service_context = ServiceContext.from_defaults(embed_model=brain.getEmbedding(
-                project.model.embeddings))
+            project.model.embeddings))
         return VectorStoreIndex.from_vector_store(vector_store=vector_store, service_context=service_context)
 
 
@@ -190,7 +192,8 @@ def vector_find_id(project, id):
         db = chromadb.PersistentClient(path=path)
         collection = db.get_or_create_collection(project.model.name)
         docs = collection.get(ids=[id])
-        output["metadata"]  = {k: v for k, v in docs["metadatas"][0].items() if not k.startswith('_')}
+        output["metadata"] = {
+            k: v for k, v in docs["metadatas"][0].items() if not k.startswith('_')}
         output["document"] = docs["documents"][0]
     elif project.model.vectorstore == "redis":
         lredis = redis.Redis(
@@ -199,7 +202,8 @@ def vector_find_id(project, id):
             decode_responses=True)
         ids = "llama_" + project.model.name + "/vector_" + id
         keys = lredis.hkeys(ids)
-        keys = [k for k in keys if not k.startswith('_') and k != "vector" and k != "text" and k != "doc_id" and k != "id"]
+        keys = [k for k in keys if not k.startswith(
+            '_') and k != "vector" and k != "text" and k != "doc_id" and k != "id"]
         data = lredis.hmget(ids, keys)
         text = lredis.hget(ids, "text")
         output["metadata"] = dict(zip(keys, data))

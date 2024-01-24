@@ -11,7 +11,7 @@ from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.postprocessor import SimilarityPostprocessor
 from llama_index.prompts import PromptTemplate
-from llama_index.chat_engine.condense_plus_context  import CondensePlusContextChatEngine
+from llama_index.chat_engine.condense_plus_context import CondensePlusContextChatEngine
 from langchain.agents import initialize_agent
 from sqlalchemy import create_engine
 import torch
@@ -246,7 +246,6 @@ class Brain:
             self.projects.remove(proj)
         return True
 
-
     def entryChat(self, projectName: str, chatModel: ChatModel, db: Session):
         project = self.findProject(projectName, db)
 
@@ -256,10 +255,10 @@ class Brain:
         threshold = chatModel.score or project.model.score or 0.2
         k = chatModel.k or project.model.k or 1
 
-        #prompt_template_txt = PROMPTS[model.prompt]
+        # prompt_template_txt = PROMPTS[model.prompt]
         sysTemplate = project.model.system or self.defaultSystem
 
-        #prompt_template = prompt_template_txt.format(system=sysTemplate)
+        # prompt_template = prompt_template_txt.format(system=sysTemplate)
 
         retriever = VectorIndexRetriever(
             index=project.db,
@@ -267,7 +266,7 @@ class Brain:
         )
 
         llm = LangChainLLM(model.llm)
-        #llm.query_wrapper_prompt = prompt_template
+        # llm.query_wrapper_prompt = prompt_template
 
         chat_engine = CondensePlusContextChatEngine(
             retriever=retriever,
@@ -310,10 +309,9 @@ class Brain:
 
         return output, censored
 
-
     def entryQuestion(self, projectName: str, questionModel: QuestionModel, db: Session):
-        project= self.findProject(projectName, db)
-        
+        project = self.findProject(projectName, db)
+
         model, loaded = self.getLLM(project.model.llm)
 
         prompt_template_txt = PROMPTS[model.prompt]
@@ -321,7 +319,7 @@ class Brain:
         sysTemplate = questionModel.system or project.model.system or self.defaultSystem
 
         prompt_template = prompt_template_txt.format(system=sysTemplate)
-        #query_wrapper_prompt = PromptTemplate(prompt_template)
+        # query_wrapper_prompt = PromptTemplate(prompt_template)
 
         k = questionModel.k or project.model.k or 2
         threshold = questionModel.score or project.model.score or 0.2
@@ -424,7 +422,8 @@ class Brain:
                 input = prompt_template_txt.format(
                     query_str=visionInput.question, system="")
 
-                output, image, history = model.llm.inference(input, visionInput.image)
+                output, image, history = model.llm.inference(
+                    input, visionInput.image)
             else:
                 output = outputAgent["prompt"]
                 image = outputAgent["image"]
@@ -440,7 +439,7 @@ class Brain:
         project = self.findProject(projectName, db)
         if project is None:
             raise Exception("Project not found")
-        
+
         model, loaded = self.getLLM(project.model.llm)
 
         prompt_template_txt = PROMPTS[model.prompt]
@@ -464,12 +463,12 @@ class Brain:
             self.semaphore.release()
 
         return output
-    
+
     def ragSQL(self, projectName, questionModel, db: Session):
         project = self.findProject(projectName, db)
         if project is None:
             raise Exception("Project not found")
-        
+
         model, loaded = self.getLLM(project.model.llm)
 
         engine = create_engine(project.model.connection)
@@ -477,7 +476,8 @@ class Brain:
         sql_database = SQLDatabase(engine)
 
         llm_predictor = LLMPredictor(llm=model.llm)
-        service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
+        service_context = ServiceContext.from_defaults(
+            llm_predictor=llm_predictor)
 
         tables = None
         if hasattr(questionModel, 'tables') and questionModel.tables is not None:

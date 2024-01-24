@@ -32,9 +32,11 @@ class QuestionModel(InteractionModel):
     question: str
     system: Union[str, None] = None
 
+
 class RagSqlModel(BaseModel):
     question: str
     tables: Union[list[str], None] = None
+
 
 class InferenceModel(BaseModel):
     question: str
@@ -86,6 +88,8 @@ class User(BaseModel):
     is_admin: bool = False
     is_private: bool = False
     projects: list[UserProject] = []
+    api_key: Union[str, None] = None
+    sso: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -104,6 +108,8 @@ class UserUpdate(BaseModel):
     is_admin: bool = None
     is_private: bool = None
     projects: list[str] = None
+    api_key: str = None
+    sso: str = None
 
 
 class ProjectModelUpdate(BaseModel):
@@ -134,8 +140,10 @@ class InferenceResponse(BaseModel):
 class QuestionResponse(InferenceResponse):
     sources: list[SourceModel]
 
+
 class RagSqlResponse(InferenceResponse):
     sources: list[str]
+
 
 class VisionResponse(QuestionResponse):
     image: Union[str, None] = None

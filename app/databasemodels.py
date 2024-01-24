@@ -13,6 +13,8 @@ class UserDatabase(Base):
     hashed_password = Column(String(255))
     is_admin = Column(Boolean, default=False)
     is_private = Column(Boolean, default=False)
+    api_key = Column(String(4096))
+    sso = Column(String(4096))
     projects = relationship("UserProjectDatabase", back_populates="owner")
 
 
