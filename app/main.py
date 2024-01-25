@@ -35,6 +35,7 @@ import logging
 import json
 import base64
 from datetime import timedelta
+import secrets
 from dotenv import load_dotenv
 from fastapi.responses import RedirectResponse
 from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
@@ -179,7 +180,7 @@ async def get_user(username: str, user: User = Depends(get_current_username_user
         if useru is None:
             raise Exception("User not found")
 
-        apikey = uuid.uuid4().hex
+        apikey = uuid.uuid4().hex + secrets.token_urlsafe(32)
         dbc.update_user(db, useru, UserUpdate(api_key=apikey))
         return {"api_key": apikey}
     except Exception as e:
