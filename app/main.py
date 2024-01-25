@@ -96,7 +96,8 @@ async def get_info(user: User = Depends(get_current_username)):
             "prompt": prompt,
             "privacy": privacy,
             "description": description,
-            "type": typel
+            "type": typel,
+            "node": llm_node
         })
 
     for embedding in EMBEDDINGS:
