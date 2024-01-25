@@ -36,8 +36,8 @@ def get_current_username(
     credentials = None
     if auth_header:
         temp_bearer_token = auth_header.split(" ")[1]
-        if "Bearer" in temp_bearer_token:
-            bearer_token = temp_bearer_token.split(" ")[1]
+        if "Bearer" in auth_header:
+            bearer_token = temp_bearer_token
         else:
             try:
                 credentials_b64 = base64.b64decode(temp_bearer_token).decode('utf-8')
