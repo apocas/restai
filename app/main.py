@@ -172,7 +172,7 @@ async def get_user(username: str, user: User = Depends(get_current_username_user
             status_code=404, detail=str(e))
 
 
-@app.post("/users/{username}/apikey", response_model=User)
+@app.post("/users/{username}/apikey")
 async def get_user(username: str, user: User = Depends(get_current_username_user), db: Session = Depends(get_db)):
     try:
         useru = dbc.get_user_by_username(db, username)

@@ -1,5 +1,5 @@
-from datetime import timedelta, timezone
-import datetime
+import base64
+from datetime import datetime, timedelta, timezone
 import os
 from typing import Union
 from fastapi import Depends, HTTPException, Request
@@ -29,7 +29,6 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
 
 def get_current_username(
     request: Request,
-    credentials: HTTPBasicCredentials = Depends(security),
     db: Session = Depends(get_db)
 ):
     auth_header = request.headers.get('Authorization')
@@ -38,6 +37,16 @@ def get_current_username(
         temp_bearer_token = auth_header.split(" ")[1]
         if "Bearer" in temp_bearer_token:
             bearer_token = temp_bearer_token.split(" ")[1]
+        else:
+            try:
+                credentials_b64 = base64.b64decode(temp_bearer_token).decode('utf-8')
+                username, password = credentials_b64.split(':', 1)
+                credentials = {
+                    'username': username,
+                    'password': password
+                }
+            except Exception as e:
+                pass
 
     jwt_token = request.cookies.get("restai_token")
 
@@ -46,10 +55,9 @@ def get_current_username(
         return User.model_validate(user)
     elif jwt_token:
         try:
-            data = jwt.decode(jwt_token, os.environ["RESTAI_SSO_SECRET"], algorithms=[
-                              os.environ.get("RESTAI_SSO_ALG") or "HS512"])
+            data = jwt.decode(jwt_token, os.environ["RESTAI_AUTH_SECRET"], algorithms=["HS512"])
 
-            user = dbc.get_user_by_username(db, data["preferred_username"])
+            user = dbc.get_user_by_username(db, data["username"])
 
             return User.model_validate(user)
         except Exception as e:
@@ -58,7 +66,7 @@ def get_current_username(
                 detail="Invalid token"
             )
     else:
-        user = dbc.get_user_by_username(db, credentials.username)
+        user = dbc.get_user_by_username(db, credentials["username"])
 
         if user.sso:
             raise HTTPException(
@@ -67,9 +75,9 @@ def get_current_username(
             )
 
         if user is not None:
-            is_correct_username = credentials.username == user.username
+            is_correct_username = credentials["username"] == user.username
             is_correct_password = pwd_context.verify(
-                credentials.password, user.hashed_password)
+                credentials["password"], user.hashed_password)
         else:
             is_correct_username = False
             is_correct_password = False
