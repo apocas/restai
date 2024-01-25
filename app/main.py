@@ -139,7 +139,7 @@ async def get_sso(request: Request, db: Session = Depends(get_db)):
         data={"username": user.username}, expires_delta=timedelta(minutes=480))
 
     response = RedirectResponse("./admin")
-    response.set_cookie(key="restai_token", value=new_token)
+    response.set_cookie(key="restai_token", value=new_token, samesite="strict", expires=28800)
 
     return response
 
