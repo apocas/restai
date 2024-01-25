@@ -33,6 +33,7 @@ def get_current_username(
 ):
     auth_header = request.headers.get('Authorization')
     bearer_token = None
+    credentials = None
     if auth_header:
         temp_bearer_token = auth_header.split(" ")[1]
         if "Bearer" in temp_bearer_token:
