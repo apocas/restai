@@ -148,7 +148,7 @@ async def get_user(username: str, db: Session = Depends(get_db)):
     try:
         user = dbc.get_user_by_username(db, username)
         if user is None:
-            raise Exception("User not found")
+            return {"sso": os.environ.get("RESTAI_SSO_CALLBACK")}
         return {"sso": user.sso}
     except Exception as e:
         logging.error(e)
