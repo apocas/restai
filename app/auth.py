@@ -66,7 +66,7 @@ def get_current_username(
                 detail="Invalid token"
             )
     else:
-        if username not in credentials or password not in credentials:
+        if "username" not in credentials or "password" not in credentials:
             raise HTTPException(
                 status_code=401,
                 detail="Invalid credentials"
