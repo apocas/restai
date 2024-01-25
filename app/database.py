@@ -60,7 +60,10 @@ if "users" not in inspect(engine).get_table_names():
 class Database:
 
     def create_user(self, db, username, password, admin=False, private=False):
-        hash = pwd_context.hash(password)
+        if password:
+            hash = pwd_context.hash(password)
+        else:
+            hash = None
         db_user = UserDatabase(
             username=username, hashed_password=hash, is_admin=admin, is_private=private)
         db.add(db_user)
