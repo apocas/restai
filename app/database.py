@@ -96,6 +96,9 @@ class Database:
         if userc.sso is not None:
             user.sso = userc.sso
 
+        if userc.api_key is not None:
+            user.api_key = userc.api_key
+
         db.commit()
         return True
 
