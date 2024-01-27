@@ -1,5 +1,5 @@
-from langchain.llms import GPT4All, LlamaCpp, OpenAI
-from langchain.chat_models import ChatOpenAI, ChatVertexAI
+from langchain_community.llms import GPT4All, LlamaCpp, OpenAI
+from langchain_community.chat_models import ChatOpenAI, ChatVertexAI
 from app.llms.gemini import GeminiLLM
 from app.llms.llava import LlavaLLM
 from app.llms.loader import localLoader

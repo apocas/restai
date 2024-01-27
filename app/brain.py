@@ -33,7 +33,7 @@ from modules.llms import LLMS
 from app.database import dbc
 from sqlalchemy.orm import Session
 from llama_index.llms import LangChainLLM
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from llama_index.indices.struct_store.sql_query import NLSQLTableQueryEngine
 
 
