@@ -11,7 +11,7 @@ LLMS = {
     # "llama2_7b_cpp": (LlamaCpp, {"temperature": 0, "model_path": "./models/llama-2-7b.Q4_K_M.gguf"}, "llama", "private", "Llamacpp", "qa", "node1"),
     "openai_gpt3.5_turbo": (ChatOpenAI, {"temperature": 0, "model_name": "gpt-3.5-turbo"}, "openai", "public", "OpenAI GPT-3.5 Turbo", "chat", "node1"),
     "openai_gpt4": (ChatOpenAI, {"temperature": 0, "model_name": "gpt-4"}, "openai", "public", "OpenAI GPT-4 ", "chat", "node1"),
-    "openai_gpt4_turbo": (ChatOpenAI, {"temperature": 0, "model_name": "gpt-4-1106-preview"}, "openai", "public", "OpenAI GPT-4 Turbo", "chat", "node1"),
+    "openai_gpt4_turbo": (ChatOpenAI, {"temperature": 0, "model_name": "gpt-4-turbo-preview"}, "openai", "public", "OpenAI GPT-4 Turbo", "chat", "node1"),
     "google_vertexai_bison": (ChatVertexAI, {"model_name": "chat-bison@002", "max_output_tokens": 1000, "temperature": 0.1}, "openai", "public", "Google Vertex AI chat-bison@002", "qa", "node1"),
     "google_geminipro": (GeminiLLM, {"max_output_tokens": 2048, "temperature": 0.6, "top_p": 1}, "gemini", "public", "Google Gemini Pro", "chat", "node1"),
     # "llama13b_chat_gptq": (ChatOpenAI, {"temperature": 0.3, "openai_api_key": "na", "openai_api_base": "http://127.0.0.1:5000/v1"}, "llama", "private", "Llama 13B Chat GPTQ", "qa", "node1"),
