@@ -238,9 +238,8 @@ class Brain:
         return project
 
     def deleteProject(self, name, db):
-        self.findProject(name, db)
-        dbc.delete_project(db, dbc.get_project_by_name(db, name))
         proj = self.findProject(name, db)
+        dbc.delete_project(db, dbc.get_project_by_name(db, name))
         if proj is not None:
             proj.delete()
             self.projects.remove(proj)

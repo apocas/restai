@@ -224,8 +224,8 @@ def vector_delete(project):
             host=os.environ["REDIS_HOST"],
             port=os.environ["REDIS_PORT"],
             decode_responses=True)
-        lredis.ft(project.model.name).dropindex(True)
         try:
+            lredis.ft(project.model.name).dropindex(True)
             embeddingsPath = FindEmbeddingsPath(project.model.name)
             shutil.rmtree(embeddingsPath, ignore_errors=True)
         except BaseException:
