@@ -589,6 +589,8 @@ async def ingest_file(
         projectName: str,
         file: UploadFile,
         options: str = Form("{}"),
+        chunks: int = Form(256),
+        splitter: str = Form("sentence"),
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
@@ -622,7 +624,7 @@ async def ingest_file(
 
         documents = ExtractKeywordsForMetadata(documents)
 
-        nchunks = IndexDocuments(brain, project, documents)
+        nchunks = IndexDocuments(brain, project, documents, splitter, chunks)
         vector_save(project)
 
         return {

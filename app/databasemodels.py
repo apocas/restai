@@ -42,7 +42,7 @@ class ProjectDatabase(Base):
     system = Column(String(4096))
     sandboxed = Column(Boolean, default=False)
     censorship = Column(String(4096))
-    k = Column(Integer, default=2)
+    k = Column(Integer, default=4)
     score = Column(Float, default=0.3)
     vectorstore = Column(String(255), default="chroma")
     connection = Column(String(4096))
