@@ -46,7 +46,7 @@ class InferenceModel(BaseModel):
 class VisionModel(BaseModel):
     question: str
     image: Union[str, None] = None
-    disableboost: bool = False
+    boost: bool = False
 
 
 class ChatModel(InteractionModel):

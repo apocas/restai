@@ -58,10 +58,9 @@ class StableDiffusionImage(BaseTool):
     name = "Stable Diffusion Image Generator"
     description = "use this tool when you need to generate an image using Stable Diffusion."
     return_direct = True
-    disableboost = False
 
     def _run(self, query: str, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
-        if run_manager.tags[0].disableboost == False:
+        if run_manager.tags[0].boost == True:
             llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo")
             prompt = PromptTemplate(
                 input_variables=["image_desc"],

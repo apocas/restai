@@ -18,7 +18,7 @@ class DalleImage(BaseTool):
 
     def _run(self, query: str, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
         
-        if run_manager.tags[0].disableboost == False:
+        if run_manager.tags[0].boost == True:
             llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo")
             prompt = PromptTemplate(
                 input_variables=["image_desc"],
