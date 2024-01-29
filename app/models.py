@@ -138,7 +138,7 @@ class InferenceResponse(BaseModel):
 
 
 class QuestionResponse(InferenceResponse):
-    sources: list[SourceModel]
+    sources: Union[list[SourceModel], None] = None
 
 
 class RagSqlResponse(InferenceResponse):

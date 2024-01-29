@@ -728,7 +728,6 @@ async def vision_query(
             status_code=500, detail=str(e))
 
 
-@app.post("/projects/{projectName}/question", response_model=QuestionResponse)
 async def question_query(
         request: Request,
         projectName: str,
@@ -767,6 +766,32 @@ async def question_query(
                 {"user": user.username, "project": projectName, "output": output})
 
             return output
+    except Exception as e:
+        try:
+            brain.semaphore.release()
+        except ValueError:
+            pass
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=500, detail=str(e))
+
+@app.post("/projects/{projectName}/question", response_model=QuestionResponse)
+async def question_query_endpoint(
+        request: Request,
+        projectName: str,
+        input: QuestionModel,
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
+    try:
+        project = brain.findProject(projectName, db)
+        if project.model.type == "rag":
+            return await question_query(request, projectName, input, user, db)
+        elif project.model.type == "inference":
+            return await question_inference(request, projectName, InferenceModel(question=input.question, system=input.system), user, db)
+        else:
+            raise HTTPException(
+                status_code=400, detail='{"error": "Only available for RAG and INFERENCE projects."}')
     except Exception as e:
         try:
             brain.semaphore.release()
@@ -828,8 +853,34 @@ async def chat_query(
             status_code=500, detail=str(e))
 
 
+
 @app.post("/projects/{projectName}/inference", response_model=InferenceResponse)
-async def question_query(
+async def question_inference_endpoint(
+        request: Request,
+        projectName: str,
+        input: InferenceModel,
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
+    try:
+        project = brain.findProject(projectName, db)
+
+        if project.model.type != "inference":
+            raise HTTPException(
+                status_code=400, detail='{"error": "Only available for INFERENCE projects."}')
+        
+        return await question_inference(request, projectName, input, user, db)
+    except Exception as e:
+        try:
+            brain.semaphore.release()
+        except ValueError:
+            pass
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=500, detail=str(e))
+
+
+async def question_inference(
         request: Request,
         projectName: str,
         input: InferenceModel,
