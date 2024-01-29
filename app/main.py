@@ -373,6 +373,7 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
 async def create_project(projectModel: ProjectModel, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
     projectModel.name = unidecode(
         projectModel.name.strip().lower().replace(" ", "_"))
+    projectModel.name = re.sub(r'[^\w\-.]+', '', projectModel.name)
 
     if projectModel.type == "rag" and projectModel.embeddings not in EMBEDDINGS:
         raise HTTPException(
