@@ -206,6 +206,8 @@ async def create_user(userc: UserCreate,
     try:
         userc.username = unidecode(
             userc.username.strip().lower().replace(" ", "."))
+        userc.username = re.sub(r'[^\w\-.]+', '', userc.username)
+
         user = dbc.create_user(db,
                                userc.username,
                                userc.password,
