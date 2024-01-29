@@ -17,6 +17,7 @@ LLMS = {
     # "llama13b_chat_gptq": (ChatOpenAI, {"temperature": 0.3, "openai_api_key": "na", "openai_api_base": "http://127.0.0.1:5000/v1"}, "llama", "private", "Llama 13B Chat GPTQ", "qa", "node1"),
     "mistral7b_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/Mistral-7B-OpenOrca-GPTQ"}, "openai", "private", "https://huggingface.co/TheBloke/Mistral-7B-OpenOrca-GPTQ", "qa", "node1"),
     "llama13b_chat_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/Llama-2-13B-chat-GPTQ"}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-13B-chat-GPTQ", "qa", "node1"),
+    "llama7b_chat_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/Llama-2-7B-Chat-GPTQ"}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-7B-Chat-GPTQ", "qa", "node1"),
     "wizardlm13b_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/WizardLM-13B-V1.2-GPTQ"}, "vicuna", "private", "https://huggingface.co/TheBloke/WizardLM-13B-V1.2-GPTQ", "qa", "node1"),
     "spicyboros13b_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/Spicyboros-13B-2.2-GPTQ"}, "spicy", "private", "https://huggingface.co/TheBloke/Spicyboros-13B-2.2-GPTQ", "qa", "node1"),
     "llava_1.5_13b": (LlavaLLM, {"model": "llava-hf/llava-1.5-13b-hf"}, "llava", "private", "https://huggingface.co/llava-hf/llava-1.5-13b-hf", "vision", "node1"),
