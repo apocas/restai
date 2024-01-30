@@ -15,7 +15,7 @@ LLMS = {
     "google_vertexai_bison": (ChatVertexAI, {"model_name": "chat-bison@002", "max_output_tokens": 1000, "temperature": 0.1}, "openai", "public", "Google Vertex AI chat-bison@002", "qa", "node1"),
     "google_geminipro": (GeminiLLM, {"max_output_tokens": 2048, "temperature": 0.6, "top_p": 1}, "gemini", "public", "Google Gemini Pro", "chat", "node1"),
     # "llama13b_chat_gptq": (ChatOpenAI, {"temperature": 0.3, "openai_api_key": "na", "openai_api_base": "http://127.0.0.1:5000/v1"}, "llama", "private", "Llama 13B Chat GPTQ", "qa", "node1"),
-    "mistral7b_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/Mistral-7B-OpenOrca-GPTQ"}, "openai", "private", "https://huggingface.co/TheBloke/Mistral-7B-OpenOrca-GPTQ", "qa", "node1"),
+    "mistral7b_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/Mistral-7B-OpenOrca-GPTQ"}, "chatml", "private", "https://huggingface.co/TheBloke/Mistral-7B-OpenOrca-GPTQ", "qa", "node1"),
     "llama13b_chat_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/Llama-2-13B-chat-GPTQ"}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-13B-chat-GPTQ", "qa", "node1"),
     "llama7b_chat_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/Llama-2-7B-Chat-GPTQ"}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-7B-Chat-GPTQ", "qa", "node1"),
     "wizardlm13b_gptq": (localLoader, {"type": "gptq", "model": "TheBloke/WizardLM-13B-V1.2-GPTQ"}, "vicuna", "private", "https://huggingface.co/TheBloke/WizardLM-13B-V1.2-GPTQ", "qa", "node1"),
