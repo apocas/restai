@@ -930,7 +930,7 @@ async def question_inference(
 
 
 @app.post("/projects/{projectName}/questionsql", response_model=RagSqlResponse)
-async def question_query(
+async def question_query_sql(
         request: Request,
         projectName: str,
         input: RagSqlModel,
