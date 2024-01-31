@@ -24,11 +24,11 @@ install:
 
 .PHONY: installgpu
 installgpu:
-	poetry install -E gpu
+	poetry install --with gpu
 
 .PHONY: installfix
 installfix:
-	$(echo $(poetry env info -p)/bin/pip3 install flash-attn==2.5.0 --no-build-isolation)
+	$(echo $(poetry env info -p)/bin/pip3 install flash-attn==2.5.2 --no-build-isolation)
 
 .PHONY: frontend
 frontend:
@@ -43,7 +43,7 @@ test:
 	pytest tests
 
 .PHONY: code
-codestyle:
+code:
 	autopep8 --in-place app/*.py
 
 .PHONY: clean
