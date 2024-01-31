@@ -28,7 +28,7 @@ installgpu:
 
 .PHONY: installfix
 installfix:
-	$(echo $(poetry env info -p)/bin/pip3 install flash-attn --no-build-isolation)
+	$(echo $(poetry env info -p)/bin/pip3 install flash-attn==2.5.0 --no-build-isolation)
 
 .PHONY: frontend
 frontend:
