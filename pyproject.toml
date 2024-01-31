@@ -52,6 +52,7 @@ auto-gptq = { version = "*", optional = true }
 pyjwt = "^2.8.0"
 langchain-community = "*"
 langchain-openai = "*"
+pypdf = "^4.0.1"
 
 [tool.poetry.dev-dependencies]
 pylint = "3.0.2"
