@@ -24,7 +24,7 @@ import requests
 from llama_index.postprocessor import SimilarityPostprocessor
 from llama_index.query_engine import RetrieverQueryEngine
 import httpx
-from fastapi import FastAPI, Form, HTTPException, Request, Response, UploadFile
+from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 import traceback
 from tempfile import NamedTemporaryFile
 import re

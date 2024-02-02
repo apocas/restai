@@ -53,6 +53,13 @@ def get_current_username(
 
     if bearer_token:
         user = dbc.get_user_by_apikey(db, bearer_token)
+
+        if user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid key"
+            )
+
         return User.model_validate(user)
     elif jwt_token:
         try:
@@ -74,6 +81,12 @@ def get_current_username(
             )
         
         user = dbc.get_user_by_username(db, credentials["username"])
+
+        if user is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials"
+            )
 
         if user.sso:
             raise HTTPException(
