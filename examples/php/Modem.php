@@ -3,21 +3,17 @@
 class Modem {
 
   protected $url;
-  protected $username;
-  protected $password;
+  protected $apikey;
   protected $acceptType;
 
-  public function __construct($url = null, $username = null, $password = null) {
+  public function __construct($url = null, $apikey = null) {
     $this->url = $url;
-    $this->username = $username;
-    $this->password = $password;
+    $this->apikey = $apikey;
     $this->acceptType = 'application/json';
   }
 
   public function execute($verb, $localUrl, $data = null) {
     $ch = curl_init();
-
-    $this->setAuth($ch);
 
     try {
       switch (strtoupper($verb)) {
@@ -97,19 +93,15 @@ class Modem {
 
   protected function setCurlOpts(&$curlHandle, $headers = []) {
     $headers[] = 'Accept: ' . $this->acceptType;
+    if ($this->apikey !== null) {
+      $headers[] = 'Authorization: Bearer ' . $this->apikey;
+    }
     curl_setopt($curlHandle, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($curlHandle, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($curlHandle, CURLOPT_ENCODING, "");
     curl_setopt($curlHandle, CURLOPT_TIMEOUT, 90);
     curl_setopt($curlHandle, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($curlHandle, CURLOPT_HTTPHEADER, $headers);
-  }
-
-  protected function setAuth(&$curlHandle) {
-    if ($this->username !== null && $this->password !== null) {
-      curl_setopt($curlHandle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-      curl_setopt($curlHandle, CURLOPT_USERPWD, $this->username . ':' . $this->password);
-    }
   }
 
   public function getAcceptType() {
@@ -120,14 +112,6 @@ class Modem {
     $this->acceptType = $acceptType;
   }
 
-  public function getPassword() {
-    return $this->password;
-  }
-
-  public function setPassword($password) {
-    $this->password = $password;
-  }
-
   public function getUrl() {
     return $this->url;
   }
@@ -136,12 +120,12 @@ class Modem {
     $this->url = $url;
   }
 
-  public function getUsername() {
-    return $this->username;
+  public function getApikey() {
+    return $this->apikey;
   }
 
-  public function setUsername($username) {
-    $this->username = $username;
+  public function setApikey($apikey) {
+    $this->apikey = $apikey;
   }
 
 }

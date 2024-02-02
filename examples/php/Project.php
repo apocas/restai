@@ -9,10 +9,10 @@ class Project {
   protected $embeddings;
   protected $type;
 
-  public function __construct($name, $type, $url, $username, $password) {
+  public function __construct($name, $type, $url, $apikey) {
     $this->name = $name;
     $this->type = $type;
-    $this->modem = new Modem($url, $username, $password);
+    $this->modem = new Modem($url, $apikey);
   }
 
   public function create($opts) {
