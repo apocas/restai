@@ -230,6 +230,10 @@ class Brain:
         if projectModel.connection is not None and proj_db.system != projectModel.connection and "://xxxx:xxxx@" not in projectModel.connection:
             proj_db.connection = projectModel.connection
             changed = True
+        
+        if projectModel.tables is not None and proj_db.tables != projectModel.tables:
+            proj_db.tables = projectModel.tables
+            changed = True
 
         if changed:
             dbc.update_project(db)

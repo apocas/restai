@@ -313,7 +313,8 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             k=project.model.k,
             vectorstore=project.model.vectorstore,
             type=project.model.type,
-            connection=project.model.connection,)
+            connection=project.model.connection,
+            tables=project.model.tables,)
         output.chunks = chunks
 
         if output.connection:

@@ -69,6 +69,7 @@ class ProjectModel(BaseModel):
     llm_privacy: Union[str, None] = None
     vectorstore: Union[str, None] = None
     connection: Union[str, None] = None
+    tables: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -122,6 +123,7 @@ class ProjectModelUpdate(BaseModel):
     score: Union[float, None] = None
     k: Union[int, None] = None
     connection: Union[str, None] = None
+    tables: Union[str, None] = None
 
 
 class SourceModel(BaseModel):
