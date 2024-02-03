@@ -31,6 +31,7 @@ class InteractionModel(BaseModel):
 class QuestionModel(InteractionModel):
     question: str
     system: Union[str, None] = None
+    tables: Union[list[str], None] = None
 
 
 class RagSqlModel(BaseModel):
@@ -138,7 +139,7 @@ class InferenceResponse(BaseModel):
 
 
 class QuestionResponse(InferenceResponse):
-    sources: Union[list[SourceModel], None] = None
+    sources: Union[list[SourceModel], Union[list[str], None]] = None
 
 
 class RagSqlResponse(InferenceResponse):

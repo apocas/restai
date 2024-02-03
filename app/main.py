@@ -789,9 +789,11 @@ async def question_query_endpoint(
             return await question_query(request, projectName, input, user, db)
         elif project.model.type == "inference":
             return await question_inference(request, projectName, InferenceModel(question=input.question, system=input.system), user, db)
+        elif project.model.type == "ragsql":
+            return await question_query_sql(request, projectName, RagSqlModel(question=input.question, tables=input.tables), user, db)
         else:
             raise HTTPException(
-                status_code=400, detail='{"error": "Only available for RAG and INFERENCE projects."}')
+                status_code=400, detail='{"error": "Only available for RAG, RAGSQL and INFERENCE projects."}')
     except Exception as e:
         try:
             brain.semaphore.release()
@@ -930,6 +932,30 @@ async def question_inference(
 
 
 @app.post("/projects/{projectName}/questionsql", response_model=RagSqlResponse)
+async def question_query_sql_endpoint(
+        request: Request,
+        projectName: str,
+        input: RagSqlModel,
+        user: User = Depends(get_current_username_project),
+        db: Session = Depends(get_db)):
+    try:
+        project = brain.findProject(projectName, db)
+
+        if project.model.type != "ragsql":
+            raise HTTPException(
+                status_code=400, detail='{"error": "Only available for RAGSQL projects."}')
+
+        return await question_query_sql(request, projectName, input, user, db)
+    except Exception as e:
+        try:
+            brain.semaphore.release()
+        except ValueError:
+            pass
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=500, detail=str(e))
+
 async def question_query_sql(
         request: Request,
         projectName: str,
