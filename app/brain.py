@@ -486,7 +486,7 @@ class Brain:
         if hasattr(questionModel, 'tables') and questionModel.tables is not None:
             tables = questionModel.tables
         elif project.model.tables:
-            tables = project.model.tables
+            tables = [table.strip() for table in project.model.tables.split(',')]
 
         query_engine = NLSQLTableQueryEngine(
             sql_database=sql_database,
