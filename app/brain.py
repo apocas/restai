@@ -32,12 +32,8 @@ from modules.embeddings import EMBEDDINGS
 from modules.llms import LLMS
 from app.database import dbc
 from sqlalchemy.orm import Session
-from llama_index.llms import LangChainLLM
 from langchain_community.chat_models import ChatOpenAI
 from llama_index.indices.struct_store.sql_query import NLSQLTableQueryEngine
-
-
-from langchain.chains import LLMChain
 
 from modules.prompts import PROMPTS
 
@@ -258,18 +254,14 @@ class Brain:
         threshold = chatModel.score or project.model.score or 0.2
         k = chatModel.k or project.model.k or 1
 
-        # prompt_template_txt = PROMPTS[model.prompt]
         sysTemplate = project.model.system or self.defaultSystem
-
-        # prompt_template = prompt_template_txt.format(system=sysTemplate)
 
         retriever = VectorIndexRetriever(
             index=project.db,
             similarity_top_k=k,
         )
 
-        llm = LangChainLLM(model.llm)
-        # llm.query_wrapper_prompt = prompt_template
+        llm = model.llm
 
         chat_engine = CondensePlusContextChatEngine(
             retriever=retriever,
@@ -317,20 +309,14 @@ class Brain:
 
         model, loaded = self.getLLM(project.model.llm)
 
-        prompt_template_txt = PROMPTS[model.prompt]
-
         sysTemplate = questionModel.system or project.model.system or self.defaultSystem
-
-        prompt_template = prompt_template_txt.format(system=sysTemplate)
-        # query_wrapper_prompt = PromptTemplate(prompt_template)
 
         k = questionModel.k or project.model.k or 2
         threshold = questionModel.score or project.model.score or 0.2
 
         service_context = ServiceContext.from_defaults(
-            llm=LangChainLLM(llm=model.llm)
+            llm=model.llm
         )
-        service_context.llm.query_wrapper_prompt = prompt_template
 
         retriever = VectorIndexRetriever(
             index=project.db,
@@ -350,6 +336,8 @@ class Brain:
 
         if isinstance(model.llm, ChatOpenAI):
             qa_prompt_tmpl = sysTemplate + "\n" + qa_prompt_tmpl
+        else:
+            model.llm.system = sysTemplate
 
         qa_prompt = PromptTemplate(qa_prompt_tmpl)
 
@@ -445,20 +433,13 @@ class Brain:
 
         model, loaded = self.getLLM(project.model.llm)
 
-        prompt_template_txt = PROMPTS[model.prompt]
         sysTemplate = inferenceModel.system or project.model.system or self.defaultSystem
-        prompt_template = prompt_template_txt.format(system=sysTemplate)
-
-        prompt = langchain.prompts.PromptTemplate(
-            template=prompt_template, input_variables=["query_str"]
-        )
-        chain = LLMChain(llm=model.llm, prompt=prompt)
-        inputs = [{"query_str": inferenceModel.question}]
-        resp = chain.apply(inputs)
+    
+        resp = model.llm.complete(inferenceModel.question, system=sysTemplate, keep_alive=0)
 
         output = {
             "question": inferenceModel.question,
-            "answer": resp[0]["text"].strip(),
+            "answer": resp.text.strip(),
             "type": "inference"
         }
 
