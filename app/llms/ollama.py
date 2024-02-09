@@ -31,7 +31,7 @@ class Ollama(Ollama):
             messages.insert(
                 0, ChatMessage(role="system", content=self.system)
             )
-
+        kwargs["keep_alive"] = self.keep_alive
         return super().chat(messages, **kwargs)
     
     @llm_chat_callback()
@@ -40,16 +40,19 @@ class Ollama(Ollama):
             messages.insert(
                 0, ChatMessage(role="system", content=self.system)
             )
+        kwargs["keep_alive"] = self.keep_alive
         yield super().stream_chat(messages, **kwargs)
     
     @llm_completion_callback()
     def complete(self, prompt: str, formatted: bool = False, **kwargs: Any) -> CompletionResponse:
         if self.system:
             kwargs["system"] = self.system
+        kwargs["keep_alive"] = self.keep_alive
         return super().complete(prompt, formatted, **kwargs)
     
     @llm_completion_callback()
     def stream_complete(self, prompt: str, formatted: bool = False, **kwargs: Any) -> CompletionResponseGen:
         if self.system:
             kwargs["system"] = self.system
+        kwargs["keep_alive"] = self.keep_alive
         yield super().stream_complete(prompt, formatted, **kwargs)

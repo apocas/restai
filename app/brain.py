@@ -15,7 +15,6 @@ from llama_index.chat_engine.condense_plus_context import CondensePlusContextCha
 from langchain.agents import initialize_agent
 from sqlalchemy import create_engine
 import torch
-from app.llms.llava import LlavaLLM
 from app.llms.loader import localLoader
 from app.llms.qwen import QwenLLM
 from app.llms.tools.dalle import DalleImage
@@ -35,7 +34,9 @@ from sqlalchemy.orm import Session
 from langchain_community.chat_models import ChatOpenAI
 from llama_index.indices.struct_store.sql_query import NLSQLTableQueryEngine
 
-from modules.prompts import PROMPTS
+from llama_index.schema import ImageDocument
+
+from llama_index.core.llms.types import ChatMessage
 
 
 class Brain:
@@ -60,33 +61,23 @@ class Brain:
         unloaded = False
         models_to_unload = []
         for llmr, mr in self.llmCache.items():
-            if mr.model is not None or mr.tokenizer is not None or isinstance(mr.llm, LlavaLLM) or isinstance(mr.llm, QwenLLM):
+            if mr.model is not None or mr.tokenizer is not None or isinstance(mr.llm, QwenLLM):
                 print("UNLOADING MODEL " + llmr)
                 models_to_unload.append(llmr)
 
         for modelr in models_to_unload:
-            if isinstance(self.llmCache[modelr].llm, LlavaLLM):
-                self.llmCache[modelr].llm.model = None
-                self.llmCache[modelr].llm.processor = None
-                self.llmCache[modelr].llm = None
-            else:
-                self.llmCache[modelr].llm = None
-                self.llmCache[modelr].pipe = None
-                self.llmCache[modelr].tokenizer = None
-                self.llmCache[modelr].model = None
+            self.llmCache[modelr].llm = None
+            self.llmCache[modelr].pipe = None
+            self.llmCache[modelr].tokenizer = None
+            self.llmCache[modelr].model = None
 
             gc.collect()
             torch.cuda.empty_cache()
 
-            if isinstance(self.llmCache[modelr].llm, LlavaLLM):
-                del self.llmCache[modelr].llm.model
-                del self.llmCache[modelr].llm.processor
-                del self.llmCache[modelr].llm
-            else:
-                del self.llmCache[modelr].llm
-                del self.llmCache[modelr].pipe
-                del self.llmCache[modelr].tokenizer
-                del self.llmCache[modelr].model
+            del self.llmCache[modelr].llm
+            del self.llmCache[modelr].pipe
+            del self.llmCache[modelr].tokenizer
+            del self.llmCache[modelr].model
 
             self.llmCache[modelr] = None
             del self.llmCache[modelr]
@@ -125,7 +116,7 @@ class Brain:
                         pipe,
                         typel)
                 else:
-                    if llm_class == LlavaLLM or llm_class == QwenLLM:
+                    if llm_class == QwenLLM:
                         print("LOADING MODEL " + llmModel)
                     llm = llm_class(**llm_args, **kwargs)
                     m = Model(llmModel, llm, prompt, privacy, type=typel)
@@ -315,7 +306,8 @@ class Brain:
         threshold = questionModel.score or project.model.score or 0.2
 
         service_context = ServiceContext.from_defaults(
-            llm=model.llm
+            llm=model.llm,
+            system_prompt=sysTemplate
         )
 
         retriever = VectorIndexRetriever(
@@ -333,11 +325,6 @@ class Brain:
             "Query: {query_str}\n"
             "Answer: "
         )
-
-        if isinstance(model.llm, ChatOpenAI):
-            qa_prompt_tmpl = sysTemplate + "\n" + qa_prompt_tmpl
-        else:
-            model.llm.system = sysTemplate
 
         qa_prompt = PromptTemplate(qa_prompt_tmpl)
 
@@ -409,12 +396,9 @@ class Brain:
             if outputAgent["type"] == "describeimage":
                 model, loaded = self.getLLM(project.model.llm, True)
 
-                prompt_template_txt = PROMPTS[model.prompt]
-                input = prompt_template_txt.format(
-                    query_str=visionInput.question, system="")
-
-                output, image, history = model.llm.inference(
-                    input, visionInput.image)
+                response = model.llm.complete(prompt=visionInput.question, image_documents=[ImageDocument(image=visionInput.image)])
+                output = response.text
+                image = visionInput.image
             else:
                 output = outputAgent["prompt"]
                 image = outputAgent["image"]
@@ -434,14 +418,29 @@ class Brain:
         model, loaded = self.getLLM(project.model.llm)
 
         sysTemplate = inferenceModel.system or project.model.system or self.defaultSystem
-    
-        resp = model.llm.complete(inferenceModel.question, system=sysTemplate, keep_alive=0)
+        model.llm.system_prompt = sysTemplate
+
+        messages = [
+            ChatMessage(
+                role="system", content=sysTemplate
+            ),
+            ChatMessage(role="user", content=inferenceModel.question),
+        ]
+        resp = model.llm.chat(messages)
 
         output = {
             "question": inferenceModel.question,
-            "answer": resp.text.strip(),
+            "answer": resp.message.content.strip(),
             "type": "inference"
         }
+
+        #model.llm.system_prompt = sysTemplate
+        #resp = model.llm.complete(inferenceModel.question)
+        #output = {
+        #    "question": inferenceModel.question,
+        #    "answer": resp.text.strip(),
+        #    "type": "inference"
+        #}
 
         if loaded == True:
             self.semaphore.release()
@@ -461,7 +460,9 @@ class Brain:
 
         llm_predictor = LLMPredictor(llm=model.llm)
         service_context = ServiceContext.from_defaults(
-            llm_predictor=llm_predictor)
+            llm_predictor=llm_predictor,
+            system_prompt=project.model.system or self.defaultSystem
+        )
 
         tables = None
         if hasattr(questionModel, 'tables') and questionModel.tables is not None:
