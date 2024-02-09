@@ -13,19 +13,19 @@ LLMS = {
 
     "openai_gpt4_turbo": (OpenAI, {"temperature": 0, "model": "gpt-4-turbo-preview"}, "openai", "public", "OpenAI GPT-4 Turbo", "chat", "node1"),
 
-    "mistral7b_gptq": (Ollama, {"model": "mistral", "temperature": 0.0001, "keep_alive": 0}, "chatml", "private", "https://huggingface.co/TheBloke/Mistral-7B-OpenOrca-GPTQ", "qa", "node1"),
+    "mistral7b_gptq": (Ollama, {"model": "mistral", "temperature": 0.0001, "keep_alive": 0}, "chatml", "private", "https://huggingface.co/TheBloke/Mistral-7B-OpenOrca-GPTQ", "chat", "node1"),
 
-    "llama13b_chat_gptq": (Ollama, {"model": "llama2:13b", "temperature": 0.0001, "keep_alive": 0}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-13B-chat-GPTQ", "qa", "node1"),
+    "llama13b_chat_gptq": (Ollama, {"model": "llama2:13b", "temperature": 0.0001, "keep_alive": 0}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-13B-chat-GPTQ", "chat", "node1"),
 
-    "llama7b_chat_gptq": (Ollama, {"model": "llama2:7b", "temperature": 0.0001, "keep_alive": 0}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-7B-Chat-GPTQ", "qa", "node1"),
+    "llama7b_chat_gptq": (Ollama, {"model": "llama2:7b", "temperature": 0.0001, "keep_alive": 0}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-7B-Chat-GPTQ", "chat", "node1"),
 
     "llava_1.5_13b": (OllamaMultiModal2, {"model": "llava", "temperature": 0.0001, "keep_alive": 0}, "llava", "private", "https://huggingface.co/llava-hf/llava-1.5-13b-hf", "vision", "node1"),
 
     "bakllava_v1": (OllamaMultiModal2, {"model": "bakllava", "temperature": 0.0001, "keep_alive": 0}, "llava", "private", "https://huggingface.co/llava-hf/bakLlava-v1-hf", "vision", "node1"),
 
-    "mixtral8x7b_instruct_gptq": (Ollama, {"model": "mixtral", "temperature": 0.1, "keep_alive": 0}, "mistral", "private", "https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ", "qa", "node2"),
+    "mixtral8x7b_instruct_gptq": (Ollama, {"model": "mixtral", "temperature": 0.1, "keep_alive": 0}, "mistral", "private", "https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ", "chat", "node2"),
 
-    "llama2_70b_chat_gptq": (Ollama, {"model": "llama2:70b", "temperature": 0.0001, "keep_alive": 0}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-70B-Chat-GPTQ", "qa", "node2"),
+    "llama2_70b_chat_gptq": (Ollama, {"model": "llama2:70b", "temperature": 0.0001, "keep_alive": 0}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-70B-Chat-GPTQ", "chat", "node2"),
 
     "qwen_vl_chat": (QwenLLM, {"model": "Qwen/Qwen-VL-Chat"}, "plain", "private", "https://huggingface.co/Qwen/Qwen-VL-Chat", "vision", "node1"),
 
