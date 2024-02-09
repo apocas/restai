@@ -1,6 +1,8 @@
+from llama_index.llms import LangChainLLM
+
 def localLoader(type, model, temperature=0.0001):
     if type == "gptq":
-        return loadTransformers(model, temperature)
+        return LangChainLLM(llm=loadTransformers(model, temperature))
     else:
         raise Exception("Invalid LLM type.")
 
