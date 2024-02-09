@@ -460,8 +460,7 @@ class Brain:
 
         llm_predictor = LLMPredictor(llm=model.llm)
         service_context = ServiceContext.from_defaults(
-            llm_predictor=llm_predictor,
-            system_prompt=project.model.system or self.defaultSystem
+            llm_predictor=llm_predictor
         )
 
         tables = None
@@ -476,7 +475,9 @@ class Brain:
             tables=tables,
         )
 
-        response = query_engine.query(questionModel.question)
+        question = (project.model.system or self.defaultSystem) + "\n Question: " + questionModel.question
+
+        response = query_engine.query(question)
 
         output = {
             "question": questionModel.question,
