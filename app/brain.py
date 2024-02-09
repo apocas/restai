@@ -434,14 +434,6 @@ class Brain:
             "type": "inference"
         }
 
-        #model.llm.system_prompt = sysTemplate
-        #resp = model.llm.complete(inferenceModel.question)
-        #output = {
-        #    "question": inferenceModel.question,
-        #    "answer": resp.text.strip(),
-        #    "type": "inference"
-        #}
-
         if loaded == True:
             self.semaphore.release()
 
