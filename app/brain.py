@@ -381,13 +381,13 @@ class Brain:
         if isprivate:
             tools.pop(0)
 
-        model, loaded = self.getLLM("openai_gpt3.5_turbo", True)
+        llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
 
         self.semaphore.acquire()
         self.unloadLLMs()
 
         agent = initialize_agent(
-            tools, model.llm, agent="zero-shot-react-description", verbose=True)
+            tools, llm, agent="zero-shot-react-description", verbose=True)
         outputAgent = agent.run(visionInput.question, tags=[visionInput])
 
         if isinstance(outputAgent, str):
