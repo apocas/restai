@@ -1,6 +1,6 @@
 .PHONY: start
 start:
-	poetry run python main.py
+	poetry run uvicorn app.main:app --port 9000 --workers 4
 
 .PHONY: dev
 dev:

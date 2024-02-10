@@ -20,6 +20,7 @@ from app.llms.qwen import QwenLLM
 from app.llms.tools.dalle import DalleImage
 from app.llms.tools.describeimage import DescribeImage
 from app.llms.tools.drawimage import DrawImage
+from app.llms.tools.instantid import InstantID
 from app.llms.tools.refineimage import RefineImage
 from app.llms.tools.stablediffusion import StableDiffusionImage
 from app.model import Model
@@ -375,6 +376,7 @@ class Brain:
             RefineImage(),
             DrawImage(),
             DescribeImage(),
+            InstantID(),
         ]
 
         if isprivate:

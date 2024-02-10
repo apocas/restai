@@ -164,6 +164,8 @@ projects/*
 !projects/.gitkeep
 models/*
 !models/.gitkeep
+checkpoints/*
+!checkpoints/.gitkeep
 uploads/*
 !uploads/.gitkeep
 .DS_Store
