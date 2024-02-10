@@ -7,25 +7,25 @@ from llama_index.llms.openai import OpenAI
 LLMS = {
     # "name": (LOADER, {"args": "here"}, "Prompt (check prompts.py)", "Privacy (public/private)", "Description...", "type (text/vision)", "Execution node", "chat/qa/both"),
   
-    "openai_gpt3.5_turbo": (OpenAI, {"temperature": 0, "model": "gpt-3.5-turbo"}, "openai", "public", "OpenAI GPT-3.5 Turbo", "chat"),
+    "openai_gpt3.5_turbo": (OpenAI, {"temperature": 0, "model": "gpt-3.5-turbo"}, None, "public", "OpenAI GPT-3.5 Turbo", "chat"),
 
-    "openai_gpt4": (OpenAI, {"temperature": 0, "model": "gpt-4"}, "openai", "public", "OpenAI GPT-4 ", "chat"),
+    "openai_gpt4": (OpenAI, {"temperature": 0, "model": "gpt-4"}, None, "public", "OpenAI GPT-4 ", "chat"),
 
-    "openai_gpt4_turbo": (OpenAI, {"temperature": 0, "model": "gpt-4-turbo-preview"}, "openai", "public", "OpenAI GPT-4 Turbo", "chat"),
+    "openai_gpt4_turbo": (OpenAI, {"temperature": 0, "model": "gpt-4-turbo-preview"}, None, "public", "OpenAI GPT-4 Turbo", "chat"),
 
-    "mistral_7b": (Ollama, {"model": "mistral", "temperature": 0.0001, "keep_alive": 0}, "chatml", "private", "https://huggingface.co/TheBloke/Mistral-7B-OpenOrca-GPTQ", "chat"),
+    "mistral_7b": (Ollama, {"model": "mistral", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/mistral", "chat"),
 
-    "llama2_13b": (Ollama, {"model": "llama2:13b", "temperature": 0.0001, "keep_alive": 0}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-13B-chat-GPTQ", "chat"),
+    "llama2_13b": (Ollama, {"model": "llama2:13b", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/llama2", "chat"),
 
-    "llama2_7b": (Ollama, {"model": "llama2:7b", "temperature": 0.0001, "keep_alive": 0}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-7B-Chat-GPTQ", "chat"),
+    "llama2_7b": (Ollama, {"model": "llama2:7b", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/llama2", "chat"),
 
-    "llava16_13b": (OllamaMultiModal2, {"model": "llava:13b-v1.6", "temperature": 0.0001, "keep_alive": 0}, "llava", "private", "https://huggingface.co/llava-hf/llava-1.5-13b-hf", "vision"),
+    "llava16_13b": (OllamaMultiModal2, {"model": "llava:13b-v1.6", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/llava", "vision"),
 
-    "bakllava_7b": (OllamaMultiModal2, {"model": "bakllava", "temperature": 0.0001, "keep_alive": 0}, "llava", "private", "https://huggingface.co/llava-hf/bakLlava-v1-hf", "vision"),
+    "bakllava_7b": (OllamaMultiModal2, {"model": "bakllava", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/bakllava", "vision"),
 
-    "mixtral_8x7b": (Ollama, {"model": "mixtral", "temperature": 0.0001, "keep_alive": 0}, "mistral", "private", "https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ", "chat"),
+    "mixtral_8x7b": (Ollama, {"model": "mixtral", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/mixtral", "chat"),
 
-    "llama2_70b": (Ollama, {"model": "llama2:70b", "temperature": 0.0001, "keep_alive": 0}, "llama", "private", "https://huggingface.co/TheBloke/Llama-2-70B-Chat-GPTQ", "chat"),
+    "llama2_70b": (Ollama, {"model": "llama2:70b", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/llama2", "chat"),
 
     "qwen_vl_chat": (QwenLLM, {"model": "Qwen/Qwen-VL-Chat"}, "plain", "private", "https://huggingface.co/Qwen/Qwen-VL-Chat", "vision"),
 
