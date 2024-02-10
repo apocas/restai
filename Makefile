@@ -2,11 +2,6 @@
 start:
 	poetry run python main.py
 
-#make remote host=user@1.2.3.4 path=/home/user/restai/
-.PHONY: remote
-remote:
-	ssh -2 -L 5678:127.0.0.1:5678 $(host) "cd $(path); python3 -m debugpy --listen 127.0.0.1:5678 --wait-for-client main.py"
-
 .PHONY: dev
 dev:
 	RESTAI_DEV=true uvicorn app.main:app --reload --port 9000

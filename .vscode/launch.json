@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "Python: Main File",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "main.py",
       "console": "integratedTerminal",
@@ -18,7 +18,7 @@
     },
     {
       "name": "Python: Current File",
-      "type": "python",
+      "type": "debugpy",
       "request": "launch",
       "program": "${file}",
       "console": "integratedTerminal",
@@ -27,20 +27,6 @@
       "args": [],
       "purpose": [
         "debug-in-terminal"
-      ]
-    },
-    {
-      "name": "Python: Remote",
-      "type": "python",
-      "request": "attach",
-      "host": "localhost",
-      "port": 5678,
-      "justMyCode": false,
-      "pathMappings": [
-        {
-          "localRoot": "${workspaceFolder}",
-          "remoteRoot": "."
-        }
       ]
     }
   ]
