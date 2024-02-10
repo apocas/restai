@@ -90,14 +90,13 @@ async def get_info(user: User = Depends(get_current_username)):
     }
 
     for llm in LLMS:
-        llm_class, llm_args, prompt, privacy, description, typel, llm_node = LLMS[llm]
+        llm_class, llm_args, prompt, privacy, description, typel = LLMS[llm]
         output["llms"].append({
             "name": llm,
             "prompt": prompt,
             "privacy": privacy,
             "description": description,
-            "type": typel,
-            "node": llm_node
+            "type": typel
         })
 
     for embedding in EMBEDDINGS:
@@ -282,10 +281,14 @@ async def get_projects(request: Request, user: User = Depends(get_current_userna
                     projects.append(p)
 
     for project in projects:
-        llm_class, llm_args, prompt, llm_privacy, description, llm_type, llm_node = LLMS[
-            project.llm]
-        project.llm_type = llm_type
-        project.llm_privacy = llm_privacy
+        try:
+            llm_class, llm_args, prompt, llm_privacy, description, llm_type = LLMS[
+                project.llm]
+            project.llm_type = llm_type
+            project.llm_privacy = llm_privacy
+        except Exception as e:
+            project.llm_type = "unknown"
+            project.llm_privacy = "unknown"
 
     return projects
 
@@ -295,8 +298,12 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
     try:
         project = brain.findProject(projectName, db)
 
-        llm_class, llm_args, prompt, llm_privacy, description, llm_type, llm_node = LLMS[
+        try:
+            llm_class, llm_args, prompt, llm_privacy, description, llm_type = LLMS[
             project.model.llm]
+        except Exception as e:
+            llm_type = "unknown"
+            llm_privacy = "unknown"
 
         chunks = vector_info(project)
 
@@ -314,7 +321,8 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             vectorstore=project.model.vectorstore,
             type=project.model.type,
             connection=project.model.connection,
-            tables=project.model.tables,)
+            tables=project.model.tables,
+        )
         output.chunks = chunks
 
         if output.connection:
@@ -352,7 +360,7 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
             detail='LLM not found')
 
     if user.is_private:
-        llm_class, llm_args, prompt, privacy, description, type, llm_node = LLMS[
+        llm_class, llm_args, prompt, privacy, description, type = LLMS[
             projectModelUpdate.llm]
         if privacy != "private":
             raise HTTPException(
@@ -394,7 +402,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
             detail='Project already exists')
 
     if user.is_private:
-        llm_class, llm_args, prompt, privacy, description, type, llm_node = LLMS[
+        llm_class, llm_args, prompt, privacy, description, type = LLMS[
             projectModel.llm]
         if privacy != "private":
             raise HTTPException(
@@ -742,31 +750,12 @@ async def question_query(
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-        llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
-            project.model.llm]
-        if llm_node != "node1" and llm_node != os.environ["RESTAI_NODE"]:
-            client = httpx.AsyncClient(
-                base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
-            url = httpx.URL(path=request.url.path.lstrip("/"),
-                            query=request.url.query.encode("utf-8"))
-            rp_req = client.build_request(request.method, url,
-                                          headers=request.headers.raw,
-                                          content=await request.body())
-            rp_req.headers["host"] = llm_node + os.environ["RESTAI_HOST"]
-            rp_resp = await client.send(rp_req, stream=True)
-            return StreamingResponse(
-                rp_resp.aiter_raw(),
-                status_code=rp_resp.status_code,
-                headers=rp_resp.headers,
-                background=BackgroundTask(rp_resp.aclose),
-            )
-        else:
-            output, censored = brain.entryQuestion(projectName, input, db)
+        output, censored = brain.entryQuestion(projectName, input, db)
 
-            logs_inference.info(
-                {"user": user.username, "project": projectName, "output": output})
+        logs_inference.info(
+            {"user": user.username, "project": projectName, "output": output})
 
-            return output
+        return output
     except Exception as e:
         try:
             brain.semaphore.release()
@@ -820,31 +809,12 @@ async def chat_query(
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-        llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
-            project.model.llm]
-        if llm_node != "node1" and llm_node != os.environ["RESTAI_NODE"]:
-            client = httpx.AsyncClient(
-                base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
-            url = httpx.URL(path=request.url.path.lstrip("/"),
-                            query=request.url.query.encode("utf-8"))
-            rp_req = client.build_request(request.method, url,
-                                          headers=request.headers.raw,
-                                          content=await request.body())
-            rp_req.headers["host"] = llm_node + os.environ["RESTAI_HOST"]
-            rp_resp = await client.send(rp_req, stream=True)
-            return StreamingResponse(
-                rp_resp.aiter_raw(),
-                status_code=rp_resp.status_code,
-                headers=rp_resp.headers,
-                background=BackgroundTask(rp_resp.aclose),
-            )
-        else:
-            output, censored = brain.entryChat(projectName, input, db)
+        output, censored = brain.entryChat(projectName, input, db)
 
-            logs_inference.info(
-                {"user": user.username, "project": projectName, "output": output})
+        logs_inference.info(
+            {"user": user.username, "project": projectName, "output": output})
 
-            return output
+        return output
     except Exception as e:
         try:
             brain.semaphore.release()
@@ -896,31 +866,12 @@ async def question_inference(
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for INFERENCE projects."}')
 
-        llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
-            project.model.llm]
-        if llm_node != "node1" and llm_node != os.environ["RESTAI_NODE"]:
-            client = httpx.AsyncClient(
-                base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
-            url = httpx.URL(path=request.url.path.lstrip("/"),
-                            query=request.url.query.encode("utf-8"))
-            rp_req = client.build_request(request.method, url,
-                                          headers=request.headers.raw,
-                                          content=await request.body())
-            rp_req.headers["host"] = llm_node + os.environ["RESTAI_HOST"]
-            rp_resp = await client.send(rp_req, stream=True)
-            return StreamingResponse(
-                rp_resp.aiter_raw(),
-                status_code=rp_resp.status_code,
-                headers=rp_resp.headers,
-                background=BackgroundTask(rp_resp.aclose),
-            )
-        else:
-            output = brain.inference(projectName, input, db)
+        output = brain.inference(projectName, input, db)
 
-            logs_inference.info(
-                {"user": user.username, "project": projectName, "output": output})
+        logs_inference.info(
+            {"user": user.username, "project": projectName, "output": output})
 
-            return output
+        return output
     except Exception as e:
         try:
             brain.semaphore.release()
@@ -970,31 +921,12 @@ async def question_query_sql(
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAGSQL projects."}')
 
-        llm_class, llm_args, llm_prompt, llm_privacy, llm_description, llm_type, llm_node = LLMS[
-            project.model.llm]
-        if llm_node != "node1" and llm_node != os.environ["RESTAI_NODE"]:
-            client = httpx.AsyncClient(
-                base_url="http://" + llm_node + os.environ["RESTAI_HOST"] + "/", timeout=120.0)
-            url = httpx.URL(path=request.url.path.lstrip("/"),
-                            query=request.url.query.encode("utf-8"))
-            rp_req = client.build_request(request.method, url,
-                                          headers=request.headers.raw,
-                                          content=await request.body())
-            rp_req.headers["host"] = llm_node + os.environ["RESTAI_HOST"]
-            rp_resp = await client.send(rp_req, stream=True)
-            return StreamingResponse(
-                rp_resp.aiter_raw(),
-                status_code=rp_resp.status_code,
-                headers=rp_resp.headers,
-                background=BackgroundTask(rp_resp.aclose),
-            )
-        else:
-            output = brain.ragSQL(projectName, input, db)
+        output = brain.ragSQL(projectName, input, db)
 
-            logs_inference.info(
-                {"user": user.username, "project": projectName, "output": output})
+        logs_inference.info(
+            {"user": user.username, "project": projectName, "output": output})
 
-            return output
+        return output
     except Exception as e:
         try:
             brain.semaphore.release()

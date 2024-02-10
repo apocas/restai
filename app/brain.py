@@ -99,7 +99,7 @@ class Brain:
                 unloaded = self.unloadLLMs()
 
             if llmModel in LLMS:
-                llm_class, llm_args, prompt, privacy, description, typel, llm_node = LLMS[
+                llm_class, llm_args, prompt, privacy, description, typel = LLMS[
                     llmModel]
 
                 if llm_class == localLoader:
@@ -141,12 +141,11 @@ class Brain:
     def findProject(self, name, db):
         for project in self.projects:
             if project.model.name == name:
-                if os.environ["RESTAI_NODE"] != "node1":
-                    p = dbc.get_project_by_name(db, name)
-                    if p is None:
-                        return None
-                    proj = ProjectModel.model_validate(p)
-                    project.model = proj
+                p = dbc.get_project_by_name(db, name)
+                if p is None:
+                    return None
+                proj = ProjectModel.model_validate(p)
+                project.model = proj
                 return project
 
         p = dbc.get_project_by_name(db, name)
