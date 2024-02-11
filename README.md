@@ -57,7 +57,7 @@
 - **text2img**: RestAI supports local Stable Diffusion and Dall-E. It features prompt boosting, a LLM is internally used to boost the user prompt with more detail.
 - **img2text**: RestAI supports LLaVA, BakLLaVA and Qwen-VL by default. It supports any LLM supported by transformers pipes.
 
-#### Stable Diffusion & InstantID
+#### Stable Diffusion & [InstantID](https://github.com/InstantID/InstantID)
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/vision_sd.png" width="25%"  style="margin: 10px;"/>
