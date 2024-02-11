@@ -13,7 +13,7 @@ LLMS = {
 
     "openai_gpt4_turbo": (OpenAI, {"temperature": 0, "model": "gpt-4-turbo-preview"}, None, "public", "OpenAI GPT-4 Turbo", "chat"),
 
-    "mistral_7b": (Ollama, {"model": "mistral", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/mistral", "chat"),
+    "mistral_7b": (Ollama, {"model": "mistral", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/mistral", "qa"),
 
     "llama2_13b": (Ollama, {"model": "llama2:13b", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/llama2", "chat"),
 
