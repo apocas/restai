@@ -25,6 +25,9 @@ def instantid_worker(prompt, sharedmem):
 
     negative_prompt = sharedmem["negative_prompt"]
 
+    if not negative_prompt:
+        negative_prompt = "(lowres, low quality, worst quality:1.2), (text:1.2), watermark, (frame:1.2), deformed, ugly, deformed eyes, blur, out of focus, blurry, deformed cat, deformed, photo, anthropomorphic cat, monochrome, photo, pet collar, gun, weapon, blue, 3d, drones, drone, buildings in background, green"
+
     DEFAULT_CUDA = "cuda"
 
     app = FaceAnalysis(name='antelopev2', root='./', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])

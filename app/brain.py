@@ -389,7 +389,11 @@ class Brain:
 
         agent = initialize_agent(
             tools, llm, agent="zero-shot-react-description", verbose=True)
-        outputAgent = agent.run(visionInput.question, tags=[visionInput])
+        
+        try:
+            outputAgent = agent.run(visionInput.question, tags=[visionInput])
+        except Exception as e:
+            raise Exception("Vision process failed.")
 
         if isinstance(outputAgent, str):
             output = outputAgent
