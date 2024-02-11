@@ -38,6 +38,7 @@ class InstantID(BaseTool):
         sharedmem = manager.dict()
 
         sharedmem["input_image"] = run_manager.tags[0].image
+        sharedmem["negative_prompt"] = run_manager.tags[0].negative
 
         p = Process(target=instantid_worker, args=(fprompt, sharedmem))
         p.start()

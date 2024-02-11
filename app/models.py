@@ -46,6 +46,7 @@ class InferenceModel(BaseModel):
 
 class VisionModel(BaseModel):
     question: str
+    negative: Union[str, None] = None
     image: Union[str, None] = None
     boost: bool = False
 
