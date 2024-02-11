@@ -15,9 +15,9 @@ LLMS = {
 
     "mistral_7b": (Ollama, {"model": "mistral", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/mistral", "qa"),
 
-    "llama2_13b": (Ollama, {"model": "llama2:13b", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/llama2", "chat"),
+    "llama2_13b": (Ollama, {"model": "llama2:13b-chat", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/llama2", "chat"),
 
-    "llama2_7b": (Ollama, {"model": "llama2:7b", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/llama2", "chat"),
+    "llama2_7b": (Ollama, {"model": "llama2:7b-chat", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/llama2", "chat"),
 
     "llava16_13b": (OllamaMultiModal2, {"model": "llava:13b-v1.6", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/llava", "vision"),
 
@@ -25,7 +25,7 @@ LLMS = {
 
     "mixtral_8x7b": (Ollama, {"model": "mixtral", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/mixtral", "chat"),
 
-    "llama2_70b": (Ollama, {"model": "llama2:70b", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/llama2", "chat"),
+    "llama2_70b": (Ollama, {"model": "llama2:70b-chat", "temperature": 0.0001, "keep_alive": 0}, None, "private", "https://ollama.com/library/llama2", "chat"),
 
     "qwen_vl_chat": (QwenLLM, {"model": "Qwen/Qwen-VL-Chat"}, "plain", "private", "https://huggingface.co/Qwen/Qwen-VL-Chat", "vision"),
 
