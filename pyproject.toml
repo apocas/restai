@@ -52,6 +52,7 @@ ollama = "^0.1.6"
 insightface = "^0.7.3"
 opencv-python = "^4.9.0.80"
 ip-adapter = "^0.1.0"
+ilock = "^1.0.3"
 
 [tool.poetry.group.gpu]
 optional = true

@@ -12,6 +12,7 @@ from langchain.chains import LLMChain
 from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from PIL import Image
+from ilock import ILock, ILockException
 
 from typing import Optional
 from langchain.callbacks.manager import (
@@ -50,9 +51,10 @@ class InstantID(BaseTool):
 
         sharedmem["negative_prompt"] = run_manager.tags[0].negative
 
-        p = Process(target=instantid_worker, args=(fprompt, sharedmem))
-        p.start()
-        p.join()
+        with ILock('instantid', timeout=180):
+            p = Process(target=instantid_worker, args=(fprompt, sharedmem))
+            p.start()
+            p.join()
 
         if not sharedmem["output_image"]:
             raise Exception("An error occurred while processing the image. Please try again.")

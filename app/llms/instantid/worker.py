@@ -1,5 +1,6 @@
 import base64
 import io
+import os
 from diffusers.models import ControlNetModel
 from huggingface_hub import hf_hub_download
 
@@ -28,8 +29,6 @@ def instantid_worker(prompt, sharedmem):
     if not negative_prompt:
         negative_prompt = "(lowres, low quality, worst quality:1.2), (text:1.2), watermark, (frame:1.2), deformed, ugly, deformed eyes, blur, out of focus, blurry, deformed cat, deformed, photo, anthropomorphic cat, monochrome, photo, pet collar, gun, weapon, blue, 3d, drones, drone, buildings in background, green"
 
-    DEFAULT_CUDA = "cuda"
-
     app = FaceAnalysis(name='antelopev2', root='./', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
     app.prepare(ctx_id=0, det_size=(640, 640))
 
@@ -41,7 +40,7 @@ def instantid_worker(prompt, sharedmem):
     pipe = StableDiffusionXLInstantIDPipeline.from_pretrained(
         "wangqixun/YamerMIX_v8", controlnet=controlnet, torch_dtype=torch.float16
     )
-    pipe.to(DEFAULT_CUDA)
+    pipe.to(os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda:0")
 
     pipe.load_ip_adapter_instantid(face_adapter)
 
@@ -64,7 +63,7 @@ def instantid_worker(prompt, sharedmem):
 
     pipe.set_ip_adapter_scale(0.8)
 
-    generator = torch.Generator(device=DEFAULT_CUDA).manual_seed(random.randint(0, np.iinfo(np.int32).max))
+    generator = torch.Generator(device=os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda:0").manual_seed(random.randint(0, np.iinfo(np.int32).max))
 
     image = pipe(
         prompt,
