@@ -1,3 +1,5 @@
+import base64
+import io
 from torch.multiprocessing import Process, set_start_method, Manager
 
 from app.llms.instantid.worker import instantid_worker
@@ -9,6 +11,7 @@ from langchain.tools import BaseTool
 from langchain.chains import LLMChain
 from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
+from PIL import Image
 
 from typing import Optional
 from langchain.callbacks.manager import (
@@ -38,11 +41,21 @@ class InstantID(BaseTool):
         sharedmem = manager.dict()
 
         sharedmem["input_image"] = run_manager.tags[0].image
+
+        img_data = base64.b64decode(sharedmem["input_image"])
+        face_image = Image.open(io.BytesIO(img_data))
+        height = face_image.size[1]
+        if height > 1280:
+            raise Exception("Send a smaller image. The maximum height is 1024 pixels.")
+
         sharedmem["negative_prompt"] = run_manager.tags[0].negative
 
         p = Process(target=instantid_worker, args=(fprompt, sharedmem))
         p.start()
         p.join()
+
+        if not sharedmem["output_image"]:
+            raise Exception("An error occurred while processing the image. Please try again.")
 
         return {"type": "instantid", "image": sharedmem["output_image"], "prompt": fprompt}
 
