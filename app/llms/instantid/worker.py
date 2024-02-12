@@ -44,9 +44,6 @@ def instantid_worker(prompt, sharedmem):
 
     pipe.load_ip_adapter_instantid(face_adapter)
 
-    pipe.load_lora_weights("latent-consistency/lcm-lora-sdxl")
-    pipe.disable_lora()
-
     face_image_cv2 = cv2.cvtColor(np.array(face_image), cv2.COLOR_RGB2BGR)
     height, width, _ = face_image_cv2.shape
 
