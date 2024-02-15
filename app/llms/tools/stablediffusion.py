@@ -42,6 +42,7 @@ class StableDiffusionImage(BaseTool):
             p = Process(target=worker, args=(fprompt, sharedmem))
             p.start()
             p.join()
+            p.kill()
 
         return {"type": "stablediffusion", "image": sharedmem["image"], "prompt": fprompt}
 

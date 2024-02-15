@@ -5,14 +5,14 @@ from typing import Optional, Union
 class URLIngestModel(BaseModel):
     url: str
     splitter: str = "sentence"
-    chunks: int = 256
+    chunks: int = 512
 
 
 class TextIngestModel(BaseModel):
     text: str
     source: str
     splitter: str = "sentence"
-    chunks: int = 256
+    chunks: int = 512
     keywords: Union[list[str], None] = None
 
 

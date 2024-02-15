@@ -55,6 +55,7 @@ class InstantID(BaseTool):
             p = Process(target=worker, args=(fprompt, sharedmem))
             p.start()
             p.join()
+            p.kill()
 
         if not sharedmem["output_image"]:
             raise Exception("An error occurred while processing the image. Please try again.")
