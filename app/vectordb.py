@@ -249,8 +249,7 @@ def vector_delete_source(project, source):
         keys = lredis.keys("llama_" + project.model.name + "/*")
         for key in keys:
             lsource = lredis.hget(key, "source")
-            if lsource == source or lsource == os.path.join(
-                    os.environ["UPLOADS_PATH"], project.model.name, source):
+            if lsource == source:
                 ids.append(key)
                 lredis.delete(key)
     return ids

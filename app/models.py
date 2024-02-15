@@ -73,6 +73,21 @@ class ProjectModel(BaseModel):
     tables: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
+class LLMModel(BaseModel):
+    name: str
+    class_name: str
+    options: str
+    privacy: str
+    description: Union[str, None] = None
+    type: str
+    model_config = ConfigDict(from_attributes=True)
+
+class LLMUpdate(BaseModel):
+    class_name: str = None
+    options: str = None
+    privacy: str = None
+    description: str = None
+    type: str = None
 
 class ProjectInfo(ProjectModel):
     chunks: int = 0

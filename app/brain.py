@@ -1,7 +1,5 @@
-import gc
-import os
-import threading
-import langchain
+import json
+from httpx import HTTPStatusError
 from llama_index import LLMPredictor, SQLDatabase, ServiceContext
 from llama_index import (
     get_response_synthesizer,
@@ -11,25 +9,21 @@ from llama_index.retrievers import VectorIndexRetriever
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.postprocessor import SimilarityPostprocessor
 from llama_index.prompts import PromptTemplate
-from llama_index.chat_engine.condense_plus_context import CondensePlusContextChatEngine
+from llama_index.chat_engine import CondensePlusContextChatEngine, ContextChatEngine
 from langchain.agents import initialize_agent
+import ollama
 from sqlalchemy import create_engine
-import torch
-from app.llms.loader import localLoader
-from app.llms.qwen import QwenLLM
 from app.llms.tools.dalle import DalleImage
 from app.llms.tools.describeimage import DescribeImage
-from app.llms.tools.drawimage import DrawImage
 from app.llms.tools.instantid import InstantID
-from app.llms.tools.refineimage import RefineImage
 from app.llms.tools.stablediffusion import StableDiffusionImage
 from app.model import Model
 
-from app.models import ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
+from app.models import LLMModel, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
 from app.project import Project
+from app.tools import getLLMClass
 from app.vectordb import vector_init
 from modules.embeddings import EMBEDDINGS
-from modules.llms import LLMS
 from app.database import dbc
 from sqlalchemy.orm import Session
 from langchain_community.chat_models import ChatOpenAI
@@ -49,7 +43,6 @@ class Brain:
         self.defaultNegative = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = ""
         self.loopFailsafe = 0
-        self.semaphore = threading.BoundedSemaphore()
 
     def memoryModelsInfo(self):
         models = []
@@ -58,74 +51,26 @@ class Brain:
                 models.append(llmr)
         return models
 
-    def unloadLLMs(self):
-        unloaded = False
-        models_to_unload = []
-        for llmr, mr in self.llmCache.items():
-            if mr.model is not None or mr.tokenizer is not None or isinstance(mr.llm, QwenLLM):
-                print("UNLOADING MODEL " + llmr)
-                models_to_unload.append(llmr)
-
-        for modelr in models_to_unload:
-            self.llmCache[modelr].llm = None
-            self.llmCache[modelr].pipe = None
-            self.llmCache[modelr].tokenizer = None
-            self.llmCache[modelr].model = None
-
-            gc.collect()
-            torch.cuda.empty_cache()
-
-            del self.llmCache[modelr].llm
-            del self.llmCache[modelr].pipe
-            del self.llmCache[modelr].tokenizer
-            del self.llmCache[modelr].model
-
-            self.llmCache[modelr] = None
-            del self.llmCache[modelr]
-
-            gc.collect()
-            torch.cuda.empty_cache()
-
-            unloaded = True
-        return unloaded
-
-    def getLLM(self, llmModel, forced=False, **kwargs):
-        new = False
-        if llmModel in self.llmCache:
-            return self.llmCache[llmModel], False
+    def getLLM(self, llmName, db: Session, **kwargs):
+        if llmName in self.llmCache:
+            return self.llmCache[llmName]
         else:
-            new = True
-            if forced == False:
-                self.semaphore.acquire()
-                unloaded = self.unloadLLMs()
+            return self.loadLLM(llmName, db)
+    
+    def loadLLM(self, llmName, db: Session):
+        llm_db = dbc.get_llm_by_name(db, llmName)
 
-            if llmModel in LLMS:
-                llm_class, llm_args, prompt, privacy, description, typel = LLMS[
-                    llmModel]
+        if llm_db is not None:
+            llmm = LLMModel.model_validate(llm_db)
 
-                if llm_class == localLoader:
-                    print("LOADING MODEL " + llmModel)
-                    llm, model, tokenizer, pipe = llm_class(
-                        **llm_args, **kwargs)
-                    m = Model(
-                        llmModel,
-                        llm,
-                        prompt,
-                        privacy,
-                        model,
-                        tokenizer,
-                        pipe,
-                        typel)
-                else:
-                    if llm_class == QwenLLM:
-                        print("LOADING MODEL " + llmModel)
-                    llm = llm_class(**llm_args, **kwargs)
-                    m = Model(llmModel, llm, prompt, privacy, type=typel)
+            llm = getLLMClass(llmm.class_name)(**json.loads(llmm.options))
 
-                self.llmCache[llmModel] = m
-                return m, new
-            else:
-                raise Exception("Invalid LLM type.")
+            if llmName in self.llmCache:
+                del self.llmCache[llmName]
+            self.llmCache[llmName] = Model(llmName, llmm, llm)
+            return self.llmCache[llmName]
+        else:
+            return None
 
     def getEmbedding(self, embeddingModel):
         if embeddingModel in self.embeddingCache:
@@ -239,7 +184,7 @@ class Brain:
     def entryChat(self, projectName: str, chatModel: ChatModel, db: Session):
         project = self.findProject(projectName, db)
 
-        model, loaded = self.getLLM(project.model.llm)
+        model = self.getLLM(project.model.llm, db)
         chat = project.loadChat(chatModel)
 
         threshold = chatModel.score or project.model.score or 0.2
@@ -252,28 +197,29 @@ class Brain:
             similarity_top_k=k,
         )
 
-        llm = model.llm
-
-        chat_engine = CondensePlusContextChatEngine(
-            retriever=retriever,
-            llm=llm,
-            node_postprocessors=[SimilarityPostprocessor(
-                similarity_cutoff=threshold)],
-            memory=chat.history,
-            verbose=True,
-            system_prompt=sysTemplate,
-            context_prompt=(
-                "You are a chatbot, able to have normal interactions, as well as talk about the provided context.\n"
-                "Here are the relevant documents for the context:\n"
-                "{context_str}"
-                "\nInstruction: Use the previous chat history, or the context above, to interact and help the user."
-            )
+        service_context = ServiceContext.from_defaults(
+            llm=model.llm,
+            system_prompt=sysTemplate
         )
 
-        response = chat_engine.chat(chatModel.question)
+        chat_engine = ContextChatEngine.from_defaults(
+            service_context=service_context,
+            retriever=retriever,
+            system_prompt=sysTemplate,
+            memory=chat.history,
+            node_postprocessors=[SimilarityPostprocessor(
+                similarity_cutoff=threshold)],
+        )
 
-        if loaded == True:
-            self.semaphore.release()
+        try:
+            response = chat_engine.chat(chatModel.question)
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                if model.props.class_name == "Ollama":
+                    ollama.pull(json.loads(model.props.options).get("model"))
+                    response = chat_engine.chat(chatModel.question)
+            else:
+                raise e
 
         output_nodes = []
         for node in response.source_nodes:
@@ -298,7 +244,7 @@ class Brain:
     def entryQuestion(self, projectName: str, questionModel: QuestionModel, db: Session):
         project = self.findProject(projectName, db)
 
-        model, loaded = self.getLLM(project.model.llm)
+        model = self.getLLM(project.model.llm, db)
 
         sysTemplate = questionModel.system or project.model.system or self.defaultSystem
 
@@ -338,10 +284,15 @@ class Brain:
                 similarity_cutoff=threshold)]
         )
 
-        response = query_engine.query(questionModel.question)
-
-        if loaded == True:
-            self.semaphore.release()
+        try:
+            response = query_engine.query(questionModel.question)
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                if model.props.class_name == "Ollama":
+                    ollama.pull(json.loads(model.props.options).get("model"))
+                    response = query_engine.query(questionModel.question)
+            else:
+                raise e
 
         output_nodes = []
         for node in response.source_nodes:
@@ -373,8 +324,6 @@ class Brain:
         tools = [
             DalleImage(),
             StableDiffusionImage(),
-            RefineImage(),
-            DrawImage(),
             DescribeImage(),
             InstantID(),
         ]
@@ -383,9 +332,6 @@ class Brain:
             tools.pop(0)
 
         llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
-
-        self.semaphore.acquire()
-        self.unloadLLMs()
 
         agent = initialize_agent(
             tools, llm, agent="zero-shot-react-description", verbose=True)
@@ -396,19 +342,23 @@ class Brain:
             output = outputAgent
         else:
             if outputAgent["type"] == "describeimage":
-                model, loaded = self.getLLM(project.model.llm, True)
+                model = self.getLLM(project.model.llm, db)
 
-                response = model.llm.complete(prompt=visionInput.question, image_documents=[ImageDocument(image=visionInput.image)])
+                try:
+                    response = model.llm.complete(prompt=visionInput.question, image_documents=[ImageDocument(image=visionInput.image)])
+                except HTTPStatusError as e:
+                    if e.response.status_code == 404:
+                        if model.props.class_name == "Ollama":
+                            ollama.pull(json.loads(model.props.options).get("model"))
+                            response = model.llm.complete(prompt=visionInput.question, image_documents=[ImageDocument(image=visionInput.image)])
+                    else:
+                        raise e
+                
                 output = response.text
                 image = visionInput.image
             else:
                 output = outputAgent["prompt"]
                 image = outputAgent["image"]
-
-        try:
-            self.semaphore.release()
-        except ValueError:
-            pass
 
         return output, [], image
 
@@ -417,27 +367,35 @@ class Brain:
         if project is None:
             raise Exception("Project not found")
 
-        model, loaded = self.getLLM(project.model.llm)
+        model = self.getLLM(project.model.llm, db)
 
         sysTemplate = inferenceModel.system or project.model.system or self.defaultSystem
         model.llm.system_prompt = sysTemplate
 
+        #model.llm.system = sysTemplate
+        #resp = model.llm.complete(inferenceModel.question)
         messages = [
             ChatMessage(
                 role="system", content=sysTemplate
             ),
             ChatMessage(role="user", content=inferenceModel.question),
         ]
-        resp = model.llm.chat(messages)
+
+        try:
+            resp = model.llm.chat(messages)
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                if model.props.class_name == "Ollama":
+                    ollama.pull(json.loads(model.props.options).get("model"))
+                    resp = model.llm.chat(messages)
+            else:
+                raise e
 
         output = {
             "question": inferenceModel.question,
             "answer": resp.message.content.strip(),
             "type": "inference"
         }
-
-        if loaded == True:
-            self.semaphore.release()
 
         return output
 
@@ -446,7 +404,7 @@ class Brain:
         if project is None:
             raise Exception("Project not found")
 
-        model, loaded = self.getLLM(project.model.llm)
+        model = self.getLLM(project.model.llm, db)
 
         engine = create_engine(project.model.connection)
 
@@ -471,7 +429,15 @@ class Brain:
 
         question = (project.model.system or self.defaultSystem) + "\n Question: " + questionModel.question
 
-        response = query_engine.query(question)
+        try:
+            response = query_engine.query(question)
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                if model.props.class_name == "Ollama":
+                    ollama.pull(json.loads(model.props.options).get("model"))
+                    response = query_engine.query(question)
+            else:
+                raise e
 
         output = {
             "question": questionModel.question,
@@ -479,8 +445,5 @@ class Brain:
             "sources": [response.metadata['sql_query']],
             "type": "questionsql"
         }
-
-        if loaded == True:
-            self.semaphore.release()
 
         return output
