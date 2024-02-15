@@ -1077,6 +1077,16 @@ files = [
 ]
 
 [[package]]
+name = "docx2txt"
+version = "0.8"
+description = "A pure python-based utility to extract text and images from docx files."
+optional = false
+python-versions = "*"
+files = [
+    {file = "docx2txt-0.8.tar.gz", hash = "sha256:2c06d98d7cfe2d3947e5760a57d924e3ff07745b379c8737723922e7009236e5"},
+]
+
+[[package]]
 name = "easydict"
 version = "1.11"
 description = "Access dict values as attributes (works recursively)."
@@ -6910,4 +6920,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "909c094b6a125821caca6fbcd462f209d717396bbf9f99a0ed8ae45b5375d8b4"
+content-hash = "6e5dfdf5cb7a3084afc491523525418c8855bdd283cbff3cbd0617fa960dc59a"
