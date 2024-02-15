@@ -59,7 +59,7 @@ if "users" not in inspect(engine).get_table_names():
         llm_class, llm_args, privacy, description, typel = DEFAULT_LLMS[llm]
         db_llm = LLMDatabase(
             name=llm,
-            class_name=llm_class.__name__,
+            class_name=llm_class,
             options=json.dumps(llm_args),
             privacy=privacy,
             description=description,
