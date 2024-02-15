@@ -8,21 +8,20 @@ from sqlalchemy.orm import Session
 from fastapi import Depends, FastAPI, HTTPException
 from modules.loaders import LOADERS
 from modules.embeddings import EMBEDDINGS
-from llama_index import Document
 from app.vectordb import vector_delete_source, vector_find_source, vector_info, vector_list_source, vector_reset, vector_save, vector_list, vector_find_id
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.models import ChatResponse, FindModel, InferenceModel, InferenceResponse, IngestResponse, LLMModel, LLMUpdate, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, RagSqlModel, RagSqlResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel, VisionResponse
-from llama_index.retrievers import VectorIndexRetriever
 from app.loaders.url import SeleniumWebReader
 import urllib.parse
 from app.database import dbc, get_db
 from app.brain import Brain
 from app.auth import create_access_token, get_current_username, get_current_username_admin, get_current_username_project, get_current_username_user
 import requests
-from llama_index.postprocessor import SimilarityPostprocessor
-from llama_index.query_engine import RetrieverQueryEngine
-import httpx
+from llama_index.core.postprocessor import SimilarityPostprocessor
+from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.schema import Document
+from llama_index.core.retrievers import VectorIndexRetriever
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 import traceback
 from tempfile import NamedTemporaryFile

@@ -1,7 +1,8 @@
 import logging
 import os
-from llama_index.text_splitter import TokenTextSplitter, SentenceSplitter
-from llama_index import Document, download_loader
+from llama_index.core.text_splitter import TokenTextSplitter, SentenceSplitter
+from llama_index.core.schema import Document
+from llama_index.core.readers.download import download_loader
 from modules.loaders import LOADERS
 import yake
 import re

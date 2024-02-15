@@ -1,15 +1,17 @@
 import json
 from httpx import HTTPStatusError
-from llama_index import LLMPredictor, SQLDatabase, ServiceContext
-from llama_index import (
-    get_response_synthesizer,
-)
+from llama_index.core.service_context_elements.llm_predictor import LLMPredictor
+from llama_index.core.utilities.sql_wrapper import SQLDatabase
+from llama_index.core.response_synthesizers import get_response_synthesizer
 from llama_index.embeddings.langchain import LangchainEmbedding
-from llama_index.retrievers import VectorIndexRetriever
-from llama_index.query_engine import RetrieverQueryEngine
-from llama_index.postprocessor import SimilarityPostprocessor
-from llama_index.prompts import PromptTemplate
-from llama_index.chat_engine import CondensePlusContextChatEngine, ContextChatEngine
+from llama_index.core.retrievers import VectorIndexRetriever
+from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.postprocessor import SimilarityPostprocessor
+from llama_index.core.prompts import PromptTemplate
+from llama_index.core.chat_engine import CondensePlusContextChatEngine, ContextChatEngine
+from llama_index.core.indices.struct_store.sql_query import NLSQLTableQueryEngine
+from llama_index.core.schema import ImageDocument
+from llama_index.core.base.llms.types import ChatMessage
 from langchain.agents import initialize_agent
 import ollama
 from sqlalchemy import create_engine
@@ -27,11 +29,6 @@ from modules.embeddings import EMBEDDINGS
 from app.database import dbc
 from sqlalchemy.orm import Session
 from langchain_community.chat_models import ChatOpenAI
-from llama_index.indices.struct_store.sql_query import NLSQLTableQueryEngine
-
-from llama_index.schema import ImageDocument
-
-from llama_index.core.llms.types import ChatMessage
 
 
 class Brain:
@@ -197,19 +194,14 @@ class Brain:
             similarity_top_k=k,
         )
 
-        service_context = ServiceContext.from_defaults(
-            llm=model.llm,
-            system_prompt=sysTemplate
-        )
-
         chat_engine = ContextChatEngine.from_defaults(
-            service_context=service_context,
             retriever=retriever,
             system_prompt=sysTemplate,
             memory=chat.history,
             node_postprocessors=[SimilarityPostprocessor(
                 similarity_cutoff=threshold)],
         )
+        chat_engine._llm = model.llm
 
         try:
             response = chat_engine.chat(chatModel.question)
@@ -251,11 +243,6 @@ class Brain:
         k = questionModel.k or project.model.k or 2
         threshold = questionModel.score or project.model.score or 0.2
 
-        service_context = ServiceContext.from_defaults(
-            llm=model.llm,
-            system_prompt=sysTemplate
-        )
-
         retriever = VectorIndexRetriever(
             index=project.db,
             similarity_top_k=k,
@@ -274,8 +261,9 @@ class Brain:
 
         qa_prompt = PromptTemplate(qa_prompt_tmpl)
 
-        response_synthesizer = get_response_synthesizer(
-            service_context=service_context, text_qa_template=qa_prompt)
+        llm_predictor = LLMPredictor(llm=model.llm, system_prompt=sysTemplate)
+
+        response_synthesizer = get_response_synthesizer(llm=llm_predictor, text_qa_template=qa_prompt)
 
         query_engine = RetrieverQueryEngine(
             retriever=retriever,
@@ -410,11 +398,6 @@ class Brain:
 
         sql_database = SQLDatabase(engine)
 
-        llm_predictor = LLMPredictor(llm=model.llm)
-        service_context = ServiceContext.from_defaults(
-            llm_predictor=llm_predictor
-        )
-
         tables = None
         if hasattr(questionModel, 'tables') and questionModel.tables is not None:
             tables = questionModel.tables
@@ -422,8 +405,8 @@ class Brain:
             tables = [table.strip() for table in project.model.tables.split(',')]
 
         query_engine = NLSQLTableQueryEngine(
+            llm=model.llm,
             sql_database=sql_database,
-            service_context=service_context,
             tables=tables,
         )
 

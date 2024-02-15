@@ -1,17 +1,16 @@
-from llama_index.llms import Ollama
-from llama_index.bridge.pydantic import Field
+from llama_index.llms.ollama import Ollama
 
 from typing import Any, Sequence
 
 
-from llama_index.bridge.pydantic import Field
-from llama_index.core.llms.types import (
+from llama_index.core.bridge.pydantic import Field
+from llama_index.core.base.llms.types import (
     ChatMessage,
     ChatResponseGen,
     CompletionResponse,
     CompletionResponseGen,
 )
-from llama_index.llms.base import llm_chat_callback, llm_completion_callback
+from llama_index.core.llms.callbacks import llm_chat_callback, llm_completion_callback
 
 class Ollama(Ollama):
     system: str = Field(
