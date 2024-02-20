@@ -204,7 +204,39 @@ class Brain:
         chat_engine._llm = model.llm
 
         try:
-            response = chat_engine.chat(chatModel.question)
+            if chatModel.stream:
+                response = chat_engine.stream_chat(chatModel.question)
+            else:
+                response = chat_engine.chat(chatModel.question)
+
+            output_nodes = []
+            for node in response.source_nodes:
+                output_nodes.append(
+                    {"source": node.metadata["source"], "keywords": node.metadata["keywords"], "score": node.score, "id": node.node_id, "text": node.text})
+
+            output = {
+                "id": chat.id,
+                "question": chatModel.question,
+                "sources": output_nodes,
+                "type": "chat"
+            }
+
+            if chatModel.stream:
+                if hasattr(response, "response_gen"): 
+                    for text in response.response_gen:
+                        yield "data: " + text + "\n\n"
+                    yield "data: " + json.dumps(output) + "\n"
+                    yield "event: close\n\n"
+                else:
+                    yield "data: " + self.defaultCensorship + "\n\n"
+                    yield "event: close\n\n"
+            else:  
+                if project.model.sandboxed and len(response.source_nodes) == 0:
+                    output["answer"] = project.model.censorship or self.defaultCensorship
+                else:
+                    output["answer"] = response.response
+
+                yield output
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 if model.props.class_name == "Ollama":
@@ -213,25 +245,6 @@ class Brain:
             else:
                 raise e
 
-        output_nodes = []
-        for node in response.source_nodes:
-            output_nodes.append(
-                {"source": node.metadata["source"], "keywords": node.metadata["keywords"], "score": node.score, "id": node.node_id, "text": node.text})
-
-        output = {
-            "id": chat.id,
-            "question": chatModel.question,
-            "answer": response.response,
-            "sources": output_nodes,
-            "type": "chat"
-        }
-
-        censored = False
-        if project.model.sandboxed and len(response.source_nodes) == 0:
-            censored = True
-            output["answer"] = project.model.censorship or self.defaultCensorship
-
-        return output, censored
 
     def entryQuestion(self, projectName: str, questionModel: QuestionModel, db: Session):
         project = self.findProject(projectName, db)
@@ -263,7 +276,7 @@ class Brain:
 
         llm_predictor = LLMPredictor(llm=model.llm, system_prompt=sysTemplate)
 
-        response_synthesizer = get_response_synthesizer(llm=llm_predictor, text_qa_template=qa_prompt)
+        response_synthesizer = get_response_synthesizer(llm=llm_predictor, text_qa_template=qa_prompt, streaming=questionModel.stream)
 
         query_engine = RetrieverQueryEngine(
             retriever=retriever,
@@ -274,6 +287,35 @@ class Brain:
 
         try:
             response = query_engine.query(questionModel.question)
+
+            output_nodes = []
+            if hasattr(response, "source_nodes"): 
+                for node in response.source_nodes:
+                    output_nodes.append(
+                        {"source": node.metadata["source"], "keywords": node.metadata["keywords"], "score": node.score, "id": node.node_id, "text": node.text})
+                    
+            output = {
+                "question": questionModel.question,
+                "sources": output_nodes,
+                "type": "question"
+            }
+
+            if questionModel.stream:
+                if hasattr(response, "response_gen"): 
+                    for text in response.response_gen:
+                        yield "data: " + text + "\n\n"
+                    yield "data: " + json.dumps(output) + "\n"
+                    yield "event: close\n\n"
+                else :
+                    yield "data: " + self.defaultCensorship + "\n\n"
+                    yield "event: close\n\n"
+            else:
+                if project.model.sandboxed and len(response.source_nodes) == 0:
+                    output["answer"] = project.model.censorship or self.defaultCensorship
+                else:
+                    output["answer"] = response.response
+
+                yield output
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 if model.props.class_name == "Ollama":
@@ -281,25 +323,6 @@ class Brain:
                     response = query_engine.query(questionModel.question)
             else:
                 raise e
-
-        output_nodes = []
-        for node in response.source_nodes:
-            output_nodes.append(
-                {"source": node.metadata["source"], "keywords": node.metadata["keywords"], "score": node.score, "id": node.node_id, "text": node.text})
-
-        output = {
-            "question": questionModel.question,
-            "answer": response.response,
-            "sources": output_nodes,
-            "type": "question"
-        }
-
-        censored = False
-        if project.model.sandboxed and len(response.source_nodes) == 0:
-            censored = True
-            output["answer"] = project.model.censorship or self.defaultCensorship
-
-        return output, censored
 
     def entryVision(self, projectName, visionInput, isprivate, db: Session):
         image = None
@@ -370,7 +393,19 @@ class Brain:
         ]
 
         try:
-            resp = model.llm.chat(messages)
+            if(inferenceModel.stream):
+                respgen = model.llm.stream_chat(messages)
+                for text in respgen:
+                    yield "data: " + text.delta + "\n\n"
+                yield "event: close\n\n"
+            else:
+                resp = model.llm.chat(messages)
+                output = {
+                    "question": inferenceModel.question,
+                    "answer": resp.message.content.strip(),
+                    "type": "inference"
+                }
+                yield output
         except HTTPStatusError as e:
             if e.response.status_code == 404:
                 if model.props.class_name == "Ollama":
@@ -378,14 +413,6 @@ class Brain:
                     resp = model.llm.chat(messages)
             else:
                 raise e
-
-        output = {
-            "question": inferenceModel.question,
-            "answer": resp.message.content.strip(),
-            "type": "inference"
-        }
-
-        return output
 
     def ragSQL(self, projectName, questionModel, db: Session):
         project = self.findProject(projectName, db)

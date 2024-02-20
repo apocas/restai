@@ -26,7 +26,7 @@ else:
             "check_same_thread": False},
         pool_size=30,
         max_overflow=100,
-        pool_recycle=900)
+        pool_recycle=300)
 
 
 SessionLocal = sessionmaker(

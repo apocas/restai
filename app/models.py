@@ -25,6 +25,7 @@ class FindModel(BaseModel):
 
 class InteractionModel(BaseModel):
     score: Union[float, None] = None
+    stream: Union[bool, None] = None
     k: Optional[int] = Field(None, ge=1, le=25)
 
 
@@ -42,6 +43,7 @@ class RagSqlModel(BaseModel):
 class InferenceModel(BaseModel):
     question: str
     system: Union[str, None] = None
+    stream: Union[bool, None] = None
 
 
 class VisionModel(BaseModel):

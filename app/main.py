@@ -806,19 +806,19 @@ async def question_query(
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-        output, censored = brain.entryQuestion(projectName, input, db)
-
-        logs_inference.info(
-            {"user": user.username, "project": projectName, "output": output})
-
-        return output
+        if input.stream:
+            return StreamingResponse(brain.entryQuestion(projectName, input, db), media_type='text/event-stream')
+        else:
+            output = brain.entryQuestion(projectName, input, db)
+            for line in output:
+                return line
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail=str(e))
 
-@app.post("/projects/{projectName}/question", response_model=QuestionResponse)
+@app.post("/projects/{projectName}/question")
 async def question_query_endpoint(
         request: Request,
         projectName: str,
@@ -830,7 +830,7 @@ async def question_query_endpoint(
         if project.model.type == "rag":
             return await question_query(request, projectName, input, user, db)
         elif project.model.type == "inference":
-            return await question_inference(request, projectName, InferenceModel(question=input.question, system=input.system), user, db)
+            return await question_inference(request, projectName, InferenceModel(question=input.question, system=input.system, stream=input.stream), user, db)
         elif project.model.type == "ragsql":
             return await question_query_sql(request, projectName, RagSqlModel(question=input.question, tables=input.tables), user, db)
         else:
@@ -843,7 +843,7 @@ async def question_query_endpoint(
             status_code=500, detail=str(e))
 
 
-@app.post("/projects/{projectName}/chat", response_model=ChatResponse)
+@app.post("/projects/{projectName}/chat")
 async def chat_query(
         request: Request,
         projectName: str,
@@ -857,12 +857,12 @@ async def chat_query(
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-        output, censored = brain.entryChat(projectName, input, db)
-
-        logs_inference.info(
-            {"user": user.username, "project": projectName, "output": output})
-
-        return output
+        if input.stream:
+            return StreamingResponse(brain.entryChat(projectName, input, db), media_type='text/event-stream')
+        else:
+            output = brain.entryChat(projectName, input, db)
+            for line in output:
+                return line
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -871,7 +871,7 @@ async def chat_query(
 
 
 
-@app.post("/projects/{projectName}/inference", response_model=InferenceResponse)
+@app.post("/projects/{projectName}/inference")
 async def question_inference_endpoint(
         request: Request,
         projectName: str,
@@ -906,12 +906,16 @@ async def question_inference(
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for INFERENCE projects."}')
 
-        output = brain.inference(projectName, input, db)
+        if input.stream:
+            return StreamingResponse(brain.inference(projectName, input, db), media_type='text/event-stream')
+        else:
+            output = brain.inference(projectName, input, db)
+            for line in output:
+                return line
+            
 
-        logs_inference.info(
-            {"user": user.username, "project": projectName, "output": output})
+        #logs_inference.info({"user": user.username, "project": projectName, "output": output})
 
-        return output
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
