@@ -36,7 +36,7 @@ class Brain:
         self.projects = []
         self.llmCache = {}
         self.embeddingCache = {}
-        self.defaultCensorship = "This question is outside of my scope. Please ask another question."
+        self.defaultCensorship = "This question is outside of my scope. Didn't find any related data."
         self.defaultNegative = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = ""
         self.loopFailsafe = 0
@@ -229,9 +229,10 @@ class Brain:
                     yield "event: close\n\n"
                 else:
                     yield "data: " + self.defaultCensorship + "\n\n"
+                    yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
             else:  
-                if project.model.sandboxed and len(response.source_nodes) == 0:
+                if len(response.source_nodes) == 0:
                     output["answer"] = project.model.censorship or self.defaultCensorship
                 else:
                     output["answer"] = response.response
@@ -308,9 +309,10 @@ class Brain:
                     yield "event: close\n\n"
                 else :
                     yield "data: " + self.defaultCensorship + "\n\n"
+                    yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
             else:
-                if project.model.sandboxed and len(response.source_nodes) == 0:
+                if len(response.source_nodes) == 0:
                     output["answer"] = project.model.censorship or self.defaultCensorship
                 else:
                     output["answer"] = response.response
