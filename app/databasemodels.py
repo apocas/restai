@@ -49,3 +49,15 @@ class ProjectDatabase(Base):
     tables = Column(String(4096))
 
     owners = relationship("UserProjectDatabase", back_populates="project")
+
+class LLMDatabase(Base):
+    __tablename__ = "llms"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    name = Column(String(255), unique=True, index=True)
+    class_name = Column(String(255))
+    options = Column(Text)
+    privacy = Column(String(255))
+    description = Column(Text)
+    type = Column(String(255))

@@ -11,9 +11,9 @@ import random
 from PIL import Image
 from insightface.app import FaceAnalysis
 
-from app.llms.instantid.pipeline_stable_diffusion_xl_instantid import StableDiffusionXLInstantIDPipeline, draw_kps
+from app.llms.workers.pipeline_stable_diffusion_xl_instantid import StableDiffusionXLInstantIDPipeline, draw_kps
 
-def instantid_worker(prompt, sharedmem):
+def worker(prompt, sharedmem):
     try:
         hf_hub_download(repo_id="InstantX/InstantID", filename="ControlNetModel/config.json", local_dir="./checkpoints")
         hf_hub_download(repo_id="InstantX/InstantID", filename="ControlNetModel/diffusion_pytorch_model.safetensors", local_dir="./checkpoints")

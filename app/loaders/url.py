@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, List, Literal, Optional, Union
 if TYPE_CHECKING:
     from selenium.webdriver import Chrome, Firefox
 
-from llama_index.readers.base import BaseReader
-from llama_index.readers.schema.base import Document
+from llama_index.core.readers.base import BaseReader
+from llama_index.core.schema import Document
 
 logger = logging.getLogger(__name__)
 

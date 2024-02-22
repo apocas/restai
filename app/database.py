@@ -1,10 +1,12 @@
 import os
+import json
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 
-from app.databasemodels import Base, ProjectDatabase, UserProjectDatabase, UserDatabase
-from app.models import User, UserUpdate
+from app.databasemodels import Base, LLMDatabase, ProjectDatabase, UserProjectDatabase, UserDatabase
+from app.models import LLMModel, LLMUpdate, User, UserUpdate
+from app.tools import DEFAULT_LLMS
 
 
 if os.environ.get("MYSQL_PASSWORD"):
@@ -24,7 +26,7 @@ else:
             "check_same_thread": False},
         pool_size=30,
         max_overflow=100,
-        pool_recycle=900)
+        pool_recycle=300)
 
 
 SessionLocal = sessionmaker(
@@ -44,17 +46,33 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 if "users" not in inspect(engine).get_table_names():
     print("Initializing database...")
+    default_password = os.environ.get("RESTAI_DEFAULT_PASSWORD") or "admin"
     Base.metadata.create_all(bind=engine)
     dbi = SessionLocal()
     db_user = UserDatabase(
         username="admin",
-        hashed_password=pwd_context.hash("admin"),
+        hashed_password=pwd_context.hash(default_password),
         is_admin=True)
     dbi.add(db_user)
+
+    for llm in DEFAULT_LLMS:
+        llm_class, llm_args, privacy, description, typel = DEFAULT_LLMS[llm]
+        db_llm = LLMDatabase(
+            name=llm,
+            class_name=llm_class,
+            options=json.dumps(llm_args),
+            privacy=privacy,
+            description=description,
+            type=typel
+        )
+        dbi.add(db_llm)
+
     dbi.commit()
     dbi.refresh(db_user)
     dbi.close()
-    print("Database initialized. Default admin user created (admin:admin).")
+    print("Database initialized.")
+    print("Default LLMs initialized.")
+    print("Default admin user created (admin:" + default_password + ").")
 
 
 class Database:
@@ -71,9 +89,26 @@ class Database:
         db.refresh(db_user)
         return db_user
 
+    def create_llm(self, db, name, class_name, options, privacy, description, type):
+        db_llm = LLMDatabase(
+            name=name, class_name=class_name, options=options, privacy=privacy, description=description, type=type)
+        db.add(db_llm)
+        db.commit()
+        db.refresh(db_llm)
+        return db_llm
+
     def get_users(self, db):
         users = db.query(UserDatabase).all()
         return users
+    
+    def get_llms(self, db):
+        llms = db.query(LLMDatabase).all()
+        return llms
+
+    def get_llm_by_name(self, db, name):
+        llm = db.query(LLMDatabase).filter(
+            LLMDatabase.name == name).first()
+        return llm
 
     def get_user_by_apikey(self, db, apikey):
         user = db.query(UserDatabase).filter(
@@ -102,6 +137,30 @@ class Database:
         if userc.api_key is not None:
             user.api_key = userc.api_key
 
+        db.commit()
+        return True
+
+    def update_llm(self, db, llm: LLMModel, llmUpdate: LLMUpdate):
+        if llmUpdate.class_name is not None and llm.class_name != llmUpdate.class_name:
+          llm.class_name = llmUpdate.class_name
+
+        if llmUpdate.options is not None and llm.options != llmUpdate.options:
+            llm.options = llmUpdate.options
+
+        if llmUpdate.privacy is not None and llm.privacy != llmUpdate.privacy:
+            llm.privacy = llmUpdate.privacy
+
+        if llmUpdate.description is not None and llm.description != llmUpdate.description:
+            llm.description = llmUpdate.description
+
+        if llmUpdate.type is not None and llm.type != llmUpdate.type:
+            llm.type = llmUpdate.type
+
+        db.commit()
+        return True
+    
+    def delete_llm(self, db, llm):
+        db.delete(llm)
         db.commit()
         return True
 

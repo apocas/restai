@@ -25,7 +25,7 @@ class Project {
     return $this->modem->execute('DELETE', '/projects/' . $this->name);
   }
 
-  //https://ai.ptisp.systems/docs#/default/ingest_text_projects__projectName__embeddings_ingest_text_post
+  //https://ai.ince.pt/docs#/default/ingest_text_projects__projectName__embeddings_ingest_text_post
   public function ingestText($text, $source, $opts = []) {
     $opts['text'] = $text;
     $opts['source'] = $source;
@@ -40,7 +40,7 @@ class Project {
     return $output;
   }
 
-  //https://ai.ptisp.systems/docs#/default/question_query_projects__projectName__question_post
+  //https://ai.ince.pt/docs#/default/question_query_projects__projectName__question_post
   public function question($question, $opts = []) {
     $opts['question'] = $question;
     return $this->modem->execute('POST', '/projects/' . $this->name . '/question', $opts);

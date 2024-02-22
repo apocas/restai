@@ -1,12 +1,13 @@
 import os
 import shutil
 import chromadb
-from llama_index import ServiceContext, StorageContext, VectorStoreIndex
 import redis
+from llama_index.core.indices import VectorStoreIndex
+from llama_index.core.storage import StorageContext
 
 from app.tools import FindEmbeddingsPath
-from llama_index.vector_stores import RedisVectorStore, ChromaVectorStore
-
+from llama_index.vector_stores.redis import RedisVectorStore
+from llama_index.vector_stores.chroma import ChromaVectorStore
 
 def vector_init(brain, project):
     path = FindEmbeddingsPath(project.model.name)
@@ -18,10 +19,9 @@ def vector_init(brain, project):
 
         storage_context = StorageContext.from_defaults(
             vector_store=vector_store)
-        service_context = ServiceContext.from_defaults(embed_model=brain.getEmbedding(
-            project.model.embeddings))
         index = VectorStoreIndex.from_vector_store(
-            vector_store, storage_context=storage_context, service_context=service_context)
+            vector_store, storage_context=storage_context, embed_model=brain.getEmbedding(
+            project.model.embeddings))
         return index
     elif project.model.vectorstore == "redis":
         if path is None or len(os.listdir(path)) == 0:
@@ -37,10 +37,7 @@ def vector_init(brain, project):
 
             storage_context = StorageContext.from_defaults(
                 vector_store=vector_store)
-            service_context = ServiceContext.from_defaults(embed_model=brain.getEmbedding(
-                project.model.embeddings))
-            index = VectorStoreIndex.from_vector_store(
-                vector_store, storage_context=storage_context, service_context=service_context)
+            index = VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=brain.getEmbedding(project.model.embeddings))
             return index
         else:
             return vector_load(brain, project)
@@ -69,9 +66,8 @@ def vector_load(brain, project):
             metadata_fields=["source", "keywords"],
             index_prefix="llama_" + project.model.name,
             overwrite=False)
-        service_context = ServiceContext.from_defaults(embed_model=brain.getEmbedding(
-            project.model.embeddings))
-        return VectorStoreIndex.from_vector_store(vector_store=vector_store, service_context=service_context)
+        return VectorStoreIndex.from_vector_store(embed_model=brain.getEmbedding(
+            project.model.embeddings), vector_store=vector_store)
 
 
 def vector_list(project):
@@ -249,8 +245,7 @@ def vector_delete_source(project, source):
         keys = lredis.keys("llama_" + project.model.name + "/*")
         for key in keys:
             lsource = lredis.hget(key, "source")
-            if lsource == source or lsource == os.path.join(
-                    os.environ["UPLOADS_PATH"], project.model.name, source):
+            if lsource == source:
                 ids.append(key)
                 lredis.delete(key)
     return ids

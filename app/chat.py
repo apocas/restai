@@ -1,7 +1,7 @@
 import datetime
 import uuid
 
-from llama_index.memory import ChatMemoryBuffer
+from llama_index.core.memory import ChatMemoryBuffer
 
 
 class Chat:

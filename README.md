@@ -18,9 +18,8 @@
 ## Features
 - **Projects**: There are multiple types of agents (projects), each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision))
 - **Users**: A user represents a user of the system. It's used for authentication and authorization (basic auth). Each user may have access to multiple projects.
-- **LLMs**: Anything that runs on Ollana. You may also use any LLM supported by llamaindex and/or transformers pipes.
+- **LLMs**: Supports any public LLM supported by LlamaIndex or any local LLM suported by Ollama.
 - **VRAM**: Automatic VRAM management. RestAI will manage the VRAM usage, automatically loading and unloading models as needed and requested.
-- **Prompts**: You may declare PROMPTs templates and then use these prompts in the LLMs.
 - **API**: The API is a first-class citizen of RestAI. All endpoints are documented using [Swagger](https://apocas.github.io/restai/).
 - **Frontend**: There is a frontend available at [restai-frontend](https://github.com/apocas/restai-frontend)
 
@@ -55,7 +54,7 @@
 ### Vision
 
 - **text2img**: RestAI supports local Stable Diffusion and Dall-E. It features prompt boosting, a LLM is internally used to boost the user prompt with more detail.
-- **img2text**: RestAI supports LLaVA, BakLLaVA and Qwen-VL by default. It supports any LLM supported by transformers pipes.
+- **img2text**: RestAI supports LLaVA, BakLLaVA by default.
 - **img2img**: RestAI supports InstantID and Qwen-VL default.
 
 #### Stable Diffusion & [InstantID](https://github.com/InstantID/InstantID)
@@ -74,8 +73,7 @@
 
 ## LLMs
 
-* You may use [any LLM](modules/llms.py) supported by langchain and/or transformers pipes.
-* You may declare [PROMPTs](modules/prompts.py) templates and then use these prompts in the [LLMs](modules/llms.py).
+* You may use [any LLM](modules/llms.py) supported by Ollama or LlamaIndex.
 
 ## Installation
 

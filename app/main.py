@@ -7,23 +7,21 @@ from unidecode import unidecode
 from sqlalchemy.orm import Session
 from fastapi import Depends, FastAPI, HTTPException
 from modules.loaders import LOADERS
-from modules.llms import LLMS
 from modules.embeddings import EMBEDDINGS
-from llama_index import Document
 from app.vectordb import vector_delete_source, vector_find_source, vector_info, vector_list_source, vector_reset, vector_save, vector_list, vector_find_id
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.models import ChatResponse, FindModel, InferenceModel, InferenceResponse, IngestResponse, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, RagSqlModel, RagSqlResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel, VisionResponse
-from llama_index.retrievers import VectorIndexRetriever
+from app.models import ChatResponse, FindModel, InferenceModel, InferenceResponse, IngestResponse, LLMModel, LLMUpdate, ProjectInfo, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, RagSqlModel, RagSqlResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, VisionModel, VisionResponse
 from app.loaders.url import SeleniumWebReader
 import urllib.parse
 from app.database import dbc, get_db
 from app.brain import Brain
 from app.auth import create_access_token, get_current_username, get_current_username_admin, get_current_username_project, get_current_username_user
 import requests
-from llama_index.postprocessor import SimilarityPostprocessor
-from llama_index.query_engine import RetrieverQueryEngine
-import httpx
+from llama_index.core.postprocessor import SimilarityPostprocessor
+from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.schema import Document
+from llama_index.core.retrievers import VectorIndexRetriever
 from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
 import traceback
 from tempfile import NamedTemporaryFile
@@ -48,7 +46,7 @@ logging.basicConfig(level=os.environ["LOG_LEVEL"])
 
 app = FastAPI(
     title="RestAI",
-    description="Modular REST API bootstrap on top of LangChain. Create embeddings associated with a project tenant and interact using a LLM. RAG as a service.",
+    description="RestAI is an AIaaS (AI as a Service) open-source platform. Built on top of Llamaindex, Langchain and Transformers. Supports any public LLM supported by LlamaIndex and any local LLM suported by Ollama. Precise embeddings usage and tuning.",
     version="4.0.0",
     contact={
         "name": "Pedro Dias",
@@ -81,7 +79,7 @@ async def get(request: Request):
 
 
 @app.get("/info")
-async def get_info(user: User = Depends(get_current_username)):
+async def get_info(user: User = Depends(get_current_username), db: Session = Depends(get_db)):
     output = {
         "version": app.version,
         "loaders": list(LOADERS.keys()),
@@ -89,14 +87,13 @@ async def get_info(user: User = Depends(get_current_username)):
         "llms": []
     }
 
-    for llm in LLMS:
-        llm_class, llm_args, prompt, privacy, description, typel = LLMS[llm]
+    llms = dbc.get_llms(db)
+    for llm in llms:
         output["llms"].append({
-            "name": llm,
-            "prompt": prompt,
-            "privacy": privacy,
-            "description": description,
-            "type": typel
+            "name": llm.name,
+            "privacy": llm.privacy,
+            "description": llm.description,
+            "type": llm.type
         })
 
     for embedding in EMBEDDINGS:
@@ -136,10 +133,10 @@ async def get_sso(request: Request, db: Session = Depends(get_db)):
         db.commit()
 
     new_token = create_access_token(
-        data={"username": user.username}, expires_delta=timedelta(minutes=480))
+        data={"username": user.username}, expires_delta=timedelta(minutes=1440))
 
     response = RedirectResponse("./admin")
-    response.set_cookie(key="restai_token", value=new_token, samesite="strict", expires=28800)
+    response.set_cookie(key="restai_token", value=new_token, samesite="strict", expires=86400)
 
     return response
 
@@ -197,6 +194,70 @@ async def get_users(
     users = dbc.get_users(db)
     return users
 
+@app.get("/llms/{llmname}", response_model=LLMModel)
+async def get_llm(llmname: str, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
+    try:
+        return LLMModel.model_validate(dbc.get_llm_by_name(db, llmname))
+    except Exception as e:
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=404, detail=str(e))
+    
+@app.get("/llms", response_model=list[LLMModel])
+async def get_llms(
+        user: User = Depends(get_current_username),
+        db: Session = Depends(get_db)):
+    users = dbc.get_llms(db)
+    return users
+
+@app.post("/llms", response_model=User)
+async def create_llm(llmc: LLMModel,
+                      user: User = Depends(get_current_username_admin),
+                      db: Session = Depends(get_db)):
+    try:
+        llm = dbc.create_llm(db, llmc.name, llmc.class_name, llmc.options, llmc.privacy, llmc.description, llmc.type)
+        return llm
+    except Exception as e:
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=500,
+            detail='Failed to create LLM ' + llmc.name)
+
+@app.patch("/llms/{llmname}")
+async def edit_project(llmname: str, llmUpdate: LLMUpdate, user: User = Depends(get_current_username_admin), db: Session = Depends(get_db)):
+    try:
+        llm = dbc.get_llm_by_name(db, llmname)
+        if llm is None:
+            raise Exception("LLM not found")
+        if dbc.update_llm(db, llm, llmUpdate):
+            brain.loadLLM(llmname, db)
+            return {"project": llmname}
+        else:
+            raise HTTPException(
+                status_code=404, detail='LLM not found')
+    except Exception as e:
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=500, detail=str(e))
+
+@app.delete("/llms/{llmname}")
+async def delete_llm(llmname: str,
+                      user: User = Depends(get_current_username_admin),
+                      db: Session = Depends(get_db)):
+    try:
+        llm = dbc.get_llm_by_name(db, llmname)
+        if llm is None:
+            raise Exception("LLM not found")
+        dbc.delete_llm(db, llm)
+        return {"deleted": llmname}
+    except Exception as e:
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=500, detail=str(e))
 
 @app.post("/users", response_model=User)
 async def create_user(userc: UserCreate,
@@ -257,10 +318,10 @@ async def delete_user(username: str,
                       user: User = Depends(get_current_username_admin),
                       db: Session = Depends(get_db)):
     try:
-        user = dbc.get_user_by_username(db, username)
-        if user is None:
+        userl = dbc.get_user_by_username(db, username)
+        if userl is None:
             raise Exception("User not found")
-        dbc.delete_user(db, user)
+        dbc.delete_user(db, userl)
         return {"deleted": username}
     except Exception as e:
         logging.error(e)
@@ -282,10 +343,9 @@ async def get_projects(request: Request, user: User = Depends(get_current_userna
 
     for project in projects:
         try:
-            llm_class, llm_args, prompt, llm_privacy, description, llm_type = LLMS[
-                project.llm]
-            project.llm_type = llm_type
-            project.llm_privacy = llm_privacy
+            model = brain.getLLM(project.llm, db)
+            project.llm_type = model.props.type
+            project.llm_privacy = model.props.privacy
         except Exception as e:
             project.llm_type = "unknown"
             project.llm_privacy = "unknown"
@@ -299,8 +359,7 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
         project = brain.findProject(projectName, db)
 
         try:
-            llm_class, llm_args, prompt, llm_privacy, description, llm_type = LLMS[
-            project.model.llm]
+            llm_model = brain.getLLM(project.model.llm, db)
         except Exception as e:
             llm_type = "unknown"
             llm_privacy = "unknown"
@@ -311,8 +370,8 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             name=project.model.name,
             embeddings=project.model.embeddings,
             llm=project.model.llm,
-            llm_type=llm_type,
-            llm_privacy=llm_privacy,
+            llm_type=llm_model.props.type,
+            llm_privacy=llm_model.props.privacy,
             system=project.model.system,
             sandboxed=project.model.sandboxed,
             censorship=project.model.censorship,
@@ -354,15 +413,14 @@ async def delete_project(projectName: str, user: User = Depends(get_current_user
 
 @app.patch("/projects/{projectName}")
 async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
-    if projectModelUpdate.llm is not None and projectModelUpdate.llm not in LLMS:
+    if projectModelUpdate.llm is not None and brain.getLLM(projectModelUpdate.llm, db) is None:
         raise HTTPException(
             status_code=404,
             detail='LLM not found')
 
     if user.is_private:
-        llm_class, llm_args, prompt, privacy, description, type = LLMS[
-            projectModelUpdate.llm]
-        if privacy != "private":
+        llm_model = brain.getLLM(projectModelUpdate.llm, db)
+        if llm_model.props.privacy != "private":
             raise HTTPException(
                 status_code=403,
                 detail='User not allowed to use public models')
@@ -386,11 +444,16 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
         projectModel.name.strip().lower().replace(" ", "_"))
     projectModel.name = re.sub(r'[^\w\-.]+', '', projectModel.name)
 
+    if projectModel.name.strip() == "":
+        raise HTTPException(
+            status_code=400,
+            detail='Invalid project name')
+
     if projectModel.type == "rag" and projectModel.embeddings not in EMBEDDINGS:
         raise HTTPException(
             status_code=404,
             detail='Embeddings not found')
-    if projectModel.llm not in LLMS:
+    if brain.getLLM(projectModel.llm, db) is None:
         raise HTTPException(
             status_code=404,
             detail='LLM not found')
@@ -402,9 +465,8 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
             detail='Project already exists')
 
     if user.is_private:
-        llm_class, llm_args, prompt, privacy, description, type = LLMS[
-            projectModel.llm]
-        if privacy != "private":
+        llm_model = brain.getLLM(projectModel.llm, db)
+        if llm_model.props.privacy != "private":
             raise HTTPException(
                 status_code=403,
                 detail='User allowed to private models only')
@@ -552,8 +614,7 @@ async def ingest_text(projectName: str, ingest: TextIngestModel,
         # for document in documents:
         #    document.text = document.text.decode('utf-8')
 
-        nchunks = IndexDocuments(
-            brain, project, documents, ingest.splitter, ingest.chunks)
+        nchunks = IndexDocuments(project, documents, ingest.splitter, ingest.chunks)
         vector_save(project)
 
         return {"source": ingest.source, "documents": len(documents), "chunks": nchunks}
@@ -584,8 +645,7 @@ async def ingest_url(projectName: str, ingest: URLIngestModel,
         documents = loader.load_data(urls=[ingest.url])
         documents = ExtractKeywordsForMetadata(documents)
 
-        nchunks = IndexDocuments(
-            brain, project, documents, ingest.splitter, ingest.chunks)
+        nchunks = IndexDocuments(project, documents, ingest.splitter, ingest.chunks)
         vector_save(project)
 
         return {"source": ingest.url, "documents": len(documents), "chunks": nchunks}
@@ -636,7 +696,7 @@ async def ingest_file(
 
         documents = ExtractKeywordsForMetadata(documents)
 
-        nchunks = IndexDocuments(brain, project, documents, splitter, chunks)
+        nchunks = IndexDocuments(project, documents, splitter, chunks)
         vector_save(project)
 
         return {
@@ -727,10 +787,6 @@ async def vision_query(
 
         return output
     except Exception as e:
-        try:
-            brain.semaphore.release()
-        except ValueError:
-            pass
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
@@ -750,23 +806,19 @@ async def question_query(
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-        output, censored = brain.entryQuestion(projectName, input, db)
-
-        logs_inference.info(
-            {"user": user.username, "project": projectName, "output": output})
-
-        return output
+        if input.stream:
+            return StreamingResponse(brain.entryQuestion(projectName, input, db), media_type='text/event-stream')
+        else:
+            output = brain.entryQuestion(projectName, input, db)
+            for line in output:
+                return line
     except Exception as e:
-        try:
-            brain.semaphore.release()
-        except ValueError:
-            pass
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail=str(e))
 
-@app.post("/projects/{projectName}/question", response_model=QuestionResponse)
+@app.post("/projects/{projectName}/question")
 async def question_query_endpoint(
         request: Request,
         projectName: str,
@@ -778,24 +830,20 @@ async def question_query_endpoint(
         if project.model.type == "rag":
             return await question_query(request, projectName, input, user, db)
         elif project.model.type == "inference":
-            return await question_inference(request, projectName, InferenceModel(question=input.question, system=input.system), user, db)
+            return await question_inference(request, projectName, InferenceModel(question=input.question, system=input.system, stream=input.stream), user, db)
         elif project.model.type == "ragsql":
             return await question_query_sql(request, projectName, RagSqlModel(question=input.question, tables=input.tables), user, db)
         else:
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAG, RAGSQL and INFERENCE projects."}')
     except Exception as e:
-        try:
-            brain.semaphore.release()
-        except ValueError:
-            pass
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail=str(e))
 
 
-@app.post("/projects/{projectName}/chat", response_model=ChatResponse)
+@app.post("/projects/{projectName}/chat")
 async def chat_query(
         request: Request,
         projectName: str,
@@ -809,17 +857,13 @@ async def chat_query(
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-        output, censored = brain.entryChat(projectName, input, db)
-
-        logs_inference.info(
-            {"user": user.username, "project": projectName, "output": output})
-
-        return output
+        if input.stream:
+            return StreamingResponse(brain.entryChat(projectName, input, db), media_type='text/event-stream')
+        else:
+            output = brain.entryChat(projectName, input, db)
+            for line in output:
+                return line
     except Exception as e:
-        try:
-            brain.semaphore.release()
-        except ValueError:
-            pass
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
@@ -827,7 +871,7 @@ async def chat_query(
 
 
 
-@app.post("/projects/{projectName}/inference", response_model=InferenceResponse)
+@app.post("/projects/{projectName}/inference")
 async def question_inference_endpoint(
         request: Request,
         projectName: str,
@@ -843,10 +887,6 @@ async def question_inference_endpoint(
         
         return await question_inference(request, projectName, input, user, db)
     except Exception as e:
-        try:
-            brain.semaphore.release()
-        except ValueError:
-            pass
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
@@ -866,17 +906,17 @@ async def question_inference(
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for INFERENCE projects."}')
 
-        output = brain.inference(projectName, input, db)
+        if input.stream:
+            return StreamingResponse(brain.inference(projectName, input, db), media_type='text/event-stream')
+        else:
+            output = brain.inference(projectName, input, db)
+            for line in output:
+                return line
+            
 
-        logs_inference.info(
-            {"user": user.username, "project": projectName, "output": output})
+        #logs_inference.info({"user": user.username, "project": projectName, "output": output})
 
-        return output
     except Exception as e:
-        try:
-            brain.semaphore.release()
-        except ValueError:
-            pass
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
@@ -899,10 +939,6 @@ async def question_query_sql_endpoint(
 
         return await question_query_sql(request, projectName, input, user, db)
     except Exception as e:
-        try:
-            brain.semaphore.release()
-        except ValueError:
-            pass
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
@@ -928,10 +964,6 @@ async def question_query_sql(
 
         return output
     except Exception as e:
-        try:
-            brain.semaphore.release()
-        except ValueError:
-            pass
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(

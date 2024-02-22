@@ -2,7 +2,7 @@ import base64
 import io
 from torch.multiprocessing import Process, set_start_method, Manager
 
-from app.llms.instantid.worker import instantid_worker
+from app.llms.workers.instantid import worker
 try:
     set_start_method('spawn')
 except RuntimeError:
@@ -52,9 +52,10 @@ class InstantID(BaseTool):
         sharedmem["negative_prompt"] = run_manager.tags[0].negative
 
         with ILock('instantid', timeout=180):
-            p = Process(target=instantid_worker, args=(fprompt, sharedmem))
+            p = Process(target=worker, args=(fprompt, sharedmem))
             p.start()
             p.join()
+            p.kill()
 
         if not sharedmem["output_image"]:
             raise Exception("An error occurred while processing the image. Please try again.")

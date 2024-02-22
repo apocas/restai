@@ -2,6 +2,7 @@ from langchain_community.embeddings import VertexAIEmbeddings, HuggingFaceEmbedd
 from langchain_openai import OpenAIEmbeddings
 
 EMBEDDINGS = {
+    #"name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description..."),
     "openai_3_small": (OpenAIEmbeddings, {"model": "text-embedding-3-small"}, "public", "https://platform.openai.com/docs/guides/embeddings"),
     "openai_3_large": (OpenAIEmbeddings, {"model": "text-embedding-3-large"}, "public", "https://platform.openai.com/docs/guides/embeddings"),
     "openai_ada_002": (OpenAIEmbeddings, {"model": "text-embedding-ada-002"}, "public", "https://platform.openai.com/docs/guides/embeddings"),

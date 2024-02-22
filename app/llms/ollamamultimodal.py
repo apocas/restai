@@ -1,8 +1,8 @@
 from typing import Any, Dict, Sequence, Tuple
 
-from llama_index.bridge.pydantic import Field
-from llama_index.constants import DEFAULT_CONTEXT_WINDOW, DEFAULT_NUM_OUTPUTS
-from llama_index.core.llms.types import (
+from llama_index.core.bridge.pydantic import Field
+from llama_index.core.constants import DEFAULT_CONTEXT_WINDOW, DEFAULT_NUM_OUTPUTS
+from llama_index.core.base.llms.types  import (
     ChatMessage,
     ChatResponse,
     ChatResponseAsyncGen,
@@ -12,12 +12,12 @@ from llama_index.core.llms.types import (
     CompletionResponseGen,
     MessageRole,
 )
-from llama_index.multi_modal_llms import (
+from llama_index.core.multi_modal_llms.base import (
     MultiModalLLM,
     MultiModalLLMMetadata,
 )
-from llama_index.multi_modal_llms.generic_utils import image_documents_to_base64
-from llama_index.schema import ImageDocument
+from llama_index.core.multi_modal_llms.generic_utils import image_documents_to_base64
+from llama_index.core.schema import ImageDocument
 
 
 def get_additional_kwargs(

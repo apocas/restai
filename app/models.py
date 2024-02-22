@@ -5,14 +5,14 @@ from typing import Optional, Union
 class URLIngestModel(BaseModel):
     url: str
     splitter: str = "sentence"
-    chunks: int = 256
+    chunks: int = 512
 
 
 class TextIngestModel(BaseModel):
     text: str
     source: str
     splitter: str = "sentence"
-    chunks: int = 256
+    chunks: int = 512
     keywords: Union[list[str], None] = None
 
 
@@ -25,6 +25,7 @@ class FindModel(BaseModel):
 
 class InteractionModel(BaseModel):
     score: Union[float, None] = None
+    stream: Union[bool, None] = None
     k: Optional[int] = Field(None, ge=1, le=25)
 
 
@@ -42,6 +43,7 @@ class RagSqlModel(BaseModel):
 class InferenceModel(BaseModel):
     question: str
     system: Union[str, None] = None
+    stream: Union[bool, None] = None
 
 
 class VisionModel(BaseModel):
@@ -73,6 +75,21 @@ class ProjectModel(BaseModel):
     tables: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
+class LLMModel(BaseModel):
+    name: str
+    class_name: str
+    options: str
+    privacy: str
+    description: Union[str, None] = None
+    type: str
+    model_config = ConfigDict(from_attributes=True)
+
+class LLMUpdate(BaseModel):
+    class_name: str = None
+    options: str = None
+    privacy: str = None
+    description: str = None
+    type: str = None
 
 class ProjectInfo(ProjectModel):
     chunks: int = 0
