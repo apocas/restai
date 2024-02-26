@@ -32,6 +32,9 @@ def getLLMClass(llm_classname):
     elif llm_classname == "OpenAI":
         from llama_index.llms.openai import OpenAI
         return OpenAI
+    elif llm_classname == "Groq":
+        from llama_index.llms.groq import Groq
+        return Groq
     else:
         raise Exception("Invalid LLM class name.")
 
