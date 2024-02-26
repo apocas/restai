@@ -2866,6 +2866,22 @@ files = [
 llama-index-core = ">=0.10.1,<0.11.0"
 
 [[package]]
+name = "llama-index-postprocessor-colbert-rerank"
+version = "0.1.1"
+description = "llama-index postprocessor colbert-rerank integration"
+optional = false
+python-versions = ">=3.8.1,<4.0"
+files = [
+    {file = "llama_index_postprocessor_colbert_rerank-0.1.1-py3-none-any.whl", hash = "sha256:d3a21e648de58cb85c68814787507149ee3f571244751dbeca792b6ed126c63b"},
+    {file = "llama_index_postprocessor_colbert_rerank-0.1.1.tar.gz", hash = "sha256:061994c881c76ea041116d06f1417326f218d727572085d39153339527dc123f"},
+]
+
+[package.dependencies]
+llama-index-core = ">=0.10.0,<0.11.0"
+torch = ">=2.2.0,<3.0.0"
+transformers = ">=4.37.2,<5.0.0"
+
+[[package]]
 name = "llama-index-vector-stores-chroma"
 version = "0.1.1"
 description = "llama-index vector_stores chroma integration"
@@ -7431,4 +7447,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "a6325564702d042b80da5c745c1f8cf75d16efdcabc5e278ee2e6d28d40caa96"
+content-hash = "f01c75e57870d0e747ed00a46a070cf911fffcbb064dde9b2fdb4e946f2faffb"
