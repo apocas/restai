@@ -211,7 +211,7 @@ async def get_llms(
     users = dbc.get_llms(db)
     return users
 
-@app.post("/llms", response_model=User)
+@app.post("/llms")
 async def create_llm(llmc: LLMModel,
                       user: User = Depends(get_current_username_admin),
                       db: Session = Depends(get_db)):
