@@ -63,10 +63,10 @@ class Brain:
             try:
                 ollama.show(model_name)
             except Exception as e:
-              if isinstance(e, HTTPStatusError) and e.response.status_code == 404:
+              if e.status_code == 404:
                   ollama.pull(model_name)
               else:
-                  pass
+                  raise e
         
         return llm
     
