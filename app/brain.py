@@ -64,6 +64,7 @@ class Brain:
                 ollama.show(model_name)
             except Exception as e:
               if e.status_code == 404:
+                  print("Model not found, pulling " + model_name + " from Ollama")
                   ollama.pull(model_name)
               else:
                   raise e
