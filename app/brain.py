@@ -12,6 +12,8 @@ from llama_index.core.chat_engine import CondensePlusContextChatEngine, ContextC
 from llama_index.core.indices.struct_store.sql_query import NLSQLTableQueryEngine
 from llama_index.core.schema import ImageDocument
 from llama_index.core.base.llms.types import ChatMessage
+from llama_index.core.postprocessor.llm_rerank import LLMRerank
+from llama_index.postprocessor.colbert_rerank import ColbertRerank
 from langchain.agents import initialize_agent
 import ollama
 from sqlalchemy import create_engine
@@ -48,11 +50,25 @@ class Brain:
                 models.append(llmr)
         return models
 
-    def getLLM(self, llmName, db: Session, **kwargs):
+    def getLLM(self, llmName, db: Session, **kwargs):      
+        llm = None
+      
         if llmName in self.llmCache:
-            return self.llmCache[llmName]
+            llm = self.llmCache[llmName]
         else:
-            return self.loadLLM(llmName, db)
+            llm = self.loadLLM(llmName, db)
+        
+        if llm.props.class_name == "Ollama":
+            model_name = json.loads(llm.props.options).get("model")
+            try:
+                ollama.show(model_name)
+            except Exception as e:
+              if isinstance(e, HTTPStatusError) and e.response.status_code == 404:
+                  ollama.pull(model_name)
+              else:
+                  pass
+        
+        return llm
     
     def loadLLM(self, llmName, db: Session):
         llm_db = dbc.get_llm_by_name(db, llmName)
@@ -109,12 +125,8 @@ class Brain:
             projectModel.name,
             projectModel.embeddings,
             projectModel.llm,
-            projectModel.system,
-            projectModel.sandboxed,
-            projectModel.censorship,
             projectModel.vectorstore,
             projectModel.type,
-            projectModel.connection,
         )
         project = Project()
         project.boot(projectModel)
@@ -134,10 +146,6 @@ class Brain:
         changed = False
         if projectModel.llm is not None and proj_db.llm != projectModel.llm:
             proj_db.llm = projectModel.llm
-            changed = True
-
-        if projectModel.sandboxed is not None and proj_db.sandboxed != projectModel.sandboxed:
-            proj_db.sandboxed = projectModel.sandboxed
             changed = True
 
         if projectModel.system is not None and proj_db.system != projectModel.system:
@@ -162,6 +170,14 @@ class Brain:
         
         if projectModel.tables is not None and proj_db.tables != projectModel.tables:
             proj_db.tables = projectModel.tables
+            changed = True
+            
+        if projectModel.llm_rerank is not None and proj_db.llm_rerank != projectModel.llm_rerank:
+            proj_db.llm_rerank = projectModel.llm_rerank
+            changed = True
+        
+        if projectModel.colbert_rerank is not None and proj_db.colbert_rerank != projectModel.colbert_rerank:
+            proj_db.colbert_rerank = projectModel.colbert_rerank
             changed = True
 
         if changed:
@@ -188,18 +204,41 @@ class Brain:
         k = chatModel.k or project.model.k or 1
 
         sysTemplate = project.model.system or self.defaultSystem
+        
+        if project.model.colbert_rerank or project.model.llm_rerank:
+            final_k = k * 2
+        else:
+            final_k = k
 
         retriever = VectorIndexRetriever(
             index=project.db,
-            similarity_top_k=k,
+            similarity_top_k=final_k,
         )
+
+        postprocessors = []
+
+        if project.model.colbert_rerank:
+            postprocessors.append(ColbertRerank(
+                top_n=k,
+                model="colbert-ir/colbertv2.0",
+                tokenizer="colbert-ir/colbertv2.0",
+                keep_retrieval_score=True,
+            ))
+
+        if project.model.llm_rerank:
+            postprocessors.append(LLMRerank(
+                choice_batch_size=k,
+                top_n=k,
+                llm=model.llm,
+            ))
+            
+        postprocessors.append(SimilarityPostprocessor(similarity_cutoff=threshold))
 
         chat_engine = ContextChatEngine.from_defaults(
             retriever=retriever,
             system_prompt=sysTemplate,
             memory=chat.history,
-            node_postprocessors=[SimilarityPostprocessor(
-                similarity_cutoff=threshold)],
+            node_postprocessors=postprocessors,
         )
         chat_engine._llm = model.llm
 
@@ -238,13 +277,11 @@ class Brain:
                     output["answer"] = response.response
 
                 yield output
-        except HTTPStatusError as e:
-            if e.response.status_code == 404:
-                if model.props.class_name == "Ollama":
-                    ollama.pull(json.loads(model.props.options).get("model"))
-                    response = chat_engine.chat(chatModel.question)
-            else:
-                raise e
+        except Exception as e:              
+            if chatModel.stream:
+                yield "data: Inference failed\n"
+                yield "event: error\n\n"
+            raise e
 
 
     def entryQuestion(self, projectName: str, questionModel: QuestionModel, db: Session):
@@ -257,9 +294,14 @@ class Brain:
         k = questionModel.k or project.model.k or 2
         threshold = questionModel.score or project.model.score or 0.2
 
+        if questionModel.colbert_rerank or questionModel.llm_rerank or project.model.colbert_rerank or project.model.llm_rerank:
+            final_k = k * 2
+        else:
+            final_k = k
+
         retriever = VectorIndexRetriever(
             index=project.db,
-            similarity_top_k=k,
+            similarity_top_k=final_k,
         )
 
         qa_prompt_tmpl = (
@@ -279,11 +321,29 @@ class Brain:
 
         response_synthesizer = get_response_synthesizer(llm=llm_predictor, text_qa_template=qa_prompt, streaming=questionModel.stream)
 
+        postprocessors = []
+
+        if questionModel.colbert_rerank or project.model.colbert_rerank:
+            postprocessors.append(ColbertRerank(
+                top_n=k,
+                model="colbert-ir/colbertv2.0",
+                tokenizer="colbert-ir/colbertv2.0",
+                keep_retrieval_score=True,
+            ))
+
+        if questionModel.llm_rerank or project.model.llm_rerank:
+            postprocessors.append(LLMRerank(
+                choice_batch_size=k,
+                top_n=k,
+                llm=model.llm,
+            ))
+            
+        postprocessors.append(SimilarityPostprocessor(similarity_cutoff=threshold))
+
         query_engine = RetrieverQueryEngine(
             retriever=retriever,
             response_synthesizer=response_synthesizer,
-            node_postprocessors=[SimilarityPostprocessor(
-                similarity_cutoff=threshold)]
+            node_postprocessors=postprocessors
         )
 
         try:
@@ -318,13 +378,11 @@ class Brain:
                     output["answer"] = response.response
 
                 yield output
-        except HTTPStatusError as e:
-            if e.response.status_code == 404:
-                if model.props.class_name == "Ollama":
-                    ollama.pull(json.loads(model.props.options).get("model"))
-                    response = query_engine.query(questionModel.question)
-            else:
-                raise e
+        except Exception as e:
+            if questionModel.stream:
+                yield "data: Inference failed\n"
+                yield "event: error\n\n"
+            raise e
 
     def entryVision(self, projectName, visionInput, isprivate, db: Session):
         image = None
@@ -359,13 +417,8 @@ class Brain:
 
                 try:
                     response = model.llm.complete(prompt=visionInput.question, image_documents=[ImageDocument(image=visionInput.image)])
-                except HTTPStatusError as e:
-                    if e.response.status_code == 404:
-                        if model.props.class_name == "Ollama":
-                            ollama.pull(json.loads(model.props.options).get("model"))
-                            response = model.llm.complete(prompt=visionInput.question, image_documents=[ImageDocument(image=visionInput.image)])
-                    else:
-                        raise e
+                except Exception as e:
+                    raise e
                 
                 output = response.text
                 image = visionInput.image
@@ -408,13 +461,11 @@ class Brain:
                     "type": "inference"
                 }
                 yield output
-        except HTTPStatusError as e:
-            if e.response.status_code == 404:
-                if model.props.class_name == "Ollama":
-                    ollama.pull(json.loads(model.props.options).get("model"))
-                    resp = model.llm.chat(messages)
-            else:
-                raise e
+        except Exception as e:              
+            if inferenceModel.stream:
+                yield "data: Inference failed\n"
+                yield "event: error\n\n"
+            raise e
 
     def ragSQL(self, projectName, questionModel, db: Session):
         project = self.findProject(projectName, db)
@@ -443,13 +494,8 @@ class Brain:
 
         try:
             response = query_engine.query(question)
-        except HTTPStatusError as e:
-            if e.response.status_code == 404:
-                if model.props.class_name == "Ollama":
-                    ollama.pull(json.loads(model.props.options).get("model"))
-                    response = query_engine.query(question)
-            else:
-                raise e
+        except Exception as e:
+            raise e
 
         output = {
             "question": questionModel.question,

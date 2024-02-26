@@ -31,7 +31,7 @@ frontend:
 
 .PHONY: docs
 docs:
-	python3 docs.py
+	poetry run python3 docs.py
 
 .PHONY: test
 test:

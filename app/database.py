@@ -198,22 +198,14 @@ class Database:
             name,
             embeddings,
             llm,
-            system,
-            sandboxed,
-            censorship,
             vectorstore,
-            type,
-            connection):
+            type):
         db_project = ProjectDatabase(
             name=name,
             embeddings=embeddings,
             llm=llm,
-            system=system,
-            sandboxed=sandboxed,
-            censorship=censorship,
             vectorstore=vectorstore,
-            type=type,
-            connection=connection)
+            type=type)
         db.add(db_project)
         db.commit()
         db.refresh(db_project)

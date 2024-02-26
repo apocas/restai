@@ -32,6 +32,8 @@ class InteractionModel(BaseModel):
 class QuestionModel(InteractionModel):
     question: str
     system: Union[str, None] = None
+    colbert_rerank: Union[bool, None] = None
+    llm_rerank: Union[bool, None] = None
     tables: Union[list[str], None] = None
 
 
@@ -64,7 +66,6 @@ class ProjectModel(BaseModel):
     llm: str
     type: str
     system: Union[str, None] = None
-    sandboxed: Union[bool, None] = None
     censorship: Union[str, None] = None
     score: float = 0.3
     k: int = 4
@@ -73,6 +74,8 @@ class ProjectModel(BaseModel):
     vectorstore: Union[str, None] = None
     connection: Union[str, None] = None
     tables: Union[str, None] = None
+    llm_rerank: Union[bool, None] = None
+    colbert_rerank: Union[bool, None] = None
     model_config = ConfigDict(from_attributes=True)
 
 class LLMModel(BaseModel):
@@ -136,13 +139,13 @@ class ProjectModelUpdate(BaseModel):
     embeddings: Union[str, None] = None
     llm: Union[str, None] = None
     system: Union[str, None] = None
-    sandboxed: Union[bool, None] = None
     censorship: Union[str, None] = None
     score: Union[float, None] = None
     k: Union[int, None] = None
     connection: Union[str, None] = None
     tables: Union[str, None] = None
-
+    llm_rerank: Union[bool, None] = None
+    colbert_rerank: Union[bool, None] = None
 
 class SourceModel(BaseModel):
     source: str

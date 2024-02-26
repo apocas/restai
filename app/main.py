@@ -357,6 +357,10 @@ async def get_projects(request: Request, user: User = Depends(get_current_userna
 async def get_project(projectName: str, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
+        
+        if project is None:
+            raise HTTPException(
+                status_code=404, detail='Project not found')
 
         try:
             llm_model = brain.getLLM(project.model.llm, db)
@@ -373,7 +377,6 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             llm_type=llm_model.props.type,
             llm_privacy=llm_model.props.privacy,
             system=project.model.system,
-            sandboxed=project.model.sandboxed,
             censorship=project.model.censorship,
             score=project.model.score,
             k=project.model.k,
@@ -381,6 +384,8 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             type=project.model.type,
             connection=project.model.connection,
             tables=project.model.tables,
+            llm_rerank=project.model.llm_rerank,
+            colbert_rerank=project.model.colbert_rerank,
         )
         output.chunks = chunks
 

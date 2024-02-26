@@ -40,13 +40,14 @@ class ProjectDatabase(Base):
     type = Column(String(255))
     llm = Column(String(255))
     system = Column(Text)
-    sandboxed = Column(Boolean, default=False)
     censorship = Column(String(4096))
     k = Column(Integer, default=4)
     score = Column(Float, default=0.3)
     vectorstore = Column(String(255))
     connection = Column(String(4096))
     tables = Column(String(4096))
+    llm_rerank = Column(Boolean, default=False)
+    colbert_rerank = Column(Boolean, default=False)
 
     owners = relationship("UserProjectDatabase", back_populates="project")
 
