@@ -1,5 +1,4 @@
 import json
-from httpx import HTTPStatusError
 from llama_index.core.service_context_elements.llm_predictor import LLMPredictor
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.response_synthesizers import get_response_synthesizer
@@ -14,6 +13,9 @@ from llama_index.core.schema import ImageDocument
 from llama_index.core.base.llms.types import ChatMessage
 from llama_index.core.postprocessor.llm_rerank import LLMRerank
 from llama_index.postprocessor.colbert_rerank import ColbertRerank
+from llama_index.core.tools import ToolMetadata
+from llama_index.core.selectors import LLMSingleSelector
+
 from langchain.agents import initialize_agent
 import ollama
 from sqlalchemy import create_engine
@@ -23,7 +25,7 @@ from app.llms.tools.instantid import InstantID
 from app.llms.tools.stablediffusion import StableDiffusionImage
 from app.model import Model
 
-from app.models import LLMModel, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel
+from app.models import LLMModel, ProjectModel, QuestionModel, ChatModel
 from app.project import Project
 from app.tools import getLLMClass
 from app.vectordb import vector_init
@@ -35,7 +37,6 @@ from langchain_community.chat_models import ChatOpenAI
 
 class Brain:
     def __init__(self):
-        self.projects = []
         self.llmCache = {}
         self.embeddingCache = {}
         self.defaultCensorship = "This question is outside of my scope. Didn't find any related data."
@@ -97,17 +98,8 @@ class Brain:
                 return model
             else:
                 raise Exception("Invalid Embedding type.")
-
+              
     def findProject(self, name, db):
-        for project in self.projects:
-            if project.model.name == name:
-                p = dbc.get_project_by_name(db, name)
-                if p is None:
-                    return None
-                proj = ProjectModel.model_validate(p)
-                project.model = proj
-                return project
-
         p = dbc.get_project_by_name(db, name)
         if p is None:
             return None
@@ -117,83 +109,7 @@ class Brain:
             project.model = proj
             if project.model.type == "rag":
                 project.db = vector_init(self, project)
-            self.projects.append(project)
             return project
-
-    def createProject(self, projectModel, db):
-        dbc.create_project(
-            db,
-            projectModel.name,
-            projectModel.embeddings,
-            projectModel.llm,
-            projectModel.vectorstore,
-            projectModel.type,
-        )
-        project = Project()
-        project.boot(projectModel)
-        project.db = vector_init(self, project)
-        self.projects.append(project)
-        return project
-
-    def editProject(self, name, projectModel: ProjectModelUpdate, db):
-        project = self.findProject(name, db)
-        if project is None:
-            return False
-
-        proj_db = dbc.get_project_by_name(db, name)
-        if proj_db is None:
-            raise Exception("Project not found")
-
-        changed = False
-        if projectModel.llm is not None and proj_db.llm != projectModel.llm:
-            proj_db.llm = projectModel.llm
-            changed = True
-
-        if projectModel.system is not None and proj_db.system != projectModel.system:
-            proj_db.system = projectModel.system
-            changed = True
-
-        if projectModel.censorship is not None and proj_db.censorship != projectModel.censorship:
-            proj_db.censorship = projectModel.censorship
-            changed = True
-
-        if projectModel.k is not None and proj_db.k != projectModel.k:
-            proj_db.k = projectModel.k
-            changed = True
-
-        if projectModel.score is not None and proj_db.score != projectModel.score:
-            proj_db.score = projectModel.score
-            changed = True
-
-        if projectModel.connection is not None and proj_db.system != projectModel.connection and "://xxxx:xxxx@" not in projectModel.connection:
-            proj_db.connection = projectModel.connection
-            changed = True
-        
-        if projectModel.tables is not None and proj_db.tables != projectModel.tables:
-            proj_db.tables = projectModel.tables
-            changed = True
-            
-        if projectModel.llm_rerank is not None and proj_db.llm_rerank != projectModel.llm_rerank:
-            proj_db.llm_rerank = projectModel.llm_rerank
-            changed = True
-        
-        if projectModel.colbert_rerank is not None and proj_db.colbert_rerank != projectModel.colbert_rerank:
-            proj_db.colbert_rerank = projectModel.colbert_rerank
-            changed = True
-
-        if changed:
-            dbc.update_project(db)
-            project.model = ProjectModel.model_validate(proj_db)
-
-        return project
-
-    def deleteProject(self, name, db):
-        proj = self.findProject(name, db)
-        dbc.delete_project(db, dbc.get_project_by_name(db, name))
-        if proj is not None:
-            proj.delete()
-            self.projects.remove(proj)
-        return True
 
     def entryChat(self, projectName: str, chatModel: ChatModel, db: Session):
         project = self.findProject(projectName, db)
@@ -426,8 +342,16 @@ class Brain:
             else:
                 output = outputAgent["prompt"]
                 image = outputAgent["image"]
+                
+        outputf = {
+            "question": visionInput.question,
+            "answer": output,
+            "image": image,
+            "sources": [],
+            "type": "vision"
+        }
 
-        return output, [], image
+        return outputf
 
     def inference(self, projectName, inferenceModel, db: Session):
         project = self.findProject(projectName, db)
@@ -506,3 +430,23 @@ class Brain:
         }
 
         return output
+      
+      
+    def router(self, projectName, questionModel, db: Session):
+        choices = []
+        
+        project = self.findProject(projectName, db)
+        if project is None:
+            raise Exception("Project not found")
+          
+        for entrance in project.model.entrances:
+            choices.append(ToolMetadata(description=entrance.description, name=entrance.name))
+        
+
+        selector = LLMSingleSelector.from_defaults()
+        selector_result = selector.select(
+            choices, query=questionModel.question
+        )
+        
+        projectNameDest = project.model.entrances[selector_result.selections[0].index].destination
+        return projectNameDest

@@ -4,8 +4,8 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 
-from app.databasemodels import Base, LLMDatabase, ProjectDatabase, UserProjectDatabase, UserDatabase
-from app.models import LLMModel, LLMUpdate, User, UserUpdate
+from app.databasemodels import Base, LLMDatabase, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
+from app.models import LLMModel, LLMUpdate, ProjectModel, ProjectModelUpdate, User, UserUpdate
 from app.tools import DEFAULT_LLMS
 
 
@@ -65,15 +65,53 @@ if "users" not in inspect(engine).get_table_names():
             description=description,
             type=typel
         )
-        dbi.add(db_llm)
-
+        dbi.add(db_llm)  
+    
+    if os.environ.get("RESTAI_DEMO"):
+        print("Creating demo scenario...")
+        db_user = UserDatabase(
+            username="demo",
+            hashed_password=pwd_context.hash("demo"),
+            is_private=True,
+        )
+        dbi.add(db_user)
+        
+        demo_project1 = ProjectDatabase(
+            name="demo1",
+            type="inference",
+            system="Always end your answers with 'beep beep'.",
+            llm="llama2_7b"
+        )
+        demo_project2 = ProjectDatabase(
+            name="demo2",
+            type="inference",
+            system="Always end your answers with 'boop boop'.",
+            llm="llama2_7b"
+        )
+        demo_project3 = ProjectDatabase(
+            name="router1",
+            type="router",
+            llm="openai_gpt3.5_turbo"
+        )
+        dbi.add(demo_project1)
+        dbi.add(demo_project2)
+        dbi.add(demo_project3)
+        dbi.commit()
+        
+        demo_project3.entrances.append(RouterEntrancesDatabase(
+            name="choice1", description="The question is about the meaning of life.", destination="demo1", project_id=demo_project3.id))
+        demo_project3.entrances.append(RouterEntrancesDatabase(
+            name="choice2", description="The question is about anything.", destination="demo2", project_id=demo_project3.id))
+        
+        demo_project1.users.append(db_user)
+        demo_project2.users.append(db_user)
+        demo_project3.users.append(db_user)
+        
     dbi.commit()
-    dbi.refresh(db_user)
     dbi.close()
     print("Database initialized.")
     print("Default LLMs initialized.")
     print("Default admin user created (admin:" + default_password + ").")
-
 
 class Database:
 
@@ -173,20 +211,6 @@ class Database:
         db.commit()
         return True
 
-    def add_userproject(self, db, user, name, projectid):
-        db_project = UserProjectDatabase(
-            name=name, owner_id=user.id, project_id=projectid)
-        db.add(db_project)
-        db.commit()
-        db.refresh(db_project)
-        return db_project
-
-    def delete_userprojects(self, db, user):
-        db.query(UserProjectDatabase).filter(
-            UserProjectDatabase.owner_id == user.id).delete()
-        db.commit()
-        return True
-
     def get_project_by_name(self, db, name):
         project = db.query(ProjectDatabase).filter(
             ProjectDatabase.name == name).first()
@@ -216,16 +240,66 @@ class Database:
         return projects
 
     def delete_project(self, db, project):
-        db.query(UserProjectDatabase).filter(
-            UserProjectDatabase.project_id == project.id).delete()
-        db.query(UserProjectDatabase).filter(
-            UserProjectDatabase.name == project.name).delete()
         db.delete(project)
         db.commit()
         return True
 
     def update_project(self, db):
         db.commit()
+        return True
+
+    def editProject(self, name, projectModel: ProjectModelUpdate, db):
+        proj_db = dbc.get_project_by_name(db, name)
+        if proj_db is None:
+            return False
+
+        changed = False
+        if projectModel.llm is not None and proj_db.llm != projectModel.llm:
+            proj_db.llm = projectModel.llm
+            changed = True
+
+        if projectModel.system is not None and proj_db.system != projectModel.system:
+            proj_db.system = projectModel.system
+            changed = True
+
+        if projectModel.censorship is not None and proj_db.censorship != projectModel.censorship:
+            proj_db.censorship = projectModel.censorship
+            changed = True
+
+        if projectModel.k is not None and proj_db.k != projectModel.k:
+            proj_db.k = projectModel.k
+            changed = True
+
+        if projectModel.score is not None and proj_db.score != projectModel.score:
+            proj_db.score = projectModel.score
+            changed = True
+
+        if projectModel.connection is not None and proj_db.system != projectModel.connection and "://xxxx:xxxx@" not in projectModel.connection:
+            proj_db.connection = projectModel.connection
+            changed = True
+        
+        if projectModel.tables is not None and proj_db.tables != projectModel.tables:
+            proj_db.tables = projectModel.tables
+            changed = True
+            
+        if projectModel.llm_rerank is not None and proj_db.llm_rerank != projectModel.llm_rerank:
+            proj_db.llm_rerank = projectModel.llm_rerank
+            changed = True
+        
+        if projectModel.colbert_rerank is not None and proj_db.colbert_rerank != projectModel.colbert_rerank:
+            proj_db.colbert_rerank = projectModel.colbert_rerank
+            changed = True
+        
+        if projectModel.entrances is not None:
+            proj_db.entrances = []
+            for entrance in projectModel.entrances:
+                proj_db.entrances.append(RouterEntrancesDatabase(
+                    name=entrance.name, description=entrance.description, destination=entrance.destination, project_id=proj_db.id))
+            changed = True
+
+        if changed:
+            dbc.update_project(db)
+
         return True
 
 

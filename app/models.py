@@ -24,41 +24,30 @@ class FindModel(BaseModel):
 
 
 class InteractionModel(BaseModel):
+    question: str
     score: Union[float, None] = None
     stream: Union[bool, None] = None
     k: Optional[int] = Field(None, ge=1, le=25)
 
 
 class QuestionModel(InteractionModel):
-    question: str
     system: Union[str, None] = None
     colbert_rerank: Union[bool, None] = None
     llm_rerank: Union[bool, None] = None
     tables: Union[list[str], None] = None
-
-
-class RagSqlModel(BaseModel):
-    question: str
-    tables: Union[list[str], None] = None
-
-
-class InferenceModel(BaseModel):
-    question: str
-    system: Union[str, None] = None
-    stream: Union[bool, None] = None
-
-
-class VisionModel(BaseModel):
-    question: str
     negative: Union[str, None] = None
     image: Union[str, None] = None
     boost: bool = False
 
 
 class ChatModel(InteractionModel):
-    question: str
     id: Union[str, None] = None
 
+class EntranceModel(BaseModel):
+    destination: str
+    name: str
+    description: str
+    model_config = ConfigDict(from_attributes=True)
 
 class ProjectModel(BaseModel):
     name: str
@@ -69,13 +58,16 @@ class ProjectModel(BaseModel):
     censorship: Union[str, None] = None
     score: float = 0.3
     k: int = 4
-    llm_type: Union[str, None] = None
-    llm_privacy: Union[str, None] = None
     vectorstore: Union[str, None] = None
     connection: Union[str, None] = None
     tables: Union[str, None] = None
     llm_rerank: Union[bool, None] = None
     colbert_rerank: Union[bool, None] = None
+    entrances: Union[list[EntranceModel], None] = None
+    model_config = ConfigDict(from_attributes=True)
+    
+class RouterModel(BaseModel):
+    name: str
     model_config = ConfigDict(from_attributes=True)
 
 class LLMModel(BaseModel):
@@ -96,8 +88,8 @@ class LLMUpdate(BaseModel):
 
 class ProjectInfo(ProjectModel):
     chunks: int = 0
-    llm_type: str
-    llm_privacy: str
+    llm_type: Union[str, None] = None
+    llm_privacy: Union[str, None] = None
 
 
 class UserProject(BaseModel):
@@ -145,6 +137,7 @@ class ProjectModelUpdate(BaseModel):
     connection: Union[str, None] = None
     tables: Union[str, None] = None
     llm_rerank: Union[bool, None] = None
+    entrances: Union[list[EntranceModel], None] = None
     colbert_rerank: Union[bool, None] = None
 
 class SourceModel(BaseModel):
@@ -163,19 +156,19 @@ class InferenceResponse(BaseModel):
 
 class QuestionResponse(InferenceResponse):
     sources: Union[list[SourceModel], Union[list[str], None]] = None
-
+    image: Union[str, None] = None
 
 class RagSqlResponse(InferenceResponse):
     sources: list[str]
 
+class VisionResponse(QuestionResponse):
+    image: Union[str, None] = None
 
 class VisionResponse(QuestionResponse):
     image: Union[str, None] = None
 
-
 class ChatResponse(QuestionResponse):
     id: str
-
 
 class IngestResponse(BaseModel):
     source: str
