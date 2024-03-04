@@ -2,6 +2,10 @@
 start:
 	poetry run uvicorn app.main:app --port 9000 --workers 4
 
+.PHONY: database
+database:
+	poetry run python database.py
+
 .PHONY: dev
 dev:
 	RESTAI_DEV=true uvicorn app.main:app --reload --port 9000
