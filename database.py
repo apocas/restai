@@ -31,15 +31,6 @@ else:
 SessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=engine)
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        return db
-    finally:
-        db.close()
-
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 

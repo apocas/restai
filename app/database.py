@@ -1,8 +1,40 @@
-from app.databasemodels import Base, LLMDatabase, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
+import os
+
+from sqlalchemy import create_engine
+from app.databasemodels import LLMDatabase, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
 from app.models import LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate
-from app.tools import DEFAULT_LLMS
+from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 
+
+if os.environ.get("MYSQL_PASSWORD"):
+    host = os.environ.get("MYSQL_HOST") or "127.0.0.1"
+    print("Using MySQL database: " + host)
+    engine = create_engine('mysql+pymysql://' + (os.environ.get("MYSQL_USER") or "restai") + ':' + os.environ.get("MYSQL_PASSWORD") + '@' +
+                           host + '/' +
+                           (os.environ.get("MYSQL_DB") or "restai"),
+                           pool_size=30,
+                           max_overflow=100,
+                           pool_recycle=900)
+else:
+    print("Using sqlite database.")
+    engine = create_engine(
+        "sqlite:///./restai.db",
+        connect_args={
+            "check_same_thread": False},
+        pool_size=30,
+        max_overflow=100,
+        pool_recycle=300)
+
+SessionLocal = sessionmaker(
+    autocommit=False, autoflush=False, bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        return db
+    finally:
+        db.close()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
