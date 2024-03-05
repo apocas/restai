@@ -1,8 +1,11 @@
 import os
+from dotenv import load_dotenv
 import uvicorn
+
 
 from app.main import app
 
+load_dotenv()
 
 if __name__ == "__main__":
     port = 9000

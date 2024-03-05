@@ -366,26 +366,48 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
                 status_code=404, detail='Project not found')
 
         output = project.model.model_dump()
+        final_output = {}
         
         try:
             llm_model = brain.getLLM(project.model.llm, db)
         except Exception as e:
             llm_model = None
 
-        chunks = vector_info(project)
+        final_output["name"] = output["name"]
+        final_output["type"] = output["type"]
+        final_output["llm"] = output["llm"]
         
-        if chunks is not None:
-            output["chunks"] = chunks
-    
-        if llm_model:
-            output["llm_type"]=llm_model.props.type
-            output["llm_privacy"]=llm_model.props.privacy
-
-        if output["connection"] is not None:
-            output["connection"] = re.sub(
+        if project.model.type == "rag":
+            chunks = vector_info(project)
+            if chunks is not None:
+                final_output["chunks"] = chunks
+            final_output["embeddings"] = output["embeddings"]
+            final_output["k"] = output["k"]
+            final_output["score"] = output["score"]
+            final_output["vectorstore"] = output["vectorstore"]
+            final_output["system"] = output["system"]
+            final_output["censorship"] = output["censorship"]
+            final_output["llm_rerank"] = output["llm_rerank"]
+            final_output["colbert_rerank"] = output["colbert_rerank"]
+        
+        if project.model.type == "inference":
+            final_output["system"] = output["system"]
+            
+        if project.model.type == "ragsql":
+            final_output["system"] = output["system"]
+            final_output["tables"] = output["tables"]
+            if output["connection"] is not None:
+                output["connection"] = re.sub(
                 r'(?<=://).+?(?=@)', "xxxx:xxxx", project.model.connection)
+            
+        if project.model.type == "router":
+            final_output["entrances"] = output["entrances"]
+            
+        if llm_model:
+            final_output["llm_type"]=llm_model.props.type
+            final_output["llm_privacy"]=llm_model.props.privacy
 
-        return output
+        return final_output
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)

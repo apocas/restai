@@ -3,10 +3,12 @@ import json
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
+from dotenv import load_dotenv
 
 from app.databasemodels import Base, LLMDatabase, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
 from app.tools import DEFAULT_LLMS
 
+load_dotenv()
 
 if os.environ.get("MYSQL_PASSWORD"):
     host = os.environ.get("MYSQL_HOST") or "127.0.0.1"
