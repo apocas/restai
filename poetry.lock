@@ -2783,13 +2783,13 @@ test = ["httpx (>=0.24.1)", "pytest (>=7.4.0)", "scipy (>=1.10)"]
 
 [[package]]
 name = "llama-index-core"
-version = "0.10.12"
+version = "0.10.19"
 description = "Interface between LLMs and your data"
 optional = false
 python-versions = ">=3.8.1,<4.0"
 files = [
-    {file = "llama_index_core-0.10.12-py3-none-any.whl", hash = "sha256:47663cc3282684e6b7f06e905d98382aa3dbec5191ab72c239b4f19e0b08c041"},
-    {file = "llama_index_core-0.10.12.tar.gz", hash = "sha256:071e3a9ab2071c900657149cabf39199818e7244d16ef5cc096e5c0bff8174f4"},
+    {file = "llama_index_core-0.10.19-py3-none-any.whl", hash = "sha256:53c96712de51778f4b880d730ab59bb072caf14b46718d0cb5ec86d622195ed6"},
+    {file = "llama_index_core-0.10.19.tar.gz", hash = "sha256:ecb369a58b7ae72fcd26a6a3c58b582cfdb9b513918a88c79757128d932c7945"},
 ]
 
 [package.dependencies]
@@ -2821,7 +2821,7 @@ gradientai = ["gradientai (>=1.4.0)"]
 html = ["beautifulsoup4 (>=4.12.2,<5.0.0)"]
 langchain = ["langchain (>=0.0.303)"]
 local-models = ["optimum[onnxruntime] (>=1.13.2,<2.0.0)", "sentencepiece (>=0.1.99,<0.2.0)", "transformers[torch] (>=4.33.1,<5.0.0)"]
-postgres = ["asyncpg (>=0.28.0,<0.29.0)", "pgvector (>=0.1.0,<0.2.0)", "psycopg2-binary (>=2.9.9,<3.0.0)"]
+postgres = ["asyncpg (>=0.29.0,<0.30.0)", "pgvector (>=0.2.4,<0.3.0)", "psycopg2-binary (>=2.9.9,<3.0.0)"]
 query-tools = ["guidance (>=0.0.64,<0.0.65)", "jsonpath-ng (>=1.6.0,<2.0.0)", "lm-format-enforcer (>=0.4.3,<0.5.0)", "rank-bm25 (>=0.2.2,<0.3.0)", "scikit-learn", "spacy (>=3.7.1,<4.0.0)"]
 
 [[package]]
@@ -2883,17 +2883,17 @@ llama-index-core = ">=0.10.1,<0.11.0"
 
 [[package]]
 name = "llama-index-llms-openai"
-version = "0.1.6"
+version = "0.1.9"
 description = "llama-index llms openai integration"
 optional = false
 python-versions = ">=3.8.1,<4.0"
 files = [
-    {file = "llama_index_llms_openai-0.1.6-py3-none-any.whl", hash = "sha256:4260ad31c3444e97ec8a8d061cb6dbf1074262b82341a2b69d2b27e8a23efe62"},
-    {file = "llama_index_llms_openai-0.1.6.tar.gz", hash = "sha256:15530dfa3893b15c5576ebc71e01b77acbf47abd689219436fdf7b6ca567a9fd"},
+    {file = "llama_index_llms_openai-0.1.9-py3-none-any.whl", hash = "sha256:fe9d794b656b7efc5415d40835e1fd60f978aa1aae39e7c2b9bbc8ad2de510f2"},
+    {file = "llama_index_llms_openai-0.1.9.tar.gz", hash = "sha256:a897103a90846472067eae63859c4f596f98bfb7f07d5c05727e29bf0fc58b69"},
 ]
 
 [package.dependencies]
-llama-index-core = ">=0.10.1,<0.11.0"
+llama-index-core = ">=0.10.19,<0.11.0"
 
 [[package]]
 name = "llama-index-llms-openai-like"
@@ -7596,4 +7596,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "f21d9fce74c246e8ac80ae3088fd80a430bc70384ca7bb221ec318d5aa810329"
+content-hash = "3e7847def8f7be3edd7a2bfd33220a843a4226c431aacb7ba59db737e3713174"
