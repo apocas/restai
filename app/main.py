@@ -551,6 +551,49 @@ async def reset_embeddings(
         raise HTTPException(
             status_code=404, detail=str(e))
 
+@app.post("/projects/{projectName}/clone/{newProjectName}")
+async def clone_project(projectName: str, newProjectName: str,
+                         user: User = Depends(get_current_username_project),
+                         db: Session = Depends(get_db)):
+    project = brain.findProject(projectName, db)
+    if project is None:
+        raise HTTPException(
+            status_code=404, detail='Project not found')
+        
+    newProject = dbc.get_project_by_name(db, newProjectName)
+    if newProject is not None:
+        raise HTTPException(
+            status_code=403, detail='Project already exists')
+        
+    project_db = dbc.get_project_by_name(db, projectName)
+    
+    newProject_db = dbc.create_project(
+        db,
+        newProjectName,
+        project.model.embeddings,
+        project.model.llm,
+        project.model.vectorstore,
+        project.model.type
+    )
+    
+    newProject_db.system = project.model.system
+    newProject_db.censorship = project.model.censorship
+    newProject_db.k = project.model.k
+    newProject_db.score = project.model.score
+    newProject_db.llm_rerank = project.model.llm_rerank
+    newProject_db.colbert_rerank = project.model.colbert_rerank
+    newProject_db.tables = project.model.tables
+    newProject_db.connection = project.model.connection
+    
+    for user in project_db.users:
+        newProject_db.users.append(user)
+        
+    for entrance in project_db.entrances:
+        newProject_db.entrances.append(entrance)
+        
+    db.commit()
+
+    return {"project": newProjectName}
 
 @app.post("/projects/{projectName}/embeddings/search")
 async def find_embedding(projectName: str, embedding: FindModel,
