@@ -11,7 +11,7 @@ from modules.embeddings import EMBEDDINGS
 from app.vectordb import vector_delete_source, vector_find_source, vector_info, vector_init, vector_list_source, vector_reset, vector_save, vector_list, vector_find_id
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.models import FindModel, IngestResponse, LLMModel, LLMUpdate, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, RagSqlResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate
+from app.models import ClassifierModel, ClassifierResponse, FindModel, IngestResponse, LLMModel, LLMUpdate, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, RagSqlResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate
 from app.loaders.url import SeleniumWebReader
 import urllib.parse
 from app.database import dbc, get_db
@@ -1063,6 +1063,19 @@ async def question_query_sql_endpoint(
         raise HTTPException(
             status_code=500, detail=str(e))
         
+@app.post("/tools/classifier", response_model=ClassifierResponse)
+async def classifier(
+        input: ClassifierModel,
+        user: User = Depends(get_current_username),
+        db: Session = Depends(get_db)):
+    try:
+        return brain.classify(input)
+    except Exception as e:
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=500, detail=str(e)
+)
 
 try:
     app.mount("/admin/", StaticFiles(directory="frontend/html/",

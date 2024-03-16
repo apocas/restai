@@ -34,6 +34,8 @@ from app.database import dbc
 from sqlalchemy.orm import Session
 from langchain_community.chat_models import ChatOpenAI
 
+from transformers import pipeline
+
 
 class Brain:
     def __init__(self):
@@ -450,3 +452,10 @@ class Brain:
         
         projectNameDest = project.model.entrances[selector_result.selections[0].index].destination
         return projectNameDest
+      
+    def classify(self, input):
+        classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+
+        sequence_to_classify = input.sequence
+        candidate_labels = input.labels
+        return classifier(sequence_to_classify, candidate_labels, multi_label=True)

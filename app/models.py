@@ -174,3 +174,12 @@ class IngestResponse(BaseModel):
     source: str
     documents: int
     chunks: int
+
+class ClassifierModel(BaseModel):
+    sequence: str
+    labels: list[str]
+    
+class ClassifierResponse(BaseModel):
+    sequence: str
+    labels: list[str]
+    scores: list[float]
