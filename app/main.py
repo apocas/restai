@@ -980,6 +980,9 @@ async def question_vision(
 
         output = brain.entryVision(
             projectName, input, user.is_private, db)
+        
+        if input.lite:
+            del output["image"]
 
         return output
     except Exception as e:

@@ -38,7 +38,7 @@ class QuestionModel(InteractionModel):
     negative: Union[str, None] = None
     image: Union[str, None] = None
     boost: bool = False
-
+    lite: bool = False
 
 class ChatModel(InteractionModel):
     id: Union[str, None] = None

@@ -2783,13 +2783,13 @@ test = ["httpx (>=0.24.1)", "pytest (>=7.4.0)", "scipy (>=1.10)"]
 
 [[package]]
 name = "llama-index-core"
-version = "0.10.19"
+version = "0.10.20.post2"
 description = "Interface between LLMs and your data"
 optional = false
 python-versions = ">=3.8.1,<4.0"
 files = [
-    {file = "llama_index_core-0.10.19-py3-none-any.whl", hash = "sha256:53c96712de51778f4b880d730ab59bb072caf14b46718d0cb5ec86d622195ed6"},
-    {file = "llama_index_core-0.10.19.tar.gz", hash = "sha256:ecb369a58b7ae72fcd26a6a3c58b582cfdb9b513918a88c79757128d932c7945"},
+    {file = "llama_index_core-0.10.20.post2-py3-none-any.whl", hash = "sha256:6d05e53271250dd340ea75f0395d9529eea6788546c1fe9020dc7597fa47907b"},
+    {file = "llama_index_core-0.10.20.post2.tar.gz", hash = "sha256:d7d83a2f89269a3abc64663ef122ab6b132d6fbc1d32b5f0ba2909c4e8c6c55a"},
 ]
 
 [package.dependencies]
@@ -2883,17 +2883,17 @@ llama-index-core = ">=0.10.1,<0.11.0"
 
 [[package]]
 name = "llama-index-llms-openai"
-version = "0.1.9"
+version = "0.1.12"
 description = "llama-index llms openai integration"
 optional = false
 python-versions = ">=3.8.1,<4.0"
 files = [
-    {file = "llama_index_llms_openai-0.1.9-py3-none-any.whl", hash = "sha256:fe9d794b656b7efc5415d40835e1fd60f978aa1aae39e7c2b9bbc8ad2de510f2"},
-    {file = "llama_index_llms_openai-0.1.9.tar.gz", hash = "sha256:a897103a90846472067eae63859c4f596f98bfb7f07d5c05727e29bf0fc58b69"},
+    {file = "llama_index_llms_openai-0.1.12-py3-none-any.whl", hash = "sha256:75cf9ad8de0578fc8aae959f3f5f0900f496d8674cfdf97f3e064004e54d7b64"},
+    {file = "llama_index_llms_openai-0.1.12.tar.gz", hash = "sha256:400ca0083951bd668ce8bc24875ce70b636e7db328b27c6a50e6d1a2b081b9e6"},
 ]
 
 [package.dependencies]
-llama-index-core = ">=0.10.19,<0.11.0"
+llama-index-core = ">=0.10.20.post1,<0.11.0"
 
 [[package]]
 name = "llama-index-llms-openai-like"
@@ -7596,4 +7596,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "3e7847def8f7be3edd7a2bfd33220a843a4226c431aacb7ba59db737e3713174"
+content-hash = "12917e0391ecb2cf505103d04442d8b30c6c2246466e17423e94b302594dc777"
