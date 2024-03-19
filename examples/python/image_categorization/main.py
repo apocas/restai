@@ -9,7 +9,6 @@ from requests.auth import HTTPBasicAuth
 Cateogorize images into "sunny" or "overcast".
 """
 
-
 labels = ["overcast", "sunny"]
 
 basic = HTTPBasicAuth('demo', 'demo')
