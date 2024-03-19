@@ -6,6 +6,7 @@ from cap_from_youtube import cap_from_youtube
 
 """
 Describe a video (mp4 file or youtube) using RestAI.
+It uses a Vision model to describe multiple frames (sampled) and then a LLM to merge all these descriptions into a final video descritpion/story.
 """
 
 basic = HTTPBasicAuth('demo', 'demo')

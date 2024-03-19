@@ -6,7 +6,8 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 """
-Cateogorize images into "sunny" or "overcast".
+Categorize images into "sunny" or "overcast".
+It uses a Vision model to describe the image and then a Classifier model to categorize the description.
 """
 
 labels = ["overcast", "sunny"]
