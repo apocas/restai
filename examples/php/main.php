@@ -3,7 +3,7 @@
 require_once('Project.php');
 
 //project name, type, url, apikey
-$proj = new Project('phptest', 'rag', 'http://restai.local', 'apikey');
+$proj = new Project('phptest', 'rag', 'https://ai.ince.pt', 'apikey');
 
 https://ai.ince.pt/docs#/default/create_project_projects_post
 $output = $proj->create(array("llm" => "openai_gpt4_turbo", "embeddings" => "all-mpnet-base-v2", "vectorstore" => "redis"));

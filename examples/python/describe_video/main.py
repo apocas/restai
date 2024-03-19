@@ -4,14 +4,17 @@ from requests.auth import HTTPBasicAuth
 import base64
 from cap_from_youtube import cap_from_youtube
 
+"""
+Describe a video (mp4 file or youtube) using RestAI.
+"""
+
 basic = HTTPBasicAuth('demo', 'demo')
 
 def describe_frame(frame):
     _, buffer = cv2.imencode('.jpg', frame)
     frame_base64 = base64.b64encode(buffer).decode('utf-8')
     req = requests.post('https://ai.ince.pt/projects/vision/question', auth=basic, json={"question": "Describe this image, be detailed.", "image": frame_base64, "lite": True}, timeout=190)
-    output = req.json()
-    return output["answer"]
+    return req.json()["answer"]
 
 def describe_frames(frames):
     descriptions = []
@@ -27,8 +30,7 @@ def final_description(descriptions):
         prompt += f"\n- {description}"
         
     req = requests.post('https://ai.ince.pt/projects/mixtral/question', auth=basic, json={"question": prompt, "lite": True}, timeout=190)
-    output = req.json()
-    return output["answer"]
+    return req.json()["answer"]
 
 def fetch_frames(cap, interval=10):
     if not cap.isOpened():
@@ -53,17 +55,16 @@ def fetch_frames(cap, interval=10):
     cap.release()
     return frames
 
+
 def describe_video_youtube(video_path, interval=10):
     frames = fetch_frames(cap_from_youtube(video_path, '480p'), interval)
     descriptions = describe_frames(frames)
     return final_description(descriptions)
-
-
 
 def describe_video_file(video_path, interval=10):
     frames = fetch_frames(cv2.VideoCapture(video_path), interval)
     descriptions = describe_frames(frames)
     return final_description(descriptions)
 
-#print(describe_video_file('sample.mp4', 10))
-print(describe_video_youtube('https://youtu.be/LXb3EKWsInQ', 30))  
+print(describe_video_file('sample.mp4', 10))
+#print(describe_video_youtube('https://youtu.be/LXb3EKWsInQ', 30))  
