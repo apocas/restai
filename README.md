@@ -16,6 +16,7 @@
 </div>
 
 ## Features
+
 - **Projects**: There are multiple types of agents (projects), each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision))
 - **Users**: A user represents a user of the system. It's used for authentication and authorization (basic auth). Each user may have access to multiple projects.
 - **LLMs**: Supports any public LLM supported by LlamaIndex or any local LLM suported by Ollama.
@@ -33,7 +34,7 @@
 
 - **Embeddings**: You may use any embeddings model supported by llamaindex. Check embeddings [definition](modules/embeddings.py).
 - **Vectorstore**: There are two vectorstores supported: `Chroma` and `Redis`
-- **Search**: It features an embeddings search and score evaluator, which allows you to evaluate the quality of your embeddings and simulate the RAG process before the LLM.
+- **Retrieval**: It features an embeddings search and score evaluator, which allows you to evaluate the quality of your embeddings and simulate the RAG process before the LLM. Reranking is also supported, ColBERT and LLM based.
 - **Loaders**: You may use any loader supported by llamaindex.
 - **Sandboxed mode**: RAG agents (projects) have "sandboxed" mode, which means that a locked default answer will be given when there aren't embeddings for the provided question. This is useful for chatbots, where you want to provide a default answer when the LLM doesn't know how to answer the question, reduncing hallucination.
 
@@ -64,29 +65,30 @@
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/avatar.png" width="25%"  style="margin: 10px;"/>
 </div>
 
-#### LLaVA & Qwen-VL
+#### LLaVA
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/llava.png" width="25%"  style="margin: 10px;"/>
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/qwen_vl.png" width="25%"  style="margin: 10px;"/>
 </div>
 
 ## LLMs
 
-* You may use [any LLM](modules/llms.py) supported by Ollama or LlamaIndex.
+- You may use any LLM supported by Ollama and/or LlamaIndex.
 
 ## Installation
 
-* RestAI uses [Poetry](https://python-poetry.org/) to manage dependencies. Install it with `pip install poetry`.
+- RestAI uses [Poetry](https://python-poetry.org/) to manage dependencies. Install it with `pip install poetry`.
 
 ## Development
-* `make install`
-* `make dev` (starts restai in development mode)
-* `make devfrontend` (starts restai's frontend in development mode)
+
+- `make install`
+- `make dev` (starts restai in development mode)
+- `make devfrontend` (starts restai's frontend in development mode)
 
 ## Production
-* `make install`
-* `make prod`
+
+- `make install`
+- `make prod`
 
 ## API
 
@@ -94,12 +96,12 @@
 
 ## Frontend
 
-* Source code at [https://github.com/apocas/restai-frontend](https://github.com/apocas/restai-frontend).
-* `make install` automatically installs the frontend.
+- Source code at [https://github.com/apocas/restai-frontend](https://github.com/apocas/restai-frontend).
+- `make install` automatically installs the frontend.
 
 ## Tests
 
- * Tests are implemented using `pytest`. Run them with `make test`.
+- Tests are implemented using `pytest`. Run them with `make test`.
 
 ## License
 
