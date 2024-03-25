@@ -1,5 +1,4 @@
 import json
-from llama_index.core.service_context_elements.llm_predictor import LLMPredictor
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.response_synthesizers import get_response_synthesizer
 from llama_index.embeddings.langchain import LangchainEmbedding
@@ -19,6 +18,7 @@ from llama_index.core.selectors import LLMSingleSelector
 from langchain.agents import initialize_agent
 import ollama
 from sqlalchemy import create_engine
+from app.eval import evalRAG
 from app.llms.tools.dalle import DalleImage
 from app.llms.tools.describeimage import DescribeImage
 from app.llms.tools.instantid import InstantID
@@ -59,7 +59,7 @@ class Brain:
         if llmName in self.llmCache:
             llm = self.llmCache[llmName]
         else:
-            llm = self.loadLLM(llmName, db)
+            llm = self._loadLLM(llmName, db)
         
         if llm.props.class_name == "Ollama":
             model_name = json.loads(llm.props.options).get("model")
@@ -71,10 +71,13 @@ class Brain:
                   ollama.pull(model_name)
               else:
                   raise e
+                
+        if hasattr(llm.llm, 'system_prompt'):
+            llm.llm.system_prompt = None
         
         return llm
     
-    def loadLLM(self, llmName, db: Session):
+    def _loadLLM(self, llmName, db: Session):
         llm_db = dbc.get_llm_by_name(db, llmName)
 
         if llm_db is not None:
@@ -235,10 +238,10 @@ class Brain:
         )
 
         qa_prompt = PromptTemplate(qa_prompt_tmpl)
+     
+        model.llm.system_prompt = sysTemplate
 
-        llm_predictor = LLMPredictor(llm=model.llm, system_prompt=sysTemplate)
-
-        response_synthesizer = get_response_synthesizer(llm=llm_predictor, text_qa_template=qa_prompt, streaming=questionModel.stream)
+        response_synthesizer = get_response_synthesizer(llm=model.llm, text_qa_template=qa_prompt, streaming=questionModel.stream)
 
         postprocessors = []
 
@@ -279,11 +282,22 @@ class Brain:
                 "sources": output_nodes,
                 "type": "question"
             }
+            
+            if questionModel.eval and not questionModel.stream:
+                metric = evalRAG(questionModel.question, response, self.getLLM("openai_gpt4", db).llm)
+                output["evaluation"] = {
+                    "reason": metric.reason,
+                    "score": metric.score
+                }
 
             if questionModel.stream:
                 if hasattr(response, "response_gen"): 
+                    failed = True
                     for text in response.response_gen:
-                        yield "data: " + text + "\n\n"
+                        failed = False
+                        yield "data: " + text + "\n\n"                        
+                    if failed:
+                        yield "data: " + response.response_txt + "\n\n"
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
                 else :
