@@ -176,6 +176,30 @@ files = [
 ]
 
 [[package]]
+name = "anthropic"
+version = "0.20.0"
+description = "The official Python library for the anthropic API"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "anthropic-0.20.0-py3-none-any.whl", hash = "sha256:754fe24596efbe1d7a49d3d59818a2a25d2bf29539e036eafd8a43427cd58134"},
+    {file = "anthropic-0.20.0.tar.gz", hash = "sha256:f9f1a5213af4710d6e1f9b83208a4b158355d1a95eb4ae0906c7580aa0e0f1d1"},
+]
+
+[package.dependencies]
+anyio = ">=3.5.0,<5"
+distro = ">=1.7.0,<2"
+httpx = ">=0.23.0,<1"
+pydantic = ">=1.9.0,<3"
+sniffio = "*"
+tokenizers = ">=0.13.0"
+typing-extensions = ">=4.7,<5"
+
+[package.extras]
+bedrock = ["boto3 (>=1.28.57)", "botocore (>=1.31.57)"]
+vertex = ["google-auth (>=2,<3)"]
+
+[[package]]
 name = "anyio"
 version = "4.2.0"
 description = "High level compatibility layer for multiple asynchronous event loop implementations"
@@ -2918,6 +2942,21 @@ files = [
 ]
 
 [package.dependencies]
+llama-index-core = ">=0.10.1,<0.11.0"
+
+[[package]]
+name = "llama-index-llms-anthropic"
+version = "0.1.7"
+description = "llama-index llms anthropic integration"
+optional = false
+python-versions = ">=3.8.1,<4.0"
+files = [
+    {file = "llama_index_llms_anthropic-0.1.7-py3-none-any.whl", hash = "sha256:4ff22fdf90fff1c9ded01f4f3e07fe7dcfe35b55dd6aabf0edfacd2e02a2dfef"},
+    {file = "llama_index_llms_anthropic-0.1.7.tar.gz", hash = "sha256:287be32d602cad848d56fe95e5e69527278a776d16cba2059b870006720162e3"},
+]
+
+[package.dependencies]
+anthropic = ">=0.20.0,<0.21.0"
 llama-index-core = ">=0.10.1,<0.11.0"
 
 [[package]]
@@ -7887,4 +7926,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "851ff164eb21225e53e4e8b8ae980f9abe03317bff2aa4090a81b299f6adc9fd"
+content-hash = "9f78b7ea430a08b633d650277b1660c69c494566639add08a9d0fff24baa0ba2"

@@ -35,6 +35,9 @@ def getLLMClass(llm_classname):
     elif llm_classname == "Groq":
         from llama_index.llms.groq import Groq
         return Groq
+    elif llm_classname == "Anthropic":
+        from llama_index.llms.anthropic import Anthropic
+        return Anthropic
     else:
         raise Exception("Invalid LLM class name.")
 
