@@ -38,6 +38,9 @@ def getLLMClass(llm_classname):
     elif llm_classname == "Anthropic":
         from llama_index.llms.anthropic import Anthropic
         return Anthropic
+    elif llm_classname == "LiteLLM":
+        from llama_index.llms.litellm import LiteLLM
+        return LiteLLM
     else:
         raise Exception("Invalid LLM class name.")
 
