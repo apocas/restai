@@ -199,7 +199,7 @@ class Database:
             proj_db.score = projectModel.score
             changed = True
 
-        if projectModel.connection is not None and proj_db.system != projectModel.connection and "://xxxx:xxxx@" not in projectModel.connection:
+        if projectModel.connection is not None and proj_db.connection != projectModel.connection and "://xxxx:xxxx@" not in projectModel.connection:
             proj_db.connection = projectModel.connection
             changed = True
         

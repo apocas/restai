@@ -397,8 +397,8 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             final_output["system"] = output["system"]
             final_output["tables"] = output["tables"]
             if output["connection"] is not None:
-                output["connection"] = re.sub(
-                r'(?<=://).+?(?=@)', "xxxx:xxxx", project.model.connection)
+                final_output["connection"] = re.sub(
+                r'(?<=://).+?(?=@)', "xxxx:xxxx", output["connection"])
             
         if project.model.type == "router":
             final_output["entrances"] = output["entrances"]
