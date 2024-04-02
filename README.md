@@ -72,6 +72,14 @@
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/llava.png" width="25%"  style="margin: 10px;"/>
 </div>
 
+### Router
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/router.png" width="750"  style="margin: 10px;"/>
+</div>
+
+- **Routes**: Very similar to Zero Shot React strategy, but each route is a project. The router will route the question to the project that has the highest score. It's useful when you have multiple projects and you want to route the question to the most suitable one.
+
 ## LLMs
 
 - You may use any LLM supported by Ollama and/or LlamaIndex.
