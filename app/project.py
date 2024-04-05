@@ -3,15 +3,14 @@ import datetime
 from app.chat import Chat
 from app.models import ProjectModel
 
-from app.tools import FindEmbeddingsPath
-from app.vectordb import vector_delete
+from app.vectordb.tools import FindEmbeddingsPath
 
 
 class Project:
 
     def __init__(self):
         self.chats = []
-        self.db: None
+        self.vector: None
         self.model: ProjectModel
 
     def boot(self, model: ProjectModel):
@@ -20,7 +19,8 @@ class Project:
             FindEmbeddingsPath(self.model.name)
 
     def delete(self):
-        vector_delete(self)
+        self.vector.delete()
+        
 
     def loadChat(self, chatModel):
         current_time = datetime.datetime.now()

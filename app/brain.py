@@ -18,6 +18,7 @@ from llama_index.core.selectors import LLMSingleSelector
 from langchain.agents import initialize_agent
 import ollama
 from sqlalchemy import create_engine
+from app.vectordb import tools
 from app.eval import evalRAG
 from app.llms.tools.dalle import DalleImage
 from app.llms.tools.describeimage import DescribeImage
@@ -28,7 +29,6 @@ from app.model import Model
 from app.models import LLMModel, ProjectModel, QuestionModel, ChatModel
 from app.project import Project
 from app.tools import getLLMClass
-from app.vectordb import vector_init
 from modules.embeddings import EMBEDDINGS
 from app.database import dbc
 from sqlalchemy.orm import Session
@@ -113,7 +113,7 @@ class Brain:
             project = Project()
             project.model = proj
             if project.model.type == "rag":
-                project.db = vector_init(self, project)
+                project.vector = tools.findVectorDB(project)(self, project)
             return project
 
     def entryChat(self, projectName: str, chatModel: ChatModel, db: Session):
@@ -133,7 +133,7 @@ class Brain:
             final_k = k
 
         retriever = VectorIndexRetriever(
-            index=project.db,
+            index=project.vector.index,
             similarity_top_k=final_k,
         )
 
@@ -222,7 +222,7 @@ class Brain:
             final_k = k
 
         retriever = VectorIndexRetriever(
-            index=project.db,
+            index=project.vector.index,
             similarity_top_k=final_k,
         )
 
