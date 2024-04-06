@@ -50,7 +50,7 @@ class ChromaDBVector(VectorBase):
                 output.append(metadata["source"])
             index = index + 1
 
-        return {"embeddings": output}
+        return output
 
 
     def list_source(self, source):

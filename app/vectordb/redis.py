@@ -54,7 +54,7 @@ class RedisVector(VectorBase):
             if source not in output:
                 output.append(source)
 
-        return {"embeddings": output}
+        return output
 
 
     def list_source(self, source):

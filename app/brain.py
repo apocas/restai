@@ -97,7 +97,7 @@ class Brain:
             return self.embeddingCache[embeddingModel]
         else:
             if embeddingModel in EMBEDDINGS:
-                embedding_class, embedding_args, privacy, description = EMBEDDINGS[embeddingModel]
+                embedding_class, embedding_args, _, _, _ = EMBEDDINGS[embeddingModel]
                 model = LangchainEmbedding(embedding_class(**embedding_args))
                 self.embeddingCache[embeddingModel] = model
                 return model
@@ -113,7 +113,10 @@ class Brain:
             project = Project()
             project.model = proj
             if project.model.type == "rag":
-                project.vector = tools.findVectorDB(project)(self, project)
+                try:
+                    project.vector = tools.findVectorDB(project)(self, project)
+                except:
+                    project.vector = None
             return project
 
     def entryChat(self, projectName: str, chatModel: ChatModel, db: Session):

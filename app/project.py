@@ -19,7 +19,8 @@ class Project:
             FindEmbeddingsPath(self.model.name)
 
     def delete(self):
-        self.vector.delete()
+        if self.vector:
+            self.vector.delete()
         
 
     def loadChat(self, chatModel):

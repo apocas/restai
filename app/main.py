@@ -98,7 +98,7 @@ async def get_info(user: User = Depends(get_current_username), db: Session = Dep
         })
 
     for embedding in EMBEDDINGS:
-        embedding_class, embedding_args, privacy, description = EMBEDDINGS[embedding]
+        _, _, privacy, description, _ = EMBEDDINGS[embedding]
         output["embeddings"].append({
             "name": embedding,
             "privacy": privacy,
@@ -379,9 +379,12 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
         final_output["llm"] = output["llm"]
         
         if project.model.type == "rag":
-            chunks = project.vector.info()
-            if chunks is not None:
-                final_output["chunks"] = chunks
+            if project.vector is not None:
+                chunks = project.vector.info()
+                if chunks is not None:
+                    final_output["chunks"] = chunks
+            else:
+                final_output["chunks"] = 0
             final_output["embeddings"] = output["embeddings"]
             final_output["k"] = output["k"]
             final_output["score"] = output["score"]
@@ -420,9 +423,9 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
 async def delete_project(projectName: str, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
     try:
         proj = brain.findProject(projectName, db)
-        dbc.delete_project(db, dbc.get_project_by_name(db, projectName))
         
         if proj is not None:
+            dbc.delete_project(db, dbc.get_project_by_name(db, projectName))
             proj.delete()
         else:
             raise HTTPException(
@@ -498,7 +501,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
                 detail='User allowed to private models only')
 
         if projectModel.type == "rag":
-            embedding_class, embedding_args, embedding_privacy, embedding_description = EMBEDDINGS[
+            _, _, embedding_privacy, _, _ = EMBEDDINGS[
                 projectModel.embeddings]
             if embedding_privacy != "private":
                 raise HTTPException(
@@ -718,7 +721,7 @@ async def ingest_url(projectName: str, ingest: URLIngestModel,
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-        urls = project.vector.list()["embeddings"]
+        urls = project.vector.list()
         if (ingest.url in urls):
             raise Exception("URL already ingested. Delete first.")
 
@@ -803,9 +806,12 @@ async def get_embeddings(
         raise HTTPException(
             status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-    output = project.vector.list()
+    if project.vector is not None:
+        output = project.vector.list()
+    else:
+        output = []
 
-    return output
+    return {"embeddings": output}
 
 
 @app.delete('/projects/{projectName}/embeddings/{source}')
