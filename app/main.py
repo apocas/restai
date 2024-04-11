@@ -5,10 +5,10 @@ from starlette.requests import Request
 from unidecode import unidecode
 from sqlalchemy.orm import Session
 from fastapi import Depends, FastAPI, HTTPException
+from app.vectordb import tools
 from app.project import Project
 from modules.loaders import LOADERS
 from modules.embeddings import EMBEDDINGS
-from app.vectordb import vector_delete_source, vector_find_source, vector_info, vector_init, vector_list_source, vector_reset, vector_save, vector_list, vector_find_id
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.models import ClassifierModel, ClassifierResponse, FindModel, IngestResponse, LLMModel, LLMUpdate, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, RagSqlResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate
@@ -36,7 +36,8 @@ from datetime import timedelta
 import secrets
 from dotenv import load_dotenv
 from fastapi.responses import RedirectResponse
-from app.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata, get_logger, loadEnvVars
+from app.tools import get_logger, loadEnvVars
+from app.vectordb.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata
 
 load_dotenv()
 loadEnvVars()
@@ -97,7 +98,7 @@ async def get_info(user: User = Depends(get_current_username), db: Session = Dep
         })
 
     for embedding in EMBEDDINGS:
-        embedding_class, embedding_args, privacy, description = EMBEDDINGS[embedding]
+        _, _, privacy, description, _ = EMBEDDINGS[embedding]
         output["embeddings"].append({
             "name": embedding,
             "privacy": privacy,
@@ -378,9 +379,12 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
         final_output["llm"] = output["llm"]
         
         if project.model.type == "rag":
-            chunks = vector_info(project)
-            if chunks is not None:
-                final_output["chunks"] = chunks
+            if project.vector is not None:
+                chunks = project.vector.info()
+                if chunks is not None:
+                    final_output["chunks"] = chunks
+            else:
+                final_output["chunks"] = 0
             final_output["embeddings"] = output["embeddings"]
             final_output["k"] = output["k"]
             final_output["score"] = output["score"]
@@ -419,9 +423,9 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
 async def delete_project(projectName: str, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
     try:
         proj = brain.findProject(projectName, db)
-        dbc.delete_project(db, dbc.get_project_by_name(db, projectName))
         
         if proj is not None:
+            dbc.delete_project(db, dbc.get_project_by_name(db, projectName))
             proj.delete()
         else:
             raise HTTPException(
@@ -497,7 +501,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
                 detail='User allowed to private models only')
 
         if projectModel.type == "rag":
-            embedding_class, embedding_args, embedding_privacy, embedding_description = EMBEDDINGS[
+            _, _, embedding_privacy, _, _ = EMBEDDINGS[
                 projectModel.embeddings]
             if embedding_privacy != "private":
                 raise HTTPException(
@@ -515,7 +519,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
         )
         project = Project()
         project.boot(projectModel)
-        project.db = vector_init(brain, project)
+        project.vector = tools.findVectorDB(project)(brain, project)
         
         projectdb = dbc.get_project_by_name(db, project.model.name)
         
@@ -542,7 +546,7 @@ async def reset_embeddings(
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-        vector_reset(brain, project)
+        project.vector.reset(brain)
 
         return {"project": project.model.name}
     except Exception as e:
@@ -616,7 +620,7 @@ async def find_embedding(projectName: str, embedding: FindModel,
             threshold = embedding.score or project.model.score or 0.2
 
         retriever = VectorIndexRetriever(
-            index=project.db,
+            index=project.vector.index,
             similarity_top_k=k,
         )
 
@@ -634,7 +638,7 @@ async def find_embedding(projectName: str, embedding: FindModel,
                 {"source": node.metadata["source"], "score": node.score, "id": node.node_id})
 
     elif (embedding.source):
-        output = vector_list_source(project, embedding.source)
+        output = project.vector.list_source(embedding.source)
 
     return {"embeddings": output}
 
@@ -649,8 +653,7 @@ async def get_embedding(projectName: str, source: str,
         raise HTTPException(
             status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-    docs = vector_find_source(
-        project, base64.b64decode(source).decode('utf-8'))
+    docs = project.vector.find_source(base64.b64decode(source).decode('utf-8'))
 
     if (len(docs['ids']) == 0):
         return {"ids": []}
@@ -668,7 +671,7 @@ async def get_embedding(projectName: str, id: str,
         raise HTTPException(
             status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-    chunk = vector_find_id(project, id)
+    chunk = project.vector.find_id(id)
     return chunk
 
 
@@ -697,7 +700,7 @@ async def ingest_text(projectName: str, ingest: TextIngestModel,
         #    document.text = document.text.decode('utf-8')
 
         nchunks = IndexDocuments(project, documents, ingest.splitter, ingest.chunks)
-        vector_save(project)
+        project.vector.save()
 
         return {"source": ingest.source, "documents": len(documents), "chunks": nchunks}
     except Exception as e:
@@ -718,7 +721,7 @@ async def ingest_url(projectName: str, ingest: URLIngestModel,
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-        urls = vector_list(project)["embeddings"]
+        urls = project.vector.list()
         if (ingest.url in urls):
             raise Exception("URL already ingested. Delete first.")
 
@@ -728,7 +731,7 @@ async def ingest_url(projectName: str, ingest: URLIngestModel,
         documents = ExtractKeywordsForMetadata(documents)
 
         nchunks = IndexDocuments(project, documents, ingest.splitter, ingest.chunks)
-        vector_save(project)
+        project.vector.save()
 
         return {"source": ingest.url, "documents": len(documents), "chunks": nchunks}
     except Exception as e:
@@ -779,7 +782,7 @@ async def ingest_file(
         documents = ExtractKeywordsForMetadata(documents)
 
         nchunks = IndexDocuments(project, documents, splitter, chunks)
-        vector_save(project)
+        project.vector.save()
 
         return {
             "source": file.filename,
@@ -803,9 +806,12 @@ async def get_embeddings(
         raise HTTPException(
             status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-    output = vector_list(project)
+    if project.vector is not None:
+        output = project.vector.list()
+    else:
+        output = []
 
-    return output
+    return {"embeddings": output}
 
 
 @app.delete('/projects/{projectName}/embeddings/{source}')
@@ -820,8 +826,7 @@ async def delete_embedding(
         raise HTTPException(
             status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-    ids = vector_delete_source(
-        project, base64.b64decode(source).decode('utf-8'))
+    ids = project.vector.delete_source(base64.b64decode(source).decode('utf-8'))
 
     return {"deleted": len(ids)}
 

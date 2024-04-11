@@ -18,6 +18,7 @@ from llama_index.core.selectors import LLMSingleSelector
 from langchain.agents import initialize_agent
 import ollama
 from sqlalchemy import create_engine
+from app.vectordb import tools
 from app.eval import evalRAG
 from app.llms.tools.dalle import DalleImage
 from app.llms.tools.describeimage import DescribeImage
@@ -28,11 +29,11 @@ from app.model import Model
 from app.models import LLMModel, ProjectModel, QuestionModel, ChatModel
 from app.project import Project
 from app.tools import getLLMClass
-from app.vectordb import vector_init
 from modules.embeddings import EMBEDDINGS
 from app.database import dbc
 from sqlalchemy.orm import Session
 from langchain_community.chat_models import ChatOpenAI
+from app.tools import tokens_from_string
 
 from transformers import pipeline
 
@@ -97,7 +98,7 @@ class Brain:
             return self.embeddingCache[embeddingModel]
         else:
             if embeddingModel in EMBEDDINGS:
-                embedding_class, embedding_args, privacy, description = EMBEDDINGS[embeddingModel]
+                embedding_class, embedding_args, _, _, _ = EMBEDDINGS[embeddingModel]
                 model = LangchainEmbedding(embedding_class(**embedding_args))
                 self.embeddingCache[embeddingModel] = model
                 return model
@@ -113,7 +114,10 @@ class Brain:
             project = Project()
             project.model = proj
             if project.model.type == "rag":
-                project.db = vector_init(self, project)
+                try:
+                    project.vector = tools.findVectorDB(project)(self, project)
+                except:
+                    project.vector = None
             return project
 
     def entryChat(self, projectName: str, chatModel: ChatModel, db: Session):
@@ -133,7 +137,7 @@ class Brain:
             final_k = k
 
         retriever = VectorIndexRetriever(
-            index=project.db,
+            index=project.vector.index,
             similarity_top_k=final_k,
         )
 
@@ -198,6 +202,11 @@ class Brain:
                 else:
                     output["answer"] = response.response
 
+                output["tokens"] = {
+                  "input": tokens_from_string(output["question"]),
+                  "output": tokens_from_string(output["answer"])
+                }
+
                 yield output
         except Exception as e:              
             if chatModel.stream:
@@ -222,7 +231,7 @@ class Brain:
             final_k = k
 
         retriever = VectorIndexRetriever(
-            index=project.db,
+            index=project.vector.index,
             similarity_top_k=final_k,
         )
 
@@ -309,6 +318,11 @@ class Brain:
                     output["answer"] = project.model.censorship or self.defaultCensorship
                 else:
                     output["answer"] = response.response
+
+                output["tokens"] = {
+                  "input": tokens_from_string(output["question"]),
+                  "output": tokens_from_string(output["answer"])
+                }
 
                 yield output
         except Exception as e:
@@ -401,6 +415,10 @@ class Brain:
                     "answer": resp.message.content.strip(),
                     "type": "inference"
                 }
+                output["tokens"] = {
+                  "input": tokens_from_string(output["question"]),
+                  "output": tokens_from_string(output["answer"])
+                }
                 yield output
         except Exception as e:              
             if inferenceModel.stream:
@@ -443,6 +461,11 @@ class Brain:
             "answer": response.response,
             "sources": [response.metadata['sql_query']],
             "type": "questionsql"
+        }
+        
+        output["tokens"] = {
+          "input": tokens_from_string(output["question"]),
+          "output": tokens_from_string(output["answer"])
         }
 
         return output
