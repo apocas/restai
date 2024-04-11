@@ -11,6 +11,12 @@ from pinecone import Pinecone, ServerlessSpec, PodSpec, Index
 
 from modules.embeddings import EMBEDDINGS
 
+#Pinecone is not ideal for this application. It's ok'ish for direct rag usage, bad for fine index management.
+#Doesn't have proper querying mechanism, only subquerying.
+#Responses are given before execution of operation...
+#This implementation works but wont scale for large datasets.
+#https://community.pinecone.io/t/how-to-retrieve-list-of-ids-in-an-index/380/20
+
 class PineconeVector(VectorBase):
     pinecone: Pinecone = None
   
@@ -63,21 +69,22 @@ class PineconeVector(VectorBase):
         return docs
 
     def list(self):
+        output = []
         pi = self.pinecone.Index(self.project.model.name)
         _, _, _, _, dimension = EMBEDDINGS[self.project.model.embeddings]
         
-        num_vectors = pi.describe_index_stats()
-        num_vectors = num_vectors.namespaces[""].vector_count
-        all_docs = []
-        while len(all_docs) < num_vectors:
-            input_vector = np.random.rand(dimension).tolist()
-            docs = self._get_ids_from_query(pi,input_vector)
-            all_docs.extend(docs)
-        
-        output = []
-        for doc in all_docs:
-            if doc["metadata"]["source"] not in output:
-                output.append(doc["metadata"]["source"])
+        stats = pi.describe_index_stats()
+        if len(stats.namespaces) > 0 and hasattr(stats.namespaces[""], "vector_count"):
+            num_vectors = stats.namespaces[""].vector_count
+            all_docs = []
+            while len(all_docs) < num_vectors:
+                input_vector = np.random.rand(dimension).tolist()
+                docs = self._get_ids_from_query(pi,input_vector)
+                all_docs.extend(docs)
+            
+            for doc in all_docs:
+                if doc["metadata"]["source"] not in output:
+                    output.append(doc["metadata"]["source"])
         
         return output
 
@@ -97,20 +104,41 @@ class PineconeVector(VectorBase):
         output = []
         for doc in all_docs:
             if doc["metadata"]["source"] == source:
-                output.append({"source": doc["metadata"]["source"], "id": doc["id"], "score": doc["score"]})
+                output.append({"source": doc["metadata"]["source"], "id": doc["id"]})
         
         return output
 
 
     def info(self):
+        num_vectors = 0
         pi = self.pinecone.Index(self.project.model.name)
-        num_vectors = pi.describe_index_stats()
-        num_vectors = num_vectors.namespaces[""].vector_count
+        stats = pi.describe_index_stats()
+        if len(stats.namespaces) > 0 and hasattr(stats.namespaces[""], "vector_count"):
+            num_vectors = stats.namespaces[""].vector_count
         return num_vectors
 
 
     def find_source(self, source):
-        pass
+        ids = []
+        metadatas = []
+      
+        pi = self.pinecone.Index(self.project.model.name)
+        _, _, _, _, dimension = EMBEDDINGS[self.project.model.embeddings]
+        
+        num_vectors = pi.describe_index_stats()
+        num_vectors = num_vectors.namespaces[""].vector_count
+        all_docs = []
+        while len(all_docs) < num_vectors:
+            input_vector = np.random.rand(dimension).tolist()
+            docs = self._get_ids_from_query(pi,input_vector)
+            all_docs.extend(docs)
+        
+        for doc in all_docs:
+            if doc["metadata"]["source"] == source:
+                ids.append(doc["id"])
+                metadatas.append({"source": doc["metadata"]["source"], "keywords": doc["metadata"]["keywords"]})
+        
+        return {"ids": ids, "metadatas": metadatas, "documents": []}
 
 
     def find_id(self, id):
@@ -139,12 +167,33 @@ class PineconeVector(VectorBase):
         
 
     def delete_source(self, source):
-        pass
+        ids = []
+      
+        pi = self.pinecone.Index(self.project.model.name)
+        _, _, _, _, dimension = EMBEDDINGS[self.project.model.embeddings]
+        
+        num_vectors = pi.describe_index_stats()
+        num_vectors = num_vectors.namespaces[""].vector_count
+        all_docs = []
+        while len(all_docs) < num_vectors:
+            input_vector = np.random.rand(dimension).tolist()
+            docs = self._get_ids_from_query(pi,input_vector)
+            all_docs.extend(docs)
+        
+        for doc in all_docs:
+            if doc["metadata"]["source"] == source:
+                ids.append(doc["id"])
+        
+        pi.delete(ids=ids, namespace="")
+        return ids
 
 
     def delete_id(self, id):
-        pass
+        pi = self.pinecone.Index(self.project.model.name)
+        pi.delete(ids=[id], namespace="")
+        return id
 
 
     def reset(self, brain):
-        pass
+        self.delete()
+        self.index = self._vector_init(brain)

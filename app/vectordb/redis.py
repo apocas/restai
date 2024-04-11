@@ -65,7 +65,7 @@ class RedisVector(VectorBase):
             sourcer = self.redis.hget(key, "source").strip()
             id = self.redis.hget(key, "id").strip()
             if source == sourcer:
-                output.append({"source": source, "id": id, "score": 1})
+                output.append({"source": source, "id": id})
 
         return output
 
@@ -76,8 +76,6 @@ class RedisVector(VectorBase):
 
 
     def find_source(self, source):
-        docs = []
-        
         keys = self.redis.keys("llama_" + self.project.model.name + "/*")
         ids = []
         metadatas = []
@@ -134,5 +132,5 @@ class RedisVector(VectorBase):
 
 
     def reset(self, brain):
-        self.redis.ft(self.project.model.name).dropindex(True)
+        self.delete()
         self.index = self._vector_init(brain)

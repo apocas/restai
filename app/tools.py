@@ -1,6 +1,8 @@
 import logging
 import os
 
+import tiktoken
+
 
 DEFAULT_LLMS = {
     #"name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa"),
@@ -39,6 +41,11 @@ def getLLMClass(llm_classname):
     else:
         raise Exception("Invalid LLM class name.")
 
+
+def tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
+    encoding = tiktoken.get_encoding(encoding_name)
+    num_tokens = len(encoding.encode(string))
+    return num_tokens
 
 def loadEnvVars():
     if "EMBEDDINGS_PATH" not in os.environ:

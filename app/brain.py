@@ -33,6 +33,7 @@ from modules.embeddings import EMBEDDINGS
 from app.database import dbc
 from sqlalchemy.orm import Session
 from langchain_community.chat_models import ChatOpenAI
+from app.tools import tokens_from_string
 
 from transformers import pipeline
 
@@ -201,6 +202,11 @@ class Brain:
                 else:
                     output["answer"] = response.response
 
+                output["tokens"] = {
+                  "input": tokens_from_string(output["question"]),
+                  "output": tokens_from_string(output["answer"])
+                }
+
                 yield output
         except Exception as e:              
             if chatModel.stream:
@@ -313,6 +319,11 @@ class Brain:
                 else:
                     output["answer"] = response.response
 
+                output["tokens"] = {
+                  "input": tokens_from_string(output["question"]),
+                  "output": tokens_from_string(output["answer"])
+                }
+
                 yield output
         except Exception as e:
             if questionModel.stream:
@@ -404,6 +415,10 @@ class Brain:
                     "answer": resp.message.content.strip(),
                     "type": "inference"
                 }
+                output["tokens"] = {
+                  "input": tokens_from_string(output["question"]),
+                  "output": tokens_from_string(output["answer"])
+                }
                 yield output
         except Exception as e:              
             if inferenceModel.stream:
@@ -446,6 +461,11 @@ class Brain:
             "answer": response.response,
             "sources": [response.metadata['sql_query']],
             "type": "questionsql"
+        }
+        
+        output["tokens"] = {
+          "input": tokens_from_string(output["question"]),
+          "output": tokens_from_string(output["answer"])
         }
 
         return output
