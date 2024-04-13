@@ -526,7 +526,9 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
         )
         project = Project()
         project.boot(projectModel)
-        project.vector = tools.findVectorDB(project)(brain, project)
+        
+        if(project.model.vectorstore):
+            project.vector = tools.findVectorDB(project)(brain, project)
         
         projectdb = dbc.get_project_by_name(db, project.model.name)
         

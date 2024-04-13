@@ -10,7 +10,7 @@ class Project:
 
     def __init__(self):
         self.chats = []
-        self.vector: None
+        self.vector = None
         self.model: ProjectModel
 
     def boot(self, model: ProjectModel):

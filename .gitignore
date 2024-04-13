@@ -174,3 +174,4 @@ pytest.ini
 .local
 restai.db
 frontend
+restai_prod
