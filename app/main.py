@@ -38,12 +38,19 @@ from dotenv import load_dotenv
 from fastapi.responses import RedirectResponse
 from app.tools import get_logger, loadEnvVars
 from app.vectordb.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata
+import sentry_sdk
 
 load_dotenv()
 loadEnvVars()
 
-
 logging.basicConfig(level=os.environ["LOG_LEVEL"])
+
+if "SENTRY_DSN" in os.environ:
+    sentry_sdk.init(
+        dsn=os.environ["SENTRY_DSN"],
+        enable_tracing=True
+    )
+
 
 app = FastAPI(
     title="RestAI",

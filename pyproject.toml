@@ -69,6 +69,7 @@ llama-index-llms-anthropic = "^0.1.7"
 llama-index-llms-litellm = "^0.1.4"
 psycopg2 = "^2.9.9"
 llama-index-vector-stores-pinecone = "^0.1.4"
+sentry-sdk = {extras = ["fastapi"], version = "^1.45.0"}
 
 [tool.poetry.group.gpu]
 optional = true
