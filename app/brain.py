@@ -1,4 +1,5 @@
 import json
+import os
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.response_synthesizers import get_response_synthesizer
 from llama_index.embeddings.langchain import LangchainEmbedding
@@ -21,9 +22,6 @@ from sqlalchemy import create_engine
 from app.vectordb import tools
 from app.eval import evalRAG
 from app.llms.tools.dalle import DalleImage
-from app.llms.tools.describeimage import DescribeImage
-from app.llms.tools.instantid import InstantID
-from app.llms.tools.stablediffusion import StableDiffusionImage
 from app.model import Model
 
 from app.models import LLMModel, ProjectModel, QuestionModel, ChatModel
@@ -340,11 +338,16 @@ class Brain:
             raise Exception("Project not found")
 
         tools = [
-            DalleImage(),
-            StableDiffusionImage(),
-            DescribeImage(),
-            InstantID(),
+            DalleImage()
         ]
+        
+        if "RESTAI_GPU" not in os.environ:
+            from app.llms.tools.stablediffusion import StableDiffusionImage
+            from app.llms.tools.describeimage import DescribeImage
+            from app.llms.tools.instantid import InstantID
+            tools.append(StableDiffusionImage())
+            tools.append(DescribeImage())
+            tools.append(InstantID())
 
         if isprivate:
             tools.pop(0)
