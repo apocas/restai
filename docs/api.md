@@ -102,11 +102,12 @@ GET /llms
 ## Generate a completion
 
 ```shell
-POST /question
+POST /projects/{projectName}/question
 ```
 
 ### Parameters
 
+- `projectName`: (required) project name
 - `question`: (required) user message
 - `system`: (optional) system message, if not provided project's system message will be used
 - `stream`: (optional) boolean to specify if this completion is streamed
