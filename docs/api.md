@@ -6,6 +6,8 @@
   - [Get an user](#get-an-user)
   - [Generate an user's API key](#generate-an-users-api-key)
   - [Get user list](#get-user-list)
+  - [Get an LLM](#get-an-llm)
+  - [Get all LLMs](#get-all-llms)
   - [Generate a completion](#generate-a-completion)
 
 ## Create an user
@@ -67,6 +69,35 @@ GET /users
 ### Response
 
 - `users`: array with all users, follow the same structure as [Get an user](#get-an-user)
+
+## Get an LLM
+
+```shell
+GET /llms/{llmname}
+```
+
+### Parameters
+
+- `llmname`: (required) LLM name
+
+### Response
+
+- `name`: LLM Name
+- `class_name`: Class name
+- `options`: String containing the options used to initialize the LLM
+- `privacy`: public or private (local)
+- `description`: Description
+- `type`: qa, chat, vision
+
+## Get all LLMs
+
+```shell
+GET /llms
+```
+
+### Response
+
+- `llms`: array with all LLMs, follow the same structure as [Get an LLM](#get-an-llm)
 
 ## Generate a completion
 
