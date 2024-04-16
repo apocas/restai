@@ -281,7 +281,11 @@ async def create_user(userc: UserCreate,
                                userc.password,
                                userc.is_admin,
                                userc.is_private)
-        return user
+        user_model_copy = copy.deepcopy(user)
+        user_model_copy.api_key = None
+        user_model_copy.id = None
+        user_model_copy.projects = None
+        return user_model_copy
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)

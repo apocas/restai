@@ -1,12 +1,47 @@
 # API
 
 - [API](#api)
-  - [Endpoints](#endpoints)
+  - [Create an user](#create-an-user)
+  - [Get an user](#get-an-user)
   - [Generate a completion](#generate-a-completion)
-    - [Parameters](#parameters)
-    - [Response](#response)
 
 ## Endpoints
+
+## Create an user
+
+```shell
+POST /users
+```
+
+### Parameters
+
+- `username`: (required) username for the new user
+- `password`: (required) password for the new user
+- `is_admin`: (optional) boolean to specify if the user is an admin
+- `is_private`: (optional) boolean to specify if the user is locked to local/private LLMs only
+
+### Response
+
+- `username`: user question
+- `is_admin`: answer
+- `is_private`: array with sources used to generate the answer
+
+## Get an user
+
+```shell
+GET /users/{username}
+```
+
+### Parameters
+
+- `username`: (required) username
+
+### Response
+
+- `username`: user question
+- `is_admin`: answer
+- `is_private`: array with sources used to generate the answer
+- `projects`: array with projects the user has access to
 
 ## Generate a completion
 
