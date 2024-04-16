@@ -2,4 +2,5 @@
 
 ## Reference
 
-* [API Reference](./api.md)
+* [API Docs](./api.md)
+* [API Swagger](https://apocas.github.io/restai/swagger/)
