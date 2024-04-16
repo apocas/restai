@@ -1,11 +1,12 @@
-# API
+<!-- markdownlint-disable MD024 -->
+# API Endpoints
 
-- [API](#api)
+- [API Endpoints](#api-endpoints)
   - [Create an user](#create-an-user)
   - [Get an user](#get-an-user)
+  - [Generate an user's API key](#generate-an-users-api-key)
+  - [Get user list](#get-user-list)
   - [Generate a completion](#generate-a-completion)
-
-## Endpoints
 
 ## Create an user
 
@@ -42,6 +43,30 @@ GET /users/{username}
 - `is_admin`: answer
 - `is_private`: array with sources used to generate the answer
 - `projects`: array with projects the user has access to
+
+## Generate an user's API key
+
+```shell
+POST /users/{username}/apikey
+```
+
+### Parameters
+
+- `username`: (required) username
+
+### Response
+
+- `api_key`: user's API key, keep it safe if lost new one will need to be generated
+
+## Get user list
+
+```shell
+GET /users
+```
+
+### Response
+
+- `users`: array with all users, follow the same structure as [Get an user](#get-an-user)
 
 ## Generate a completion
 

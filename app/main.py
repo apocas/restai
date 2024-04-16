@@ -200,6 +200,7 @@ async def get_users(
         user: User = Depends(get_current_username_admin),
         db: Session = Depends(get_db)):
     users = dbc.get_users(db)
+    
     return users
 
 @app.get("/llms/{llmname}", response_model=LLMModel)
