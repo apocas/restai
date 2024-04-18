@@ -2,6 +2,9 @@
 # API Endpoints
 
 - [API Endpoints](#api-endpoints)
+  - [Create a new Project](#create-a-new-project)
+  - [Get Project list](#get-project-list)
+  - [Get a Project](#get-a-project)
   - [Create an user](#create-an-user)
   - [Get an user](#get-an-user)
   - [Generate an user's API key](#generate-an-users-api-key)
@@ -9,6 +12,64 @@
   - [Get an LLM](#get-an-llm)
   - [Get all LLMs](#get-all-llms)
   - [Generate a completion](#generate-a-completion)
+
+## Create a new Project
+
+```shell
+POST /projects
+```
+
+### Parameters
+
+- `name`: (required) project name
+- `embeddings`: (optional) embeddings name to be used in the project [RAG]
+- `llm`: LLM name to be used in the project
+- `type`: project type (rag, vision, router, inference)
+- `vectorstore`: Vector name to be used [RAG]
+  
+### Response
+
+- `project`: project name
+
+## Get Project list
+
+```shell
+GET /projects
+```
+
+### Response
+
+- `projects`: array with all projects, follow the same structure as [Get a Project](#get-a-project)
+
+## Get a Project
+
+```shell
+GET /projects/{projectname}
+```
+
+### Parameters
+
+- `projectname`: (required) Project name
+
+### Response
+
+- `name`: Project name
+- `type`: Project type
+- `llm`: LLM to be used by the project
+- `chunks`: How many chunks were ingested [RAG]
+- `embeddings`: embeddings model to be used [RAG]
+- `k`: K value [RAG]
+- `score`: Score cutoff [RAG]
+- `vectorstore`: Vectorstore name [RAG]
+- `system`: System message
+- `censorship`: Censhorship message to be sent when Retrival process fails [RAG]
+- `llm_rerank`: LLM rerank [RAG]
+- `colbert_rerank`: Colbert rerank [RAG]
+- `tables`: tables to be used in the question [RAGSQL]
+- `connection`: connection string to the database [RAGSQL]
+- `entrances`: array with routes [ROUTER]
+- `llm_type`: LLM type
+- `llm_privacy`: LLM privacy
 
 ## Create an user
 

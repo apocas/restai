@@ -367,7 +367,7 @@ async def get_projects(request: Request, user: User = Depends(get_current_userna
             project.llm_type = "unknown"
             project.llm_privacy = "unknown"
 
-    return projects
+    return {"projects": projects}
 
 
 @app.get("/projects/{projectName}")
