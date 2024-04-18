@@ -200,9 +200,14 @@ async def get_users(
         user: User = Depends(get_current_username_admin),
         db: Session = Depends(get_db)):
     users = dbc.get_users(db)
+    users_final = []
     
-    cloned_users = [{k: v for k, v in user.dict().items() if k not in ['api_key']} for user in users]
-    return {"users": cloned_users}
+    for user_model in users:
+        user_model_copy = copy.deepcopy(user_model)
+        user_model_copy.api_key = None
+        users_final.append(user_model_copy)
+    
+    return {"users": users_final}
 
 @app.get("/llms/{llmname}", response_model=LLMModel)
 async def get_llm(llmname: str, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
