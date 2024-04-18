@@ -195,7 +195,7 @@ async def get_user(username: str, user: User = Depends(get_current_username_user
             status_code=404, detail=str(e))
 
 
-@app.get("/users", response_model=list[User])
+@app.get("/users")
 async def get_users(
         user: User = Depends(get_current_username_admin),
         db: Session = Depends(get_db)):
@@ -347,7 +347,7 @@ async def delete_user(username: str,
             status_code=500, detail=str(e))
 
 
-@app.get("/projects", response_model=list[ProjectModel])
+@app.get("/projects")
 async def get_projects(request: Request, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
     if user.is_admin:
         projects = dbc.get_projects(db)
