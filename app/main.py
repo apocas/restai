@@ -195,7 +195,7 @@ async def get_user(username: str, user: User = Depends(get_current_username_user
             status_code=404, detail=str(e))
 
 
-@app.get("/users")
+@app.get("/users", response_model=list[User])
 async def get_users(
         user: User = Depends(get_current_username_admin),
         db: Session = Depends(get_db)):
