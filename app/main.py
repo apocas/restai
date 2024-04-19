@@ -11,7 +11,7 @@ from modules.loaders import LOADERS
 from modules.embeddings import EMBEDDINGS
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.models import ClassifierModel, ClassifierResponse, FindModel, IngestResponse, LLMModel, LLMUpdate, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, RagSqlResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, UsersResponse
+from app.models import ClassifierModel, ClassifierResponse, FindModel, IngestResponse, LLMModel, LLMUpdate, ProjectModel, ProjectModelUpdate, ProjectsResponse, QuestionModel, ChatModel, QuestionResponse, RagSqlResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, UsersResponse
 from app.loaders.url import SeleniumWebReader
 import urllib.parse
 from app.database import dbc, get_db
@@ -352,7 +352,7 @@ async def delete_user(username: str,
             status_code=500, detail=str(e))
 
 
-@app.get("/projects")
+@app.get("/projects", response_model=ProjectsResponse)
 async def get_projects(request: Request, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
     if user.is_admin:
         projects = dbc.get_projects(db)

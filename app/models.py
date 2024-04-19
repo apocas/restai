@@ -49,23 +49,6 @@ class EntranceModel(BaseModel):
     name: str
     description: str
     model_config = ConfigDict(from_attributes=True)
-
-class ProjectModel(BaseModel):
-    name: str
-    embeddings: Union[str, None] = None
-    llm: str
-    type: str
-    system: Union[str, None] = None
-    censorship: Union[str, None] = None
-    score: float = 0.3
-    k: int = 4
-    vectorstore: Union[str, None] = None
-    connection: Union[str, None] = None
-    tables: Union[str, None] = None
-    llm_rerank: Union[bool, None] = None
-    colbert_rerank: Union[bool, None] = None
-    entrances: Union[list[EntranceModel], None] = None
-    model_config = ConfigDict(from_attributes=True)
     
 class RouterModel(BaseModel):
     name: str
@@ -86,17 +69,40 @@ class LLMUpdate(BaseModel):
     privacy: str = None
     description: str = None
     type: str = None
+    
+class UserProject(BaseModel):
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+    
+class ProjectUser(BaseModel):
+    username: str
+    model_config = ConfigDict(from_attributes=True)
+    
+class ProjectModel(BaseModel):
+    name: str
+    embeddings: Union[str, None] = None
+    llm: str
+    type: str
+    system: Union[str, None] = None
+    censorship: Union[str, None] = None
+    score: float = 0.3
+    k: int = 4
+    vectorstore: Union[str, None] = None
+    connection: Union[str, None] = None
+    tables: Union[str, None] = None
+    llm_rerank: Union[bool, None] = None
+    colbert_rerank: Union[bool, None] = None
+    entrances: Union[list[EntranceModel], None] = None
+    users: list[ProjectUser] = []
+    model_config = ConfigDict(from_attributes=True)
+    
+class ProjectsResponse(BaseModel):
+    projects: list[ProjectModel]
 
 class ProjectInfo(ProjectModel):
     chunks: int = 0
     llm_type: Union[str, None] = None
     llm_privacy: Union[str, None] = None
-
-
-class UserProject(BaseModel):
-    name: str
-    model_config = ConfigDict(from_attributes=True)
-
 
 class User(BaseModel):
     id: int
