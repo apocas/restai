@@ -108,7 +108,9 @@ class User(BaseModel):
     sso: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
-
+class UsersResponse(BaseModel):
+    users: list[User]
+    
 class UserBase(BaseModel):
     username: str
 

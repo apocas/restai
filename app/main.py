@@ -11,7 +11,7 @@ from modules.loaders import LOADERS
 from modules.embeddings import EMBEDDINGS
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.models import ClassifierModel, ClassifierResponse, FindModel, IngestResponse, LLMModel, LLMUpdate, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, RagSqlResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate
+from app.models import ClassifierModel, ClassifierResponse, FindModel, IngestResponse, LLMModel, LLMUpdate, ProjectModel, ProjectModelUpdate, QuestionModel, ChatModel, QuestionResponse, RagSqlResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, UsersResponse
 from app.loaders.url import SeleniumWebReader
 import urllib.parse
 from app.database import dbc, get_db
@@ -169,7 +169,7 @@ async def get_user(username: str, user: User = Depends(get_current_username_user
         user_model = User.model_validate(
             dbc.get_user_by_username(db, username))
         user_model_copy = copy.deepcopy(user_model)
-        user_model_copy.api_key = None
+        del user_model_copy.api_key
         return user_model
     except Exception as e:
         logging.error(e)
@@ -195,12 +195,19 @@ async def get_user(username: str, user: User = Depends(get_current_username_user
             status_code=404, detail=str(e))
 
 
-@app.get("/users", response_model=list[User])
+@app.get("/users", response_model=UsersResponse)
 async def get_users(
         user: User = Depends(get_current_username_admin),
         db: Session = Depends(get_db)):
     users = dbc.get_users(db)
-    return users
+    users_final = []
+
+    for user_model in users:
+        user_model_copy = copy.deepcopy(User.model_validate(user_model))
+        del user_model_copy.api_key
+        users_final.append(user_model_copy)
+
+    return {"users": users_final}
 
 @app.get("/llms/{llmname}", response_model=LLMModel)
 async def get_llm(llmname: str, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
@@ -488,6 +495,12 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
         raise HTTPException(
             status_code=400,
             detail='Invalid project name')
+        
+    if os.environ.get("RESTAI_DEMO"):
+        if projectModel.type == "ragsql":
+            raise HTTPException(
+                status_code=403,
+                detail='Demo mode, not allowed to create RAGSQL projects')
 
     if projectModel.type == "rag" and projectModel.embeddings not in EMBEDDINGS:
         raise HTTPException(
