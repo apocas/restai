@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 from app.brain import Brain
 from app.project import Project
@@ -9,6 +7,7 @@ from llama_index.vector_stores.pinecone import PineconeVectorStore
 from llama_index.core import StorageContext
 from pinecone import Pinecone, ServerlessSpec, PodSpec, Index
 
+from app.config import PINECONE_API_KEY
 from modules.embeddings import EMBEDDINGS
 
 #Pinecone is not ideal for this application. It's ok'ish for direct rag usage, bad for fine index management.
@@ -23,7 +22,7 @@ class PineconeVector(VectorBase):
     def __init__(self, brain: Brain, project: Project):
         self.project = project
         self.index = None
-        self.pinecone = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
+        self.pinecone = Pinecone(api_key=PINECONE_API_KEY)
         
         self._vector_init(brain)
         pi = self.pinecone.Index(self.project.model.name)

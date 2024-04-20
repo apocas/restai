@@ -1,6 +1,5 @@
 import base64
 import io
-import os
 from diffusers.models import ControlNetModel
 from huggingface_hub import hf_hub_download
 
@@ -11,6 +10,7 @@ import random
 from PIL import Image
 from insightface.app import FaceAnalysis
 
+from app.config import RESTAI_DEFAULT_DEVICE
 from app.llms.workers.pipeline_stable_diffusion_xl_instantid import StableDiffusionXLInstantIDPipeline, draw_kps
 
 def worker(prompt, sharedmem):
@@ -40,7 +40,7 @@ def worker(prompt, sharedmem):
     pipe = StableDiffusionXLInstantIDPipeline.from_pretrained(
         "wangqixun/YamerMIX_v8", controlnet=controlnet, torch_dtype=torch.float16
     )
-    pipe.to(os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda:0")
+    pipe.to(RESTAI_DEFAULT_DEVICE or "cuda:0")
 
     pipe.load_ip_adapter_instantid(face_adapter)
 
@@ -60,7 +60,7 @@ def worker(prompt, sharedmem):
 
     pipe.set_ip_adapter_scale(0.8)
 
-    generator = torch.Generator(device=os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda:0").manual_seed(random.randint(0, np.iinfo(np.int32).max))
+    generator = torch.Generator(device=RESTAI_DEFAULT_DEVICE or "cuda:0").manual_seed(random.randint(0, np.iinfo(np.int32).max))
 
     image = pipe(
         prompt,

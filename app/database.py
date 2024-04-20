@@ -1,18 +1,14 @@
-import os
-
 from sqlalchemy import create_engine
 from app.databasemodels import LLMDatabase, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
 from app.models import LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 
+from app.config import MYSQL_URL
 
-if os.environ.get("MYSQL_PASSWORD"):
-    host = os.environ.get("MYSQL_HOST") or "127.0.0.1"
-    print("Using MySQL database: " + host)
-    engine = create_engine('mysql+pymysql://' + (os.environ.get("MYSQL_USER") or "restai") + ':' + os.environ.get("MYSQL_PASSWORD") + '@' +
-                           host + '/' +
-                           (os.environ.get("MYSQL_DB") or "restai"),
+if MYSQL_URL:
+    print("Using MySQL database")
+    engine = create_engine(MYSQL_URL,
                            pool_size=30,
                            max_overflow=100,
                            pool_recycle=900)

@@ -1,14 +1,16 @@
 import base64
 import io
-import os
 from diffusers import DiffusionPipeline
 import torch
+
+from app.config import RESTAI_DEFAULT_DEVICE
+
 
 def worker(prompt, sharedmem):
     base = DiffusionPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16, variant="fp16", use_safetensors=True
     )
-    base.to(os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda")
+    base.to(RESTAI_DEFAULT_DEVICE or "cuda")
 
     refiner = DiffusionPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-refiner-1.0",
@@ -19,7 +21,7 @@ def worker(prompt, sharedmem):
         variant="fp16",
     )
 
-    refiner.to(os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda")
+    refiner.to(RESTAI_DEFAULT_DEVICE or "cuda")
 
     image = base(
         prompt=prompt,

@@ -1,5 +1,4 @@
 import logging
-import os
 
 import tiktoken
 
@@ -46,18 +45,6 @@ def tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
     encoding = tiktoken.get_encoding(encoding_name)
     num_tokens = len(encoding.encode(string))
     return num_tokens
-
-def loadEnvVars():
-    if "EMBEDDINGS_PATH" not in os.environ:
-        os.environ["EMBEDDINGS_PATH"] = "./embeddings/"
-
-    if "ANONYMIZED_TELEMETRY" not in os.environ:
-        os.environ["ANONYMIZED_TELEMETRY"] = "False"
-
-    if "LOG_LEVEL" not in os.environ:
-        os.environ["LOG_LEVEL"] = "INFO"
-
-    os.environ["ALLOW_RESET"] = "true"
 
 
 def get_logger(name, level=logging.INFO):

@@ -1,21 +1,26 @@
-import os
 import json
+
+from passlib.context import CryptContext
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
-from passlib.context import CryptContext
-from dotenv import load_dotenv
 
-from app.databasemodels import Base, LLMDatabase, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
+from app.config import (
+    MYSQL_URL,
+    RESTAI_DEFAULT_PASSWORD,
+    RESTAI_DEMO,
+)
+from app.databasemodels import (
+    Base,
+    LLMDatabase,
+    ProjectDatabase,
+    RouterEntrancesDatabase,
+    UserDatabase,
+)
 from app.tools import DEFAULT_LLMS
 
-load_dotenv()
-
-if os.environ.get("MYSQL_PASSWORD"):
-    host = os.environ.get("MYSQL_HOST") or "127.0.0.1"
-    print("Using MySQL database: " + host)
-    engine = create_engine('mysql+pymysql://' + (os.environ.get("MYSQL_USER") or "restai") + ':' + os.environ.get("MYSQL_PASSWORD") + '@' +
-                           host + '/' +
-                           (os.environ.get("MYSQL_DB") or "restai"),
+if MYSQL_URL:
+    print("Using MySQL database")
+    engine = create_engine(MYSQL_URL,
                            pool_size=30,
                            max_overflow=100,
                            pool_recycle=900)
@@ -38,7 +43,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 if "users" not in inspect(engine).get_table_names():
     print("Initializing database...")
-    default_password = os.environ.get("RESTAI_DEFAULT_PASSWORD") or "admin"
+    default_password = RESTAI_DEFAULT_PASSWORD
     Base.metadata.create_all(bind=engine)
     dbi = SessionLocal()
     db_user = UserDatabase(
@@ -59,7 +64,7 @@ if "users" not in inspect(engine).get_table_names():
         )
         dbi.add(db_llm)  
     
-    if os.environ.get("RESTAI_DEMO"):
+    if RESTAI_DEMO:
         print("Creating demo scenario...")
         db_user = UserDatabase(
             username="demo",

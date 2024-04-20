@@ -1,6 +1,5 @@
 import base64
 from datetime import datetime, timedelta, timezone
-import os
 from typing import Union
 from fastapi import Depends, HTTPException, Request
 
@@ -8,6 +7,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import jwt
 from sqlalchemy.orm import Session
 
+from app.config import RESTAI_AUTH_SECRET
 from app.database import dbc, get_db, pwd_context
 from app.models import User
 
@@ -23,7 +23,7 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(
-        to_encode, os.environ["RESTAI_AUTH_SECRET"], algorithm="HS512")
+        to_encode, RESTAI_AUTH_SECRET, algorithm="HS512")
     return encoded_jwt
 
 
@@ -63,7 +63,7 @@ def get_current_username(
         return User.model_validate(user)
     elif jwt_token:
         try:
-            data = jwt.decode(jwt_token, os.environ["RESTAI_AUTH_SECRET"], algorithms=["HS512"])
+            data = jwt.decode(jwt_token, RESTAI_AUTH_SECRET, algorithms=["HS512"])
 
             user = dbc.get_user_by_username(db, data["username"])
 
