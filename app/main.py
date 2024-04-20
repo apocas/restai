@@ -1,5 +1,6 @@
 import copy
 import uuid
+import os
 from starlette.responses import StreamingResponse
 from starlette.requests import Request
 from unidecode import unidecode
