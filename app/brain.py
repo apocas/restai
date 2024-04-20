@@ -1,5 +1,4 @@
 import json
-import os
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.response_synthesizers import get_response_synthesizer
 from llama_index.embeddings.langchain import LangchainEmbedding
@@ -32,6 +31,8 @@ from app.database import dbc
 from sqlalchemy.orm import Session
 from langchain_community.chat_models import ChatOpenAI
 from app.tools import tokens_from_string
+
+from app.config import RESTAI_GPU
 
 from transformers import pipeline
 
@@ -341,7 +342,7 @@ class Brain:
             DalleImage()
         ]
         
-        if "RESTAI_GPU" not in os.environ:
+        if RESTAI_GPU:
             from app.llms.tools.stablediffusion import StableDiffusionImage
             from app.llms.tools.describeimage import DescribeImage
             from app.llms.tools.instantid import InstantID

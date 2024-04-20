@@ -1,5 +1,6 @@
 import copy
 import uuid
+import os
 from starlette.responses import StreamingResponse
 from starlette.requests import Request
 from unidecode import unidecode
@@ -28,26 +29,31 @@ from tempfile import NamedTemporaryFile
 import re
 from pathlib import Path
 import jwt
-import os
 import logging
 import json
 import base64
 from datetime import timedelta
 import secrets
-from dotenv import load_dotenv
 from fastapi.responses import RedirectResponse
-from app.tools import get_logger, loadEnvVars
+from app.config import (
+    LOG_LEVEL,
+    SENTRY_DSN,
+    RESTAI_DEMO,
+    RESTAI_DEV,
+    RESTAI_SSO_ALG,
+    RESTAI_SSO_CALLBACK,
+    RESTAI_SSO_SECRET,
+)
+from app.tools import get_logger
 from app.vectordb.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata
 import sentry_sdk
 
-load_dotenv()
-loadEnvVars()
 
-logging.basicConfig(level=os.environ["LOG_LEVEL"])
+logging.basicConfig(level=LOG_LEVEL)
 
-if "SENTRY_DSN" in os.environ:
+if SENTRY_DSN:
     sentry_sdk.init(
-        dsn=os.environ["SENTRY_DSN"],
+        dsn=SENTRY_DSN,
         enable_tracing=True
     )
 
@@ -67,7 +73,7 @@ app = FastAPI(
     },
 )
 
-if "RESTAI_DEV" in os.environ:
+if RESTAI_DEV:
     print("Running in development mode!")
     app.add_middleware(
         CORSMiddleware,
@@ -123,8 +129,7 @@ async def get_sso(request: Request, db: Session = Depends(get_db)):
             status_code=400, detail="Missing JWT token")
 
     try:
-        data = jwt.decode(params["jwt"], os.environ["RESTAI_SSO_SECRET"], algorithms=[
-            os.environ.get("RESTAI_SSO_ALG") or "HS512"])
+        data = jwt.decode(params["jwt"], RESTAI_SSO_SECRET, algorithms=[RESTAI_SSO_ALG])
     except Exception as e:
         raise HTTPException(
             status_code=401,
@@ -137,7 +142,7 @@ async def get_sso(request: Request, db: Session = Depends(get_db)):
                                data["preferred_username"], None,
                                False,
                                False)
-        user.sso = os.environ.get("RESTAI_SSO_CALLBACK")
+        user.sso = RESTAI_SSO_CALLBACK
         db.commit()
 
     new_token = create_access_token(
@@ -154,7 +159,7 @@ async def get_user(username: str, db: Session = Depends(get_db)):
     try:
         user = dbc.get_user_by_username(db, username)
         if user is None:
-            return {"sso": os.environ.get("RESTAI_SSO_CALLBACK")}
+            return {"sso": RESTAI_SSO_CALLBACK}
         return {"sso": user.sso}
     except Exception as e:
         logging.error(e)
@@ -496,7 +501,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
             status_code=400,
             detail='Invalid project name')
         
-    if os.environ.get("RESTAI_DEMO"):
+    if RESTAI_DEMO:
         if projectModel.type == "ragsql":
             raise HTTPException(
                 status_code=403,

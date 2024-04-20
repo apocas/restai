@@ -1,4 +1,3 @@
-import os
 import shutil
 import redis
 from llama_index.core.indices import VectorStoreIndex
@@ -7,6 +6,7 @@ from llama_index.core.storage import StorageContext
 from app.vectordb.tools import FindEmbeddingsPath
 from llama_index.vector_stores.redis import RedisVectorStore
 
+from app.config import REDIS_HOST, REDIS_PORT
 from app.vectordb.base import VectorBase
 
 class RedisVector(VectorBase):
@@ -14,18 +14,15 @@ class RedisVector(VectorBase):
   
     def __init__(self, brain, project):
         self.redis = redis.Redis(
-            host=os.environ["REDIS_HOST"],
-            port=os.environ["REDIS_PORT"],
+            host=REDIS_HOST,
+            port=REDIS_PORT,
             decode_responses=True)
         self.project = project
         self.index = self._vector_init(brain)
     
     def _vector_init(self, brain):
         vector_store = RedisVectorStore(
-            redis_url="redis://" +
-            os.environ["REDIS_HOST"] +
-            ":" +
-            os.environ["REDIS_PORT"],
+            redis_url=f"redis://{REDIS_HOST}:{REDIS_PORT}",
             index_name=self.project.model.name,
             metadata_fields=["source", "keywords"],
             index_prefix="llama_" + self.project.model.name,

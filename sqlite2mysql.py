@@ -1,11 +1,11 @@
-import os
 from sqlalchemy import create_engine, select
+
+from app.config import MYSQL_URL, SQLITE_PATH
 from app.databasemodels import Base
 
-engine_lite = create_engine('sqlite:///' + os.environ["SQLITE_PATH"])
+engine_lite = create_engine("sqlite:///" + SQLITE_PATH)
 
-engine_mysql = create_engine('mysql+pymysql://' + (os.environ.get("MYSQL_USER") or "restai") + ':' + os.environ.get("MYSQL_PASSWORD") + '@' + (
-    os.environ.get("MYSQL_HOST") or "127.0.0.1") + '/' + (os.environ.get("MYSQL_DB") or "restai"))
+engine_mysql = create_engine(MYSQL_URL)
 
 Base.metadata.create_all(engine_mysql)
 

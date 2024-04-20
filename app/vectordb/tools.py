@@ -7,6 +7,8 @@ import yake
 import re
 import time
 
+from app.config import EMBEDDINGS_PATH
+
 def findVectorDB(project):
     if project.model.vectorstore == "redis":
         from app.vectordb.redis import RedisVector
@@ -65,7 +67,7 @@ def FindFileLoader(ext, eargs={}):
 
 
 def FindEmbeddingsPath(projectName):
-    embeddings_path = os.environ["EMBEDDINGS_PATH"]
+    embeddings_path = EMBEDDINGS_PATH
     embeddingsPathProject = None
 
     if not os.path.exists(embeddings_path):
