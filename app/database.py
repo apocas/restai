@@ -4,9 +4,9 @@ from app.models import LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 
-from app.config import MYSQL_URL
+from app.config import MYSQL_HOST, MYSQL_URL
 
-if MYSQL_URL:
+if MYSQL_HOST:
     print("Using MySQL database")
     engine = create_engine(MYSQL_URL,
                            pool_size=30,
