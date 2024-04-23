@@ -210,6 +210,14 @@ class Database:
         if projectModel.colbert_rerank is not None and proj_db.colbert_rerank != projectModel.colbert_rerank:
             proj_db.colbert_rerank = projectModel.colbert_rerank
             changed = True
+
+        if projectModel.cache is not None and proj_db.cache != projectModel.cache:
+            proj_db.cache = projectModel.cache
+            changed = True
+            
+        if projectModel.cache_threshold is not None and proj_db.cache_threshold != projectModel.cache_threshold:
+            proj_db.cache_threshold = projectModel.cache_threshold
+            changed = True
         
         if projectModel.entrances is not None:
             proj_db.entrances = []

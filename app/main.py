@@ -416,6 +416,8 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             final_output["censorship"] = output["censorship"]
             final_output["llm_rerank"] = output["llm_rerank"]
             final_output["colbert_rerank"] = output["colbert_rerank"]
+            final_output["cache"] = output["cache"]
+            final_output["cache_threshold"] = output["cache_threshold"]
         
         if project.model.type == "inference":
             final_output["system"] = output["system"]
@@ -546,7 +548,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
             projectModel.vectorstore,
             projectModel.type,
         )
-        project = Project()
+        project = Project(projectModel)
         project.boot(projectModel)
         
         if(project.model.vectorstore):
@@ -617,6 +619,8 @@ async def clone_project(projectName: str, newProjectName: str,
     newProject_db.score = project.model.score
     newProject_db.llm_rerank = project.model.llm_rerank
     newProject_db.colbert_rerank = project.model.colbert_rerank
+    newProject_db.cache = project.model.cache
+    newProject_db.cache_threshold = project.model.cache_threshold
     newProject_db.tables = project.model.tables
     newProject_db.connection = project.model.connection
     
@@ -891,6 +895,31 @@ async def question_query(
         raise HTTPException(
             status_code=500, detail=str(e))
         
+async def processCache(projectName: str, input: QuestionModel, db: Session):
+    project = brain.findProject(projectName, db)
+    
+    output = {
+      "question": input.question,
+      "type": "question",
+      "sources": [],
+      "tokens": {
+          "input": 0,
+          "output": 0
+      }
+    }
+    
+    if project.cache:
+        answer = project.cache.verify(input.question)
+        if answer is not None:
+            output.update({
+                "answer": answer,
+                "cached": True,
+            })
+            
+            return output
+          
+    return None
+        
 async def main_question(
         request: Request,
         projectName: str,
@@ -899,6 +928,9 @@ async def main_question(
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
     if project.model.type == "rag":
+        cached = await processCache(projectName, input, db)
+        if cached:
+            return cached
         return await question_query(request, projectName, input, user, db)
     elif project.model.type == "inference":
         return await question_inference(request, projectName, input, user, db)
@@ -1044,6 +1076,10 @@ async def chat_query(
                 status_code=400, detail='{"error": "Missing question"}')
       
         project = brain.findProject(projectName, db)
+        
+        cached = await processCache(projectName, input, db)
+        if await processCache(projectName, input, db):
+            return cached
 
         if project.model.type != "rag":
             raise HTTPException(

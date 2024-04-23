@@ -1,4 +1,6 @@
 import json
+import logging
+import traceback
 from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.response_synthesizers import get_response_synthesizer
 from llama_index.embeddings.langchain import LangchainEmbedding
@@ -18,6 +20,7 @@ from llama_index.core.selectors import LLMSingleSelector
 from langchain.agents import initialize_agent
 import ollama
 from sqlalchemy import create_engine
+from app.cache import Cache
 from app.vectordb import tools
 from app.eval import evalRAG
 from app.llms.tools.dalle import DalleImage
@@ -110,12 +113,14 @@ class Brain:
             return None
         proj = ProjectModel.model_validate(p)
         if proj is not None:
-            project = Project()
+            project = Project(proj)
             project.model = proj
             if project.model.type == "rag":
                 try:
                     project.vector = tools.findVectorDB(project)(self, project)
-                except:
+                except Exception as e:
+                    logging.error(e)
+                    traceback.print_tb(e.__traceback__)
                     project.vector = None
             return project
 
@@ -173,17 +178,17 @@ class Brain:
             else:
                 response = chat_engine.chat(chatModel.question)
 
-            output_nodes = []
-            for node in response.source_nodes:
-                output_nodes.append(
-                    {"source": node.metadata["source"], "keywords": node.metadata["keywords"], "score": node.score, "id": node.node_id, "text": node.text})
-
             output = {
                 "id": chat.id,
                 "question": chatModel.question,
-                "sources": output_nodes,
+                "sources": [],
+                "cached": False,
                 "type": "chat"
             }
+
+            for node in response.source_nodes:
+                output["sources"].append(
+                    {"source": node.metadata["source"], "keywords": node.metadata["keywords"], "score": node.score, "id": node.node_id, "text": node.text})
 
             if chatModel.stream:
                 if hasattr(response, "response_gen"): 
@@ -200,6 +205,9 @@ class Brain:
                     output["answer"] = project.model.censorship or self.defaultCensorship
                 else:
                     output["answer"] = response.response
+                    
+                    if project.cache:
+                        project.cache.add(chatModel.question, response.response)
 
                 output["tokens"] = {
                   "input": tokens_from_string(output["question"]),
@@ -216,7 +224,18 @@ class Brain:
 
     def entryQuestion(self, projectName: str, questionModel: QuestionModel, db: Session):
         project = self.findProject(projectName, db)
-
+        
+        output = {
+          "question": questionModel.question,
+          "type": "question",
+          "sources": [],
+          "cached": False,
+          "tokens": {
+              "input": 0,
+              "output": 0
+          }
+        }
+            
         model = self.getLLM(project.model.llm, db)
 
         sysTemplate = questionModel.system or project.model.system or self.defaultSystem
@@ -269,7 +288,7 @@ class Brain:
             ))
             
         postprocessors.append(SimilarityPostprocessor(similarity_cutoff=threshold))
-
+        
         query_engine = RetrieverQueryEngine(
             retriever=retriever,
             response_synthesizer=response_synthesizer,
@@ -279,17 +298,10 @@ class Brain:
         try:
             response = query_engine.query(questionModel.question)
 
-            output_nodes = []
             if hasattr(response, "source_nodes"): 
                 for node in response.source_nodes:
-                    output_nodes.append(
+                    output["sources"].append(
                         {"source": node.metadata["source"], "keywords": node.metadata["keywords"], "score": node.score, "id": node.node_id, "text": node.text})
-                    
-            output = {
-                "question": questionModel.question,
-                "sources": output_nodes,
-                "type": "question"
-            }
             
             if questionModel.eval and not questionModel.stream:
                 metric = evalRAG(questionModel.question, response, self.getLLM("openai_gpt4", db).llm)
@@ -317,6 +329,9 @@ class Brain:
                     output["answer"] = project.model.censorship or self.defaultCensorship
                 else:
                     output["answer"] = response.response
+                    
+                    if project.cache:
+                        project.cache.add(questionModel.question, response.response)
 
                 output["tokens"] = {
                   "input": tokens_from_string(output["question"]),
