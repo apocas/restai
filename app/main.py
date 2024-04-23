@@ -746,6 +746,10 @@ async def ingest_url(projectName: str, ingest: URLIngestModel,
                      user: User = Depends(get_current_username_project),
                      db: Session = Depends(get_db)):
     try:
+        if ingest.url and not ingest.url.startswith('http'):
+            raise HTTPException(
+                status_code=400, detail='{"error": "Specify the protocol http:// or https://"}')
+      
         project = brain.findProject(projectName, db)
 
         if project.model.type != "rag":
@@ -893,7 +897,6 @@ async def main_question(
         input: QuestionModel,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
-
     project = brain.findProject(projectName, db)
     if project.model.type == "rag":
         return await question_query(request, projectName, input, user, db)
@@ -944,7 +947,7 @@ async def question_inference(
         input: QuestionModel,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
-    try:
+    try:            
         project = brain.findProject(projectName, db)
 
         if project.model.type != "inference":
@@ -971,7 +974,7 @@ async def question_query_sql(
         input: QuestionModel,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
-    try:
+    try:      
         project = brain.findProject(projectName, db)
 
         if project.model.type != "ragsql":
@@ -996,7 +999,7 @@ async def question_vision(
         input: QuestionModel,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
-    try:
+    try:            
         project = brain.findProject(projectName, db)
 
         if project.model.type != "vision":
@@ -1036,6 +1039,10 @@ async def chat_query(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
+        if not input.question:
+            raise HTTPException(
+                status_code=400, detail='{"error": "Missing question"}')
+      
         project = brain.findProject(projectName, db)
 
         if project.model.type != "rag":
@@ -1063,6 +1070,10 @@ async def vision_query(
         db: Session = Depends(get_db)):
 
     try:
+        if not input.question:
+            raise HTTPException(
+                status_code=400, detail='{"error": "Missing question"}')
+            
         return await question_vision(projectName, input, user, db)
     except Exception as e:
         logging.error(e)
@@ -1079,6 +1090,10 @@ async def question_query_endpoint(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
+        if not input.question:
+            raise HTTPException(
+                status_code=400, detail='{"error": "Missing question"}')
+            
         return await main_question(request, projectName, input, user, db)
     except Exception as e:
         logging.error(e)
@@ -1095,6 +1110,10 @@ async def question_query_sql_endpoint(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
+        if not input.question:
+            raise HTTPException(
+                status_code=400, detail='{"error": "Missing question"}')
+            
         return await question_query_sql(request, projectName, input, user, db)
     except Exception as e:
         logging.error(e)
