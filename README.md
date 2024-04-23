@@ -1,10 +1,12 @@
+<!-- markdownlint-disable MD033 -->
+
 <h1 align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai-logo.png"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai-logo.png" alt="RestAI Logo"/>
   </br>RestAI
 </h1>
 
 <p align="center">
-  <strong>AIaaS (AI as a Service) for everyone. Create agents (projects) and consume them using a simple REST API.</strong>
+  <strong>AIaaS (AI as a Service) for everyone. Create AI projects and consume them using a simple REST API.</strong>
 </p>
 
 <h2 align="center">
@@ -12,14 +14,14 @@
 </h2>
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/out.gif"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/out.gif"  alt="RestAI Video"/>
 </div>
 
 ## Features
 
 - **Projects**: There are multiple types of agents (projects), each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision), [router](https://github.com/apocas/restai?tab=readme-ov-file#router))
 - **Users**: A user represents a user of the system. It's used for authentication and authorization (basic auth). Each user may have access to multiple projects.
-- **LLMs**: Supports any public LLM supported by LlamaIndex or any local LLM suported by Ollama.
+- **LLMs**: Supports any public LLM supported by LlamaIndex. Which includes any local LLM suported by Ollama, LiteLLM, etc.
 - **VRAM**: Automatic VRAM management. RestAI will manage the VRAM usage, automatically loading and unloading models as needed and requested.
 - **API**: The API is a first-class citizen of RestAI. All endpoints are documented using [Swagger](https://apocas.github.io/restai/).
 - **Frontend**: There is a frontend available at [restai-frontend](https://github.com/apocas/restai-frontend)
@@ -29,7 +31,7 @@
 ### RAG
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/rag.png" width="750"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/rag.png" width="750" style="margin: 10px;"  alt="RestAI RAG"/>
 </div>
 
 - **Embeddings**: You may use any embeddings model supported by llamaindex. Check embeddings [definition](modules/embeddings.py).
@@ -57,7 +59,7 @@
 
 - **text2img**: RestAI supports local Stable Diffusion and Dall-E. It features prompt boosting, a LLM is internally used to boost the user prompt with more detail.
 - **img2text**: RestAI supports LLaVA, BakLLaVA by default.
-- **img2img**: RestAI supports InstantID and Qwen-VL default.
+- **img2img**: RestAI supports InstantID.
 
 #### Stable Diffusion & [InstantID](https://github.com/InstantID/InstantID)
 
@@ -92,16 +94,16 @@
 
 - `make install`
 - `make dev` (starts restai in development mode)
-- `make devfrontend` (starts restai's frontend in development mode)
 
 ## Production
 
 - `make install`
-- `make prod`
+- `make start`
 
 ## API
 
-- **Endpoints**: All the API endpoints are documented and available at: [Swagger](https://apocas.github.io/restai/)
+- **Endpoints**: All the API endpoints are documented and available at: [Swagger](https://apocas.github.io/restai/api.html)
+- **Swagger**: Swagger/OpenAPI documentation: [Swagger](https://apocas.github.io/restai/swagger/)
 
 ## Frontend
 

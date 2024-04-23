@@ -6,21 +6,20 @@ start:
 database:
 	poetry run python database.py
 
+.PHONY: frontend
+frontend:
+	cd frontend && git pull && npm install && npm run build
+
 .PHONY: dev
 dev:
 	RESTAI_DEV=true uvicorn app.main:app --reload --port 9000
-
-.PHONY: prod
-prod:
-	cd frontend && npm install && npm run build
-	make start
 
 .PHONY: install
 install:
 	poetry install
 	make database
 	git clone https://github.com/apocas/restai-frontend frontend
-	cd frontend && npm install
+	make frontend
 
 .PHONY: installgpu
 installgpu:
@@ -29,10 +28,6 @@ installgpu:
 .PHONY: installfix
 installfix:
 	$(echo $(poetry env info -p)/bin/pip3 install flash-attn==2.5.2 --no-build-isolation)
-
-.PHONY: frontend
-frontend:
-	cd frontend && git pull && npm install && npm run build
 
 .PHONY: docs
 docs:

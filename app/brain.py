@@ -60,7 +60,7 @@ class Brain:
         else:
             llm = self._loadLLM(llmName, db)
         
-        if llm.props.class_name == "Ollama":
+        if hasattr(llm, "props") and llm.props.class_name == "Ollama":
             model_name = json.loads(llm.props.options).get("model")
             try:
                 ollama.show(model_name)

@@ -40,6 +40,9 @@ class InstantID(BaseTool):
 
         manager = Manager()
         sharedmem = manager.dict()
+        
+        if not run_manager.tags[0].image:
+            raise Exception("Please provide an image to generate an avatar.")
 
         sharedmem["input_image"] = run_manager.tags[0].image
 
