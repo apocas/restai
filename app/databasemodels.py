@@ -33,6 +33,8 @@ class ProjectDatabase(Base):
     tables = Column(String(4096))
     llm_rerank = Column(Boolean, default=False)
     colbert_rerank = Column(Boolean, default=False)
+    cache = Column(Boolean, default=False)
+    cache_threshold = Column(Float, default=0.9)
     users = relationship('UserDatabase', secondary=users_projects, back_populates='projects')
     entrances = relationship("RouterEntrancesDatabase", back_populates="project")
 

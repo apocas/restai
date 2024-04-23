@@ -92,6 +92,8 @@ class ProjectModel(BaseModel):
     tables: Union[str, None] = None
     llm_rerank: Union[bool, None] = None
     colbert_rerank: Union[bool, None] = None
+    cache: Union[bool, None] = None
+    cache_threshold: Union[float, None] = None
     entrances: Union[list[EntranceModel], None] = None
     users: list[ProjectUser] = []
     model_config = ConfigDict(from_attributes=True)
@@ -148,6 +150,8 @@ class ProjectModelUpdate(BaseModel):
     llm_rerank: Union[bool, None] = None
     entrances: Union[list[EntranceModel], None] = None
     colbert_rerank: Union[bool, None] = None
+    cache: Union[bool, None] = None
+    cache_threshold: Union[float, None] = None
 
 class SourceModel(BaseModel):
     source: str

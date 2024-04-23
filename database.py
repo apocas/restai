@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 
 from app.config import (
+    MYSQL_HOST,
     MYSQL_URL,
     RESTAI_DEFAULT_PASSWORD,
     RESTAI_DEMO,
@@ -18,7 +19,7 @@ from app.databasemodels import (
 )
 from app.tools import DEFAULT_LLMS
 
-if MYSQL_URL:
+if MYSQL_HOST:
     print("Using MySQL database")
     engine = create_engine(MYSQL_URL,
                            pool_size=30,
