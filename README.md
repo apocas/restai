@@ -102,7 +102,7 @@
 
 ## API
 
-- **Endpoints**: All the API endpoints are documented and available at: [Swagger](https://apocas.github.io/restai/api.html)
+- **Endpoints**: All the API endpoints are documented and available at: [Endpoints](https://apocas.github.io/restai/api.html)
 - **Swagger**: Swagger/OpenAPI documentation: [Swagger](https://apocas.github.io/restai/swagger/)
 
 ## Frontend
