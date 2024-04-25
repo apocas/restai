@@ -50,7 +50,7 @@ class InstantID(BaseTool):
         face_image = Image.open(io.BytesIO(img_data))
         height = face_image.size[1]
         if height > 1280:
-            raise Exception("Send a smaller image. The maximum height is 1024 pixels.")
+            raise Exception("Send a smaller image. The maximum height is 1280 pixels.")
 
         sharedmem["negative_prompt"] = run_manager.tags[0].negative
 
