@@ -549,7 +549,6 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
             projectModel.type,
         )
         project = Project(projectModel)
-        project.boot(projectModel)
         
         if(project.model.vectorstore):
             project.vector = tools.findVectorDB(project)(brain, project)
