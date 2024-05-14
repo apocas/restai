@@ -50,6 +50,7 @@ import sentry_sdk
 
 
 logging.basicConfig(level=LOG_LEVEL)
+logging.getLogger('passlib').setLevel(logging.ERROR)
 
 if SENTRY_DSN:
     sentry_sdk.init(

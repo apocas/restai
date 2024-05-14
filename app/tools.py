@@ -37,6 +37,9 @@ def getLLMClass(llm_classname):
     elif llm_classname == "LiteLLM":
         from llama_index.llms.litellm import LiteLLM
         return LiteLLM
+    elif llm_classname == "Gemini":
+        from llama_index.llms.gemini import Gemini
+        return Gemini
     else:
         raise Exception("Invalid LLM class name.")
 

@@ -3,7 +3,7 @@ from langchain.tools import BaseTool
 from langchain.chains import LLMChain
 from langchain_community.chat_models import ChatOpenAI
 from langchain.prompts import PromptTemplate
-from langchain.utilities.dalle_image_generator import DallEAPIWrapper
+from langchain_community.utilities.dalle_image_generator import DallEAPIWrapper
 import requests
 from typing import Optional
 from langchain.callbacks.manager import (

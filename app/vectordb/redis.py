@@ -5,14 +5,16 @@ from llama_index.core.storage import StorageContext
 
 from app.vectordb.tools import FindEmbeddingsPath
 from llama_index.vector_stores.redis import RedisVectorStore
+from redisvl.schema import IndexSchema
 
 from app.config import REDIS_HOST, REDIS_PORT
 from app.vectordb.base import VectorBase
+from modules.embeddings import EMBEDDINGS
 
 class RedisVector(VectorBase):
     redis = None
   
-    def __init__(self, brain, project):
+    def __init__(self, brain, project):      
         self.redis = redis.Redis(
             host=REDIS_HOST,
             port=REDIS_PORT,
@@ -21,12 +23,34 @@ class RedisVector(VectorBase):
         self.index = self._vector_init(brain)
     
     def _vector_init(self, brain):
+        _, _, _, _, dimension = EMBEDDINGS[self.project.model.embeddings]
+        custom_schema = IndexSchema.from_dict(
+            {
+                "index": {
+                    "name": self.project.model.name,
+                    "prefix": "llama_" + self.project.model.name,
+                    "key_separator": "/",
+                },
+                "fields": [
+                    {"type": "tag", "name": "id"},
+                    {"type": "tag", "name": "doc_id"},
+                    {"type": "text", "name": "text"},
+                    {"type": "text", "name": "source"},
+                    {"type": "text", "name": "keywords"},
+                    {"type": "vector", "name": "vector", "attrs": {
+                            "algorithm": "flat",
+                            "dims": dimension
+                        }
+                    },
+                ],
+            }
+        )
+              
         vector_store = RedisVectorStore(
+            schema=custom_schema,
             redis_url=f"redis://{REDIS_HOST}:{REDIS_PORT}",
-            index_name=self.project.model.name,
-            metadata_fields=["source", "keywords"],
-            index_prefix="llama_" + self.project.model.name,
-            overwrite=False)
+            overwrite=False
+        )
 
         storage_context = StorageContext.from_defaults(
             vector_store=vector_store)
@@ -91,7 +115,7 @@ class RedisVector(VectorBase):
     def find_id(self, id):
         output = {"id": id}
         
-        ids = "llama_" + self.project.model.name + "/vector_" + id
+        ids = "llama_" + self.project.model.name + "/" + id
         keys = self.redis.hkeys(ids)
         keys = [k for k in keys if not k.startswith(
             '_') and k != "vector" and k != "text" and k != "doc_id" and k != "id"]

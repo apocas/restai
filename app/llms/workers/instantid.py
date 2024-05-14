@@ -12,6 +12,7 @@ from insightface.app import FaceAnalysis
 
 from app.config import RESTAI_DEFAULT_DEVICE
 from app.llms.workers.pipeline_stable_diffusion_xl_instantid import StableDiffusionXLInstantIDPipeline, draw_kps
+from diffusers import StableDiffusionUpscalePipeline
 
 def worker(prompt, sharedmem):
     try:
@@ -67,17 +68,27 @@ def worker(prompt, sharedmem):
         image_embeds=face_emb,
         image=face_kps,
         control_mask=control_mask,
-        num_inference_steps=50,
+        num_inference_steps=30,
         controlnet_conditioning_scale=0.8,
         negative_prompt=negative_prompt,
         generator=generator,
-        guide_scale=0,
+        guide_scale=5,
         height=height,
         width=width,
     ).images[0]
-
+    
+    upscaled_image = image
+    """
+    del pipe
+    
+    model_id = "stabilityai/stable-diffusion-x4-upscaler"
+    pipeline = StableDiffusionUpscalePipeline.from_pretrained(model_id, torch_dtype=torch.float16)
+    pipeline = pipeline.to(RESTAI_DEFAULT_DEVICE or "cuda:0") 
+    upscaled_image = pipeline(prompt=prompt, image=image, num_inference_steps=30).images[0]
+    """
+    
     output_img_data = io.BytesIO()
-    image.save(output_img_data, format="JPEG")
+    upscaled_image.save(output_img_data, format="JPEG")
     image_base64 = base64.b64encode(output_img_data.getvalue()).decode('utf-8')
 
     sharedmem["output_image"] = image_base64
