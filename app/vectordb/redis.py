@@ -39,7 +39,8 @@ class RedisVector(VectorBase):
                     {"type": "text", "name": "keywords"},
                     {"type": "vector", "name": "vector", "attrs": {
                             "algorithm": "flat",
-                            "dims": dimension
+                            "distance_metric": "cosine",
+                            "dims": dimension,
                         }
                     },
                 ],
