@@ -888,6 +888,7 @@ async def question_query(
         else:
             output = brain.entryQuestion(projectName, input, db)
             for line in output:
+                logs_inference.info({"user": user.username, "project": projectName, "output": line})
                 return line
     except Exception as e:
         logging.error(e)
@@ -991,6 +992,7 @@ async def question_inference(
         else:
             output = brain.inference(projectName, input, db)
             for line in output:
+                logs_inference.info({"user": user.username, "project": projectName, "output": line})
                 return line
 
     except Exception as e:
@@ -1015,8 +1017,7 @@ async def question_query_sql(
 
         output = brain.ragSQL(projectName, input, db)
 
-        logs_inference.info(
-            {"user": user.username, "project": projectName, "output": output})
+        logs_inference.info({"user": user.username, "project": projectName, "output": output})
 
         return output
     except Exception as e:
@@ -1055,6 +1056,7 @@ async def question_vision(
         if input.lite:
             del output["image"]
 
+        #logs_inference.info({"user": user.username, "project": projectName, "output": output})
         return output
     except Exception as e:
         logging.error(e)
@@ -1090,6 +1092,7 @@ async def chat_query(
         else:
             output = brain.entryChat(projectName, input, db)
             for line in output:
+                logs_inference.info({"user": user.username, "project": projectName, "output": line})
                 return line
     except Exception as e:
         logging.error(e)

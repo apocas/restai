@@ -20,7 +20,6 @@ from llama_index.core.selectors import LLMSingleSelector
 from langchain.agents import initialize_agent
 import ollama
 from sqlalchemy import create_engine
-from app.cache import Cache
 from app.vectordb import tools
 from app.eval import evalRAG
 from app.llms.tools.dalle import DalleImage
@@ -435,8 +434,8 @@ class Brain:
                     "type": "inference"
                 }
                 output["tokens"] = {
-                  "input": tokens_from_string(output["question"]),
-                  "output": tokens_from_string(output["answer"])
+                    "input": tokens_from_string(output["question"]),
+                    "output": tokens_from_string(output["answer"])
                 }
                 yield output
         except Exception as e:              
