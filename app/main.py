@@ -931,6 +931,7 @@ async def main_question(
     if project.model.type == "rag":
         cached = await processCache(projectName, input, db)
         if cached:
+            logs_inference.info({"user": user.username, "project": projectName, "output": cached})
             return cached
         return await question_query(request, projectName, input, user, db)
     elif project.model.type == "inference":
@@ -1081,6 +1082,7 @@ async def chat_query(
         
         cached = await processCache(projectName, input, db)
         if await processCache(projectName, input, db):
+            logs_inference.info({"user": user.username, "project": projectName, "output": cached})
             return cached
 
         if project.model.type != "rag":
