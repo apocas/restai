@@ -33,7 +33,7 @@ accelerate = "^0.26.1"
 optimum = "1.13.1"
 redis = "^5.0.1"
 openpyxl = "^3.1.2"
-google-cloud-aiplatform = "*"
+google-cloud-aiplatform = "^1.51.0"
 bitsandbytes = "^0.42.0"
 diffusers = "0.25.1"
 pymysql = "^1.1.0"
@@ -71,8 +71,9 @@ psycopg2 = "^2.9.9"
 llama-index-vector-stores-pinecone = "^0.1.7"
 sentry-sdk = {extras = ["fastapi"], version = "^1.45.0"}
 xformers = "^0.0.26.post1"
-llama-index-llms-gemini = "^0.1.7"
+llama-index-llms-gemini = "^0.1.8"
 google-generativeai = "^0.4.1"
+llama-index-llms-vertex = "^0.1.5"
 
 [tool.poetry.group.gpu]
 optional = true
