@@ -20,6 +20,7 @@ from llama_index.core.selectors import LLMSingleSelector
 from langchain.agents import initialize_agent
 import ollama
 from sqlalchemy import create_engine
+from app.memory import Recollection
 from app.vectordb import tools
 from app.eval import evalRAG
 from app.llms.tools.dalle import DalleImage
@@ -47,6 +48,7 @@ class Brain:
         self.defaultNegative = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = ""
         self.loopFailsafe = 0
+        self.memories = Recollection()
 
     def memoryModelsInfo(self):
         models = []
@@ -127,7 +129,7 @@ class Brain:
         project = self.findProject(projectName, db)
 
         model = self.getLLM(project.model.llm, db)
-        chat = project.loadChat(chatModel)
+        chat = self.memories.loadMemory(projectName).loadChat(chatModel)
 
         threshold = chatModel.score or project.model.score or 0.2
         k = chatModel.k or project.model.k or 1
@@ -168,8 +170,8 @@ class Brain:
             system_prompt=sysTemplate,
             memory=chat.history,
             node_postprocessors=postprocessors,
+            llm=model.llm
         )
-        chat_engine._llm = model.llm
 
         try:
             if chatModel.stream:
