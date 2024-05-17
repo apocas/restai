@@ -21,7 +21,7 @@
 
 - **Projects**: There are multiple types of agents (projects), each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision), [router](https://github.com/apocas/restai?tab=readme-ov-file#router))
 - **Users**: A user represents a user of the system. It's used for authentication and authorization (basic auth). Each user may have access to multiple projects.
-- **LLMs**: Supports any public LLM supported by LlamaIndex. Which includes any local LLM suported by Ollama, LiteLLM, etc.
+- **LLMs**: Supports any public LLM supported by LlamaIndex. Which includes any local LLM supported by Ollama, LiteLLM, etc.
 - **VRAM**: Automatic VRAM management. RestAI will manage the VRAM usage, automatically loading and unloading models as needed and requested.
 - **API**: The API is a first-class citizen of RestAI. All endpoints are documented using [Swagger](https://apocas.github.io/restai/).
 - **Frontend**: There is a frontend available at [restai-frontend](https://github.com/apocas/restai-frontend)
