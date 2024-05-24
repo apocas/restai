@@ -20,6 +20,7 @@ from llama_index.core.selectors import LLMSingleSelector
 from langchain.agents import initialize_agent
 import ollama
 from sqlalchemy import create_engine
+from app.guard import Guard
 from app.memory import Recollection
 from app.vectordb import tools
 from app.eval import evalRAG
@@ -130,6 +131,26 @@ class Brain:
 
         model = self.getLLM(project.model.llm, db)
         chat = self.memories.loadMemory(projectName).loadChat(chatModel)
+        
+        output = {
+            "id": chat.id,
+            "question": chatModel.question,
+            "sources": [],
+            "cached": False,
+            "guard": False,
+            "type": "chat"
+        }
+        
+        if project.model.guard:
+            guard = Guard(project.model.guard, self, db)
+            if guard.verify(chatModel.question):
+                output["answer"] = project.model.censorship or self.defaultCensorship
+                output["guard"] = True
+                output["tokens"] = {
+                  "input": tokens_from_string(output["question"]),
+                  "output": tokens_from_string(output["answer"])
+                }
+                yield output
 
         threshold = chatModel.score or project.model.score or 0.2
         k = chatModel.k or project.model.k or 1
@@ -178,14 +199,6 @@ class Brain:
                 response = chat_engine.stream_chat(chatModel.question)
             else:
                 response = chat_engine.chat(chatModel.question)
-
-            output = {
-                "id": chat.id,
-                "question": chatModel.question,
-                "sources": [],
-                "cached": False,
-                "type": "chat"
-            }
 
             for node in response.source_nodes:
                 output["sources"].append(
@@ -236,6 +249,17 @@ class Brain:
               "output": 0
           }
         }
+        
+        if project.model.guard:
+            guard = Guard(project.model.guard, self, db)
+            if guard.verify(questionModel.question):
+                output["answer"] = project.model.censorship or self.defaultCensorship
+                output["guard"] = True
+                output["tokens"] = {
+                  "input": tokens_from_string(output["question"]),
+                  "output": tokens_from_string(output["answer"])
+                }
+                yield output
             
         model = self.getLLM(project.model.llm, db)
 

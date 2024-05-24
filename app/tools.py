@@ -8,13 +8,10 @@ DEFAULT_LLMS = {
     "openai_gpt3.5_turbo": ("OpenAI", {"temperature": 0, "model": "gpt-3.5-turbo"}, "public", "OpenAI GPT-3.5 Turbo", "chat"),
     "openai_gpt4": ("OpenAI", {"temperature": 0, "model": "gpt-4"}, "public", "OpenAI GPT-4 ", "chat"),
     "openai_gpt4_turbo": ("OpenAI", {"temperature": 0, "model": "gpt-4-turbo-preview"}, "public", "OpenAI GPT-4 Turbo", "chat"),
-    "mistral_7b": ("Ollama", {"model": "mistral", "temperature": 0.0001, "keep_alive": 0}, "private", "https://ollama.com/library/mistral", "qa"),
-    "llama2_13b": ("Ollama", {"model": "llama2:13b-chat", "temperature": 0.0001, "keep_alive": 0}, "private", "https://ollama.com/library/llama2", "chat"),
-    "llama2_7b": ("Ollama", {"model": "llama2:7b-chat", "temperature": 0.0001, "keep_alive": 0}, "private", "https://ollama.com/library/llama2", "chat"),
+    "openai_gpt4o": ("OpenAI", {"temperature": 0, "model": "gpt-4o"}, "public", "OpenAI GPT-4o", "chat"),
+    "llama3_8b": ("Ollama", {"model": "llama3:8b", "temperature": 0.0001, "keep_alive": 0}, "private", "https://ollama.com/library/llama3", "chat"),
+    "llama3_70b": ("Ollama", {"model": "llama3:70b", "temperature": 0.0001, "keep_alive": 0}, "private", "https://ollama.com/library/llama3", "chat"),
     "llava16_13b": ("OllamaMultiModal2", {"model": "llava:13b-v1.6", "temperature": 0.0001, "keep_alive": 0}, "private", "https://ollama.com/library/llava", "vision"),
-    "bakllava_7b": ("OllamaMultiModal2", {"model": "bakllava", "temperature": 0.0001, "keep_alive": 0}, "private", "https://ollama.com/library/bakllava", "vision"),
-    "mixtral_8x7b": ("Ollama", {"model": "mixtral", "temperature": 0.0001, "keep_alive": 0}, "private", "https://ollama.com/library/mixtral", "chat"),
-    "llama2_70b": ("Ollama", {"model": "llama2:70b-chat", "temperature": 0.0001, "keep_alive": 0}, "private", "https://ollama.com/library/llama2", "chat"),
 }
 
 

@@ -219,6 +219,10 @@ class Database:
             proj_db.cache_threshold = projectModel.cache_threshold
             changed = True
         
+        if projectModel.guard is not None and proj_db.guard != projectModel.guard:
+            proj_db.guard = projectModel.guard
+            changed = True
+        
         if projectModel.entrances is not None:
             proj_db.entrances = []
             for entrance in projectModel.entrances:

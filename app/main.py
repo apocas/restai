@@ -419,6 +419,7 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             final_output["colbert_rerank"] = output["colbert_rerank"]
             final_output["cache"] = output["cache"]
             final_output["cache_threshold"] = output["cache_threshold"]
+            final_output["guard"] = output["guard"]
         
         if project.model.type == "inference":
             final_output["system"] = output["system"]
@@ -621,6 +622,7 @@ async def clone_project(projectName: str, newProjectName: str,
     newProject_db.colbert_rerank = project.model.colbert_rerank
     newProject_db.cache = project.model.cache
     newProject_db.cache_threshold = project.model.cache_threshold
+    newProject_db.guard = project.model.guard
     newProject_db.tables = project.model.tables
     newProject_db.connection = project.model.connection
     

@@ -78,13 +78,13 @@ if "users" not in inspect(engine).get_table_names():
             name="demo1",
             type="inference",
             system="Always end your answers with 'beep beep'.",
-            llm="llama2_7b"
+            llm="llama3_8b"
         )
         demo_project2 = ProjectDatabase(
             name="demo2",
             type="inference",
             system="Always end your answers with 'boop boop'.",
-            llm="llama2_7b"
+            llm="llama3_8b"
         )
         demo_project3 = ProjectDatabase(
             name="router1",
