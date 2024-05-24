@@ -53,7 +53,9 @@ GET /projects/{projectname}
 
 ### Response
 
-- `name`: Project name
+- `name`: Project name, normalized used to identify the project.
+- `human_name`: Human project name, unnormalized, human friendly.
+- `human_description`: Project description, human friendly.
 - `type`: Project type
 - `llm`: LLM to be used by the project
 - `chunks`: How many chunks were ingested [RAG]
