@@ -95,6 +95,8 @@ class ProjectModel(BaseModel):
     cache: Union[bool, None] = None
     cache_threshold: Union[float, None] = None
     guard: Union[str, None] = None
+    human_name: Union[str, None] = None
+    human_description: Union[str, None] = None
     entrances: Union[list[EntranceModel], None] = None
     users: list[ProjectUser] = []
     model_config = ConfigDict(from_attributes=True)
@@ -154,6 +156,8 @@ class ProjectModelUpdate(BaseModel):
     cache: Union[bool, None] = None
     cache_threshold: Union[float, None] = None
     guard: Union[str, None] = None
+    human_name: Union[str, None] = None
+    human_description: Union[str, None] = None
 
 class SourceModel(BaseModel):
     source: str

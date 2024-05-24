@@ -222,6 +222,14 @@ class Database:
         if projectModel.guard is not None and proj_db.guard != projectModel.guard:
             proj_db.guard = projectModel.guard
             changed = True
+            
+        if projectModel.human_name is not None and proj_db.human_name != projectModel.human_name:
+            proj_db.human_name = projectModel.human_name
+            changed = True
+            
+        if projectModel.human_description is not None and proj_db.human_description != projectModel.human_description:
+            proj_db.human_description = projectModel.human_description
+            changed = True
         
         if projectModel.entrances is not None:
             proj_db.entrances = []

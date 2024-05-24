@@ -244,6 +244,7 @@ class Brain:
           "type": "question",
           "sources": [],
           "cached": False,
+          "guard": False,
           "tokens": {
               "input": 0,
               "output": 0

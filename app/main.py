@@ -401,6 +401,8 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
         final_output["name"] = output["name"]
         final_output["type"] = output["type"]
         final_output["llm"] = output["llm"]
+        final_output["human_name"] = output["human_name"]
+        final_output["human_description"] = output["human_description"]
         
         if project.model.type == "rag":
             if project.vector is not None:
