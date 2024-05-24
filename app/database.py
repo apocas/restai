@@ -144,12 +144,14 @@ class Database:
             embeddings,
             llm,
             vectorstore,
+            human_name,
             type):
         db_project = ProjectDatabase(
             name=name,
             embeddings=embeddings,
             llm=llm,
             vectorstore=vectorstore,
+            human_name=human_name,
             type=type)
         db.add(db_project)
         db.commit()

@@ -37,6 +37,9 @@ def getLLMClass(llm_classname):
     elif llm_classname == "Gemini":
         from llama_index.llms.gemini import Gemini
         return Gemini
+    elif llm_classname == "AzureOpenAI":
+        from llama_index.llms.azure_openai import AzureOpenAI
+        return AzureOpenAI
     else:
         raise Exception("Invalid LLM class name.")
 

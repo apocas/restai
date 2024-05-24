@@ -498,6 +498,7 @@ async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate,
 
 @app.post("/projects")
 async def create_project(projectModel: ProjectModel, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
+    projectModel.human_name = projectModel.name.strip()
     projectModel.name = unidecode(
         projectModel.name.strip().lower().replace(" ", "_"))
     projectModel.name = re.sub(r'[^\w\-.]+', '', projectModel.name)
@@ -550,6 +551,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
             projectModel.embeddings,
             projectModel.llm,
             projectModel.vectorstore,
+            projectModel.human_name,
             projectModel.type,
         )
         project = Project(projectModel)
@@ -625,6 +627,8 @@ async def clone_project(projectName: str, newProjectName: str,
     newProject_db.cache = project.model.cache
     newProject_db.cache_threshold = project.model.cache_threshold
     newProject_db.guard = project.model.guard
+    newProject_db.human_name = project.model.human_name
+    newProject_db.human_description = project.model.human_description
     newProject_db.tables = project.model.tables
     newProject_db.connection = project.model.connection
     
