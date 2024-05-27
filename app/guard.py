@@ -17,7 +17,8 @@ class Guard:
                 elif answer == "GOOD":
                     return False
                 else:
-                    raise Exception("Invalid response. Does the guardian project's model support prompt guard?")
+                    return True
+                    ##raise Exception("Invalid response. Does the guardian project's model support prompt guard?")
             except Exception as e:
                 raise e
               
