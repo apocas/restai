@@ -7,7 +7,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import jwt
 from sqlalchemy.orm import Session
 
-from app.config import RESTAI_AUTH_SECRET
+from app.config import RESTAI_AUTH_SECRET, RESTAI_AUTH_DISABLE_LOCAL
 from app.database import dbc, get_db, pwd_context
 from app.models import User
 
@@ -50,7 +50,7 @@ def get_current_username(
                 pass
 
     jwt_token = request.cookies.get("restai_token")
-
+    
     if bearer_token:
         user = dbc.get_user_by_apikey(db, bearer_token)
 
@@ -74,7 +74,7 @@ def get_current_username(
                 detail="Invalid token"
             )
     else:
-        if not credentials or ("username" not in credentials or "password" not in credentials):
+        if RESTAI_AUTH_DISABLE_LOCAL or not credentials or ("username" not in credentials or "password" not in credentials):
             raise HTTPException(
                 status_code=401,
                 detail="Invalid credentials"
