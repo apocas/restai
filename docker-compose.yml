@@ -1,7 +1,7 @@
 ---
 services:
   redis:
-      image: "docker.io/library/redis:latest"
+      image: redis/redis-stack-server
       ports:
         - "6379:6379"
       restart: always
