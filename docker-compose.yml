@@ -3,20 +3,42 @@ services:
   redis:
       image: redis/redis-stack-server
       ports:
-        - "6379:6379"
+        - 6379:6379
       restart: always
+
+  mysql:
+    image: mysql:8.0
+    restart: always
+    ports:
+      - 3306:3306
+    volumes:
+      - mysql_data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD:-CHANGEME!}
+      - MYSQL_DATABASE=${MYSQL_DB:-restai}
+
       
   restai:
     build:
       context: .
       dockerfile: Dockerfile
-    restart: always
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 60s
+    depends_on:
+      - mysql
     ports:
-    - '9000:9000'
+      - 9000:9000
     volumes:
-    - '.cache:/home/user/.cache'
+      - '.cache:/home/user/.cache'
     environment:
       LOG_LEVEL: DEBUG
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       RESTAI_DEV: ${RESTAI_DEV}
       WITH_GPU: false
+
+volumes:
+  mysql_data:
