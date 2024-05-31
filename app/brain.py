@@ -527,7 +527,7 @@ class Brain:
             choices.append(ToolMetadata(description=entrance.description, name=entrance.name))
         
 
-        selector = LLMSingleSelector.from_defaults()
+        selector = LLMSingleSelector.from_defaults(llm=self.getLLM(project.model.llm, db).llm)
         selector_result = selector.select(
             choices, query=questionModel.question
         )

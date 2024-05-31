@@ -18,7 +18,6 @@ class Guard:
                     return False
                 else:
                     return True
-                    ##raise Exception("Invalid response. Does the guardian project's model support prompt guard?")
             except Exception as e:
                 raise e
               
