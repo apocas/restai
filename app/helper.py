@@ -47,6 +47,8 @@ async def chat_main(
         projlogic = Router(brain)
     elif project.model.type == "inference":
         projlogic = Inference(brain)
+    elif project.model.type == "agent":
+        projlogic = Agent(brain)
 
     if input.stream:
         return StreamingResponse(projlogic.chat(project, input, user, db), media_type='text/event-stream')
