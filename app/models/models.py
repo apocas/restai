@@ -97,6 +97,7 @@ class ProjectModel(BaseModel):
     guard: Union[str, None] = None
     human_name: Union[str, None] = None
     human_description: Union[str, None] = None
+    tools: Union[str, None] = None
     entrances: Union[list[EntranceModel], None] = None
     users: list[ProjectUser] = []
     model_config = ConfigDict(from_attributes=True)
@@ -158,6 +159,7 @@ class ProjectModelUpdate(BaseModel):
     guard: Union[str, None] = None
     human_name: Union[str, None] = None
     human_description: Union[str, None] = None
+    tools: Union[str, None] = None
 
 class SourceModel(BaseModel):
     source: str

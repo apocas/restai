@@ -19,7 +19,7 @@
 
 ## Features
 
-- **Projects**: There are multiple types of agents (projects), each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision), [router](https://github.com/apocas/restai?tab=readme-ov-file#router))
+- **Projects**: There are multiple types of agents (projects), each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision), [router](https://github.com/apocas/restai?tab=readme-ov-file#router), [agent](https://github.com/apocas/restai?tab=readme-ov-file#agent))
 - **Users**: A user represents a user of the system. It's used for authentication and authorization (basic auth). Each user may have access to multiple projects.
 - **LLMs**: Supports any public LLM supported by LlamaIndex. Which includes any local LLM supported by Ollama, LiteLLM, etc.
 - **VRAM**: Automatic VRAM management. RestAI will manage the VRAM usage, automatically loading and unloading models as needed and requested.
@@ -49,6 +49,13 @@
 
 - **Connection**: Supply a MySQL or PostgreSQL connection string and it will automatically crawl the DB schema, using table and column names it’s able to figure out how to translate the question to sql and then write a response.
 
+### Agent
+
+- ReAct Agents, specify which tools to use in the project and the agent will figure out how to use them to achieve the objective.
+- New tools are easily added. Just create a new tool in the app/llms/tools folder and it will be automatically picked up by Restai.
+
+- **Tools**: Supply all the tools names you want the Agent to use in this project. (separated by commas)
+
 ### Inference
 
 <div align="center">
@@ -75,6 +82,8 @@
 </div>
 
 ### Router
+
+- Routes a message to the most suitable project. It's useful when you have multiple projects and you want to route the question to the most suitable one.
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/router.png" width="750"  style="margin: 10px;"/>

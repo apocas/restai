@@ -1,4 +1,4 @@
-class Model:
+class LLM:
     def __init__(
             self,
             model_name,

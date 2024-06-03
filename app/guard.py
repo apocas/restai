@@ -1,4 +1,4 @@
-from app.models import QuestionModel
+from app.models.models import QuestionModel
 
 class Guard:
     def __init__(self, projectName, brain, db):        

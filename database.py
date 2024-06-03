@@ -10,7 +10,7 @@ from app.config import (
     RESTAI_DEFAULT_PASSWORD,
     RESTAI_DEMO,
 )
-from app.databasemodels import (
+from app.models.databasemodels import (
     Base,
     LLMDatabase,
     ProjectDatabase,
@@ -89,7 +89,7 @@ if "users" not in inspect(engine).get_table_names():
         demo_project3 = ProjectDatabase(
             name="router1",
             type="router",
-            llm="openai_gpt3.5_turbo"
+            llm="llama3_8b"
         )
         dbi.add(demo_project1)
         dbi.add(demo_project2)
