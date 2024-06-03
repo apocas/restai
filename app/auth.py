@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import RESTAI_AUTH_SECRET, RESTAI_AUTH_DISABLE_LOCAL
 from app.database import dbc, get_db, pwd_context
-from app.models import User
+from app.models.models import User
 
 
 security = HTTPBasic()

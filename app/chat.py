@@ -13,12 +13,13 @@ class Chat:
         else:
             self.id = model.id
 
-        self.history = ChatMemoryBuffer.from_defaults(token_limit=3900)
+        self.memory = ChatMemoryBuffer.from_defaults(token_limit=3900)
 
         self.created = datetime.datetime.now()
 
     def clearHistory(self):
-        self.history.reset()
+        self.memory.reset()
+        self.history = []
 
     def __eq__(self, other):
         return self.id == other.id

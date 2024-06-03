@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
-from app.databasemodels import LLMDatabase, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
-from app.models import LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate
+from app.models.databasemodels import LLMDatabase, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
+from app.models.models import LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 
@@ -231,6 +231,10 @@ class Database:
             
         if projectModel.human_description is not None and proj_db.human_description != projectModel.human_description:
             proj_db.human_description = projectModel.human_description
+            changed = True
+            
+        if projectModel.tools is not None and proj_db.tools != projectModel.tools:
+            proj_db.tools = projectModel.tools
             changed = True
         
         if projectModel.entrances is not None:
