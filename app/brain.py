@@ -39,7 +39,7 @@ class Brain:
         if llmName in self.llmCache:
             llm = self.llmCache[llmName]
         else:
-            llm = self._loadLLM(llmName, db)
+            llm = self.loadLLM(llmName, db)
         
         if hasattr(llm, "props") and llm.props.class_name == "Ollama":
             model_name = json.loads(llm.props.options).get("model")
@@ -57,7 +57,7 @@ class Brain:
         
         return llm
     
-    def _loadLLM(self, llmName, db: Session):
+    def loadLLM(self, llmName, db: Session):
         llm_db = dbc.get_llm_by_name(db, llmName)
 
         if llm_db is not None:
