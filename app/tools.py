@@ -1,4 +1,8 @@
+import inspect
 import logging
+import os
+import pkgutil
+from llama_index.core.tools import FunctionTool
 
 import tiktoken
 
@@ -43,6 +47,17 @@ def getLLMClass(llm_classname):
     else:
         raise Exception("Invalid LLM class name.")
 
+def get_tools(names: list[str]) -> dict:
+    tools = []
+    directory = os.path.dirname(os.path.abspath(__file__))
+    for importer, modname, ispkg in pkgutil.iter_modules(path=[directory + '/llms/tools']):
+        if modname in names:
+            module = __import__(f'app.llms.tools.{modname}', fromlist='dummy')
+            for name, obj in inspect.getmembers(module):
+                if inspect.isfunction(obj):
+                    tools.append(FunctionTool.from_defaults(fn=obj))
+                
+    return tools
 
 def tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
     encoding = tiktoken.get_encoding(encoding_name)

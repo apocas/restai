@@ -38,6 +38,7 @@ class ProjectDatabase(Base):
     guard = Column(String(255))
     human_name = Column(String(255))
     human_description = Column(Text)
+    tools = Column(Text)
     users = relationship('UserDatabase', secondary=users_projects, back_populates='projects')
     entrances = relationship("RouterEntrancesDatabase", back_populates="project")
 

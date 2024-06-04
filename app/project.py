@@ -1,5 +1,5 @@
 from app.cache import Cache
-from app.models import ProjectModel
+from app.models.models import ProjectModel
 from app.vectordb.tools import FindEmbeddingsPath
 
 

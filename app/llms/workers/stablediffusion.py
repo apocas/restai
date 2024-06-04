@@ -1,44 +1,55 @@
-import base64
-import io
-from diffusers import DiffusionPipeline
-import torch
+from torch.multiprocessing import Process, set_start_method, Manager
 
-from app.config import RESTAI_DEFAULT_DEVICE
+#from app.llms.workers.stablediffusion import worker
+from app.llms.workers.children.sdxl_lightning import worker
+
+try:
+    set_start_method('spawn')
+except RuntimeError:
+    pass
+from langchain.tools import BaseTool
+from langchain.chains import LLMChain
+from langchain_community.chat_models import ChatOpenAI
+from langchain.prompts import PromptTemplate
+
+from typing import Optional
+from langchain.callbacks.manager import (
+    CallbackManagerForToolRun,
+)
+from ilock import ILock, ILockException
 
 
-def worker(prompt, sharedmem):
-    base = DiffusionPipeline.from_pretrained(
-        "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16, variant="fp16", use_safetensors=True
-    )
-    base.to(RESTAI_DEFAULT_DEVICE or "cuda")
+class StableDiffusionImage(BaseTool):
+    name = "Stable Diffusion Image Generator"
+    description = "use this tool when you need to generate an image using Stable Diffusion."
+    return_direct = True
 
-    refiner = DiffusionPipeline.from_pretrained(
-        "stabilityai/stable-diffusion-xl-refiner-1.0",
-        text_encoder_2=base.text_encoder_2,
-        vae=base.vae,
-        torch_dtype=torch.float16,
-        use_safetensors=True,
-        variant="fp16",
-    )
+    def _run(self, query: str, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
+        if run_manager.tags[0].boost == True:
+            llm = ChatOpenAI(temperature=0.9, model_name="gpt-3.5-turbo")
+            prompt = PromptTemplate(
+                input_variables=["image_desc"],
+                template="Generate a detailed prompt to generate an image based on the following description: {image_desc}",
+            )
+            chain = LLMChain(llm=llm, prompt=prompt)
 
-    refiner.to(RESTAI_DEFAULT_DEVICE or "cuda")
+            fprompt = chain.run(query)
+        else:
+            fprompt = run_manager.tags[0].question
 
-    image = base(
-        prompt=prompt,
-        num_inference_steps=40,
-        denoising_end=0.8,
-        output_type="latent",
-    ).images
-    
-    image = refiner(
-        prompt=prompt,
-        num_inference_steps=40,
-        denoising_start=0.8,
-        image=image,
-    ).images[0]
+        manager = Manager()
+        sharedmem = manager.dict()
 
-    image_data = io.BytesIO()
-    image.save(image_data, format="JPEG")
-    image_base64 = base64.b64encode(image_data.getvalue()).decode('utf-8')
+        with ILock('stablediffusion', timeout=180):
+            p = Process(target=worker, args=(fprompt, sharedmem))
+            p.start()
+            p.join()
+            p.kill()
 
-    sharedmem["image"] = image_base64
+        if not sharedmem["image"]:
+            raise Exception("An error occurred while processing the image. Please try again.")
+
+        return {"type": "stablediffusion", "image": sharedmem["image"], "prompt": fprompt}
+
+    async def _arun(self, query: str) -> str:
+        raise NotImplementedError("N/A")

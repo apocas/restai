@@ -1,24 +1,23 @@
 import copy
 import uuid
 import os
-from starlette.responses import StreamingResponse
 from starlette.requests import Request
 from unidecode import unidecode
 from sqlalchemy.orm import Session
 from fastapi import Depends, FastAPI, HTTPException
+from app.helper import chat_main, question_main
 from app.vectordb import tools
 from app.project import Project
 from modules.loaders import LOADERS
 from modules.embeddings import EMBEDDINGS
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.models import ClassifierModel, ClassifierResponse, FindModel, IngestResponse, LLMModel, LLMUpdate, ProjectModel, ProjectModelUpdate, ProjectsResponse, QuestionModel, ChatModel, QuestionResponse, RagSqlResponse, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, UsersResponse
+from app.models.models import ClassifierModel, ClassifierResponse, FindModel, IngestResponse, LLMModel, LLMUpdate, ProjectModel, ProjectModelUpdate, ProjectsResponse, QuestionModel, ChatModel, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, UsersResponse
 from app.loaders.url import SeleniumWebReader
 import urllib.parse
 from app.database import dbc, get_db
 from app.brain import Brain
 from app.auth import create_access_token, get_current_username, get_current_username_admin, get_current_username_project, get_current_username_user
-import requests
 from llama_index.core.postprocessor import SimilarityPostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.schema import Document
@@ -215,6 +214,7 @@ async def get_users(
 
     return {"users": users_final}
 
+
 @app.get("/llms/{llmname}", response_model=LLMModel)
 async def get_llm(llmname: str, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
     try:
@@ -224,13 +224,15 @@ async def get_llm(llmname: str, user: User = Depends(get_current_username), db: 
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=404, detail=str(e))
-    
+
+
 @app.get("/llms", response_model=list[LLMModel])
 async def get_llms(
         user: User = Depends(get_current_username),
         db: Session = Depends(get_db)):
     users = dbc.get_llms(db)
     return users
+
 
 @app.post("/llms")
 async def create_llm(llmc: LLMModel,
@@ -245,6 +247,7 @@ async def create_llm(llmc: LLMModel,
         raise HTTPException(
             status_code=500,
             detail='Failed to create LLM ' + llmc.name)
+
 
 @app.patch("/llms/{llmname}")
 async def edit_project(llmname: str, llmUpdate: LLMUpdate, user: User = Depends(get_current_username_admin), db: Session = Depends(get_db)):
@@ -264,6 +267,7 @@ async def edit_project(llmname: str, llmUpdate: LLMUpdate, user: User = Depends(
         raise HTTPException(
             status_code=500, detail=str(e))
 
+
 @app.delete("/llms/{llmname}")
 async def delete_llm(llmname: str,
                       user: User = Depends(get_current_username_admin),
@@ -279,6 +283,7 @@ async def delete_llm(llmname: str,
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail=str(e))
+
 
 @app.post("/users", response_model=User)
 async def create_user(userc: UserCreate,
@@ -403,6 +408,8 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
         final_output["llm"] = output["llm"]
         final_output["human_name"] = output["human_name"]
         final_output["human_description"] = output["human_description"]
+        final_output["censorship"] = output["censorship"]
+        final_output["guard"] = output["guard"]
         
         if project.model.type == "rag":
             if project.vector is not None:
@@ -416,15 +423,17 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             final_output["score"] = output["score"]
             final_output["vectorstore"] = output["vectorstore"]
             final_output["system"] = output["system"]
-            final_output["censorship"] = output["censorship"]
             final_output["llm_rerank"] = output["llm_rerank"]
             final_output["colbert_rerank"] = output["colbert_rerank"]
             final_output["cache"] = output["cache"]
             final_output["cache_threshold"] = output["cache_threshold"]
-            final_output["guard"] = output["guard"]
         
         if project.model.type == "inference":
             final_output["system"] = output["system"]
+            
+        if project.model.type == "agent":
+            final_output["system"] = output["system"]
+            final_output["tools"] = output["tools"]
             
         if project.model.type == "ragsql":
             final_output["system"] = output["system"]
@@ -471,7 +480,7 @@ async def delete_project(projectName: str, user: User = Depends(get_current_user
 
 @app.patch("/projects/{projectName}")
 async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
-    if projectModelUpdate.llm is not None and brain.getLLM(projectModelUpdate.llm, db) is None:
+    if not projectModelUpdate.llm or (projectModelUpdate.llm and brain.getLLM(projectModelUpdate.llm, db) is None):
         raise HTTPException(
             status_code=404,
             detail='LLM not found')
@@ -502,6 +511,11 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
     projectModel.name = unidecode(
         projectModel.name.strip().lower().replace(" ", "_"))
     projectModel.name = re.sub(r'[^\w\-.]+', '', projectModel.name)
+    
+    if projectModel.type not in ["rag", "inference", "router", "ragsql", "vision", "agent"]:
+        raise HTTPException(
+            status_code=404,
+            detail='Invalid project type')
 
     if projectModel.name.strip() == "":
         raise HTTPException(
@@ -878,202 +892,6 @@ async def delete_embedding(
     return {"deleted": len(ids)}
 
 
-async def question_query(
-        request: Request,
-        projectName: str,
-        input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
-    try:
-        project = brain.findProject(projectName, db)
-
-        if project.model.type != "rag":
-            raise HTTPException(
-                status_code=400, detail='{"error": "Only available for RAG projects."}')
-
-        if input.stream:
-            return StreamingResponse(brain.entryQuestion(projectName, input, db), media_type='text/event-stream')
-        else:
-            output = brain.entryQuestion(projectName, input, db)
-            for line in output:
-                logs_inference.info({"user": user.username, "project": projectName, "output": line})
-                return line
-    except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500, detail=str(e))
-        
-async def processCache(projectName: str, input: QuestionModel, db: Session):
-    project = brain.findProject(projectName, db)
-    
-    output = {
-      "question": input.question,
-      "type": "question",
-      "sources": [],
-      "tokens": {
-          "input": 0,
-          "output": 0
-      }
-    }
-    
-    if project.cache:
-        answer = project.cache.verify(input.question)
-        if answer is not None:
-            output.update({
-                "answer": answer,
-                "cached": True,
-            })
-            
-            return output
-          
-    return None
-        
-async def main_question(
-        request: Request,
-        projectName: str,
-        input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
-    project = brain.findProject(projectName, db)
-    if project.model.type == "rag":
-        cached = await processCache(projectName, input, db)
-        if cached:
-            logs_inference.info({"user": user.username, "project": projectName, "output": cached})
-            return cached
-        return await question_query(request, projectName, input, user, db)
-    elif project.model.type == "inference":
-        return await question_inference(request, projectName, input, user, db)
-    elif project.model.type == "ragsql":
-        return await question_query_sql(request, projectName, input, user, db)
-    elif project.model.type == "router":
-        return await question_router(request, projectName, input, user, db)
-    elif project.model.type == "vision":
-        return await question_vision(projectName, input, user, db)
-    else:
-        raise HTTPException(
-            status_code=400, detail='{"error": "Invalid project type"}')
-  
-
-async def question_router(
-        request: Request,
-        projectName: str,
-        input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
-    try:
-        project = brain.findProject(projectName, db)
-
-        if project.model.type != "router":
-            raise HTTPException(
-                status_code=400, detail='{"error": "Only available for ROUTER projects."}')
-
-        projDest = brain.router(projectName, input, db)
-        
-        if projDest is None:
-            raise HTTPException(
-                status_code=404, detail='{"error": "No destination project found."}')
-        else:
-            return await main_question(request, projDest, input, user, db)
-
-    except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500, detail=str(e))
-
-
-async def question_inference(
-        request: Request,
-        projectName: str,
-        input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
-    try:            
-        project = brain.findProject(projectName, db)
-
-        if project.model.type != "inference":
-            raise HTTPException(
-                status_code=400, detail='{"error": "Only available for INFERENCE projects."}')
-
-        if input.stream:
-            return StreamingResponse(brain.inference(projectName, input, db), media_type='text/event-stream')
-        else:
-            output = brain.inference(projectName, input, db)
-            for line in output:
-                logs_inference.info({"user": user.username, "project": projectName, "output": line})
-                return line
-
-    except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500, detail=str(e))
-
-
-async def question_query_sql(
-        request: Request,
-        projectName: str,
-        input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
-    try:      
-        project = brain.findProject(projectName, db)
-
-        if project.model.type != "ragsql":
-            raise HTTPException(
-                status_code=400, detail='{"error": "Only available for RAGSQL projects."}')
-
-        output = brain.ragSQL(projectName, input, db)
-
-        logs_inference.info({"user": user.username, "project": projectName, "output": output})
-
-        return output
-    except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500, detail=str(e))
-
-
-async def question_vision(
-        projectName: str,
-        input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
-    try:            
-        project = brain.findProject(projectName, db)
-
-        if project.model.type != "vision":
-            raise HTTPException(
-                status_code=400, detail='{"error": "Only available for VISION projects."}')
-
-        if input.image:
-            url_pattern = re.compile(
-                r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-            is_url = re.match(url_pattern, input.image) is not None
-
-            if is_url:
-                response = requests.get(input.image)
-                response.raise_for_status()
-                image_data = response.content
-                input.image = base64.b64encode(image_data).decode('utf-8')
-
-        output = brain.entryVision(
-            projectName, input, user.is_private, db)
-        
-        if input.lite:
-            del output["image"]
-
-        #logs_inference.info({"user": user.username, "project": projectName, "output": output})
-        return output
-    except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500, detail=str(e))
-
-
 @app.post("/projects/{projectName}/chat")
 async def chat_query(
         request: Request,
@@ -1087,43 +905,10 @@ async def chat_query(
                 status_code=400, detail='{"error": "Missing question"}')
       
         project = brain.findProject(projectName, db)
-        
-        cached = await processCache(projectName, input, db)
-        if await processCache(projectName, input, db):
-            logs_inference.info({"user": user.username, "project": projectName, "output": cached})
-            return cached
+        if project is None:
+            raise Exception("Project not found")
 
-        if project.model.type != "rag":
-            raise HTTPException(
-                status_code=400, detail='{"error": "Only available for RAG projects."}')
-
-        if input.stream:
-            return StreamingResponse(brain.entryChat(projectName, input, db), media_type='text/event-stream')
-        else:
-            output = brain.entryChat(projectName, input, db)
-            for line in output:
-                logs_inference.info({"user": user.username, "project": projectName, "output": line})
-                return line
-    except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500, detail=str(e))
-
-
-@app.post("/projects/{projectName}/vision", response_model=QuestionResponse)
-async def vision_query(
-        projectName: str,
-        input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
-
-    try:
-        if not input.question:
-            raise HTTPException(
-                status_code=400, detail='{"error": "Missing question"}')
-            
-        return await question_vision(projectName, input, user, db)
+        return await chat_main(request, brain, project, input, user, db)
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -1143,32 +928,17 @@ async def question_query_endpoint(
             raise HTTPException(
                 status_code=400, detail='{"error": "Missing question"}')
             
-        return await main_question(request, projectName, input, user, db)
-    except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500, detail=str(e))
-
-
-@app.post("/projects/{projectName}/questionsql", response_model=RagSqlResponse)
-async def question_query_sql_endpoint(
-        request: Request,
-        projectName: str,
-        input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
-    try:
-        if not input.question:
-            raise HTTPException(
-                status_code=400, detail='{"error": "Missing question"}')
+        project = brain.findProject(projectName, db)
+        if project is None:
+            raise Exception("Project not found")
             
-        return await question_query_sql(request, projectName, input, user, db)
+        return await question_main(request, brain, project, input, user, db)
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail=str(e))
+
         
 @app.post("/tools/classifier", response_model=ClassifierResponse)
 async def classifier(

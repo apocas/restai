@@ -67,6 +67,7 @@ GET /projects/{projectname}
 - `censorship`: Censhorship message to be sent when Retrival process fails [RAG]
 - `llm_rerank`: LLM rerank [RAG]
 - `colbert_rerank`: Colbert rerank [RAG]
+- `tools`: tools to be used in the question [AGENT]
 - `tables`: tables to be used in the question [RAGSQL]
 - `connection`: connection string to the database [RAGSQL]
 - `entrances`: array with routes [ROUTER]
