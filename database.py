@@ -7,6 +7,8 @@ from sqlalchemy.orm import sessionmaker
 from app.config import (
     MYSQL_HOST,
     MYSQL_URL,
+    POSTGRES_HOST,
+    POSTGRES_URL,
     RESTAI_DEFAULT_PASSWORD,
     RESTAI_DEMO,
 )
@@ -25,6 +27,12 @@ if MYSQL_HOST:
                            pool_size=30,
                            max_overflow=100,
                            pool_recycle=900)
+elif POSTGRES_HOST:
+    print("Using PostgreSQL database")
+    engine = create_engine(POSTGRES_URL,
+                           pool_size=30,
+                           max_overflow=100,
+                           pool_recycle=900)
 else:
     print("Using sqlite database.")
     engine = create_engine(
@@ -35,6 +43,12 @@ else:
         max_overflow=100,
         pool_recycle=300)
 
+# Forcefully raise on failed connection
+try:
+    with engine.connect() as conn:
+        pass
+except Exception:
+    raise
 
 SessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=engine)
