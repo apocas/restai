@@ -40,11 +40,12 @@ RUN apt-get update && apt-get install --no-install-recommends -y postgresql-clie
     && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
-
 ENV ANONYMIZED_TELEMETRY=False \
     RESTAI_DEV=${RESTAI_DEV:-production}
     
 RUN useradd --user-group --system --create-home --no-log-init user
+# Create our cache directory and set permissions
+RUN mkdir -p /home/user/.cache/ && chown -R user:user /home/user/.cache/
 USER user
 
 WORKDIR /app
