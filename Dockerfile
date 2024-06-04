@@ -29,11 +29,17 @@ COPY pyproject.toml poetry.lock /app/
 # Install dependencies
 RUN poetry install \
     $(if [ "$RESTAI_DEV" = 'production' ]; then echo '--without dev'; fi) \
-    #$(if "$WITH_GPU"; then echo ' --with gpu'; fi) \
+    $(if "$WITH_GPU"; then echo ' --with gpu'; fi) \
     --no-interaction --no-ansi --no-root
 
 # Stripped down container for running the app
 FROM python:3.11-slim as runtime
+
+# We still need postgres libraries
+RUN apt-get update && apt-get install --no-install-recommends -y postgresql-client \
+    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
 
 ENV ANONYMIZED_TELEMETRY=False \
     RESTAI_DEV=${RESTAI_DEV:-production}
