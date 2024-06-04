@@ -120,6 +120,16 @@ You can specify profiles `docker compose --profile redis --profile mysql ....` t
 - `--profile mysql` Starts and enables Mysql as the database server
 - `--profile postgres` Starts and enables Postgres as the database server
 
+The variables MYSQL_HOST and POSTGRES_HOST should match the names of the respective services "mysql" and "postgres" and not localhost or 127.0.0.1 when using the containers
+
+To delete everything or a specific container don't forget to pass the necessary profiles to the compose command, EX:
+
+- Removing everything
+  `docker compose --profile mysql --profile postgres down --rmi all`
+- Removing singular database volume
+  `docker compose --profile mysql down --volumes`
+
+*Note: the local_cache volume will also get removed since it's in the main service and not in any profile*
 
 ## API
 
