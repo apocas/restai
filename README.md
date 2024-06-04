@@ -100,6 +100,18 @@
 - `make install`
 - `make start`
 
+## Docker
+
+- Edit the .env file accordingly
+- `docker compose --env-file .env up --build`
+
+You can specify profiles `docker compose --profile redis --profile mysql ....` to include additional components like the redis cache backend or a DB server, here are the supported profiles:
+
+- `--profile redis` Starts and sets redis as the cache backend
+- `--profile mysql` Starts and enables Mysql as the database server
+- `--profile postgres` Starts and enables Postgres as the database server
+
+
 ## API
 
 - **Endpoints**: All the API endpoints are documented and available at: [Endpoints](https://apocas.github.io/restai/api.html)
