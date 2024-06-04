@@ -50,7 +50,7 @@ services:
     ports:
       - 9000:9000
     volumes:
-      - '.cache:/home/user/.cache'
+      - local_cache:/home/user/.cache
     environment:
       LOG_LEVEL: DEBUG
       OPENAI_API_KEY: ${OPENAI_API_KEY}
@@ -60,3 +60,4 @@ services:
 volumes:
   mysql_data:
   pgdata:
+  local_cache:
