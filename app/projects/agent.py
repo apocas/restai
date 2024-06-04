@@ -22,7 +22,7 @@ class Agent(ProjectBase):
         }
               
         if project.model.guard:
-            guard = Guard(project.model.guard, self, db)
+            guard = Guard(project.model.guard, self.brain, db)
             if guard.verify(chatModel.question):
                 output["answer"] = project.model.censorship or self.brain.defaultCensorship
                 output["guard"] = True
@@ -69,7 +69,7 @@ class Agent(ProjectBase):
         }
               
         if project.model.guard:
-            guard = Guard(project.model.guard, self, db)
+            guard = Guard(project.model.guard, self.brain, db)
             if guard.verify(questionModel.question):
                 output["answer"] = project.model.censorship or self.brain.defaultCensorship
                 output["guard"] = True
