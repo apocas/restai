@@ -48,6 +48,7 @@ class Agent(ProjectBase):
             if str(e) == "Reached max iterations.":
                 resp = "I'm sorry, I tried my best..."
         
+        output["id"] = chat.id
         output["answer"] = resp
         output["tokens"] = {
           "input": tools.tokens_from_string(output["question"]),
