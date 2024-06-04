@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from llama_index.core.schema import ImageDocument
 from langchain.agents import initialize_agent
+from app.guard import Guard
 from app.llms.workers.dalle import DalleImage
 from app.models.models import ChatModel, QuestionModel, User
 from app.project import Project
@@ -16,8 +17,30 @@ class Vision(ProjectBase):
         raise HTTPException(status_code=400, detail='{"error": "Chat mode not available for this project type."}')
   
     def question(self, project: Project, questionModel: QuestionModel, user: User, db: Session):
+        output = {
+          "question": questionModel.question,
+          "type": "vision",
+          "sources": [],
+          "guard": False,
+          "tokens": {
+              "input": 0,
+              "output": 0
+          }
+        }
+        
+        if project.model.guard:
+            guard = Guard(project.model.guard, self, db)
+            if guard.verify(questionModel.question):
+                output["answer"] = project.model.censorship or self.brain.defaultCensorship
+                output["guard"] = True
+                output["tokens"] = {
+                  "input": tools.tokens_from_string(output["question"]),
+                  "output": tools.tokens_from_string(output["answer"])
+                }
+                yield output
+                
         image = None
-        output = ""
+        output_temp = ""
         isprivate = user.is_private
 
         tools = [
@@ -44,7 +67,7 @@ class Vision(ProjectBase):
         
 
         if isinstance(outputAgent, str):
-            output = outputAgent
+            output_temp = outputAgent
         else:
             if outputAgent["type"] == "describeimage":
                 model = self.brain.getLLM(project.model.llm, db)
@@ -54,18 +77,13 @@ class Vision(ProjectBase):
                 except Exception as e:
                     raise e
                 
-                output = response.text
+                output_temp = response.text
                 image = questionModel.image
             else:
-                output = outputAgent["prompt"]
+                output_temp = outputAgent["prompt"]
                 image = outputAgent["image"]
                 
-        outputf = {
-            "question": questionModel.question,
-            "answer": output,
-            "image": image,
-            "sources": [],
-            "type": "vision"
-        }
+        output["answer"] = output_temp
+        output["image"] = image
 
-        return outputf
+        return output
