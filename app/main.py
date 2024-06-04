@@ -408,6 +408,8 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
         final_output["llm"] = output["llm"]
         final_output["human_name"] = output["human_name"]
         final_output["human_description"] = output["human_description"]
+        final_output["censorship"] = output["censorship"]
+        final_output["guard"] = output["guard"]
         
         if project.model.type == "rag":
             if project.vector is not None:
@@ -421,12 +423,10 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
             final_output["score"] = output["score"]
             final_output["vectorstore"] = output["vectorstore"]
             final_output["system"] = output["system"]
-            final_output["censorship"] = output["censorship"]
             final_output["llm_rerank"] = output["llm_rerank"]
             final_output["colbert_rerank"] = output["colbert_rerank"]
             final_output["cache"] = output["cache"]
             final_output["cache_threshold"] = output["cache_threshold"]
-            final_output["guard"] = output["guard"]
         
         if project.model.type == "inference":
             final_output["system"] = output["system"]
