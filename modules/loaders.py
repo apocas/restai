@@ -9,7 +9,7 @@ LOADERS = {
     ".pdf": ("PDFReader", {}),
     ".pptx": ("PptxReader", {}),
     ".txt": ("UnstructuredReader", {}),
-    ".json": ("JSONReader", {}),
+    ".json": ("UnstructuredReader", {}),
     ".xls": ("PandasExcelReader", {}),
     ".xlsx": ("PandasExcelReader", {}),
 }
