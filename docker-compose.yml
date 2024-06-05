@@ -1,16 +1,63 @@
 ---
-version: '3'
-
 services:
-  restai:
-    image: restai
-    restart: always
+  redis:
+    profiles:
+      - redis
+    image: redis/redis-stack-server
     ports:
-    - '9000:9000'
+      - 6379:6379
+    restart: unless-stopped
+
+  postgres:
+    profiles:
+      - postgres
+    image: postgres:latest
+    ports:
+      - 5432:5432
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-restai}
+      POSTGRES_USER: ${POSTGRES_USER:-restai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGEME!}
+      POSTGRES_HOST: ${POSTGRES_HOST:-127.0.0.1}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
     volumes:
-    - '.:/app'
-    - '.cache:/home/user/.cache'
+      - pgdata:/var/lib/postgresql/data
+
+  mysql:
+    profiles:
+      - mysql
+    image: mysql:8.0
+    restart: unless-stopped
+    ports:
+      - 3306:3306
+    volumes:
+      - mysql_data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD:-CHANGEME!}
+      - MYSQL_DATABASE=${MYSQL_DB:-restai}
+
+  restai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+        window: 60s
+    ports:
+      - 9000:9000
+    volumes:
+      - local_cache:/home/user/.cache
     environment:
       LOG_LEVEL: DEBUG
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       RESTAI_DEV: ${RESTAI_DEV}
+      WITH_GPU: ${WITH_GPU:-false}
+
+volumes:
+  mysql_data:
+  pgdata:
+  local_cache:

@@ -35,6 +35,13 @@ MYSQL_DB = os.environ.get("MYSQL_DB", "restai")
 
 MYSQL_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DB}"
 
+POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
+POSTGRES_HOST = os.environ.get("POSTGRES_HOST")
+POSTGRES_USER = os.environ.get("POSTGRES_USER")
+POSTGRES_DB = os.environ.get("POSTGRES_DB", "restai")
+
+POSTGRES_URL = "postgresql+psycopg2://"f"{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:5432/{POSTGRES_DB}"
+
 RESTAI_DEFAULT_PASSWORD = os.environ.get("RESTAI_DEFAULT_PASSWORD", "admin")
 RESTAI_DEMO = os.environ.get("RESTAI_DEMO")
 
