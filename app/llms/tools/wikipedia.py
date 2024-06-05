@@ -1,5 +1,5 @@
 from typing import Any, Dict
-def wikpedia(
+def wikipedia(
     page: str, lang: str = "en", **load_kwargs: Dict[str, Any]
 ) -> str:
     """
