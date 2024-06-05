@@ -5,19 +5,9 @@ from starlette.requests import Request
 from unidecode import unidecode
 from sqlalchemy.orm import Session
 from fastapi import Depends, FastAPI, HTTPException
-from app.helper import chat_main, question_main
-from app.vectordb import tools
-from app.project import Project
-from modules.loaders import LOADERS
-from modules.embeddings import EMBEDDINGS
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.models.models import ClassifierModel, ClassifierResponse, FindModel, IngestResponse, LLMModel, LLMUpdate, ProjectModel, ProjectModelUpdate, ProjectsResponse, QuestionModel, ChatModel, TextIngestModel, URLIngestModel, User, UserCreate, UserUpdate, UsersResponse
-from app.loaders.url import SeleniumWebReader
 import urllib.parse
-from app.database import dbc, get_db
-from app.brain import Brain
-from app.auth import create_access_token, get_current_username, get_current_username_admin, get_current_username_project, get_current_username_user
 from llama_index.core.postprocessor import SimilarityPostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.schema import Document
@@ -34,26 +24,37 @@ import base64
 from datetime import timedelta
 import secrets
 from fastapi.responses import RedirectResponse
-from app.config import (
-    LOG_LEVEL,
-    SENTRY_DSN,
-    RESTAI_DEMO,
-    RESTAI_DEV,
-    RESTAI_SSO_ALG,
-    RESTAI_SSO_CALLBACK,
-    RESTAI_SSO_SECRET,
-)
-from app.tools import get_logger
-from app.vectordb.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata
+from app import config
 import sentry_sdk
 
+print("""
+  ___ ___ ___ _____ _   ___      _.--'"'.
+ | _ \ __/ __|_   _/_\ |_ _|    (  ( (   )
+ |   / _|\__ \ | |/ _ \ | |     (o)_    ) )
+ |_|_\___|___/ |_/_/ \_\___|        (o)_.'
+                            
+""")
 
-logging.basicConfig(level=LOG_LEVEL)
+from app.helper import chat_main, question_main
+from app.vectordb import tools
+from app.project import Project
+from modules.loaders import LOADERS
+from modules.embeddings import EMBEDDINGS
+from app.models.models import ClassifierModel, ClassifierResponse, FindModel, IngestResponse, LLMModel, LLMUpdate, ProjectModel, ProjectModelUpdate, ProjectsResponse, QuestionModel, ChatModel, TextIngestModel, Tool, URLIngestModel, User, UserCreate, UserUpdate, UsersResponse
+from app.loaders.url import SeleniumWebReader
+from app.database import dbc, get_db
+from app.brain import Brain
+from app.auth import create_access_token, get_current_username, get_current_username_admin, get_current_username_project, get_current_username_user
+from app.tools import get_logger
+from app.vectordb.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata
+
+
+logging.basicConfig(level=config.LOG_LEVEL)
 logging.getLogger('passlib').setLevel(logging.ERROR)
 
-if SENTRY_DSN:
+if config.SENTRY_DSN:
     sentry_sdk.init(
-        dsn=SENTRY_DSN,
+        dsn=config.SENTRY_DSN,
         enable_tracing=True
     )
 
@@ -73,7 +74,7 @@ app = FastAPI(
     },
 )
 
-if RESTAI_DEV:
+if config.RESTAI_DEV:
     print("Running in development mode!")
     app.add_middleware(
         CORSMiddleware,
@@ -129,7 +130,7 @@ async def get_sso(request: Request, db: Session = Depends(get_db)):
             status_code=400, detail="Missing JWT token")
 
     try:
-        data = jwt.decode(params["jwt"], RESTAI_SSO_SECRET, algorithms=[RESTAI_SSO_ALG])
+        data = jwt.decode(params["jwt"], config.RESTAI_SSO_SECRET, algorithms=[config.RESTAI_SSO_ALG])
     except Exception as e:
         raise HTTPException(
             status_code=401,
@@ -142,7 +143,7 @@ async def get_sso(request: Request, db: Session = Depends(get_db)):
                                data["preferred_username"], None,
                                False,
                                False)
-        user.sso = RESTAI_SSO_CALLBACK
+        user.sso = config.RESTAI_SSO_CALLBACK
         db.commit()
 
     new_token = create_access_token(
@@ -159,7 +160,7 @@ async def get_user(username: str, db: Session = Depends(get_db)):
     try:
         user = dbc.get_user_by_username(db, username)
         if user is None:
-            return {"sso": RESTAI_SSO_CALLBACK}
+            return {"sso": config.RESTAI_SSO_CALLBACK}
         return {"sso": user.sso}
     except Exception as e:
         logging.error(e)
@@ -522,7 +523,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
             status_code=400,
             detail='Invalid project name')
         
-    if RESTAI_DEMO:
+    if config.RESTAI_DEMO:
         if projectModel.type == "ragsql":
             raise HTTPException(
                 status_code=403,
@@ -953,6 +954,19 @@ async def classifier(
         raise HTTPException(
             status_code=500, detail=str(e)
 )
+        
+       
+@app.get("/tools/agent", response_model=list[Tool])
+async def get_tools(
+        user: User = Depends(get_current_username),
+        db: Session = Depends(get_db)):
+  
+    _tools  = []
+    
+    for tool in brain.get_tools():
+        _tools.append(Tool(name=tool.metadata.name, description=tool.metadata.description))
+    
+    return _tools
 
 try:
     app.mount("/admin/", StaticFiles(directory="frontend/html/",
@@ -973,4 +987,4 @@ try:
             directory="frontend/html/static/media"),
         name="static_media")
 except BaseException:
-    print("Admin interface not available. Did you run 'make frontend'?")
+    print("Admin frontend not available.")

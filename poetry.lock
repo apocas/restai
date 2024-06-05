@@ -1143,13 +1143,13 @@ optimize = ["orjson"]
 
 [[package]]
 name = "deepeval"
-version = "0.21.48"
+version = "0.21.50"
 description = "The open-source evaluation framework for LLMs."
 optional = false
 python-versions = "*"
 files = [
-    {file = "deepeval-0.21.48-py3-none-any.whl", hash = "sha256:262a906a3c3915cbb8799a450a9148baf2800af46c22ddaf0e3b9ef8f05b3b3e"},
-    {file = "deepeval-0.21.48.tar.gz", hash = "sha256:3920c9e5617199eb04b5499c317c202c4f56d0cd5193601a84482d2aece247be"},
+    {file = "deepeval-0.21.50-py3-none-any.whl", hash = "sha256:a97fd6e3f42ff873592c9ea87790cee643f12af40825280f4695742f0004896e"},
+    {file = "deepeval-0.21.50.tar.gz", hash = "sha256:bb986f890a44ba3bfe0ec8eed05a70e6203ac3ccfc6151536a7d5b07f50d0b49"},
 ]
 
 [package.dependencies]

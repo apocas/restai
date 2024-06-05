@@ -47,16 +47,33 @@ def getLLMClass(llm_classname):
     else:
         raise Exception("Invalid LLM class name.")
 
-def get_tools(names: list[str]) -> dict:
+def load_tools() -> list[FunctionTool]:
     tools = []
     directory = os.path.dirname(os.path.abspath(__file__))
+    
+    print(f"Loading core tools...")
     for importer, modname, ispkg in pkgutil.iter_modules(path=[directory + '/llms/tools']):
-        if modname in names:
-            module = __import__(f'app.llms.tools.{modname}', fromlist='dummy')
-            for name, obj in inspect.getmembers(module):
-                if inspect.isfunction(obj):
-                    tools.append(FunctionTool.from_defaults(fn=obj))
-                
+        module = __import__(f'app.llms.tools.{modname}', fromlist='dummy')
+        for name, obj in inspect.getmembers(module):
+            if inspect.isfunction(obj):
+                tools.append(FunctionTool.from_defaults(fn=obj))
+    
+    print(f"Loading userland tools...")
+    for importer, modname, ispkg in pkgutil.iter_modules(path=['./tools']):
+        module = __import__(f'tools.{modname}', fromlist='dummy')
+        for name, obj in inspect.getmembers(module):
+            if inspect.isfunction(obj):
+                tool = FunctionTool.from_defaults(fn=obj)
+                replaced = False
+                for i, existing_tool in enumerate(tools):
+                    if existing_tool.metadata.name == tool.metadata.name:
+                        print(f"WARNING: Duplicate tool '{tool.metadata.name}' found in tools! OVERWRITTEN!")
+                        tools[i] = tool
+                        replaced = True
+                        break
+                if not replaced:
+                    tools.append(tool)
+
     return tools
 
 def tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:

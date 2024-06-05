@@ -62,7 +62,10 @@ class LLMModel(BaseModel):
     description: Union[str, None] = None
     type: str
     model_config = ConfigDict(from_attributes=True)
-
+    
+class Tool(BaseModel):
+    name: str
+    description: str
 class LLMUpdate(BaseModel):
     class_name: str = None
     options: str = None

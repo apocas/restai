@@ -5,26 +5,26 @@ import traceback
 from llama_index.embeddings.langchain import LangchainEmbedding
 import ollama
 from app.memory import Recollection
-from app.vectordb import tools
+from app.vectordb import tools as vector_tools
+from app import tools
 from app.llm import LLM
 from app.models.models import LLMModel, ProjectModel
 from app.project import Project
-from app.tools import getLLMClass
 from modules.embeddings import EMBEDDINGS
 from app.database import dbc
 from sqlalchemy.orm import Session
 from transformers import pipeline
+from llama_index.core.tools import FunctionTool
 
 
 class Brain:
     def __init__(self):
         self.llmCache = {}
         self.embeddingCache = {}
-        self.defaultCensorship = "This question is outside of my scope. Didn't find any related data."
-        self.defaultNegative = "I'm sorry, I don't know the answer to that."
+        self.defaultCensorship = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = ""
-        self.loopFailsafe = 0
         self.memories = Recollection()
+        self.tools = tools.load_tools()
 
     def memoryModelsInfo(self):
         models = []
@@ -63,7 +63,7 @@ class Brain:
         if llm_db is not None:
             llmm = LLMModel.model_validate(llm_db)
 
-            llm = getLLMClass(llmm.class_name)(**json.loads(llmm.options))
+            llm = tools.getLLMClass(llmm.class_name)(**json.loads(llmm.options))
 
             if llmName in self.llmCache:
                 del self.llmCache[llmName]
@@ -94,7 +94,7 @@ class Brain:
             project.model = proj
             if project.model.type == "rag":
                 try:
-                    project.vector = tools.findVectorDB(project)(self, project)
+                    project.vector = vector_tools.findVectorDB(project)(self, project)
                 except Exception as e:
                     logging.error(e)
                     traceback.print_tb(e.__traceback__)
@@ -107,3 +107,15 @@ class Brain:
         sequence_to_classify = input.sequence
         candidate_labels = input.labels
         return classifier(sequence_to_classify, candidate_labels, multi_label=True)
+      
+    def get_tools(self, names: list[str] = []) -> list[FunctionTool]:
+        _tools = []
+        
+        if names:
+          for tool in self.tools:
+              if tool.metadata.name in names:
+                  _tools.append(tool)
+        else:
+            _tools = self.tools
+                    
+        return _tools

@@ -168,6 +168,9 @@ checkpoints/*
 !checkpoints/.gitkeep
 uploads/*
 !uploads/.gitkeep
+tools/*
+!tools/.gitkeep
+!tools/__init__.py
 .DS_Store
 pytest.ini
 .env
