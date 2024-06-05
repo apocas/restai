@@ -4,11 +4,17 @@ from app.models.models import LLMModel, LLMUpdate, ProjectModelUpdate, User, Use
 from sqlalchemy.orm import sessionmaker
 from passlib.context import CryptContext
 
-from app.config import MYSQL_HOST, MYSQL_URL
+from app.config import MYSQL_HOST, MYSQL_URL, POSTGRES_HOST, POSTGRES_URL
 
 if MYSQL_HOST:
     print("Using MySQL database")
     engine = create_engine(MYSQL_URL,
+                           pool_size=30,
+                           max_overflow=100,
+                           pool_recycle=900)
+elif POSTGRES_HOST:
+    print("Using PostgreSQL database")
+    engine = create_engine(POSTGRES_URL,
                            pool_size=30,
                            max_overflow=100,
                            pool_recycle=900)
