@@ -44,7 +44,8 @@ class RAGSql(ProjectBase):
             "question": questionModel.question,
             "answer": response.response,
             "sources": [response.metadata['sql_query']],
-            "type": "questionsql"
+            "type": "questionsql",
+            "project": project.model.name
         }
         
         output["tokens"] = {

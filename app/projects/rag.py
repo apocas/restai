@@ -28,7 +28,8 @@ class RAG(ProjectBase):
             "sources": [],
             "cached": False,
             "guard": False,
-            "type": "chat"
+            "type": "chat",
+            "project": project.model.name
         }
         
         if project.model.guard:
@@ -137,7 +138,8 @@ class RAG(ProjectBase):
           "tokens": {
               "input": 0,
               "output": 0
-          }
+          },
+          "project": project.model.name
         }
         
         if project.model.guard:

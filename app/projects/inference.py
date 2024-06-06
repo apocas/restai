@@ -23,7 +23,8 @@ class Inference(ProjectBase):
           "tokens": {
               "input": 0,
               "output": 0
-          }
+          },
+          "project": project.model.name
         }
               
         if project.model.guard:
