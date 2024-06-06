@@ -481,7 +481,8 @@ async def delete_project(projectName: str, user: User = Depends(get_current_user
 
 @app.patch("/projects/{projectName}")
 async def edit_project(projectName: str, projectModelUpdate: ProjectModelUpdate, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
-    if not projectModelUpdate.llm or (projectModelUpdate.llm and brain.getLLM(projectModelUpdate.llm, db) is None):
+  
+    if projectModelUpdate.llm and brain.getLLM(projectModelUpdate.llm, db) is None:
         raise HTTPException(
             status_code=404,
             detail='LLM not found')
