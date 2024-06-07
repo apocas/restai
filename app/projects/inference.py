@@ -1,3 +1,4 @@
+import json
 from fastapi import HTTPException
 from requests import Session
 from app import tools
@@ -53,8 +54,12 @@ class Inference(ProjectBase):
         try:
             if(questionModel.stream):
                 respgen = model.llm.stream_chat(messages)
+                response = ""
                 for text in respgen:
-                    yield "data: " + text.delta + "\n\n"
+                    response += text.delta
+                    yield "data: " + json.dumps({"text": text.delta}) + "\n\n"
+                output["answer"] = response
+                yield "data: " + json.dumps(output) + "\n"
                 yield "event: close\n\n"
             else:
                 resp = model.llm.chat(messages)

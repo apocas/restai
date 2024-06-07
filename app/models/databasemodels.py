@@ -39,6 +39,7 @@ class ProjectDatabase(Base):
     human_name = Column(String(255))
     human_description = Column(Text)
     tools = Column(Text)
+    public = Column(Boolean, default=False)
     users = relationship('UserDatabase', secondary=users_projects, back_populates='projects')
     entrances = relationship("RouterEntrancesDatabase", back_populates="project")
 

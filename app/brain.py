@@ -3,7 +3,6 @@ import logging
 import traceback
 
 from llama_index.embeddings.langchain import LangchainEmbedding
-import ollama
 from app.memory import Recollection
 from app.vectordb import tools as vector_tools
 from app import tools
@@ -40,17 +39,6 @@ class Brain:
             llm = self.llmCache[llmName]
         else:
             llm = self.loadLLM(llmName, db)
-        
-        if hasattr(llm, "props") and llm.props.class_name == "Ollama":
-            model_name = json.loads(llm.props.options).get("model")
-            try:
-                ollama.show(model_name)
-            except Exception as e:
-              if e.status_code == 404:
-                  print("Model not found, pulling " + model_name + " from Ollama")
-                  ollama.pull(model_name)
-              else:
-                  raise e
                 
         if hasattr(llm.llm, 'system_prompt'):
             llm.llm.system_prompt = None

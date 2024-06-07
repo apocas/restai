@@ -96,13 +96,17 @@ class RAG(ProjectBase):
                     {"source": node.metadata["source"], "keywords": node.metadata["keywords"], "score": node.score, "id": node.node_id, "text": node.text})
 
             if chatModel.stream:
-                if hasattr(response, "response_gen"): 
+                if hasattr(response, "response_gen"):
+                    response = ""
                     for text in response.response_gen:
-                        yield "data: " + text + "\n\n"
+                        response += text
+                        yield "data: " + json.dumps({"text": text}) + "\n\n"
+                    output["answer"] = response
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
                 else:
-                    yield "data: " + self.brain.defaultCensorship + "\n\n"
+                    output["answer"] = self.brain.defaultCensorship
+                    yield "data: " + json.dumps({"text": text}) + "\n\n"
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
             else:  
@@ -230,15 +234,19 @@ class RAG(ProjectBase):
             if questionModel.stream:
                 if hasattr(response, "response_gen"): 
                     failed = True
+                    answer = ""
                     for text in response.response_gen:
                         failed = False
-                        yield "data: " + text + "\n\n"                        
+                        answer += text
+                        yield "data: " + json.dumps({"text": text}) + "\n\n"                      
                     if failed:
                         yield "data: " + response.response_txt + "\n\n"
+                    output["answer"] = answer
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
                 else :
-                    yield "data: " + self.brain.defaultCensorship + "\n\n"
+                    output["answer"] = self.brain.defaultCensorship
+                    yield "data: " + json.dumps({"text": self.brain.defaultCensorship}) + "\n\n"
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
             else:
