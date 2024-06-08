@@ -1,3 +1,4 @@
+import json
 from fastapi import HTTPException
 from requests import Session
 from app import tools
@@ -35,28 +36,39 @@ class Agent(ProjectBase):
                 
         model = self.brain.getLLM(project.model.llm, db)
         chat = self.brain.memories.loadMemory(project.model.name).loadChat(chatModel)
+        output["id"] = chat.id
+        
         toolsu = []
 
-        toolsu = self.brain.get_tools(project.model.tools.split(","))
+        toolsu = self.brain.get_tools((project.model.tools or "").split(","))
 
         agent = ReActAgent.from_tools(toolsu, llm=model.llm, context=project.model.system, memory=chat.memory, max_iterations=20, verbose=True)
-
-        resp = ""
-        try:
-            response = agent.chat(chatModel.question)
-            resp = response.response
-        except Exception as e:
-            if str(e) == "Reached max iterations.":
-                resp = "I'm sorry, I tried my best..."
         
-        output["id"] = chat.id
-        output["answer"] = resp
-        output["tokens"] = {
-          "input": tools.tokens_from_string(output["question"]),
-          "output": tools.tokens_from_string(output["answer"])
-        }
-
-        yield output
+        try:
+            if(chatModel.stream):
+                respgen = agent.stream_chat(chatModel.question)
+                response = ""
+                for text in respgen.response_gen:
+                    response += text
+                    yield "data: " + json.dumps({"text": text}) + "\n\n"
+                output["answer"] = response
+                yield "data: " + json.dumps(output) + "\n"
+                yield "event: close\n\n"
+            else:
+                response = agent.chat(chatModel.question)
+                output["answer"] = response.response
+                output["tokens"] = {
+                    "input": tools.tokens_from_string(output["question"]),
+                    "output": tools.tokens_from_string(output["answer"])
+                }
+                yield output
+        except Exception as e:              
+            if chatModel.stream:
+                yield "data: Inference failed\n" 
+            elif str(e) == "Reached max iterations.":
+                yield "data: I'm sorry, I tried my best...\n"
+            yield "event: error\n\n"
+            raise e
   
     def question(self, project: Project, questionModel: QuestionModel, user: User, db: Session):
         output = {
@@ -96,7 +108,7 @@ class Agent(ProjectBase):
         except Exception as e:
             if str(e) == "Reached max iterations.":
                 resp = "I'm sorry, I tried my best..."
-        
+               
         output["answer"] = resp
         output["tokens"] = {
           "input": tools.tokens_from_string(output["question"]),
