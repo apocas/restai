@@ -43,8 +43,8 @@ class RAG(ProjectBase):
                 }
                 yield output
 
-        threshold = chatModel.score or project.model.score or 0.2
-        k = chatModel.k or project.model.k or 1
+        threshold = project.model.score or 0.2
+        k = project.model.k or 1
 
         sysTemplate = project.model.system or self.brain.defaultSystem
         
