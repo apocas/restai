@@ -142,6 +142,34 @@ def get_current_username_project(
             detail="Project not found"
         )
     return user
+  
+
+def get_current_username_project_public(
+    projectName: str,
+    user: User = Depends(get_current_username),
+    db: Session = Depends(get_db)
+):
+    found = False
+    if not user.is_admin:
+        for project in user.projects:
+            if project.name == projectName:
+                found = True
+                user.level = "own"
+    else:
+        found = True
+        user.level = "own"
+        
+    p = dbc.get_project_by_name(db, projectName)
+    if(found == False and (p is not None and p.public)):
+        found = True
+        user.level = "public"
+
+    if not found:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found"
+        )
+    return user
 
 
 def get_current_username_user(

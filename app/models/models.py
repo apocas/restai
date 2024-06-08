@@ -25,9 +25,7 @@ class FindModel(BaseModel):
 
 class InteractionModel(BaseModel):
     question: str
-    score: Union[float, None] = None
     stream: Union[bool, None] = None
-    k: Optional[int] = Field(None, ge=1, le=25)
 
 
 class QuestionModel(InteractionModel):
@@ -40,6 +38,8 @@ class QuestionModel(InteractionModel):
     boost: bool = False
     lite: bool = False
     eval: bool = False
+    k: Optional[int] = Field(None, ge=1, le=25)
+    score: Union[float, None] = None
 
 class ChatModel(InteractionModel):
     id: Union[str, None] = None
@@ -102,6 +102,8 @@ class ProjectModel(BaseModel):
     human_description: Union[str, None] = None
     tools: Union[str, None] = None
     entrances: Union[list[EntranceModel], None] = None
+    public: bool = False
+    creator: Union[int, None] = None
     users: list[ProjectUser] = []
     model_config = ConfigDict(from_attributes=True)
     
@@ -121,6 +123,7 @@ class User(BaseModel):
     projects: list[UserProject] = []
     api_key: Union[str, None] = None
     sso: Union[str, None] = None
+    level: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
 class UsersResponse(BaseModel):
@@ -163,6 +166,7 @@ class ProjectModelUpdate(BaseModel):
     human_name: Union[str, None] = None
     human_description: Union[str, None] = None
     tools: Union[str, None] = None
+    public: Union[bool, None] = None
 
 class SourceModel(BaseModel):
     source: str

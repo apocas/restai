@@ -92,18 +92,21 @@ if "users" not in inspect(engine).get_table_names():
             name="demo1",
             type="inference",
             system="Always end your answers with 'beep beep'.",
-            llm="llama3_8b"
+            llm="llama3_8b",
+            creator=db_user.id
         )
         demo_project2 = ProjectDatabase(
             name="demo2",
             type="inference",
             system="Always end your answers with 'boop boop'.",
-            llm="llama3_8b"
+            llm="llama3_8b",
+            creator=db_user.id
         )
         demo_project3 = ProjectDatabase(
             name="router1",
             type="router",
-            llm="llama3_8b"
+            llm="llama3_8b",
+            creator=db_user.id
         )
         dbi.add(demo_project1)
         dbi.add(demo_project2)

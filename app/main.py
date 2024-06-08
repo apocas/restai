@@ -44,7 +44,7 @@ from app.models.models import ClassifierModel, ClassifierResponse, FindModel, In
 from app.loaders.url import SeleniumWebReader
 from app.database import dbc, get_db
 from app.brain import Brain
-from app.auth import create_access_token, get_current_username, get_current_username_admin, get_current_username_project, get_current_username_user
+from app.auth import create_access_token, get_current_username, get_current_username_admin, get_current_username_project, get_current_username_project_public, get_current_username_user
 from app.tools import get_logger
 from app.vectordb.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata
 
@@ -365,15 +365,20 @@ async def delete_user(username: str,
 
 
 @app.get("/projects", response_model=ProjectsResponse)
-async def get_projects(request: Request, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
-    if user.is_admin:
-        projects = dbc.get_projects(db)
-    else:
-        projects = []
-        for project in user.projects:
-            for p in dbc.get_projects(db):
-                if project.name == p.name:
-                    projects.append(p)
+async def get_projects(request: Request, filter: str = "own", user: User = Depends(get_current_username), db: Session = Depends(get_db)):
+    projects = []     
+    if filter == "own":
+        if user.is_admin:
+            projects = dbc.get_projects(db)
+        else:
+            for project in user.projects:
+                for p in dbc.get_projects(db):
+                    if project.name == p.name:
+                        projects.append(p)
+    elif filter == "public":
+        for project in dbc.get_projects(db):
+            if project.public == True:
+                projects.append(project)
 
     for project in projects:
         try:
@@ -388,7 +393,7 @@ async def get_projects(request: Request, user: User = Depends(get_current_userna
 
 
 @app.get("/projects/{projectName}")
-async def get_project(projectName: str, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
+async def get_project(projectName: str, user: User = Depends(get_current_username_project_public), db: Session = Depends(get_db)):
     try:
         project = brain.findProject(projectName, db)
         
@@ -411,6 +416,9 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
         final_output["human_description"] = output["human_description"]
         final_output["censorship"] = output["censorship"]
         final_output["guard"] = output["guard"]
+        final_output["creator"] = output["creator"]
+        final_output["public"] = output["public"]
+        final_output["level"] = user.level
         
         if project.model.type == "rag":
             if project.vector is not None:
@@ -569,6 +577,7 @@ async def create_project(projectModel: ProjectModel, user: User = Depends(get_cu
             projectModel.vectorstore,
             projectModel.human_name,
             projectModel.type,
+            user.id
         )
         project = Project(projectModel)
         
@@ -660,7 +669,7 @@ async def clone_project(projectName: str, newProjectName: str,
 
 @app.post("/projects/{projectName}/embeddings/search")
 async def find_embedding(projectName: str, embedding: FindModel,
-                         user: User = Depends(get_current_username_project),
+                         user: User = Depends(get_current_username_project_public),
                          db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
@@ -704,7 +713,7 @@ async def find_embedding(projectName: str, embedding: FindModel,
 
 @app.get("/projects/{projectName}/embeddings/source/{source}")
 async def get_embedding(projectName: str, source: str,
-                        user: User = Depends(get_current_username_project),
+                        user: User = Depends(get_current_username_project_public),
                         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
@@ -722,7 +731,7 @@ async def get_embedding(projectName: str, source: str,
 
 @app.get("/projects/{projectName}/embeddings/id/{id}")
 async def get_embedding(projectName: str, id: str,
-                        user: User = Depends(get_current_username_project),
+                        user: User = Depends(get_current_username_project_public),
                         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
@@ -861,7 +870,7 @@ async def ingest_file(
 @app.get('/projects/{projectName}/embeddings')
 async def get_embeddings(
         projectName: str,
-        user: User = Depends(get_current_username_project),
+        user: User = Depends(get_current_username_project_public),
         db: Session = Depends(get_db)):
     project = brain.findProject(projectName, db)
 
@@ -899,7 +908,7 @@ async def chat_query(
         request: Request,
         projectName: str,
         input: ChatModel,
-        user: User = Depends(get_current_username_project),
+        user: User = Depends(get_current_username_project_public),
         db: Session = Depends(get_db)):
     try:
         if not input.question:
@@ -923,7 +932,7 @@ async def question_query_endpoint(
         request: Request,
         projectName: str,
         input: QuestionModel,
-        user: User = Depends(get_current_username_project),
+        user: User = Depends(get_current_username_project_public),
         db: Session = Depends(get_db)):
     try:
         if not input.question:
@@ -933,6 +942,9 @@ async def question_query_endpoint(
         project = brain.findProject(projectName, db)
         if project is None:
             raise Exception("Project not found")
+          
+        if user.level == "public":
+            input = QuestionModel(question=input.question, image=input.image, negative=input.negative)
             
         return await question_main(request, brain, project, input, user, db)
     except Exception as e:

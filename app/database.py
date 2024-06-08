@@ -151,14 +151,16 @@ class Database:
             llm,
             vectorstore,
             human_name,
-            type):
+            type,
+            creator):
         db_project = ProjectDatabase(
             name=name,
             embeddings=embeddings,
             llm=llm,
             vectorstore=vectorstore,
             human_name=human_name,
-            type=type)
+            type=type,
+            creator=creator)
         db.add(db_project)
         db.commit()
         db.refresh(db_project)
@@ -241,6 +243,10 @@ class Database:
             
         if projectModel.tools is not None and proj_db.tools != projectModel.tools:
             proj_db.tools = projectModel.tools
+            changed = True
+            
+        if projectModel.public is not None and proj_db.public != projectModel.public:
+            proj_db.public = projectModel.public
             changed = True
         
         if projectModel.entrances is not None:
