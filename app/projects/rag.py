@@ -97,11 +97,11 @@ class RAG(ProjectBase):
 
             if chatModel.stream:
                 if hasattr(response, "response_gen"):
-                    response = ""
+                    resp = ""
                     for text in response.response_gen:
-                        response += text
+                        resp += text
                         yield "data: " + json.dumps({"text": text}) + "\n\n"
-                    output["answer"] = response
+                    output["answer"] = resp
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
                 else:
