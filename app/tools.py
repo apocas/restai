@@ -9,8 +9,6 @@ import tiktoken
 
 DEFAULT_LLMS = {
     #"name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa"),
-    "openai_gpt3.5_turbo": ("OpenAI", {"temperature": 0, "model": "gpt-3.5-turbo"}, "public", "OpenAI GPT-3.5 Turbo", "chat"),
-    "openai_gpt4": ("OpenAI", {"temperature": 0, "model": "gpt-4"}, "public", "OpenAI GPT-4 ", "chat"),
     "openai_gpt4_turbo": ("OpenAI", {"temperature": 0, "model": "gpt-4-turbo-preview"}, "public", "OpenAI GPT-4 Turbo", "chat"),
     "openai_gpt4o": ("OpenAI", {"temperature": 0, "model": "gpt-4o"}, "public", "OpenAI GPT-4o", "chat"),
     "llama3_8b": ("Ollama", {"model": "llama3:8b", "temperature": 0.0001, "keep_alive": 0}, "private", "https://ollama.com/library/llama3", "chat"),

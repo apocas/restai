@@ -248,6 +248,10 @@ class Database:
         if projectModel.public is not None and proj_db.public != projectModel.public:
             proj_db.public = projectModel.public
             changed = True
+            
+        if projectModel.default_prompt is not None and proj_db.default_prompt != projectModel.default_prompt:
+            proj_db.default_prompt = projectModel.default_prompt
+            changed = True
         
         if projectModel.entrances is not None:
             proj_db.entrances = []

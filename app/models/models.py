@@ -104,6 +104,7 @@ class ProjectModel(BaseModel):
     entrances: Union[list[EntranceModel], None] = None
     public: bool = False
     creator: Union[int, None] = None
+    default_prompt: Union[str, None] = None
     users: list[ProjectUser] = []
     model_config = ConfigDict(from_attributes=True)
     
@@ -167,6 +168,7 @@ class ProjectModelUpdate(BaseModel):
     human_description: Union[str, None] = None
     tools: Union[str, None] = None
     public: Union[bool, None] = None
+    default_prompt: Union[str, None] = None
 
 class SourceModel(BaseModel):
     source: str

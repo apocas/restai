@@ -419,6 +419,7 @@ async def get_project(projectName: str, user: User = Depends(get_current_usernam
         final_output["creator"] = output["creator"]
         final_output["public"] = output["public"]
         final_output["level"] = user.level
+        final_output["default_prompt"] = output["default_prompt"]
         
         if project.model.type == "rag":
             if project.vector is not None:

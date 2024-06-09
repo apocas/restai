@@ -108,9 +108,18 @@ if "users" not in inspect(engine).get_table_names():
             llm="llama3_8b",
             creator=db_user.id
         )
+        demo_project4 = ProjectDatabase(
+            name="rag1",
+            type="rag",
+            llm="llama3_8b",
+            embeddings= "all-mpnet-base-v2",
+            vectorstore="chromadb",
+            creator=db_user.id
+        )
         dbi.add(demo_project1)
         dbi.add(demo_project2)
         dbi.add(demo_project3)
+        dbi.add(demo_project4)
         dbi.commit()
         
         demo_project3.entrances.append(RouterEntrancesDatabase(
@@ -121,6 +130,7 @@ if "users" not in inspect(engine).get_table_names():
         demo_project1.users.append(db_user)
         demo_project2.users.append(db_user)
         demo_project3.users.append(db_user)
+        demo_project4.users.append(db_user)
         
     dbi.commit()
     dbi.close()
