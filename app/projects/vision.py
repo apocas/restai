@@ -38,7 +38,7 @@ class Vision(ProjectBase):
                   "input": tools.tokens_from_string(output["question"]),
                   "output": tools.tokens_from_string(output["answer"])
                 }
-                yield output
+                return output
                 
         image = None
         output_temp = ""

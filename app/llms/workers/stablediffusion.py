@@ -1,7 +1,8 @@
 from torch.multiprocessing import Process, set_start_method, Manager
 
-#from app.llms.workers.stablediffusion import worker
-from app.llms.workers.children.sdxl_lightning import worker
+#from app.llms.workers.children.stablediffusion import worker
+#from app.llms.workers.children.sdxl_lightning import worker
+from app.llms.workers.children.stablediffusion3 import worker
 
 try:
     set_start_method('spawn')
