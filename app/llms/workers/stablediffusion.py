@@ -47,7 +47,7 @@ class StableDiffusionImage(BaseTool):
             p.join()
             p.kill()
 
-        if not sharedmem["image"]:
+        if "image" not in sharedmem or not sharedmem["image"]:
             raise Exception("An error occurred while processing the image. Please try again.")
 
         return {"type": "stablediffusion", "image": sharedmem["image"], "prompt": fprompt}

@@ -60,7 +60,7 @@ class InstantID(BaseTool):
             p.join()
             p.kill()
 
-        if not sharedmem["output_image"]:
+        if "output_image" not in sharedmem or not sharedmem["output_image"]:
             raise Exception("An error occurred while processing the image. Please try again.")
 
         return {"type": "instantid", "image": sharedmem["output_image"], "prompt": fprompt}
