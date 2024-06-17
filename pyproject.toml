@@ -78,6 +78,7 @@ llama-index-llms-azure-openai = "^0.1.8"
 duckduckgo-search = "^6.1.5"
 wikipedia = "^1.4.0"
 llama-index-storage-chat-store-redis = "^0.1.3"
+pandas = "^2.2.2"
 
 [tool.poetry.group.gpu]
 optional = true

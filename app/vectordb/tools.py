@@ -1,3 +1,4 @@
+import json
 import os
 from llama_index.core.text_splitter import TokenTextSplitter, SentenceSplitter
 from llama_index.core.schema import Document
@@ -13,7 +14,7 @@ def findVectorDB(project):
     if project.model.vectorstore == "redis":
         from app.vectordb.redis import RedisVector
         return RedisVector
-    elif project.model.vectorstore == "chroma":
+    elif project.model.vectorstore == "chromadb" or project.model.vectorstore == "chroma":
         from app.vectordb.chromadb import ChromaDBVector
         return ChromaDBVector
     elif project.model.vectorstore == "pinecone":
@@ -59,8 +60,8 @@ def ExtractKeywordsForMetadata(documents):
 
 def FindFileLoader(ext, eargs={}):
     if ext in LOADERS:
-        loader_name, loader_args = LOADERS[ext]
-        loader = download_loader(loader_name)()
+        loader_class, loader_args = LOADERS[ext]
+        loader = loader_class()
         return loader
     else:
         raise Exception("Invalid file type.")
