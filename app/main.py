@@ -335,9 +335,8 @@ async def update_user(
             for project in userc.projects:
                 projectdb = dbc.get_project_by_name(db, project)
                 
-                if projectdb is None:
-                    raise Exception("Project not found")
-                useru.projects.append(projectdb)
+                if projectdb is not None:
+                    useru.projects.append(projectdb)
             db.commit()
         return useru
     except Exception as e:
