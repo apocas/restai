@@ -55,7 +55,9 @@ logging.getLogger('passlib').setLevel(logging.ERROR)
 if config.SENTRY_DSN:
     sentry_sdk.init(
         dsn=config.SENTRY_DSN,
-        enable_tracing=True
+        traces_sample_rate=1.0,
+        enable_tracing=True,
+        profiles_sample_rate=1.0
     )
 
 
