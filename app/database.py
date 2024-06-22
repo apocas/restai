@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 from app.config import MYSQL_HOST, MYSQL_URL, POSTGRES_HOST, POSTGRES_URL
 
 if MYSQL_HOST:
-    print("Using MySQL database")
+    print("Using MySQL database: " + MYSQL_HOST)
     engine = create_engine(MYSQL_URL,
                            pool_size=30,
                            max_overflow=100,

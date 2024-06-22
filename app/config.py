@@ -30,7 +30,7 @@ SENTRY_DSN = os.environ.get("SENTRY_DSN")
 
 MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD")
 MYSQL_HOST = os.environ.get("MYSQL_HOST")
-MYSQL_USER = os.environ.get("MYSQL_USER")
+MYSQL_USER = os.environ.get("MYSQL_USER", "restai")
 MYSQL_DB = os.environ.get("MYSQL_DB", "restai")
 
 MYSQL_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DB}"

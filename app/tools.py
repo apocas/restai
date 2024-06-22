@@ -1,10 +1,14 @@
+from datetime import datetime
 import inspect
+import json
 import logging
 import os
 import pkgutil
 from llama_index.core.tools import FunctionTool
 
 import tiktoken
+
+from app.models.databasemodels import OutputDatabase
 
 
 DEFAULT_LLMS = {
@@ -92,3 +96,7 @@ def get_logger(name, level=logging.INFO):
     logger.addHandler(handler)
 
     return logger
+
+def log_inference(user, output, db):
+    db.add(OutputDatabase(user=user.username, question=output["question"], answer=output["answer"], data=json.dumps(output), date=datetime.now(), project=output["project"]))
+    db.commit()

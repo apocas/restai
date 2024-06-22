@@ -12,7 +12,7 @@ from llama_index.core.postprocessor import SimilarityPostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.schema import Document
 from llama_index.core.retrievers import VectorIndexRetriever
-from fastapi import FastAPI, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, Form, HTTPException, Request, UploadFile, BackgroundTasks
 import traceback
 from tempfile import NamedTemporaryFile
 import re
@@ -910,6 +910,7 @@ async def chat_query(
         request: Request,
         projectName: str,
         input: ChatModel,
+        background_tasks: BackgroundTasks,
         user: User = Depends(get_current_username_project_public),
         db: Session = Depends(get_db)):
     try:
@@ -921,7 +922,7 @@ async def chat_query(
         if project is None:
             raise Exception("Project not found")
 
-        return await chat_main(request, brain, project, input, user, db)
+        return await chat_main(request, brain, project, input, user, db, background_tasks)
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -934,6 +935,7 @@ async def question_query_endpoint(
         request: Request,
         projectName: str,
         input: QuestionModel,
+        background_tasks: BackgroundTasks,
         user: User = Depends(get_current_username_project_public),
         db: Session = Depends(get_db)):
     try:
@@ -948,7 +950,7 @@ async def question_query_endpoint(
         if user.level == "public":
             input = QuestionModel(question=input.question, image=input.image, negative=input.negative)
             
-        return await question_main(request, brain, project, input, user, db)
+        return await question_main(request, brain, project, input, user, db, background_tasks)
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)

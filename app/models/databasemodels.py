@@ -1,6 +1,6 @@
 
 from typing import List
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Float, Table, Text
+from sqlalchemy import Boolean, Column, Date, ForeignKey, Integer, String, Float, Table, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Mapped
@@ -58,6 +58,17 @@ class UserDatabase(Base):
     projects = relationship('ProjectDatabase', secondary=users_projects, back_populates='users')
     
 
+class OutputDatabase(Base):
+    __tablename__ = "output"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user = Column(String(255))
+    project = Column(String(255), index=True)
+    question = Column(Text)
+    answer = Column(Text)
+    data = Column(Text)
+    date = Column(Date)
+    
 class RouterEntrancesDatabase(Base):
     __tablename__ = "routerentrances"
 

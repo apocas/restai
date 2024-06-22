@@ -1,7 +1,7 @@
 from starlette.responses import StreamingResponse
 from starlette.requests import Request
 from sqlalchemy.orm import Session
-from fastapi import Depends, HTTPException
+from fastapi import BackgroundTasks, HTTPException
 from app.project import Project
 from app.projects.agent import Agent
 from app.projects.inference import Inference
@@ -10,35 +10,31 @@ from app.projects.ragsql import RAGSql
 from app.projects.router import Router
 from app.projects.vision import Vision
 from app.models.models import QuestionModel, User
-from app.database import get_db
 from app.brain import Brain
-from app.auth import get_current_username_project
 import requests
 from fastapi import HTTPException, Request
 import traceback
 import re
 import logging
 import base64
+from app.tools import log_inference
 from app.config import (
     LOG_LEVEL,
 )
-from app.tools import get_logger
 from app.projects.base import Project as ProjectBase
 
 
 logging.basicConfig(level=LOG_LEVEL)
 logging.getLogger('passlib').setLevel(logging.ERROR)
 
-logs_inference = get_logger("inference")
-
-
 async def chat_main(
         request: Request,
         brain: Brain,
         project: Project,
         input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
+        user: User,
+        db: Session,
+        background_tasks: BackgroundTasks):
     
     projlogic: ProjectBase
     if project.model.type == "rag":
@@ -55,7 +51,7 @@ async def chat_main(
     else:
         output = projlogic.chat(project, input, user, db)
         for line in output:
-            logs_inference.info({"user": user.username, "project": project.model.name, "output": line})
+            background_tasks.add_task(log_inference, user, line, db)
             return line
         
 async def question_main(
@@ -63,26 +59,27 @@ async def question_main(
         brain: Brain,
         project: Project,
         input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
+        user: User,
+        db: Session,
+        background_tasks: BackgroundTasks):
     
     
     if project.model.type == "rag":
         cached = await processCache(project, input, db)
         if cached:
-            logs_inference.info({"user": user.username, "project": project, "output": cached})
+            background_tasks.add_task(log_inference, user, cached, db)
             return cached
-        return await question_rag(request, brain, project, input, user, db)
+        return await question_rag(request, brain, project, input, user, db, background_tasks)
     elif project.model.type == "inference":
-        return await question_inference(request, brain, project, input, user, db)
+        return await question_inference(request, brain, project, input, user, db, background_tasks)
     elif project.model.type == "ragsql":
-        return await question_query_sql(request, brain, project, input, user, db)
+        return await question_query_sql(request, brain, project, input, user, db, background_tasks)
     elif project.model.type == "router":
-        return await question_router(request, brain, project, input, user, db)
+        return await question_router(request, brain, project, input, user, db, background_tasks)
     elif project.model.type == "vision":
-        return await question_vision(project, brain, input, user, db)
+        return await question_vision(project, brain, input, user, db, background_tasks)
     elif project.model.type == "agent":
-        return await question_agent(request, brain, project, input, user, db)
+        return await question_agent(request, brain, project, input, user, db, background_tasks)
     else:
         raise HTTPException(
             status_code=400, detail='{"error": "Invalid project type"}')
@@ -92,8 +89,9 @@ async def question_rag(
         brain: Brain,
         project: Project,
         input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
+        user: User,
+        db: Session,
+        background_tasks: BackgroundTasks):
     try:
         projlogic = RAG(brain)
 
@@ -106,7 +104,7 @@ async def question_rag(
         else:
             output = projlogic.question(project, input, user, db)
             for line in output:
-                logs_inference.info({"user": user.username, "project": project.model.name, "output": line})
+                background_tasks.add_task(log_inference, user, line, db)
                 return line
     except Exception as e:
         logging.error(e)
@@ -143,8 +141,9 @@ async def question_router(
         brain: Brain,
         project: Project,
         input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
+        user: User,
+        db: Session,
+        background_tasks: BackgroundTasks):
     try:
         projLogic = Router(brain)
 
@@ -173,8 +172,9 @@ async def question_inference(
         brain: Brain,
         project: Project,
         input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
+        user: User,
+        db: Session,
+        background_tasks: BackgroundTasks):
     try:                    
         projLogic = Inference(brain)
 
@@ -187,7 +187,7 @@ async def question_inference(
         else:
             output = projLogic.question(project, input, user, db)
             for line in output:
-                logs_inference.info({"user": user.username, "project": project.model.name, "output": line})
+                background_tasks.add_task(log_inference, user, line, db)
                 return line
 
     except Exception as e:
@@ -201,15 +201,16 @@ async def question_agent(
         brain: Brain,
         project: Project,
         input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
+        user: User,
+        db: Session,
+        background_tasks: BackgroundTasks):
     try:      
         projLogic = Agent(brain)
 
         output = projLogic.question(project, input, user, db)
         
         for line in output:
-            logs_inference.info({"user": user.username, "project": project.model.name, "output": line})
+            background_tasks.add_task(log_inference, user, line, db)
             return line
           
     except Exception as e:
@@ -223,8 +224,9 @@ async def question_query_sql(
         brain: Brain,
         project: Project,
         input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
+        user: User,
+        db: Session,
+        background_tasks: BackgroundTasks):
     try:      
         projLogic = RAGSql(brain)
 
@@ -234,7 +236,7 @@ async def question_query_sql(
 
         output = projLogic.question(project, input, user, db)
 
-        logs_inference.info({"user": user.username, "project": project.model.name, "output": output})
+        background_tasks.add_task(log_inference, user, output, db)
 
         return output
     except Exception as e:
@@ -248,8 +250,9 @@ async def question_vision(
         project: Project,
         brain: Brain,
         input: QuestionModel,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
+        user: User,
+        db: Session,
+        background_tasks: BackgroundTasks):
     try:            
         projLogic = Vision(brain)
 
@@ -274,7 +277,7 @@ async def question_vision(
         if input.lite:
             del output["image"]
 
-        #logs_inference.info({"user": user.username, "project": projectName, "output": output})
+        #log_inference.info({"user": user.username, "project": projectName, "output": output})
         return output
     except Exception as e:
         logging.error(e)
