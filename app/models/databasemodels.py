@@ -1,6 +1,6 @@
 
 from typing import List
-from sqlalchemy import Boolean, Column, Date, ForeignKey, Integer, String, Float, Table, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Float, Table, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Mapped
@@ -67,7 +67,7 @@ class OutputDatabase(Base):
     question = Column(Text)
     answer = Column(Text)
     data = Column(Text)
-    date = Column(Date)
+    date = Column(DateTime)
     
 class RouterEntrancesDatabase(Base):
     __tablename__ = "routerentrances"
