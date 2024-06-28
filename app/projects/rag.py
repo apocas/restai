@@ -7,6 +7,7 @@ from llama_index.core.prompts import PromptTemplate
 from llama_index.core.chat_engine import ContextChatEngine
 from llama_index.core.postprocessor.llm_rerank import LLMRerank
 from llama_index.postprocessor.colbert_rerank import ColbertRerank
+from app.chat import Chat
 from app.eval import evalRAG
 from app.guard import Guard
 from app.models.models import QuestionModel, ChatModel, User
@@ -20,7 +21,7 @@ class RAG(ProjectBase):
 
     def chat(self, project: Project, chatModel: ChatModel, user: User, db: Session):
         model = self.brain.getLLM(project.model.llm, db)
-        chat = self.brain.memories.loadMemory(project.model.name).loadChat(chatModel)
+        chat = Chat(chatModel)
         
         output = {
             "id": chat.id,

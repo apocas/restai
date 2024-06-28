@@ -2,6 +2,7 @@ import json
 from fastapi import HTTPException
 from requests import Session
 from app import tools
+from app.chat import Chat
 from app.guard import Guard
 from app.models.models import ChatModel, QuestionModel, User
 from app.project import Project
@@ -11,6 +12,7 @@ from llama_index.core.agent import ReActAgent
 class Agent(ProjectBase):
   
     def chat(self, project: Project, chatModel: ChatModel, user: User, db: Session):
+        chat = Chat(chatModel)
         output = {
           "question": chatModel.question,
           "type": "agent",
@@ -20,7 +22,8 @@ class Agent(ProjectBase):
               "input": 0,
               "output": 0
           },
-          "project": project.model.name
+          "project": project.model.name,
+          "id": chat.id
         }
               
         if project.model.guard:
@@ -35,11 +38,7 @@ class Agent(ProjectBase):
                 yield output
                 
         model = self.brain.getLLM(project.model.llm, db)
-        chat = self.brain.memories.loadMemory(project.model.name).loadChat(chatModel)
-        output["id"] = chat.id
         
-        toolsu = []
-
         toolsu = self.brain.get_tools((project.model.tools or "").split(","))
 
         agent = ReActAgent.from_tools(toolsu, llm=model.llm, context=project.model.system, memory=chat.memory, max_iterations=20, verbose=True)
@@ -95,10 +94,8 @@ class Agent(ProjectBase):
                 yield output
                 
         model = self.brain.getLLM(project.model.llm, db)
-        toolsu = []
-
-        if project.model.tools:
-            toolsu = self.brain.get_tools(project.model.tools.split(","))
+        
+        toolsu = self.brain.get_tools((project.model.tools or "").split(","))
 
         agent = ReActAgent.from_tools(toolsu, llm=model.llm, context=questionModel.system or project.model.system, max_iterations=20, verbose=True)
         

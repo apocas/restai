@@ -3,7 +3,6 @@ import logging
 import traceback
 
 from llama_index.embeddings.langchain import LangchainEmbedding
-from app.memory import Recollection
 from app.vectordb import tools as vector_tools
 from app import tools
 from app.llm import LLM
@@ -22,7 +21,6 @@ class Brain:
         self.embeddingCache = {}
         self.defaultCensorship = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = ""
-        self.memories = Recollection()
         self.tools = tools.load_tools()
 
     def memoryModelsInfo(self):

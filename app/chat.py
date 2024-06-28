@@ -16,9 +16,9 @@ class Chat:
             self.id = model.id
 
         if REDIS_HOST is not None:
-            self.memory = ChatMemoryBuffer.from_defaults(token_limit=3900, chat_store=RedisChatStore(redis_url=f"redis://{REDIS_HOST}:{REDIS_PORT}"), chat_store_key=self.id)
+            self.memory = ChatMemoryBuffer.from_defaults(token_limit=3900, chat_store=RedisChatStore(redis_url=f"redis://{REDIS_HOST}:{REDIS_PORT}"), chat_store_key="memory_" + self.id)
         else:
-            self.memory = ChatMemoryBuffer.from_defaults(token_limit=3900)
+            self.memory = ChatMemoryBuffer.from_defaults(token_limit=3900, chat_store_key="memory_" + self.id)
 
         self.created = datetime.datetime.now()
 
