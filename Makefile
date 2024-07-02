@@ -47,16 +47,12 @@ clean:
 
 .PHONY: dockershell
 dockershell:
-	@docker run --rm -t -i -v $(shell pwd):/app restai bash
+	@docker exec -it restai-restai-1 bash
 
-.PHONY: dockerbuild
+.PHONY: dockerpostgresql
 dockerbuild:
-	@docker build -t restai .
+	@docker compose --profile redis --profile postgres --env-file .env up --build -d
 
-.PHONY: dockernpminstall
-dockernpminstall:
-	cd frontend && docker run --rm -t -i -v $(shell pwd):/app --workdir /app node:12.18.1 make frontend
-
-.PHONY: dockernpmbuild
-dockernpmbuild:
-	cd frontend && docker run --rm -t -i -v $(shell pwd):/app --workdir /app node:12.18.1 make npmbuild
+.PHONY: dockermysql
+dockerbuild:
+	@docker compose --profile redis --profile mysql --env-file .env up --build -d
