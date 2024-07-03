@@ -37,10 +37,14 @@ services:
       - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD:-CHANGEME!}
       - MYSQL_DATABASE=${MYSQL_DB:-restai}
 
-  restai:
+  restai-cpu:
+    &restai
+    profiles:
+      - cpu
     build:
       context: .
       dockerfile: Dockerfile
+      target: cpu-runtime
     deploy:
       restart_policy:
         condition: on-failure
@@ -55,7 +59,22 @@ services:
       LOG_LEVEL: DEBUG
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       RESTAI_DEV: ${RESTAI_DEV}
-      WITH_GPU: ${WITH_GPU:-false}
+
+  restai-gpu:
+    <<: *restai
+    profiles:
+      - gpu
+    build:
+      target: gpu-runtime
+      args:
+        - WITH_GPU=${WITH_GPU}
+    deploy:
+        resources:
+          reservations:
+            devices:
+              - driver: nvidia
+                device_ids: ['0']
+                capabilities: [gpu]
 
 volumes:
   mysql_data:
