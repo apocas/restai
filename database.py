@@ -120,10 +120,17 @@ else:
                 vectorstore="chromadb",
                 creator=db_user.id
             )
+            demo_project5 = ProjectDatabase(
+                name="vision1",
+                type="vision",
+                llm="llava16_13b",
+                creator=db_user.id
+            )
             dbi.add(demo_project1)
             dbi.add(demo_project2)
             dbi.add(demo_project3)
             dbi.add(demo_project4)
+            dbi.add(demo_project5)
             dbi.commit()
             
             demo_project3.entrances.append(RouterEntrancesDatabase(
@@ -135,6 +142,7 @@ else:
             demo_project2.users.append(db_user)
             demo_project3.users.append(db_user)
             demo_project4.users.append(db_user)
+            demo_project5.users.append(db_user)
             
         dbi.commit()
         dbi.close()
