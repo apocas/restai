@@ -45,9 +45,12 @@ code:
 clean:
 	rm -rf frontend
 
+# Set default values for DOCKER_PROFILES if not provided
+DOCKER_PROFILES ?= cpu
+
 .PHONY: dockershell
 dockershell:
-	@docker exec -it restai-restai-1 bash
+	@docker exec -it restai-restai-$(DOCKER_PROFILES)-1 bash
 
 .PHONY: dockerpostgresql
 dockerbuild:
@@ -56,3 +59,7 @@ dockerbuild:
 .PHONY: dockermysql
 dockerbuild:
 	@docker compose --profile redis --profile mysql --env-file .env up --build -d
+
+.PHONY: dockerrmall
+dockerbuild:
+	@docker compose --profile redis --profile mysql --profile postgres --profile cpu --profile gpu down --rmi all
