@@ -204,11 +204,11 @@ async def create_project(request: Request, projectModel: ProjectModel, user: Use
             status_code=400,
             detail='Invalid project name')
         
-    if config.RESTAI_DEMO:
-        if projectModel.type == "ragsql":
+    if config.RESTAI_DEMO and not user.is_admin:
+        if projectModel.type == "ragsql" or projectModel.type == "agent":
             raise HTTPException(
                 status_code=403,
-                detail='Demo mode, not allowed to create RAGSQL projects')
+                detail='Demo mode, not allowed to create this type of projects.')
 
     if projectModel.type == "rag" and projectModel.embeddings not in EMBEDDINGS:
         raise HTTPException(

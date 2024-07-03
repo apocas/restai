@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Union
 from fastapi import Depends, HTTPException, Request
 
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.security import HTTPBasic
 import jwt
 from sqlalchemy.orm import Session
 

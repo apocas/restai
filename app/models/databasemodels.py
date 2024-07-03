@@ -3,7 +3,6 @@ from typing import List
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Float, Table, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Mapped
 
 Base = declarative_base()
 

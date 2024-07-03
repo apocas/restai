@@ -1,5 +1,4 @@
 import json
-from fastapi import HTTPException
 from requests import Session
 from app import tools
 from app.chat import Chat
