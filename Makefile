@@ -12,7 +12,7 @@ frontend:
 
 .PHONY: dev
 dev:
-	RESTAI_DEV=true uvicorn app.main:app --reload --port 9000
+	RESTAI_DEV=true poetry run uvicorn app.main:app --reload --port 9000
 
 .PHONY: install
 install:
@@ -27,7 +27,7 @@ installgpu:
 
 .PHONY: installfix
 installfix:
-	$(echo $(poetry env info -p)/bin/pip3 install flash-attn==2.5.2 --no-build-isolation)
+	poetry run pip install flash-attn==2.5.2 --no-build-isolation
 
 .PHONY: docs
 docs:
@@ -35,11 +35,11 @@ docs:
 
 .PHONY: test
 test:
-	pytest tests
+	poetry run pytest tests
 
 .PHONY: code
 code:
-	autopep8 --in-place app/*.py
+	poetry run autopep8 --in-place app/*.py
 
 .PHONY: clean
 clean:
@@ -52,14 +52,14 @@ DOCKER_PROFILES ?= cpu
 dockershell:
 	@docker exec -it restai-restai-$(DOCKER_PROFILES)-1 bash
 
-.PHONY: dockerpostgresql
-dockerbuild:
-	@docker compose --profile redis --profile postgres --env-file .env up --build -d
+.PHONY: dockerpsql
+dockerpsql:
+	@docker compose --profile redis --profile postgres --profile ${DOCKER_PROFILES} --env-file .env up --build -d
 
 .PHONY: dockermysql
-dockerbuild:
-	@docker compose --profile redis --profile mysql --env-file .env up --build -d
+dockermysql:
+	@docker compose --profile redis --profile mysql --profile ${DOCKER_PROFILES} --env-file .env up --build -d
 
 .PHONY: dockerrmall
-dockerbuild:
+dockerrmall:
 	@docker compose --profile redis --profile mysql --profile postgres --profile cpu --profile gpu down --rmi all
