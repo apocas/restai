@@ -84,7 +84,7 @@ COPY --from=backend-builder --chown=user:user /app/.venv /app/.venv
 # there seems to be ownership issues with logs/ or .gitkeep file inside
 COPY --chown=user:user . /app
 
-EXPOSE 9001
+EXPOSE 9000
 
 CMD ["sh", "-c", ".venv/bin/python database.py && .venv/bin/python main.py"]
 
@@ -117,6 +117,6 @@ COPY --from=backend-builder --chown=user:user /app/.venv /app/.venv
 # there seems to be ownership issues with logs/ or .gitkeep file inside
 COPY --chown=user:user . /app
 
-EXPOSE 9001
+EXPOSE 9000
 
 CMD ["sh", "-c", ".venv/bin/python database.py && .venv/bin/python main.py"]
