@@ -55,8 +55,8 @@ RUN if [ "$WITH_GPU" = 'true' ]; then echo "Installing gpu deps" \
     && echo "Installing flash_attn fix" \
     && poetry run pip install flash-attn==2.5.2 --no-build-isolation; fi
 
-# Stripped down container for running the app, CPU support only
-FROM python:3.11.9-slim AS cpu-runtime
+# Stripped down runtime base
+FROM python:3.11.9-slim AS runtime-base
 
 # We still need postgres libraries, and selenium requirements
 RUN apt-get update && apt-get install --no-install-recommends -y postgresql-client \
@@ -88,35 +88,12 @@ EXPOSE 9000
 
 CMD ["sh", "-c", ".venv/bin/python database.py && .venv/bin/python main.py"]
 
-# GPU enabled runtime
-FROM python:3.11.9-slim AS gpu-runtime
+# GPU enabled runtime (inherits from the shared base)
+FROM runtime-base AS gpu-runtime
 
-# We still need postgres libraries, and selenium requirements
-RUN apt-get update && apt-get install --no-install-recommends -y postgresql-client \
-    libglib2.0-0 libnspr4 libnss3 libgtk-3-dev \
-    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
-    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+# No additional steps required for GPU runtime; it reuses the same base as CPU runtime
 
-# Get ollama
-RUN curl -fsSL https://ollama.com/install.sh | sh
+# CPU enabled runtime (inherits from the shared base)
+FROM runtime-base AS cpu-runtime
 
-ENV ANONYMIZED_TELEMETRY=False \
-    RESTAI_DEV=${RESTAI_DEV:-production}
-    
-RUN useradd --user-group --system --create-home --no-log-init user
-# Create our cache directory and set permissions
-RUN mkdir -p /home/user/.cache/ && chown -R user:user /home/user/.cache/
-USER user
-
-WORKDIR /app
-
-# Copy the built frontend from previous stage
-COPY --from=frontend-builder /frontend/html /app/frontend/html
-COPY --from=backend-builder --chown=user:user /app/.venv /app/.venv
-
-# there seems to be ownership issues with logs/ or .gitkeep file inside
-COPY --chown=user:user . /app
-
-EXPOSE 9000
-
-CMD ["sh", "-c", ".venv/bin/python database.py && .venv/bin/python main.py"]
+# No additional steps required for CPU runtime; it reuses the same base as GPU runtime
