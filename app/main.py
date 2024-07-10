@@ -40,7 +40,7 @@ if config.SENTRY_DSN:
 app = FastAPI(
     title="RestAI",
     description="RestAI is an AIaaS (AI as a Service) open-source platform. Built on top of Llamaindex, Langchain and Transformers. Supports any public LLM supported by LlamaIndex and any local LLM suported by Ollama. Precise embeddings usage and tuning.",
-    version="4.0.0",
+    version="5.0.0",
     contact={
         "name": "Pedro Dias",
         "url": "https://github.com/apocas/restai",
@@ -76,6 +76,11 @@ app.include_router(users.router)
 async def get(request: Request):
     return "RESTAI, so many 'A's and 'I's, so little time..."
 
+@app.get("/version")
+async def get_version():
+    return {
+        "version": app.version,
+    }
 
 @app.get("/info")
 async def get_info(user: User = Depends(get_current_username), db: Session = Depends(get_db)):
