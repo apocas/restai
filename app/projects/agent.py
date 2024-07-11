@@ -61,11 +61,12 @@ class Agent(ProjectBase):
                 }
                 yield output
         except Exception as e:              
-            if chatModel.stream:
-                yield "data: Inference failed\n" 
-            elif str(e) == "Reached max iterations.":
-                yield "data: I'm sorry, I tried my best...\n"
-            yield "event: error\n\n"
+            if chatModel.stream:   
+                if str(e) == "Reached max iterations.":
+                    yield "data: I'm sorry, I tried my best...\n"
+                else:
+                     yield "data: Inference failed\n" 
+                yield "event: error\n\n"
             raise e
   
     def question(self, project: Project, questionModel: QuestionModel, user: User, db: Session):
