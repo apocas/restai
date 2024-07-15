@@ -17,26 +17,13 @@ from llama_index.core.tools import FunctionTool
 
 class Brain:
     def __init__(self):
-        self.llmCache = {}
         self.embeddingCache = {}
         self.defaultCensorship = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = ""
         self.tools = tools.load_tools()
 
-    def memoryModelsInfo(self):
-        models = []
-        for llmr, mr in self.llmCache.items():
-            if mr.privacy == "private":
-                models.append(llmr)
-        return models
-
     def getLLM(self, llmName, db: Session, **kwargs):      
-        llm = None
-      
-        if llmName in self.llmCache:
-            llm = self.llmCache[llmName]
-        else:
-            llm = self.loadLLM(llmName, db)
+        llm = self.loadLLM(llmName, db)
                 
         if hasattr(llm.llm, 'system_prompt'):
             llm.llm.system_prompt = None
@@ -51,10 +38,7 @@ class Brain:
 
             llm = tools.getLLMClass(llmm.class_name)(**json.loads(llmm.options))
 
-            if llmName in self.llmCache:
-                del self.llmCache[llmName]
-            self.llmCache[llmName] = LLM(llmName, llmm, llm)
-            return self.llmCache[llmName]
+            return LLM(llmName, llmm, llm)
         else:
             return None
 
