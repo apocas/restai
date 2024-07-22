@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "restai"
-version = "5.0.1"
+version = "5.0.2"
 description = "RESTAI, so many 'A's and 'I's, so little time..."
 authors = ["Pedro Dias <petermdias@gmail.com>"]
 license = "Apache-2.0"

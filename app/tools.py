@@ -24,28 +24,38 @@ DEFAULT_LLMS = {
 def getLLMClass(llm_classname):
     if llm_classname == "Ollama":
         from app.llms.ollama import Ollama
-        return Ollama
+        return Ollama, {}
     elif llm_classname == "OllamaMultiModal2":
         from app.llms.ollamamultimodal import OllamaMultiModal2
-        return OllamaMultiModal2
+        return OllamaMultiModal2, {}
     elif llm_classname == "OpenAI":
         from llama_index.llms.openai import OpenAI
-        return OpenAI
+        return OpenAI, {}
     elif llm_classname == "Groq":
         from llama_index.llms.groq import Groq
-        return Groq
+        return Groq, {}
     elif llm_classname == "Anthropic":
         from llama_index.llms.anthropic import Anthropic
-        return Anthropic
+        return Anthropic, {}
     elif llm_classname == "LiteLLM":
         from llama_index.llms.litellm import LiteLLM
-        return LiteLLM
+        return LiteLLM, {}
     elif llm_classname == "Gemini":
         from llama_index.llms.gemini import Gemini
-        return Gemini
+        from vertexai.generative_models import (
+            SafetySetting,
+            HarmCategory,
+            HarmBlockThreshold,
+        )
+        return Gemini, {"generate_kwargs": {"safety_settings": [
+            SafetySetting(
+                category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                threshold=HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+            )
+        ]}}
     elif llm_classname == "AzureOpenAI":
         from llama_index.llms.azure_openai import AzureOpenAI
-        return AzureOpenAI
+        return AzureOpenAI, {}
     else:
         raise Exception("Invalid LLM class name.")
 

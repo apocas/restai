@@ -40,7 +40,7 @@ if config.SENTRY_DSN:
 app = FastAPI(
     title="RestAI",
     description="RestAI is an AIaaS (AI as a Service) open-source platform. Built on top of Llamaindex, Langchain and Transformers. Supports any public LLM supported by LlamaIndex and any local LLM suported by Ollama. Precise embeddings usage and tuning.",
-    version="5.0.1",
+    version="5.0.2",
     contact={
         "name": "Pedro Dias",
         "url": "https://github.com/apocas/restai",

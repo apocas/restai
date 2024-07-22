@@ -36,7 +36,11 @@ class Brain:
         if llm_db is not None:
             llmm = LLMModel.model_validate(llm_db)
 
-            llm = tools.getLLMClass(llmm.class_name)(**json.loads(llmm.options))
+            llm_class, llm_default_params = tools.getLLMClass(llmm.class_name)
+            llm_params = json.loads(llmm.options)
+            if llm_default_params is not None:
+                llm_params.update(llm_default_params)
+            llm = llm_class(**llm_params)
 
             return LLM(llmName, llmm, llm)
         else:
