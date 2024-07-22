@@ -50,7 +50,7 @@ def getLLMClass(llm_classname):
         return Gemini, {"generate_kwargs": {"safety_settings": [
             SafetySetting(
                 category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                threshold=HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
+                threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
             )
         ]}}
     elif llm_classname == "AzureOpenAI":
