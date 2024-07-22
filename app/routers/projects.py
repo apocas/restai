@@ -51,15 +51,6 @@ async def get_projects(request: Request, filter: str = "own", user: User = Depen
             if project.public == True:
                 projects.append(project)
 
-    for project in projects:
-        try:
-            model = request.app.state.brain.getLLM(project.llm, db)
-            project.llm_type = model.props.type
-            project.llm_privacy = model.props.privacy
-        except Exception as e:
-            project.llm_type = "unknown"
-            project.llm_privacy = "unknown"
-
     return {"projects": projects}
 
 

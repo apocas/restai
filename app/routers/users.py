@@ -122,7 +122,7 @@ async def create_user(userc: UserCreate,
     try:
         userc.username = unidecode(
             userc.username.strip().lower().replace(" ", "."))
-        userc.username = re.sub(r'[^\w\-.]+', '', userc.username)
+        userc.username = re.sub(r'[^\w\-.@]+', '', userc.username)
 
         user = dbc.create_user(db,
                                userc.username,
@@ -132,7 +132,7 @@ async def create_user(userc: UserCreate,
         user_model_copy = copy.deepcopy(user)
         user_model_copy.api_key = None
         user_model_copy.id = None
-        user_model_copy.projects = None
+        user_model_copy.projects = []
         return user_model_copy
     except Exception as e:
         logging.error(e)
