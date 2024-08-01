@@ -39,7 +39,9 @@ class Agent(ProjectBase):
         model = self.brain.getLLM(project.model.llm, db)
         
         toolsu = self.brain.get_tools((project.model.tools or "").split(","))
-
+        if len(toolsu) == 0:
+            chatModel.question += "\nDont use any tool just respond to the user."
+        
         agent = ReActAgent.from_tools(toolsu, llm=model.llm, context=project.model.system, memory=chat.memory, max_iterations=20, verbose=True)
         
         try:
@@ -96,6 +98,9 @@ class Agent(ProjectBase):
         model = self.brain.getLLM(project.model.llm, db)
         
         toolsu = self.brain.get_tools((project.model.tools or "").split(","))
+        
+        if len(toolsu) == 0:
+            questionModel.question += "\nDont use any tool just respond to the user."
 
         agent = ReActAgent.from_tools(toolsu, llm=model.llm, context=questionModel.system or project.model.system, max_iterations=20, verbose=True)
         
