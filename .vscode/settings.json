@@ -4,5 +4,6 @@
   ],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
-  "python.venvPath": "~/.cache/pypoetry/virtualenvs"
+  "python.venvPath": "~/.cache/pypoetry/virtualenvs",
+  "makefile.configureOnOpen": false
 }
