@@ -10,7 +10,7 @@ class Chat:
     def __init__(self, model):
         self.model = model
 
-        if model.id is None:
+        if not model.id:
             self.id = str(uuid.uuid4())
         else:
             self.id = model.id
