@@ -4,10 +4,8 @@ from deepeval.metrics import AnswerRelevancyMetric
 from deepeval.test_case import LLMTestCase
 
 class DeepEvalLLM(DeepEvalBaseLLM):
-    def __init__(
-        self,
-        model: LLM
-    ):
+    def __init__(self, model: LLM, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.model = model
 
     def load_model(self):
@@ -23,7 +21,7 @@ class DeepEvalLLM(DeepEvalBaseLLM):
     def get_model_name(self):
         return "Custom LLamaindex LLM"
       
-def evalRAG(question, response, llm):
+def eval_rag(question, response, llm):
     if response is not None:
         actual_output = response.response
         retrieval_context = [node.get_content() for node in response.source_nodes]

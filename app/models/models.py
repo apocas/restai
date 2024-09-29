@@ -194,9 +194,6 @@ class RagSqlResponse(InferenceResponse):
 class VisionResponse(QuestionResponse):
     image: Union[str, None] = None
 
-class VisionResponse(QuestionResponse):
-    image: Union[str, None] = None
-
 class ChatResponse(QuestionResponse):
     id: str
 

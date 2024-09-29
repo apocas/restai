@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def loadEnvVars():
+def load_env_vars():
     if "EMBEDDINGS_PATH" not in os.environ:
         os.environ["EMBEDDINGS_PATH"] = "./embeddings/"
 
@@ -18,7 +18,7 @@ def loadEnvVars():
     os.environ["ALLOW_RESET"] = "true"
 
 
-loadEnvVars()
+load_env_vars()
 
 RESTAI_PORT = os.environ.get("RESTAI_PORT", 9000)
 RESTAI_AUTH_SECRET = os.environ.get("RESTAI_AUTH_SECRET")

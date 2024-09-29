@@ -19,7 +19,7 @@ print("""
 from modules.loaders import LOADERS
 from modules.embeddings import EMBEDDINGS
 from app.models.models import User
-from app.database import dbc, get_db
+from app.database import get_db, get_llms
 from app.brain import Brain
 from app.auth import get_current_username
 from app.routers import llms, projects, tools, users
@@ -91,7 +91,7 @@ async def get_info(user: User = Depends(get_current_username), db: Session = Dep
         "llms": []
     }
 
-    llms = dbc.get_llms(db)
+    llms = get_llms(db)
     for llm in llms:
         output["llms"].append({
             "name": llm.name,

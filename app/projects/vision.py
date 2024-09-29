@@ -71,7 +71,7 @@ class Vision(ProjectBase):
             output_temp = outputAgent
         else:
             if outputAgent["type"] == "describeimage":
-                model = self.brain.getLLM(project.model.llm, db)
+                model = self.brain.get_llm(project.model.llm, db)
 
                 try:
                     response = model.llm.complete(prompt=questionModel.question, image_documents=[ImageDocument(image=questionModel.image)])

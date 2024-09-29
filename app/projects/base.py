@@ -1,16 +1,19 @@
 from app.brain import Brain
-
+from abc import ABC, abstractmethod
 from app.models.models import ChatModel, QuestionModel, User
 from sqlalchemy.orm import Session
-
+from fastapi import HTTPException
 from app.project import Project
 
-class ProjectBase:
+
+class ProjectBase(ABC):
     def __init__(self, brain: Brain):
         self.brain = brain
-        
-    def entryChat(self, project: Project, chatModel: ChatModel, user: User, db: Session):
-        pass
-    
-    def entryQuestion(self, project: Project, questionModel: QuestionModel, user: User, db: Session):
-        pass
+
+    @abstractmethod
+    def chat(self, project: Project, chat_model: ChatModel, user: User, db: Session):
+        raise HTTPException(status_code=400, detail='{"error": "Chat mode not available for this project type."}')
+
+    @abstractmethod
+    def question(self, project: Project, question_model: QuestionModel, user: User, db: Session):
+        raise HTTPException(status_code=400, detail='{"error": "Question mode not available for this project type."}')
