@@ -40,6 +40,9 @@ def get_llm_class(llm_class_name):
     elif llm_class_name == "LiteLLM":
         from llama_index.llms.litellm import LiteLLM
         return LiteLLM, {}
+    elif llm_class_name == "vLLM":
+        from llama_index.llms.vllm import Vllm
+        return Vllm, {}
     elif llm_class_name == "Gemini":
         from llama_index.llms.gemini import Gemini
         from vertexai.generative_models import (
