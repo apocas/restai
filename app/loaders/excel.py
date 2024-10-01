@@ -1,4 +1,5 @@
-"""Pandas Excel reader.
+"""
+Pandas Excel reader.
 
 Pandas parser for .xlsx files.
 

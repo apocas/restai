@@ -8,7 +8,7 @@ import jwt
 from sqlalchemy.orm import Session
 
 from app.config import RESTAI_AUTH_SECRET, RESTAI_AUTH_DISABLE_LOCAL
-from app.database import dbc, get_db, pwd_context
+from app.database import get_db, pwd_context, get_user_by_apikey, get_user_by_username, get_project_by_name
 from app.models.models import User
 
 
@@ -52,7 +52,7 @@ def get_current_username(
     jwt_token = request.cookies.get("restai_token")
     
     if bearer_token:
-        user = dbc.get_user_by_apikey(db, bearer_token)
+        user = get_user_by_apikey(db, bearer_token)
 
         if user is None:
             raise HTTPException(
@@ -65,7 +65,7 @@ def get_current_username(
         try:
             data = jwt.decode(jwt_token, RESTAI_AUTH_SECRET, algorithms=["HS512"])
 
-            user = dbc.get_user_by_username(db, data["username"])
+            user = get_user_by_username(db, data["username"])
 
             return User.model_validate(user)
         except Exception as e:
@@ -80,7 +80,7 @@ def get_current_username(
                 detail="Invalid credentials"
             )
         
-        user = dbc.get_user_by_username(db, credentials["username"])
+        user = get_user_by_username(db, credentials["username"])
 
         if user is None:
             raise HTTPException(
@@ -159,8 +159,8 @@ def get_current_username_project_public(
         found = True
         user.level = "own"
         
-    p = dbc.get_project_by_name(db, projectName)
-    if(found == False and (p is not None and p.public)):
+    p = get_project_by_name(db, projectName)
+    if found == False and (p is not None and p.public):
         found = True
         user.level = "public"
 

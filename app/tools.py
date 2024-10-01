@@ -21,26 +21,26 @@ DEFAULT_LLMS = {
 }
 
 
-def getLLMClass(llm_classname):
-    if llm_classname == "Ollama":
+def get_llm_class(llm_class_name):
+    if llm_class_name == "Ollama":
         from app.llms.ollama import Ollama
         return Ollama, {}
-    elif llm_classname == "OllamaMultiModal2":
+    elif llm_class_name == "OllamaMultiModal2":
         from app.llms.ollamamultimodal import OllamaMultiModal2
         return OllamaMultiModal2, {}
-    elif llm_classname == "OpenAI":
+    elif llm_class_name == "OpenAI":
         from llama_index.llms.openai import OpenAI
         return OpenAI, {}
-    elif llm_classname == "Groq":
+    elif llm_class_name == "Groq":
         from llama_index.llms.groq import Groq
         return Groq, {}
-    elif llm_classname == "Anthropic":
+    elif llm_class_name == "Anthropic":
         from llama_index.llms.anthropic import Anthropic
         return Anthropic, {}
-    elif llm_classname == "LiteLLM":
+    elif llm_class_name == "LiteLLM":
         from llama_index.llms.litellm import LiteLLM
         return LiteLLM, {}
-    elif llm_classname == "Gemini":
+    elif llm_class_name == "Gemini":
         from llama_index.llms.gemini import Gemini
         from vertexai.generative_models import (
             SafetySetting,
@@ -53,7 +53,7 @@ def getLLMClass(llm_classname):
                 threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
             )
         ]}}
-    elif llm_classname == "AzureOpenAI":
+    elif llm_class_name == "AzureOpenAI":
         from llama_index.llms.azure_openai import AzureOpenAI
         return AzureOpenAI, {}
     else:
@@ -64,14 +64,14 @@ def load_tools() -> list[FunctionTool]:
     directory = os.path.dirname(os.path.abspath(__file__))
     
     print(f"Loading core tools...")
-    for importer, modname, ispkg in pkgutil.iter_modules(path=[directory + '/llms/tools']):
+    for importer, modname, _ in pkgutil.iter_modules(path=[directory + '/llms/tools']):
         module = __import__(f'app.llms.tools.{modname}', fromlist='dummy')
         for name, obj in inspect.getmembers(module):
             if inspect.isfunction(obj):
                 tools.append(FunctionTool.from_defaults(fn=obj))
     
     print(f"Loading userland tools...")
-    for importer, modname, ispkg in pkgutil.iter_modules(path=['./tools']):
+    for importer, modname, _ in pkgutil.iter_modules(path=['./tools']):
         module = __import__(f'tools.{modname}', fromlist='dummy')
         for name, obj in inspect.getmembers(module):
             if inspect.isfunction(obj):

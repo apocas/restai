@@ -4,11 +4,11 @@ from llama_index.core.base.llms.types import ChatMessage
 class Guard:
     def __init__(self, projectName, brain, db):        
         self.brain = brain
-        self.project = brain.findProject(projectName, db)
+        self.project = brain.find_project(projectName, db)
         self.db = db
 
     def verify(self, prompt):        
-        model = self.brain.getLLM(self.project.model.llm, self.db)
+        model = self.brain.get_llm(self.project.model.llm, self.db)
 
         sysTemplate = self.project.model.system
         model.llm.system_prompt = sysTemplate

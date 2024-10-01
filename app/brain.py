@@ -6,10 +6,10 @@ from llama_index.embeddings.langchain import LangchainEmbedding
 from app.vectordb import tools as vector_tools
 from app import tools
 from app.llm import LLM
-from app.models.models import LLMModel, ProjectModel
+from app.models.models import LLMModel, ProjectModel, ClassifierModel
 from app.project import Project
 from modules.embeddings import EMBEDDINGS
-from app.database import dbc
+from app.database import get_llm_by_name, get_project_by_name
 from sqlalchemy.orm import Session
 from transformers import pipeline
 from llama_index.core.tools import FunctionTool
@@ -22,31 +22,32 @@ class Brain:
         self.defaultSystem = ""
         self.tools = tools.load_tools()
 
-    def getLLM(self, llmName, db: Session, **kwargs):      
-        llm = self.loadLLM(llmName, db)
+    def get_llm(self, llmName, db: Session, **kwargs):
+        llm = self.load_llm(llmName, db)
                 
         if hasattr(llm.llm, 'system_prompt'):
             llm.llm.system_prompt = None
         
         return llm
-    
-    def loadLLM(self, llmName, db: Session):
-        llm_db = dbc.get_llm_by_name(db, llmName)
+
+    @staticmethod
+    def load_llm(llmName, db: Session):
+        llm_db = get_llm_by_name(db, llmName)
 
         if llm_db is not None:
-            llmm = LLMModel.model_validate(llm_db)
+            llm_model = LLMModel.model_validate(llm_db)
 
-            llm_class, llm_default_params = tools.getLLMClass(llmm.class_name)
-            llm_params = json.loads(llmm.options)
+            llm_class, llm_default_params = tools.get_llm_class(llm_model.class_name)
+            llm_params = json.loads(llm_model.options)
             if llm_default_params is not None:
                 llm_params.update(llm_default_params)
             llm = llm_class(**llm_params)
 
-            return LLM(llmName, llmm, llm)
+            return LLM(llmName, llm_model, llm)
         else:
             return None
 
-    def getEmbedding(self, embeddingModel):
+    def get_embedding(self, embeddingModel):
         if embeddingModel in self.embeddingCache:
             return self.embeddingCache[embeddingModel]
         else:
@@ -58,8 +59,8 @@ class Brain:
             else:
                 raise Exception("Invalid Embedding type.")
               
-    def findProject(self, name, db):
-        p = dbc.get_project_by_name(db, name)
+    def find_project(self, name, db):
+        p = get_project_by_name(db, name)
         if p is None:
             return None
         proj = ProjectModel.model_validate(p)
@@ -75,14 +76,17 @@ class Brain:
                     project.vector = None
             return project
       
-    def classify(self, input):
+    @staticmethod
+    def classify(classifier_model: ClassifierModel):
         classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 
-        sequence_to_classify = input.sequence
-        candidate_labels = input.labels
+        sequence_to_classify = classifier_model.sequence
+        candidate_labels = classifier_model.labels
         return classifier(sequence_to_classify, candidate_labels, multi_label=True)
       
-    def get_tools(self, names: list[str] = []) -> list[FunctionTool]:
+    def get_tools(self, names=None) -> list[FunctionTool]:
+        if names is None:
+            names = []
         _tools = []
         
         if names:

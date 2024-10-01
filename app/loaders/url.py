@@ -31,10 +31,12 @@ class SeleniumWebReader(BaseReader):
         binary_location: Optional[str] = None,
         executable_path: Optional[str] = None,
         headless: bool = True,
-        arguments: List[str] = [],
+            arguments=None,
     ):
         
         """Load a list of URLs using Selenium and unstructured."""
+        if arguments is None:
+            arguments = []
         try:
             import selenium  # noqa:F401
         except ImportError:

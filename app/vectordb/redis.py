@@ -55,7 +55,7 @@ class RedisVector(VectorBase):
 
         storage_context = StorageContext.from_defaults(
             vector_store=vector_store)
-        return VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=brain.getEmbedding(self.project.model.embeddings))
+        return VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=brain.get_embedding(self.project.model.embeddings))
 
 
     def save(self):

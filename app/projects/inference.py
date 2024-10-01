@@ -13,10 +13,10 @@ from llama_index.core.base.llms.types import ChatMessage
 
 class Inference(ProjectBase):
   
-    def chat(self, project: Project, chatModel: ChatModel, user: User, db: Session):
-        chat = Chat(chatModel)
+    def chat(self, project: Project, chat_model: ChatModel, user: User, db: Session):
+        chat = Chat(chat_model)
         output = {
-          "question": chatModel.question,
+          "question": chat_model.question,
           "type": "inference",
           "sources": [],
           "guard": False,
@@ -30,7 +30,7 @@ class Inference(ProjectBase):
         
         if project.model.guard:
             guard = Guard(project.model.guard, self.brain, db)
-            if guard.verify(chatModel.question):
+            if guard.verify(chat_model.question):
                 output["answer"] = project.model.censorship or self.brain.defaultCensorship
                 output["guard"] = True
                 output["tokens"] = {
@@ -39,7 +39,7 @@ class Inference(ProjectBase):
                 }
                 yield output
                 
-        model = self.brain.getLLM(project.model.llm, db)
+        model = self.brain.get_llm(project.model.llm, db)
 
         sysTemplate = project.model.system or self.brain.defaultSystem
         model.llm.system_prompt = sysTemplate
@@ -47,14 +47,14 @@ class Inference(ProjectBase):
         if not chat.memory.get_all():
             chat.memory.chat_store.add_message(chat.memory.chat_store_key, ChatMessage(role="system", content=sysTemplate))
 
-        chat.memory.chat_store.add_message(chat.memory.chat_store_key, ChatMessage(role="user", content=chatModel.question))
+        chat.memory.chat_store.add_message(chat.memory.chat_store_key, ChatMessage(role="user", content=chat_model.question))
         messages = chat.memory.get_all()
         
         try:
-            if(chatModel.stream):
-                respgen = model.llm.stream_chat(messages)
+            if chat_model.stream:
+                resp_gen = model.llm.stream_chat(messages)
                 response = ""
-                for text in respgen:
+                for text in resp_gen:
                     response += text.delta
                     yield "data: " + json.dumps({"text": text.delta}) + "\n\n"
                 output["answer"] = response
@@ -71,14 +71,14 @@ class Inference(ProjectBase):
                 chat.memory.chat_store.add_message(chat.memory.chat_store_key, ChatMessage(role="assistant", content=resp.message.content.strip()))
                 yield output
         except Exception as e:              
-            if chatModel.stream:
+            if chat_model.stream:
                 yield "data: Inference failed\n"
                 yield "event: error\n\n"
             raise e
   
-    def question(self, project: Project, questionModel: QuestionModel, user: User, db: Session):
+    def question(self, project: Project, question_model: QuestionModel, user: User, db: Session):
         output = {
-          "question": questionModel.question,
+          "question": question_model.question,
           "type": "inference",
           "sources": [],
           "guard": False,
@@ -91,7 +91,7 @@ class Inference(ProjectBase):
               
         if project.model.guard:
             guard = Guard(project.model.guard, self.brain, db)
-            if guard.verify(questionModel.question):
+            if guard.verify(question_model.question):
                 output["answer"] = project.model.censorship or self.brain.defaultCensorship
                 output["guard"] = True
                 output["tokens"] = {
@@ -100,23 +100,23 @@ class Inference(ProjectBase):
                 }
                 yield output
                 
-        model = self.brain.getLLM(project.model.llm, db)
+        model = self.brain.get_llm(project.model.llm, db)
 
-        sysTemplate = questionModel.system or project.model.system or self.brain.defaultSystem
+        sysTemplate = question_model.system or project.model.system or self.brain.defaultSystem
         model.llm.system_prompt = sysTemplate
 
         messages = [
             ChatMessage(
                 role="system", content=sysTemplate
             ),
-            ChatMessage(role="user", content=questionModel.question),
+            ChatMessage(role="user", content=question_model.question),
         ]
 
         try:
-            if(questionModel.stream):
-                respgen = model.llm.stream_chat(messages)
+            if question_model.stream:
+                resp_gen = model.llm.stream_chat(messages)
                 response = ""
-                for text in respgen:
+                for text in resp_gen:
                     response += text.delta
                     yield "data: " + json.dumps({"text": text.delta}) + "\n\n"
                 output["answer"] = response
@@ -131,7 +131,7 @@ class Inference(ProjectBase):
                 }
                 yield output
         except Exception as e:              
-            if questionModel.stream:
+            if question_model.stream:
                 yield "data: Inference failed\n"
                 yield "event: error\n\n"
             raise e

@@ -36,7 +36,7 @@ class Agent(ProjectBase):
                 }
                 yield output
                 
-        model = self.brain.getLLM(project.model.llm, db)
+        model = self.brain.get_llm(project.model.llm, db)
         
         toolsu = self.brain.get_tools((project.model.tools or "").split(","))
         if len(toolsu) == 0:
@@ -95,7 +95,7 @@ class Agent(ProjectBase):
                 }
                 yield output
                 
-        model = self.brain.getLLM(project.model.llm, db)
+        model = self.brain.get_llm(project.model.llm, db)
         
         toolsu = self.brain.get_tools((project.model.tools or "").split(","))
         

@@ -15,7 +15,7 @@ class RAGSql(ProjectBase):
         raise HTTPException(status_code=400, detail='{"error": "Chat mode not available for this project type."}')
 
     def question(self, project: Project, questionModel: QuestionModel, user: User, db: Session):
-        model = self.brain.getLLM(project.model.llm, db)
+        model = self.brain.get_llm(project.model.llm, db)
 
         engine = create_engine(project.model.connection)
 

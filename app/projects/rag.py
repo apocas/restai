@@ -8,7 +8,7 @@ from llama_index.core.chat_engine import ContextChatEngine
 from llama_index.core.postprocessor.llm_rerank import LLMRerank
 from llama_index.postprocessor.colbert_rerank import ColbertRerank
 from app.chat import Chat
-from app.eval import evalRAG
+from app.eval import eval_rag
 from app.guard import Guard
 from app.models.models import QuestionModel, ChatModel, User
 from sqlalchemy.orm import Session
@@ -20,7 +20,7 @@ from app.projects.base import ProjectBase
 class RAG(ProjectBase):
 
     def chat(self, project: Project, chatModel: ChatModel, user: User, db: Session):
-        model = self.brain.getLLM(project.model.llm, db)
+        model = self.brain.get_llm(project.model.llm, db)
         chat = Chat(chatModel)
         
         output = {
@@ -158,7 +158,7 @@ class RAG(ProjectBase):
                 }
                 yield output
             
-        model = self.brain.getLLM(project.model.llm, db)
+        model = self.brain.get_llm(project.model.llm, db)
 
         sysTemplate = questionModel.system or project.model.system or self.brain.defaultSystem
 
@@ -226,7 +226,7 @@ class RAG(ProjectBase):
                         {"source": node.metadata["source"], "keywords": node.metadata["keywords"], "score": node.score, "id": node.node_id, "text": node.text})
             
             if questionModel.eval and not questionModel.stream:
-                metric = evalRAG(questionModel.question, response, self.brain.getLLM("openai_gpt4", db).llm)
+                metric = eval_rag(questionModel.question, response, self.brain.get_llm("openai_gpt4", db).llm)
                 output["evaluation"] = {
                     "reason": metric.reason,
                     "score": metric.score

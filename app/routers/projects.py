@@ -1,74 +1,78 @@
-from fastapi import APIRouter
+import base64
+import json
+import logging
 import os
-from starlette.requests import Request
-from unidecode import unidecode
-from sqlalchemy.orm import Session
-from fastapi import Depends, HTTPException
+import re
+import traceback
 import urllib.parse
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import Form, HTTPException, Request, UploadFile, BackgroundTasks
 from llama_index.core.postprocessor import SimilarityPostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
-from llama_index.core.schema import Document
 from llama_index.core.retrievers import VectorIndexRetriever
-from fastapi import Form, HTTPException, Request, UploadFile, BackgroundTasks
-import traceback
-from tempfile import NamedTemporaryFile
-import re
-from pathlib import Path
-import logging
-import json
-import base64
+from llama_index.core.schema import Document
+from sqlalchemy.orm import Session
+from unidecode import unidecode
+
 from app import config
-
-from app.helper import chat_main, question_main
-from app.vectordb import tools
-from app.project import Project
-from modules.embeddings import EMBEDDINGS
-from app.models.models import FindModel, IngestResponse,ProjectModel, ProjectModelUpdate, ProjectsResponse, QuestionModel, ChatModel, TextIngestModel, URLIngestModel, User
-from app.loaders.url import SeleniumWebReader
-from app.database import dbc, get_db
 from app.auth import get_current_username, get_current_username_project, get_current_username_project_public
+from app.database import get_db, get_projects, create_project, get_project_by_name, get_user_by_id, delete_project, \
+    edit_project
+from app.helper import chat_main, question_main
+from app.loaders.url import SeleniumWebReader
+from app.models.models import FindModel, IngestResponse, ProjectModel, ProjectModelUpdate, ProjectsResponse, \
+    QuestionModel, ChatModel, TextIngestModel, URLIngestModel, User
+from app.project import Project
+from app.vectordb import tools
 from app.vectordb.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata
-
+from modules.embeddings import EMBEDDINGS
 
 logging.basicConfig(level=config.LOG_LEVEL)
 logging.getLogger('passlib').setLevel(logging.ERROR)
 
 router = APIRouter()
 
+
 @router.get("/projects", response_model=ProjectsResponse)
-async def get_projects(request: Request, filter: str = "own", user: User = Depends(get_current_username), db: Session = Depends(get_db)):
-    projects = []     
-    if filter == "own":
+async def route_get_projects(_: Request, v_filter: str = "own", user: User = Depends(get_current_username),
+                           db: Session = Depends(get_db)):
+    projects = []
+    if v_filter == "own":
         if user.is_admin:
-            projects = dbc.get_projects(db)
+            projects = get_projects(db)
         else:
             for project in user.projects:
-                for p in dbc.get_projects(db):
+                for p in get_projects(db):
                     if project.name == p.name:
                         projects.append(p)
-    elif filter == "public":
-        for project in dbc.get_projects(db):
-            if project.public == True:
+    elif v_filter == "public":
+        for project in get_projects(db):
+            if project.public:
                 projects.append(project)
 
     return {"projects": projects}
 
 
 @router.get("/projects/{projectName}")
-async def get_project(request: Request, projectName: str, user: User = Depends(get_current_username_project_public), db: Session = Depends(get_db)):
+async def route_get_project(request: Request, projectName: str, user: User = Depends(get_current_username_project_public),
+                      db: Session = Depends(get_db)):
     try:
-        project = request.app.state.brain.findProject(projectName, db)
-        
+        project = request.app.state.brain.find_project(projectName, db)
+
         if project is None:
             raise HTTPException(
                 status_code=404, detail='Project not found')
 
         output = project.model.model_dump()
         final_output = {}
-        
+
         try:
-            llm_model = request.app.state.brain.getLLM(project.model.llm, db)
-        except Exception as e:
+            llm_model = request.app.state.brain.get_llm(project.model.llm, db)
+        except Exception:
             llm_model = None
 
         final_output["name"] = output["name"]
@@ -82,7 +86,7 @@ async def get_project(request: Request, projectName: str, user: User = Depends(g
         final_output["public"] = output["public"]
         final_output["level"] = user.level
         final_output["default_prompt"] = output["default_prompt"]
-        
+
         if project.model.type == "rag":
             if project.vector is not None:
                 chunks = project.vector.info()
@@ -99,27 +103,27 @@ async def get_project(request: Request, projectName: str, user: User = Depends(g
             final_output["colbert_rerank"] = output["colbert_rerank"]
             final_output["cache"] = output["cache"]
             final_output["cache_threshold"] = output["cache_threshold"]
-        
+
         if project.model.type == "inference":
             final_output["system"] = output["system"] or ""
-            
+
         if project.model.type == "agent":
             final_output["system"] = output["system"] or ""
             final_output["tools"] = output["tools"]
-            
+
         if project.model.type == "ragsql":
             final_output["system"] = output["system"] or ""
             final_output["tables"] = output["tables"]
             if output["connection"] is not None:
                 final_output["connection"] = re.sub(
-                r'(?<=://).+?(?=@)', "xxxx:xxxx", output["connection"])
-            
+                    r'(?<=://).+?(?=@)', "xxxx:xxxx", output["connection"])
+
         if project.model.type == "router":
             final_output["entrances"] = output["entrances"]
-            
+
         if llm_model:
-            final_output["llm_type"]=llm_model.props.type
-            final_output["llm_privacy"]=llm_model.props.privacy
+            final_output["llm_type"] = llm_model.props.type
+            final_output["llm_privacy"] = llm_model.props.privacy
 
         return final_output
     except Exception as e:
@@ -130,17 +134,18 @@ async def get_project(request: Request, projectName: str, user: User = Depends(g
 
 
 @router.delete("/projects/{projectName}")
-async def delete_project(request: Request, projectName: str, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
+async def route_delete_project(request: Request, projectName: str, user: User = Depends(get_current_username_project),
+                         db: Session = Depends(get_db)):
     try:
-        proj = request.app.state.brain.findProject(projectName, db)
-        
+        proj = request.app.state.brain.find_project(projectName, db)
+
         if proj is not None:
-            dbc.delete_project(db, dbc.get_project_by_name(db, projectName))
+            delete_project(db, get_project_by_name(db, projectName))
             proj.delete()
         else:
             raise HTTPException(
                 status_code=404, detail='Project not found')
-            
+
         return {"project": projectName}
 
     except Exception as e:
@@ -151,22 +156,22 @@ async def delete_project(request: Request, projectName: str, user: User = Depend
 
 
 @router.patch("/projects/{projectName}")
-async def edit_project(request: Request, projectName: str, projectModelUpdate: ProjectModelUpdate, user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
-  
-    if projectModelUpdate.llm and request.app.state.brain.getLLM(projectModelUpdate.llm, db) is None:
+async def route_edit_project(request: Request, projectName: str, projectModelUpdate: ProjectModelUpdate,
+                       user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
+    if projectModelUpdate.llm and request.app.state.brain.get_llm(projectModelUpdate.llm, db) is None:
         raise HTTPException(
             status_code=404,
             detail='LLM not found')
 
     if user.is_private:
-        llm_model = request.app.state.brain.getLLM(projectModelUpdate.llm, db)
+        llm_model = request.app.state.brain.get_llm(projectModelUpdate.llm, db)
         if llm_model.props.privacy != "private":
             raise HTTPException(
                 status_code=403,
                 detail='User not allowed to use public models')
 
     try:
-        if dbc.editProject(projectName, projectModelUpdate, db):
+        if edit_project(projectName, projectModelUpdate, db):
             return {"project": projectName}
         else:
             raise HTTPException(
@@ -179,12 +184,13 @@ async def edit_project(request: Request, projectName: str, projectModelUpdate: P
 
 
 @router.post("/projects")
-async def create_project(request: Request, projectModel: ProjectModel, user: User = Depends(get_current_username), db: Session = Depends(get_db)):
+async def route_create_project(request: Request, projectModel: ProjectModel, user: User = Depends(get_current_username),
+                         db: Session = Depends(get_db)):
     projectModel.human_name = projectModel.name.strip()
     projectModel.name = unidecode(
         projectModel.name.strip().lower().replace(" ", "_"))
     projectModel.name = re.sub(r'[^\w\-.]+', '', projectModel.name)
-    
+
     if projectModel.type not in ["rag", "inference", "router", "ragsql", "vision", "agent"]:
         raise HTTPException(
             status_code=404,
@@ -194,7 +200,7 @@ async def create_project(request: Request, projectModel: ProjectModel, user: Use
         raise HTTPException(
             status_code=400,
             detail='Invalid project name')
-        
+
     if config.RESTAI_DEMO and not user.is_admin:
         if projectModel.type == "ragsql" or projectModel.type == "agent":
             raise HTTPException(
@@ -205,19 +211,19 @@ async def create_project(request: Request, projectModel: ProjectModel, user: Use
         raise HTTPException(
             status_code=404,
             detail='Embeddings not found')
-    if request.app.state.brain.getLLM(projectModel.llm, db) is None:
+    if request.app.state.brain.get_llm(projectModel.llm, db) is None:
         raise HTTPException(
             status_code=404,
             detail='LLM not found')
 
-    proj = request.app.state.brain.findProject(projectModel.name, db)
+    proj = request.app.state.brain.find_project(projectModel.name, db)
     if proj is not None:
         raise HTTPException(
             status_code=403,
             detail='Project already exists')
 
     if user.is_private:
-        llm_model = request.app.state.brain.getLLM(projectModel.llm, db)
+        llm_model = request.app.state.brain.get_llm(projectModel.llm, db)
         if llm_model.props.privacy != "private":
             raise HTTPException(
                 status_code=403,
@@ -232,7 +238,7 @@ async def create_project(request: Request, projectModel: ProjectModel, user: Use
                     detail='User allowed to private models only')
 
     try:
-        dbc.create_project(
+        create_project(
             db,
             projectModel.name,
             projectModel.embeddings,
@@ -243,13 +249,13 @@ async def create_project(request: Request, projectModel: ProjectModel, user: Use
             user.id
         )
         project = Project(projectModel)
-        
-        if(project.model.vectorstore):
+
+        if project.model.vectorstore:
             project.vector = tools.findVectorDB(project)(request.app.state.brain, project)
-        
-        projectdb = dbc.get_project_by_name(db, project.model.name)
-        
-        userdb = dbc.get_user_by_id(db, user.id)
+
+        projectdb = get_project_by_name(db, project.model.name)
+
+        userdb = get_user_by_id(db, user.id)
         userdb.projects.append(projectdb)
         db.commit()
         return {"project": projectModel.name}
@@ -267,7 +273,7 @@ async def reset_embeddings(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
-        project = request.app.state.brain.findProject(projectName, db)
+        project = request.app.state.brain.find_project(projectName, db)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -282,23 +288,24 @@ async def reset_embeddings(
         raise HTTPException(
             status_code=404, detail=str(e))
 
+
 @router.post("/projects/{projectName}/clone/{newProjectName}")
 async def clone_project(request: Request, projectName: str, newProjectName: str,
-                         user: User = Depends(get_current_username_project),
-                         db: Session = Depends(get_db)):
-    project = request.app.state.brain.findProject(projectName, db)
+                        user: User = Depends(get_current_username_project),
+                        db: Session = Depends(get_db)):
+    project = request.app.state.brain.find_project(projectName, db)
     if project is None:
         raise HTTPException(
             status_code=404, detail='Project not found')
-        
-    newProject = dbc.get_project_by_name(db, newProjectName)
+
+    newProject = get_project_by_name(db, newProjectName)
     if newProject is not None:
         raise HTTPException(
             status_code=403, detail='Project already exists')
-        
-    project_db = dbc.get_project_by_name(db, projectName)
-    
-    newProject_db = dbc.create_project(
+
+    project_db = get_project_by_name(db, projectName)
+
+    newProject_db = create_project(
         db,
         newProjectName,
         project.model.embeddings,
@@ -306,7 +313,7 @@ async def clone_project(request: Request, projectName: str, newProjectName: str,
         project.model.vectorstore,
         project.model.type
     )
-    
+
     newProject_db.system = project.model.system
     newProject_db.censorship = project.model.censorship
     newProject_db.k = project.model.k
@@ -320,22 +327,23 @@ async def clone_project(request: Request, projectName: str, newProjectName: str,
     newProject_db.human_description = project.model.human_description
     newProject_db.tables = project.model.tables
     newProject_db.connection = project.model.connection
-    
+
     for user in project_db.users:
         newProject_db.users.append(user)
-        
+
     for entrance in project_db.entrances:
         newProject_db.entrances.append(entrance)
-        
+
     db.commit()
 
     return {"project": newProjectName}
+
 
 @router.post("/projects/{projectName}/embeddings/search")
 async def find_embedding(request: Request, projectName: str, embedding: FindModel,
                          user: User = Depends(get_current_username_project_public),
                          db: Session = Depends(get_db)):
-    project = request.app.state.brain.findProject(projectName, db)
+    project = request.app.state.brain.find_project(projectName, db)
 
     if project.model.type != "rag":
         raise HTTPException(
@@ -379,7 +387,7 @@ async def find_embedding(request: Request, projectName: str, embedding: FindMode
 async def get_embedding(request: Request, projectName: str, source: str,
                         user: User = Depends(get_current_username_project_public),
                         db: Session = Depends(get_db)):
-    project = request.app.state.brain.findProject(projectName, db)
+    project = request.app.state.brain.find_project(projectName, db)
 
     if project.model.type != "rag":
         raise HTTPException(
@@ -397,7 +405,7 @@ async def get_embedding(request: Request, projectName: str, source: str,
 async def get_embedding(request: Request, projectName: str, id: str,
                         user: User = Depends(get_current_username_project_public),
                         db: Session = Depends(get_db)):
-    project = request.app.state.brain.findProject(projectName, db)
+    project = request.app.state.brain.find_project(projectName, db)
 
     if project.model.type != "rag":
         raise HTTPException(
@@ -411,9 +419,8 @@ async def get_embedding(request: Request, projectName: str, id: str,
 async def ingest_text(request: Request, projectName: str, ingest: TextIngestModel,
                       user: User = Depends(get_current_username_project),
                       db: Session = Depends(get_db)):
-
     try:
-        project = request.app.state.brain.findProject(projectName, db)
+        project = request.app.state.brain.find_project(projectName, db)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -450,8 +457,8 @@ async def ingest_url(request: Request, projectName: str, ingest: URLIngestModel,
         if ingest.url and not ingest.url.startswith('http'):
             raise HTTPException(
                 status_code=400, detail='{"error": "Specify the protocol http:// or https://"}')
-      
-        project = request.app.state.brain.findProject(projectName, db)
+
+        project = request.app.state.brain.find_project(projectName, db)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -488,7 +495,7 @@ async def ingest_file(
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
     try:
-        project = request.app.state.brain.findProject(projectName, db)
+        project = request.app.state.brain.find_project(projectName, db)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -538,7 +545,7 @@ async def get_embeddings(
         projectName: str,
         user: User = Depends(get_current_username_project_public),
         db: Session = Depends(get_db)):
-    project = request.app.state.brain.findProject(projectName, db)
+    project = request.app.state.brain.find_project(projectName, db)
 
     if project.model.type != "rag":
         raise HTTPException(
@@ -559,7 +566,7 @@ async def delete_embedding(
         source: str,
         user: User = Depends(get_current_username_project),
         db: Session = Depends(get_db)):
-    project = request.app.state.brain.findProject(projectName, db)
+    project = request.app.state.brain.find_project(projectName, db)
 
     if project.model.type != "rag":
         raise HTTPException(
@@ -573,21 +580,21 @@ async def delete_embedding(
 @router.post("/projects/{projectName}/chat")
 async def chat_query(
         request: Request,
-        projectName: str,
-        input: ChatModel,
+        project_name: str,
+        q_input: ChatModel,
         background_tasks: BackgroundTasks,
         user: User = Depends(get_current_username_project_public),
         db: Session = Depends(get_db)):
     try:
-        if not input.question:
+        if not q_input.question:
             raise HTTPException(
                 status_code=400, detail='{"error": "Missing question"}')
-      
-        project = request.app.state.brain.findProject(projectName, db)
+
+        project = request.app.state.brain.find_project(project_name, db)
         if project is None:
             raise Exception("Project not found")
 
-        return await chat_main(request, request.app.state.brain, project, input, user, db, background_tasks)
+        return await chat_main(request, request.app.state.brain, project, q_input, user, db, background_tasks)
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -598,24 +605,24 @@ async def chat_query(
 @router.post("/projects/{projectName}/question")
 async def question_query_endpoint(
         request: Request,
-        projectName: str,
-        input: QuestionModel,
+        project_name: str,
+        q_input: QuestionModel,
         background_tasks: BackgroundTasks,
         user: User = Depends(get_current_username_project_public),
         db: Session = Depends(get_db)):
     try:
-        if not input.question:
+        if not q_input.question:
             raise HTTPException(
                 status_code=400, detail='{"error": "Missing question"}')
-            
-        project = request.app.state.brain.findProject(projectName, db)
+
+        project = request.app.state.brain.find_project(project_name, db)
         if project is None:
             raise Exception("Project not found")
-          
+
         if user.level == "public":
-            input = QuestionModel(question=input.question, image=input.image, negative=input.negative)
-            
-        return await question_main(request, request.app.state.brain, project, input, user, db, background_tasks)
+            q_input = QuestionModel(question=q_input.question, image=q_input.image, negative=q_input.negative)
+
+        return await question_main(request, request.app.state.brain, project, q_input, user, db, background_tasks)
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)

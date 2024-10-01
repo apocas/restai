@@ -1,7 +1,6 @@
 from starlette.responses import StreamingResponse
-from starlette.requests import Request
 from sqlalchemy.orm import Session
-from fastapi import BackgroundTasks, HTTPException
+from fastapi import BackgroundTasks
 from app.project import Project
 from app.projects.agent import Agent
 from app.projects.inference import Inference
@@ -18,91 +17,94 @@ import re
 import logging
 import base64
 from app.tools import log_inference
-from app.config import (
-    LOG_LEVEL,
-)
-from app.projects.base import Project as ProjectBase
+from app.config import LOG_LEVEL
 
+from app.projects.base import ProjectBase
 
 logging.basicConfig(level=LOG_LEVEL)
 logging.getLogger('passlib').setLevel(logging.ERROR)
 
+
 async def chat_main(
-        request: Request,
+        _: Request,
         brain: Brain,
         project: Project,
-        input: QuestionModel,
+        q_input: QuestionModel,
         user: User,
         db: Session,
         background_tasks: BackgroundTasks):
-    
-    projlogic: ProjectBase
-    if project.model.type == "rag":
-        projlogic = RAG(brain)
-    elif project.model.type == "router":
-        projlogic = Router(brain)
-    elif project.model.type == "inference":
-        projlogic = Inference(brain)
-    elif project.model.type == "agent":
-        projlogic = Agent(brain)
+    proj_logic: ProjectBase
+    match project.model.type:
+        case "rag":
+            proj_logic = RAG(brain)
+        case "router":
+            proj_logic = Router(brain)
+        case "inference":
+            proj_logic = Inference(brain)
+        case "agent":
+            proj_logic = Agent(brain)
+        case _:
+            raise HTTPException(
+                status_code=400, detail='{"error": "Invalid project type"}')
 
-    if input.stream:
-        return StreamingResponse(projlogic.chat(project, input, user, db), media_type='text/event-stream')
+    if q_input.stream:
+        return StreamingResponse(proj_logic.chat(project, q_input, user, db), media_type='text/event-stream')
     else:
-        output = projlogic.chat(project, input, user, db)
+        output = proj_logic.chat(project, q_input, user, db)
         for line in output:
             background_tasks.add_task(log_inference, user, line, db)
             return line
-        
+
+
 async def question_main(
         request: Request,
         brain: Brain,
         project: Project,
-        input: QuestionModel,
+        q_input: QuestionModel,
         user: User,
         db: Session,
         background_tasks: BackgroundTasks):
-    
-    
-    if project.model.type == "rag":
-        cached = await processCache(project, input, db)
-        if cached:
-            background_tasks.add_task(log_inference, user, cached, db)
-            return cached
-        return await question_rag(request, brain, project, input, user, db, background_tasks)
-    elif project.model.type == "inference":
-        return await question_inference(request, brain, project, input, user, db, background_tasks)
-    elif project.model.type == "ragsql":
-        return await question_query_sql(request, brain, project, input, user, db, background_tasks)
-    elif project.model.type == "router":
-        return await question_router(request, brain, project, input, user, db, background_tasks)
-    elif project.model.type == "vision":
-        return await question_vision(project, brain, input, user, db, background_tasks)
-    elif project.model.type == "agent":
-        return await question_agent(request, brain, project, input, user, db, background_tasks)
-    else:
-        raise HTTPException(
-            status_code=400, detail='{"error": "Invalid project type"}')
+    match project.model.type:
+        case "rag":
+            cached = await process_cache(project, q_input, db)
+            if cached:
+                background_tasks.add_task(log_inference, user, cached, db)
+                return cached
+            return await question_rag(request, brain, project, q_input, user, db, background_tasks)
+        case "inference":
+            return await question_inference(request, brain, project, q_input, user, db, background_tasks)
+        case "ragsql":
+            return await question_query_sql(request, brain, project, q_input, user, db, background_tasks)
+        case "router":
+            return await question_router(request, brain, project, q_input, user, db, background_tasks)
+        case "vision":
+            return await question_vision(project, brain, q_input, user, db, background_tasks)
+        case "agent":
+            return await question_agent(request, brain, project, q_input, user, db, background_tasks)
+        case _:
+            raise HTTPException(
+                status_code=400, detail='{"error": "Invalid project type"}')
+
 
 async def question_rag(
-        request: Request,
+        _: Request,
         brain: Brain,
         project: Project,
-        input: QuestionModel,
+        q_input: QuestionModel,
         user: User,
         db: Session,
         background_tasks: BackgroundTasks):
     try:
-        projlogic = RAG(brain)
+        proj_logic = RAG(brain)
 
         if project.model.type != "rag":
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-        if input.stream:
-            return StreamingResponse(projlogic.question(project, input, user, db), media_type='text/event-stream')
+        if q_input.stream:
+            return StreamingResponse(proj_logic.question(project, q_input, user, db), media_type='text/event-stream')
         else:
-            output = projlogic.question(project, input, user, db)
+            output = proj_logic.question(project, q_input, user, db)
             for line in output:
                 background_tasks.add_task(log_inference, user, line, db)
                 return line
@@ -111,28 +113,29 @@ async def question_rag(
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail=str(e))
-        
-async def processCache(project: Project, input: QuestionModel, db: Session): 
+
+
+async def process_cache(project: Project, q_input: QuestionModel, _: Session):
     output = {
-      "question": input.question,
-      "type": "question",
-      "sources": [],
-      "tokens": {
-          "input": 0,
-          "output": 0
-      }
+        "question": q_input.question,
+        "type": "question",
+        "sources": [],
+        "tokens": {
+            "input": 0,
+            "output": 0
+        }
     }
-    
+
     if project.cache:
-        answer = project.cache.verify(input.question)
+        answer = project.cache.verify(q_input.question)
         if answer is not None:
             output.update({
                 "answer": answer,
                 "cached": True,
             })
-            
+
             return output
-          
+
     return None
 
 
@@ -140,7 +143,7 @@ async def question_router(
         request: Request,
         brain: Brain,
         project: Project,
-        input: QuestionModel,
+        q_input: QuestionModel,
         user: User,
         db: Session,
         background_tasks: BackgroundTasks):
@@ -151,14 +154,14 @@ async def question_router(
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for ROUTER projects."}')
 
-        projDestName = projLogic.question(project, input, user, db)
-        projDest = brain.findProject(projDestName, db)
-        
-        if projDest is None:
+        proj_dest_name = projLogic.question(project, q_input, user, db)
+        proj_dest = brain.find_project(proj_dest_name, db)
+
+        if proj_dest is None:
             raise HTTPException(
                 status_code=404, detail='{"error": "No destination project found."}')
         else:
-            return await question_main(request, brain, projDest, input, user, db)
+            return await question_main(request, brain, proj_dest, q_input, user, db, background_tasks)
 
     except Exception as e:
         logging.error(e)
@@ -168,24 +171,24 @@ async def question_router(
 
 
 async def question_inference(
-        request: Request,
+        _: Request,
         brain: Brain,
         project: Project,
-        input: QuestionModel,
+        q_input: QuestionModel,
         user: User,
         db: Session,
         background_tasks: BackgroundTasks):
-    try:                    
-        projLogic = Inference(brain)
+    try:
+        proj_logic = Inference(brain)
 
         if project.model.type != "inference":
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for INFERENCE projects."}')
 
-        if input.stream:
-            return StreamingResponse(projLogic.question(project, input, user, db), media_type='text/event-stream')
+        if q_input.stream:
+            return StreamingResponse(proj_logic.question(project, q_input, user, db), media_type='text/event-stream')
         else:
-            output = projLogic.question(project, input, user, db)
+            output = proj_logic.question(project, q_input, user, db)
             for line in output:
                 background_tasks.add_task(log_inference, user, line, db)
                 return line
@@ -196,45 +199,47 @@ async def question_inference(
         raise HTTPException(
             status_code=500, detail=str(e))
 
+
 async def question_agent(
-        request: Request,
+        _: Request,
         brain: Brain,
         project: Project,
-        input: QuestionModel,
+        q_input: QuestionModel,
         user: User,
         db: Session,
         background_tasks: BackgroundTasks):
-    try:      
+    try:
         projLogic = Agent(brain)
 
-        output = projLogic.question(project, input, user, db)
-        
+        output = projLogic.question(project, q_input, user, db)
+
         for line in output:
             background_tasks.add_task(log_inference, user, line, db)
             return line
-          
+
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail=str(e))
 
+
 async def question_query_sql(
-        request: Request,
+        _: Request,
         brain: Brain,
         project: Project,
-        input: QuestionModel,
+        q_input: QuestionModel,
         user: User,
         db: Session,
         background_tasks: BackgroundTasks):
-    try:      
+    try:
         projLogic = RAGSql(brain)
 
         if project.model.type != "ragsql":
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAGSQL projects."}')
 
-        output = projLogic.question(project, input, user, db)
+        output = projLogic.question(project, q_input, user, db)
 
         background_tasks.add_task(log_inference, user, output, db)
 
@@ -249,35 +254,35 @@ async def question_query_sql(
 async def question_vision(
         project: Project,
         brain: Brain,
-        input: QuestionModel,
+        q_input: QuestionModel,
         user: User,
         db: Session,
-        background_tasks: BackgroundTasks):
-    try:            
+        _: BackgroundTasks):
+    try:
         projLogic = Vision(brain)
 
         if project.model.type != "vision":
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for VISION projects."}')
 
-        if input.image:
+        if q_input.image:
             url_pattern = re.compile(
-                r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-            is_url = re.match(url_pattern, input.image) is not None
+                r'https?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(),]|%[0-9a-fA-F][0-9a-fA-F])+')
+            is_url = re.match(url_pattern, q_input.image) is not None
 
             if is_url:
-                response = requests.get(input.image)
+                response = requests.get(q_input.image)
                 response.raise_for_status()
                 image_data = response.content
-                input.image = base64.b64encode(image_data).decode('utf-8')
+                q_input.image = base64.b64encode(image_data).decode('utf-8')
 
         output = projLogic.question(
-            project, input, user, db)
-        
-        if input.lite:
+            project, q_input, user, db)
+
+        if q_input.lite:
             del output["image"]
 
-        #log_inference.info({"user": user.username, "project": projectName, "output": output})
+        # log_inference.info({"user": user.username, "project": projectName, "output": output})
         return output
     except Exception as e:
         logging.error(e)
