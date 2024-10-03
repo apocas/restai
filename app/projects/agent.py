@@ -62,12 +62,12 @@ class Agent(ProjectBase):
                     "output": tools.tokens_from_string(output["answer"])
                 }
                 yield output
-        except Exception as e:              
-            if chatModel.stream:   
+        except Exception as e:
+            if chatModel.stream:
                 if str(e) == "Reached max iterations.":
                     yield "data: I'm sorry, I tried my best...\n"
                 else:
-                     yield "data: Inference failed\n" 
+                    yield "data: Inference failed\n" 
                 yield "event: error\n\n"
             raise e
   

@@ -577,7 +577,7 @@ async def delete_embedding(
     return {"deleted": len(ids)}
 
 
-@router.post("/projects/{projectName}/chat")
+@router.post("/projects/{project_name}/chat")
 async def chat_query(
         request: Request,
         project_name: str,
@@ -602,7 +602,7 @@ async def chat_query(
             status_code=500, detail=str(e))
 
 
-@router.post("/projects/{projectName}/question")
+@router.post("/projects/{project_name}/question")
 async def question_query_endpoint(
         request: Request,
         project_name: str,
