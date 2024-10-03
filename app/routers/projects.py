@@ -577,10 +577,10 @@ async def delete_embedding(
     return {"deleted": len(ids)}
 
 
-@router.post("/projects/{project_name}/chat")
+@router.post("/projects/{projectName}/chat")
 async def chat_query(
         request: Request,
-        project_name: str,
+        projectName: str,
         q_input: ChatModel,
         background_tasks: BackgroundTasks,
         user: User = Depends(get_current_username_project_public),
@@ -590,7 +590,7 @@ async def chat_query(
             raise HTTPException(
                 status_code=400, detail='{"error": "Missing question"}')
 
-        project = request.app.state.brain.find_project(project_name, db)
+        project = request.app.state.brain.find_project(projectName, db)
         if project is None:
             raise Exception("Project not found")
 
@@ -602,10 +602,10 @@ async def chat_query(
             status_code=500, detail=str(e))
 
 
-@router.post("/projects/{project_name}/question")
+@router.post("/projects/{projectName}/question")
 async def question_query_endpoint(
         request: Request,
-        project_name: str,
+        projectName: str,
         q_input: QuestionModel,
         background_tasks: BackgroundTasks,
         user: User = Depends(get_current_username_project_public),
@@ -615,7 +615,7 @@ async def question_query_endpoint(
             raise HTTPException(
                 status_code=400, detail='{"error": "Missing question"}')
 
-        project = request.app.state.brain.find_project(project_name, db)
+        project = request.app.state.brain.find_project(projectName, db)
         if project is None:
             raise Exception("Project not found")
 
