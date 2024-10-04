@@ -69,6 +69,14 @@ class Agent(ProjectBase):
                 else:
                     yield "data: Inference failed\n" 
                 yield "event: error\n\n"
+            else:
+                if str(e) == "Reached max iterations.":
+                    output["answer"] = project.model.censorship or "I'm sorry, I tried my best..."
+                    output["tokens"] = {
+                        "input": tools.tokens_from_string(output["question"]),
+                        "output": tools.tokens_from_string(output["answer"])
+                    }
+                    yield output
             raise e
   
     def question(self, project: Project, questionModel: QuestionModel, user: User, db: Session):
@@ -110,7 +118,7 @@ class Agent(ProjectBase):
             resp = response.response
         except Exception as e:
             if str(e) == "Reached max iterations.":
-                resp = "I'm sorry, I tried my best..."
+                resp = project.model.censorship or "I'm sorry, I tried my best..."
                
         output["answer"] = resp
         output["tokens"] = {
