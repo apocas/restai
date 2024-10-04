@@ -38,10 +38,10 @@ router = APIRouter()
 
 
 @router.get("/projects", response_model=ProjectsResponse)
-async def route_get_projects(_: Request, v_filter: str = "own", user: User = Depends(get_current_username),
+async def route_get_projects(_: Request, filter: str = "own", user: User = Depends(get_current_username),
                            db: Session = Depends(get_db)):
     projects = []
-    if v_filter == "own":
+    if filter == "own":
         if user.is_admin:
             projects = get_projects(db)
         else:
@@ -49,7 +49,7 @@ async def route_get_projects(_: Request, v_filter: str = "own", user: User = Dep
                 for p in get_projects(db):
                     if project.name == p.name:
                         projects.append(p)
-    elif v_filter == "public":
+    elif filter == "public":
         for project in get_projects(db):
             if project.public:
                 projects.append(project)
