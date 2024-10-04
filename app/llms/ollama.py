@@ -21,7 +21,7 @@ class Ollama(Ollama):
         description="Time, in minutes, to wait before unloading model.",
     )
 
-    request_timeout = 120.0
+    request_timeout: float = 120.0
 
 
     @llm_chat_callback()

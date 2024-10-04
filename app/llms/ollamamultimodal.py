@@ -231,7 +231,7 @@ class OllamaMultiModal2(OllamaMultiModal):
         description="Time, in minutes, to wait before unloading model.",
     )
 
-    request_timeout = 120.0
+    request_timeout: float = 120.0
 
     def chat(self, messages: Sequence[ChatMessage], **kwargs: Any) -> ChatResponse:
         if self.system and len(messages) > 0 and messages[0].role != "system":
