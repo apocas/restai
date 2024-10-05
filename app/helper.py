@@ -1,6 +1,7 @@
 from starlette.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from fastapi import BackgroundTasks
+from app.database import DBWrapper
 from app.project import Project
 from app.projects.agent import Agent
 from app.projects.inference import Inference
@@ -31,7 +32,7 @@ async def chat_main(
         project: Project,
         q_input: QuestionModel,
         user: User,
-        db: Session,
+        db: DBWrapper,
         background_tasks: BackgroundTasks):
     proj_logic: ProjectBase
     match project.model.type:
@@ -62,11 +63,11 @@ async def question_main(
         project: Project,
         q_input: QuestionModel,
         user: User,
-        db: Session,
+        db: DBWrapper,
         background_tasks: BackgroundTasks):
     match project.model.type:
         case "rag":
-            cached = await process_cache(project, q_input, db)
+            cached = await process_cache(project, q_input)
             if cached:
                 background_tasks.add_task(log_inference, user, cached, db)
                 return cached
@@ -92,7 +93,7 @@ async def question_rag(
         project: Project,
         q_input: QuestionModel,
         user: User,
-        db: Session,
+        db: DBWrapper,
         background_tasks: BackgroundTasks):
     try:
         proj_logic = RAG(brain)
@@ -115,7 +116,7 @@ async def question_rag(
             status_code=500, detail=str(e))
 
 
-async def process_cache(project: Project, q_input: QuestionModel, _: Session):
+async def process_cache(project: Project, q_input: QuestionModel):
     output = {
         "question": q_input.question,
         "type": "question",

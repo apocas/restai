@@ -1,16 +1,14 @@
 import json
 import logging
 import traceback
-
 from llama_index.embeddings.langchain import LangchainEmbedding
+from app.database import DBWrapper
 from app.vectordb import tools as vector_tools
 from app import tools
 from app.llm import LLM
 from app.models.models import LLMModel, ProjectModel, ClassifierModel
 from app.project import Project
 from modules.embeddings import EMBEDDINGS
-from app.database import get_llm_by_name, get_project_by_name
-from sqlalchemy.orm import Session
 from transformers import pipeline
 from llama_index.core.tools import FunctionTool
 
@@ -22,17 +20,16 @@ class Brain:
         self.defaultSystem = ""
         self.tools = tools.load_tools()
 
-    def get_llm(self, llmName, db: Session, **kwargs):
+    def get_llm(self, llmName, db: DBWrapper, **kwargs):
         llm = self.load_llm(llmName, db)
-                
+
         if hasattr(llm.llm, 'system_prompt'):
             llm.llm.system_prompt = None
-        
         return llm
 
     @staticmethod
-    def load_llm(llmName, db: Session):
-        llm_db = get_llm_by_name(db, llmName)
+    def load_llm(llmName: str, db: DBWrapper):
+        llm_db = db.get_llm_by_name(llmName)
 
         if llm_db is not None:
             llm_model = LLMModel.model_validate(llm_db)
@@ -58,9 +55,9 @@ class Brain:
                 return model
             else:
                 raise Exception("Invalid Embedding type.")
-              
-    def find_project(self, name, db):
-        p = get_project_by_name(db, name)
+
+    def find_project(self, name: str, db: DBWrapper):
+        p = db.get_project_by_name(name)
         if p is None:
             return None
         proj = ProjectModel.model_validate(p)
@@ -75,7 +72,7 @@ class Brain:
                     traceback.print_tb(e.__traceback__)
                     project.vector = None
             return project
-      
+
     @staticmethod
     def classify(classifier_model: ClassifierModel):
         classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
@@ -83,17 +80,17 @@ class Brain:
         sequence_to_classify = classifier_model.sequence
         candidate_labels = classifier_model.labels
         return classifier(sequence_to_classify, candidate_labels, multi_label=True)
-      
+
     def get_tools(self, names=None) -> list[FunctionTool]:
         if names is None:
             names = []
         _tools = []
-        
+
         if names:
-          for tool in self.tools:
-              if tool.metadata.name in names:
-                  _tools.append(tool)
+            for tool in self.tools:
+                if tool.metadata.name in names:
+                    _tools.append(tool)
         else:
             _tools = self.tools
-                    
+
         return _tools

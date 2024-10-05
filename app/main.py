@@ -1,11 +1,8 @@
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from starlette.requests import Request
-from sqlalchemy.orm import Session
-from fastapi import Depends, FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, status
 import logging
 from app import config
 import sentry_sdk
@@ -21,11 +18,10 @@ print("""
 from modules.loaders import LOADERS
 from modules.embeddings import EMBEDDINGS
 from app.models.models import User
-from app.database import get_db, get_llms
+from app.database import get_db_wrapper, DBWrapper
 from app.brain import Brain
 from app.auth import get_current_username
 from app.routers import llms, projects, tools, users
-
 
 logging.basicConfig(level=config.LOG_LEVEL)
 logging.getLogger('passlib').setLevel(logging.ERROR)
@@ -37,7 +33,6 @@ if config.SENTRY_DSN:
         enable_tracing=True,
         profiles_sample_rate=1.0
     )
-
 
 app = FastAPI(
     title="RestAI",
@@ -54,12 +49,14 @@ app = FastAPI(
     },
 )
 
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-	exc_str = f'{exc}'.replace('\n', ' ').replace('   ', ' ')
-	logging.error(f"{request}: {exc_str}")
-	content = {'status_code': 10422, 'message': exc_str, 'data': None}
-	return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+    exc_str = f'{exc}'.replace('\n', ' ').replace('   ', ' ')
+    logging.error(f"{request}: {exc_str}")
+    content = {'status_code': 10422, 'message': exc_str, 'data': None}
+    return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
 
 if config.RESTAI_DEV:
     print("Running in development mode!")
@@ -73,7 +70,6 @@ if config.RESTAI_DEV:
 
 brain = Brain()
 
-
 app.state.brain = brain
 
 app.include_router(llms.router)
@@ -81,9 +77,11 @@ app.include_router(projects.router)
 app.include_router(tools.router)
 app.include_router(users.router)
 
+
 @app.get("/")
 async def get(request: Request):
     return "RESTAI, so many 'A's and 'I's, so little time..."
+
 
 @app.get("/version")
 async def get_version():
@@ -91,8 +89,9 @@ async def get_version():
         "version": app.version,
     }
 
+
 @app.get("/info")
-async def get_info(user: User = Depends(get_current_username), db: Session = Depends(get_db)):
+async def get_info(_: User = Depends(get_current_username), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     output = {
         "version": app.version,
         "loaders": list(LOADERS.keys()),
@@ -100,7 +99,7 @@ async def get_info(user: User = Depends(get_current_username), db: Session = Dep
         "llms": []
     }
 
-    llms = get_llms(db)
+    llms = db_wrapper.get_llms()
     for llm in llms:
         output["llms"].append({
             "name": llm.name,
@@ -121,7 +120,7 @@ async def get_info(user: User = Depends(get_current_username), db: Session = Dep
 
 try:
     app.mount("/admin/", StaticFiles(directory="frontend/html/",
-              html=True), name="static_admin")
+                                     html=True), name="static_admin")
     app.mount(
         "/admin/static/js",
         StaticFiles(
