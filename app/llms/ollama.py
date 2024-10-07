@@ -16,10 +16,6 @@ class Ollama(Ollama):
     system: str = Field(
         default="", description="Default system message to send to the model."
     )
-    keep_alive: int = Field(
-        default=0,
-        description="Time, in minutes, to wait before unloading model.",
-    )
 
     request_timeout: float = 120.0
 
