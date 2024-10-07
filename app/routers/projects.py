@@ -7,7 +7,7 @@ import traceback
 import urllib.parse
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, BackgroundTasks
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, BackgroundTasks, Query
 from llama_index.core.postprocessor import SimilarityPostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.response_synthesizers import ResponseMode
@@ -34,7 +34,7 @@ router = APIRouter()
 
 @router.get("/projects", response_model=ProjectsResponse)
 async def route_get_projects(_: Request,
-                             v_filter: str = "own",
+                             v_filter: str = Query("own", alias="filter"),
                              user: User = Depends(get_current_username),
                              db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     projects = []
