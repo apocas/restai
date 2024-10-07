@@ -1,21 +1,17 @@
 import base64
 from datetime import datetime, timedelta, timezone
-from typing import Union
+from typing import Optional
 from fastapi import Depends, HTTPException, Request
-
 from fastapi.security import HTTPBasic
 import jwt
-from sqlalchemy.orm import Session
-
 from app.config import RESTAI_AUTH_SECRET, RESTAI_AUTH_DISABLE_LOCAL
-from app.database import get_db, pwd_context, get_user_by_apikey, get_user_by_username, get_project_by_name
+from app.database import get_db_wrapper, pwd_context, DBWrapper
 from app.models.models import User
-
 
 security = HTTPBasic()
 
 
-def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -28,8 +24,8 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
 
 
 def get_current_username(
-    request: Request,
-    db: Session = Depends(get_db)
+        request: Request,
+        db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
     auth_header = request.headers.get('Authorization')
     bearer_token = None
@@ -50,9 +46,9 @@ def get_current_username(
                 pass
 
     jwt_token = request.cookies.get("restai_token")
-    
+
     if bearer_token:
-        user = get_user_by_apikey(db, bearer_token)
+        user = db_wrapper.get_user_by_apikey(bearer_token)
 
         if user is None:
             raise HTTPException(
@@ -65,7 +61,7 @@ def get_current_username(
         try:
             data = jwt.decode(jwt_token, RESTAI_AUTH_SECRET, algorithms=["HS512"])
 
-            user = get_user_by_username(db, data["username"])
+            user = db_wrapper.get_user_by_username(data["username"])
 
             return User.model_validate(user)
         except Exception as e:
@@ -74,13 +70,14 @@ def get_current_username(
                 detail="Invalid token"
             )
     else:
-        if RESTAI_AUTH_DISABLE_LOCAL or not credentials or ("username" not in credentials or "password" not in credentials):
+        if RESTAI_AUTH_DISABLE_LOCAL or not credentials or (
+                "username" not in credentials or "password" not in credentials):
             raise HTTPException(
                 status_code=401,
                 detail="Invalid credentials"
             )
-        
-        user = get_user_by_username(db, credentials["username"])
+
+        user = db_wrapper.get_user_by_username(credentials["username"])
 
         if user is None:
             raise HTTPException(
@@ -113,9 +110,9 @@ def get_current_username(
 
 
 def get_current_username_admin(
-    user: User = Depends(get_current_username)
+        user: User = Depends(get_current_username)
 ):
-    if not (user.is_admin):
+    if not user.is_admin:
         raise HTTPException(
             status_code=401,
             detail="Insuficient permissions",
@@ -125,8 +122,8 @@ def get_current_username_admin(
 
 
 def get_current_username_project(
-    projectName: str,
-    user: User = Depends(get_current_username)
+        projectName: str,
+        user: User = Depends(get_current_username)
 ):
     found = False
     if not user.is_admin:
@@ -142,12 +139,12 @@ def get_current_username_project(
             detail="Project not found"
         )
     return user
-  
+
 
 def get_current_username_project_public(
-    projectName: str,
-    user: User = Depends(get_current_username),
-    db: Session = Depends(get_db)
+        projectName: str,
+        user: User = Depends(get_current_username),
+        db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
     found = False
     if not user.is_admin:
@@ -158,8 +155,8 @@ def get_current_username_project_public(
     else:
         found = True
         user.level = "own"
-        
-    p = get_project_by_name(db, projectName)
+
+    p = db_wrapper.get_project_by_name(projectName)
     if found == False and (p is not None and p.public):
         found = True
         user.level = "public"
@@ -173,8 +170,8 @@ def get_current_username_project_public(
 
 
 def get_current_username_user(
-    username: str,
-    user: User = Depends(get_current_username)
+        username: str,
+        user: User = Depends(get_current_username)
 ):
     found = False
     if not user.is_admin:

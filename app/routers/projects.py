@@ -7,21 +7,16 @@ import traceback
 import urllib.parse
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import Form, HTTPException, Request, UploadFile, BackgroundTasks
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, BackgroundTasks
 from llama_index.core.postprocessor import SimilarityPostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.response_synthesizers import ResponseMode
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.schema import Document
-from sqlalchemy.orm import Session
 from unidecode import unidecode
-
 from app import config
 from app.auth import get_current_username, get_current_username_project, get_current_username_project_public
-from app.database import get_db, get_projects, create_project, get_project_by_name, get_user_by_id, delete_project, \
-    edit_project
+from app.database import get_db_wrapper, DBWrapper
 from app.helper import chat_main, question_main
 from app.loaders.url import SeleniumWebReader
 from app.models.models import FindModel, IngestResponse, ProjectModel, ProjectModelUpdate, ProjectsResponse, \
@@ -38,19 +33,21 @@ router = APIRouter()
 
 
 @router.get("/projects", response_model=ProjectsResponse)
-async def route_get_projects(_: Request, filter: str = "own", user: User = Depends(get_current_username),
-                           db: Session = Depends(get_db)):
+async def route_get_projects(_: Request,
+                             v_filter: str = "own",
+                             user: User = Depends(get_current_username),
+                             db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     projects = []
-    if filter == "own":
+    if v_filter == "own":
         if user.is_admin:
-            projects = get_projects(db)
+            projects = db_wrapper.get_projects()
         else:
             for project in user.projects:
-                for p in get_projects(db):
+                for p in db_wrapper.get_projects():
                     if project.name == p.name:
                         projects.append(p)
-    elif filter == "public":
-        for project in get_projects(db):
+    elif v_filter == "public":
+        for project in db_wrapper.get_projects():
             if project.public:
                 projects.append(project)
 
@@ -58,10 +55,12 @@ async def route_get_projects(_: Request, filter: str = "own", user: User = Depen
 
 
 @router.get("/projects/{projectName}")
-async def route_get_project(request: Request, projectName: str, user: User = Depends(get_current_username_project_public),
-                      db: Session = Depends(get_db)):
+async def route_get_project(request: Request,
+                            projectName: str,
+                            user: User = Depends(get_current_username_project_public),
+                            db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        project = request.app.state.brain.find_project(projectName, db)
+        project = request.app.state.brain.find_project(projectName, db_wrapper)
 
         if project is None:
             raise HTTPException(
@@ -71,7 +70,7 @@ async def route_get_project(request: Request, projectName: str, user: User = Dep
         final_output = {}
 
         try:
-            llm_model = request.app.state.brain.get_llm(project.model.llm, db)
+            llm_model = request.app.state.brain.get_llm(project.model.llm, db_wrapper)
         except Exception:
             llm_model = None
 
@@ -134,13 +133,15 @@ async def route_get_project(request: Request, projectName: str, user: User = Dep
 
 
 @router.delete("/projects/{projectName}")
-async def route_delete_project(request: Request, projectName: str, user: User = Depends(get_current_username_project),
-                         db: Session = Depends(get_db)):
+async def route_delete_project(request: Request,
+                               projectName: str,
+                               _: User = Depends(get_current_username_project),
+                               db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        proj = request.app.state.brain.find_project(projectName, db)
+        proj = request.app.state.brain.find_project(projectName, db_wrapper)
 
         if proj is not None:
-            delete_project(db, get_project_by_name(db, projectName))
+            db_wrapper.delete_project(db_wrapper.get_project_by_name(projectName))
             proj.delete()
         else:
             raise HTTPException(
@@ -156,22 +157,25 @@ async def route_delete_project(request: Request, projectName: str, user: User = 
 
 
 @router.patch("/projects/{projectName}")
-async def route_edit_project(request: Request, projectName: str, projectModelUpdate: ProjectModelUpdate,
-                       user: User = Depends(get_current_username_project), db: Session = Depends(get_db)):
-    if projectModelUpdate.llm and request.app.state.brain.get_llm(projectModelUpdate.llm, db) is None:
+async def route_edit_project(request: Request,
+                             projectName: str,
+                             projectModelUpdate: ProjectModelUpdate,
+                             user: User = Depends(get_current_username_project),
+                             db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    if projectModelUpdate.llm and request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper) is None:
         raise HTTPException(
             status_code=404,
             detail='LLM not found')
 
     if user.is_private:
-        llm_model = request.app.state.brain.get_llm(projectModelUpdate.llm, db)
+        llm_model = request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper)
         if llm_model.props.privacy != "private":
             raise HTTPException(
                 status_code=403,
                 detail='User not allowed to use public models')
 
     try:
-        if edit_project(projectName, projectModelUpdate, db):
+        if db_wrapper.edit_project(projectName, projectModelUpdate):
             return {"project": projectName}
         else:
             raise HTTPException(
@@ -184,8 +188,10 @@ async def route_edit_project(request: Request, projectName: str, projectModelUpd
 
 
 @router.post("/projects")
-async def route_create_project(request: Request, projectModel: ProjectModel, user: User = Depends(get_current_username),
-                         db: Session = Depends(get_db)):
+async def route_create_project(request: Request,
+                               projectModel: ProjectModel,
+                               user: User = Depends(get_current_username),
+                               db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     projectModel.human_name = projectModel.name.strip()
     projectModel.name = unidecode(
         projectModel.name.strip().lower().replace(" ", "_"))
@@ -211,19 +217,19 @@ async def route_create_project(request: Request, projectModel: ProjectModel, use
         raise HTTPException(
             status_code=404,
             detail='Embeddings not found')
-    if request.app.state.brain.get_llm(projectModel.llm, db) is None:
+    if request.app.state.brain.get_llm(projectModel.llm, db_wrapper) is None:
         raise HTTPException(
             status_code=404,
             detail='LLM not found')
 
-    proj = request.app.state.brain.find_project(projectModel.name, db)
+    proj = request.app.state.brain.find_project(projectModel.name, db_wrapper)
     if proj is not None:
         raise HTTPException(
             status_code=403,
             detail='Project already exists')
 
     if user.is_private:
-        llm_model = request.app.state.brain.get_llm(projectModel.llm, db)
+        llm_model = request.app.state.brain.get_llm(projectModel.llm, db_wrapper)
         if llm_model.props.privacy != "private":
             raise HTTPException(
                 status_code=403,
@@ -238,8 +244,7 @@ async def route_create_project(request: Request, projectModel: ProjectModel, use
                     detail='User allowed to private models only')
 
     try:
-        create_project(
-            db,
+        db_wrapper.create_project(
             projectModel.name,
             projectModel.embeddings,
             projectModel.llm,
@@ -253,11 +258,11 @@ async def route_create_project(request: Request, projectModel: ProjectModel, use
         if project.model.vectorstore:
             project.vector = tools.findVectorDB(project)(request.app.state.brain, project)
 
-        projectdb = get_project_by_name(db, project.model.name)
+        project_db = db_wrapper.get_project_by_name(project.model.name)
 
-        userdb = get_user_by_id(db, user.id)
-        userdb.projects.append(projectdb)
-        db.commit()
+        user_db = db_wrapper.get_user_by_id(user.id)
+        user_db.projects.append(project_db)
+        db_wrapper.db.commit()
         return {"project": projectModel.name}
     except Exception as e:
         logging.error(e)
@@ -270,10 +275,10 @@ async def route_create_project(request: Request, projectModel: ProjectModel, use
 async def reset_embeddings(
         request: Request,
         projectName: str,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
+        _: User = Depends(get_current_username_project),
+        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        project = request.app.state.brain.find_project(projectName, db)
+        project = request.app.state.brain.find_project(projectName, db_wrapper)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -291,22 +296,21 @@ async def reset_embeddings(
 
 @router.post("/projects/{projectName}/clone/{newProjectName}")
 async def clone_project(request: Request, projectName: str, newProjectName: str,
-                        user: User = Depends(get_current_username_project),
-                        db: Session = Depends(get_db)):
-    project = request.app.state.brain.find_project(projectName, db)
+                        _: User = Depends(get_current_username_project),
+                        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    project = request.app.state.brain.find_project(projectName, db_wrapper)
     if project is None:
         raise HTTPException(
             status_code=404, detail='Project not found')
 
-    newProject = get_project_by_name(db, newProjectName)
+    newProject = db_wrapper.get_project_by_name(newProjectName)
     if newProject is not None:
         raise HTTPException(
             status_code=403, detail='Project already exists')
 
-    project_db = get_project_by_name(db, projectName)
+    project_db = db_wrapper.get_project_by_name(projectName)
 
-    newProject_db = create_project(
-        db,
+    newProject_db = db_wrapper.create_project(
         newProjectName,
         project.model.embeddings,
         project.model.llm,
@@ -334,16 +338,16 @@ async def clone_project(request: Request, projectName: str, newProjectName: str,
     for entrance in project_db.entrances:
         newProject_db.entrances.append(entrance)
 
-    db.commit()
+    db_wrapper.db.commit()
 
     return {"project": newProjectName}
 
 
 @router.post("/projects/{projectName}/embeddings/search")
 async def find_embedding(request: Request, projectName: str, embedding: FindModel,
-                         user: User = Depends(get_current_username_project_public),
-                         db: Session = Depends(get_db)):
-    project = request.app.state.brain.find_project(projectName, db)
+                         _: User = Depends(get_current_username_project_public),
+                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    project = request.app.state.brain.find_project(projectName, db_wrapper)
 
     if project.model.type != "rag":
         raise HTTPException(
@@ -351,10 +355,10 @@ async def find_embedding(request: Request, projectName: str, embedding: FindMode
 
     output = []
 
-    if (embedding.text):
+    if embedding.text:
         k = embedding.k or project.model.k or 2
 
-        if (embedding.score != None):
+        if embedding.score is not None:
             threshold = embedding.score
         else:
             threshold = embedding.score or project.model.score or 0.2
@@ -368,7 +372,7 @@ async def find_embedding(request: Request, projectName: str, embedding: FindMode
             retriever=retriever,
             node_postprocessors=[SimilarityPostprocessor(
                 similarity_cutoff=threshold)],
-            response_mode="no_text"
+            response_mode=ResponseMode.NO_TEXT
         )
 
         response = query_engine.query(embedding.text)
@@ -377,7 +381,7 @@ async def find_embedding(request: Request, projectName: str, embedding: FindMode
             output.append(
                 {"source": node.metadata["source"], "score": node.score, "id": node.node_id})
 
-    elif (embedding.source):
+    elif embedding.source:
         output = project.vector.list_source(embedding.source)
 
     return {"embeddings": output}
@@ -385,9 +389,9 @@ async def find_embedding(request: Request, projectName: str, embedding: FindMode
 
 @router.get("/projects/{projectName}/embeddings/source/{source}")
 async def get_embedding(request: Request, projectName: str, source: str,
-                        user: User = Depends(get_current_username_project_public),
-                        db: Session = Depends(get_db)):
-    project = request.app.state.brain.find_project(projectName, db)
+                        _: User = Depends(get_current_username_project_public),
+                        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    project = request.app.state.brain.find_project(projectName, db_wrapper)
 
     if project.model.type != "rag":
         raise HTTPException(
@@ -395,32 +399,33 @@ async def get_embedding(request: Request, projectName: str, source: str,
 
     docs = project.vector.find_source(base64.b64decode(source).decode('utf-8'))
 
-    if (len(docs['ids']) == 0):
+    if len(docs['ids']) == 0:
         return {"ids": []}
     else:
         return docs
 
 
 @router.get("/projects/{projectName}/embeddings/id/{id}")
-async def get_embedding(request: Request, projectName: str, id: str,
-                        user: User = Depends(get_current_username_project_public),
-                        db: Session = Depends(get_db)):
-    project = request.app.state.brain.find_project(projectName, db)
+async def get_embedding(request: Request, projectName: str,
+                        embedding_id: str,
+                        _: User = Depends(get_current_username_project_public),
+                        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    project = request.app.state.brain.find_project(projectName, db_wrapper)
 
     if project.model.type != "rag":
         raise HTTPException(
             status_code=400, detail='{"error": "Only available for RAG projects."}')
 
-    chunk = project.vector.find_id(id)
+    chunk = project.vector.find_id(embedding_id)
     return chunk
 
 
 @router.post("/projects/{projectName}/embeddings/ingest/text", response_model=IngestResponse)
 async def ingest_text(request: Request, projectName: str, ingest: TextIngestModel,
-                      user: User = Depends(get_current_username_project),
-                      db: Session = Depends(get_db)):
+                      _: User = Depends(get_current_username_project),
+                      db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        project = request.app.state.brain.find_project(projectName, db)
+        project = request.app.state.brain.find_project(projectName, db_wrapper)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -438,10 +443,10 @@ async def ingest_text(request: Request, projectName: str, ingest: TextIngestMode
         # for document in documents:
         #    document.text = document.text.decode('utf-8')
 
-        nchunks = IndexDocuments(project, documents, ingest.splitter, ingest.chunks)
+        n_chunks = IndexDocuments(project, documents, ingest.splitter, ingest.chunks)
         project.vector.save()
 
-        return {"source": ingest.source, "documents": len(documents), "chunks": nchunks}
+        return {"source": ingest.source, "documents": len(documents), "chunks": n_chunks}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -451,21 +456,21 @@ async def ingest_text(request: Request, projectName: str, ingest: TextIngestMode
 
 @router.post("/projects/{projectName}/embeddings/ingest/url", response_model=IngestResponse)
 async def ingest_url(request: Request, projectName: str, ingest: URLIngestModel,
-                     user: User = Depends(get_current_username_project),
-                     db: Session = Depends(get_db)):
+                     _: User = Depends(get_current_username_project),
+                     db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
         if ingest.url and not ingest.url.startswith('http'):
             raise HTTPException(
                 status_code=400, detail='{"error": "Specify the protocol http:// or https://"}')
 
-        project = request.app.state.brain.find_project(projectName, db)
+        project = request.app.state.brain.find_project(projectName, db_wrapper)
 
         if project.model.type != "rag":
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for RAG projects."}')
 
         urls = project.vector.list()
-        if (ingest.url in urls):
+        if ingest.url in urls:
             raise Exception("URL already ingested. Delete first.")
 
         loader = SeleniumWebReader()
@@ -473,10 +478,10 @@ async def ingest_url(request: Request, projectName: str, ingest: URLIngestModel,
         documents = loader.load_data(urls=[ingest.url])
         documents = ExtractKeywordsForMetadata(documents)
 
-        nchunks = IndexDocuments(project, documents, ingest.splitter, ingest.chunks)
+        n_chunks = IndexDocuments(project, documents, ingest.splitter, ingest.chunks)
         project.vector.save()
 
-        return {"source": ingest.url, "documents": len(documents), "chunks": nchunks}
+        return {"source": ingest.url, "documents": len(documents), "chunks": n_chunks}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -492,10 +497,10 @@ async def ingest_file(
         options: str = Form("{}"),
         chunks: int = Form(256),
         splitter: str = Form("sentence"),
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
+        _: User = Depends(get_current_username_project),
+        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        project = request.app.state.brain.find_project(projectName, db)
+        project = request.app.state.brain.find_project(projectName, db_wrapper)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -525,12 +530,12 @@ async def ingest_file(
 
         documents = ExtractKeywordsForMetadata(documents)
 
-        nchunks = IndexDocuments(project, documents, splitter, chunks)
+        n_chunks = IndexDocuments(project, documents, splitter, chunks)
         project.vector.save()
 
         return {
             "source": file.filename,
-            "documents": len(documents), "chunks": nchunks}
+            "documents": len(documents), "chunks": n_chunks}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -543,9 +548,9 @@ async def ingest_file(
 async def get_embeddings(
         request: Request,
         projectName: str,
-        user: User = Depends(get_current_username_project_public),
-        db: Session = Depends(get_db)):
-    project = request.app.state.brain.find_project(projectName, db)
+        _: User = Depends(get_current_username_project_public),
+        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    project = request.app.state.brain.find_project(projectName, db_wrapper)
 
     if project.model.type != "rag":
         raise HTTPException(
@@ -564,9 +569,9 @@ async def delete_embedding(
         request: Request,
         projectName: str,
         source: str,
-        user: User = Depends(get_current_username_project),
-        db: Session = Depends(get_db)):
-    project = request.app.state.brain.find_project(projectName, db)
+        _: User = Depends(get_current_username_project),
+        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    project = request.app.state.brain.find_project(projectName, db_wrapper)
 
     if project.model.type != "rag":
         raise HTTPException(
@@ -584,17 +589,17 @@ async def chat_query(
         q_input: ChatModel,
         background_tasks: BackgroundTasks,
         user: User = Depends(get_current_username_project_public),
-        db: Session = Depends(get_db)):
+        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
         if not q_input.question:
             raise HTTPException(
                 status_code=400, detail='{"error": "Missing question"}')
 
-        project = request.app.state.brain.find_project(projectName, db)
+        project = request.app.state.brain.find_project(projectName, db_wrapper)
         if project is None:
             raise Exception("Project not found")
 
-        return await chat_main(request, request.app.state.brain, project, q_input, user, db, background_tasks)
+        return await chat_main(request, request.app.state.brain, project, q_input, user, db_wrapper, background_tasks)
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -609,20 +614,20 @@ async def question_query_endpoint(
         q_input: QuestionModel,
         background_tasks: BackgroundTasks,
         user: User = Depends(get_current_username_project_public),
-        db: Session = Depends(get_db)):
+        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
         if not q_input.question:
             raise HTTPException(
                 status_code=400, detail='{"error": "Missing question"}')
 
-        project = request.app.state.brain.find_project(projectName, db)
+        project = request.app.state.brain.find_project(projectName, db_wrapper)
         if project is None:
             raise Exception("Project not found")
 
         if user.level == "public":
             q_input = QuestionModel(question=q_input.question, image=q_input.image, negative=q_input.negative)
 
-        return await question_main(request, request.app.state.brain, project, q_input, user, db, background_tasks)
+        return await question_main(request, request.app.state.brain, project, q_input, user, db_wrapper, background_tasks)
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)

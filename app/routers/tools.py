@@ -9,7 +9,7 @@ from app import config
 
 from app.auth import get_current_username
 from app.models.models import ClassifierModel, ClassifierResponse, Tool, User
-from app.database import get_db
+from app.database import get_db_wrapper
 
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -22,7 +22,7 @@ async def classifier(
         request: Request,
         input: ClassifierModel,
         user: User = Depends(get_current_username),
-        db: Session = Depends(get_db)):
+        db: Session = Depends(get_db_wrapper)):
     try:
         return request.app.state.brain.classify(input)
     except Exception as e:
@@ -37,7 +37,7 @@ async def classifier(
 async def get_tools(
         request: Request,
         user: User = Depends(get_current_username),
-        db: Session = Depends(get_db)):
+        db: Session = Depends(get_db_wrapper)):
   
     _tools  = []
     

@@ -1,11 +1,8 @@
 from fastapi import APIRouter
 import copy
 import uuid
-from starlette.requests import Request
 from unidecode import unidecode
-from sqlalchemy.orm import Session
-from fastapi import Depends, HTTPException
-from fastapi import HTTPException, Request
+from fastapi import Depends, HTTPException, Request
 import traceback
 import re
 import jwt
@@ -14,17 +11,15 @@ from datetime import timedelta
 import secrets
 from fastapi.responses import RedirectResponse
 from app import config
-
 from app.models.models import User, UserCreate, UserUpdate, UsersResponse
-from app.database import get_db, get_user_by_username, update_user, get_users, create_user, delete_user, \
-    get_project_by_name
+from app.database import get_db_wrapper, DBWrapper
 from app.auth import create_access_token, get_current_username_admin, get_current_username_user
 
 router = APIRouter()
 
 
 @router.get("/sso")
-async def get_sso(request: Request, db: Session = Depends(get_db)):
+async def get_sso(request: Request, db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     params = dict(request.query_params)
 
     if "jwt" not in params:
@@ -33,20 +28,17 @@ async def get_sso(request: Request, db: Session = Depends(get_db)):
 
     try:
         data = jwt.decode(params["jwt"], config.RESTAI_SSO_SECRET, algorithms=[config.RESTAI_SSO_ALG])
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=401,
             detail="Invalid token"
         )
 
-    user = get_user_by_username(db, data["preferred_username"])
+    user = db_wrapper.get_user_by_username(data["preferred_username"])
     if user is None:
-        user = create_user(db,
-                           data["preferred_username"], None,
-                           False,
-                           False)
+        user = db_wrapper.create_user(data["preferred_username"], None, False, False)
         user.sso = config.RESTAI_SSO_CALLBACK
-        db.commit()
+        db_wrapper.db.commit()
 
     new_token = create_access_token(
         data={"username": user.username}, expires_delta=timedelta(minutes=1440))
@@ -58,9 +50,9 @@ async def get_sso(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/users/{username}/sso")
-async def route_get_user(username: str, db: Session = Depends(get_db)):
+async def route_get_user(username: str, db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        user = get_user_by_username(db, username)
+        user = db_wrapper.get_user_by_username(username)
         if user is None:
             return {"sso": config.RESTAI_SSO_CALLBACK}
         return {"sso": user.sso}
@@ -72,10 +64,11 @@ async def route_get_user(username: str, db: Session = Depends(get_db)):
 
 
 @router.get("/users/{username}", response_model=User)
-async def route_get_user(username: str, user: User = Depends(get_current_username_user), db: Session = Depends(get_db)):
+async def route_get_user(username: str,
+                         _: User = Depends(get_current_username_user),
+                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        user_model = User.model_validate(
-            get_user_by_username(db, username))
+        user_model = User.model_validate(db_wrapper.get_user_by_username(username))
         user_model_copy = copy.deepcopy(user_model)
         del user_model_copy.api_key
         return user_model
@@ -87,14 +80,16 @@ async def route_get_user(username: str, user: User = Depends(get_current_usernam
 
 
 @router.post("/users/{username}/apikey")
-async def route_get_user(username: str, user: User = Depends(get_current_username_user), db: Session = Depends(get_db)):
+async def route_get_user(username: str,
+                         _: User = Depends(get_current_username_user),
+                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        useru = get_user_by_username(db, username)
-        if useru is None:
+        user = db_wrapper.get_user_by_username(username)
+        if user is None:
             raise Exception("User not found")
 
         apikey = uuid.uuid4().hex + secrets.token_urlsafe(32)
-        update_user(db, useru, UserUpdate(api_key=apikey))
+        db_wrapper.update_user(user, UserUpdate(api_key=apikey))
         return {"api_key": apikey}
     except Exception as e:
         logging.error(e)
@@ -106,8 +101,8 @@ async def route_get_user(username: str, user: User = Depends(get_current_usernam
 @router.get("/users", response_model=UsersResponse)
 async def route_get_users(
         _: User = Depends(get_current_username_admin),
-        db: Session = Depends(get_db)):
-    users = get_users(db)
+        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    users = db_wrapper.get_users()
     users_final = []
 
     for user_model in users:
@@ -119,19 +114,18 @@ async def route_get_users(
 
 
 @router.post("/users", response_model=User)
-async def route_create_user(userc: UserCreate,
+async def route_create_user(user_create: UserCreate,
                             _: User = Depends(get_current_username_admin),
-                            db: Session = Depends(get_db)):
+                            db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        userc.username = unidecode(
-            userc.username.strip().lower().replace(" ", "."))
-        userc.username = re.sub(r'[^\w\-.@]+', '', userc.username)
+        user_create.username = unidecode(user_create.username.strip().lower().replace(" ", "."))
+        user_create.username = re.sub(r'[^\w\-.@]+', '', user_create.username)
 
-        user = create_user(db,
-                           userc.username,
-                           userc.password,
-                           userc.is_admin,
-                           userc.is_private)
+        user = db_wrapper.create_user(
+            user_create.username,
+            user_create.password,
+            user_create.is_admin,
+            user_create.is_private)
         user_model_copy = copy.deepcopy(user)
         user_model_copy.api_key = None
         user_model_copy.id = None
@@ -142,35 +136,34 @@ async def route_create_user(userc: UserCreate,
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500,
-            detail='Failed to create user ' + userc.username)
+            detail='Failed to create user ' + user_create.username)
 
 
 @router.patch("/users/{username}", response_model=User)
-async def route_route_update_user(
+async def route_update_user(
         username: str,
-        userc: UserUpdate,
+        user_update: UserUpdate,
         user: User = Depends(get_current_username_user),
-        db: Session = Depends(get_db)):
+        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        useru = get_user_by_username(db, username)
-        if useru is None:
+        user_to_update = db_wrapper.get_user_by_username(username)
+        if user_to_update is None:
             raise Exception("User not found")
 
-        if not user.is_admin and userc.is_admin is True:
+        if not user.is_admin and user_update.is_admin is True:
             raise Exception("Insuficient permissions")
 
-        update_user(db, useru, userc)
+        db_wrapper.update_user(user_to_update, user_update)
 
-        if userc.projects is not None:
-            useru.projects = []
+        if user_update.projects is not None:
+            user_to_update.projects = []
 
-            for project in userc.projects:
-                projectdb = get_project_by_name(db, project)
-
-                if projectdb is not None:
-                    useru.projects.append(projectdb)
-            db.commit()
-        return useru
+            for project in user_update.projects:
+                project_db = db_wrapper.get_project_by_name(project)
+                if project_db is not None:
+                    user_to_update.projects.append(project_db)
+            db_wrapper.db.commit()
+        return user_to_update
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -181,12 +174,12 @@ async def route_route_update_user(
 @router.delete("/users/{username}")
 async def route_delete_user(username: str,
                             _: User = Depends(get_current_username_admin),
-                            db: Session = Depends(get_db)):
+                            db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        user_link = get_user_by_username(db, username)
+        user_link = db_wrapper.get_user_by_username(username)
         if user_link is None:
             raise Exception("User not found")
-        delete_user(db, user_link)
+        db_wrapper.delete_user(user_link)
         return {"deleted": username}
     except Exception as e:
         logging.error(e)

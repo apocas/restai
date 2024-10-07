@@ -8,16 +8,20 @@ from llama_index.core.tools import FunctionTool
 
 import tiktoken
 
+from app.database import DBWrapper
 from app.models.databasemodels import OutputDatabase
 
-
 DEFAULT_LLMS = {
-    #"name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa"),
-    "openai_gpt4_turbo": ("OpenAI", {"temperature": 0, "model": "gpt-4-turbo-preview"}, "public", "OpenAI GPT-4 Turbo", "chat"),
+    # "name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa"),
+    "openai_gpt4_turbo": (
+    "OpenAI", {"temperature": 0, "model": "gpt-4-turbo-preview"}, "public", "OpenAI GPT-4 Turbo", "chat"),
     "openai_gpt4o": ("OpenAI", {"temperature": 0, "model": "gpt-4o"}, "public", "OpenAI GPT-4o", "chat"),
-    "llama3_8b": ("Ollama", {"model": "llama3:8b", "temperature": 0.0001, "keep_alive": 0}, "private", "https://ollama.com/library/llama3", "chat"),
-    "llama3_70b": ("Ollama", {"model": "llama3:70b", "temperature": 0.0001, "keep_alive": 0}, "private", "https://ollama.com/library/llama3", "chat"),
-    "llava16_13b": ("OllamaMultiModal2", {"model": "llava:13b-v1.6", "temperature": 0.0001, "keep_alive": 0}, "private", "https://ollama.com/library/llava", "vision"),
+    "llama3_8b": ("Ollama", {"model": "llama3:8b", "temperature": 0.0001, "keep_alive": 0}, "private",
+                  "https://ollama.com/library/llama3", "chat"),
+    "llama3_70b": ("Ollama", {"model": "llama3:70b", "temperature": 0.0001, "keep_alive": 0}, "private",
+                   "https://ollama.com/library/llama3", "chat"),
+    "llava16_13b": ("OllamaMultiModal2", {"model": "llava:13b-v1.6", "temperature": 0.0001, "keep_alive": 0}, "private",
+                    "https://ollama.com/library/llava", "vision"),
 }
 
 
@@ -62,17 +66,18 @@ def get_llm_class(llm_class_name):
     else:
         raise Exception("Invalid LLM class name.")
 
+
 def load_tools() -> list[FunctionTool]:
     tools = []
     directory = os.path.dirname(os.path.abspath(__file__))
-    
+
     print(f"Loading core tools...")
     for importer, modname, _ in pkgutil.iter_modules(path=[directory + '/llms/tools']):
         module = __import__(f'app.llms.tools.{modname}', fromlist='dummy')
         for name, obj in inspect.getmembers(module):
             if inspect.isfunction(obj):
                 tools.append(FunctionTool.from_defaults(fn=obj))
-    
+
     print(f"Loading userland tools...")
     for importer, modname, _ in pkgutil.iter_modules(path=['./tools']):
         module = __import__(f'tools.{modname}', fromlist='dummy')
@@ -91,6 +96,7 @@ def load_tools() -> list[FunctionTool]:
 
     return tools
 
+
 def tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
     encoding = tiktoken.get_encoding(encoding_name)
     num_tokens = len(encoding.encode(string))
@@ -98,7 +104,7 @@ def tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
 
 
 def get_logger(name, level=logging.INFO):
-    """To setup as many loggers as you want"""
+    """To set up as many loggers as you want"""
 
     handler = logging.FileHandler("./logs/" + name + ".log")
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
@@ -110,6 +116,8 @@ def get_logger(name, level=logging.INFO):
 
     return logger
 
-def log_inference(user, output, db):
-    db.add(OutputDatabase(user=user.username, question=output["question"], answer=output["answer"], data=json.dumps(output), date=datetime.now(), project=output["project"]))
-    db.commit()
+
+def log_inference(user, output, db: DBWrapper):
+    db.db.add(OutputDatabase(user=user.username, question=output["question"], answer=output["answer"],
+                             data=json.dumps(output), date=datetime.now(), project=output["project"]))
+    db.db.commit()

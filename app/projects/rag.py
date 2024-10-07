@@ -8,6 +8,7 @@ from llama_index.core.chat_engine import ContextChatEngine
 from llama_index.core.postprocessor.llm_rerank import LLMRerank
 from llama_index.postprocessor.colbert_rerank import ColbertRerank
 from app.chat import Chat
+from app.database import DBWrapper
 from app.eval import eval_rag
 from app.guard import Guard
 from app.models.models import QuestionModel, ChatModel, User
@@ -132,8 +133,7 @@ class RAG(ProjectBase):
             raise e
 
 
-    def question(self, project: Project, questionModel: QuestionModel, user: User, db: Session):
-
+    def question(self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
         output = {
           "question": questionModel.question,
           "type": "question",

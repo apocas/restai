@@ -1,13 +1,11 @@
 from fastapi import APIRouter
-from sqlalchemy.orm import Session
 from fastapi import Depends
 from fastapi import HTTPException, Request
 import traceback
 import logging
 from app import config
-
 from app.models.models import LLMModel, LLMUpdate, User
-from app.database import get_db, get_llm_by_name, update_llm, delete_llm, create_llm, get_llms
+from app.database import get_db_wrapper, DBWrapper
 from app.auth import get_current_username, get_current_username_admin
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -17,9 +15,11 @@ router = APIRouter()
 
 
 @router.get("/llms/{llm_name}", response_model=LLMModel)
-async def api_get_llm(llm_name: str, _: User = Depends(get_current_username), db: Session = Depends(get_db)):
+async def api_get_llm(llm_name: str,
+                      _: User = Depends(get_current_username),
+                      db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        return LLMModel.model_validate(get_llm_by_name(db, llm_name))
+        return LLMModel.model_validate(db_wrapper.get_llm_by_name(llm_name))
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -30,17 +30,17 @@ async def api_get_llm(llm_name: str, _: User = Depends(get_current_username), db
 @router.get("/llms", response_model=list[LLMModel])
 async def api_get_llms(
         _: User = Depends(get_current_username),
-        db: Session = Depends(get_db)):
-    users = get_llms(db)
-    return users
+        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    llms = db_wrapper.get_llms()
+    return llms
 
 
 @router.post("/llms")
 async def api_create_llm(llmc: LLMModel,
-                     _: User = Depends(get_current_username_admin),
-                     db: Session = Depends(get_db)):
+                         _: User = Depends(get_current_username_admin),
+                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        llm = create_llm(db, llmc.name, llmc.class_name, llmc.options, llmc.privacy, llmc.description, llmc.type)
+        llm = db_wrapper.create_llm(llmc.name, llmc.class_name, llmc.options, llmc.privacy, llmc.description, llmc.type)
         return llm
     except Exception as e:
         logging.error(e)
@@ -51,14 +51,17 @@ async def api_create_llm(llmc: LLMModel,
 
 
 @router.patch("/llms/{llm_name}")
-async def api_edit_project(request: Request, llm_name: str, llmUpdate: LLMUpdate,
-                       _: User = Depends(get_current_username_admin), db: Session = Depends(get_db)):
+async def api_edit_project(request: Request,
+                           llm_name: str,
+                           llmUpdate: LLMUpdate,
+                           _: User = Depends(get_current_username_admin),
+                           db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        llm = get_llm_by_name(db, llm_name)
+        llm = db_wrapper.get_llm_by_name(llm_name)
         if llm is None:
             raise Exception("LLM not found")
-        if update_llm(db, llm, llmUpdate):
-            request.app.state.brain.load_llm(llm_name, db)
+        if db_wrapper.update_llm(llm, llmUpdate):
+            request.app.state.brain.load_llm(llm_name, db_wrapper)
             return {"project": llm_name}
         else:
             raise HTTPException(
@@ -72,13 +75,13 @@ async def api_edit_project(request: Request, llm_name: str, llmUpdate: LLMUpdate
 
 @router.delete("/llms/{llm_name}")
 async def api_delete_llm(llm_name: str,
-                     _: User = Depends(get_current_username_admin),
-                     db: Session = Depends(get_db)):
+                         _: User = Depends(get_current_username_admin),
+                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        llm = get_llm_by_name(db, llm_name)
+        llm = db_wrapper.get_llm_by_name(llm_name)
         if llm is None:
             raise Exception("LLM not found")
-        delete_llm(db, llm)
+        db_wrapper.delete_llm(llm)
         return {"deleted": llm_name}
     except Exception as e:
         logging.error(e)
