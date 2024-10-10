@@ -57,6 +57,7 @@ def get_llm_class(llm_class_name):
         return Gemini, {"generate_kwargs": {"safety_settings": [
             SafetySetting(
                 category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                method=generative_models.HarmBlockMethod.SEVERITY,
                 threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
             )
         ]}}
