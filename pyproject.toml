@@ -86,7 +86,7 @@ optional = true
 
 [tool.poetry.group.gpu.dependencies]
 torch = "^2.2.0"
-flash_attn = "^2.5.2"
+flash_attn = "^2.6.3"
 auto-gptq = "^0.6.0"
 
 [tool.poetry.dev-dependencies]
