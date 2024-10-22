@@ -222,7 +222,7 @@ class OllamaMultiModal(MultiModalLLM):
 
 
 
-class OllamaMultiModal2(OllamaMultiModal):
+class OllamaMultiModalInternal(OllamaMultiModal):
     system: str = Field(
         default="", description="Default system message to send to the model."
     )
