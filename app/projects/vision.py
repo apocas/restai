@@ -52,7 +52,9 @@ class Vision(ProjectBase):
             from app.llms.workers.stablediffusion import StableDiffusionImage
             from app.llms.workers.describeimage import DescribeImage
             from app.llms.workers.instantid import InstantID
+            from app.llms.workers.flux import FluxImage
             tools.append(StableDiffusionImage())
+            tools.append(FluxImage())
             tools.append(DescribeImage())
             tools.append(InstantID())
 
