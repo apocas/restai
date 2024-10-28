@@ -26,7 +26,10 @@ class FindModel(BaseModel):
 class InteractionModel(BaseModel):
     question: str
     stream: Union[bool, None] = None
-
+    
+class ImageModel(BaseModel):
+    prompt: str
+    image: Union[str, None] = None
 
 class QuestionModel(InteractionModel):
     system: Union[str, None] = None

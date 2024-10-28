@@ -21,7 +21,7 @@ from app.models.models import User
 from app.database import get_db_wrapper, DBWrapper
 from app.brain import Brain
 from app.auth import get_current_username
-from app.routers import llms, projects, tools, users
+from app.routers import llms, projects, tools, users, image
 
 logging.basicConfig(level=config.LOG_LEVEL)
 logging.getLogger('passlib').setLevel(logging.ERROR)
@@ -76,6 +76,7 @@ app.include_router(llms.router)
 app.include_router(projects.router)
 app.include_router(tools.router)
 app.include_router(users.router)
+app.include_router(image.router)
 
 
 @app.get("/")

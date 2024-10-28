@@ -39,7 +39,7 @@ class DBWrapper:
     __slots__ = ("db",)
 
     def __init__(self):
-        self.db: SessionLocal = SessionLocal()
+        self.db: Session = SessionLocal()
 
     def create_user(self,
                     username: str,
