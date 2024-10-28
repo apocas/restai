@@ -46,6 +46,5 @@ class Vision(ProjectBase):
             raise e
         
         output["answer"] = response.text
-        output["image"] = questionModel.image
 
         return output
