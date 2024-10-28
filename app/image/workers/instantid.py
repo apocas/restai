@@ -11,7 +11,7 @@ from PIL import Image
 from insightface.app import FaceAnalysis
 
 from app.config import RESTAI_DEFAULT_DEVICE
-from app.llms.workers.children.pipeline_stable_diffusion_xl_instantid import StableDiffusionXLInstantIDPipeline, draw_kps
+from app.image.workers.pipeline_stable_diffusion_xl_instantid import StableDiffusionXLInstantIDPipeline, draw_kps
 from diffusers import StableDiffusionUpscalePipeline
 
 def worker(prompt, sharedmem):
