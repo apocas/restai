@@ -113,7 +113,7 @@ async def route_get_users(
     return {"users": users_final}
 
 
-@router.post("/users", response_model=User)
+@router.post("/users")
 async def route_create_user(user_create: UserCreate,
                             _: User = Depends(get_current_username_admin),
                             db_wrapper: DBWrapper = Depends(get_db_wrapper)):
@@ -126,11 +126,7 @@ async def route_create_user(user_create: UserCreate,
             user_create.password,
             user_create.is_admin,
             user_create.is_private)
-        user_model_copy = copy.deepcopy(user)
-        user_model_copy.api_key = None
-        user_model_copy.id = None
-        user_model_copy.projects = []
-        return user_model_copy
+        return {"username": user_create.username}
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
