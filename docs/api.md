@@ -12,6 +12,8 @@
   - [Get an LLM](#get-an-llm)
   - [Get all LLMs](#get-all-llms)
   - [Generate a completion](#generate-a-completion)
+  - [Generate an image](#generate-an-image)
+  - [Get image generators list](#get-image-generators-list)
 
 ## Create a new Project
 
@@ -199,3 +201,29 @@ Advanced parameters (optional):
 - `image`: image [VISION] [ROUTER]
 - `evaluation.reason`: if eval was provided, the reason for the score [RAG]
 - `evaluation.score`: if eval was provided, the score [RAG]
+
+## Generate an image
+
+```shell
+POST /image/{generator}/generate
+```
+
+### Parameters
+
+- `prompt`: (required) project name
+
+### Response
+
+- `image`: image [VISION] [ROUTER]
+
+## Get image generators list
+
+```shell
+GET /image
+```
+
+### Parameters
+
+### Response
+
+- `generators`: array with all image generators names
