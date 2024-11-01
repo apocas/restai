@@ -18,7 +18,7 @@ async def route_list_generators(request: Request,
   
     generators = request.app.state.brain.get_generators()
   
-    return {"generators": [generator.__module__.split("app.image.workers.")[1] for generator in generators]}
+    return {"generators": [generator.__module__.split("app.image.workers.")[1] for generator in generators].append("dalle")}
 
 @router.post("/image/{generator}/generate")
 async def route_generate_image(request: Request,
