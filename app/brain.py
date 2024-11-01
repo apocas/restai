@@ -19,6 +19,7 @@ class Brain:
         self.defaultCensorship = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = ""
         self.tools = tools.load_tools()
+        self.generators = tools.load_generators()
 
     def get_llm(self, llmName, db: DBWrapper, **kwargs):
         llm = self.load_llm(llmName, db)
@@ -94,3 +95,17 @@ class Brain:
             _tools = self.tools
 
         return _tools
+      
+    def get_generators(self, names=None) -> list:
+        if names is None:
+            names = []
+        _generators = []
+
+        if names:
+            for generator in self.generators:
+                if generator.__module__.split("app.image.workers.")[1] in names:
+                    _generators.append(generator)
+        else:
+            _generators = self.generators
+
+        return _generators

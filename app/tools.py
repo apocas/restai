@@ -69,6 +69,17 @@ def get_llm_class(llm_class_name):
     else:
         raise Exception("Invalid LLM class name.")
 
+def load_generators() -> list[FunctionTool]:
+    generators = []
+    directory = os.path.dirname(os.path.abspath(__file__))
+
+    print(f"Loading image generators...")
+    for importer, modname, _ in pkgutil.iter_modules(path=[directory + '/image/workers']):
+        module = __import__(f'app.image.workers.{modname}', fromlist='dummy')
+        for name, obj in inspect.getmembers(module):
+            if inspect.isfunction(obj) and name == "worker":
+                generators.append(obj)
+    return generators
 
 def load_tools() -> list[FunctionTool]:
     tools = []
