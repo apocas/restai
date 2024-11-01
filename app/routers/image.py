@@ -26,8 +26,12 @@ async def route_generate_image(request: Request,
                              imageModel: ImageModel,
                              user: User = Depends(get_current_username),
                              db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+  
+  
     match generator:
         case "dalle" | "dalle3":
+            if user.is_private:
+                raise HTTPException(status_code=403, detail="User is private")
             from app.image.external.dalle3 import generate
             image = generate(imageModel)
         case _:
