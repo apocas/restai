@@ -103,7 +103,7 @@ class Brain:
 
         if names:
             for generator in self.generators:
-                if generator.__module__.split("app.image.workers.")[1] in names:
+                if generator.__module__.split(".")[-1] in names:
                     _generators.append(generator)
         else:
             _generators = self.generators
