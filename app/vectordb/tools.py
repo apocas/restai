@@ -7,17 +7,18 @@ from modules.loaders import LOADERS
 import yake
 import re
 import time
+from app.config import REDIS_HOST, PINECONE_API_KEY
 
 from app.config import EMBEDDINGS_PATH
 
 def findVectorDB(project):
-    if project.model.vectorstore == "redis":
+    if project.model.vectorstore == "redis" and REDIS_HOST:
         from app.vectordb.redis import RedisVector
         return RedisVector
     elif project.model.vectorstore == "chromadb" or project.model.vectorstore == "chroma":
         from app.vectordb.chromadb import ChromaDBVector
         return ChromaDBVector
-    elif project.model.vectorstore == "pinecone":
+    elif project.model.vectorstore == "pinecone" and PINECONE_API_KEY:
         from app.vectordb.pinecone import PineconeVector
         return PineconeVector
     else:

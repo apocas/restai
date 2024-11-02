@@ -17,8 +17,12 @@ async def route_list_generators(request: Request,
                              db_wrapper: DBWrapper = Depends(get_db_wrapper)):
   
     generators = request.app.state.brain.get_generators()
+    generators_names = [generator.__module__.split("app.image.workers.")[1] for generator in generators]
+    
+    if not user.is_private:
+        generators_names.append("dalle")
   
-    return {"generators": [generator.__module__.split("app.image.workers.")[1] for generator in generators].append("dalle")}
+    return {"generators": generators_names}
 
 @router.post("/image/{generator}/generate")
 async def route_generate_image(request: Request,
