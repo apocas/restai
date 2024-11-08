@@ -1,5 +1,6 @@
 import base64
 import io
+import os
 import torch
 from diffusers import FluxPipeline
 import gc
@@ -8,6 +9,8 @@ from diffusers import AutoencoderKL
 from diffusers.image_processor import VaeImageProcessor
 
 from app.config import RESTAI_DEFAULT_DEVICE
+
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 def flush():
     gc.collect()

@@ -1,5 +1,6 @@
 import base64
 import io
+import os
 import torch
 from diffusers import StableDiffusionXLPipeline, UNet2DConditionModel, EulerDiscreteScheduler
 from huggingface_hub import hf_hub_download
@@ -7,6 +8,7 @@ from safetensors.torch import load_file
 
 from app.config import RESTAI_DEFAULT_DEVICE
 
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 def worker(prompt, sharedmem):
     base = "stabilityai/stable-diffusion-xl-base-1.0"

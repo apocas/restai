@@ -1,10 +1,12 @@
 import base64
 import io
+import os
 from diffusers import DiffusionPipeline
 import torch
 
 from app.config import RESTAI_DEFAULT_DEVICE
 
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 def worker(prompt, sharedmem):
     base = DiffusionPipeline.from_pretrained(
