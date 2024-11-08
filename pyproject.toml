@@ -81,6 +81,7 @@ llama-index-storage-chat-store-redis = "^0.3.2"
 pandas = "^2.2.3"
 llama-index-llms-vllm = "^0.2.0"
 llama-index-multi-modal-llms-ollama = "^0.3.3"
+llama-index-llms-openai-like = "^0.2.0"
 
 [tool.poetry.group.gpu]
 optional = true

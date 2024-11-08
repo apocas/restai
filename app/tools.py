@@ -38,6 +38,9 @@ def get_llm_class(llm_class_name):
     elif llm_class_name == "OpenAI":
         from llama_index.llms.openai import OpenAI
         return OpenAI, {}
+    elif llm_class_name == "Grok":
+        from llama_index.llms.anthropic import Anthropic
+        return Anthropic, {"base_url": "https://api.x.ai/", "api_key": os.environ.get("XAI_API_KEY"), "model": "grok-beta"}
     elif llm_class_name == "Groq":
         from llama_index.llms.groq import Groq
         return Groq, {}
