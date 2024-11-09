@@ -18,7 +18,8 @@ dev:
 install:
 	poetry install
 	make database
-	git clone https://github.com/apocas/restai-frontend frontend
+	git submodule init
+	git submodule update
 	make frontend
 
 .PHONY: installgpu
