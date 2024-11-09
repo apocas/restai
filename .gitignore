@@ -178,3 +178,6 @@ pytest.ini
 restai.db
 restai_prod
 lab.py
+
+# pyenv
+.python-version

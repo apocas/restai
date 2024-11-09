@@ -8,7 +8,7 @@ database:
 
 .PHONY: frontend
 frontend:
-	cd frontend && git pull && npm install && npm run build
+	cd frontend && npm install && npm run build
 
 .PHONY: dev
 dev:
@@ -61,3 +61,9 @@ dockernpminstall:
 .PHONY: dockernpmbuild
 dockernpmbuild:
 	cd frontend && docker run --rm -t -i -v $(shell pwd):/app --workdir /app node:12.18.1 make npmbuild
+
+.PHONY: update_frontend_submodule
+update_frontend_submodule:
+	git submodule update --remote frontend
+	git add frontend
+	git commit -m '[AUTO] Frontend Submodule update'
