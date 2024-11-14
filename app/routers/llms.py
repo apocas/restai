@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException, Request
@@ -19,7 +20,13 @@ async def api_get_llm(llm_name: str,
                       _: User = Depends(get_current_username),
                       db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        return LLMModel.model_validate(db_wrapper.get_llm_by_name(llm_name))
+        llm = LLMModel.model_validate(db_wrapper.get_llm_by_name(llm_name))
+        if llm.options is not None:
+          options= json.loads(llm.options)
+          if 'api_key' in options:
+            options["api_key"] = "********"
+            llm.options = json.dumps(options)
+          return llm
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -31,7 +38,13 @@ async def api_get_llm(llm_name: str,
 async def api_get_llms(
         _: User = Depends(get_current_username),
         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    llms = db_wrapper.get_llms()
+    llms = [LLMModel.model_validate(llm) for llm in db_wrapper.get_llms()]
+    for llm in llms:
+        if llm.options is not None:
+          options = json.loads(llm.options)
+          if 'api_key' in options:
+            options["api_key"] = "********"
+            llm.options = json.dumps(options)
     return llms
 
 
