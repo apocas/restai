@@ -21,6 +21,7 @@ async def route_list_generators(request: Request,
     
     if not user.is_private:
         generators_names.append("dalle")
+        generators_names.append("imagen")
   
     return {"generators": generators_names}
 
@@ -37,6 +38,11 @@ async def route_generate_image(request: Request,
             if user.is_private:
                 raise HTTPException(status_code=403, detail="User is private")
             from app.image.external.dalle3 import generate
+            image = generate(imageModel)
+        case "imagen" | "imagen3":
+            if user.is_private:
+                raise HTTPException(status_code=403, detail="User is private")
+            from app.image.external.imagen3 import generate
             image = generate(imageModel)
         case _:
             generators = request.app.state.brain.get_generators([generator])

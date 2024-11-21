@@ -11,6 +11,7 @@ from app.project import Project
 from modules.embeddings import EMBEDDINGS
 from transformers import pipeline
 from llama_index.core.tools import FunctionTool
+from app import config
 
 
 class Brain:
@@ -19,7 +20,9 @@ class Brain:
         self.defaultCensorship = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = ""
         self.tools = tools.load_tools()
-        self.generators = tools.load_generators()
+        
+        if config.RESTAI_GPU:
+            self.generators = tools.load_generators()
 
     def get_llm(self, llmName, db: DBWrapper, **kwargs):
         llm = self.load_llm(llmName, db)
