@@ -86,7 +86,7 @@
 #### Flux1
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/flux1.png" width="25%"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/flux1.png" width="50%"  style="margin: 10px;"/>
 </div>
 
 #### Stable Diffusion & [InstantID](https://github.com/InstantID/InstantID)
