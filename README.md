@@ -2,7 +2,7 @@
 
 <h1 align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai-logo.png" alt="RestAI Logo"/>
-  </br>RestAI
+  </br>RESTai
 </h1>
 
 <p align="center">
@@ -14,7 +14,11 @@
 </h2>
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/out.gif"  alt="RestAI Video"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/home.png"  alt="RESTai Home"/>
+</div>
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/out.gif"  alt="RESTai Video"/>
 </div>
 
 ## Features
@@ -22,7 +26,7 @@
 - **Projects**: There are multiple types of agents (projects), each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision), [router](https://github.com/apocas/restai?tab=readme-ov-file#router), [agent](https://github.com/apocas/restai?tab=readme-ov-file#agent))
 - **Users**: A user represents a user of the system. It's used for authentication and authorization (basic auth). Each user may have access to multiple projects.
 - **LLMs**: Supports any public LLM supported by LlamaIndex. Which includes any local LLM supported by Ollama, LiteLLM, etc.
-- **VRAM**: Automatic VRAM management. RestAI will manage the VRAM usage, automatically loading and unloading models as needed and requested.
+- **VRAM**: Automatic VRAM management. Local image generators are run in a separate process, which allows for better resource management.
 - **API**: The API is a first-class citizen of RestAI. All endpoints are documented using [Swagger](https://apocas.github.io/restai/).
 - **Frontend**: There is a frontend available at [restai-frontend](https://github.com/apocas/restai-frontend)
 
@@ -31,7 +35,7 @@
 ### RAG
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/rag.png" width="750" style="margin: 10px;"  alt="RestAI RAG"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/rag.png" width="750" style="margin: 10px;"  alt="RESTai RAG"/>
 </div>
 
 - **Embeddings**: You may use any embeddings model supported by llamaindex. Check embeddings [definition](modules/embeddings.py).
@@ -52,7 +56,7 @@
 ### Agent
 
 - ReAct Agents, specify which tools to use in the project and the agent will figure out how to use them to achieve the objective.
-- New tools are easily added. Just create a new tool in the app/llms/tools folder and it will be automatically picked up by Restai.
+- New tools are easily added. Just create a new tool in the app/llms/tools folder and it will be automatically picked up by RESTai.
 
 - **Tools**: Supply all the tools names you want the Agent to use in this project. (separated by commas)
 
@@ -64,9 +68,9 @@
 
 ### Vision
 
-- **text2img**: RestAI supports local Stable Diffusion and Dall-E. It features prompt boosting, a LLM is internally used to boost the user prompt with more detail.
-- **img2text**: RestAI supports LLaVA, BakLLaVA by default.
-- **img2img**: RestAI supports InstantID.
+- **text2img**: RESTai supports local Stable Diffusion and Dall-E. It features prompt boosting, a LLM is internally used to boost the user prompt with more detail.
+- **img2text**: RESTai supports LLaVA, BakLLaVA by default.
+- **img2img**: RESTai supports InstantID.
 
 #### Stable Diffusion & [InstantID](https://github.com/InstantID/InstantID)
 
@@ -97,12 +101,12 @@
 
 ## Installation
 
-- RestAI uses [Poetry](https://python-poetry.org/) to manage dependencies. Install it with `pip install poetry`.
+- RESTai uses [Poetry](https://python-poetry.org/) to manage dependencies. Install it with `pip install poetry`.
 
 ## Development
 
 - `make install`
-- `make dev` (starts restai in development mode)
+- `make dev` (starts RESTai in development mode)
 
 ## Production
 
