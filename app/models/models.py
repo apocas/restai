@@ -38,7 +38,6 @@ class QuestionModel(InteractionModel):
     tables: Union[list[str], None] = None
     negative: Union[str, None] = None
     image: Union[str, None] = None
-    boost: bool = False
     lite: bool = False
     eval: bool = False
     k: Optional[int] = Field(None, ge=1, le=25)

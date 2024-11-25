@@ -188,7 +188,6 @@ Advanced parameters (optional):
 - `tables`: (optional) tables to be used in the question [RAGSQL]
 - `negative`: (optional) negative prompt [VISION]
 - `image`: (optional) image [VISION]
-- `boost`: (optional) enrich user prompt via LLM [VISION]
 
 ### Response
 
