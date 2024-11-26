@@ -3250,6 +3250,70 @@ files = [
 ]
 
 [[package]]
+name = "kornia"
+version = "0.7.4"
+description = "Open Source Differentiable Computer Vision Library for PyTorch"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "kornia-0.7.4-py2.py3-none-any.whl", hash = "sha256:1b816b4c45878a73531a500a46dbf61e646ec7a749bf8a4dd7a5833a04e28808"},
+    {file = "kornia-0.7.4.tar.gz", hash = "sha256:1f8dd6268ca5a2f2ec04b13c48da4dfb90ba2cfae7e31e0cc80d37f6520fa3f1"},
+]
+
+[package.dependencies]
+kornia-rs = ">=0.1.0"
+packaging = "*"
+torch = ">=1.9.1"
+
+[package.extras]
+dev = ["accelerate", "coverage", "diffusers", "ivy (>=1.0.0.0)", "mypy", "numpy (<2)", "onnx", "onnxruntime", "pillow", "pre-commit (>=2)", "pytest (==8.3.3)", "pytest-timeout", "requests", "setuptools (>=61.2)", "transformers", "types-requests"]
+docs = ["PyYAML (>=5.1)", "furo", "ivy (>=1.0.0.0)", "kornia-moons", "matplotlib", "onnx", "onnxruntime", "opencv-python", "sphinx", "sphinx-autodoc-defaultargs", "sphinx-autodoc-typehints", "sphinx-copybutton (>=0.3)", "sphinx-design", "sphinx-notfound-page", "sphinxcontrib-bibtex", "sphinxcontrib-gtagjs", "sphinxcontrib-youtube"]
+x = ["accelerate", "onnxruntime-gpu (>=1.16)"]
+
+[[package]]
+name = "kornia-rs"
+version = "0.1.7"
+description = "Low level implementations for computer vision in Rust"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "kornia_rs-0.1.7-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:fe407d6bb9e830e872b7e582b7035aa56092ad8a9b7881f6826706fdb63058bc"},
+    {file = "kornia_rs-0.1.7-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:6c67c7c13a380fb6f8a16d03e9e4311550f789196051197217f910af8e21158d"},
+    {file = "kornia_rs-0.1.7-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a57a2c8484fecae5a9dbe1e3ad8e5b507b7f643549441d6309f404f45f27aa8b"},
+    {file = "kornia_rs-0.1.7-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b4641703b3498e84c47ceadf1ecc9c8f05bcb9b9aa9e8f0d48e3dc4aa2e2946a"},
+    {file = "kornia_rs-0.1.7-cp310-none-win_amd64.whl", hash = "sha256:c409b9c9612d7025847b4e8d93f43a235cee69a2a990481d072cb90cec94badd"},
+    {file = "kornia_rs-0.1.7-cp311-cp311-macosx_10_12_x86_64.whl", hash = "sha256:fd3506c8e61fb7f55a289fb34998804b0cd35be1e8f2374ee5eb9081b026c472"},
+    {file = "kornia_rs-0.1.7-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:b67f07d435d55a4f32051bc65a324b51f43252bf6f7f3405695d1015819c9d30"},
+    {file = "kornia_rs-0.1.7-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:5c44e9b36f47bccbaeae99f37d312a3aa75da1c0f0fafb1a581a5a0981e94f8a"},
+    {file = "kornia_rs-0.1.7-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7d7ba0dd9c680c28444eed2cf7611faccf3f85eeb9bfa600df53d62d14deefba"},
+    {file = "kornia_rs-0.1.7-cp311-none-win_amd64.whl", hash = "sha256:4f90e5c1f7dfa422889c2af8a570e774604352fc1596f77a00992c1195528c59"},
+    {file = "kornia_rs-0.1.7-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:fffb88d9a37251e0e2ca4fbe09589e66da4b4929e9dee428b73302a9d2d6c820"},
+    {file = "kornia_rs-0.1.7-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:29f4b18989d08bc96af393997890a8578a619696f842811879fa1172b267efd1"},
+    {file = "kornia_rs-0.1.7-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:3fccf8d4bb1b28ff7f9c252006379d1426317afc215f03dfec99b3fe5ce7773d"},
+    {file = "kornia_rs-0.1.7-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:80d09d41c0bc31f308d27ae49f0c647f036c9cc205caee3bbc8e5bd0bbb30912"},
+    {file = "kornia_rs-0.1.7-cp312-none-win_amd64.whl", hash = "sha256:3fb9aeebf1676b2f2be442905b2112510aea8333e8949ceaaf348a4094887727"},
+    {file = "kornia_rs-0.1.7-cp37-cp37m-macosx_10_12_x86_64.whl", hash = "sha256:e9bf3a264683b730aa90aeb138fa29c0905c220be36d32869eaf1e3227e25075"},
+    {file = "kornia_rs-0.1.7-cp37-cp37m-macosx_11_0_arm64.whl", hash = "sha256:df495f9aa4ea01e3126f5d07d73685f410f320e2c9aff52e215f597d8714c0c1"},
+    {file = "kornia_rs-0.1.7-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b73f48e21f2a3ab533065d6d4600e53ec20096de4ad739dfa0edbad8b9adf499"},
+    {file = "kornia_rs-0.1.7-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0e72aea6b688b5a9ad42d0ca703c1f0fb6423a66771d2e8670df765ac38cfe85"},
+    {file = "kornia_rs-0.1.7-cp37-none-win_amd64.whl", hash = "sha256:aeab05a54d691f7978b6cd99e3d0cad3619c8316196ddc9e2aff72947ce51577"},
+    {file = "kornia_rs-0.1.7-cp38-cp38-macosx_10_12_x86_64.whl", hash = "sha256:d9c10ffcc151e1a99075b95fdf09adeab8d7f2212e93ee9aef44fe4489505a9a"},
+    {file = "kornia_rs-0.1.7-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:7de372e194fc43efd12d928e75d6d52e1f18590a944c073d19444658a6060aae"},
+    {file = "kornia_rs-0.1.7-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0fb7b6ab2e48365bc09814d2d86e8205fab9484abf607894b96237bdd6408990"},
+    {file = "kornia_rs-0.1.7-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:df9b0348f31e7bb5960615cb645a11036f8e0dcddc169b87ff28bad3149bdbbd"},
+    {file = "kornia_rs-0.1.7-cp38-none-win_amd64.whl", hash = "sha256:872fdb89d55f80cd3a39034669b162b801fba83be93b25683d4fc48249dd2277"},
+    {file = "kornia_rs-0.1.7-cp39-cp39-macosx_10_12_x86_64.whl", hash = "sha256:4f45a6a0323655e781d513d197def2a0001b526e6191a34f6e2d99ef193a6654"},
+    {file = "kornia_rs-0.1.7-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:473d5197fa356a3230c4126867cfce8c433f9af20fec11734aace30fd8c3bc92"},
+    {file = "kornia_rs-0.1.7-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c3b68c2bd10f2a3ad3eb75b993ef56f492e0b347b73f21a022dbf027fa88d0a5"},
+    {file = "kornia_rs-0.1.7-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:33170fa6c60d9d0e544211b1a8b802559971561449e010e50cf1e4564ec0182c"},
+    {file = "kornia_rs-0.1.7-cp39-none-win_amd64.whl", hash = "sha256:74d9018f1674fdf975941a924c4cad402a1e035578adb09ad56bbfb219a37a33"},
+    {file = "kornia_rs-0.1.7.tar.gz", hash = "sha256:601aeacd17826d3a796e847d558d9e32c08aa686653eb21b2f93031438af93a1"},
+]
+
+[package.extras]
+dev = ["jax[cpu]", "kornia (>=0.7.2)", "numpy (==1.23.0)", "pytest"]
+
+[[package]]
 name = "kubernetes"
 version = "31.0.0"
 description = "Kubernetes python client"
@@ -8230,6 +8294,24 @@ requests = ">=2.26.0"
 blobfile = ["blobfile (>=2)"]
 
 [[package]]
+name = "timm"
+version = "1.0.11"
+description = "PyTorch Image Models"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "timm-1.0.11-py3-none-any.whl", hash = "sha256:52a6f895e2cbec35a87d0846870419c2c0aa40de9b205bcda917f38278bf3044"},
+    {file = "timm-1.0.11.tar.gz", hash = "sha256:a005f72b87e67ed30cdbf405a9ffd4e723360c780a43b1cefe266af8ecc9d151"},
+]
+
+[package.dependencies]
+huggingface_hub = "*"
+pyyaml = "*"
+safetensors = "*"
+torch = "*"
+torchvision = "*"
+
+[[package]]
 name = "tokenizers"
 version = "0.20.3"
 description = ""
@@ -8430,6 +8512,40 @@ typing-extensions = ">=4.8.0"
 [package.extras]
 opt-einsum = ["opt-einsum (>=3.3)"]
 optree = ["optree (>=0.12.0)"]
+
+[[package]]
+name = "torchvision"
+version = "0.20.1"
+description = "image and video datasets and models for torch deep learning"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "torchvision-0.20.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:4878fefb96ef293d06c27210918adc83c399d9faaf34cda5a63e129f772328f1"},
+    {file = "torchvision-0.20.1-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:8ffbdf8bf5b30eade22d459f5a313329eeadb20dc75efa142987b53c007098c3"},
+    {file = "torchvision-0.20.1-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:75f8a4d51a593c4bab6c9bf7d75bdd88691b00a53b07656678bc55a3a753dd73"},
+    {file = "torchvision-0.20.1-cp310-cp310-win_amd64.whl", hash = "sha256:22c2fa44e20eb404b85e42b22b453863a14b0927d25e550fd4f84eea97fa5b39"},
+    {file = "torchvision-0.20.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:344b339e15e6bbb59ee0700772616d0afefd209920c762b1604368d8c3458322"},
+    {file = "torchvision-0.20.1-cp311-cp311-manylinux1_x86_64.whl", hash = "sha256:86f6523dee420000fe14c3527f6c8e0175139fda7d995b187f54a0b0ebec7eb6"},
+    {file = "torchvision-0.20.1-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:a40d766345927639da322c693934e5f91b1ba2218846c7104b868dea2314ce8e"},
+    {file = "torchvision-0.20.1-cp311-cp311-win_amd64.whl", hash = "sha256:5b501d5c04b034d2ecda96a31ed050e383cf8201352e4c9276ca249cbecfded0"},
+    {file = "torchvision-0.20.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:1a31256ff945d64f006bb306813a7c95a531fe16bfb2535c837dd4c104533d7a"},
+    {file = "torchvision-0.20.1-cp312-cp312-manylinux1_x86_64.whl", hash = "sha256:17cd78adddf81dac57d7dccc9277a4d686425b1c55715f308769770cb26cad5c"},
+    {file = "torchvision-0.20.1-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:9f853ba4497ac4691815ad41b523ee23cf5ba4f87b1ce869d704052e233ca8b7"},
+    {file = "torchvision-0.20.1-cp312-cp312-win_amd64.whl", hash = "sha256:4a330422c36dbfc946d3a6c1caec3489db07ecdf3675d83369adb2e5a0ca17c4"},
+    {file = "torchvision-0.20.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:2cd58406978b813188cf4e9135b218775b57e0bb86d4a88f0339874b8a224819"},
+    {file = "torchvision-0.20.1-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:408766b2f0ada9e1bc880d12346cec9638535af5df6459ba9ac4ce5c46402f91"},
+    {file = "torchvision-0.20.1-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:abcb8005de8dc393dbd1310ecb669dc68ab664b9107af6d698a6341d1d3f2c3c"},
+    {file = "torchvision-0.20.1-cp39-cp39-win_amd64.whl", hash = "sha256:ea9678163bbf19568f4f959d927f3751eeb833cc8eac949de507edde38c1fc9f"},
+]
+
+[package.dependencies]
+numpy = "*"
+pillow = ">=5.3.0,<8.3.dev0 || >=8.4.dev0"
+torch = "2.5.1"
+
+[package.extras]
+gdown = ["gdown (>=4.7.3)"]
+scipy = ["scipy"]
 
 [[package]]
 name = "tqdm"
@@ -9463,4 +9579,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "354a1d0429218529672ae73a39b3cead5ee73ce63d6c6483c67674860b2ba181"
+content-hash = "fc8bd956214f4c709c4568e79a68aac1b27fa585eb5f33d5931b0086922121b5"
