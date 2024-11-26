@@ -80,8 +80,8 @@
 ### Image Generators
 
 - New generators are easily added. Just create a new tool in the `generators` folder and it will be automatically picked up by RESTai. Check the `app/image/workers` folder for examples using the builtin generators.
-- **text2img**: RESTai supports local Stable Diffusion and Dall-E.
-- **img2img**: RESTai supports InstantID.
+- **text2img**: RESTai supports txt2image like Stable Diffusion, Flux, DallE...
+- **img2img**: RESTai supports img2img like BMBG2, InstantID, ...
 
 #### Flux1
 
@@ -94,6 +94,7 @@
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/vision_sd.png" width="25%"  style="margin: 10px;"/>
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/avatar.png" width="25%"  style="margin: 10px;"/>
+    <img src="https://github.com/apocas/restai/blob/master/readme/assets/rmbg2.png" width="25%"  style="margin: 10px;"/>
 </div>
 
 
