@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, Form
 from app import config
 from app.auth import get_current_username
 from app.database import get_db_wrapper, DBWrapper
@@ -26,6 +26,7 @@ async def route_list_generators(request: Request,
 async def route_generate_transcript(request: Request,
                              generator: str,
                              file: UploadFile,
+                             prompt: str = Form("sentence"),
                              user: User = Depends(get_current_username),
                              db_wrapper: DBWrapper = Depends(get_db_wrapper)):
   
@@ -36,4 +37,4 @@ async def route_generate_transcript(request: Request,
     else:
       raise HTTPException(status_code=400, detail="Invalid generator")
   
-    return {"transcript": transcript}
+    return {"answer": transcript}
