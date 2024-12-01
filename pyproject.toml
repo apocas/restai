@@ -75,6 +75,8 @@ pandas = "^2.2.3"
 llama-index-llms-vllm = "^0.2.0"
 llama-index-multi-modal-llms-ollama = "^0.3.3"
 llama-index-llms-openai-like = "^0.2.0"
+paramiko = "^3.5.0"
+soundfile = "^0.12.1"
 
 [tool.poetry.group.gpu]
 optional = true

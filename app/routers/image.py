@@ -48,7 +48,7 @@ async def route_generate_image(request: Request,
             generators = request.app.state.brain.get_generators([generator])
             if len(generators) > 0:
                 from app.image.runner import generate
-                image = generate(generators[0], imageModel)
+                image = generate(request.app.state.manager, generators[0], imageModel)
             else:
               raise HTTPException(status_code=400, detail="Invalid generator")
     

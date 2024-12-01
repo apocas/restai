@@ -83,9 +83,37 @@ def load_generators() -> list[FunctionTool]:
             if inspect.isfunction(obj) and name == "worker":
                 generators.append(obj)
                 
-    print(f"Loading userland generators...")
+    print(f"Loading userland image generators...")
     for importer, modname, _ in pkgutil.iter_modules(path=['./generators']):
         module = __import__(f'generators.{modname}', fromlist='dummy')
+        for name, obj in inspect.getmembers(module):
+            if inspect.isfunction(obj) and name == "worker":
+                replaced = False
+                for i, existing_tool in enumerate(generators):
+                    if existing_tool.__module__.split(".")[-1] == obj.__module__.split(".")[-1]:
+                        print(f"WARNING: Duplicate generator '{obj.__module__}' found in generators! OVERWRITTEN!")
+                        generators[i] = obj
+                        replaced = True
+                        break
+                if not replaced:
+                    generators.append(obj)
+                    
+    return generators
+  
+def load_audio_generators() -> list[FunctionTool]:
+    generators = []
+    directory = os.path.dirname(os.path.abspath(__file__))
+
+    print(f"Loading audio generators...")
+    for importer, modname, _ in pkgutil.iter_modules(path=[directory + '/audio/workers']):
+        module = __import__(f'app.audio.workers.{modname}', fromlist='dummy')
+        for name, obj in inspect.getmembers(module):
+            if inspect.isfunction(obj) and name == "worker":
+                generators.append(obj)
+                
+    print(f"Loading userland audio generators...")
+    for importer, modname, _ in pkgutil.iter_modules(path=['./audio']):
+        module = __import__(f'audio.{modname}', fromlist='dummy')
         for name, obj in inspect.getmembers(module):
             if inspect.isfunction(obj) and name == "worker":
                 replaced = False

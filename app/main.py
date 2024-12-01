@@ -6,23 +6,101 @@ from fastapi import FastAPI, Request, Depends, status
 import logging
 from app import config
 import sentry_sdk
+from contextlib import asynccontextmanager
 
-print("""
-  ___ ___ ___ _____ _   ___      _.--'"'.
- | _ \ __/ __|_   _/_\ |_ _|    (  ( (   )
- |   / _|\__ \ | |/ _ \ | |     (o)_    ) )
- |_|_\___|___/ |_/_/ \_\___|        (o)_.'
-                            
-""")
 
-from modules.loaders import LOADERS
-from modules.embeddings import EMBEDDINGS
-from app.models.models import User
-from app.database import get_db_wrapper, DBWrapper
-from app.brain import Brain
-from app.auth import get_current_username
-from app.routers import llms, projects, tools, users, image
-from app import config
+@asynccontextmanager
+async  def  lifespan ( app: FastAPI ):
+    print("""
+        ___ ___ ___ _____ _   ___      _.--'"'.
+      | _ \ __/ __|_   _/_\ |_ _|    (  ( (   )
+      |   / _|\__ \ | |/ _ \ | |     (o)_    ) )
+      |_|_\___|___/ |_/_/ \_\___|        (o)_.'
+                                  
+      """)
+    from app.brain import Brain
+    from app.database import get_db_wrapper, DBWrapper
+    from app.auth import get_current_username
+    from app.routers import llms, projects, tools, users, image, audio
+    from app.models.models import User
+    from app.multiprocessing import get_manager
+    from modules.loaders import LOADERS
+    from modules.embeddings import EMBEDDINGS
+    
+    app.state.manager = get_manager()
+    app.state.brain = Brain()
+    
+    @app.get("/")
+    async def get(request: Request):
+        return "RESTAI, so many 'A's and 'I's, so little time..."
+
+
+    @app.get("/version")
+    async def get_version():
+        return {
+            "version": app.version,
+        }
+
+
+    @app.get("/info")
+    async def get_info(_: User = Depends(get_current_username), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+        output = {
+            "version": app.version,
+            "loaders": list(LOADERS.keys()),
+            "embeddings": [],
+            "llms": []
+        }
+
+        llms = db_wrapper.get_llms()
+        for llm in llms:
+            output["llms"].append({
+                "name": llm.name,
+                "privacy": llm.privacy,
+                "description": llm.description,
+                "type": llm.type
+            })
+
+        for embedding in EMBEDDINGS:
+            _, _, privacy, description, _ = EMBEDDINGS[embedding]
+            output["embeddings"].append({
+                "name": embedding,
+                "privacy": privacy,
+                "description": description
+            })
+        return output
+
+
+    try:
+        app.mount("/admin/", StaticFiles(directory="frontend/html/",
+                                        html=True), name="static_admin")
+        app.mount(
+            "/admin/static/js",
+            StaticFiles(
+                directory="frontend/html/static/js"),
+            name="static_js")
+        app.mount(
+            "/admin/static/css",
+            StaticFiles(
+                directory="frontend/html/static/css"),
+            name="static_css")
+        app.mount(
+            "/admin/static/media",
+            StaticFiles(
+                directory="frontend/html/static/media"),
+            name="static_media")
+    except BaseException:
+        print("Admin frontend not available.")
+    
+    app.include_router(llms.router)
+    app.include_router(projects.router)
+    app.include_router(tools.router)
+    app.include_router(users.router)
+
+    if config.RESTAI_GPU:
+        app.include_router(image.router)
+        app.include_router(audio.router)
+        
+    yield
 
 logging.basicConfig(level=config.LOG_LEVEL)
 logging.getLogger('passlib').setLevel(logging.ERROR)
@@ -48,6 +126,7 @@ app = FastAPI(
         "name": "Apache 2.0",
         "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
     },
+    lifespan=lifespan
 )
 
 
@@ -69,76 +148,3 @@ if config.RESTAI_DEV:
         allow_headers=["*"],
     )
 
-brain = Brain()
-
-app.state.brain = brain
-
-app.include_router(llms.router)
-app.include_router(projects.router)
-app.include_router(tools.router)
-app.include_router(users.router)
-
-if config.RESTAI_GPU:
-    app.include_router(image.router)
-
-
-@app.get("/")
-async def get(request: Request):
-    return "RESTAI, so many 'A's and 'I's, so little time..."
-
-
-@app.get("/version")
-async def get_version():
-    return {
-        "version": app.version,
-    }
-
-
-@app.get("/info")
-async def get_info(_: User = Depends(get_current_username), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    output = {
-        "version": app.version,
-        "loaders": list(LOADERS.keys()),
-        "embeddings": [],
-        "llms": []
-    }
-
-    llms = db_wrapper.get_llms()
-    for llm in llms:
-        output["llms"].append({
-            "name": llm.name,
-            "privacy": llm.privacy,
-            "description": llm.description,
-            "type": llm.type
-        })
-
-    for embedding in EMBEDDINGS:
-        _, _, privacy, description, _ = EMBEDDINGS[embedding]
-        output["embeddings"].append({
-            "name": embedding,
-            "privacy": privacy,
-            "description": description
-        })
-    return output
-
-
-try:
-    app.mount("/admin/", StaticFiles(directory="frontend/html/",
-                                     html=True), name="static_admin")
-    app.mount(
-        "/admin/static/js",
-        StaticFiles(
-            directory="frontend/html/static/js"),
-        name="static_js")
-    app.mount(
-        "/admin/static/css",
-        StaticFiles(
-            directory="frontend/html/static/css"),
-        name="static_css")
-    app.mount(
-        "/admin/static/media",
-        StaticFiles(
-            directory="frontend/html/static/media"),
-        name="static_media")
-except BaseException:
-    print("Admin frontend not available.")

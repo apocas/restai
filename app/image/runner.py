@@ -1,21 +1,15 @@
-from torch.multiprocessing import Process, set_start_method, Manager
-from ilock import ILock, ILockException
-
-try:
-    set_start_method('spawn')
-except RuntimeError:
-    pass
+from torch.multiprocessing import Process
+from ilock import ILock
 
 from app.models.models import ImageModel
 
-def generate(worker, imageModel: ImageModel):
-    manager = Manager()
+def generate(manager, worker, imageModel: ImageModel):
     sharedmem = manager.dict()
     
     if imageModel.image:
         sharedmem["input_image"] = imageModel.image
 
-    with ILock('stablediffusion', timeout=180):
+    with ILock('image', timeout=180):
         p = Process(target=worker, args=(imageModel.prompt, sharedmem))
         p.start()
         p.join()

@@ -13,7 +13,6 @@ from transformers import pipeline
 from llama_index.core.tools import FunctionTool
 from app import config
 
-
 class Brain:
     def __init__(self):
         self.embeddingCache = {}
@@ -23,6 +22,7 @@ class Brain:
         
         if config.RESTAI_GPU:
             self.generators = tools.load_generators()
+            self.audio_generators = tools.load_audio_generators()
 
     def get_llm(self, llmName, db: DBWrapper, **kwargs):
         llm = self.load_llm(llmName, db)
@@ -110,5 +110,19 @@ class Brain:
                     _generators.append(generator)
         else:
             _generators = self.generators
+
+        return _generators
+      
+    def get_audio_generators(self, names=None) -> list:
+        if names is None:
+            names = []
+        _generators = []
+
+        if names:
+            for generator in self.audio_generators:
+                if generator.__module__.split(".")[-1] in names:
+                    _generators.append(generator)
+        else:
+            _generators = self.audio_generators
 
         return _generators
