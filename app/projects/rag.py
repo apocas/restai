@@ -22,7 +22,7 @@ class RAG(ProjectBase):
 
     def chat(self, project: Project, chatModel: ChatModel, user: User, db: Session):
         model = self.brain.get_llm(project.model.llm, db)
-        chat = Chat(chatModel)
+        chat = Chat(chatModel, self.brain.chatstore)
         
         output = {
             "id": chat.id,

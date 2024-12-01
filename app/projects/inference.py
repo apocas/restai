@@ -14,7 +14,8 @@ from llama_index.core.base.llms.types import ChatMessage
 class Inference(ProjectBase):
   
     def chat(self, project: Project, chat_model: ChatModel, user: User, db: Session):
-        chat = Chat(chat_model)
+
+        chat = Chat(chat_model, self.brain.chatstore)
         output = {
           "question": chat_model.question,
           "type": "inference",

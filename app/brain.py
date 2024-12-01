@@ -12,6 +12,9 @@ from modules.embeddings import EMBEDDINGS
 from transformers import pipeline
 from llama_index.core.tools import FunctionTool
 from app import config
+from app.config import REDIS_HOST, REDIS_PORT
+from llama_index.storage.chat_store.redis import RedisChatStore
+from llama_index.core.storage.chat_store import SimpleChatStore
 
 class Brain:
     def __init__(self):
@@ -23,6 +26,11 @@ class Brain:
         if config.RESTAI_GPU:
             self.generators = tools.load_generators()
             self.audio_generators = tools.load_audio_generators()
+            
+        if REDIS_HOST is not None:
+            self.chatstore = RedisChatStore(redis_url=f"redis://{REDIS_HOST}:{REDIS_PORT}")
+        else:
+            self.chatstore = SimpleChatStore()
 
     def get_llm(self, llmName, db: DBWrapper, **kwargs):
         llm = self.load_llm(llmName, db)

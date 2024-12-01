@@ -10,8 +10,42 @@ from llama_index.core.agent import ReActAgent
 
 class Agent(ProjectBase):
   
+    def output(self, agent, prompt, output, project):
+        done = False
+        iterations = 0
+        
+        task = agent.create_task(prompt)
+        
+        while not done:
+            step_output = agent.run_step(task.task_id)
+            done = step_output.is_last
+            iterations += 1
+            if not done and iterations > config.AGENT_MAX_ITERATIONS:
+                output["answer"] = project.model.censorship or "I'm sorry, I tried my best..."
+                break
+        
+        if done:
+            steps = []
+            resp_reasoning = ""
+            completed_steps = agent.get_completed_steps(task.task_id)
+            for step in completed_steps:
+                step_output = step.output
+                step_final = {"actions": [], "output": step_output.response}
+                for source in step_output.sources:
+                    resp_reasoning += "Action: " + source.tool_name + "\n"
+                    resp_reasoning += "Action Input: " + str(source.raw_input) + '\n'
+                    step_final["actions"].append({"action": source.tool_name, "input": source.raw_input})
+                    
+                resp_reasoning += step_output.response + '\n'
+                steps.append(step_final)
+            response = agent.finalize_response(task.task_id)
+            output["answer"] = str(response)
+            output["reasoning"] = {"output": resp_reasoning, "steps": steps}
+            
+        return output
+  
     def chat(self, project: Project, chatModel: ChatModel, user: User, db: Session):
-        chat = Chat(chatModel)
+        chat = Chat(chatModel, self.brain.chatstore)
         output = {
           "question": chatModel.question,
           "type": "agent",
@@ -55,8 +89,8 @@ class Agent(ProjectBase):
                 yield "data: " + json.dumps(output) + "\n"
                 yield "event: close\n\n"
             else:
-                response = agent.chat(chatModel.question)
-                output["answer"] = response.response
+                output = self.output(agent, chatModel.question, output, project)
+                
                 output["tokens"] = {
                     "input": tools.tokens_from_string(output["question"]),
                     "output": tools.tokens_from_string(output["answer"])
@@ -112,36 +146,7 @@ class Agent(ProjectBase):
 
         agent = ReActAgent.from_tools(toolsu, llm=model.llm, context=questionModel.system or project.model.system, max_iterations=config.AGENT_MAX_ITERATIONS, verbose=True)
         
-        done = False
-        iterations = 0
-        
-        task = agent.create_task(questionModel.question)
-        
-        while not done:
-            step_output = agent.run_step(task.task_id)
-            done = step_output.is_last
-            iterations += 1
-            if not done and iterations > config.AGENT_MAX_ITERATIONS:
-                output["answer"] = project.model.censorship or "I'm sorry, I tried my best..."
-                break
-        
-        if done:
-            steps = []
-            resp_reasoning = ""
-            completed_steps = agent.get_completed_steps(task.task_id)
-            for step in completed_steps:
-                step_output = step.output
-                step_final = {"actions": [], "output": step_output.response}
-                for source in step_output.sources:
-                    resp_reasoning += "Action: " + source.tool_name + "\n"
-                    resp_reasoning += "Action Input: " + str(source.raw_input) + '\n'
-                    step_final["actions"].append({"action": source.tool_name, "input": source.raw_input})
-                    
-                resp_reasoning += step_output.response + '\n'
-                steps.append(step_final)
-            response = agent.finalize_response(task.task_id)
-            output["answer"] = str(response)
-            output["reasoning"] = {"output": resp_reasoning, "steps": steps}
+        output = self.output(agent, questionModel.question, output, project)
                
         output["tokens"] = {
             "input": tools.tokens_from_string(output["question"]),
