@@ -13,31 +13,34 @@ class Agent(ProjectBase):
     def output(self, agent, prompt, output, project):
         done = False
         iterations = 0
+        resp_reasoning = ""
+        steps = []
         
         task = agent.create_task(prompt)
         
         while not done:
             step_output = agent.run_step(task.task_id)
+            step_final = {"actions": [], "output": ""}
+            if step_output.output.sources:
+                for source in step_output.output.sources:
+                    resp_reasoning += "Action: " + source.tool_name + "\n"
+                    resp_reasoning += "Action Input: " + str(source.raw_input) + '\n'
+                    resp_reasoning += "Action Output: " + str(source.raw_output) + '\n'
+                    step_final["actions"].append({"action": source.tool_name, "input": str(source.raw_input), "output": str(source.raw_output)})
+            step_final["output"] = step_output.output.response
+            steps.append(step_final)
+            
+            resp_reasoning += step_output.output.response + '\n'
+            
             done = step_output.is_last
             iterations += 1
+            
             if not done and iterations > config.AGENT_MAX_ITERATIONS:
                 output["answer"] = project.model.censorship or "I'm sorry, I tried my best..."
+                output["reasoning"] = {"output": "", "steps": []}
                 break
         
         if done:
-            steps = []
-            resp_reasoning = ""
-            completed_steps = agent.get_completed_steps(task.task_id)
-            for step in completed_steps:
-                step_output = step.output
-                step_final = {"actions": [], "output": step_output.response}
-                for source in step_output.sources:
-                    resp_reasoning += "Action: " + source.tool_name + "\n"
-                    resp_reasoning += "Action Input: " + str(source.raw_input) + '\n'
-                    step_final["actions"].append({"action": source.tool_name, "input": source.raw_input})
-                    
-                resp_reasoning += step_output.response + '\n'
-                steps.append(step_final)
             response = agent.finalize_response(task.task_id)
             output["answer"] = str(response)
             output["reasoning"] = {"output": resp_reasoning, "steps": steps}

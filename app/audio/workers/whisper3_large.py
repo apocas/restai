@@ -7,6 +7,7 @@ import tempfile
 import os
 import mimetypes
 
+os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 def worker(prompt, sharedmem):
     file : UploadFile = sharedmem["file"]
