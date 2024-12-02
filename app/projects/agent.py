@@ -26,7 +26,7 @@ class Agent(ProjectBase):
                     resp_reasoning += "Action: " + source.tool_name + "\n"
                     resp_reasoning += "Action Input: " + str(source.raw_input) + '\n'
                     resp_reasoning += "Action Output: " + str(source.raw_output) + '\n'
-                    step_final["actions"].append({"action": source.tool_name, "input": str(source.raw_input), "output": str(source.raw_output)})
+                    step_final["actions"].append({"action": source.tool_name, "input": source.raw_input, "output": str(source.raw_output)})
             step_final["output"] = step_output.output.response
             steps.append(step_final)
             
