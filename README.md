@@ -63,8 +63,8 @@
 - **Terminal**: Core tool that allows the agent to execute commands via SSH. (using [containerssh.io](https://containerssh.io) or similar is recommended)
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent1.png" width="50%"  style="margin: 10px;"/>
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent2.png" width="50%"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent1.png" width="40%"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent2.png" width="40%"  style="margin: 10px;"/>
 </div>
 
 ### Inference
