@@ -60,11 +60,11 @@
 - New tools are easily added. Just create a new tool in the `tools` folder and it will be automatically picked up by RESTai. Check the `app/llms/tools` folder for examples using the builtin tools.
 
 - **Tools**: Supply all the tools names you want the Agent to use in this project. (separated by commas)
-- **Terminal**: Core tool that allows the agent to execute commands via SSH. (useful for running local commands securely via [containerssh.io](https://containerssh.io))
+- **Terminal**: Core tool that allows the agent to execute commands via SSH. (using [containerssh.io](https://containerssh.io) or similar is recommended)
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent1.png" width="25%"  style="margin: 10px;"/>
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent2.png" width="25%"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent1.png" width="50%"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent2.png" width="50%"  style="margin: 10px;"/>
 </div>
 
 ### Inference
