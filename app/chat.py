@@ -1,28 +1,26 @@
-import datetime
-import uuid
-
+from datetime import datetime
+from uuid import uuid4
 from llama_index.core.memory import ChatMemoryBuffer
-from llama_index.storage.chat_store.redis import RedisChatStore
-from llama_index.core.storage.chat_store import SimpleChatStore
-
-from app.config import REDIS_HOST, REDIS_PORT
+from llama_index.core.storage.chat_store import BaseChatStore
+from app.models.models import ChatModel
 
 
 class Chat:
-    def __init__(self, model, chatstore):
-        self.model = model
+    def __init__(self, model: ChatModel, chat_store: BaseChatStore):
+        self.model: ChatModel = model
 
         if not model.id:
-            self.id = str(uuid.uuid4())
+            self.chat_id = str(uuid4())
         else:
-            self.id = model.id
+            self.chat_id = model.id
 
-        self.memory = ChatMemoryBuffer.from_defaults(token_limit=3900, chat_store=chatstore, chat_store_key="memory_" + self.id)
+        self.memory: ChatMemoryBuffer = ChatMemoryBuffer.from_defaults(token_limit=3900, chat_store=chat_store,
+                                                     chat_store_key=f"memory_{self.chat_id}")
 
-        self.created = datetime.datetime.now()
+        self.created: datetime = datetime.now()
 
     def clear_history(self):
         self.memory.reset()
 
-    def __eq__(self, other):
-        return self.id == other.id
+    def __eq__(self, other: "Chat"):
+        return self.chat_id == other.chat_id

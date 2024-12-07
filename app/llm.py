@@ -1,9 +1,5 @@
 class LLM:
-    def __init__(
-            self,
-            model_name,
-            props,
-            llm=None):
+    def __init__(self, model_name, props, llm=None) -> None:
         self.model_name = model_name
         self.props = props
         self.llm = llm

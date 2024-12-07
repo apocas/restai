@@ -1,14 +1,15 @@
 import numpy as np
-from app.brain import Brain
-from app.project import Project
-from app.vectordb.base import VectorBase
+from llama_index.core import StorageContext
 from llama_index.core.indices import VectorStoreIndex
 from llama_index.vector_stores.pinecone import PineconeVectorStore
-from llama_index.core import StorageContext
-from pinecone import Pinecone, ServerlessSpec, PodSpec, Index
 
+from app.brain import Brain
 from app.config import PINECONE_API_KEY
+from app.project import Project
+from app.vectordb.base import VectorBase
 from modules.embeddings import EMBEDDINGS
+from pinecone import Pinecone, PodSpec, Index
+
 
 #Pinecone is not ideal for this application. It's ok'ish for direct rag usage, bad for fine index management.
 #Doesn't have proper querying mechanism, only subquerying.
@@ -24,7 +25,7 @@ class PineconeVector(VectorBase):
         self.index = None
         self.pinecone = Pinecone(api_key=PINECONE_API_KEY)
         
-        self._vector_init(brain)
+        self._vector_init()
         pi = self.pinecone.Index(self.project.model.name)
         
         vector_store = PineconeVectorStore(pinecone_index=pi)
@@ -32,7 +33,7 @@ class PineconeVector(VectorBase):
         self.index = VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=brain.get_embedding(self.project.model.embeddings))
 
 
-    def _vector_init(self, brain: Brain):
+    def _vector_init(self):
         if self.project.model.name not in self.pinecone.list_indexes().names():  
             _, _, _, _, dimension = EMBEDDINGS[self.project.model.embeddings]
               
@@ -54,7 +55,8 @@ class PineconeVector(VectorBase):
         pass
 
 
-    def _get_ids_from_query(self, index: Index, input_vector):
+    @staticmethod
+    def _get_ids_from_query(index: Index, input_vector):
         results = index.query(
             top_k=10000,
             include_values=False,
@@ -193,6 +195,6 @@ class PineconeVector(VectorBase):
         return id
 
 
-    def reset(self, brain):
+    def reset(self, _):
         self.delete()
-        self.index = self._vector_init(brain)
+        self.index = self._vector_init()

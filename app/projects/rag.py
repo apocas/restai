@@ -1,4 +1,6 @@
 import json
+from typing import Optional
+
 from llama_index.core.response_synthesizers import get_response_synthesizer
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.query_engine import RetrieverQueryEngine
@@ -11,8 +13,8 @@ from app.chat import Chat
 from app.database import DBWrapper
 from app.eval import eval_rag
 from app.guard import Guard
+from app.llm import LLM
 from app.models.models import QuestionModel, ChatModel, User
-from sqlalchemy.orm import Session
 from app.project import Project
 from app.tools import tokens_from_string
 from app.projects.base import ProjectBase
@@ -20,12 +22,12 @@ from app.projects.base import ProjectBase
 
 class RAG(ProjectBase):
 
-    def chat(self, project: Project, chatModel: ChatModel, user: User, db: Session):
-        model = self.brain.get_llm(project.model.llm, db)
-        chat = Chat(chatModel, self.brain.chatstore)
+    def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
+        model: Optional[LLM] = self.brain.get_llm(project.model.llm, db)
+        chat: Chat = Chat(chatModel, self.brain.chat_store)
         
         output = {
-            "id": chat.id,
+            "id": chat.chat_id,
             "question": chatModel.question,
             "sources": [],
             "cached": False,
@@ -108,7 +110,7 @@ class RAG(ProjectBase):
                     yield "event: close\n\n"
                 else:
                     output["answer"] = self.brain.defaultCensorship
-                    yield "data: " + json.dumps({"text": text}) + "\n\n"
+                    yield "data: " + json.dumps({"text": "text"}) + "\n\n"
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
             else:  

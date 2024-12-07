@@ -1,12 +1,11 @@
 import base64
 import io
 import os
+
+import torch
 from diffusers import BitsAndBytesConfig, SD3Transformer2DModel
 from diffusers import StableDiffusion3Pipeline
-import torch
 from transformers import T5EncoderModel
-
-from app.config import RESTAI_DEFAULT_DEVICE
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 

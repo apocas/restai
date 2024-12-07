@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from llama_index.core.schema import ImageDocument
 from app import tools
+from app.database import DBWrapper
 from app.guard import Guard
 from app.models.models import ChatModel, QuestionModel, User
 from app.project import Project
@@ -10,10 +11,10 @@ from sqlalchemy.orm import Session
 
 class Vision(ProjectBase):
   
-    def chat(self, project: Project, chatModel: ChatModel, user: User, db: Session):
+    def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
         raise HTTPException(status_code=400, detail='{"error": "Chat mode not available for this project type."}')
   
-    def question(self, project: Project, questionModel: QuestionModel, user: User, db: Session):
+    def question(self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
         output = {
           "question": questionModel.question,
           "type": "vision",

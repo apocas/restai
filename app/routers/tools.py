@@ -1,16 +1,13 @@
-from fastapi import APIRouter
-from starlette.requests import Request
-from sqlalchemy.orm import Session
-from fastapi import Depends, HTTPException
-from fastapi import HTTPException, Request
-import traceback
 import logging
-from app import config
+import traceback
 
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import HTTPException, Request
+
+from app import config
 from app.auth import get_current_username
 from app.models.models import ClassifierModel, ClassifierResponse, Tool, User
-from app.database import get_db_wrapper
-
 
 logging.basicConfig(level=config.LOG_LEVEL)
 logging.getLogger('passlib').setLevel(logging.ERROR)
@@ -20,11 +17,10 @@ router = APIRouter()
 @router.post("/tools/classifier", response_model=ClassifierResponse)
 async def classifier(
         request: Request,
-        input: ClassifierModel,
-        user: User = Depends(get_current_username),
-        db: Session = Depends(get_db_wrapper)):
+        input_model: ClassifierModel,
+        _: User = Depends(get_current_username)):
     try:
-        return request.app.state.brain.classify(input)
+        return request.app.state.brain.classify(input_model)
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -36,8 +32,7 @@ async def classifier(
 @router.get("/tools/agent", response_model=list[Tool])
 async def get_tools(
         request: Request,
-        user: User = Depends(get_current_username),
-        db: Session = Depends(get_db_wrapper)):
+        _: User = Depends(get_current_username)):
   
     _tools  = []
     

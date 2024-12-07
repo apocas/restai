@@ -1,16 +1,20 @@
 import json
-from requests import Session
+
+from llama_index.core.agent import ReActAgent
+
 from app import tools, config
 from app.chat import Chat
+from app.database import DBWrapper
 from app.guard import Guard
 from app.models.models import ChatModel, QuestionModel, User
 from app.project import Project
 from app.projects.base import ProjectBase
-from llama_index.core.agent import ReActAgent
+
 
 class Agent(ProjectBase):
   
-    def output(self, agent, prompt, output, project):
+    @staticmethod
+    def output(agent, prompt, output, project):
         done = False
         iterations = 0
         resp_reasoning = ""
@@ -47,8 +51,8 @@ class Agent(ProjectBase):
             
         return output
   
-    def chat(self, project: Project, chatModel: ChatModel, user: User, db: Session):
-        chat = Chat(chatModel, self.brain.chatstore)
+    def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
+        chat = Chat(chatModel, self.brain.chat_store)
         output = {
           "question": chatModel.question,
           "type": "agent",
@@ -75,17 +79,17 @@ class Agent(ProjectBase):
                 
         model = self.brain.get_llm(project.model.llm, db)
         
-        toolsu = self.brain.get_tools((project.model.tools or "").split(","))
-        if len(toolsu) == 0:
+        tools_u = self.brain.get_tools(set((project.model.tools or "").split(",")))
+        if len(tools_u) == 0:
             chatModel.question += "\nDont use any tool just respond to the user."
         
-        agent = ReActAgent.from_tools(toolsu, llm=model.llm, context=project.model.system, memory=chat.memory, max_iterations=config.AGENT_MAX_ITERATIONS, verbose=True)
+        agent = ReActAgent.from_tools(tools_u, llm=model.llm, context=project.model.system, memory=chat.memory, max_iterations=config.AGENT_MAX_ITERATIONS, verbose=True)
         
         try:
-            if(chatModel.stream):
-                respgen = agent.stream_chat(chatModel.question)
+            if chatModel.stream:
+                resp_gen = agent.stream_chat(chatModel.question)
                 response = ""
-                for text in respgen.response_gen:
+                for text in resp_gen.response_gen:
                     response += text
                     yield "data: " + json.dumps({"text": text}) + "\n\n"
                 output["answer"] = response
@@ -116,7 +120,7 @@ class Agent(ProjectBase):
                     yield output
             raise e
   
-    def question(self, project: Project, questionModel: QuestionModel, user: User, db: Session):
+    def question(self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
         output = {
           "question": questionModel.question,
           "type": "agent",

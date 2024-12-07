@@ -121,7 +121,7 @@ async def route_create_user(user_create: UserCreate,
         user_create.username = unidecode(user_create.username.strip().lower().replace(" ", "."))
         user_create.username = re.sub(r'[^\w\-.@]+', '', user_create.username)
 
-        user = db_wrapper.create_user(
+        db_wrapper.create_user(
             user_create.username,
             user_create.password,
             user_create.is_admin,

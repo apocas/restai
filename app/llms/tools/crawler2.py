@@ -1,5 +1,3 @@
-from typing import Any, Dict
-
 import requests
 from bs4 import BeautifulSoup
 

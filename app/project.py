@@ -1,6 +1,6 @@
 from app.cache import Cache
 from app.models.models import ProjectModel
-from app.vectordb.tools import FindEmbeddingsPath
+from app.vectordb.tools import find_embeddings_path
 
 
 class Project:
@@ -15,7 +15,7 @@ class Project:
             self.cache = None
             
         if self.model.type == "rag":
-            FindEmbeddingsPath(self.model.name)
+            find_embeddings_path(self.model.name)
             
 
     def delete(self):

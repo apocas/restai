@@ -42,7 +42,7 @@ def get_current_username(
                     'username': username,
                     'password': password
                 }
-            except Exception as e:
+            except Exception:
                 pass
 
     jwt_token = request.cookies.get("restai_token")
@@ -64,7 +64,7 @@ def get_current_username(
             user = db_wrapper.get_user_by_username(data["username"])
 
             return User.model_validate(user)
-        except Exception as e:
+        except Exception:
             raise HTTPException(
                 status_code=401,
                 detail="Invalid token"
