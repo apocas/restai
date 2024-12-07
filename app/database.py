@@ -1,11 +1,9 @@
-from requests import Session
 from sqlalchemy import create_engine
 from app.models.databasemodels import LLMDatabase, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
 from app.models.models import LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
 from typing import Optional
-
 from app.config import MYSQL_HOST, MYSQL_URL, POSTGRES_HOST, POSTGRES_URL
 
 if MYSQL_HOST:

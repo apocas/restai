@@ -13,32 +13,24 @@
 # limitations under the License.
 
 
+import math
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-import cv2
-import math
-
-import numpy as np
 import PIL.Image
+import cv2
+import numpy as np
 import torch
-import torch.nn.functional as F
-
+from diffusers import StableDiffusionXLControlNetPipeline
 from diffusers.image_processor import PipelineImageInput
-
 from diffusers.models import ControlNetModel
-
+from diffusers.pipelines.controlnet.multicontrolnet import MultiControlNetModel
+from diffusers.pipelines.stable_diffusion_xl import StableDiffusionXLPipelineOutput
 from diffusers.utils import (
     deprecate,
     logging,
     replace_example_docstring,
 )
 from diffusers.utils.torch_utils import is_compiled_module, is_torch_version
-from diffusers.pipelines.stable_diffusion_xl import StableDiffusionXLPipelineOutput
-
-from diffusers import StableDiffusionXLControlNetPipeline
-from diffusers.pipelines.controlnet.multicontrolnet import MultiControlNetModel
-from diffusers.utils.import_utils import is_xformers_available
-
 from ip_adapter.resampler import Resampler
 from ip_adapter.utils import is_torch2_available
 

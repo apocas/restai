@@ -1,17 +1,17 @@
-import json
 import os
-from llama_index.core.text_splitter import TokenTextSplitter, SentenceSplitter
-from llama_index.core.schema import Document
-from llama_index.core.readers.download import download_loader
-from modules.loaders import LOADERS
-import yake
 import re
 import time
-from app.config import REDIS_HOST, PINECONE_API_KEY
+
+import yake
+from llama_index.core.schema import Document
+from llama_index.core.text_splitter import TokenTextSplitter, SentenceSplitter
 
 from app.config import EMBEDDINGS_PATH
+from app.config import REDIS_HOST, PINECONE_API_KEY
+from modules.loaders import LOADERS
 
-def findVectorDB(project):
+
+def find_vector_db(project):
     if project.model.vectorstore == "redis" and REDIS_HOST:
         from app.vectordb.redis import RedisVector
         return RedisVector
@@ -25,7 +25,7 @@ def findVectorDB(project):
         raise Exception("Invalid vectorDB type.")
 
 
-def IndexDocuments(project, documents, splitter="sentence", chunks=256):
+def index_documents(project, documents, splitter="sentence", chunks=256):
     if splitter == "sentence":
         splitter_o = TokenTextSplitter(
             separator=" ", chunk_size=chunks, chunk_overlap=30)
@@ -45,7 +45,7 @@ def IndexDocuments(project, documents, splitter="sentence", chunks=256):
     return len(doc_chunks)
 
 
-def ExtractKeywordsForMetadata(documents):
+def extract_keywords_for_metadata(documents):
     max_ngram_size = 4
     numOfKeywords = 15
     kw_extractor = yake.KeywordExtractor(n=max_ngram_size, top=numOfKeywords)
@@ -59,7 +59,9 @@ def ExtractKeywordsForMetadata(documents):
     return documents
 
 
-def FindFileLoader(ext, eargs={}):
+def find_file_loader(ext, eargs=None):
+    if eargs is None:
+        eargs = {}
     if ext in LOADERS:
         loader_class, loader_args = LOADERS[ext]
         loader = loader_class()
@@ -68,7 +70,7 @@ def FindFileLoader(ext, eargs={}):
         raise Exception("Invalid file type.")
 
 
-def FindEmbeddingsPath(projectName):
+def find_embeddings_path(projectName):
     embeddings_path = EMBEDDINGS_PATH
     embeddingsPathProject = None
 

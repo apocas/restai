@@ -1,37 +1,39 @@
-from llama_index.core.base.llms.types import ChatMessage
+from typing import Optional
+
+from llama_index.core.base.llms.types import ChatMessage, MessageRole
 
 from app.brain import Brain
 from app.database import DBWrapper
+from app.llm import LLM
+from app.project import Project
 
 
 class Guard:
     def __init__(self, projectName: str, brain: Brain, db: DBWrapper):
-        self.brain = brain
-        self.project = brain.find_project(projectName, db)
-        self.db = db
+        self.brain: Brain = brain
+        self.project: Optional[Project] = brain.find_project(projectName, db)
+        self.db: DBWrapper = db
 
-    def verify(self, prompt):        
-        model = self.brain.get_llm(self.project.model.llm, self.db)
+    def verify(self, prompt: str) -> bool:
+        model: Optional[LLM] = self.brain.get_llm(self.project.model.llm, self.db)
 
-        sysTemplate = self.project.model.system
+        sysTemplate: Optional[str] = self.project.model.system
         model.llm.system_prompt = sysTemplate
 
         messages = [
             ChatMessage(
-                role="system", content=sysTemplate
+                role=MessageRole.SYSTEM, content=sysTemplate
             ),
-            ChatMessage(role="user", content="Analyze the following text:\n\"" + prompt + "\""),
+            ChatMessage(role=MessageRole.USER, content=f"Analyze the following text:\n\"{prompt}\""),
         ]
-        
+
         resp = model.llm.chat(messages)
-        answer = resp.message.content.strip()
-        
-        try:
-            if answer == "BAD":
+        answer: str = resp.message.content.strip()
+
+        match answer:
+            case "BAD":
                 return True
-            elif answer == "GOOD":
+            case "GOOD":
                 return False
-            else:
+            case _:
                 return True
-        except Exception as e:
-            raise e

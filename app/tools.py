@@ -25,7 +25,7 @@ DEFAULT_LLMS = {
 }
 
 
-def get_llm_class(llm_class_name):
+def get_llm_class(llm_class_name: str):
     if llm_class_name == "Ollama":
         from app.llms.ollama import Ollama
         return Ollama, {}

@@ -1,30 +1,15 @@
 from llama_index.readers.file import (
     DocxReader,
-    HWPReader,
     PDFReader,
-    EpubReader,
-    FlatReader,
-    HTMLTagReader,
-    ImageCaptionReader,
-    ImageReader,
-    ImageVisionLLMReader,
-    IPYNBReader,
     MarkdownReader,
-    MboxReader,
     PptxReader,
-    PandasCSVReader,
-    VideoAudioReader,
     UnstructuredReader,
-    PyMuPDFReader,
-    ImageTabularChartReader,
     XMLReader,
-    PagedCSVReader,
     CSVReader,
-    RTFReader,
 )
 
 from app.loaders.excel import PandasExcelReader
-    
+
 LOADERS = {
     ".csv": (CSVReader, {}),
     ".docx": (DocxReader, {}),

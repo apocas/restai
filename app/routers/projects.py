@@ -23,7 +23,7 @@ from app.models.models import FindModel, IngestResponse, ProjectModel, ProjectMo
     QuestionModel, ChatModel, TextIngestModel, URLIngestModel, User
 from app.project import Project
 from app.vectordb import tools
-from app.vectordb.tools import FindFileLoader, IndexDocuments, ExtractKeywordsForMetadata
+from app.vectordb.tools import find_file_loader, index_documents, extract_keywords_for_metadata
 from modules.embeddings import EMBEDDINGS
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -256,7 +256,7 @@ async def route_create_project(request: Request,
         project = Project(projectModel)
 
         if project.model.vectorstore:
-            project.vector = tools.findVectorDB(project)(request.app.state.brain, project)
+            project.vector = tools.find_vector_db(project)(request.app.state.brain, project)
 
         project_db = db_wrapper.get_project_by_name(project.model.name)
 
@@ -438,12 +438,12 @@ async def ingest_text(request: Request, projectName: str, ingest: TextIngestMode
             for document in documents:
                 document.metadata["keywords"] = ", ".join(ingest.keywords)
         else:
-            documents = ExtractKeywordsForMetadata(documents)
+            documents = extract_keywords_for_metadata(documents)
 
         # for document in documents:
         #    document.text = document.text.decode('utf-8')
 
-        n_chunks = IndexDocuments(project, documents, ingest.splitter, ingest.chunks)
+        n_chunks = index_documents(project, documents, ingest.splitter, ingest.chunks)
         project.vector.save()
 
         return {"source": ingest.source, "documents": len(documents), "chunks": n_chunks}
@@ -476,9 +476,9 @@ async def ingest_url(request: Request, projectName: str, ingest: URLIngestModel,
         loader = SeleniumWebReader()
 
         documents = loader.load_data(urls=[ingest.url])
-        documents = ExtractKeywordsForMetadata(documents)
+        documents = extract_keywords_for_metadata(documents)
 
-        n_chunks = IndexDocuments(project, documents, ingest.splitter, ingest.chunks)
+        n_chunks = index_documents(project, documents, ingest.splitter, ingest.chunks)
         project.vector.save()
 
         return {"source": ingest.url, "documents": len(documents), "chunks": n_chunks}
@@ -520,7 +520,7 @@ async def ingest_file(
 
         opts = json.loads(urllib.parse.unquote(options))
 
-        loader = FindFileLoader(ext, opts)
+        loader = find_file_loader(ext, opts)
         documents = loader.load_data(file=Path(temp.name))
 
         for document in documents:
@@ -528,9 +528,9 @@ async def ingest_file(
                 del document.metadata["filename"]
             document.metadata["source"] = file.filename
 
-        documents = ExtractKeywordsForMetadata(documents)
+        documents = extract_keywords_for_metadata(documents)
 
-        n_chunks = IndexDocuments(project, documents, splitter, chunks)
+        n_chunks = index_documents(project, documents, splitter, chunks)
         project.vector.save()
 
         return {

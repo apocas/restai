@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 
 
 @asynccontextmanager
-async  def  lifespan ( app: FastAPI ):
+async def lifespan(fs_app: FastAPI):
     print("""
         ___ ___ ___ _____ _   ___      _.--'"'.
       | _ \ __/ __|_   _/_\ |_ _|    (  ( (   )
@@ -26,33 +26,31 @@ async  def  lifespan ( app: FastAPI ):
     from app.multiprocessing import get_manager
     from modules.loaders import LOADERS
     from modules.embeddings import EMBEDDINGS
-    
-    app.state.manager = get_manager()
-    app.state.brain = Brain()
-    
-    @app.get("/")
-    async def get(request: Request):
+
+    fs_app.state.manager = get_manager()
+    fs_app.state.brain = Brain()
+
+    @fs_app.get("/")
+    async def get():
         return "RESTAI, so many 'A's and 'I's, so little time..."
 
-
-    @app.get("/version")
+    @fs_app.get("/version")
     async def get_version():
         return {
-            "version": app.version,
+            "version": fs_app.version,
         }
 
-
-    @app.get("/info")
+    @fs_app.get("/info")
     async def get_info(_: User = Depends(get_current_username), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
         output = {
-            "version": app.version,
+            "version": fs_app.version,
             "loaders": list(LOADERS.keys()),
             "embeddings": [],
             "llms": []
         }
 
-        llms = db_wrapper.get_llms()
-        for llm in llms:
+        db_llms = db_wrapper.get_llms()
+        for llm in db_llms:
             output["llms"].append({
                 "name": llm.name,
                 "privacy": llm.privacy,
@@ -69,38 +67,39 @@ async  def  lifespan ( app: FastAPI ):
             })
         return output
 
-
     try:
-        app.mount("/admin/", StaticFiles(directory="frontend/html/",
-                                        html=True), name="static_admin")
-        app.mount(
+        fs_app.mount("/admin/", StaticFiles(directory="frontend/html/",
+                                            html=True), name="static_admin")
+        fs_app.mount(
             "/admin/static/js",
             StaticFiles(
                 directory="frontend/html/static/js"),
             name="static_js")
-        app.mount(
+        fs_app.mount(
             "/admin/static/css",
             StaticFiles(
                 directory="frontend/html/static/css"),
             name="static_css")
-        app.mount(
+        fs_app.mount(
             "/admin/static/media",
             StaticFiles(
                 directory="frontend/html/static/media"),
             name="static_media")
-    except BaseException:
+    except Exception as e:
+        print(e)
         print("Admin frontend not available.")
-    
-    app.include_router(llms.router)
-    app.include_router(projects.router)
-    app.include_router(tools.router)
-    app.include_router(users.router)
+
+    fs_app.include_router(llms.router)
+    fs_app.include_router(projects.router)
+    fs_app.include_router(tools.router)
+    fs_app.include_router(users.router)
 
     if config.RESTAI_GPU:
-        app.include_router(image.router)
-        app.include_router(audio.router)
-        
+        fs_app.include_router(image.router)
+        fs_app.include_router(audio.router)
+
     yield
+
 
 logging.basicConfig(level=config.LOG_LEVEL)
 logging.getLogger('passlib').setLevel(logging.ERROR)
@@ -115,7 +114,10 @@ if config.SENTRY_DSN:
 
 app = FastAPI(
     title="RestAI",
-    description="RestAI is an AIaaS (AI as a Service) open-source platform. Built on top of Llamaindex, Langchain and Transformers. Supports any public LLM supported by LlamaIndex and any local LLM suported by Ollama. Precise embeddings usage and tuning.",
+    description="RestAI is an AIaaS (AI as a Service) open-source platform."
+                " Built on top of Llamaindex, Langchain and Transformers."
+                " Supports any public LLM supported by LlamaIndex"
+                " and any local LLM suported by Ollama. Precise embeddings usage and tuning.",
     version="5.0.2",
     contact={
         "name": "Pedro Dias",
@@ -147,4 +149,3 @@ if config.RESTAI_DEV:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
