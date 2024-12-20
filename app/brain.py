@@ -15,6 +15,10 @@ from app import config
 from app.config import REDIS_HOST, REDIS_PORT
 from llama_index.storage.chat_store.redis import RedisChatStore
 from llama_index.core.storage.chat_store import SimpleChatStore
+import tiktoken
+from llama_index.core import Settings
+from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
+
 
 class Brain:
     def __init__(self):
@@ -22,13 +26,22 @@ class Brain:
         self.defaultCensorship = "I'm sorry, I don't know the answer to that."
         self.defaultSystem = ""
         self.tools = tools.load_tools()
+
+        """
+        self.tokenizer = tiktoken.get_encoding("cl100k_base").encode
+        self.token_counter = TokenCountingHandler(
+            tokenizer=self.tokenizer
+        )
+        Settings.callback_manager = CallbackManager([self.token_counter])
+        """
         
         if config.RESTAI_GPU:
             self.generators = tools.load_generators()
             self.audio_generators = tools.load_audio_generators()
-            
+
         if REDIS_HOST is not None:
-            self.chatstore = RedisChatStore(redis_url=f"redis://{REDIS_HOST}:{REDIS_PORT}")
+            self.chatstore = RedisChatStore(
+                redis_url=f"redis://{REDIS_HOST}:{REDIS_PORT}")
         else:
             self.chatstore = SimpleChatStore()
 
@@ -46,7 +59,8 @@ class Brain:
         if llm_db is not None:
             llm_model = LLMModel.model_validate(llm_db)
 
-            llm_class, llm_default_params = tools.get_llm_class(llm_model.class_name)
+            llm_class, llm_default_params = tools.get_llm_class(
+                llm_model.class_name)
             llm_params = json.loads(llm_model.options)
             if llm_default_params is not None:
                 llm_params.update(llm_default_params)
@@ -78,7 +92,8 @@ class Brain:
             project.model = proj
             if project.model.type == "rag":
                 try:
-                    project.vector = vector_tools.findVectorDB(project)(self, project)
+                    project.vector = vector_tools.findVectorDB(
+                        project)(self, project)
                 except Exception as e:
                     logging.error(e)
                     traceback.print_tb(e.__traceback__)
@@ -87,7 +102,8 @@ class Brain:
 
     @staticmethod
     def classify(classifier_model: ClassifierModel):
-        classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+        classifier = pipeline("zero-shot-classification",
+                              model="facebook/bart-large-mnli")
 
         sequence_to_classify = classifier_model.sequence
         candidate_labels = classifier_model.labels
@@ -106,7 +122,7 @@ class Brain:
             _tools = self.tools
 
         return _tools
-      
+
     def get_generators(self, names=None) -> list:
         if names is None:
             names = []
@@ -120,7 +136,7 @@ class Brain:
             _generators = self.generators
 
         return _generators
-      
+
     def get_audio_generators(self, names=None) -> list:
         if names is None:
             names = []
