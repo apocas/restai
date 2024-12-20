@@ -28,13 +28,13 @@ DEFAULT_LLMS = {
 def get_llm_class(llm_class_name: str):
     if llm_class_name == "Ollama":
         from app.llms.ollama import Ollama
-        return Ollama, {}
+        return Ollama, {"request_timeout": 120.0}
     elif llm_class_name == "OllamaMultiModal":
         from llama_index.multi_modal_llms.ollama import OllamaMultiModal
-        return OllamaMultiModal, {}
+        return OllamaMultiModal, {"request_timeout": 120.0}
     elif llm_class_name == "OllamaMultiModalInternal" or llm_class_name == "OllamaMultiModal2":
         from app.llms.ollamamultimodal import OllamaMultiModalInternal
-        return OllamaMultiModalInternal, {}
+        return OllamaMultiModalInternal, {"request_timeout": 120.0}
     elif llm_class_name == "OpenAI":
         from llama_index.llms.openai import OpenAI
         return OpenAI, {}

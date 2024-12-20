@@ -16,9 +16,6 @@ class Ollama(ImportedOllama):
         default="", description="Default system message to send to the model."
     )
 
-    request_timeout: float = 120.0
-
-
     @llm_chat_callback()
     def chat(self, messages: MutableSequence[ChatMessage], **kwargs: Any):
         if self.system and len(messages) > 0 and messages[0].role != MessageRole.SYSTEM:
