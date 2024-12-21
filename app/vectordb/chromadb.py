@@ -3,6 +3,7 @@ import chromadb
 from llama_index.core.indices import VectorStoreIndex
 from llama_index.core.storage import StorageContext
 
+from app.brain import Brain
 from app.vectordb.tools import find_embeddings_path
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from app.vectordb.base import VectorBase
@@ -31,7 +32,7 @@ class ChromaDBVector(VectorBase):
     def save(self):
         pass
 
-    def load(self, brain):
+    def load(self, brain: Brain):
         pass
 
     def list(self):
@@ -75,10 +76,9 @@ class ChromaDBVector(VectorBase):
         )
         return len(docs["ids"])
 
-    def find_source(self, source):
+    def find_source(self, source: str):
         collection = self.db.get_or_create_collection(self.project.model.name)
         docs = collection.get(where={'source': source})
-
         return docs
 
     def find_id(self, id):

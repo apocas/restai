@@ -52,7 +52,7 @@ class Agent(ProjectBase):
         return output
   
     def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
-        chat = Chat(chatModel, self.brain.chat_store)
+        chat: Chat = Chat(chatModel, self.brain.chat_store)
         output = {
           "question": chatModel.question,
           "type": "agent",
@@ -63,7 +63,7 @@ class Agent(ProjectBase):
               "output": 0
           },
           "project": project.model.name,
-          "id": chat.id
+          "id": chat.chat_id
         }
               
         if project.model.guard:

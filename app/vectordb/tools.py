@@ -1,6 +1,7 @@
 import os
 import re
 import time
+from typing import Iterable
 
 import yake
 from llama_index.core.schema import Document
@@ -8,10 +9,14 @@ from llama_index.core.text_splitter import TokenTextSplitter, SentenceSplitter
 
 from app.config import EMBEDDINGS_PATH
 from app.config import REDIS_HOST, PINECONE_API_KEY
+from app.project import Project
+from app.vectordb.base import VectorBase
 from modules.loaders import LOADERS
 
+from llama_index.core.node_parser.interface import MetadataAwareTextSplitter
 
-def find_vector_db(project):
+
+def find_vector_db(project: Project) -> type[VectorBase]:
     if project.model.vectorstore == "redis" and REDIS_HOST:
         from app.vectordb.redis import RedisVector
         return RedisVector
@@ -25,24 +30,33 @@ def find_vector_db(project):
         raise Exception("Invalid vectorDB type.")
 
 
-def index_documents(project, documents, splitter="sentence", chunks=256):
-    if splitter == "sentence":
-        splitter_o = TokenTextSplitter(
+def index_documents(project: Project, documents: Iterable[Document], splitter: str = "sentence",
+                    chunks: int = 256) -> int: # TODO: Replace splitter string ID with enum
+    splitter_o: MetadataAwareTextSplitter
+    match splitter:
+        case "sentence":
+            splitter_o = TokenTextSplitter(
             separator=" ", chunk_size=chunks, chunk_overlap=30)
-    elif splitter == "token":
-        splitter_o = SentenceSplitter(
-            separator=" ", paragraph_separator="\n", chunk_size=chunks, chunk_overlap=30)
+        case "token":
+            splitter_o = SentenceSplitter(
+                separator=" ", paragraph_separator="\n", chunk_size=chunks, chunk_overlap=30)
+        case _:
+            raise ValueError(f"Unknown splitter '{splitter}'.")
 
+    total_chunks: int = 0
+
+    document: Document
     for document in documents:
         text_chunks = splitter_o.split_text(document.text)
 
-        doc_chunks = [Document(text=t, metadata=document.metadata)
-                      for t in text_chunks]
+        doc_chunks: list[Document] = [Document(text=t, metadata=document.metadata)
+                                      for t in text_chunks]
 
         for doc_chunk in doc_chunks:
             project.vector.index.insert(doc_chunk)
+            total_chunks += 1
 
-    return len(doc_chunks)
+    return total_chunks
 
 
 def extract_keywords_for_metadata(documents):
@@ -90,5 +104,3 @@ def find_embeddings_path(projectName):
         os.mkdir(embeddingsPathProject)
 
     return embeddingsPathProject
-
-

@@ -6,19 +6,20 @@ from fastapi.security import HTTPBasic
 import jwt
 from app.config import RESTAI_AUTH_SECRET, RESTAI_AUTH_DISABLE_LOCAL
 from app.database import get_db_wrapper, pwd_context, DBWrapper
+from app.models.databasemodels import ProjectDatabase
 from app.models.models import User
 
-security = HTTPBasic()
+security: HTTPBasic = HTTPBasic()
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
+def create_access_token(data: dict[str, str | datetime], expires_delta: Optional[timedelta] = None):
+    to_encode: dict[str, str | datetime] = data.copy()
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire: datetime = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire: datetime = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(
+    encoded_jwt: str = jwt.encode(
         to_encode, RESTAI_AUTH_SECRET, algorithm="HS512")
     return encoded_jwt
 
@@ -109,30 +110,23 @@ def get_current_username(
         return User.model_validate(user)
 
 
-def get_current_username_admin(
-        user: User = Depends(get_current_username)
-):
+def get_current_username_admin(user: User = Depends(get_current_username)):
     if not user.is_admin:
         raise HTTPException(
             status_code=401,
-            detail="Insuficient permissions",
+            detail="Insufficient permissions",
             headers={"WWW-Authenticate": "Basic"},
         )
     return user
 
 
-def get_current_username_project(
-        projectName: str,
-        user: User = Depends(get_current_username)
-):
-    found = False
-    if not user.is_admin:
+def get_current_username_project(projectName: str, user: User = Depends(get_current_username)):
+    found: bool = user.is_admin
+
+    if not found:
         for project in user.projects:
             if project.name == projectName:
                 found = True
-    else:
-        found = True
-
     if not found:
         raise HTTPException(
             status_code=404,
@@ -156,7 +150,7 @@ def get_current_username_project_public(
         found = True
         user.level = "own"
 
-    p = db_wrapper.get_project_by_name(projectName)
+    p: Optional[ProjectDatabase] = db_wrapper.get_project_by_name(projectName)
     if found == False and (p is not None and p.public):
         found = True
         user.level = "public"
@@ -169,10 +163,7 @@ def get_current_username_project_public(
     return user
 
 
-def get_current_username_user(
-        username: str,
-        user: User = Depends(get_current_username)
-):
+def get_current_username_user(username: str, user: User = Depends(get_current_username)):
     found = False
     if not user.is_admin:
         if user.username == username:

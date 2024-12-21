@@ -14,7 +14,7 @@ from app.models.databasemodels import OutputDatabase
 DEFAULT_LLMS = {
     # "name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa"),
     "openai_gpt4_turbo": (
-    "OpenAI", {"temperature": 0, "model": "gpt-4-turbo-preview"}, "public", "OpenAI GPT-4 Turbo", "chat"),
+        "OpenAI", {"temperature": 0, "model": "gpt-4-turbo-preview"}, "public", "OpenAI GPT-4 Turbo", "chat"),
     "openai_gpt4o": ("OpenAI", {"temperature": 0, "model": "gpt-4o"}, "public", "OpenAI GPT-4o", "chat"),
     "llama3_8b": ("Ollama", {"model": "llama3:8b", "temperature": 0.0001, "keep_alive": 0}, "private",
                   "https://ollama.com/library/llama3", "chat"),
@@ -26,51 +26,54 @@ DEFAULT_LLMS = {
 
 
 def get_llm_class(llm_class_name: str):
-    if llm_class_name == "Ollama":
-        from app.llms.ollama import Ollama
-        return Ollama, {}
-    elif llm_class_name == "OllamaMultiModal":
-        from llama_index.multi_modal_llms.ollama import OllamaMultiModal
-        return OllamaMultiModal, {}
-    elif llm_class_name == "OllamaMultiModalInternal" or llm_class_name == "OllamaMultiModal2":
-        from app.llms.ollamamultimodal import OllamaMultiModalInternal
-        return OllamaMultiModalInternal, {}
-    elif llm_class_name == "OpenAI":
-        from llama_index.llms.openai import OpenAI
-        return OpenAI, {}
-    elif llm_class_name == "Grok":
-        from llama_index.llms.anthropic import Anthropic
-        return Anthropic, {"base_url": "https://api.x.ai/", "api_key": os.environ.get("XAI_API_KEY"), "model": "grok-beta"}
-    elif llm_class_name == "Groq":
-        from llama_index.llms.groq import Groq
-        return Groq, {}
-    elif llm_class_name == "Anthropic":
-        from llama_index.llms.anthropic import Anthropic
-        return Anthropic, {}
-    elif llm_class_name == "LiteLLM":
-        from llama_index.llms.litellm import LiteLLM
-        return LiteLLM, {}
-    elif llm_class_name == "vLLM":
-        from llama_index.llms.vllm import Vllm
-        return Vllm, {}
-    elif llm_class_name == "Gemini":
-        from llama_index.llms.gemini import Gemini
-        from vertexai.generative_models import (
-            SafetySetting,
-            HarmCategory,
-            HarmBlockThreshold
-        )
-        return Gemini, {"generate_kwargs": {"safety_settings": [
-            SafetySetting(
-                category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
+    match llm_class_name:
+        case "Ollama":
+            from app.llms.ollama import Ollama
+            return Ollama, {}
+        case "OllamaMultiModal":
+            from llama_index.multi_modal_llms.ollama import OllamaMultiModal
+            return OllamaMultiModal, {}
+        case "OllamaMultiModal2":
+            from app.llms.ollamamultimodal import OllamaMultiModalInternal
+            return OllamaMultiModalInternal, {}
+        case "OpenAI":
+            from llama_index.llms.openai import OpenAI
+            return OpenAI, {}
+        case "Grok":
+            from llama_index.llms.anthropic import Anthropic
+            return Anthropic, {"base_url": "https://api.x.ai/", "api_key": os.environ.get("XAI_API_KEY"),
+                               "model": "grok-beta"}
+        case "Groq":
+            from llama_index.llms.groq import Groq
+            return Groq, {}
+        case "Anthropic":
+            from llama_index.llms.anthropic import Anthropic
+            return Anthropic, {}
+        case "LiteLLM":
+            from llama_index.llms.litellm import LiteLLM
+            return LiteLLM, {}
+        case "vLLM":
+            from llama_index.llms.vllm import Vllm
+            return Vllm, {}
+        case "Gemini":
+            from llama_index.llms.gemini import Gemini
+            from vertexai.generative_models import (
+                SafetySetting,
+                HarmCategory,
+                HarmBlockThreshold
             )
-        ]}}
-    elif llm_class_name == "AzureOpenAI":
-        from llama_index.llms.azure_openai import AzureOpenAI
-        return AzureOpenAI, {}
-    else:
-        raise Exception("Invalid LLM class name.")
+            return Gemini, {"generate_kwargs": {"safety_settings": [
+                SafetySetting(
+                    category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                    threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                )
+            ]}}
+        case "AzureOpenAI":
+            from llama_index.llms.azure_openai import AzureOpenAI
+            return AzureOpenAI, {}
+        case _:
+            raise Exception("Invalid LLM class name.")
+
 
 def load_generators() -> list[FunctionTool]:
     generators = []
@@ -82,7 +85,7 @@ def load_generators() -> list[FunctionTool]:
         for name, obj in inspect.getmembers(module):
             if inspect.isfunction(obj) and name == "worker":
                 generators.append(obj)
-                
+
     print(f"Loading userland image generators...")
     for importer, modname, _ in pkgutil.iter_modules(path=['./generators']):
         module = __import__(f'generators.{modname}', fromlist='dummy')
@@ -97,9 +100,10 @@ def load_generators() -> list[FunctionTool]:
                         break
                 if not replaced:
                     generators.append(obj)
-                    
+
     return generators
-  
+
+
 def load_audio_generators() -> list[FunctionTool]:
     generators = []
     directory = os.path.dirname(os.path.abspath(__file__))
@@ -110,7 +114,7 @@ def load_audio_generators() -> list[FunctionTool]:
         for name, obj in inspect.getmembers(module):
             if inspect.isfunction(obj) and name == "worker":
                 generators.append(obj)
-                
+
     print(f"Loading userland audio generators...")
     for importer, modname, _ in pkgutil.iter_modules(path=['./audio']):
         module = __import__(f'audio.{modname}', fromlist='dummy')
@@ -125,8 +129,9 @@ def load_audio_generators() -> list[FunctionTool]:
                         break
                 if not replaced:
                     generators.append(obj)
-                    
+
     return generators
+
 
 def load_tools() -> list[FunctionTool]:
     tools = []
