@@ -14,7 +14,7 @@ from app.models.databasemodels import OutputDatabase
 DEFAULT_LLMS = {
     # "name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa"),
     "openai_gpt4_turbo": (
-        "OpenAI", {"temperature": 0, "model": "gpt-4-turbo-preview"}, "public", "OpenAI GPT-4 Turbo", "chat"),
+    "OpenAI", {"temperature": 0, "model": "gpt-4-turbo-preview"}, "public", "OpenAI GPT-4 Turbo", "chat"),
     "openai_gpt4o": ("OpenAI", {"temperature": 0, "model": "gpt-4o"}, "public", "OpenAI GPT-4o", "chat"),
     "llama3_8b": ("Ollama", {"model": "llama3:8b", "temperature": 0.0001, "keep_alive": 0}, "private",
                   "https://ollama.com/library/llama3", "chat"),
@@ -74,7 +74,6 @@ def get_llm_class(llm_class_name: str):
         case _:
             raise Exception("Invalid LLM class name.")
 
-
 def load_generators() -> list[FunctionTool]:
     generators = []
     directory = os.path.dirname(os.path.abspath(__file__))
@@ -85,7 +84,7 @@ def load_generators() -> list[FunctionTool]:
         for name, obj in inspect.getmembers(module):
             if inspect.isfunction(obj) and name == "worker":
                 generators.append(obj)
-
+                
     print(f"Loading userland image generators...")
     for importer, modname, _ in pkgutil.iter_modules(path=['./generators']):
         module = __import__(f'generators.{modname}', fromlist='dummy')
@@ -100,10 +99,9 @@ def load_generators() -> list[FunctionTool]:
                         break
                 if not replaced:
                     generators.append(obj)
-
+                    
     return generators
-
-
+  
 def load_audio_generators() -> list[FunctionTool]:
     generators = []
     directory = os.path.dirname(os.path.abspath(__file__))
@@ -114,7 +112,7 @@ def load_audio_generators() -> list[FunctionTool]:
         for name, obj in inspect.getmembers(module):
             if inspect.isfunction(obj) and name == "worker":
                 generators.append(obj)
-
+                
     print(f"Loading userland audio generators...")
     for importer, modname, _ in pkgutil.iter_modules(path=['./audio']):
         module = __import__(f'audio.{modname}', fromlist='dummy')
@@ -129,9 +127,8 @@ def load_audio_generators() -> list[FunctionTool]:
                         break
                 if not replaced:
                     generators.append(obj)
-
+                    
     return generators
-
 
 def load_tools() -> list[FunctionTool]:
     tools = []

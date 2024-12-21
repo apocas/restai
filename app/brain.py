@@ -19,16 +19,25 @@ from llama_index.storage.chat_store.redis import RedisChatStore
 from llama_index.core.storage.chat_store import SimpleChatStore
 from llama_index.core.storage.chat_store.base import BaseChatStore
 from llama_index.core.base.embeddings.base import BaseEmbedding
-
-
+import tiktoken
+from llama_index.core import Settings
+from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 
 class Brain:
-    def __init__(self) -> None:
+    def __init__(self):
         self.embeddingCache: dict[str, BaseEmbedding] = {}
         self.defaultCensorship: str = "I'm sorry, I don't know the answer to that."
         self.defaultSystem: str = ""
         self.tools: list[FunctionTool] = tools.load_tools()
 
+        """
+        self.tokenizer = tiktoken.get_encoding("cl100k_base").encode
+        self.token_counter = TokenCountingHandler(
+            tokenizer=self.tokenizer
+        )
+        Settings.callback_manager = CallbackManager([self.token_counter])
+        """
+        
         if config.RESTAI_GPU:
             self.generators: list[FunctionTool] = tools.load_generators()
             self.audio_generators: list[FunctionTool] = tools.load_audio_generators()
@@ -56,7 +65,8 @@ class Brain:
         if llm_db is not None:
             llm_model = LLMModel.model_validate(llm_db)
 
-            llm_class, llm_default_params = tools.get_llm_class(llm_model.class_name)
+            llm_class, llm_default_params = tools.get_llm_class(
+                llm_model.class_name)
             llm_params = json.loads(llm_model.options)
             if llm_default_params is not None:
                 llm_params.update(llm_default_params)
@@ -82,9 +92,11 @@ class Brain:
         p: Optional[ProjectDatabase] = db.get_project_by_name(name)
         if p is None:
             return None
+          
         proj: ProjectModel = ProjectModel.model_validate(p)
         if proj is None:
             return None
+          
         project: Project = Project(proj)
         project.model = proj
         if project.model.type == "rag":
@@ -98,7 +110,8 @@ class Brain:
 
     @staticmethod
     def classify(classifier_model: ClassifierModel):
-        classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+        classifier = pipeline("zero-shot-classification",
+                              model="facebook/bart-large-mnli")
 
         sequence_to_classify = classifier_model.sequence
         candidate_labels = classifier_model.labels
