@@ -18,8 +18,7 @@ from app.models.databasemodels import (
     LLMDatabase,
     ProjectDatabase,
     RouterEntrancesDatabase,
-    UserDatabase,
-    OutputDatabase
+    UserDatabase
 )
 from app.tools import DEFAULT_LLMS
 

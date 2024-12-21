@@ -2,6 +2,7 @@
 
 import logging
 from typing import TYPE_CHECKING, List, Literal, Optional, Union
+from unstructured.partition.html import partition_html
 
 if TYPE_CHECKING:
     from selenium.webdriver import Chrome, Firefox
@@ -26,13 +27,13 @@ class SeleniumWebReader(BaseReader):
 
     def __init__(
         self,
-        continue_on_failure: bool = True,
-        browser: Literal["chrome", "firefox"] = "chrome",
-        binary_location: Optional[str] = None,
-        executable_path: Optional[str] = None,
-        headless: bool = True,
-            arguments=None,
-    ):
+            continue_on_failure: bool = True,
+            browser: Literal["chrome", "firefox"] = "chrome",
+            binary_location: Optional[str] = None,
+            executable_path: Optional[str] = None,
+            headless: bool = True,
+            arguments: object = None,
+    ) -> None:
         
         """Load a list of URLs using Selenium and unstructured."""
         if arguments is None:
@@ -113,7 +114,8 @@ class SeleniumWebReader(BaseReader):
         else:
             raise ValueError("Invalid browser specified. Use 'chrome' or 'firefox'.")
 
-    def _build_metadata(self, url: str, driver: Union["Chrome", "Firefox"]) -> dict:
+    @staticmethod
+    def _build_metadata(url: str, driver: Union["Chrome", "Firefox"]) -> dict:
         from selenium.common.exceptions import NoSuchElementException
         from selenium.webdriver.common.by import By
 
@@ -146,14 +148,13 @@ class SeleniumWebReader(BaseReader):
 
     def load_data(
         self,
-        urls: List[str],
+        urls: list[str],
     ) -> List[Document]:
         """Load the specified URLs using Selenium and create Document instances.
 
         Returns:
             List[Document]: A list of Document instances with loaded content.
         """
-        from unstructured.partition.html import partition_html
 
         docs: List[Document] = list()
         driver = self._get_driver()

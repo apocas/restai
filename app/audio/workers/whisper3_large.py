@@ -1,11 +1,10 @@
-import torch
-from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
-from fastapi import UploadFile
-import soundfile as sf
-import io
-import tempfile
-import os
 import mimetypes
+import os
+import tempfile
+
+import torch
+from fastapi import UploadFile
+from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 

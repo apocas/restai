@@ -1,14 +1,13 @@
 import base64
+import gc
 import io
 import os
-import torch
-from diffusers import FluxPipeline
-import gc
-from diffusers import FluxTransformer2DModel
-from diffusers import AutoencoderKL
-from diffusers.image_processor import VaeImageProcessor
 
-from app.config import RESTAI_DEFAULT_DEVICE
+import torch
+from diffusers import AutoencoderKL
+from diffusers import FluxPipeline
+from diffusers import FluxTransformer2DModel
+from diffusers.image_processor import VaeImageProcessor
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 

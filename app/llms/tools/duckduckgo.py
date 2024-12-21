@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional
-from llama_index.core.tools.tool_spec.base import BaseToolSpec
+
 
 def duckduckgo(
         query: str,

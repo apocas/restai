@@ -1,15 +1,11 @@
 import base64
 import io
 import os
-from diffusers import StableDiffusion3Pipeline
+
 import torch
 from PIL import Image
-import matplotlib.pyplot as plt
-import torch
 from torchvision import transforms
 from transformers import AutoModelForImageSegmentation
-
-from app.config import RESTAI_DEFAULT_DEVICE
 
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 

@@ -1,5 +1,7 @@
+from typing import Optional
+
 from starlette.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from requests import Response
 from fastapi import BackgroundTasks
 from app.database import DBWrapper
 from app.project import Project
@@ -9,7 +11,7 @@ from app.projects.rag import RAG
 from app.projects.ragsql import RAGSql
 from app.projects.router import Router
 from app.projects.vision import Vision
-from app.models.models import QuestionModel, User
+from app.models.models import QuestionModel, User, ChatModel
 from app.brain import Brain
 import requests
 from fastapi import HTTPException, Request
@@ -30,7 +32,7 @@ async def chat_main(
         _: Request,
         brain: Brain,
         project: Project,
-        q_input: QuestionModel,
+        chat_input: ChatModel,
         user: User,
         db: DBWrapper,
         background_tasks: BackgroundTasks):
@@ -48,10 +50,10 @@ async def chat_main(
             raise HTTPException(
                 status_code=400, detail='{"error": "Invalid project type"}')
 
-    if q_input.stream:
-        return StreamingResponse(proj_logic.chat(project, q_input, user, db), media_type='text/event-stream')
+    if chat_input.stream:
+        return StreamingResponse(proj_logic.chat(project, chat_input, user, db), media_type='text/event-stream')
     else:
-        output = proj_logic.chat(project, q_input, user, db)
+        output = proj_logic.chat(project, chat_input, user, db)
         for line in output:
             background_tasks.add_task(log_inference, user, line, db)
             return line
@@ -73,15 +75,15 @@ async def question_main(
                 return cached
             return await question_rag(request, brain, project, q_input, user, db, background_tasks)
         case "inference":
-            return await question_inference(request, brain, project, q_input, user, db, background_tasks)
+            return await question_inference(brain, project, q_input, user, db, background_tasks)
         case "ragsql":
             return await question_query_sql(request, brain, project, q_input, user, db, background_tasks)
         case "router":
             return await question_router(request, brain, project, q_input, user, db, background_tasks)
         case "vision":
-            return await question_vision(project, brain, q_input, user, db, background_tasks)
+            return await question_vision(project, brain, q_input, user, db)
         case "agent":
-            return await question_agent(request, brain, project, q_input, user, db, background_tasks)
+            return await question_agent(brain, project, q_input, user, db, background_tasks)
         case _:
             raise HTTPException(
                 status_code=400, detail='{"error": "Invalid project type"}')
@@ -146,7 +148,7 @@ async def question_router(
         project: Project,
         q_input: QuestionModel,
         user: User,
-        db: Session,
+        db: DBWrapper,
         background_tasks: BackgroundTasks):
     try:
         projLogic = Router(brain)
@@ -155,8 +157,8 @@ async def question_router(
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for ROUTER projects."}')
 
-        proj_dest_name = projLogic.question(project, q_input, user, db)
-        proj_dest = brain.find_project(proj_dest_name, db)
+        proj_dest_name: str = projLogic.question(project, q_input, user, db)
+        proj_dest: Optional[Project] = brain.find_project(proj_dest_name, db)
 
         if proj_dest is None:
             raise HTTPException(
@@ -172,15 +174,14 @@ async def question_router(
 
 
 async def question_inference(
-        _: Request,
         brain: Brain,
         project: Project,
         q_input: QuestionModel,
         user: User,
-        db: Session,
+        db: DBWrapper,
         background_tasks: BackgroundTasks):
     try:
-        proj_logic = Inference(brain)
+        proj_logic: Inference = Inference(brain)
 
         if project.model.type != "inference":
             raise HTTPException(
@@ -202,15 +203,14 @@ async def question_inference(
 
 
 async def question_agent(
-        _: Request,
         brain: Brain,
         project: Project,
         q_input: QuestionModel,
         user: User,
-        db: Session,
+        db: DBWrapper,
         background_tasks: BackgroundTasks):
     try:
-        projLogic = Agent(brain)
+        projLogic: Agent = Agent(brain)
 
         output = projLogic.question(project, q_input, user, db)
 
@@ -231,10 +231,10 @@ async def question_query_sql(
         project: Project,
         q_input: QuestionModel,
         user: User,
-        db: Session,
+        db: DBWrapper,
         background_tasks: BackgroundTasks):
     try:
-        projLogic = RAGSql(brain)
+        projLogic: RAGSql = RAGSql(brain)
 
         if project.model.type != "ragsql":
             raise HTTPException(
@@ -257,24 +257,25 @@ async def question_vision(
         brain: Brain,
         q_input: QuestionModel,
         user: User,
-        db: Session,
-        _: BackgroundTasks):
+        db: DBWrapper):
     try:
-        projLogic = Vision(brain)
+        projLogic: Vision = Vision(brain)
 
         if project.model.type != "vision":
             raise HTTPException(
                 status_code=400, detail='{"error": "Only available for VISION projects."}')
 
         if q_input.image:
-            url_pattern = re.compile(
+            url_pattern: re.Pattern = re.compile(
                 r'https?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(),]|%[0-9a-fA-F][0-9a-fA-F])+')
-            is_url = re.match(url_pattern, q_input.image) is not None
+            is_url: bool = re.match(url_pattern, q_input.image) is not None
 
             if is_url:
-                response = requests.get(q_input.image)
+                response: Response = requests.get(q_input.image)
                 response.raise_for_status()
-                image_data = response.content
+                image_data: Optional[bytes] = response.content
+                if image_data is None:
+                    raise ValueError("Content is null.")
                 q_input.image = base64.b64encode(image_data).decode('utf-8')
 
         output = projLogic.question(
