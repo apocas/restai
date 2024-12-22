@@ -29,13 +29,13 @@ def get_llm_class(llm_class_name: str):
     match llm_class_name:
         case "Ollama":
             from app.llms.ollama import Ollama
-            return Ollama, {}
+            return Ollama, {"request_timeout": 120.0}
         case "OllamaMultiModal":
             from llama_index.multi_modal_llms.ollama import OllamaMultiModal
-            return OllamaMultiModal, {}
+            return OllamaMultiModal, {"request_timeout": 120.0}
         case "OllamaMultiModal2":
             from app.llms.ollamamultimodal import OllamaMultiModalInternal
-            return OllamaMultiModalInternal, {}
+            return OllamaMultiModalInternal, {"request_timeout": 120.0}
         case "OpenAI":
             from llama_index.llms.openai import OpenAI
             return OpenAI, {}
