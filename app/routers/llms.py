@@ -1,10 +1,13 @@
 import json
+from typing import Optional
+
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException, Request
 import traceback
 import logging
 from app import config
+from app.models.databasemodels import LLMDatabase
 from app.models.models import LLMModel, LLMUpdate, User
 from app.database import get_db_wrapper, DBWrapper
 from app.auth import get_current_username, get_current_username_admin
@@ -22,11 +25,11 @@ async def api_get_llm(llm_name: str,
     try:
         llm = LLMModel.model_validate(db_wrapper.get_llm_by_name(llm_name))
         if llm.options is not None:
-          options= json.loads(llm.options)
-          if 'api_key' in options:
-            options["api_key"] = "********"
-            llm.options = json.dumps(options)
-          return llm
+            options = json.loads(llm.options)
+            if 'api_key' in options:
+                options["api_key"] = "********"
+                llm.options = json.dumps(options)
+            return llm
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
@@ -38,13 +41,13 @@ async def api_get_llm(llm_name: str,
 async def api_get_llms(
         _: User = Depends(get_current_username),
         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    llms = [LLMModel.model_validate(llm) for llm in db_wrapper.get_llms()]
+    llms: list[Optional[LLMModel]] = [LLMModel.model_validate(llm) for llm in db_wrapper.get_llms()]
     for llm in llms:
         if llm.options is not None:
-          options = json.loads(llm.options)
-          if 'api_key' in options:
-            options["api_key"] = "********"
-            llm.options = json.dumps(options)
+            options = json.loads(llm.options)
+            if 'api_key' in options:
+                options["api_key"] = "********"
+                llm.options = json.dumps(options)
     return llms
 
 
@@ -53,7 +56,8 @@ async def api_create_llm(llmc: LLMModel,
                          _: User = Depends(get_current_username_admin),
                          db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        llm = db_wrapper.create_llm(llmc.name, llmc.class_name, llmc.options, llmc.privacy, llmc.description, llmc.type)
+        llm: LLMDatabase = db_wrapper.create_llm(llmc.name, llmc.class_name, llmc.options, llmc.privacy,
+                                                 llmc.description, llmc.type)
         return llm
     except Exception as e:
         logging.error(e)
@@ -70,7 +74,7 @@ async def api_edit_project(request: Request,
                            _: User = Depends(get_current_username_admin),
                            db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        llm = db_wrapper.get_llm_by_name(llm_name)
+        llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_name(llm_name)
         if llm is None:
             raise Exception("LLM not found")
         if db_wrapper.update_llm(llm, llmUpdate):
@@ -91,7 +95,7 @@ async def api_delete_llm(llm_name: str,
                          _: User = Depends(get_current_username_admin),
                          db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        llm = db_wrapper.get_llm_by_name(llm_name)
+        llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_name(llm_name)
         if llm is None:
             raise Exception("LLM not found")
         db_wrapper.delete_llm(llm)

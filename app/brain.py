@@ -1,8 +1,10 @@
 import json
 import logging
 import traceback
+from typing import Optional, Iterable
 from llama_index.embeddings.langchain import LangchainEmbedding
 from app.database import DBWrapper
+from app.models.databasemodels import ProjectDatabase
 from app.vectordb import tools as vector_tools
 from app import tools
 from app.llm import LLM
@@ -15,17 +17,18 @@ from app import config
 from app.config import REDIS_HOST, REDIS_PORT
 from llama_index.storage.chat_store.redis import RedisChatStore
 from llama_index.core.storage.chat_store import SimpleChatStore
+from llama_index.core.storage.chat_store.base import BaseChatStore
+from llama_index.core.base.embeddings.base import BaseEmbedding
 import tiktoken
 from llama_index.core import Settings
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 
-
 class Brain:
     def __init__(self):
-        self.embeddingCache = {}
-        self.defaultCensorship = "I'm sorry, I don't know the answer to that."
-        self.defaultSystem = ""
-        self.tools = tools.load_tools()
+        self.embeddingCache: dict[str, BaseEmbedding] = {}
+        self.defaultCensorship: str = "I'm sorry, I don't know the answer to that."
+        self.defaultSystem: str = ""
+        self.tools: list[FunctionTool] = tools.load_tools()
 
         """
         self.tokenizer = tiktoken.get_encoding("cl100k_base").encode
@@ -36,24 +39,27 @@ class Brain:
         """
         
         if config.RESTAI_GPU:
-            self.generators = tools.load_generators()
-            self.audio_generators = tools.load_audio_generators()
+            self.generators: list[FunctionTool] = tools.load_generators()
+            self.audio_generators: list[FunctionTool] = tools.load_audio_generators()
 
+        self.chat_store: BaseChatStore
         if REDIS_HOST is not None:
-            self.chatstore = RedisChatStore(
-                redis_url=f"redis://{REDIS_HOST}:{REDIS_PORT}")
+            self.chat_store = RedisChatStore(redis_url=f"redis://{REDIS_HOST}:{REDIS_PORT}")
         else:
-            self.chatstore = SimpleChatStore()
+            self.chat_store = SimpleChatStore()
 
-    def get_llm(self, llmName, db: DBWrapper, **kwargs):
-        llm = self.load_llm(llmName, db)
+    def get_llm(self, llmName: str, db: DBWrapper) -> Optional[LLM]:
+        llm: Optional[LLM] = self.load_llm(llmName, db)
+
+        if llm is None:
+            return None
 
         if hasattr(llm.llm, 'system_prompt'):
             llm.llm.system_prompt = None
         return llm
 
     @staticmethod
-    def load_llm(llmName: str, db: DBWrapper):
+    def load_llm(llmName: str, db: DBWrapper) -> Optional[LLM]:
         llm_db = db.get_llm_by_name(llmName)
 
         if llm_db is not None:
@@ -70,7 +76,7 @@ class Brain:
         else:
             return None
 
-    def get_embedding(self, embeddingModel):
+    def get_embedding(self, embeddingModel: Optional[str]) -> BaseEmbedding:
         if embeddingModel in self.embeddingCache:
             return self.embeddingCache[embeddingModel]
         else:
@@ -82,23 +88,25 @@ class Brain:
             else:
                 raise Exception("Invalid Embedding type.")
 
-    def find_project(self, name: str, db: DBWrapper):
-        p = db.get_project_by_name(name)
+    def find_project(self, name: str, db: DBWrapper) -> Optional[Project]:
+        p: Optional[ProjectDatabase] = db.get_project_by_name(name)
         if p is None:
             return None
-        proj = ProjectModel.model_validate(p)
-        if proj is not None:
-            project = Project(proj)
-            project.model = proj
-            if project.model.type == "rag":
-                try:
-                    project.vector = vector_tools.findVectorDB(
-                        project)(self, project)
-                except Exception as e:
-                    logging.error(e)
-                    traceback.print_tb(e.__traceback__)
-                    project.vector = None
-            return project
+          
+        proj: ProjectModel = ProjectModel.model_validate(p)
+        if proj is None:
+            return None
+          
+        project: Project = Project(proj)
+        project.model = proj
+        if project.model.type == "rag":
+            try:
+                project.vector = vector_tools.find_vector_db(project)(self, project)
+            except Exception as e:
+                logging.error(e)
+                traceback.print_tb(e.__traceback__)
+                project.vector = None
+        return project
 
     @staticmethod
     def classify(classifier_model: ClassifierModel):
@@ -109,12 +117,12 @@ class Brain:
         candidate_labels = classifier_model.labels
         return classifier(sequence_to_classify, candidate_labels, multi_label=True)
 
-    def get_tools(self, names=None) -> list[FunctionTool]:
+    def get_tools(self, names: Optional[Iterable[str]] = None) -> list[FunctionTool]:
         if names is None:
             names = []
         _tools = []
 
-        if names:
+        if len(names) > 0:
             for tool in self.tools:
                 if tool.metadata.name in names:
                     _tools.append(tool)
@@ -123,7 +131,7 @@ class Brain:
 
         return _tools
 
-    def get_generators(self, names=None) -> list:
+    def get_generators(self, names: Optional[Iterable[str]] = None) -> list[FunctionTool]:
         if names is None:
             names = []
         _generators = []
@@ -137,7 +145,7 @@ class Brain:
 
         return _generators
 
-    def get_audio_generators(self, names=None) -> list:
+    def get_audio_generators(self, names: Optional[Iterable[str]] = None) -> list[FunctionTool]:
         if names is None:
             names = []
         _generators = []

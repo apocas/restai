@@ -3,13 +3,13 @@ import shutil
 import chromadb
 import uuid
 
-from app.vectordb.tools import FindEmbeddingsPath
+from app.vectordb.tools import find_embeddings_path
 
 class Cache:
   
     def __init__(self, project):
         self.project = project
-        self.client = chromadb.PersistentClient(path=FindEmbeddingsPath(self.project.model.name + "_cache"))
+        self.client = chromadb.PersistentClient(path=find_embeddings_path(self.project.model.name + "_cache"))
         self.collection = self.client.get_or_create_collection(name=self.project.model.name + "_cache")
         
     def verify(self, question):
@@ -42,7 +42,7 @@ class Cache:
       
     def delete(self):
         try:
-            embeddingsPath = FindEmbeddingsPath(self.project.model.name + "_cache")
+            embeddingsPath = find_embeddings_path(self.project.model.name + "_cache")
             shutil.rmtree(embeddingsPath, ignore_errors=True)
         except BaseException:
             pass

@@ -1,18 +1,18 @@
 import base64
 import io
-from diffusers.models import ControlNetModel
-from huggingface_hub import hf_hub_download
+import random
 
 import cv2
-import torch
 import numpy as np
-import random
+import torch
 from PIL import Image
+from diffusers.models import ControlNetModel
+from huggingface_hub import hf_hub_download
 from insightface.app import FaceAnalysis
 
 from app.config import RESTAI_DEFAULT_DEVICE
 from app.image.workers.pipeline_stable_diffusion_xl_instantid import StableDiffusionXLInstantIDPipeline, draw_kps
-from diffusers import StableDiffusionUpscalePipeline
+
 
 def worker(prompt, sharedmem):
     try:

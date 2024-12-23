@@ -1,17 +1,22 @@
-import json
 import os
-from llama_index.core.text_splitter import TokenTextSplitter, SentenceSplitter
-from llama_index.core.schema import Document
-from llama_index.core.readers.download import download_loader
-from modules.loaders import LOADERS
-import yake
 import re
 import time
-from app.config import REDIS_HOST, PINECONE_API_KEY
+from typing import Iterable
+
+import yake
+from llama_index.core.schema import Document
+from llama_index.core.text_splitter import TokenTextSplitter, SentenceSplitter
 
 from app.config import EMBEDDINGS_PATH
+from app.config import REDIS_HOST, PINECONE_API_KEY
+from app.project import Project
+from app.vectordb.base import VectorBase
+from modules.loaders import LOADERS
 
-def findVectorDB(project):
+from llama_index.core.node_parser.interface import MetadataAwareTextSplitter
+
+
+def find_vector_db(project: Project) -> type[VectorBase]:
     if project.model.vectorstore == "redis" and REDIS_HOST:
         from app.vectordb.redis import RedisVector
         return RedisVector
@@ -25,27 +30,36 @@ def findVectorDB(project):
         raise Exception("Invalid vectorDB type.")
 
 
-def IndexDocuments(project, documents, splitter="sentence", chunks=256):
-    if splitter == "sentence":
-        splitter_o = TokenTextSplitter(
+def index_documents(project: Project, documents: Iterable[Document], splitter: str = "sentence",
+                    chunks: int = 256) -> int: # TODO: Replace splitter string ID with enum
+    splitter_o: MetadataAwareTextSplitter
+    match splitter:
+        case "sentence":
+            splitter_o = TokenTextSplitter(
             separator=" ", chunk_size=chunks, chunk_overlap=30)
-    elif splitter == "token":
-        splitter_o = SentenceSplitter(
-            separator=" ", paragraph_separator="\n", chunk_size=chunks, chunk_overlap=30)
+        case "token":
+            splitter_o = SentenceSplitter(
+                separator=" ", paragraph_separator="\n", chunk_size=chunks, chunk_overlap=30)
+        case _:
+            raise ValueError(f"Unknown splitter '{splitter}'.")
 
+    total_chunks: int = 0
+
+    document: Document
     for document in documents:
         text_chunks = splitter_o.split_text(document.text)
 
-        doc_chunks = [Document(text=t, metadata=document.metadata)
-                      for t in text_chunks]
+        doc_chunks: list[Document] = [Document(text=t, metadata=document.metadata)
+                                      for t in text_chunks]
 
         for doc_chunk in doc_chunks:
             project.vector.index.insert(doc_chunk)
+            total_chunks += 1
 
-    return len(doc_chunks)
+    return total_chunks
 
 
-def ExtractKeywordsForMetadata(documents):
+def extract_keywords_for_metadata(documents):
     max_ngram_size = 4
     numOfKeywords = 15
     kw_extractor = yake.KeywordExtractor(n=max_ngram_size, top=numOfKeywords)
@@ -59,7 +73,9 @@ def ExtractKeywordsForMetadata(documents):
     return documents
 
 
-def FindFileLoader(ext, eargs={}):
+def find_file_loader(ext, eargs=None):
+    if eargs is None:
+        eargs = {}
     if ext in LOADERS:
         loader_class, loader_args = LOADERS[ext]
         loader = loader_class()
@@ -68,7 +84,7 @@ def FindFileLoader(ext, eargs={}):
         raise Exception("Invalid file type.")
 
 
-def FindEmbeddingsPath(projectName):
+def find_embeddings_path(projectName):
     embeddings_path = EMBEDDINGS_PATH
     embeddingsPathProject = None
 
@@ -88,5 +104,3 @@ def FindEmbeddingsPath(projectName):
         os.mkdir(embeddingsPathProject)
 
     return embeddingsPathProject
-
-

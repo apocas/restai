@@ -3,7 +3,7 @@ import redis
 from llama_index.core.indices import VectorStoreIndex
 from llama_index.core.storage import StorageContext
 
-from app.vectordb.tools import FindEmbeddingsPath
+from app.vectordb.tools import find_embeddings_path
 from llama_index.vector_stores.redis import RedisVectorStore
 from redisvl.schema import IndexSchema
 
@@ -131,7 +131,7 @@ class RedisVector(VectorBase):
     def delete(self):
         try:
             self.redis.ft(self.project.model.name).dropindex(True)
-            embeddingsPath = FindEmbeddingsPath(self.project.model.name)
+            embeddingsPath = find_embeddings_path(self.project.model.name)
             shutil.rmtree(embeddingsPath, ignore_errors=True)
         except BaseException:
             pass

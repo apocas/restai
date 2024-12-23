@@ -1,5 +1,4 @@
 from torch.multiprocessing import get_context, set_start_method
-from functools import lru_cache
 
 try:
     set_start_method('spawn')

@@ -25,52 +25,54 @@ DEFAULT_LLMS = {
 }
 
 
-def get_llm_class(llm_class_name):
-    if llm_class_name == "Ollama":
-        from app.llms.ollama import Ollama
-        return Ollama, {"request_timeout": 120.0}
-    elif llm_class_name == "OllamaMultiModal":
-        from llama_index.multi_modal_llms.ollama import OllamaMultiModal
-        return OllamaMultiModal, {"request_timeout": 120.0}
-    elif llm_class_name == "OllamaMultiModalInternal" or llm_class_name == "OllamaMultiModal2":
-        from app.llms.ollamamultimodal import OllamaMultiModalInternal
-        return OllamaMultiModalInternal, {"request_timeout": 120.0}
-    elif llm_class_name == "OpenAI":
-        from llama_index.llms.openai import OpenAI
-        return OpenAI, {}
-    elif llm_class_name == "Grok":
-        from llama_index.llms.anthropic import Anthropic
-        return Anthropic, {"base_url": "https://api.x.ai/", "api_key": os.environ.get("XAI_API_KEY"), "model": "grok-beta"}
-    elif llm_class_name == "Groq":
-        from llama_index.llms.groq import Groq
-        return Groq, {}
-    elif llm_class_name == "Anthropic":
-        from llama_index.llms.anthropic import Anthropic
-        return Anthropic, {}
-    elif llm_class_name == "LiteLLM":
-        from llama_index.llms.litellm import LiteLLM
-        return LiteLLM, {}
-    elif llm_class_name == "vLLM":
-        from llama_index.llms.vllm import Vllm
-        return Vllm, {}
-    elif llm_class_name == "Gemini":
-        from llama_index.llms.gemini import Gemini
-        from vertexai.generative_models import (
-            SafetySetting,
-            HarmCategory,
-            HarmBlockThreshold
-        )
-        return Gemini, {"generate_kwargs": {"safety_settings": [
-            SafetySetting(
-                category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
+def get_llm_class(llm_class_name: str):
+    match llm_class_name:
+        case "Ollama":
+            from app.llms.ollama import Ollama
+            return Ollama, {"request_timeout": 120.0}
+        case "OllamaMultiModal":
+            from llama_index.multi_modal_llms.ollama import OllamaMultiModal
+            return OllamaMultiModal, {"request_timeout": 120.0}
+        case "OllamaMultiModal2":
+            from app.llms.ollamamultimodal import OllamaMultiModalInternal
+            return OllamaMultiModalInternal, {"request_timeout": 120.0}
+        case "OpenAI":
+            from llama_index.llms.openai import OpenAI
+            return OpenAI, {}
+        case "Grok":
+            from llama_index.llms.anthropic import Anthropic
+            return Anthropic, {"base_url": "https://api.x.ai/", "api_key": os.environ.get("XAI_API_KEY"),
+                               "model": "grok-beta"}
+        case "Groq":
+            from llama_index.llms.groq import Groq
+            return Groq, {}
+        case "Anthropic":
+            from llama_index.llms.anthropic import Anthropic
+            return Anthropic, {}
+        case "LiteLLM":
+            from llama_index.llms.litellm import LiteLLM
+            return LiteLLM, {}
+        case "vLLM":
+            from llama_index.llms.vllm import Vllm
+            return Vllm, {}
+        case "Gemini":
+            from llama_index.llms.gemini import Gemini
+            from vertexai.generative_models import (
+                SafetySetting,
+                HarmCategory,
+                HarmBlockThreshold
             )
-        ]}}
-    elif llm_class_name == "AzureOpenAI":
-        from llama_index.llms.azure_openai import AzureOpenAI
-        return AzureOpenAI, {}
-    else:
-        raise Exception("Invalid LLM class name.")
+            return Gemini, {"generate_kwargs": {"safety_settings": [
+                SafetySetting(
+                    category=HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                    threshold=HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                )
+            ]}}
+        case "AzureOpenAI":
+            from llama_index.llms.azure_openai import AzureOpenAI
+            return AzureOpenAI, {}
+        case _:
+            raise Exception("Invalid LLM class name.")
 
 def load_generators() -> list[FunctionTool]:
     generators = []

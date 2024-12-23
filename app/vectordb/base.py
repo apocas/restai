@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from llama_index.core.vector_stores.types import BasePydanticVectorStore
-
+from app.brain import Brain
 from app.project import Project
 
 class VectorBase(ABC):
@@ -12,7 +12,7 @@ class VectorBase(ABC):
         pass
       
     @abstractmethod
-    def load(self, brain):
+    def load(self, brain: Brain):
         pass
 
     @abstractmethod
