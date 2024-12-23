@@ -9,14 +9,17 @@ from llama_index.core.text_splitter import TokenTextSplitter, SentenceSplitter
 
 from app.config import EMBEDDINGS_PATH
 from app.config import REDIS_HOST, PINECONE_API_KEY
-from app.project import Project
-from app.vectordb.base import VectorBase
+
 from modules.loaders import LOADERS
 
 from llama_index.core.node_parser.interface import MetadataAwareTextSplitter
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.project import Project
+    from app.vectordb.base import VectorBase
 
-def find_vector_db(project: Project) -> type[VectorBase]:
+def find_vector_db(project: "Project") -> type["VectorBase"]:
     if project.model.vectorstore == "redis" and REDIS_HOST:
         from app.vectordb.redis import RedisVector
         return RedisVector
@@ -30,7 +33,7 @@ def find_vector_db(project: Project) -> type[VectorBase]:
         raise Exception("Invalid vectorDB type.")
 
 
-def index_documents(project: Project, documents: Iterable[Document], splitter: str = "sentence",
+def index_documents(project: "Project", documents: Iterable[Document], splitter: str = "sentence",
                     chunks: int = 256) -> int: # TODO: Replace splitter string ID with enum
     splitter_o: MetadataAwareTextSplitter
     match splitter:
