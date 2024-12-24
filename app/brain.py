@@ -30,13 +30,11 @@ class Brain:
         self.defaultSystem: str = ""
         self.tools: list[FunctionTool] = tools.load_tools()
 
-        """
         self.tokenizer = tiktoken.get_encoding("cl100k_base").encode
         self.token_counter = TokenCountingHandler(
             tokenizer=self.tokenizer
         )
         Settings.callback_manager = CallbackManager([self.token_counter])
-        """
         
         if config.RESTAI_GPU:
             self.generators: list[FunctionTool] = tools.load_generators()

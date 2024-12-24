@@ -90,7 +90,7 @@ class ProjectModel(BaseModel):
     type: str
     system: Union[str, None] = None
     censorship: Union[str, None] = None
-    score: float = 0.3
+    score: float = 0.1
     k: int = 4
     vectorstore: Union[str, None] = None
     connection: Union[str, None] = None

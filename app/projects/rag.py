@@ -96,8 +96,18 @@ class RAG(ProjectBase):
                 response = chat_engine.chat(chatModel.question)
 
             for node in response.source_nodes:
-                output["sources"].append(
-                    {"source": node.metadata["source"], "keywords": node.metadata["keywords"], "score": node.score, "id": node.node_id, "text": node.text})
+                source = {
+                    "score": node.score,
+                    "id": node.node_id,
+                    "text": node.text
+                }
+
+                if "source" in node.metadata:
+                    source["source"] = node.metadata["source"]
+                if "keywords" in node.metadata:
+                    source["keywords"] = node.metadata["keywords"]
+                    
+                output["sources"].append(source)
 
             if chatModel.stream:
                 if hasattr(response, "response_gen"):

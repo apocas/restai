@@ -23,8 +23,10 @@ from app.models.models import FindModel, IngestResponse, ProjectModel, ProjectMo
     QuestionModel, ChatModel, TextIngestModel, URLIngestModel, User
 from app.project import Project
 from app.vectordb import tools
-from app.vectordb.tools import find_file_loader, index_documents, extract_keywords_for_metadata
+from app.vectordb.tools import find_file_loader, extract_keywords_for_metadata, index_documents_classic, index_documents_docling
 from modules.embeddings import EMBEDDINGS
+from llama_index.readers.docling import DoclingReader
+
 
 logging.basicConfig(level=config.LOG_LEVEL)
 logging.getLogger('passlib').setLevel(logging.ERROR)
@@ -443,7 +445,7 @@ async def ingest_text(request: Request, projectName: str, ingest: TextIngestMode
         # for document in documents:
         #    document.text = document.text.decode('utf-8')
 
-        n_chunks = index_documents(project, documents, ingest.splitter, ingest.chunks)
+        n_chunks = index_documents_classic(project, documents, ingest.splitter, ingest.chunks)
         project.vector.save()
 
         return {"source": ingest.source, "documents": len(documents), "chunks": n_chunks}
@@ -478,7 +480,7 @@ async def ingest_url(request: Request, projectName: str, ingest: URLIngestModel,
         documents = loader.load_data(urls=[ingest.url])
         documents = extract_keywords_for_metadata(documents)
 
-        n_chunks = index_documents(project, documents, ingest.splitter, ingest.chunks)
+        n_chunks = index_documents_classic(project, documents, ingest.splitter, ingest.chunks)
         project.vector.save()
 
         return {"source": ingest.url, "documents": len(documents), "chunks": n_chunks}
@@ -497,6 +499,7 @@ async def ingest_file(
         options: str = Form("{}"),
         chunks: int = Form(256),
         splitter: str = Form("sentence"),
+        classic: bool = Form(False),
         _: User = Depends(get_current_username_project),
         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
@@ -519,18 +522,26 @@ async def ingest_file(
             file.file.close()
 
         opts = json.loads(urllib.parse.unquote(options))
-
-        loader = find_file_loader(ext, opts)
-        documents = loader.load_data(file=Path(temp.name))
-
+        
+        if classic == True:
+            loader = find_file_loader(ext, opts)
+            documents = loader.load_data(file=Path(temp.name))
+        else:
+            reader = DoclingReader()
+            documents = reader.load_data(file_path=Path(temp.name))
+                        
+        documents = extract_keywords_for_metadata(documents)
+            
         for document in documents:
             if "filename" in document.metadata:
                 del document.metadata["filename"]
-            document.metadata["source"] = file.filename
-
-        documents = extract_keywords_for_metadata(documents)
-
-        n_chunks = index_documents(project, documents, splitter, chunks)
+            document.metadata["source"] = unidecode(file.filename)
+            
+        if classic == True:
+            n_chunks = index_documents_classic(project, documents, splitter, chunks)
+        else:
+            n_chunks = index_documents_docling(project, documents)
+            
         project.vector.save()
 
         return {

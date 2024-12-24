@@ -1,4 +1,5 @@
-from langchain_community.embeddings import VertexAIEmbeddings, HuggingFaceEmbeddings
+from langchain_community.embeddings import VertexAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import OpenAIEmbeddings
 
 EMBEDDINGS = {

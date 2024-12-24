@@ -13,11 +13,13 @@ from app.config import REDIS_HOST, PINECONE_API_KEY
 from modules.loaders import LOADERS
 
 from llama_index.core.node_parser.interface import MetadataAwareTextSplitter
+from llama_index.core.node_parser import MarkdownNodeParser
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.project import Project
     from app.vectordb.base import VectorBase
+
 
 def find_vector_db(project: "Project") -> type["VectorBase"]:
     if project.model.vectorstore == "redis" and REDIS_HOST:
@@ -33,7 +35,7 @@ def find_vector_db(project: "Project") -> type["VectorBase"]:
         raise Exception("Invalid vectorDB type.")
 
 
-def index_documents(project: "Project", documents: Iterable[Document], splitter: str = "sentence",
+def index_documents_classic(project: "Project", documents: Iterable[Document], splitter: str = "sentence",
                     chunks: int = 256) -> int: # TODO: Replace splitter string ID with enum
     splitter_o: MetadataAwareTextSplitter
     match splitter:
@@ -60,6 +62,15 @@ def index_documents(project: "Project", documents: Iterable[Document], splitter:
             total_chunks += 1
 
     return total_chunks
+  
+def index_documents_docling(project: "Project", documents: Iterable[Document]) -> int:
+    parser = MarkdownNodeParser()
+    
+    nodes = parser.get_nodes_from_documents(documents)
+
+    project.vector.index.insert_nodes(nodes)
+    
+    return len(nodes)
 
 
 def extract_keywords_for_metadata(documents):
