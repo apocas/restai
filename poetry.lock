@@ -3825,6 +3825,21 @@ files = [
 llama-index-core = ">=0.12.0,<0.13.0"
 
 [[package]]
+name = "llama-index-embeddings-ollama"
+version = "0.5.0"
+description = "llama-index embeddings ollama integration"
+optional = false
+python-versions = "<4.0,>=3.9"
+files = [
+    {file = "llama_index_embeddings_ollama-0.5.0-py3-none-any.whl", hash = "sha256:843ecccfbe2db548a39e71a85e8ebbfe3cf2659db9533c080dcb291e4975af3b"},
+    {file = "llama_index_embeddings_ollama-0.5.0.tar.gz", hash = "sha256:fec8fa249ed2fb13912e1511decb21c025a53294728a21f25bd2d5f30f435a94"},
+]
+
+[package.dependencies]
+llama-index-core = ">=0.12.0,<0.13.0"
+ollama = ">=0.3.1"
+
+[[package]]
 name = "llama-index-embeddings-openai"
 version = "0.3.1"
 description = "llama-index embeddings openai integration"
@@ -10315,4 +10330,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "80b7976a2e612ca538e039b2de80c3c07e83c21e6bb39af662ce48bd1710ec12"
+content-hash = "0dc9e5f3d00db44f7212da48cdf73a0c176f69d5e4e4637b361cb7e646c07c52"

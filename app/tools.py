@@ -13,17 +13,31 @@ from app.models.databasemodels import OutputDatabase
 
 DEFAULT_LLMS = {
     # "name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa"),
-    "openai_gpt4_turbo": (
-    "OpenAI", {"temperature": 0, "model": "gpt-4-turbo-preview"}, "public", "OpenAI GPT-4 Turbo", "chat"),
     "openai_gpt4o": ("OpenAI", {"temperature": 0, "model": "gpt-4o"}, "public", "OpenAI GPT-4o", "chat"),
-    "llama3_8b": ("Ollama", {"model": "llama3:8b", "temperature": 0.0001, "keep_alive": 0}, "private",
-                  "https://ollama.com/library/llama3", "chat"),
-    "llama3_70b": ("Ollama", {"model": "llama3:70b", "temperature": 0.0001, "keep_alive": 0}, "private",
-                   "https://ollama.com/library/llama3", "chat"),
-    "llava16_13b": ("OllamaMultiModal2", {"model": "llava:13b-v1.6", "temperature": 0.0001, "keep_alive": 0}, "private",
+    "openai_gpt4o_mini": ("OpenAI", {"temperature": 0, "model": "gpt-4o-mini"}, "public", "OpenAI GPT-4o Mini", "chat"),
+    "llama31_8b": ("Ollama", {"model": "llama3.1", "temperature": 0.0001, "keep_alive": 0}, "private",
+                  "https://ollama.com/library/llama3.1", "chat"),
+    "llama33_70b": ("Ollama", {"model": "llama3.3", "temperature": 0.0001, "keep_alive": 0}, "private",
+                   "https://ollama.com/library/llama3.3", "chat"),
+    "llava16_13b": ("OllamaMultiModal", {"model": "llava:13b-v1.6", "temperature": 0.0001, "keep_alive": 0}, "private",
                     "https://ollama.com/library/llava", "vision"),
+    "minicpm-v": ("OllamaMultiModal", {"model": "minicpm-v", "temperature": 0.0001, "keep_alive": 0}, "private",
+                    "	https://ollama.com/library/minicpm-v", "vision"),
 }
 
+DEFAULT_EMBEDDINGS = {
+    # "name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa"),
+    "nomic-embed-text": ("OllamaEmbeddings", {"model_name": "nomic-embed-text", "keep_alive": 0, "mirostat": 0}, "private",
+                  "https://ollama.com/library/nomic-embed-text", 768),
+}
+
+def get_embedding_class(embedding_class_name: str):
+    match embedding_class_name:
+        case "OllamaEmbeddings":
+            from llama_index.embeddings.ollama import OllamaEmbedding
+            return OllamaEmbedding, {}
+        case _:
+            raise Exception("Invalid embedding class name.")
 
 def get_llm_class(llm_class_name: str):
     match llm_class_name:

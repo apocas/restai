@@ -8,7 +8,8 @@ from app.models.databasemodels import ProjectDatabase
 from app.vectordb import tools as vector_tools
 from app import tools
 from app.llm import LLM
-from app.models.models import LLMModel, ProjectModel, ClassifierModel
+from app.embedding import Embedding
+from app.models.models import LLMModel, ProjectModel, ClassifierModel, EmbeddingModel
 from app.project import Project
 from modules.embeddings import EMBEDDINGS
 from transformers import pipeline
@@ -18,14 +19,12 @@ from app.config import REDIS_HOST, REDIS_PORT
 from llama_index.storage.chat_store.redis import RedisChatStore
 from llama_index.core.storage.chat_store import SimpleChatStore
 from llama_index.core.storage.chat_store.base import BaseChatStore
-from llama_index.core.base.embeddings.base import BaseEmbedding
 import tiktoken
 from llama_index.core import Settings
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
 
 class Brain:
     def __init__(self):
-        self.embeddingCache: dict[str, BaseEmbedding] = {}
         self.defaultCensorship: str = "I'm sorry, I don't know the answer to that."
         self.defaultSystem: str = ""
         self.tools: list[FunctionTool] = tools.load_tools()
@@ -73,18 +72,29 @@ class Brain:
             return LLM(llmName, llm_model, llm)
         else:
             return None
+    
+    @staticmethod
+    def get_embedding(embeddingName: str, db: DBWrapper) -> Optional[LLM]:
+        embedding_db = db.get_embedding_by_name(embeddingName)
 
-    def get_embedding(self, embeddingModel: Optional[str]) -> BaseEmbedding:
-        if embeddingModel in self.embeddingCache:
-            return self.embeddingCache[embeddingModel]
+        if embedding_db is not None:
+            embedding_model = EmbeddingModel.model_validate(embedding_db)
+
+            embedding_class, embedding_default_params = tools.get_embedding_class(
+                embedding_model.class_name)
+            llm_params = json.loads(embedding_model.options)
+            if embedding_default_params is not None:
+                llm_params.update(embedding_default_params)
+            embedding = embedding_class(**llm_params)
+
+            return Embedding(embeddingName, embedding_model, embedding)
         else:
-            if embeddingModel in EMBEDDINGS:
-                embedding_class, embedding_args, _, _, _ = EMBEDDINGS[embeddingModel]
+            if embeddingName in EMBEDDINGS:
+                embedding_class, embedding_args, privacy, description, dimension = EMBEDDINGS[embeddingName]
                 model = LangchainEmbedding(embedding_class(**embedding_args))
-                self.embeddingCache[embeddingModel] = model
-                return model
+                return Embedding(embeddingName, EmbeddingModel(name=embeddingName, class_name="LangChain", options="{}", privacy=privacy, description=description, dimension=dimension), model)
             else:
-                raise Exception("Invalid Embedding type.")
+                return None
 
     def find_project(self, name: str, db: DBWrapper) -> Optional[Project]:
         p: Optional[ProjectDatabase] = db.get_project_by_name(name)
@@ -99,7 +109,7 @@ class Brain:
         project.model = proj
         if project.model.type == "rag":
             try:
-                project.vector = vector_tools.find_vector_db(project)(self, project)
+                project.vector = vector_tools.find_vector_db(project)(self, project, self.get_embedding(project.model.embeddings, db))
             except Exception as e:
                 logging.error(e)
                 traceback.print_tb(e.__traceback__)

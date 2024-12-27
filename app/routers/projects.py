@@ -215,7 +215,7 @@ async def route_create_project(request: Request,
                 status_code=403,
                 detail='Demo mode, not allowed to create this type of projects.')
 
-    if projectModel.type == "rag" and projectModel.embeddings not in EMBEDDINGS:
+    if projectModel.type == "rag" and request.app.state.brain.get_embedding(projectModel.embeddings, db_wrapper) is None:
         raise HTTPException(
             status_code=404,
             detail='Embeddings not found')
@@ -258,7 +258,7 @@ async def route_create_project(request: Request,
         project = Project(projectModel)
 
         if project.model.vectorstore:
-            project.vector = tools.find_vector_db(project)(request.app.state.brain, project)
+            project.vector = tools.find_vector_db(project)(request.app.state.brain, project, request.app.state.brain.get_embedding(project.model.embeddings, db_wrapper))
 
         project_db = db_wrapper.get_project_by_name(project.model.name)
 
@@ -407,7 +407,7 @@ async def get_embedding(request: Request, projectName: str, source: str,
         return docs
 
 
-@router.get("/projects/{projectName}/embeddings/id/{id}")
+@router.get("/projects/{projectName}/embeddings/id/{embedding_id}")
 async def get_embedding(request: Request, projectName: str,
                         embedding_id: str,
                         _: User = Depends(get_current_username_project_public),

@@ -5,6 +5,7 @@ from llama_index.vector_stores.pinecone import PineconeVectorStore
 
 from app.brain import Brain
 from app.config import PINECONE_API_KEY
+from app.embedding import Embedding
 from app.project import Project
 from app.vectordb.base import VectorBase
 from modules.embeddings import EMBEDDINGS
@@ -20,26 +21,25 @@ from pinecone import Pinecone, PodSpec, Index
 class PineconeVector(VectorBase):
     pinecone: Pinecone = None
   
-    def __init__(self, brain: Brain, project: Project):
+    def __init__(self, brain: Brain, project: Project, embedding: Embedding):
         self.project = project
         self.index = None
         self.pinecone = Pinecone(api_key=PINECONE_API_KEY)
+        self.embedding = embedding
         
         self._vector_init()
         pi = self.pinecone.Index(self.project.model.name)
         
         vector_store = PineconeVectorStore(pinecone_index=pi)
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
-        self.index = VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=brain.get_embedding(self.project.model.embeddings))
+        self.index = VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=embedding.embedding)
 
 
     def _vector_init(self):
-        if self.project.model.name not in self.pinecone.list_indexes().names():  
-            _, _, _, _, dimension = EMBEDDINGS[self.project.model.embeddings]
-              
+        if self.project.model.name not in self.pinecone.list_indexes().names():
             self.pinecone.create_index(
                 name=self.project.model.name,
-                dimension=dimension,
+                dimension=self.embedding.props.dimension,
                 metric="cosine",
                 spec=PodSpec(
                     environment="gcp-starter"

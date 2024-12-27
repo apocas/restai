@@ -21,7 +21,7 @@ async def lifespan(fs_app: FastAPI):
     from app.brain import Brain
     from app.database import get_db_wrapper, DBWrapper
     from app.auth import get_current_username
-    from app.routers import llms, projects, tools, users, image, audio
+    from app.routers import llms, projects, tools, users, image, audio, embeddings
     from app.models.models import User
     from app.multiprocessing import get_manager
     from modules.loaders import LOADERS
@@ -65,6 +65,14 @@ async def lifespan(fs_app: FastAPI):
                 "privacy": privacy,
                 "description": description
             })
+            
+        db_embeddings = db_wrapper.get_embeddings()
+        for embedding in db_embeddings:
+            output["embeddings"].append({
+                "name": embedding.name,
+                "privacy": embedding.privacy,
+                "description": embedding.description
+            })
         return output
 
     try:
@@ -90,6 +98,7 @@ async def lifespan(fs_app: FastAPI):
         print("Admin frontend not available.")
 
     fs_app.include_router(llms.router)
+    fs_app.include_router(embeddings.router)
     fs_app.include_router(projects.router)
     fs_app.include_router(tools.router)
     fs_app.include_router(users.router)

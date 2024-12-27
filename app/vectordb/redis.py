@@ -3,6 +3,7 @@ import redis
 from llama_index.core.indices import VectorStoreIndex
 from llama_index.core.storage import StorageContext
 
+from app.embedding import Embedding
 from app.vectordb.tools import find_embeddings_path
 from llama_index.vector_stores.redis import RedisVectorStore
 from redisvl.schema import IndexSchema
@@ -14,16 +15,17 @@ from modules.embeddings import EMBEDDINGS
 class RedisVector(VectorBase):
     redis = None
   
-    def __init__(self, brain, project):      
+    def __init__(self, brain, project, embedding: Embedding):      
         self.redis = redis.Redis(
             host=REDIS_HOST,
             port=REDIS_PORT,
             decode_responses=True)
         self.project = project
+        self.embedding = embedding
+        
         self.index = self._vector_init(brain)
     
     def _vector_init(self, brain):
-        _, _, _, _, dimension = EMBEDDINGS[self.project.model.embeddings]
         custom_schema = IndexSchema.from_dict(
             {
                 "index": {
@@ -40,7 +42,7 @@ class RedisVector(VectorBase):
                     {"type": "vector", "name": "vector", "attrs": {
                             "algorithm": "flat",
                             "distance_metric": "cosine",
-                            "dims": dimension,
+                            "dims": self.embedding.props.dimension,
                         }
                     },
                 ],
@@ -55,7 +57,7 @@ class RedisVector(VectorBase):
 
         storage_context = StorageContext.from_defaults(
             vector_store=vector_store)
-        return VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=brain.get_embedding(self.project.model.embeddings))
+        return VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context, embed_model=self.embedding.embedding)
 
 
     def save(self):

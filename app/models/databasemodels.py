@@ -89,3 +89,15 @@ class LLMDatabase(Base):
     privacy = Column(String(255))
     description = Column(Text)
     type = Column(String(255))
+    
+class EmbeddingDatabase(Base):
+    __tablename__ = "embeddings"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    name = Column(String(255), unique=True, index=True)
+    class_name = Column(String(255))
+    options = Column(Text)
+    privacy = Column(String(255))
+    description = Column(Text)
+    dimension = Column(Integer, default=1536)

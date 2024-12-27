@@ -68,7 +68,7 @@ async def api_create_llm(llmc: LLMModel,
 
 
 @router.patch("/llms/{llm_name}")
-async def api_edit_project(request: Request,
+async def api_edit_llm(request: Request,
                            llm_name: str,
                            llmUpdate: LLMUpdate,
                            _: User = Depends(get_current_username_admin),
@@ -79,7 +79,7 @@ async def api_edit_project(request: Request,
             raise Exception("LLM not found")
         if db_wrapper.update_llm(llm, llmUpdate):
             request.app.state.brain.load_llm(llm_name, db_wrapper)
-            return {"project": llm_name}
+            return {"llm": llm_name}
         else:
             raise HTTPException(
                 status_code=404, detail='LLM not found')

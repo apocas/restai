@@ -18,9 +18,10 @@ from app.models.databasemodels import (
     LLMDatabase,
     ProjectDatabase,
     RouterEntrancesDatabase,
-    UserDatabase
+    UserDatabase,
+    EmbeddingDatabase
 )
-from app.tools import DEFAULT_LLMS
+from app.tools import DEFAULT_LLMS, DEFAULT_EMBEDDINGS
 
 if MYSQL_HOST:
     print("Using MySQL database")
@@ -80,7 +81,19 @@ else:
                 description=description,
                 type=typel
             )
-            dbi.add(db_llm)  
+            dbi.add(db_llm)
+        
+        for embedding in DEFAULT_EMBEDDINGS:
+            embedding_class, embedding_args, privacy, description, dimension = DEFAULT_EMBEDDINGS[embedding]
+            db_embedding = EmbeddingDatabase(
+                name=embedding,
+                class_name=embedding_class,
+                options=json.dumps(embedding_args),
+                privacy=privacy,
+                description=description,
+                dimension=dimension
+            )
+            dbi.add(db_embedding)
         
         if RESTAI_DEMO:
             print("Creating demo scenario...")
@@ -95,26 +108,26 @@ else:
                 name="demo1",
                 type="inference",
                 system="Always end your answers with 'beep beep'.",
-                llm="llama3_8b",
+                llm="llama31_8b",
                 creator=db_user.id
             )
             demo_project2 = ProjectDatabase(
                 name="demo2",
                 type="inference",
                 system="Always end your answers with 'boop boop'.",
-                llm="llama3_8b",
+                llm="llama31_8b",
                 creator=db_user.id
             )
             demo_project3 = ProjectDatabase(
                 name="router1",
                 type="router",
-                llm="llama3_8b",
+                llm="llama31_8b",
                 creator=db_user.id
             )
             demo_project4 = ProjectDatabase(
                 name="rag1",
                 type="rag",
-                llm="llama3_8b",
+                llm="llama31_8b",
                 embeddings= "all-mpnet-base-v2",
                 vectorstore="chromadb",
                 creator=db_user.id

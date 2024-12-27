@@ -4,6 +4,7 @@ from llama_index.core.indices import VectorStoreIndex
 from llama_index.core.storage import StorageContext
 
 from app.brain import Brain
+from app.embedding import Embedding
 from app.vectordb.tools import find_embeddings_path
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from app.vectordb.base import VectorBase
@@ -13,11 +14,12 @@ class ChromaDBVector(VectorBase):
     db = None
     chroma_collection = None
 
-    def __init__(self, brain, project):
+    def __init__(self, brain, project, embedding: Embedding):
         path = find_embeddings_path(project.model.name)
         self.db = chromadb.PersistentClient(path=path)
         self.chroma_collection = self.db.get_or_create_collection(project.model.name)
         self.project = project
+        self.embedding = embedding
         self.index = self._vector_init(brain)
 
     def _vector_init(self, brain):
@@ -27,7 +29,7 @@ class ChromaDBVector(VectorBase):
             vector_store=vector_store)
         return VectorStoreIndex.from_vector_store(
             vector_store, storage_context=storage_context,
-            embed_model=brain.get_embedding(self.project.model.embeddings))
+            embed_model=self.embedding.embedding)
 
     def save(self):
         pass

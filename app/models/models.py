@@ -64,6 +64,15 @@ class LLMModel(BaseModel):
     description: Union[str, None] = None
     type: str
     model_config = ConfigDict(from_attributes=True)
+
+class EmbeddingModel(BaseModel):
+    name: str
+    class_name: str
+    options: str
+    privacy: str
+    description: Union[str, None] = None
+    dimension: int = 1536
+    model_config = ConfigDict(from_attributes=True)
     
 class Tool(BaseModel):
     name: str
@@ -75,6 +84,12 @@ class LLMUpdate(BaseModel):
     description: str = None
     type: str = None
     
+class EmbeddingUpdate(BaseModel):
+    class_name: str = None
+    options: str = None
+    privacy: str = None
+    description: str = None
+    dimension: int = None
 class UserProject(BaseModel):
     name: str
     model_config = ConfigDict(from_attributes=True)

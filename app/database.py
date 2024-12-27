@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
-from app.models.databasemodels import LLMDatabase, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
-from app.models.models import LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate
+from app.models.databasemodels import LLMDatabase, EmbeddingDatabase, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
+from app.models.models import LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate, EmbeddingModel, EmbeddingUpdate
 from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
 from typing import Optional
@@ -71,6 +71,21 @@ class DBWrapper:
         self.db.commit()
         self.db.refresh(db_llm)
         return db_llm
+      
+    def create_embedding(self,
+                   name: str,
+                   class_name: str,
+                   options: str,
+                   privacy: str,
+                   description: str,
+                   dimension: int) -> EmbeddingDatabase:
+        db_embedding: EmbeddingDatabase = EmbeddingDatabase(
+            name=name, class_name=class_name, options=options, privacy=privacy, description=description, dimension=dimension
+        )
+        self.db.add(db_embedding)
+        self.db.commit()
+        self.db.refresh(db_embedding)
+        return db_embedding
 
     def get_users(self) -> list[UserDatabase]:
         users: list[UserDatabase] = self.db.query(UserDatabase).all()
@@ -79,9 +94,17 @@ class DBWrapper:
     def get_llms(self) -> list[LLMDatabase]:
         llms: list[LLMDatabase] = self.db.query(LLMDatabase).all()
         return llms
+      
+    def get_embeddings(self) -> list[EmbeddingDatabase]:
+        embeddings: list[EmbeddingDatabase] = self.db.query(EmbeddingDatabase).all()
+        return embeddings
 
     def get_llm_by_name(self, name: str) -> Optional[LLMDatabase]:
         llm: Optional[LLMDatabase] = self.db.query(LLMDatabase).filter(LLMDatabase.name == name).first()
+        return llm
+
+    def get_embedding_by_name(self, name: str) -> Optional[EmbeddingDatabase]:
+        llm: Optional[EmbeddingDatabase] = self.db.query(EmbeddingDatabase).filter(EmbeddingDatabase.name == name).first()
         return llm
 
     def get_user_by_apikey(self, apikey: str) -> Optional[UserDatabase]:
@@ -129,9 +152,33 @@ class DBWrapper:
 
         self.db.commit()
         return True
+      
+    def update_embedding(self, embedding: EmbeddingModel, embeddingUpdate: EmbeddingUpdate) -> bool:
+        if embeddingUpdate.class_name is not None and embedding.class_name != embeddingUpdate.class_name:
+            embedding.class_name = embeddingUpdate.class_name
+
+        if embeddingUpdate.options is not None and embedding.options != embeddingUpdate.options:
+            embedding.options = embeddingUpdate.options
+
+        if embeddingUpdate.privacy is not None and embedding.privacy != embeddingUpdate.privacy:
+            embedding.privacy = embeddingUpdate.privacy
+
+        if embeddingUpdate.description is not None and embedding.description != embeddingUpdate.description:
+            embedding.description = embeddingUpdate.description
+        
+        if embeddingUpdate.dimension is not None and embedding.dimension != embeddingUpdate.dimension:
+            embedding.dimension = embeddingUpdate.dimension
+
+        self.db.commit()
+        return True
 
     def delete_llm(self, llm: LLMDatabase) -> bool:
         self.db.delete(llm)
+        self.db.commit()
+        return True
+      
+    def delete_embedding(self, embedding: EmbeddingDatabase) -> bool:
+        self.db.delete(embedding)
         self.db.commit()
         return True
 
