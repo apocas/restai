@@ -25,7 +25,6 @@ from app.project import Project
 from app.vectordb import tools
 from app.vectordb.tools import find_file_loader, extract_keywords_for_metadata, index_documents_classic, index_documents_docling
 from modules.embeddings import EMBEDDINGS
-from llama_index.readers.docling import DoclingReader
 
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -502,6 +501,9 @@ async def ingest_file(
         classic: bool = Form(False),
         _: User = Depends(get_current_username_project),
         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+  
+    from llama_index.readers.docling import DoclingReader
+    
     try:
         project = request.app.state.brain.find_project(projectName, db_wrapper)
 
