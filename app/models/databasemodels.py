@@ -24,7 +24,7 @@ class ProjectDatabase(Base):
     system = Column(Text)
     censorship = Column(String(4096))
     k = Column(Integer, default=4)
-    score = Column(Float, default=0.1)
+    score = Column(Float, default=0.0)
     vectorstore = Column(String(255))
     connection = Column(String(4096))
     tables = Column(String(4096))
