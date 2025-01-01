@@ -8,6 +8,7 @@ from app.embedding import Embedding
 from app.vectordb.tools import find_embeddings_path
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from app.vectordb.base import VectorBase
+from app.config import CHROMADB_HOST, CHROMADB_PORT
 
 
 class ChromaDBVector(VectorBase):
@@ -16,7 +17,12 @@ class ChromaDBVector(VectorBase):
 
     def __init__(self, brain, project, embedding: Embedding):
         path = find_embeddings_path(project.model.name)
-        self.db = chromadb.PersistentClient(path=path)
+        
+        if CHROMADB_HOST:
+            self.db = chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT)
+        else:
+            self.db = chromadb.PersistentClient(path=path)
+        
         self.chroma_collection = self.db.get_or_create_collection(project.model.name)
         self.project = project
         self.embedding = embedding

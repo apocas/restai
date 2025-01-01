@@ -51,6 +51,9 @@ SQLITE_PATH = os.environ.get("SQLITE_PATH")
 REDIS_HOST = os.environ.get("REDIS_HOST")
 REDIS_PORT = os.environ.get("REDIS_PORT")
 
+CHROMADB_HOST = os.environ.get("CHROMADB_HOST")
+CHROMADB_PORT = os.environ.get("CHROMADB_PORT")
+
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 
 RESTAI_SSO_SECRET = os.environ.get("RESTAI_SSO_SECRET")
