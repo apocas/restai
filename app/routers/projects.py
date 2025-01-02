@@ -527,7 +527,12 @@ async def ingest_file(
         
         if classic == True:
             loader = find_file_loader(ext, opts)
-            documents = loader.load_data(file=Path(temp.name))
+            
+            try:
+                documents = loader.load_data(file=Path(temp.name))
+            except TypeError as e:
+                documents = loader.load_data(input_file=Path(temp.name))
+            
         else:
             reader = DoclingReader()
             documents = reader.load_data(file_path=Path(temp.name))

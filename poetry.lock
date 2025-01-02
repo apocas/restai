@@ -4091,6 +4091,20 @@ striprtf = ">=0.0.26,<0.0.27"
 pymupdf = ["pymupdf (>=1.23.21,<2.0.0)"]
 
 [[package]]
+name = "llama-index-readers-json"
+version = "0.3.0"
+description = "llama-index readers json integration"
+optional = false
+python-versions = "<4.0,>=3.9"
+files = [
+    {file = "llama_index_readers_json-0.3.0-py3-none-any.whl", hash = "sha256:0bb03482a92e2519189ad5589373b3f1ba1b7ddabbfcaa74864449e1116f3a76"},
+    {file = "llama_index_readers_json-0.3.0.tar.gz", hash = "sha256:992f2710af0b575c15874c15ed6f04ba32c7ed070f6a01c8e0fe5c4f46c7009e"},
+]
+
+[package.dependencies]
+llama-index-core = ">=0.12.0,<0.13.0"
+
+[[package]]
 name = "llama-index-storage-chat-store-redis"
 version = "0.4.0"
 description = "llama-index storage-chat-store redis integration"
@@ -10330,4 +10344,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "4aceb19d5c35d3c2df523541e3d8cf96c3e5a3f9aed79154c61d41a0beca7a32"
+content-hash = "057ef1457bd8118565a25bf068693353489beabaa0c44b75d2239505401d186f"

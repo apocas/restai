@@ -5,7 +5,11 @@ from llama_index.readers.file import (
     PptxReader,
     UnstructuredReader,
     XMLReader,
-    CSVReader,
+    CSVReader
+)
+
+from llama_index.readers.json import (
+    JSONReader
 )
 
 from app.loaders.excel import PandasExcelReader
@@ -21,7 +25,7 @@ LOADERS = {
     ".pdf": (PDFReader, {}),
     ".pptx": (PptxReader, {}),
     ".txt": (UnstructuredReader, {}),
-    ".json": (UnstructuredReader, {}),
+    ".json": (JSONReader, {}),
     ".xls": (PandasExcelReader, {}),
     ".xlsx": (PandasExcelReader, {}),
     ".xml": (XMLReader, {}),

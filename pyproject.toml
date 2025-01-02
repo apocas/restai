@@ -81,6 +81,7 @@ llama-index-node-parser-docling = "^0.3.0"
 llama-index-readers-docling = "^0.3.0"
 langchain-huggingface = "^0.1.2"
 llama-index-embeddings-ollama = "^0.5.0"
+llama-index-readers-json = "^0.3.0"
 
 [tool.poetry.group.gpu]
 optional = true
