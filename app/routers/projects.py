@@ -283,7 +283,7 @@ async def reset_embeddings(
 
         if project.model.type != "rag":
             raise HTTPException(
-                status_code=400, detail='{"error": "Only available for RAG projects."}')
+                status_code=400, detail="Only available for RAG projects.")
 
         project.vector.reset(request.app.state.brain)
 
@@ -352,7 +352,7 @@ async def find_embedding(request: Request, projectName: str, embedding: FindMode
 
     if project.model.type != "rag":
         raise HTTPException(
-            status_code=400, detail='{"error": "Only available for RAG projects."}')
+            status_code=400, detail="Only available for RAG projects.")
 
     output = []
 
@@ -396,7 +396,7 @@ async def get_embedding(request: Request, projectName: str, source: str,
 
     if project.model.type != "rag":
         raise HTTPException(
-            status_code=400, detail='{"error": "Only available for RAG projects."}')
+            status_code=400, detail="Only available for RAG projects.")
 
     docs = project.vector.find_source(base64.b64decode(source).decode('utf-8'))
 
@@ -415,7 +415,7 @@ async def get_embedding(request: Request, projectName: str,
 
     if project.model.type != "rag":
         raise HTTPException(
-            status_code=400, detail='{"error": "Only available for RAG projects."}')
+            status_code=400, detail="Only available for RAG projects.")
 
     chunk = project.vector.find_id(embedding_id)
     return chunk
@@ -430,7 +430,7 @@ async def ingest_text(request: Request, projectName: str, ingest: TextIngestMode
 
         if project.model.type != "rag":
             raise HTTPException(
-                status_code=400, detail='{"error": "Only available for RAG projects."}')
+                status_code=400, detail="Only available for RAG projects.")
 
         metadata = {"source": ingest.source}
         documents = [Document(text=ingest.text, metadata=metadata)]
@@ -462,13 +462,13 @@ async def ingest_url(request: Request, projectName: str, ingest: URLIngestModel,
     try:
         if ingest.url and not ingest.url.startswith('http'):
             raise HTTPException(
-                status_code=400, detail='{"error": "Specify the protocol http:// or https://"}')
+                status_code=400, detail="Specify the protocol http:// or https://")
 
         project = request.app.state.brain.find_project(projectName, db_wrapper)
 
         if project.model.type != "rag":
             raise HTTPException(
-                status_code=400, detail='{"error": "Only available for RAG projects."}')
+                status_code=400, detail="Only available for RAG projects.")
 
         urls = project.vector.list()
         if ingest.url in urls:
@@ -504,39 +504,55 @@ async def ingest_file(
   
     from llama_index.readers.docling import DoclingReader
     
+    
+    project = request.app.state.brain.find_project(projectName, db_wrapper)
+
+    if project.model.type != "rag":
+        raise HTTPException(
+            status_code=400, detail="Only available for RAG projects.")
+
+    _, ext = os.path.splitext(file.filename or '')
+    temp = NamedTemporaryFile(delete=False, suffix=ext)
     try:
-        project = request.app.state.brain.find_project(projectName, db_wrapper)
+        contents = file.file.read()
+        with temp as f:
+            f.write(contents)
+    except Exception:
+        raise HTTPException(
+            status_code=500, detail="Error while saving file.")
+    finally:
+        file.file.close()
 
-        if project.model.type != "rag":
-            raise HTTPException(
-                status_code=400, detail='{"error": "Only available for RAG projects."}')
-
-        _, ext = os.path.splitext(file.filename or '')
-        temp = NamedTemporaryFile(delete=False, suffix=ext)
-        try:
-            contents = file.file.read()
-            with temp as f:
-                f.write(contents)
-        except Exception:
-            raise HTTPException(
-                status_code=500, detail='{"error": "Error while saving file."}')
-        finally:
-            file.file.close()
-
-        opts = json.loads(urllib.parse.unquote(options))
+    opts = json.loads(urllib.parse.unquote(options))
+    
+    if classic == True:
+        loader = find_file_loader(ext, opts)
         
-        if classic == True:
-            loader = find_file_loader(ext, opts)
-            
-            try:
-                documents = loader.load_data(file=Path(temp.name))
-            except TypeError as e:
-                documents = loader.load_data(input_file=Path(temp.name))
-            
-        else:
+        try:
+            documents = loader.load_data(file=Path(temp.name))
+        except TypeError as e:
+            documents = loader.load_data(input_file=Path(temp.name))
+        except Exception as e:
+            logging.error(e)
+            traceback.print_tb(e.__traceback__)
+
+            raise HTTPException(
+                status_code=500, detail="Error while loading file.")
+        
+    else:
+        try:
             reader = DoclingReader()
             documents = reader.load_data(file_path=Path(temp.name))
-                        
+        except Exception as e:
+            if "File format not allowed" in str(e):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Unsupported file format. Retry in classic mode."
+                )
+            else:
+                raise e
+                  
+    try:      
         documents = extract_keywords_for_metadata(documents)
             
         for document in documents:
@@ -559,7 +575,7 @@ async def ingest_file(
         traceback.print_tb(e.__traceback__)
 
         raise HTTPException(
-            status_code=500, detail=str(e))
+            status_code=500, detail="Error while indexing data.")
 
 
 @router.get('/projects/{projectName}/embeddings')
@@ -572,7 +588,7 @@ async def get_embeddings(
 
     if project.model.type != "rag":
         raise HTTPException(
-            status_code=400, detail='{"error": "Only available for RAG projects."}')
+            status_code=400, detail="Only available for RAG projects.")
 
     if project.vector is not None:
         output = project.vector.list()
@@ -593,7 +609,7 @@ async def delete_embedding(
 
     if project.model.type != "rag":
         raise HTTPException(
-            status_code=400, detail='{"error": "Only available for RAG projects."}')
+            status_code=400, detail="Only available for RAG projects.")
 
     ids = project.vector.delete_source(base64.b64decode(source).decode('utf-8'))
 
@@ -611,7 +627,7 @@ async def chat_query(
     try:
         if not q_input.question:
             raise HTTPException(
-                status_code=400, detail='{"error": "Missing question"}')
+                status_code=400, detail="Missing question")
 
         project = request.app.state.brain.find_project(projectName, db_wrapper)
         if project is None:
@@ -636,7 +652,7 @@ async def question_query_endpoint(
     try:
         if not q_input.question:
             raise HTTPException(
-                status_code=400, detail='{"error": "Missing question"}')
+                status_code=400, detail="Question missing")
 
         project = request.app.state.brain.find_project(projectName, db_wrapper)
         if project is None:

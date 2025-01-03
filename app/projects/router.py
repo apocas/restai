@@ -11,7 +11,7 @@ from llama_index.core.selectors import LLMSingleSelector
 class Router(ProjectBase):
   
     def chat(self, project: Project, chat_model: ChatModel, user: User, db: DBWrapper):
-        raise HTTPException(status_code=400, detail='{"error": "Chat mode not available for this project type."}')
+        raise HTTPException(status_code=400, detail="Chat mode not available for this project type.")
   
     def question(self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
         choices = []

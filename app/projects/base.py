@@ -12,8 +12,8 @@ class ProjectBase(ABC):
 
     @abstractmethod
     def chat(self, project: Project, chat_model: ChatModel, user: User, db: DBWrapper):
-        raise HTTPException(status_code=400, detail='{"error": "Chat mode not available for this project type."}')
+        raise HTTPException(status_code=400, detail="Chat mode not available for this project type.")
 
     @abstractmethod
     def question(self, project: Project, question_model: QuestionModel, user: User, db: DBWrapper):
-        raise HTTPException(status_code=400, detail='{"error": "Question mode not available for this project type."}')
+        raise HTTPException(status_code=400, detail="Question mode not available for this project type.")

@@ -48,7 +48,7 @@ async def chat_main(
             proj_logic = Agent(brain)
         case _:
             raise HTTPException(
-                status_code=400, detail='{"error": "Invalid project type"}')
+                status_code=400, detail="Invalid project type")
 
     if chat_input.stream:
         return StreamingResponse(proj_logic.chat(project, chat_input, user, db), media_type='text/event-stream')
@@ -86,7 +86,7 @@ async def question_main(
             return await question_agent(brain, project, q_input, user, db, background_tasks)
         case _:
             raise HTTPException(
-                status_code=400, detail='{"error": "Invalid project type"}')
+                status_code=400, detail="Invalid project type")
 
 
 async def question_rag(
@@ -102,7 +102,7 @@ async def question_rag(
 
         if project.model.type != "rag":
             raise HTTPException(
-                status_code=400, detail='{"error": "Only available for RAG projects."}')
+                status_code=400, detail="Only available for RAG projects.")
 
         if q_input.stream:
             return StreamingResponse(proj_logic.question(project, q_input, user, db), media_type='text/event-stream')
@@ -155,14 +155,14 @@ async def question_router(
 
         if project.model.type != "router":
             raise HTTPException(
-                status_code=400, detail='{"error": "Only available for ROUTER projects."}')
+                status_code=400, detail="Only available for ROUTER projects.")
 
         proj_dest_name: str = projLogic.question(project, q_input, user, db)
         proj_dest: Optional[Project] = brain.find_project(proj_dest_name, db)
 
         if proj_dest is None:
             raise HTTPException(
-                status_code=404, detail='{"error": "No destination project found."}')
+                status_code=404, detail="No destination project found.")
         else:
             return await question_main(request, brain, proj_dest, q_input, user, db, background_tasks)
 
@@ -185,7 +185,7 @@ async def question_inference(
 
         if project.model.type != "inference":
             raise HTTPException(
-                status_code=400, detail='{"error": "Only available for INFERENCE projects."}')
+                status_code=400, detail="Only available for INFERENCE projects.")
 
         if q_input.stream:
             return StreamingResponse(proj_logic.question(project, q_input, user, db), media_type='text/event-stream')
@@ -238,7 +238,7 @@ async def question_query_sql(
 
         if project.model.type != "ragsql":
             raise HTTPException(
-                status_code=400, detail='{"error": "Only available for RAGSQL projects."}')
+                status_code=400, detail="Only available for RAGSQL projects.")
 
         output = projLogic.question(project, q_input, user, db)
 
@@ -263,7 +263,7 @@ async def question_vision(
 
         if project.model.type != "vision":
             raise HTTPException(
-                status_code=400, detail='{"error": "Only available for VISION projects."}')
+                status_code=400, detail="Only available for VISION projects.")
 
         if q_input.image:
             url_pattern: re.Pattern = re.compile(
