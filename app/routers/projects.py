@@ -457,8 +457,13 @@ async def ingest_text(request: Request, projectName: str, ingest: TextIngestMode
 
 @router.post("/projects/{projectName}/embeddings/ingest/url", response_model=IngestResponse)
 async def ingest_url(request: Request, projectName: str, ingest: URLIngestModel,
-                     _: User = Depends(get_current_username_project),
+                     user: User = Depends(get_current_username_project),
                      db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    if config.RESTAI_DEMO and not user.is_admin:
+        raise HTTPException(
+                status_code=403,
+                detail='Demo mode, not allowed to ingest from an URL.')
+    
     try:
         if ingest.url and not ingest.url.startswith('http'):
             raise HTTPException(
