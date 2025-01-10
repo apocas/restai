@@ -182,3 +182,4 @@ lab.py
 
 # pyenv
 .python-version
+.aider*

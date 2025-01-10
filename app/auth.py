@@ -29,13 +29,22 @@ def get_current_username(
         db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
     auth_header = request.headers.get('Authorization')
-    bearer_token = None
     credentials = None
+    
     if auth_header:
         temp_bearer_token = auth_header.split(" ")[1]
-        if "Bearer" in auth_header:
-            bearer_token = temp_bearer_token
-        else:
+        
+        if "Bearer" in auth_header:            
+            user = db_wrapper.get_user_by_apikey(temp_bearer_token)
+
+            if user is None:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid key"
+                )
+
+            return User.model_validate(user)
+        elif "Basic" in auth_header:
             try:
                 credentials_b64 = base64.b64decode(temp_bearer_token).decode('utf-8')
                 username, password = credentials_b64.split(':', 1)
@@ -43,71 +52,54 @@ def get_current_username(
                     'username': username,
                     'password': password
                 }
+                
+                if RESTAI_AUTH_DISABLE_LOCAL or not credentials or ("username" not in credentials or "password" not in credentials):
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Invalid credentials"
+                    )
+                
+                user = db_wrapper.get_user_by_username(credentials["username"])
+
+                if user is None or user.sso:
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Invalid credentials"
+                    )
+
+                is_correct_username = credentials["username"] == user.username
+                is_correct_password = pwd_context.verify(
+                    credentials["password"], user.hashed_password)
+
+                if not (is_correct_username and is_correct_password):
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Incorrect email or password",
+                        headers={"WWW-Authenticate": "Basic"},
+                    )
+
+                return User.model_validate(user)
+                
             except Exception:
                 pass
-
-    jwt_token = request.cookies.get("restai_token")
-
-    if bearer_token:
-        user = db_wrapper.get_user_by_apikey(bearer_token)
-
-        if user is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid key"
-            )
-
-        return User.model_validate(user)
-    elif jwt_token:
-        try:
-            data = jwt.decode(jwt_token, RESTAI_AUTH_SECRET, algorithms=["HS512"])
-
-            user = db_wrapper.get_user_by_username(data["username"])
-
-            return User.model_validate(user)
-        except Exception:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-            )
     else:
-        if RESTAI_AUTH_DISABLE_LOCAL or not credentials or (
-                "username" not in credentials or "password" not in credentials):
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid credentials"
-            )
+        jwt_token = request.cookies.get("restai_token")
 
-        user = db_wrapper.get_user_by_username(credentials["username"])
+        if jwt_token:
+            try:
+                data = jwt.decode(jwt_token, RESTAI_AUTH_SECRET, algorithms=["HS512"])
 
-        if user is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid credentials"
-            )
+                user = db_wrapper.get_user_by_username(data["username"])
 
-        if user.sso:
-            raise HTTPException(
-                status_code=401,
-                detail="SSO user"
-            )
+                return User.model_validate(user)
+            except Exception:
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid token"
+                )
 
-        if user is not None:
-            is_correct_username = credentials["username"] == user.username
-            is_correct_password = pwd_context.verify(
-                credentials["password"], user.hashed_password)
-        else:
-            is_correct_username = False
-            is_correct_password = False
 
-        if not (is_correct_username and is_correct_password):
-            raise HTTPException(
-                status_code=401,
-                detail="Incorrect email or password",
-                headers={"WWW-Authenticate": "Basic"},
-            )
-
-        return User.model_validate(user)
+  
 
 
 def get_current_username_admin(user: User = Depends(get_current_username)):
