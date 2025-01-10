@@ -43,7 +43,6 @@ class ProjectDatabase(Base):
     human_name = Column(String(255))
     human_description = Column(Text)
     tools = Column(Text)
-    creator = Column(Integer)
     public = Column(Boolean, default=False)
     default_prompt = Column(Text)
     creator = Column(Integer, ForeignKey("users.id"))
