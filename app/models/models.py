@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 
 class URLIngestModel(BaseModel):
@@ -98,6 +98,14 @@ class ProjectUser(BaseModel):
     username: str
     model_config = ConfigDict(from_attributes=True)
     
+class TeamUser(BaseModel):
+    username: str
+    model_config = ConfigDict(from_attributes=True)
+    
+class UserTeam(BaseModel):
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+    
 class ProjectModel(BaseModel):
     name: str
     embeddings: Union[str, None] = None
@@ -133,25 +141,36 @@ class ProjectInfo(ProjectModel):
     llm_type: Union[str, None] = None
     llm_privacy: Union[str, None] = None
 
-class User(BaseModel):
+class Team(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    members: list[TeamUser] = []
+    model_config = ConfigDict(from_attributes=True)
+
+class UserBase(BaseModel):
     id: int
     username: str
     is_admin: bool = False
+    is_superadmin: bool = False
     is_private: bool = False
     projects: list[UserProject] = []
-    api_key: Union[str, None] = None
     sso: Union[str, None] = None
+    teams: list[UserTeam] = []
+    
+class User(UserBase):
     level: Union[str, None] = None
+    api_key: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
 class UsersResponse(BaseModel):
     users: list[User]
     
-class UserBase(BaseModel):
+class UserBaseCreate(BaseModel):
     username: str
 
 
-class UserCreate(UserBase):
+class UserCreate(UserBaseCreate):
     password: str
     is_admin: bool = False
     is_private: bool = False
@@ -227,3 +246,13 @@ class ClassifierResponse(BaseModel):
     sequence: str
     labels: list[str]
     scores: list[float]
+
+class TeamCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class TeamUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    usernames: Optional[List[str]] = None
+

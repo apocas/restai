@@ -11,13 +11,20 @@ users_projects = Table(
     Column("project_id", ForeignKey("projects.id"), primary_key=True),
 )
 
+users_teams = Table(
+    "users_teams",
+    Base.metadata,
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
+    Column("team_id", ForeignKey("teams.id"), primary_key=True),
+)
+
 class TeamDatabase(Base):
     __tablename__ = "teams"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), unique=True, index=True)
     description = Column(Text)
-    members = relationship("UserDatabase", back_populates="team")
+    members = relationship('UserDatabase', secondary=users_teams, back_populates='teams')
 
 class ProjectDatabase(Base):
     __tablename__ = "projects"
@@ -56,14 +63,12 @@ class UserDatabase(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(255), unique=True, index=True)
     hashed_password = Column(String(255))
-    is_admin = Column(Boolean, default=False)
     is_private = Column(Boolean, default=False)
     api_key = Column(String(4096))
     sso = Column(String(4096))
     is_superadmin = Column(Boolean, default=False)
     projects = relationship('ProjectDatabase', secondary=users_projects, back_populates='users')
-    team_id = Column(Integer, ForeignKey("teams.id"))
-    
+    teams = relationship('TeamDatabase', secondary=users_teams, back_populates='members')
 
 class OutputDatabase(Base):
     __tablename__ = "output"

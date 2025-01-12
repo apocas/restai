@@ -21,7 +21,7 @@ async def lifespan(fs_app: FastAPI):
     from app.brain import Brain
     from app.database import get_db_wrapper, DBWrapper
     from app.auth import get_current_username
-    from app.routers import llms, projects, tools, users, image, audio, embeddings
+    from app.routers import llms, projects, tools, users, image, audio, embeddings, teams
     from app.models.models import User
     from app.multiprocessing import get_manager
     from modules.loaders import LOADERS
@@ -102,6 +102,7 @@ async def lifespan(fs_app: FastAPI):
     fs_app.include_router(projects.router)
     fs_app.include_router(tools.router)
     fs_app.include_router(users.router)
+    fs_app.include_router(teams.router)
 
     if config.RESTAI_GPU:
         fs_app.include_router(image.router)

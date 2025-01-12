@@ -11,7 +11,7 @@ from datetime import timedelta
 import secrets
 from fastapi.responses import RedirectResponse
 from app import config
-from app.models.models import User, UserCreate, UserUpdate, UsersResponse
+from app.models.models import User, UserBase, UserCreate, UserUpdate, UsersResponse
 from app.database import get_db_wrapper, DBWrapper
 from app.auth import create_access_token, get_current_username_admin, get_current_username_user
 
@@ -63,14 +63,23 @@ async def route_get_user(username: str, db_wrapper: DBWrapper = Depends(get_db_w
             status_code=404, detail=str(e))
 
 
-@router.get("/users/{username}", response_model=User)
+@router.get("/users/{username}", response_model=UserBase)
 async def route_get_user(username: str,
                          _: User = Depends(get_current_username_user),
                          db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
-        user_model = User.model_validate(db_wrapper.get_user_by_username(username))
-        user_model_copy = copy.deepcopy(user_model)
-        del user_model_copy.api_key
+        user_db = db_wrapper.get_user_by_username(username)
+        
+        user_model = UserBase(
+            id=user_db.id,
+            username=user_db.username,
+            is_admin=user_db.is_admin,
+            is_private=user_db.is_private,
+            projects=user_db.projects,
+            sso=user_db.sso,
+            teams=user_db.teams
+        )
+        
         return user_model
     except Exception as e:
         logging.error(e)
