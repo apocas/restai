@@ -104,73 +104,100 @@ def get_current_username(
         detail="Invalid credentials"
     )
 
-  
 
-
-def get_current_username_admin(user: User = Depends(get_current_username)):
-    if not user.is_admin:
+def get_current_username_superadmin(user: User = Depends(get_current_username)):
+    if not user.superadmin:
         raise HTTPException(
             status_code=401,
             detail="Insufficient permissions",
             headers={"WWW-Authenticate": "Basic"},
         )
     return user
+  
+def get_current_username_admin(user: User = Depends(get_current_username)):
+    if user.superadmin:
+       return user
+    
+    for team in user.teams:
+        if team.admin:
+            return user
+       
+    raise HTTPException(
+        status_code=401,
+        detail="Insufficient permissions",
+        headers={"WWW-Authenticate": "Basic"},
+    )
 
 
-def get_current_username_project(projectName: str, user: User = Depends(get_current_username)):
-    found: bool = user.is_admin
+def get_current_username_project(projectName: str, user: User = Depends(get_current_username), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    
+    if user.superadmin:
+        return user
+    
+    project = db_wrapper.get_project_by_name(projectName)
+    
+    if user_is_team_member(project.team_id, user):
+        if user_is_admin_team(project.team_id, user):
+            return user
+        else:
+            for project in user.projects:
+                if project.name == projectName:
+                    return user
 
-    if not found:
-        for project in user.projects:
-            if project.name == projectName:
-                found = True
-    if not found:
-        raise HTTPException(
-            status_code=404,
-            detail="Project not found"
-        )
-    return user
-
-
+    raise HTTPException(
+        status_code=404,
+        detail="Project not found"
+    )
+    
+def user_is_team_member(team_id: int, user: User):
+    if user.superadmin:
+        return True
+    elif any(member.team_id == team_id for member in user.teams):
+        return True
+    else:
+        return False
+    
+def user_is_admin_team(team_id: int, user: User):
+    if user.superadmin:
+        return True
+    elif any(member.team_id == team_id and member.admin == True for member in user.teams):
+        return True
+    else:
+        return False
+      
 def get_current_username_project_public(
         projectName: str,
         user: User = Depends(get_current_username),
         db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    found = False
-    if not user.is_admin:
-        for project in user.projects:
-            if project.name == projectName:
-                found = True
-                user.level = "own"
-    else:
-        found = True
-        user.level = "own"
+    if user.superadmin:
+        return user
 
     p: Optional[ProjectDatabase] = db_wrapper.get_project_by_name(projectName)
-    if found == False and (p is not None and p.public):
-        found = True
-        user.level = "public"
+    
+    if (p is not None and p.public) and user_is_team_member(p.team_id, user):
+        return user
 
-    if not found:
-        raise HTTPException(
-            status_code=404,
-            detail="Project not found"
-        )
-    return user
+    raise HTTPException(
+        status_code=404,
+        detail="Project not found"
+    )
 
 
-def get_current_username_user(username: str, user: User = Depends(get_current_username)):
-    found = False
-    if not user.is_admin:
+def get_current_username_user(username: str, user: User = Depends(get_current_username), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    if not user.superadmin:
+        user2 = db_wrapper.get_user_by_username(username)
+      
+        for member in user.teams:
+            if member.admin and user_is_team_member(member.team_id, user2):
+                return user
+              
         if user.username == username:
-            found = True
+            return user
     else:
-        found = True
-
-    if not found:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found"
-        )
-    return user
+        return user
+      
+    raise HTTPException(
+        status_code=404,
+        detail="User not found"
+    )

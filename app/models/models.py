@@ -98,12 +98,24 @@ class ProjectUser(BaseModel):
     username: str
     model_config = ConfigDict(from_attributes=True)
     
-class TeamUser(BaseModel):
-    username: str
+class MemberTeam(BaseModel):
+    user_id: int
+    model_config = ConfigDict(from_attributes=True)
+
+class MemberUser(BaseModel):
+    team_id: int
+    admin: bool
     model_config = ConfigDict(from_attributes=True)
     
-class UserTeam(BaseModel):
+    
+class ProjectTeam(BaseModel):
     name: str
+
+class Team(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    members: list[MemberTeam] = []
     model_config = ConfigDict(from_attributes=True)
     
 class ProjectModel(BaseModel):
@@ -131,6 +143,7 @@ class ProjectModel(BaseModel):
     creator: Union[int, None] = None
     default_prompt: Union[str, None] = None
     users: list[ProjectUser] = []
+    team: Union[Team, None] = None
     model_config = ConfigDict(from_attributes=True)
     
 class ProjectsResponse(BaseModel):
@@ -141,22 +154,14 @@ class ProjectInfo(ProjectModel):
     llm_type: Union[str, None] = None
     llm_privacy: Union[str, None] = None
 
-class Team(BaseModel):
-    id: int
-    name: str
-    description: Optional[str] = None
-    members: list[TeamUser] = []
-    model_config = ConfigDict(from_attributes=True)
-
 class UserBase(BaseModel):
     id: int
     username: str
-    is_admin: bool = False
-    is_superadmin: bool = False
+    superadmin: bool = False
     is_private: bool = False
     projects: list[UserProject] = []
     sso: Union[str, None] = None
-    teams: list[UserTeam] = []
+    teams: list[MemberUser] = []
     
 class User(UserBase):
     level: Union[str, None] = None
@@ -172,13 +177,14 @@ class UserBaseCreate(BaseModel):
 
 class UserCreate(UserBaseCreate):
     password: str
-    is_admin: bool = False
+    superadmin: bool = False
     is_private: bool = False
+    team_id: int
 
 
 class UserUpdate(BaseModel):
     password: str = None
-    is_admin: bool = None
+    superadmin: bool = None
     is_private: bool = None
     projects: list[str] = None
     api_key: str = None

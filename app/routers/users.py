@@ -13,7 +13,7 @@ from fastapi.responses import RedirectResponse
 from app import config
 from app.models.models import User, UserBase, UserCreate, UserUpdate, UsersResponse
 from app.database import get_db_wrapper, DBWrapper
-from app.auth import create_access_token, get_current_username_admin, get_current_username_user
+from app.auth import create_access_token, get_current_username, get_current_username_admin, get_current_username_superadmin, get_current_username_user, user_is_admin_team
 
 router = APIRouter()
 
@@ -70,10 +70,13 @@ async def route_get_user(username: str,
     try:
         user_db = db_wrapper.get_user_by_username(username)
         
+        if not user_db:
+            raise Exception("User not found")
+        
         user_model = UserBase(
             id=user_db.id,
             username=user_db.username,
-            is_admin=user_db.is_admin,
+            superadmin=user_db.superadmin,
             is_private=user_db.is_private,
             projects=user_db.projects,
             sso=user_db.sso,
@@ -109,11 +112,18 @@ async def route_get_user(username: str,
 
 @router.get("/users", response_model=UsersResponse)
 async def route_get_users(
-        _: User = Depends(get_current_username_admin),
+        user: User = Depends(get_current_username_admin),
         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    users = db_wrapper.get_users()
+  
+    users = []
     users_final = []
-
+    
+    if user.superadmin:
+        users = db_wrapper.get_users()
+    else:
+        for member in user.teams:
+            users.extend(db_wrapper.get_users_team(member.team_id))
+        
     for user_model in users:
         user_model_copy = copy.deepcopy(User.model_validate(user_model))
         del user_model_copy.api_key
@@ -124,38 +134,45 @@ async def route_get_users(
 
 @router.post("/users")
 async def route_create_user(user_create: UserCreate,
-                            _: User = Depends(get_current_username_admin),
+                            user: User = Depends(get_current_username_admin),
                             db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    try:
-        user_create.username = unidecode(user_create.username.strip().lower().replace(" ", "."))
-        user_create.username = re.sub(r'[^\w\-.@]+', '', user_create.username)
 
-        db_wrapper.create_user(
-            user_create.username,
-            user_create.password,
-            user_create.is_admin,
-            user_create.is_private)
-        return {"username": user_create.username}
-    except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
+    if user_is_admin_team(user_create.team_id, user):
+        try:
+            user_create.username = unidecode(user_create.username.strip().lower().replace(" ", "."))
+            user_create.username = re.sub(r'[^\w\-.@]+', '', user_create.username)
+
+            db_wrapper.create_user(
+                user_create.username,
+                user_create.password,
+                user_create.superadmin,
+                user_create.is_private)
+            return {"username": user_create.username}
+        except Exception as e:
+            logging.error(e)
+            traceback.print_tb(e.__traceback__)
+            raise HTTPException(
+                status_code=500,
+                detail='Failed to create user ' + user_create.username)
+    else:
         raise HTTPException(
-            status_code=500,
-            detail='Failed to create user ' + user_create.username)
+            status_code=401,
+            detail="Insufficient permissions"
+        )
 
 
 @router.patch("/users/{username}", response_model=User)
 async def route_update_user(
         username: str,
         user_update: UserUpdate,
-        user: User = Depends(get_current_username_user),
+        user: User = Depends(get_current_username_superadmin),
         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
         user_to_update = db_wrapper.get_user_by_username(username)
         if user_to_update is None:
             raise Exception("User not found")
 
-        if not user.is_admin and user_update.is_admin is True:
+        if not user.superadmin and user_update.superadmin is True:
             raise Exception("Insuficient permissions")
 
         db_wrapper.update_user(user_to_update, user_update)
@@ -178,7 +195,7 @@ async def route_update_user(
 
 @router.delete("/users/{username}")
 async def route_delete_user(username: str,
-                            _: User = Depends(get_current_username_admin),
+                            _: User = Depends(get_current_username_superadmin),
                             db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
         user_link = db_wrapper.get_user_by_username(username)

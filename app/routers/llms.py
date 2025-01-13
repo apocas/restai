@@ -10,7 +10,7 @@ from app import config
 from app.models.databasemodels import LLMDatabase
 from app.models.models import LLMModel, LLMUpdate, User
 from app.database import get_db_wrapper, DBWrapper
-from app.auth import get_current_username, get_current_username_admin
+from app.auth import get_current_username, get_current_username_superadmin
 
 logging.basicConfig(level=config.LOG_LEVEL)
 logging.getLogger('passlib').setLevel(logging.ERROR)
@@ -53,7 +53,7 @@ async def api_get_llms(
 
 @router.post("/llms")
 async def api_create_llm(llmc: LLMModel,
-                         _: User = Depends(get_current_username_admin),
+                         _: User = Depends(get_current_username_superadmin),
                          db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
         llm: LLMDatabase = db_wrapper.create_llm(llmc.name, llmc.class_name, llmc.options, llmc.privacy,
@@ -71,7 +71,7 @@ async def api_create_llm(llmc: LLMModel,
 async def api_edit_llm(request: Request,
                            llm_name: str,
                            llmUpdate: LLMUpdate,
-                           _: User = Depends(get_current_username_admin),
+                           _: User = Depends(get_current_username_superadmin),
                            db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
         llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_name(llm_name)
@@ -92,7 +92,7 @@ async def api_edit_llm(request: Request,
 
 @router.delete("/llms/{llm_name}")
 async def api_delete_llm(llm_name: str,
-                         _: User = Depends(get_current_username_admin),
+                         _: User = Depends(get_current_username_superadmin),
                          db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
         llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_name(llm_name)
