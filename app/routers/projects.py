@@ -15,12 +15,12 @@ from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.schema import Document
 from unidecode import unidecode
 from app import config
-from app.auth import get_current_username, get_current_username_project, get_current_username_project_public
+from app.auth import get_current_username, get_current_username_project, get_current_username_project_public, get_team, user_is_admin_team
 from app.database import get_db_wrapper, DBWrapper
 from app.helper import chat_main, question_main
 from app.loaders.url import SeleniumWebReader
 from app.models.models import FindModel, IngestResponse, ProjectModel, ProjectModelUpdate, ProjectsResponse, \
-    QuestionModel, ChatModel, TextIngestModel, URLIngestModel, User
+    QuestionModel, ChatModel, Team, TextIngestModel, URLIngestModel, User
 from app.project import Project
 from app.vectordb import tools
 from app.vectordb.tools import find_file_loader, extract_keywords_for_metadata, index_documents_classic, index_documents_docling
@@ -36,23 +36,23 @@ router = APIRouter()
 @router.get("/projects", response_model=ProjectsResponse)
 async def route_get_projects(_: Request,
                              user: User = Depends(get_current_username),
+                             team: Team = Depends(get_team),
                              db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     projects = []
     ids = []
     if user.superadmin:
         projects = db_wrapper.get_projects()
     else:
-        for member in user.teams:
-            if member.admin:
-                for project in db_wrapper.get_projects():
-                    if project.team_id == member.team_id:
-                        projects.append(project)
-                        ids.append(project.id)
-        
-        for project in user.projects:
-            for p in db_wrapper.get_projects():
-                if project.name == p.name and p.id not in ids:
-                    projects.append(p)
+        if user_is_admin_team(team.id, user):
+            for project in db_wrapper.get_projects():
+                if project.team_id == team.id:
+                    projects.append(project)
+                    ids.append(project.id)
+        else:
+            for project in user.projects:
+                for p in db_wrapper.get_projects():
+                    if project.name == p.name:
+                        projects.append(p)
 
     return {"projects": projects}
   

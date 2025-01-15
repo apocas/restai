@@ -24,6 +24,25 @@ def create_access_token(data: dict[str, str | datetime], expires_delta: Optional
     return encoded_jwt
 
 
+def get_team(
+        request: Request,
+        db_wrapper: DBWrapper = Depends(get_db_wrapper)
+):
+    teamid = request.headers.get('X-Team')
+    if teamid:
+        team = db_wrapper.get_team_by_id(int(teamid))
+        if team is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Team not found"
+            )
+        return team
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail="Team not found"
+        )
+
 def get_current_username(
         request: Request,
         db_wrapper: DBWrapper = Depends(get_db_wrapper)

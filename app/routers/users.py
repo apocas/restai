@@ -11,9 +11,9 @@ from datetime import timedelta
 import secrets
 from fastapi.responses import RedirectResponse
 from app import config
-from app.models.models import User, UserBase, UserCreate, UserUpdate, UsersResponse
+from app.models.models import Team, User, UserBase, UserCreate, UserUpdate, UsersResponse
 from app.database import get_db_wrapper, DBWrapper
-from app.auth import create_access_token, get_current_username, get_current_username_admin, get_current_username_superadmin, get_current_username_user, user_is_admin_team
+from app.auth import create_access_token, get_current_username, get_current_username_admin, get_current_username_superadmin, get_current_username_user, get_team, user_is_admin_team
 
 router = APIRouter()
 
@@ -113,6 +113,7 @@ async def route_get_user(username: str,
 @router.get("/users", response_model=UsersResponse)
 async def route_get_users(
         user: User = Depends(get_current_username_admin),
+        team: Team = Depends(get_team),
         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
   
     users = []
@@ -121,8 +122,13 @@ async def route_get_users(
     if user.superadmin:
         users = db_wrapper.get_users()
     else:
-        for member in user.teams:
-            users.extend(db_wrapper.get_users_team(member.team_id))
+        if user_is_admin_team(team.id, user):
+            db_wrapper.get_users_team(team.id)
+        else:
+            raise HTTPException(
+                status_code=401,
+                detail="Insufficient permissions"
+            )
         
     for user_model in users:
         user_model_copy = copy.deepcopy(User.model_validate(user_model))

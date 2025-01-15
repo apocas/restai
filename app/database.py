@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from app.models.databasemodels import LLMDatabase, EmbeddingDatabase, Member, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
+from app.models.databasemodels import LLMDatabase, EmbeddingDatabase, Member, ProjectDatabase, RouterEntrancesDatabase, TeamDatabase, UserDatabase
 from app.models.models import LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate, EmbeddingModel, EmbeddingUpdate
 from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
@@ -194,6 +194,10 @@ class DBWrapper:
         self.db.delete(user)
         self.db.commit()
         return True
+      
+    def get_team_by_id(self, team_id: int) -> Optional[TeamDatabase]:
+        team: Optional[TeamDatabase] = self.db.query(TeamDatabase).filter(TeamDatabase.id == team_id).first()
+        return team
 
     def get_project_by_name(self, name: str) -> Optional[ProjectDatabase]:
         project: Optional[ProjectDatabase] = self.db.query(ProjectDatabase).filter(ProjectDatabase.name == name).first()
