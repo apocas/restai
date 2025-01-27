@@ -42,11 +42,13 @@ class Inference(ProjectBase):
         model = self.brain.get_llm(project.model.llm, db)
 
         sysTemplate = project.model.system or self.brain.defaultSystem
-        model.llm.system_prompt = sysTemplate
+        
+        if sysTemplate:
+            model.llm.system_prompt = sysTemplate
 
-        if not chat.memory.get_all():
-            chat.memory.chat_store.add_message(chat.memory.chat_store_key,
-                                               ChatMessage(role=MessageRole.SYSTEM, content=sysTemplate))
+            if not chat.memory.get_all():
+                chat.memory.chat_store.add_message(chat.memory.chat_store_key,
+                                                  ChatMessage(role=MessageRole.SYSTEM, content=sysTemplate))
 
         chat.memory.chat_store.add_message(chat.memory.chat_store_key,
                                            ChatMessage(role=MessageRole.USER, content=chat_model.question))
@@ -107,14 +109,16 @@ class Inference(ProjectBase):
         model = self.brain.get_llm(project.model.llm, db)
 
         sysTemplate = question_model.system or project.model.system or self.brain.defaultSystem
-        model.llm.system_prompt = sysTemplate
-
-        messages = [
-            ChatMessage(
+        
+        messages = []
+        
+        if sysTemplate:
+            model.llm.system_prompt = sysTemplate
+            messages.append(ChatMessage(
                 role=MessageRole.SYSTEM, content=sysTemplate
-            ),
-            ChatMessage(role=MessageRole.USER, content=question_model.question),
-        ]
+            ))
+
+        messages.append(ChatMessage(role=MessageRole.USER, content=question_model.question))
 
         try:
             if question_model.stream:
