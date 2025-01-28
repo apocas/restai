@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.models.databasemodels import TeamDatabase, UserDatabase
 from app.database import get_db_wrapper, DBWrapper
 from app.auth import get_current_username, get_current_username_admin, get_current_username_superadmin, user_is_admin_team, user_is_team_member
-from app.models.models import TeamCreate, TeamUpdate, Team, User, UserBase
+from app.models.models import TeamCreate, TeamUpdate, Team, User, UserBase, TeamResponse
 
 router = APIRouter()
 
@@ -19,7 +19,7 @@ async def create_team(team: TeamCreate, _: User = Depends(get_current_username_s
     db.refresh(new_team)
     return new_team
 
-@router.get("/teams", response_model=list[Team])
+@router.get("/teams", response_model=list[TeamResponse])
 async def list_teams(user: User = Depends(get_current_username), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     db = db_wrapper.db
     
@@ -30,18 +30,21 @@ async def list_teams(user: User = Depends(get_current_username), db_wrapper: DBW
         teams_output = []
         for team in teams:
             if user_is_team_member(team.id, user):
-                teams_output.append(team)
+                teams_output.append(TeamResponse(id=team.id, name=team.name, description=team.description))
         return teams_output
 
-@router.get("/teams/{team_id}", response_model=Team)
+@router.get("/teams/{team_id}", response_model=TeamResponse)
 async def get_team(team_id: int, user: User = Depends(get_current_username), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    if user_is_team_member(team_id, user):
-        db = db_wrapper.db
-        team = db.query(TeamDatabase).filter(TeamDatabase.id == team_id).first()
-        if not team:
-            raise HTTPException(status_code=404, detail="Team not found")
-        else:
-            return team
+    db = db_wrapper.db
+    team = db.query(TeamDatabase).filter(TeamDatabase.id == team_id).first()
+    
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    
+    if user.superadmin:
+        return team
+    elif user_is_team_member(team_id, user):
+        return team
     else:
         raise HTTPException(status_code=403, detail="Not a member")
     

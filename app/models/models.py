@@ -97,17 +97,10 @@ class UserProject(BaseModel):
 class ProjectUser(BaseModel):
     username: str
     model_config = ConfigDict(from_attributes=True)
-    
-class MemberTeam(BaseModel):
-    user_id: int
-    model_config = ConfigDict(from_attributes=True)
 
 class MemberUser(BaseModel):
-    team_id: int
-    admin: bool
-    model_config = ConfigDict(from_attributes=True)
-    
-    
+    username: str
+    model_config = ConfigDict(from_attributes=True)   
 class ProjectTeam(BaseModel):
     name: str
 
@@ -115,7 +108,10 @@ class Team(BaseModel):
     id: int
     name: str
     description: Optional[str] = None
-    members: list[MemberTeam] = []
+    model_config = ConfigDict(from_attributes=True)
+    
+class TeamResponse(Team):
+    members: Optional[list[MemberUser]] = None
     model_config = ConfigDict(from_attributes=True)
     
 class ProjectModel(BaseModel):
@@ -161,11 +157,26 @@ class UserBase(BaseModel):
     is_private: bool = False
     projects: list[UserProject] = []
     sso: Union[str, None] = None
-    teams: list[MemberUser] = []
+    teams: list[Team] = []
     
 class User(UserBase):
     level: Union[str, None] = None
     api_key: Union[str, None] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class TeamUser(BaseModel):
+    team_id: int
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+    
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    superadmin: bool = False
+    is_private: bool = False
+    projects: list[UserProject] = []
+    sso: Union[str, None] = None
+    teams: list[Team] = []
     model_config = ConfigDict(from_attributes=True)
 
 class UsersResponse(BaseModel):
@@ -189,7 +200,7 @@ class UserUpdate(BaseModel):
     projects: list[str] = None
     api_key: str = None
     sso: str = None
-
+    teams: list[int] = None  # Add this line
 
 class ProjectModelUpdate(BaseModel):
     embeddings: Union[str, None] = None
