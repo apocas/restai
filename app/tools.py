@@ -15,21 +15,19 @@ DEFAULT_LLMS = {
     # "name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa"),
     "openai_gpt4o": ("OpenAI", {"temperature": 0, "model": "gpt-4o"}, "public", "OpenAI GPT-4o", "chat"),
     "openai_gpt4o_mini": ("OpenAI", {"temperature": 0, "model": "gpt-4o-mini"}, "public", "OpenAI GPT-4o Mini", "chat"),
-    "llama31_8b": ("Ollama", {"model": "llama3.1", "temperature": 0.0001, "keep_alive": 0}, "private",
-                  "https://ollama.com/library/llama3.1", "chat"),
-    "llama33_70b": ("Ollama", {"model": "llama3.3", "temperature": 0.0001, "keep_alive": 0}, "private",
-                   "https://ollama.com/library/llama3.3", "chat"),
-    "llava16_13b": ("OllamaMultiModal", {"model": "llava:13b-v1.6", "temperature": 0.0001, "keep_alive": 0}, "private",
-                    "https://ollama.com/library/llava", "vision"),
-    "minicpm-v": ("OllamaMultiModal", {"model": "minicpm-v", "temperature": 0.0001, "keep_alive": 0}, "private",
-                    "	https://ollama.com/library/minicpm-v", "vision"),
+    "llama31_8b": ("Ollama", {"model": "llama3.1", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llama3.1", "chat"),
+    "llama33_70b": ("Ollama", {"model": "llama3.3", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llama3.3", "chat"),
+    "deepseek-r1_70b": ("Ollama", {"model": "deepseek-r1:70b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/deepseek-r1:70b", "chat"),
+    "llava16_13b": ("OllamaMultiModal", {"model": "llava:13b-v1.6", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llava", "vision"),
+    "minicpm-v": ("OllamaMultiModal", {"model": "minicpm-v", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "	https://ollama.com/library/minicpm-v", "vision"),
 }
 
 DEFAULT_EMBEDDINGS = {
     # "name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa"),
     "nomic-embed-text": ("OllamaEmbeddings", {"model_name": "nomic-embed-text", "keep_alive": 0, "mirostat": 0}, "private",
-                  "https://ollama.com/library/nomic-embed-text", 768),
+                         "https://ollama.com/library/nomic-embed-text", 768),
 }
+
 
 def get_embedding_class(embedding_class_name: str):
     match embedding_class_name:
@@ -38,6 +36,7 @@ def get_embedding_class(embedding_class_name: str):
             return OllamaEmbedding, {}
         case _:
             raise Exception("Invalid embedding class name.")
+
 
 def get_llm_class(llm_class_name: str):
     match llm_class_name:
@@ -88,6 +87,7 @@ def get_llm_class(llm_class_name: str):
         case _:
             raise Exception("Invalid LLM class name.")
 
+
 def load_generators() -> list[FunctionTool]:
     generators = []
     directory = os.path.dirname(os.path.abspath(__file__))
@@ -98,7 +98,7 @@ def load_generators() -> list[FunctionTool]:
         for name, obj in inspect.getmembers(module):
             if inspect.isfunction(obj) and name == "worker":
                 generators.append(obj)
-                
+
     print(f"Loading userland image generators...")
     for importer, modname, _ in pkgutil.iter_modules(path=['./generators']):
         module = __import__(f'generators.{modname}', fromlist='dummy')
@@ -107,15 +107,17 @@ def load_generators() -> list[FunctionTool]:
                 replaced = False
                 for i, existing_tool in enumerate(generators):
                     if existing_tool.__module__.split(".")[-1] == obj.__module__.split(".")[-1]:
-                        print(f"WARNING: Duplicate generator '{obj.__module__}' found in generators! OVERWRITTEN!")
+                        print(
+                            f"WARNING: Duplicate generator '{obj.__module__}' found in generators! OVERWRITTEN!")
                         generators[i] = obj
                         replaced = True
                         break
                 if not replaced:
                     generators.append(obj)
-                    
+
     return generators
-  
+
+
 def load_audio_generators() -> list[FunctionTool]:
     generators = []
     directory = os.path.dirname(os.path.abspath(__file__))
@@ -126,7 +128,7 @@ def load_audio_generators() -> list[FunctionTool]:
         for name, obj in inspect.getmembers(module):
             if inspect.isfunction(obj) and name == "worker":
                 generators.append(obj)
-                
+
     print(f"Loading userland audio generators...")
     for importer, modname, _ in pkgutil.iter_modules(path=['./audio']):
         module = __import__(f'audio.{modname}', fromlist='dummy')
@@ -135,14 +137,16 @@ def load_audio_generators() -> list[FunctionTool]:
                 replaced = False
                 for i, existing_tool in enumerate(generators):
                     if existing_tool.__module__.split(".")[-1] == obj.__module__.split(".")[-1]:
-                        print(f"WARNING: Duplicate generator '{obj.__module__}' found in generators! OVERWRITTEN!")
+                        print(
+                            f"WARNING: Duplicate generator '{obj.__module__}' found in generators! OVERWRITTEN!")
                         generators[i] = obj
                         replaced = True
                         break
                 if not replaced:
                     generators.append(obj)
-                    
+
     return generators
+
 
 def load_tools() -> list[FunctionTool]:
     tools = []
@@ -164,7 +168,8 @@ def load_tools() -> list[FunctionTool]:
                 replaced = False
                 for i, existing_tool in enumerate(tools):
                     if existing_tool.metadata.name == tool.metadata.name:
-                        print(f"WARNING: Duplicate tool '{tool.metadata.name}' found in tools! OVERWRITTEN!")
+                        print(
+                            f"WARNING: Duplicate tool '{tool.metadata.name}' found in tools! OVERWRITTEN!")
                         tools[i] = tool
                         replaced = True
                         break
