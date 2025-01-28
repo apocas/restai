@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from app.models.databasemodels import LLMDatabase, EmbeddingDatabase, Member, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
+from app.models.databasemodels import LLMDatabase, EmbeddingDatabase, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
 from app.models.models import LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate, EmbeddingModel, EmbeddingUpdate
 from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
@@ -50,7 +50,7 @@ class DBWrapper:
         else:
             password_hash = None
         db_user: UserDatabase = UserDatabase(
-            username=username, hashed_password=password_hash, superadmin=admin, is_private=private
+            username=username, hashed_password=password_hash, is_admin=admin, is_private=private
         )
         self.db.add(db_user)
         self.db.commit()
@@ -91,10 +91,6 @@ class DBWrapper:
         users: list[UserDatabase] = self.db.query(UserDatabase).all()
         return users
 
-    def get_users_team(self, team_id: int) -> list[UserDatabase]:
-        users: list[UserDatabase] = self.db.query(UserDatabase).filter(Member.team_id == team_id).all()
-        return users
-
     def get_llms(self) -> list[LLMDatabase]:
         llms: list[LLMDatabase] = self.db.query(LLMDatabase).all()
         return llms
@@ -123,8 +119,8 @@ class DBWrapper:
         if user_update.password is not None:
             user.hashed_password = pwd_context.hash(user_update.password)
 
-        if user_update.superadmin is not None:
-            user.superadmin = user_update.superadmin
+        if user_update.is_admin is not None:
+            user.is_admin = user_update.is_admin
 
         if user_update.is_private is not None:
             user.is_private = user_update.is_private
@@ -222,10 +218,6 @@ class DBWrapper:
 
     def get_projects(self) -> list[ProjectDatabase]:
         projects: list[ProjectDatabase] = self.db.query(ProjectDatabase).all()
-        return projects
-      
-    def get_projects_public(self) -> list[ProjectDatabase]:
-        projects: list[ProjectDatabase] = self.db.query(ProjectDatabase).filter(ProjectDatabase.public == True).all()
         return projects
 
     def delete_project(self, project: ProjectDatabase) -> bool:

@@ -10,7 +10,7 @@ from app import config
 from app.models.databasemodels import LLMDatabase, EmbeddingDatabase
 from app.models.models import EmbeddingModel, LLMUpdate, User, EmbeddingUpdate
 from app.database import get_db_wrapper, DBWrapper
-from app.auth import get_current_username, get_current_username_superadmin
+from app.auth import get_current_username, get_current_username_admin
 from modules.embeddings import EMBEDDINGS
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -64,7 +64,7 @@ async def api_get_embeddings(
 
 @router.post("/embeddings")
 async def api_create_embeddings(embeddingc: EmbeddingModel,
-                         _: User = Depends(get_current_username_superadmin),
+                         _: User = Depends(get_current_username_admin),
                          db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
         embedding: EmbeddingDatabase = db_wrapper.create_embedding(embeddingc.name, embeddingc.class_name, embeddingc.options, embeddingc.privacy, embeddingc.description, embeddingc.dimension)
@@ -81,7 +81,7 @@ async def api_create_embeddings(embeddingc: EmbeddingModel,
 async def api_edit_embedding(request: Request,
                            embedding_name: str,
                            embeddingUpdate: EmbeddingUpdate,
-                           _: User = Depends(get_current_username_superadmin),
+                           _: User = Depends(get_current_username_admin),
                            db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
         embedding: Optional[EmbeddingDatabase] = db_wrapper.get_embedding_by_name(embedding_name)
@@ -101,7 +101,7 @@ async def api_edit_embedding(request: Request,
 
 @router.delete("/embeddings/{embedding_name}")
 async def api_delete_embedding(embedding_name: str,
-                         _: User = Depends(get_current_username_superadmin),
+                         _: User = Depends(get_current_username_admin),
                          db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     try:
         embedding: Optional[EmbeddingDatabase] = db_wrapper.get_embedding_by_name(embedding_name)

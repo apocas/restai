@@ -1,14 +1,6 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Float, Table, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
-from typing import List, Optional
-
-from sqlalchemy import ForeignKey
-from sqlalchemy import Integer
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
@@ -19,17 +11,12 @@ users_projects = Table(
     Column("project_id", ForeignKey("projects.id"), primary_key=True),
 )
 
-class Member(Base):
-    __tablename__ = "members_table"
-    user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"), primary_key=True)
-    team_id: Mapped[int] = mapped_column(
-        ForeignKey("teams.id"), primary_key=True
-    )
-    admin: Mapped[Optional[bool]] = Column(Boolean, default=False)
-    user: Mapped["UserDatabase"] = relationship(back_populates="teams")
-    team: Mapped["TeamDatabase"] = relationship(back_populates="members")
-
+users_teams = Table(
+    "users_teams",
+    Base.metadata,
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
+    Column("team_id", ForeignKey("teams.id"), primary_key=True),
+)
 
 class TeamDatabase(Base):
     __tablename__ = "teams"
@@ -37,11 +24,7 @@ class TeamDatabase(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), unique=True, index=True)
     description = Column(Text)
-    members: Mapped[List["Member"]] = relationship(back_populates="team")
-    projects = relationship("ProjectDatabase",
-                             back_populates="team")
-
-
+    members = relationship('UserDatabase', secondary=users_teams, back_populates='teams')
 
 class ProjectDatabase(Base):
     __tablename__ = "projects"
@@ -71,15 +54,8 @@ class ProjectDatabase(Base):
     public = Column(Boolean, default=False)
     default_prompt = Column(Text)
     owner = Column(Integer, ForeignKey("users.id"))
-    team_id = Column(Integer, ForeignKey("teams.id"))
-    users = relationship(
-        'UserDatabase', secondary=users_projects, back_populates='projects')
-
-    team = relationship("TeamDatabase", back_populates="projects")
-    
-    entrances = relationship("RouterEntrancesDatabase",
-                             back_populates="project")
-
+    users = relationship('UserDatabase', secondary=users_projects, back_populates='projects')
+    entrances = relationship("RouterEntrancesDatabase", back_populates="project")
 
 class UserDatabase(Base):
     __tablename__ = "users"
@@ -90,11 +66,9 @@ class UserDatabase(Base):
     is_private = Column(Boolean, default=False)
     api_key = Column(String(4096))
     sso = Column(String(4096))
-    superadmin = Column(Boolean, default=False)
-    projects = relationship(
-        'ProjectDatabase', secondary=users_projects, back_populates='users')
-    teams: Mapped[List["Member"]] = relationship(back_populates="user")
-
+    is_superadmin = Column(Boolean, default=False)
+    projects = relationship('ProjectDatabase', secondary=users_projects, back_populates='users')
+    teams = relationship('TeamDatabase', secondary=users_teams, back_populates='members')
 
 class OutputDatabase(Base):
     __tablename__ = "output"
@@ -106,8 +80,7 @@ class OutputDatabase(Base):
     answer = Column(Text)
     data = Column(Text)
     date = Column(DateTime)
-
-
+    
 class RouterEntrancesDatabase(Base):
     __tablename__ = "routerentrances"
 
@@ -116,7 +89,7 @@ class RouterEntrancesDatabase(Base):
     name = Column(String(255), index=True)
     description = Column(Text)
     project_id = Column(Integer, ForeignKey("projects.id"))
-
+    
     project = relationship("ProjectDatabase", back_populates="entrances")
 
 
@@ -131,8 +104,7 @@ class LLMDatabase(Base):
     privacy = Column(String(255))
     description = Column(Text)
     type = Column(String(255))
-
-
+    
 class EmbeddingDatabase(Base):
     __tablename__ = "embeddings"
 

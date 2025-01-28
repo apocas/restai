@@ -35,35 +35,22 @@ router = APIRouter()
 
 @router.get("/projects", response_model=ProjectsResponse)
 async def route_get_projects(_: Request,
+                             v_filter: str = Query("own", alias="filter"),
                              user: User = Depends(get_current_username),
                              db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     projects = []
-    ids = []
-    if user.superadmin:
-        projects = db_wrapper.get_projects()
-    else:
-        for member in user.teams:
-            if member.admin:
-                for project in db_wrapper.get_projects():
-                    if project.team_id == member.team_id:
-                        projects.append(project)
-                        ids.append(project.id)
-        
-        for project in user.projects:
-            for p in db_wrapper.get_projects():
-                if project.name == p.name and p.id not in ids:
-                    projects.append(p)
-
-    return {"projects": projects}
-  
-@router.get("/library", response_model=ProjectsResponse)
-async def route_get_library(_: Request,
-                             user: User = Depends(get_current_username),
-                             db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    projects = []
-    for project in db_wrapper.get_projects_public():
-        if project.public:
-            projects.append(project)
+    if v_filter == "own":
+        if user.is_admin:
+            projects = db_wrapper.get_projects()
+        else:
+            for project in user.projects:
+                for p in db_wrapper.get_projects():
+                    if project.name == p.name:
+                        projects.append(p)
+    elif v_filter == "public":
+        for project in db_wrapper.get_projects():
+            if project.public:
+                projects.append(project)
 
     return {"projects": projects}
 
@@ -137,8 +124,6 @@ async def route_get_project(request: Request,
         if llm_model:
             final_output["llm_type"] = llm_model.props.type
             final_output["llm_privacy"] = llm_model.props.privacy
-
-        final_output["team_id"] = project.model.team.id
 
         return final_output
     except Exception as e:
@@ -223,7 +208,7 @@ async def route_create_project(request: Request,
             status_code=400,
             detail='Invalid project name')
 
-    if config.RESTAI_DEMO and not user.superadmin:
+    if config.RESTAI_DEMO and not user.is_admin:
         if projectModel.type == "ragsql" or projectModel.type == "agent":
             raise HTTPException(
                 status_code=403,
@@ -474,7 +459,7 @@ async def ingest_text(request: Request, projectName: str, ingest: TextIngestMode
 async def ingest_url(request: Request, projectName: str, ingest: URLIngestModel,
                      user: User = Depends(get_current_username_project),
                      db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    if config.RESTAI_DEMO and not user.superadmin:
+    if config.RESTAI_DEMO and not user.is_admin:
         raise HTTPException(
                 status_code=403,
                 detail='Demo mode, not allowed to ingest from an URL.')

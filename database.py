@@ -16,12 +16,11 @@ from app.config import (
 from app.models.databasemodels import (
     Base,
     LLMDatabase,
-    Member,
     ProjectDatabase,
     RouterEntrancesDatabase,
     UserDatabase,
     EmbeddingDatabase,
-    TeamDatabase,
+    TeamDatabase
 )
 from app.tools import DEFAULT_LLMS, DEFAULT_EMBEDDINGS
 
@@ -67,36 +66,18 @@ else:
         default_password = RESTAI_DEFAULT_PASSWORD
         Base.metadata.create_all(bind=engine)
         dbi = SessionLocal()
-        db_team1 = TeamDatabase(
+        db_team = TeamDatabase(
             name="default",
-            description="Default team 1"
+            description="Default team"
         )
-        db_team2 = TeamDatabase(
-            name="default2",
-            description="Default team 2"
-        )
-        dbi.add(db_team1)
-        dbi.add(db_team2)
-        db_user1 = UserDatabase(
+        dbi.add(db_team)
+        db_user = UserDatabase(
             username="admin",
             hashed_password=pwd_context.hash(default_password),
-            superadmin=True)
-        db_user2 = UserDatabase(
-            username="teamadmin",
-            hashed_password=pwd_context.hash(default_password))
-        db_user3 = UserDatabase(
-            username="member",
-            hashed_password=pwd_context.hash(default_password))
+            is_admin=True)
+        dbi.add(db_user)
         
-        dbi.add(db_user1)
-        dbi.add(db_user2)
-        dbi.add(db_user3)
-        
-        db_team1.members.append(Member(admin=True, user=db_user2))
-        db_team1.members.append(Member(admin=False, user=db_user3))
-        
-        db_team2.members.append(Member(admin=False, user=db_user2))
-        db_team2.members.append(Member(admin=False, user=db_user3))
+        db_team.members.append(db_user)
 
         for llm in DEFAULT_LLMS:
             llm_class, llm_args, privacy, description, typel = DEFAULT_LLMS[llm]
@@ -130,7 +111,6 @@ else:
                 is_private=True,
             )
             dbi.add(db_user)
-            db_team1.members.append(Member(admin=False, user=db_user))
             
             demo_project1 = ProjectDatabase(
                 name="demo1",
@@ -166,26 +146,12 @@ else:
                 llm="llava16_13b",
                 creator=db_user.id
             )
-            demo_project6 = ProjectDatabase(
-                name="vision2",
-                type="vision",
-                llm="llava16_13b",
-                creator=db_user3.id
-            )
             dbi.add(demo_project1)
             dbi.add(demo_project2)
             dbi.add(demo_project3)
             dbi.add(demo_project4)
             dbi.add(demo_project5)
-            dbi.add(demo_project6)
             dbi.commit()
-            
-            db_team1.projects.append(demo_project1)
-            db_team1.projects.append(demo_project2)
-            db_team1.projects.append(demo_project3)
-            db_team1.projects.append(demo_project4)
-            db_team1.projects.append(demo_project5)
-            db_team2.projects.append(demo_project6)
             
             demo_project3.entrances.append(RouterEntrancesDatabase(
                 name="choice1", description="The question is about the meaning of life.", destination="demo1", project_id=demo_project3.id))
@@ -197,7 +163,6 @@ else:
             demo_project3.users.append(db_user)
             demo_project4.users.append(db_user)
             demo_project5.users.append(db_user)
-            demo_project6.users.append(db_user3)
             
         dbi.commit()
         dbi.close()
