@@ -70,6 +70,8 @@ else:
             hashed_password=pwd_context.hash(default_password),
             is_admin=True)
         dbi.add(db_user)
+        
+        dbi.commit()
 
         for llm in DEFAULT_LLMS:
             llm_class, llm_args, privacy, description, typel = DEFAULT_LLMS[llm]
@@ -82,6 +84,8 @@ else:
                 type=typel
             )
             dbi.add(db_llm)
+            
+        dbi.commit()
         
         for embedding in DEFAULT_EMBEDDINGS:
             embedding_class, embedding_args, privacy, description, dimension = DEFAULT_EMBEDDINGS[embedding]
@@ -94,6 +98,8 @@ else:
                 dimension=dimension
             )
             dbi.add(db_embedding)
+            
+        dbi.commit()
         
         if RESTAI_DEMO:
             print("Creating demo scenario...")
@@ -103,6 +109,8 @@ else:
                 is_private=True,
             )
             dbi.add(db_user)
+            
+            dbi.commit()
             
             demo_project1 = ProjectDatabase(
                 name="demo1",

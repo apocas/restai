@@ -38,7 +38,6 @@ class ProjectDatabase(Base):
     creator = Column(Integer)
     public = Column(Boolean, default=False)
     default_prompt = Column(Text)
-    owner = Column(Integer, ForeignKey("users.id"))
     users = relationship('UserDatabase', secondary=users_projects, back_populates='projects')
     entrances = relationship("RouterEntrancesDatabase", back_populates="project")
 
