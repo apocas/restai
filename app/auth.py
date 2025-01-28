@@ -80,9 +80,8 @@ def get_current_username(
 
                 return User.model_validate(user)
                 
-            except Exception as e:
-                raise e
-                #pass
+            except Exception:
+                pass
     else:
         jwt_token = request.cookies.get("restai_token")
 
@@ -99,10 +98,6 @@ def get_current_username(
                     detail="Invalid token"
                 )
 
-    raise HTTPException(
-        status_code=401,
-        detail="Invalid credentials"
-    )
 
   
 

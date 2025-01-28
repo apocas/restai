@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, Union, List
+from typing import Optional, Union
 
 
 class URLIngestModel(BaseModel):
@@ -98,14 +98,6 @@ class ProjectUser(BaseModel):
     username: str
     model_config = ConfigDict(from_attributes=True)
     
-class TeamUser(BaseModel):
-    username: str
-    model_config = ConfigDict(from_attributes=True)
-    
-class UserTeam(BaseModel):
-    name: str
-    model_config = ConfigDict(from_attributes=True)
-    
 class ProjectModel(BaseModel):
     name: str
     embeddings: Union[str, None] = None
@@ -141,36 +133,25 @@ class ProjectInfo(ProjectModel):
     llm_type: Union[str, None] = None
     llm_privacy: Union[str, None] = None
 
-class Team(BaseModel):
-    id: int
-    name: str
-    description: Optional[str] = None
-    members: list[TeamUser] = []
-    model_config = ConfigDict(from_attributes=True)
-
-class UserBase(BaseModel):
+class User(BaseModel):
     id: int
     username: str
     is_admin: bool = False
-    is_superadmin: bool = False
     is_private: bool = False
     projects: list[UserProject] = []
-    sso: Union[str, None] = None
-    teams: list[UserTeam] = []
-    
-class User(UserBase):
-    level: Union[str, None] = None
     api_key: Union[str, None] = None
+    sso: Union[str, None] = None
+    level: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
 class UsersResponse(BaseModel):
     users: list[User]
     
-class UserBaseCreate(BaseModel):
+class UserBase(BaseModel):
     username: str
 
 
-class UserCreate(UserBaseCreate):
+class UserCreate(UserBase):
     password: str
     is_admin: bool = False
     is_private: bool = False
@@ -246,13 +227,3 @@ class ClassifierResponse(BaseModel):
     sequence: str
     labels: list[str]
     scores: list[float]
-
-class TeamCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-
-class TeamUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    usernames: Optional[List[str]] = None
-

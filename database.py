@@ -19,8 +19,7 @@ from app.models.databasemodels import (
     ProjectDatabase,
     RouterEntrancesDatabase,
     UserDatabase,
-    EmbeddingDatabase,
-    TeamDatabase
+    EmbeddingDatabase
 )
 from app.tools import DEFAULT_LLMS, DEFAULT_EMBEDDINGS
 
@@ -66,18 +65,11 @@ else:
         default_password = RESTAI_DEFAULT_PASSWORD
         Base.metadata.create_all(bind=engine)
         dbi = SessionLocal()
-        db_team = TeamDatabase(
-            name="default",
-            description="Default team"
-        )
-        dbi.add(db_team)
         db_user = UserDatabase(
             username="admin",
             hashed_password=pwd_context.hash(default_password),
             is_admin=True)
         dbi.add(db_user)
-        
-        db_team.members.append(db_user)
 
         for llm in DEFAULT_LLMS:
             llm_class, llm_args, privacy, description, typel = DEFAULT_LLMS[llm]
