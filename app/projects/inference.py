@@ -33,22 +33,19 @@ class Inference(ProjectBase):
             if guard.verify(chat_model.question):
                 output["answer"] = project.model.censorship or self.brain.defaultCensorship
                 output["guard"] = True
-                output["tokens"] = {
-                    "input": tools.tokens_from_string(output["question"]),
-                    "output": tools.tokens_from_string(output["answer"])
-                }
+                self.brain.post_processing_counting(output)
                 yield output
 
         model = self.brain.get_llm(project.model.llm, db)
 
         sysTemplate = project.model.system or self.brain.defaultSystem
-        
+
         if sysTemplate:
             model.llm.system_prompt = sysTemplate
 
             if not chat.memory.get_all():
                 chat.memory.chat_store.add_message(chat.memory.chat_store_key,
-                                                  ChatMessage(role=MessageRole.SYSTEM, content=sysTemplate))
+                                                   ChatMessage(role=MessageRole.SYSTEM, content=sysTemplate))
 
         chat.memory.chat_store.add_message(chat.memory.chat_store_key,
                                            ChatMessage(role=MessageRole.USER, content=chat_model.question))
@@ -64,17 +61,22 @@ class Inference(ProjectBase):
                 output["answer"] = response
                 chat.memory.chat_store.add_message(chat.memory.chat_store_key,
                                                    ChatMessage(role=MessageRole.ASSISTANT, content=response))
+                
+                self.brain.post_processing_reasoning(output)
+                self.brain.post_processing_counting(output)
+                
                 yield "data: " + json.dumps(output) + "\n"
                 yield "event: close\n\n"
             else:
                 resp = model.llm.chat(messages)
                 output["answer"] = resp.message.content.strip()
-                output["tokens"] = {
-                    "input": tokens_from_string(output["question"]),
-                    "output": tokens_from_string(output["answer"])
-                }
+                
                 chat.memory.chat_store.add_message(chat.memory.chat_store_key, ChatMessage(role=MessageRole.ASSISTANT,
                                                                                            content=resp.message.content.strip()))
+
+                self.brain.post_processing_reasoning(output)
+                self.brain.post_processing_counting(output)
+
                 yield output
         except Exception as e:
             if chat_model.stream:
@@ -100,25 +102,23 @@ class Inference(ProjectBase):
             if guard.verify(question_model.question):
                 output["answer"] = project.model.censorship or self.brain.defaultCensorship
                 output["guard"] = True
-                output["tokens"] = {
-                    "input": tools.tokens_from_string(output["question"]),
-                    "output": tools.tokens_from_string(output["answer"])
-                }
+                self.brain.post_processing_counting(output)
                 yield output
 
         model = self.brain.get_llm(project.model.llm, db)
 
         sysTemplate = question_model.system or project.model.system or self.brain.defaultSystem
-        
+
         messages = []
-        
+
         if sysTemplate:
             model.llm.system_prompt = sysTemplate
             messages.append(ChatMessage(
                 role=MessageRole.SYSTEM, content=sysTemplate
             ))
 
-        messages.append(ChatMessage(role=MessageRole.USER, content=question_model.question))
+        messages.append(ChatMessage(role=MessageRole.USER,
+                        content=question_model.question))
 
         try:
             if question_model.stream:
@@ -128,15 +128,19 @@ class Inference(ProjectBase):
                     response += text.delta
                     yield "data: " + json.dumps({"text": text.delta}) + "\n\n"
                 output["answer"] = response
+                
+                self.brain.post_processing_reasoning(output)
+                self.brain.post_processing_counting(output)
+                
                 yield "data: " + json.dumps(output) + "\n"
                 yield "event: close\n\n"
             else:
                 resp = model.llm.chat(messages)
                 output["answer"] = resp.message.content.strip()
-                output["tokens"] = {
-                    "input": tokens_from_string(output["question"]),
-                    "output": tokens_from_string(output["answer"])
-                }
+                
+                self.brain.post_processing_reasoning(output)
+                self.brain.post_processing_counting(output)
+                
                 yield output
         except Exception as e:
             if question_model.stream:

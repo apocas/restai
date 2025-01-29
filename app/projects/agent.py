@@ -71,10 +71,7 @@ class Agent(ProjectBase):
             if guard.verify(chatModel.question):
                 output["answer"] = project.model.censorship or self.brain.defaultCensorship
                 output["guard"] = True
-                output["tokens"] = {
-                  "input": tools.tokens_from_string(output["question"]),
-                  "output": tools.tokens_from_string(output["answer"])
-                }
+                self.brain.post_processing_counting(output)
                 yield output
                 
         model = self.brain.get_llm(project.model.llm, db)
@@ -98,10 +95,7 @@ class Agent(ProjectBase):
             else:
                 output = self.output(agent, chatModel.question, output, project)
                 
-                output["tokens"] = {
-                    "input": tools.tokens_from_string(output["question"]),
-                    "output": tools.tokens_from_string(output["answer"])
-                }
+                self.brain.post_processing_counting(output)
                 yield output
         except Exception as e:
             if chatModel.stream:
@@ -113,10 +107,7 @@ class Agent(ProjectBase):
             else:
                 if str(e) == "Reached max iterations.":
                     output["answer"] = project.model.censorship or "I'm sorry, I tried my best..."
-                    output["tokens"] = {
-                        "input": tools.tokens_from_string(output["question"]),
-                        "output": tools.tokens_from_string(output["answer"])
-                    }
+                    self.brain.post_processing_counting(output)
                     yield output
             raise e
   
@@ -138,10 +129,7 @@ class Agent(ProjectBase):
             if guard.verify(questionModel.question):
                 output["answer"] = project.model.censorship or self.brain.defaultCensorship
                 output["guard"] = True
-                output["tokens"] = {
-                  "input": tools.tokens_from_string(output["question"]),
-                  "output": tools.tokens_from_string(output["answer"])
-                }
+                self.brain.post_processing_counting(output)
                 yield output
                 
         model = self.brain.get_llm(project.model.llm, db)
@@ -155,9 +143,6 @@ class Agent(ProjectBase):
         
         output = self.output(agent, questionModel.question, output, project)
                
-        output["tokens"] = {
-            "input": tools.tokens_from_string(output["question"]),
-            "output": tools.tokens_from_string(output["answer"])
-        }
+        self.brain.post_processing_counting(output)
 
         yield output

@@ -19,7 +19,7 @@ class TextIngestModel(BaseModel):
 class FindModel(BaseModel):
     source: Union[str, None] = None
     text: Union[str, None] = None
-    score: Union[float, None] = None
+    score: Union[float, None] = 0.0
     k: Union[int, None] = None
 
 

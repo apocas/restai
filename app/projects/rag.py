@@ -41,13 +41,10 @@ class RAG(ProjectBase):
             if guard.verify(chatModel.question):
                 output["answer"] = project.model.censorship or self.brain.defaultCensorship
                 output["guard"] = True
-                output["tokens"] = {
-                  "input": tokens_from_string(output["question"]),
-                  "output": tokens_from_string(output["answer"])
-                }
+                self.brain.post_processing_counting(output)
                 yield output
 
-        threshold = project.model.score or 0.2
+        threshold = project.model.score or 0.0
         k = project.model.k or 1
 
         sysTemplate = project.model.system or self.brain.defaultSystem
@@ -116,11 +113,19 @@ class RAG(ProjectBase):
                         resp += text
                         yield "data: " + json.dumps({"text": text}) + "\n\n"
                     output["answer"] = resp
+                    
+                    self.brain.post_processing_reasoning(output)
+                    self.brain.post_processing_counting(output)
+                    
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
                 else:
                     output["answer"] = self.brain.defaultCensorship
                     yield "data: " + json.dumps({"text": "text"}) + "\n\n"
+                    
+                    self.brain.post_processing_reasoning(output)
+                    self.brain.post_processing_counting(output)
+                    
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
             else:  
@@ -132,10 +137,8 @@ class RAG(ProjectBase):
                     if project.cache:
                         project.cache.add(chatModel.question, response.response)
 
-                output["tokens"] = {
-                  "input": tokens_from_string(output["question"]),
-                  "output": tokens_from_string(output["answer"])
-                }
+                self.brain.post_processing_reasoning(output)
+                self.brain.post_processing_counting(output)
 
                 yield output
         except Exception as e:              
@@ -164,10 +167,7 @@ class RAG(ProjectBase):
             if guard.verify(questionModel.question):
                 output["answer"] = project.model.censorship or self.brain.defaultCensorship
                 output["guard"] = True
-                output["tokens"] = {
-                  "input": tokens_from_string(output["question"]),
-                  "output": tokens_from_string(output["answer"])
-                }
+                self.brain.post_processing_counting(output)
                 yield output
             
         model = self.brain.get_llm(project.model.llm, db)
@@ -255,11 +255,15 @@ class RAG(ProjectBase):
                     if failed:
                         yield "data: " + response.response_txt + "\n\n"
                     output["answer"] = answer
+                    self.brain.post_processing_reasoning(output)
+                    self.brain.post_processing_counting(output)
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
                 else :
                     output["answer"] = self.brain.defaultCensorship
                     yield "data: " + json.dumps({"text": self.brain.defaultCensorship}) + "\n\n"
+                    self.brain.post_processing_reasoning(output)
+                    self.brain.post_processing_counting(output)
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
             else:
@@ -271,10 +275,8 @@ class RAG(ProjectBase):
                     if project.cache:
                         project.cache.add(questionModel.question, response.response)
 
-                output["tokens"] = {
-                  "input": tokens_from_string(output["question"]),
-                  "output": tokens_from_string(output["answer"])
-                }
+                self.brain.post_processing_reasoning(output)
+                self.brain.post_processing_counting(output)
 
                 yield output
         except Exception as e:

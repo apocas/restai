@@ -22,6 +22,8 @@ from llama_index.core.storage.chat_store.base import BaseChatStore
 import tiktoken
 from llama_index.core import Settings
 from llama_index.core.callbacks import CallbackManager, TokenCountingHandler
+import re
+
 
 class Brain:
     def __init__(self):
@@ -34,14 +36,16 @@ class Brain:
             tokenizer=self.tokenizer
         )
         Settings.callback_manager = CallbackManager([self.token_counter])
-        
+
         if config.RESTAI_GPU:
             self.generators: list[FunctionTool] = tools.load_generators()
-            self.audio_generators: list[FunctionTool] = tools.load_audio_generators()
+            self.audio_generators: list[FunctionTool] = tools.load_audio_generators(
+            )
 
         self.chat_store: BaseChatStore
         if REDIS_HOST is not None:
-            self.chat_store = RedisChatStore(redis_url=f"redis://{REDIS_HOST}:{REDIS_PORT}")
+            self.chat_store = RedisChatStore(
+                redis_url=f"redis://{REDIS_HOST}:{REDIS_PORT}")
         else:
             self.chat_store = SimpleChatStore()
 
@@ -54,6 +58,31 @@ class Brain:
         if hasattr(llm.llm, 'system_prompt'):
             llm.llm.system_prompt = None
         return llm
+
+    def post_processing_reasoning(self, output):
+        think_content = None
+        think_pattern = re.compile(r'<think>(.*?)</think>', re.DOTALL)
+        match = think_pattern.search(output["answer"])
+        if match:
+            think_content = match.group(1).strip()
+            output["answer"] = think_pattern.sub('', output["answer"]).strip()
+            if think_content and "reasoning" not in output:
+                output["reasoning"] = {"output": think_content, "steps": [{"actions": [
+                    {"output": think_content, "action": "reasoning"}], "output": think_content}]}
+        return output
+      
+    def post_processing_counting(self, output):
+        if len(self.token_counter.llm_token_counts) > 0:
+            output["tokens"] = {
+                "input": self.token_counter.llm_token_counts[-1].prompt_token_count,
+                "output": self.token_counter.llm_token_counts[-1].completion_token_count
+            }
+            self.token_counter.reset_counts()
+        else:
+            output["tokens"] = {
+                "input": tools.tokens_from_string(output["question"]),
+                "output": tools.tokens_from_string(output["answer"])
+            }
 
     @staticmethod
     def load_llm(llmName: str, db: DBWrapper) -> Optional[LLM]:
@@ -72,7 +101,7 @@ class Brain:
             return LLM(llmName, llm_model, llm)
         else:
             return None
-    
+
     @staticmethod
     def get_embedding(embeddingName: str, db: DBWrapper) -> Optional[LLM]:
         embedding_db = db.get_embedding_by_name(embeddingName)
@@ -90,7 +119,8 @@ class Brain:
             return Embedding(embeddingName, embedding_model, embedding)
         else:
             if embeddingName in EMBEDDINGS:
-                embedding_class, embedding_args, privacy, description, dimension = EMBEDDINGS[embeddingName]
+                embedding_class, embedding_args, privacy, description, dimension = EMBEDDINGS[
+                    embeddingName]
                 model = LangchainEmbedding(embedding_class(**embedding_args))
                 return Embedding(embeddingName, EmbeddingModel(name=embeddingName, class_name="LangChain", options="{}", privacy=privacy, description=description, dimension=dimension), model)
             else:
@@ -100,16 +130,17 @@ class Brain:
         p: Optional[ProjectDatabase] = db.get_project_by_name(name)
         if p is None:
             return None
-          
+
         proj: ProjectModel = ProjectModel.model_validate(p)
         if proj is None:
             return None
-          
+
         project: Project = Project(proj)
         project.model = proj
         if project.model.type == "rag":
             try:
-                project.vector = vector_tools.find_vector_db(project)(self, project, self.get_embedding(project.model.embeddings, db))
+                project.vector = vector_tools.find_vector_db(project)(
+                    self, project, self.get_embedding(project.model.embeddings, db))
             except Exception as e:
                 logging.error(e)
                 traceback.print_tb(e.__traceback__)

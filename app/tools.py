@@ -16,16 +16,23 @@ DEFAULT_LLMS = {
     "openai_gpt4o": ("OpenAI", {"temperature": 0, "model": "gpt-4o"}, "public", "OpenAI GPT-4o", "chat"),
     "openai_gpt4o_mini": ("OpenAI", {"temperature": 0, "model": "gpt-4o-mini"}, "public", "OpenAI GPT-4o Mini", "chat"),
     "llama31_8b": ("Ollama", {"model": "llama3.1", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llama3.1", "chat"),
-    "llama33_70b": ("Ollama", {"model": "llama3.3", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llama3.3", "chat"),
-    "deepseek-r1_70b": ("Ollama", {"model": "deepseek-r1:70b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/deepseek-r1:70b", "chat"),
+    "llama33_70b": ("Ollama", {"model": "llama3.3", "temperature": 0.0001, "keep_alive": -1, "request_timeout": 120}, "private", "https://ollama.com/library/llama3.3", "chat"),
+    "deepseek-r1_70b": ("Ollama", {"model": "deepseek-r1:70b", "temperature": 0.0001, "keep_alive": -1, "request_timeout": 120}, "private", "https://ollama.com/library/deepseek-r1:70b", "chat"),
+    "deepseek-r1_14b": ("Ollama", {"model": "deepseek-r1:14b", "temperature": 0.0001, "keep_alive": -1, "request_timeout": 120}, "private", "https://ollama.com/library/deepseek-r1:14b", "chat"),
+    "deepseek-r1_32b": ("Ollama", {"model": "deepseek-r1:32b", "temperature": 0.0001, "keep_alive": -1, "request_timeout": 120}, "private", "https://ollama.com/library/deepseek-r1:32b", "chat"),
     "llava16_13b": ("OllamaMultiModal", {"model": "llava:13b-v1.6", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llava", "vision"),
-    "minicpm-v": ("OllamaMultiModal", {"model": "minicpm-v", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "	https://ollama.com/library/minicpm-v", "vision"),
+    "llava_13b": ("OllamaMultiModal", {"model": "llava:13b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llava", "vision"),
+    "llava_34b": ("OllamaMultiModal", {"model": "llava:34b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llava", "vision"),
+    "minicpm-v": ("OllamaMultiModal", {"model": "minicpm-v", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/minicpm-v", "vision"),
+    "llama32_11b_vision": ("OllamaMultiModal", {"model": "llama3.2-vision", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llama3.2-vision", "vision"),
 }
 
 DEFAULT_EMBEDDINGS = {
-    # "name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa"),
+    # "name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", dimension),
     "nomic-embed-text": ("OllamaEmbeddings", {"model_name": "nomic-embed-text", "keep_alive": 0, "mirostat": 0}, "private",
                          "https://ollama.com/library/nomic-embed-text", 768),
+    "mxbai-embed-large": ("OllamaEmbeddings", {"model_name": "mxbai-embed-large", "keep_alive": 0, "mirostat": 0}, "private",
+                         "https://ollama.com/library/mxbai-embed-large", 768),
 }
 
 
