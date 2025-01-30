@@ -32,7 +32,7 @@ DEFAULT_EMBEDDINGS = {
     "nomic-embed-text": ("OllamaEmbeddings", {"model_name": "nomic-embed-text", "keep_alive": 0, "mirostat": 0}, "private",
                          "https://ollama.com/library/nomic-embed-text", 768),
     "mxbai-embed-large": ("OllamaEmbeddings", {"model_name": "mxbai-embed-large", "keep_alive": 0, "mirostat": 0}, "private",
-                         "https://ollama.com/library/mxbai-embed-large", 768),
+                         "https://ollama.com/library/mxbai-embed-large", 1536),
 }
 
 
