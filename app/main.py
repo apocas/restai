@@ -127,7 +127,7 @@ app = FastAPI(
                 " Built on top of Llamaindex, Langchain and Transformers."
                 " Supports any public LLM supported by LlamaIndex"
                 " and any local LLM suported by Ollama. Precise embeddings usage and tuning.",
-    version="5.0.2",
+    version="5.0.3",
     contact={
         "name": "Pedro Dias",
         "url": "https://github.com/apocas/restai",
