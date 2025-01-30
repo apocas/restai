@@ -29,9 +29,21 @@ def get_current_username(
         db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
     auth_header = request.headers.get('Authorization')
-    credentials = None
+    auth_cookie = request.cookies.get("restai_token")
     
-    if auth_header:
+    if auth_cookie:
+        try:
+            data = jwt.decode(auth_cookie, RESTAI_AUTH_SECRET, algorithms=["HS512"])
+
+            user = db_wrapper.get_user_by_username(data["username"])
+
+            return User.model_validate(user)
+        except Exception:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+    elif auth_header:
         temp_bearer_token = auth_header.split(" ")[1]
         
         if "Bearer" in auth_header:            
@@ -81,25 +93,7 @@ def get_current_username(
                 return User.model_validate(user)
                 
             except Exception:
-                pass
-    else:
-        jwt_token = request.cookies.get("restai_token")
-
-        if jwt_token:
-            try:
-                data = jwt.decode(jwt_token, RESTAI_AUTH_SECRET, algorithms=["HS512"])
-
-                user = db_wrapper.get_user_by_username(data["username"])
-
-                return User.model_validate(user)
-            except Exception:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Invalid token"
-                )
-
-
-  
+                pass  
 
 
 def get_current_username_admin(user: User = Depends(get_current_username)):
