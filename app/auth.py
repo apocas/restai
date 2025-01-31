@@ -93,7 +93,13 @@ def get_current_username(
                 return User.model_validate(user)
                 
             except Exception:
-                pass  
+                pass
+    else:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid credentials"
+        )
+
 
 
 def get_current_username_admin(user: User = Depends(get_current_username)):
