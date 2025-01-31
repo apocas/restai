@@ -44,7 +44,7 @@ async def get_sso(request: Request, db_wrapper: DBWrapper = Depends(get_db_wrapp
         data={"username": user.username}, expires_delta=timedelta(minutes=1440))
 
     response = RedirectResponse("./admin")
-    response.set_cookie(key="restai_token", value=new_token, samesite="strict", expires=86400, httponly=True)
+    response.set_cookie(key="restai_token", value=new_token, samesite="strict", expires=86400)
 
     return response
 
