@@ -40,6 +40,7 @@ class ProjectDatabase(Base):
     default_prompt = Column(Text)
     users = relationship('UserDatabase', secondary=users_projects, back_populates='projects')
     entrances = relationship("RouterEntrancesDatabase", back_populates="project")
+    #outputs = relationship("OutputDatabase", back_populates="project")
 
 class UserDatabase(Base):
     __tablename__ = "users"
@@ -58,11 +59,17 @@ class OutputDatabase(Base):
     __tablename__ = "output"
 
     id = Column(Integer, primary_key=True, index=True)
-    user = Column(String(255))
-    project = Column(String(255), index=True)
     question = Column(Text)
     answer = Column(Text)
-    data = Column(Text)
+    
+    project_id = Column(Integer, ForeignKey('projects.id'))
+    user_id = Column(Integer, ForeignKey('users.id'))
+    
+    llm = Column(String(255))
+    
+    input_tokens = Column(Integer)
+    output_tokens = Column(Integer)
+    
     date = Column(DateTime)
     
 class RouterEntrancesDatabase(Base):

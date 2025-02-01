@@ -25,6 +25,7 @@ from app.project import Project
 from app.vectordb import tools
 from app.vectordb.tools import find_file_loader, extract_keywords_for_metadata, index_documents_classic, index_documents_docling
 from modules.embeddings import EMBEDDINGS
+from app.models.databasemodels import OutputDatabase
 
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -672,3 +673,13 @@ async def question_query_endpoint(
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=500, detail=str(e))
+
+
+@router.get("/projects/{projectName}/tokens")
+async def get_token_consumption(projectName: str, db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    project = db_wrapper.get_project_by_name(projectName)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    token_consumptions = db_wrapper.db.query(OutputDatabase).filter_by(project_id=project.id).all()
+    return {"token_consumptions": [{"input_tokens": tc.input_tokens, "output_tokens": tc.output_tokens, "timestamp": tc.timestamp} for tc in token_consumptions]}

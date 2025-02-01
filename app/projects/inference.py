@@ -7,7 +7,6 @@ from app.guard import Guard
 from app.models.models import ChatModel, QuestionModel, User
 from app.project import Project
 from app.projects.base import ProjectBase
-from app.tools import tokens_from_string
 
 
 class Inference(ProjectBase):
@@ -69,7 +68,10 @@ class Inference(ProjectBase):
                 yield "event: close\n\n"
             else:
                 resp = model.llm.chat(messages)
-                output["answer"] = resp.message.content.strip()
+                if resp.message and resp.message.content:
+                    output["answer"] = resp.message.content.strip()
+                else:
+                    output["answer"] = ""
                 
                 chat.memory.chat_store.add_message(chat.memory.chat_store_key, ChatMessage(role=MessageRole.ASSISTANT,
                                                                                            content=resp.message.content.strip()))

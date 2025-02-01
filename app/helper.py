@@ -55,7 +55,7 @@ async def chat_main(
     else:
         output = proj_logic.chat(project, chat_input, user, db)
         for line in output:
-            background_tasks.add_task(log_inference, user, line, db)
+            background_tasks.add_task(log_inference, project, user, line, db)
             return line
 
 
@@ -71,7 +71,7 @@ async def question_main(
         case "rag":
             cached = await process_cache(project, q_input)
             if cached:
-                background_tasks.add_task(log_inference, user, cached, db)
+                background_tasks.add_task(log_inference, project, user, cached, db)
                 return cached
             return await question_rag(request, brain, project, q_input, user, db, background_tasks)
         case "inference":
@@ -109,7 +109,7 @@ async def question_rag(
         else:
             output = proj_logic.question(project, q_input, user, db)
             for line in output:
-                background_tasks.add_task(log_inference, user, line, db)
+                background_tasks.add_task(log_inference, project, user, line, db)
                 return line
     except Exception as e:
         logging.error(e)
@@ -192,7 +192,7 @@ async def question_inference(
         else:
             output = proj_logic.question(project, q_input, user, db)
             for line in output:
-                background_tasks.add_task(log_inference, user, line, db)
+                background_tasks.add_task(log_inference, project, user, line, db)
                 return line
 
     except Exception as e:
@@ -215,7 +215,7 @@ async def question_agent(
         output = projLogic.question(project, q_input, user, db)
 
         for line in output:
-            background_tasks.add_task(log_inference, user, line, db)
+            background_tasks.add_task(log_inference, project, user, line, db)
             return line
 
     except Exception as e:
@@ -242,7 +242,7 @@ async def question_query_sql(
 
         output = projLogic.question(project, q_input, user, db)
 
-        background_tasks.add_task(log_inference, user, output, db)
+        background_tasks.add_task(log_inference, project, user, output, db)
 
         return output
     except Exception as e:

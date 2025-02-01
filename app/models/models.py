@@ -99,6 +99,7 @@ class ProjectUser(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
 class ProjectModel(BaseModel):
+    id: int
     name: str
     embeddings: Union[str, None] = None
     llm: str

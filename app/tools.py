@@ -32,7 +32,7 @@ DEFAULT_EMBEDDINGS = {
     "nomic-embed-text": ("OllamaEmbeddings", {"model_name": "nomic-embed-text", "keep_alive": 0, "mirostat": 0}, "private",
                          "https://ollama.com/library/nomic-embed-text", 768),
     "mxbai-embed-large": ("OllamaEmbeddings", {"model_name": "mxbai-embed-large", "keep_alive": 0, "mirostat": 0}, "private",
-                         "https://ollama.com/library/mxbai-embed-large", 1536),
+                          "https://ollama.com/library/mxbai-embed-large", 1536),
 }
 
 
@@ -206,7 +206,16 @@ def get_logger(name, level=logging.INFO):
     return logger
 
 
-def log_inference(user, output, db: DBWrapper):
-    db.db.add(OutputDatabase(user=user.username, question=output["question"], answer=output["answer"],
-                             data=json.dumps(output), date=datetime.now(), project=output["project"]))
+def log_inference(project, user, output, db: DBWrapper):
+    db.db.add(OutputDatabase(
+        user_id=user.id,
+        llm=project.model.llm,
+        question=output["question"],
+        answer=output["answer"],
+        date=datetime.now(),
+        project_id=project.model.id,
+        input_tokens=output["tokens"]["input"],
+        output_tokens=output["tokens"]["output"],
+    ))
+
     db.db.commit()
