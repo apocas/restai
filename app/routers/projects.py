@@ -26,6 +26,8 @@ from app.vectordb import tools
 from app.vectordb.tools import find_file_loader, extract_keywords_for_metadata, index_documents_classic, index_documents_docling
 from modules.embeddings import EMBEDDINGS
 from app.models.databasemodels import OutputDatabase
+import datetime
+from sqlalchemy import func
 
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -676,10 +678,39 @@ async def question_query_endpoint(
 
 
 @router.get("/projects/{projectName}/tokens")
-async def get_token_consumption(projectName: str, db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def get_token_consumption(projectName: str, start: int = 0, end: int = 10, _: User = Depends(get_current_username_project), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     project = db_wrapper.get_project_by_name(projectName)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    token_consumptions = db_wrapper.db.query(OutputDatabase).filter_by(project_id=project.id).all()
-    return {"token_consumptions": [{"input_tokens": tc.input_tokens, "output_tokens": tc.output_tokens, "timestamp": tc.timestamp} for tc in token_consumptions]}
+    token_consumptions = db_wrapper.db.query(OutputDatabase).filter_by(project_id=project.id).order_by(OutputDatabase.date.desc()).offset(start).limit(end - start).all()
+    return {"token_consumptions": [{"input_tokens": tc.input_tokens, "output_tokens": tc.output_tokens, "timestamp": tc.date} for tc in token_consumptions]}
+
+
+@router.get("/projects/{projectName}/tokens/daily")
+async def get_daily_token_consumption(projectName: str, days: int = 30, _: User = Depends(get_current_username_project), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    project = db_wrapper.get_project_by_name(projectName)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    end_date = datetime.datetime.now(datetime.timezone.utc)
+    start_date = end_date - datetime.timedelta(days=days)
+
+    token_consumptions = db_wrapper.db.query(
+        func.date(OutputDatabase.date).label('date'),
+        func.sum(OutputDatabase.input_tokens).label('input_tokens'),
+        func.sum(OutputDatabase.output_tokens).label('output_tokens')
+    ).filter(
+        OutputDatabase.project_id == project.id,
+        OutputDatabase.date >= start_date,
+        OutputDatabase.date <= end_date
+    ).group_by(
+        func.date(OutputDatabase.date)
+    ).all()
+
+    return {
+        "tokens": [
+            {"date": tc.date, "input_tokens": tc.input_tokens, "output_tokens": tc.output_tokens}
+            for tc in token_consumptions
+        ]
+    }
