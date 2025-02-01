@@ -1,7 +1,6 @@
 import json
 import logging
 from llama_index.core.base.llms.types import ChatMessage, MessageRole
-from app import tools
 from app.chat import Chat
 from app.database import DBWrapper
 from app.guard import Guard
@@ -54,10 +53,12 @@ class Inference(ProjectBase):
         try:
             if chat_model.stream:
                 resp_gen = model.llm.stream_chat(messages)
-                response = ""
+                # Collect parts instead of appending string repeatedly
+                parts = []
                 for text in resp_gen:
-                    response += text.delta
+                    parts.append(text.delta)
                     yield "data: " + json.dumps({"text": text.delta}) + "\n\n"
+                response = "".join(parts)
                 output["answer"] = response
                 chat.memory.chat_store.add_message(chat.memory.chat_store_key,
                                                    ChatMessage(role=MessageRole.ASSISTANT, content=response))
