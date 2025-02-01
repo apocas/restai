@@ -10,6 +10,8 @@ import tiktoken
 
 from app.database import DBWrapper
 from app.models.databasemodels import OutputDatabase
+from app.models.models import User
+from app.project import Project
 
 DEFAULT_LLMS = {
     # "name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa"),
@@ -192,7 +194,7 @@ def tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
     return num_tokens
 
 
-def get_logger(name, level=logging.INFO):
+def get_logger(name: str, level=logging.INFO):
     """To set up as many loggers as you want"""
 
     handler = logging.FileHandler("./logs/" + name + ".log")
@@ -206,7 +208,7 @@ def get_logger(name, level=logging.INFO):
     return logger
 
 
-def log_inference(project, user, output, db: DBWrapper):
+def log_inference(project: Project, user: User, output, db: DBWrapper):
     db.db.add(OutputDatabase(
         user_id=user.id,
         llm=project.model.llm,
