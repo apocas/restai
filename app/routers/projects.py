@@ -130,10 +130,9 @@ async def route_get_project(request: Request,
 
         return final_output
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
+        logging.exception(e)
         raise HTTPException(
-            status_code=404, detail=str(e))
+            status_code=500, detail="Internal server error")
 
 
 @router.delete("/projects/{projectName}")
@@ -154,10 +153,9 @@ async def route_delete_project(request: Request,
         return {"project": projectName}
 
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
+        logging.exception(e)
         raise HTTPException(
-            status_code=500, detail=str(e))
+            status_code=500, detail="Internal server error")
 
 
 @router.patch("/projects/{projectName}")
@@ -185,10 +183,9 @@ async def route_edit_project(request: Request,
             raise HTTPException(
                 status_code=404, detail='Project not found')
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
+        logging.exception(e)
         raise HTTPException(
-            status_code=500, detail=str(e))
+            status_code=500, detail="Internal server error")
 
 
 @router.post("/projects")
@@ -269,10 +266,9 @@ async def route_create_project(request: Request,
         db_wrapper.db.commit()
         return {"project": projectModel.name}
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
+        logging.exception(e)
         raise HTTPException(
-            status_code=500, detail=str(e))
+            status_code=500, detail="Internal server error")
 
 
 @router.post("/projects/{projectName}/embeddings/reset")
@@ -292,121 +288,135 @@ async def reset_embeddings(
 
         return {"project": project.model.name}
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
+        logging.exception(e)
         raise HTTPException(
-            status_code=404, detail=str(e))
+            status_code=500, detail="Internal server error")
 
 
 @router.post("/projects/{projectName}/clone/{newProjectName}")
 async def clone_project(request: Request, projectName: str, newProjectName: str,
                         _: User = Depends(get_current_username_project),
                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    project = request.app.state.brain.find_project(projectName, db_wrapper)
-    if project is None:
+    try:
+        project = request.app.state.brain.find_project(projectName, db_wrapper)
+        if project is None:
+            raise HTTPException(
+                status_code=404, detail='Project not found')
+
+        newProject = db_wrapper.get_project_by_name(newProjectName)
+        if newProject is not None:
+            raise HTTPException(
+                status_code=403, detail='Project already exists')
+
+        project_db = db_wrapper.get_project_by_name(projectName)
+
+        newProject_db = db_wrapper.create_project(
+            newProjectName,
+            project.model.embeddings,
+            project.model.llm,
+            project.model.vectorstore,
+            project.model.type
+        )
+
+        newProject_db.system = project.model.system
+        newProject_db.censorship = project.model.censorship
+        newProject_db.k = project.model.k
+        newProject_db.score = project.model.score
+        newProject_db.llm_rerank = project.model.llm_rerank
+        newProject_db.colbert_rerank = project.model.colbert_rerank
+        newProject_db.cache = project.model.cache
+        newProject_db.cache_threshold = project.model.cache_threshold
+        newProject_db.guard = project.model.guard
+        newProject_db.human_name = project.model.human_name
+        newProject_db.human_description = project.model.human_description
+        newProject_db.tables = project.model.tables
+        newProject_db.connection = project.model.connection
+
+        for user in project_db.users:
+            newProject_db.users.append(user)
+
+        for entrance in project_db.entrances:
+            newProject_db.entrances.append(entrance)
+
+        db_wrapper.db.commit()
+
+        return {"project": newProjectName}
+    except Exception as e:
+        logging.exception(e)
         raise HTTPException(
-            status_code=404, detail='Project not found')
-
-    newProject = db_wrapper.get_project_by_name(newProjectName)
-    if newProject is not None:
-        raise HTTPException(
-            status_code=403, detail='Project already exists')
-
-    project_db = db_wrapper.get_project_by_name(projectName)
-
-    newProject_db = db_wrapper.create_project(
-        newProjectName,
-        project.model.embeddings,
-        project.model.llm,
-        project.model.vectorstore,
-        project.model.type
-    )
-
-    newProject_db.system = project.model.system
-    newProject_db.censorship = project.model.censorship
-    newProject_db.k = project.model.k
-    newProject_db.score = project.model.score
-    newProject_db.llm_rerank = project.model.llm_rerank
-    newProject_db.colbert_rerank = project.model.colbert_rerank
-    newProject_db.cache = project.model.cache
-    newProject_db.cache_threshold = project.model.cache_threshold
-    newProject_db.guard = project.model.guard
-    newProject_db.human_name = project.model.human_name
-    newProject_db.human_description = project.model.human_description
-    newProject_db.tables = project.model.tables
-    newProject_db.connection = project.model.connection
-
-    for user in project_db.users:
-        newProject_db.users.append(user)
-
-    for entrance in project_db.entrances:
-        newProject_db.entrances.append(entrance)
-
-    db_wrapper.db.commit()
-
-    return {"project": newProjectName}
+            status_code=500, detail="Internal server error")
 
 
 @router.post("/projects/{projectName}/embeddings/search")
 async def find_embedding(request: Request, projectName: str, embedding: FindModel,
                          _: User = Depends(get_current_username_project_public),
                          db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    project = request.app.state.brain.find_project(projectName, db_wrapper)
+    try:
+        project = request.app.state.brain.find_project(projectName, db_wrapper)
 
-    if project.model.type != "rag":
+        if project.model.type != "rag":
+            raise HTTPException(
+                status_code=400, detail="Only available for RAG projects.")
+
+        output = []
+
+        if embedding.text:
+            k = embedding.k or project.model.k or 2
+
+            if embedding.score is not None:
+                threshold = embedding.score
+            else:
+                threshold = embedding.score or project.model.score or 0.2
+
+            retriever = VectorIndexRetriever(
+                index=project.vector.index,
+                similarity_top_k=k,
+            )
+
+            query_engine = RetrieverQueryEngine.from_args(
+                retriever=retriever,
+                node_postprocessors=[SimilarityPostprocessor(
+                    similarity_cutoff=threshold)],
+                response_mode=ResponseMode.NO_TEXT
+            )
+
+            response = query_engine.query(embedding.text)
+
+            for node in response.source_nodes:
+                output.append(
+                    {"source": node.metadata["source"], "score": node.score, "id": node.node_id})
+
+        elif embedding.source:
+            output = project.vector.list_source(embedding.source)
+
+        return {"embeddings": output}
+    except Exception as e:
+        logging.exception(e)
         raise HTTPException(
-            status_code=400, detail="Only available for RAG projects.")
-
-    output = []
-
-    if embedding.text:
-        k = embedding.k or project.model.k or 2
-
-        if embedding.score is not None:
-            threshold = embedding.score
-        else:
-            threshold = embedding.score or project.model.score or 0.2
-
-        retriever = VectorIndexRetriever(
-            index=project.vector.index,
-            similarity_top_k=k,
-        )
-
-        query_engine = RetrieverQueryEngine.from_args(
-            retriever=retriever,
-            node_postprocessors=[SimilarityPostprocessor(
-                similarity_cutoff=threshold)],
-            response_mode=ResponseMode.NO_TEXT
-        )
-
-        response = query_engine.query(embedding.text)
-
-        for node in response.source_nodes:
-            output.append(
-                {"source": node.metadata["source"], "score": node.score, "id": node.node_id})
-
-    elif embedding.source:
-        output = project.vector.list_source(embedding.source)
-
-    return {"embeddings": output}
+            status_code=500, detail="Internal server error")
 
 
 @router.get("/projects/{projectName}/embeddings/source/{source}")
 async def get_embedding(request: Request, projectName: str, source: str,
                         _: User = Depends(get_current_username_project_public),
                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    project = request.app.state.brain.find_project(projectName, db_wrapper)
+    try:
+        project = request.app.state.brain.find_project(projectName, db_wrapper)
 
-    if project.model.type != "rag":
+        if project.model.type != "rag":
+            raise HTTPException(
+                status_code=400, detail="Only available for RAG projects.")
+
+        docs = project.vector.find_source(base64.b64decode(source).decode('utf-8'))
+
+        if len(docs['ids']) == 0:
+            return {"ids": []}
+        else:
+            return docs
+    except Exception as e:
+        logging.exception(e)
         raise HTTPException(
-            status_code=400, detail="Only available for RAG projects.")
-
-    docs = project.vector.find_source(base64.b64decode(source).decode('utf-8'))
-
-    if len(docs['ids']) == 0:
-        return {"ids": []}
-    else:
-        return docs
+            status_code=500, detail="Internal server error")
 
 
 @router.get("/projects/{projectName}/embeddings/id/{embedding_id}")
@@ -414,14 +424,19 @@ async def get_embedding(request: Request, projectName: str,
                         embedding_id: str,
                         _: User = Depends(get_current_username_project_public),
                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    project = request.app.state.brain.find_project(projectName, db_wrapper)
+    try:
+        project = request.app.state.brain.find_project(projectName, db_wrapper)
 
-    if project.model.type != "rag":
+        if project.model.type != "rag":
+            raise HTTPException(
+                status_code=400, detail="Only available for RAG projects.")
+
+        chunk = project.vector.find_id(embedding_id)
+        return chunk
+    except Exception as e:
+        logging.exception(e)
         raise HTTPException(
-            status_code=400, detail="Only available for RAG projects.")
-
-    chunk = project.vector.find_id(embedding_id)
-    return chunk
+            status_code=500, detail="Internal server error")
 
 
 @router.post("/projects/{projectName}/embeddings/ingest/text", response_model=IngestResponse)
@@ -452,10 +467,9 @@ async def ingest_text(request: Request, projectName: str, ingest: TextIngestMode
 
         return {"source": ingest.source, "documents": len(documents), "chunks": n_chunks}
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
+        logging.exception(e)
         raise HTTPException(
-            status_code=500, detail=str(e))
+            status_code=500, detail="Internal server error")
 
 
 @router.post("/projects/{projectName}/embeddings/ingest/url", response_model=IngestResponse)
@@ -492,10 +506,9 @@ async def ingest_url(request: Request, projectName: str, ingest: URLIngestModel,
 
         return {"source": ingest.url, "documents": len(documents), "chunks": n_chunks}
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
+        logging.exception(e)
         raise HTTPException(
-            status_code=500, detail=str(e))
+            status_code=500, detail="Internal server error")
 
 
 @router.post("/projects/{projectName}/embeddings/ingest/upload", response_model=IngestResponse)
@@ -579,11 +592,9 @@ async def ingest_file(
             "source": file.filename,
             "documents": len(documents), "chunks": n_chunks}
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-
+        logging.exception(e)
         raise HTTPException(
-            status_code=500, detail="Error while indexing data.")
+            status_code=500, detail="Internal server error")
 
 
 @router.get('/projects/{projectName}/embeddings')
@@ -592,18 +603,23 @@ async def get_embeddings(
         projectName: str,
         _: User = Depends(get_current_username_project_public),
         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    project = request.app.state.brain.find_project(projectName, db_wrapper)
+    try:
+        project = request.app.state.brain.find_project(projectName, db_wrapper)
 
-    if project.model.type != "rag":
+        if project.model.type != "rag":
+            raise HTTPException(
+                status_code=400, detail="Only available for RAG projects.")
+
+        if project.vector is not None:
+            output = project.vector.list()
+        else:
+            output = []
+
+        return {"embeddings": output}
+    except Exception as e:
+        logging.exception(e)
         raise HTTPException(
-            status_code=400, detail="Only available for RAG projects.")
-
-    if project.vector is not None:
-        output = project.vector.list()
-    else:
-        output = []
-
-    return {"embeddings": output}
+            status_code=500, detail="Internal server error")
 
 
 @router.delete('/projects/{projectName}/embeddings/{source}')
@@ -613,15 +629,20 @@ async def delete_embedding(
         source: str,
         _: User = Depends(get_current_username_project),
         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    project = request.app.state.brain.find_project(projectName, db_wrapper)
+    try:
+        project = request.app.state.brain.find_project(projectName, db_wrapper)
 
-    if project.model.type != "rag":
+        if project.model.type != "rag":
+            raise HTTPException(
+                status_code=400, detail="Only available for RAG projects.")
+
+        ids = project.vector.delete_source(base64.b64decode(source).decode('utf-8'))
+
+        return {"deleted": len(ids)}
+    except Exception as e:
+        logging.exception(e)
         raise HTTPException(
-            status_code=400, detail="Only available for RAG projects.")
-
-    ids = project.vector.delete_source(base64.b64decode(source).decode('utf-8'))
-
-    return {"deleted": len(ids)}
+            status_code=500, detail="Internal server error")
 
 
 @router.post("/projects/{projectName}/chat")
@@ -643,10 +664,9 @@ async def chat_query(
 
         return await chat_main(request, request.app.state.brain, project, q_input, user, db_wrapper, background_tasks)
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
+        logging.exception(e)
         raise HTTPException(
-            status_code=500, detail=str(e))
+            status_code=500, detail="Internal server error")
 
 
 @router.post("/projects/{projectName}/question")
@@ -671,46 +691,55 @@ async def question_query_endpoint(
 
         return await question_main(request, request.app.state.brain, project, q_input, user, db_wrapper, background_tasks)
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
+        logging.exception(e)
         raise HTTPException(
-            status_code=500, detail=str(e))
+            status_code=500, detail="Internal server error")
 
 
 @router.get("/projects/{projectName}/tokens")
 async def get_token_consumption(projectName: str, start: int = 0, end: int = 10, _: User = Depends(get_current_username_project), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    project = db_wrapper.get_project_by_name(projectName)
-    if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+    try:
+        project = db_wrapper.get_project_by_name(projectName)
+        if project is None:
+            raise HTTPException(status_code=404, detail="Project not found")
 
-    token_consumptions = db_wrapper.db.query(OutputDatabase).filter_by(project_id=project.id).order_by(OutputDatabase.date.desc()).offset(start).limit(end - start).all()
-    return {"token_consumptions": [{"input_tokens": tc.input_tokens, "output_tokens": tc.output_tokens, "timestamp": tc.date} for tc in token_consumptions]}
+        token_consumptions = db_wrapper.db.query(OutputDatabase).filter_by(project_id=project.id).order_by(OutputDatabase.date.desc()).offset(start).limit(end - start).all()
+        return {"token_consumptions": [{"input_tokens": tc.input_tokens, "output_tokens": tc.output_tokens, "timestamp": tc.date} for tc in token_consumptions]}
+    except Exception as e:
+        logging.exception(e)
+        raise HTTPException(
+            status_code=500, detail="Internal server error")
 
 
 @router.get("/projects/{projectName}/tokens/daily")
 async def get_daily_token_consumption(projectName: str, days: int = 30, _: User = Depends(get_current_username_project), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    project = db_wrapper.get_project_by_name(projectName)
-    if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
+    try:
+        project = db_wrapper.get_project_by_name(projectName)
+        if project is None:
+            raise HTTPException(status_code=404, detail="Project not found")
 
-    end_date = datetime.datetime.now(datetime.timezone.utc)
-    start_date = end_date - datetime.timedelta(days=days)
+        end_date = datetime.datetime.now(datetime.timezone.utc)
+        start_date = end_date - datetime.timedelta(days=days)
 
-    token_consumptions = db_wrapper.db.query(
-        func.date(OutputDatabase.date).label('date'),
-        func.sum(OutputDatabase.input_tokens).label('input_tokens'),
-        func.sum(OutputDatabase.output_tokens).label('output_tokens')
-    ).filter(
-        OutputDatabase.project_id == project.id,
-        OutputDatabase.date >= start_date,
-        OutputDatabase.date <= end_date
-    ).group_by(
-        func.date(OutputDatabase.date)
-    ).all()
+        token_consumptions = db_wrapper.db.query(
+            func.date(OutputDatabase.date).label('date'),
+            func.sum(OutputDatabase.input_tokens).label('input_tokens'),
+            func.sum(OutputDatabase.output_tokens).label('output_tokens')
+        ).filter(
+            OutputDatabase.project_id == project.id,
+            OutputDatabase.date >= start_date,
+            OutputDatabase.date <= end_date
+        ).group_by(
+            func.date(OutputDatabase.date)
+        ).all()
 
-    return {
-        "tokens": [
-            {"date": tc.date, "input_tokens": tc.input_tokens, "output_tokens": tc.output_tokens}
-            for tc in token_consumptions
-        ]
-    }
+        return {
+            "tokens": [
+                {"date": tc.date, "input_tokens": tc.input_tokens, "output_tokens": tc.output_tokens}
+                for tc in token_consumptions
+            ]
+        }
+    except Exception as e:
+        logging.exception(e)
+        raise HTTPException(
+            status_code=500, detail="Internal server error")

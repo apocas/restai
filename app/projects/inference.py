@@ -1,4 +1,5 @@
 import json
+import logging
 from llama_index.core.base.llms.types import ChatMessage, MessageRole
 from app import tools
 from app.chat import Chat
@@ -81,6 +82,7 @@ class Inference(ProjectBase):
 
                 yield output
         except Exception as e:
+            logging.exception(e)
             if chat_model.stream:
                 yield "data: Inference failed\n"
                 yield "event: error\n\n"
@@ -145,6 +147,7 @@ class Inference(ProjectBase):
                 
                 yield output
         except Exception as e:
+            logging.exception(e)
             if question_model.stream:
                 yield "data: Inference failed\n"
                 yield "event: error\n\n"
