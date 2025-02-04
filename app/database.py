@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine
+from app import config
 from app.models.databasemodels import LLMDatabase, EmbeddingDatabase, ProjectDatabase, RouterEntrancesDatabase, UserDatabase
 from app.models.models import LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate, EmbeddingModel, EmbeddingUpdate
 from sqlalchemy.orm import sessionmaker, Session
@@ -9,24 +10,24 @@ from app.config import MYSQL_HOST, MYSQL_URL, POSTGRES_HOST, POSTGRES_URL
 if MYSQL_HOST:
     print("Using MySQL database: " + MYSQL_HOST)
     engine = create_engine(MYSQL_URL,
-                           pool_size=100,
-                           max_overflow=300,
-                           pool_recycle=300)
+                           pool_size=config.DB_POOL_SIZE,
+                           max_overflow=config.DB_MAX_OVERFLOW,
+                           pool_recycle=config.DB_POOL_RECYCLE)
 elif POSTGRES_HOST:
     print("Using PostgreSQL database")
     engine = create_engine(POSTGRES_URL,
-                           pool_size=100,
-                           max_overflow=300,
-                           pool_recycle=300)
+                           pool_size=config.DB_POOL_SIZE,
+                           max_overflow=config.DB_MAX_OVERFLOW,
+                           pool_recycle=config.DB_POOL_RECYCLE)
 else:
     print("Using sqlite database.")
     engine = create_engine(
         "sqlite:///./restai.db",
         connect_args={
             "check_same_thread": False},
-        pool_size=100,
-        max_overflow=300,
-        pool_recycle=300)
+        pool_size=config.DB_POOL_SIZE,
+        max_overflow=config.DB_POOL_RECYCLE,
+        pool_recycle=config.DB_POOL_RECYCLE)
 
 SessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=engine)

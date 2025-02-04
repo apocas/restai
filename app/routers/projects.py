@@ -47,7 +47,6 @@ async def route_get_projects(_: Request,
                              v_filter: str = Query("own", alias="filter"),
                              user: User = Depends(get_current_username),
                              db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    # get projects only once instead of iterating multiple times
     all_projects = db_wrapper.get_projects()
     if v_filter == "own":
         projects = all_projects if user.is_admin else [p for p in all_projects if p.name in {proj.name for proj in user.projects}]

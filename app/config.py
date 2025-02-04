@@ -65,4 +65,9 @@ RESTAI_DEFAULT_DEVICE = os.environ.get("RESTAI_DEFAULT_DEVICE")
 
 EMBEDDINGS_PATH = os.environ.get("EMBEDDINGS_PATH")
 
+# Database connection pool settings
+DB_POOL_SIZE = int(os.environ.get("DB_POOL_SIZE", 100))
+DB_MAX_OVERFLOW = int(os.environ.get("DB_MAX_OVERFLOW", 300))
+DB_POOL_RECYCLE = int(os.environ.get("DB_POOL_RECYCLE", 300))
+
 AGENT_MAX_ITERATIONS = os.environ.get("AGENT_MAX_ITERATIONS", 20)
