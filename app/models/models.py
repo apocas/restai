@@ -85,6 +85,8 @@ class LLMUpdate(BaseModel):
     privacy: str = None
     description: str = None
     type: str = None
+    input_cost: float = None
+    output_cost: float = None
     
 class EmbeddingUpdate(BaseModel):
     class_name: str = None

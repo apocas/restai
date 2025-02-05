@@ -150,6 +150,12 @@ class DBWrapper:
 
         if llmUpdate.type is not None and llm.type != llmUpdate.type:
             llm.type = llmUpdate.type
+        
+        if llmUpdate.input_cost is not None and llm.input_cost != llmUpdate.input_cost:
+            llm.input_cost = llmUpdate.input_cost
+            
+        if llmUpdate.output_cost is not None and llm.output_cost != llmUpdate.output_cost:
+            llm.output_cost = llmUpdate.output_cost
 
         self.db.commit()
         return True
