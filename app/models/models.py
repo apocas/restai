@@ -128,6 +128,14 @@ class ProjectModel(BaseModel):
     users: list[ProjectUser] = []
     model_config = ConfigDict(from_attributes=True)
     
+class ProjectModelCreate(BaseModel):
+    name: str
+    embeddings: Union[str, None] = None
+    llm: str
+    type: str
+    human_name: Union[str, None] = None
+    vectorstore: Union[str, None] = None
+    
 class ProjectsResponse(BaseModel):
     projects: list[ProjectModel]
 

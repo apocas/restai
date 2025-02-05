@@ -19,7 +19,7 @@ from app.auth import get_current_username, get_current_username_project, get_cur
 from app.database import get_db_wrapper, DBWrapper
 from app.helper import chat_main, question_main
 from app.loaders.url import SeleniumWebReader
-from app.models.models import FindModel, IngestResponse, ProjectModel, ProjectModelUpdate, ProjectsResponse, \
+from app.models.models import FindModel, IngestResponse, ProjectModel, ProjectModelCreate, ProjectModelUpdate, ProjectsResponse, \
     QuestionModel, ChatModel, TextIngestModel, URLIngestModel, User
 from app.project import Project
 from app.vectordb import tools
@@ -188,7 +188,7 @@ async def route_edit_project(request: Request,
 
 @router.post("/projects")
 async def route_create_project(request: Request,
-                               projectModel: ProjectModel,
+                               projectModel: ProjectModelCreate,
                                user: User = Depends(get_current_username),
                                db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     projectModel.human_name = projectModel.name.strip()
@@ -253,7 +253,7 @@ async def route_create_project(request: Request,
             projectModel.type,
             user.id
         )
-        project = Project(projectModel)
+        project = get_project(projectModel.name, db_wrapper, request.app.state.brain)
 
         if project.model.vectorstore:
             project.vector = tools.find_vector_db(project)(
