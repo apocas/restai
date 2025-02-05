@@ -74,14 +74,16 @@ else:
         dbi.commit()
 
         for llm in DEFAULT_LLMS:
-            llm_class, llm_args, privacy, description, typel = DEFAULT_LLMS[llm]
+            llm_class, llm_args, privacy, description, typel, input_cost, output_cost = DEFAULT_LLMS[llm]
             db_llm = LLMDatabase(
                 name=llm,
                 class_name=llm_class,
                 options=json.dumps(llm_args),
                 privacy=privacy,
                 description=description,
-                type=typel
+                type=typel,
+                input_cost=input_cost,
+                output_cost=output_cost
             )
             dbi.add(db_llm)
             

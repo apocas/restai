@@ -68,6 +68,8 @@ class OutputDatabase(Base):
     
     input_tokens = Column(Integer)
     output_tokens = Column(Integer)
+    input_cost = Column(Float)
+    output_cost = Column(Float)
     
     date = Column(DateTime)
     
@@ -94,6 +96,8 @@ class LLMDatabase(Base):
     privacy = Column(String(255))
     description = Column(Text)
     type = Column(String(255))
+    input_cost = Column(Float, default=0.0)
+    output_cost = Column(Float, default=0.0)
     
 class EmbeddingDatabase(Base):
     __tablename__ = "embeddings"

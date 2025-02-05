@@ -63,6 +63,8 @@ class LLMModel(BaseModel):
     privacy: str
     description: Union[str, None] = None
     type: str
+    input_cost: float = 0.0
+    output_cost: float = 0.0
     model_config = ConfigDict(from_attributes=True)
 
 class EmbeddingModel(BaseModel):

@@ -13,95 +13,112 @@ from app.database import get_db_wrapper, DBWrapper
 from app.auth import get_current_username, get_current_username_admin
 
 logging.basicConfig(level=config.LOG_LEVEL)
-logging.getLogger('passlib').setLevel(logging.ERROR)
+logging.getLogger("passlib").setLevel(logging.ERROR)
 
 router = APIRouter()
 
+def mask_api_key(options: Optional[str]) -> Optional[str]:
+    if options is None:
+        return options
+    try:
+        opts = json.loads(options)
+        if "api_key" in opts:
+            opts["api_key"] = "********"
+        return json.dumps(opts)
+    except Exception as e:
+        logging.exception(e)
+        return options
 
 @router.get("/llms/{llm_name}", response_model=LLMModel)
-async def api_get_llm(llm_name: str,
-                      _: User = Depends(get_current_username),
-                      db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def api_get_llm(
+    llm_name: str,
+    _: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         llm = LLMModel.model_validate(db_wrapper.get_llm_by_name(llm_name))
-        if llm.options is not None:
-            options = json.loads(llm.options)
-            if 'api_key' in options:
-                options["api_key"] = "********"
-                llm.options = json.dumps(options)
-            return llm
+        llm.options = mask_api_key(llm.options)
+        return llm
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=404, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/llms", response_model=list[LLMModel])
 async def api_get_llms(
-        _: User = Depends(get_current_username),
-        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    llms: list[Optional[LLMModel]] = [LLMModel.model_validate(llm) for llm in db_wrapper.get_llms()]
+    _: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    llms: list[Optional[LLMModel]] = [
+        LLMModel.model_validate(llm) for llm in db_wrapper.get_llms()
+    ]
     for llm in llms:
-        if llm.options is not None:
-            options = json.loads(llm.options)
-            if 'api_key' in options:
-                options["api_key"] = "********"
-                llm.options = json.dumps(options)
+        llm.options = mask_api_key(llm.options)
     return llms
 
 
 @router.post("/llms")
-async def api_create_llm(llmc: LLMModel,
-                         _: User = Depends(get_current_username_admin),
-                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def api_create_llm(
+    llmc: LLMModel,
+    _: User = Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
-        llm: LLMDatabase = db_wrapper.create_llm(llmc.name, llmc.class_name, llmc.options, llmc.privacy,
-                                                 llmc.description, llmc.type)
+        llm: LLMDatabase = db_wrapper.create_llm(
+            llmc.name,
+            llmc.class_name,
+            llmc.options,
+            llmc.privacy,
+            llmc.description,
+            llmc.type,
+        )
         return llm
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500,
-            detail='Failed to create LLM ' + llmc.name)
+        raise HTTPException(status_code=500, detail="Failed to create LLM " + llmc.name)
 
 
 @router.patch("/llms/{llm_name}")
-async def api_edit_llm(request: Request,
-                           llm_name: str,
-                           llmUpdate: LLMUpdate,
-                           _: User = Depends(get_current_username_admin),
-                           db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def api_edit_llm(
+    request: Request,
+    llm_name: str,
+    llmUpdate: LLMUpdate,
+    _: User = Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_name(llm_name)
         if llm is None:
-            raise Exception("LLM not found")
+            raise HTTPException(status_code=404, detail="LLM not found")
         if db_wrapper.update_llm(llm, llmUpdate):
             request.app.state.brain.load_llm(llm_name, db_wrapper)
             return {"llm": llm_name}
         else:
-            raise HTTPException(
-                status_code=404, detail='LLM not found')
+            raise HTTPException(status_code=404, detail="LLM not found")
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/llms/{llm_name}")
-async def api_delete_llm(llm_name: str,
-                         _: User = Depends(get_current_username_admin),
-                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def api_delete_llm(
+    llm_name: str,
+    _: User = Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_name(llm_name)
         if llm is None:
-            raise Exception("LLM not found")
+            raise HTTPException(status_code=404, detail="LLM not found")
         db_wrapper.delete_llm(llm)
         return {"deleted": llm_name}
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")

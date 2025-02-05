@@ -10,23 +10,23 @@ import tiktoken
 
 from app.database import DBWrapper
 from app.models.databasemodels import OutputDatabase
-from app.models.models import User
+from app.models.models import LLMModel, User
 from app.project import Project
 
 DEFAULT_LLMS = {
-    # "name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa"),
-    "openai_gpt4o": ("OpenAI", {"temperature": 0, "model": "gpt-4o"}, "public", "OpenAI GPT-4o", "chat"),
-    "openai_gpt4o_mini": ("OpenAI", {"temperature": 0, "model": "gpt-4o-mini"}, "public", "OpenAI GPT-4o Mini", "chat"),
-    "llama31_8b": ("Ollama", {"model": "llama3.1", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llama3.1", "chat"),
-    "llama33_70b": ("Ollama", {"model": "llama3.3", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llama3.3", "chat"),
-    "deepseek-r1_70b": ("Ollama", {"model": "deepseek-r1:70b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/deepseek-r1:70b", "chat"),
-    "deepseek-r1_14b": ("Ollama", {"model": "deepseek-r1:14b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/deepseek-r1:14b", "chat"),
-    "deepseek-r1_32b": ("Ollama", {"model": "deepseek-r1:32b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/deepseek-r1:32b", "chat"),
-    "llava16_13b": ("OllamaMultiModal", {"model": "llava:13b-v1.6", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llava", "vision"),
-    "llava_13b": ("OllamaMultiModal", {"model": "llava:13b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llava", "vision"),
-    "llava_34b": ("OllamaMultiModal", {"model": "llava:34b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llava", "vision"),
-    "minicpm-v": ("OllamaMultiModal", {"model": "minicpm-v", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/minicpm-v", "vision"),
-    "llama32_11b_vision": ("OllamaMultiModal", {"model": "llama3.2-vision", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llama3.2-vision", "vision"),
+    # "name": (LOADER, {"args": "here"}, "Privacy (public/private)", "Description...", "vision/chat/qa", output_cost per Million, input_cost per Million),
+    "openai_gpt4o": ("OpenAI", {"temperature": 0, "model": "gpt-4o"}, "public", "OpenAI GPT-4o", "chat", 2.5, 10),
+    "openai_gpt4o_mini": ("OpenAI", {"temperature": 0, "model": "gpt-4o-mini"}, "public", "OpenAI GPT-4o Mini", "chat", 0.15, 0.6),
+    "llama31_8b": ("Ollama", {"model": "llama3.1", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llama3.1", "chat", 0.1, 0.1),
+    "llama33_70b": ("Ollama", {"model": "llama3.3", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llama3.3", "chat", 0.1, 0.1),
+    "deepseek-r1_70b": ("Ollama", {"model": "deepseek-r1:70b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/deepseek-r1:70b", "chat", 0.1, 0.1),
+    "deepseek-r1_14b": ("Ollama", {"model": "deepseek-r1:14b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/deepseek-r1:14b", "chat", 0.1, 0.1),
+    "deepseek-r1_32b": ("Ollama", {"model": "deepseek-r1:32b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/deepseek-r1:32b", "chat", 0.1, 0.1),
+    "llava16_13b": ("OllamaMultiModal", {"model": "llava:13b-v1.6", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llava", "vision", 0.1, 0.1),
+    "llava_13b": ("OllamaMultiModal", {"model": "llava:13b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llava", "vision", 0.1, 0.1),
+    "llava_34b": ("OllamaMultiModal", {"model": "llava:34b", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llava", "vision", 0.1, 0.1),
+    "minicpm-v": ("OllamaMultiModal", {"model": "minicpm-v", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/minicpm-v", "vision", 0.1, 0.1),
+    "llama32_11b_vision": ("OllamaMultiModal", {"model": "llama3.2-vision", "temperature": 0.0001, "keep_alive": 0, "request_timeout": 120}, "private", "https://ollama.com/library/llama3.2-vision", "vision", 0.1, 0.1),
 }
 
 DEFAULT_EMBEDDINGS = {
@@ -209,6 +209,8 @@ def get_logger(name: str, level=logging.INFO):
 
 
 def log_inference(project: Project, user: User, output, db: DBWrapper):
+    llm = LLMModel.model_validate(db.get_llm_by_name(project.model.llm))
+    
     db.db.add(OutputDatabase(
         user_id=user.id,
         llm=project.model.llm,
@@ -218,6 +220,8 @@ def log_inference(project: Project, user: User, output, db: DBWrapper):
         project_id=project.model.id,
         input_tokens=output["tokens"]["input"],
         output_tokens=output["tokens"]["output"],
+        input_cost=(output["tokens"]["input"] * llm.input_cost) / 1000000,
+        output_cost=(output["tokens"]["output"] * llm.output_cost) / 1000000
     ))
 
     db.db.commit()
