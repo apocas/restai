@@ -7,7 +7,16 @@ import traceback
 import urllib.parse
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, BackgroundTasks, Query
+from fastapi import (
+    APIRouter,
+    Depends,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    BackgroundTasks,
+    Query,
+)
 from llama_index.core.postprocessor import SimilarityPostprocessor
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.response_synthesizers import ResponseMode
@@ -15,23 +24,44 @@ from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.schema import Document
 from unidecode import unidecode
 from app import config
-from app.auth import get_current_username, get_current_username_project, get_current_username_project_public
+from app.auth import (
+    get_current_username,
+    get_current_username_project,
+    get_current_username_project_public,
+)
 from app.database import get_db_wrapper, DBWrapper
 from app.helper import chat_main, question_main
 from app.loaders.url import SeleniumWebReader
-from app.models.models import FindModel, IngestResponse, ProjectModel, ProjectModelCreate, ProjectModelUpdate, ProjectsResponse, \
-    QuestionModel, ChatModel, TextIngestModel, URLIngestModel, User
+from app.models.models import (
+    FindModel,
+    IngestResponse,
+    ProjectModel,
+    ProjectModelCreate,
+    ProjectModelUpdate,
+    ProjectsResponse,
+    QuestionModel,
+    ChatModel,
+    TextIngestModel,
+    URLIngestModel,
+    User,
+)
 from app.project import Project
 from app.vectordb import tools
-from app.vectordb.tools import find_file_loader, extract_keywords_for_metadata, index_documents_classic, index_documents_docling
+from app.vectordb.tools import (
+    find_file_loader,
+    extract_keywords_for_metadata,
+    index_documents_classic,
+    index_documents_docling,
+)
 from modules.embeddings import EMBEDDINGS
 from app.models.databasemodels import OutputDatabase
 import datetime
 from sqlalchemy import func
+import calendar
 
 
 logging.basicConfig(level=config.LOG_LEVEL)
-logging.getLogger('passlib').setLevel(logging.ERROR)
+logging.getLogger("passlib").setLevel(logging.ERROR)
 
 router = APIRouter()
 
@@ -44,14 +74,23 @@ def get_project(projectName: str, db_wrapper: DBWrapper, brain):
 
 
 @router.get("/projects", response_model=ProjectsResponse)
-async def route_get_projects(_: Request,
-                             v_filter: str = Query("own", alias="filter"),
-                             user: User = Depends(get_current_username),
-                             db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def route_get_projects(
+    _: Request,
+    v_filter: str = Query("own", alias="filter"),
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     all_projects = db_wrapper.get_projects()
     if v_filter == "own":
-        projects = all_projects if user.is_admin else [
-            p for p in all_projects if p.name in {proj.name for proj in user.projects}]
+        projects = (
+            all_projects
+            if user.is_admin
+            else [
+                p
+                for p in all_projects
+                if p.name in {proj.name for proj in user.projects}
+            ]
+        )
     elif v_filter == "public":
         projects = [p for p in all_projects if p.public]
     else:
@@ -60,11 +99,12 @@ async def route_get_projects(_: Request,
 
 
 @router.get("/projects/{projectName}")
-async def route_get_project(request: Request,
-                            projectName: str,
-                            user: User = Depends(
-                                get_current_username_project_public),
-                            db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def route_get_project(
+    request: Request,
+    projectName: str,
+    user: User = Depends(get_current_username_project_public),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         project = get_project(projectName, db_wrapper, request.app.state.brain)
 
@@ -72,8 +112,7 @@ async def route_get_project(request: Request,
         final_output = {}
 
         try:
-            llm_model = request.app.state.brain.get_llm(
-                project.model.llm, db_wrapper)
+            llm_model = request.app.state.brain.get_llm(project.model.llm, db_wrapper)
         except Exception:
             llm_model = None
 
@@ -118,7 +157,8 @@ async def route_get_project(request: Request,
             final_output["tables"] = output["tables"]
             if output["connection"] is not None:
                 final_output["connection"] = re.sub(
-                    r'(?<=://).+?(?=@)', "xxxx:xxxx", output["connection"])
+                    r"(?<=://).+?(?=@)", "xxxx:xxxx", output["connection"]
+                )
 
         if project.model.type == "router":
             final_output["entrances"] = output["entrances"]
@@ -130,15 +170,16 @@ async def route_get_project(request: Request,
         return final_output
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete("/projects/{projectName}")
-async def route_delete_project(request: Request,
-                               projectName: str,
-                               _: User = Depends(get_current_username_project),
-                               db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def route_delete_project(
+    request: Request,
+    projectName: str,
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         proj = get_project(projectName, db_wrapper, request.app.state.brain)
 
@@ -149,36 +190,35 @@ async def route_delete_project(request: Request,
 
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.patch("/projects/{projectName}")
-async def route_edit_project(request: Request,
-                             projectName: str,
-                             projectModelUpdate: ProjectModelUpdate,
-                             user: User = Depends(
-                                 get_current_username_project),
-                             db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    if projectModelUpdate.llm and request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper) is None:
-        raise HTTPException(
-            status_code=404,
-            detail='LLM not found')
+async def route_edit_project(
+    request: Request,
+    projectName: str,
+    projectModelUpdate: ProjectModelUpdate,
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    if (
+        projectModelUpdate.llm
+        and request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper) is None
+    ):
+        raise HTTPException(status_code=404, detail="LLM not found")
 
     if user.is_private:
-        llm_model = request.app.state.brain.get_llm(
-            projectModelUpdate.llm, db_wrapper)
+        llm_model = request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper)
         if llm_model.props.privacy != "private":
             raise HTTPException(
-                status_code=403,
-                detail='User not allowed to use public models')
+                status_code=403, detail="User not allowed to use public models"
+            )
 
     try:
         if db_wrapper.edit_project(projectName, projectModelUpdate):
             return {"project": projectName}
         else:
-            raise HTTPException(
-                status_code=404, detail='Project not found')
+            raise HTTPException(status_code=404, detail="Project not found")
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
@@ -187,61 +227,62 @@ async def route_edit_project(request: Request,
 
 
 @router.post("/projects")
-async def route_create_project(request: Request,
-                               projectModel: ProjectModelCreate,
-                               user: User = Depends(get_current_username),
-                               db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def route_create_project(
+    request: Request,
+    projectModel: ProjectModelCreate,
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     projectModel.human_name = projectModel.name.strip()
-    projectModel.name = unidecode(
-        projectModel.name.strip().lower().replace(" ", "_"))
-    projectModel.name = re.sub(r'[^\w\-.]+', '', projectModel.name)
+    projectModel.name = unidecode(projectModel.name.strip().lower().replace(" ", "_"))
+    projectModel.name = re.sub(r"[^\w\-.]+", "", projectModel.name)
 
-    if projectModel.type not in ["rag", "inference", "router", "ragsql", "vision", "agent"]:
-        raise HTTPException(
-            status_code=404,
-            detail='Invalid project type')
+    if projectModel.type not in [
+        "rag",
+        "inference",
+        "router",
+        "ragsql",
+        "vision",
+        "agent",
+    ]:
+        raise HTTPException(status_code=404, detail="Invalid project type")
 
     if projectModel.name.strip() == "":
-        raise HTTPException(
-            status_code=400,
-            detail='Invalid project name')
+        raise HTTPException(status_code=400, detail="Invalid project name")
 
     if config.RESTAI_DEMO and not user.is_admin:
         if projectModel.type == "ragsql" or projectModel.type == "agent":
             raise HTTPException(
                 status_code=403,
-                detail='Demo mode, not allowed to create this type of projects.')
+                detail="Demo mode, not allowed to create this type of projects.",
+            )
 
-    if projectModel.type == "rag" and request.app.state.brain.get_embedding(projectModel.embeddings, db_wrapper) is None:
-        raise HTTPException(
-            status_code=404,
-            detail='Embeddings not found')
+    if (
+        projectModel.type == "rag"
+        and request.app.state.brain.get_embedding(projectModel.embeddings, db_wrapper)
+        is None
+    ):
+        raise HTTPException(status_code=404, detail="Embeddings not found")
     if request.app.state.brain.get_llm(projectModel.llm, db_wrapper) is None:
-        raise HTTPException(
-            status_code=404,
-            detail='LLM not found')
+        raise HTTPException(status_code=404, detail="LLM not found")
 
     proj = request.app.state.brain.find_project(projectModel.name, db_wrapper)
     if proj is not None:
-        raise HTTPException(
-            status_code=403,
-            detail='Project already exists')
+        raise HTTPException(status_code=403, detail="Project already exists")
 
     if user.is_private:
-        llm_model = request.app.state.brain.get_llm(
-            projectModel.llm, db_wrapper)
+        llm_model = request.app.state.brain.get_llm(projectModel.llm, db_wrapper)
         if llm_model.props.privacy != "private":
             raise HTTPException(
-                status_code=403,
-                detail='User allowed to private models only')
+                status_code=403, detail="User allowed to private models only"
+            )
 
         if projectModel.type == "rag":
-            _, _, embedding_privacy, _, _ = EMBEDDINGS[
-                projectModel.embeddings]
+            _, _, embedding_privacy, _, _ = EMBEDDINGS[projectModel.embeddings]
             if embedding_privacy != "private":
                 raise HTTPException(
-                    status_code=403,
-                    detail='User allowed to private models only')
+                    status_code=403, detail="User allowed to private models only"
+                )
 
     try:
         db_wrapper.create_project(
@@ -251,13 +292,18 @@ async def route_create_project(request: Request,
             projectModel.vectorstore,
             projectModel.human_name,
             projectModel.type,
-            user.id
+            user.id,
         )
         project = get_project(projectModel.name, db_wrapper, request.app.state.brain)
 
         if project.model.vectorstore:
             project.vector = tools.find_vector_db(project)(
-                request.app.state.brain, project, request.app.state.brain.get_embedding(project.model.embeddings, db_wrapper))
+                request.app.state.brain,
+                project,
+                request.app.state.brain.get_embedding(
+                    project.model.embeddings, db_wrapper
+                ),
+            )
 
         project_db = db_wrapper.get_project_by_name(project.model.name)
 
@@ -274,37 +320,41 @@ async def route_create_project(request: Request,
 
 @router.post("/projects/{projectName}/embeddings/reset")
 async def reset_embeddings(
-        request: Request,
-        projectName: str,
-        _: User = Depends(get_current_username_project),
-        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    request: Request,
+    projectName: str,
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         project = get_project(projectName, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
-                status_code=400, detail="Only available for RAG projects.")
+                status_code=400, detail="Only available for RAG projects."
+            )
 
         project.vector.reset(request.app.state.brain)
 
         return {"project": project.model.name}
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/projects/{projectName}/clone/{newProjectName}")
-async def clone_project(request: Request, projectName: str, newProjectName: str,
-                        _: User = Depends(get_current_username_project),
-                        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def clone_project(
+    request: Request,
+    projectName: str,
+    newProjectName: str,
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         project = get_project(projectName, db_wrapper, request.app.state.brain)
 
         newProject = db_wrapper.get_project_by_name(newProjectName)
         if newProject is not None:
-            raise HTTPException(
-                status_code=403, detail='Project already exists')
+            raise HTTPException(status_code=403, detail="Project already exists")
 
         project_db = db_wrapper.get_project_by_name(projectName)
 
@@ -313,7 +363,7 @@ async def clone_project(request: Request, projectName: str, newProjectName: str,
             project.model.embeddings,
             project.model.llm,
             project.model.vectorstore,
-            project.model.type
+            project.model.type,
         )
 
         newProject_db.system = project.model.system
@@ -341,21 +391,24 @@ async def clone_project(request: Request, projectName: str, newProjectName: str,
         return {"project": newProjectName}
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/projects/{projectName}/embeddings/search")
-async def find_embedding(request: Request, projectName: str, embedding: FindModel,
-                         _: User = Depends(
-                             get_current_username_project_public),
-                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def find_embedding(
+    request: Request,
+    projectName: str,
+    embedding: FindModel,
+    _: User = Depends(get_current_username_project_public),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         project = get_project(projectName, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
-                status_code=400, detail="Only available for RAG projects.")
+                status_code=400, detail="Only available for RAG projects."
+            )
 
         output = []
 
@@ -374,16 +427,22 @@ async def find_embedding(request: Request, projectName: str, embedding: FindMode
 
             query_engine = RetrieverQueryEngine.from_args(
                 retriever=retriever,
-                node_postprocessors=[SimilarityPostprocessor(
-                    similarity_cutoff=threshold)],
-                response_mode=ResponseMode.NO_TEXT
+                node_postprocessors=[
+                    SimilarityPostprocessor(similarity_cutoff=threshold)
+                ],
+                response_mode=ResponseMode.NO_TEXT,
             )
 
             response = query_engine.query(embedding.text)
 
             for node in response.source_nodes:
                 output.append(
-                    {"source": node.metadata["source"], "score": node.score, "id": node.node_id})
+                    {
+                        "source": node.metadata["source"],
+                        "score": node.score,
+                        "id": node.node_id,
+                    }
+                )
 
         elif embedding.source:
             output = project.vector.list_source(embedding.source)
@@ -391,64 +450,76 @@ async def find_embedding(request: Request, projectName: str, embedding: FindMode
         return {"embeddings": output}
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/projects/{projectName}/embeddings/source/{source}")
-async def get_embedding(request: Request, projectName: str, source: str,
-                        _: User = Depends(get_current_username_project_public),
-                        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def get_embedding(
+    request: Request,
+    projectName: str,
+    source: str,
+    _: User = Depends(get_current_username_project_public),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         project = get_project(projectName, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
-                status_code=400, detail="Only available for RAG projects.")
+                status_code=400, detail="Only available for RAG projects."
+            )
 
-        docs = project.vector.find_source(
-            base64.b64decode(source).decode('utf-8'))
+        docs = project.vector.find_source(base64.b64decode(source).decode("utf-8"))
 
-        if len(docs['ids']) == 0:
+        if len(docs["ids"]) == 0:
             return {"ids": []}
         else:
             return docs
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/projects/{projectName}/embeddings/id/{embedding_id}")
-async def get_embedding(request: Request, projectName: str,
-                        embedding_id: str,
-                        _: User = Depends(get_current_username_project_public),
-                        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def get_embedding(
+    request: Request,
+    projectName: str,
+    embedding_id: str,
+    _: User = Depends(get_current_username_project_public),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         project = get_project(projectName, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
-                status_code=400, detail="Only available for RAG projects.")
+                status_code=400, detail="Only available for RAG projects."
+            )
 
         chunk = project.vector.find_id(embedding_id)
         return chunk
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/projects/{projectName}/embeddings/ingest/text", response_model=IngestResponse)
-async def ingest_text(request: Request, projectName: str, ingest: TextIngestModel,
-                      _: User = Depends(get_current_username_project),
-                      db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+@router.post(
+    "/projects/{projectName}/embeddings/ingest/text", response_model=IngestResponse
+)
+async def ingest_text(
+    request: Request,
+    projectName: str,
+    ingest: TextIngestModel,
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         project = get_project(projectName, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
-                status_code=400, detail="Only available for RAG projects.")
+                status_code=400, detail="Only available for RAG projects."
+            )
 
         metadata = {"source": ingest.source}
         documents = [Document(text=ingest.text, metadata=metadata)]
@@ -463,35 +534,47 @@ async def ingest_text(request: Request, projectName: str, ingest: TextIngestMode
         #    document.text = document.text.decode('utf-8')
 
         n_chunks = index_documents_classic(
-            project, documents, ingest.splitter, ingest.chunks)
+            project, documents, ingest.splitter, ingest.chunks
+        )
         project.vector.save()
 
-        return {"source": ingest.source, "documents": len(documents), "chunks": n_chunks}
+        return {
+            "source": ingest.source,
+            "documents": len(documents),
+            "chunks": n_chunks,
+        }
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/projects/{projectName}/embeddings/ingest/url", response_model=IngestResponse)
-async def ingest_url(request: Request, projectName: str, ingest: URLIngestModel,
-                     user: User = Depends(get_current_username_project),
-                     db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+@router.post(
+    "/projects/{projectName}/embeddings/ingest/url", response_model=IngestResponse
+)
+async def ingest_url(
+    request: Request,
+    projectName: str,
+    ingest: URLIngestModel,
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     if config.RESTAI_DEMO and not user.is_admin:
         raise HTTPException(
-            status_code=403,
-            detail='Demo mode, not allowed to ingest from an URL.')
+            status_code=403, detail="Demo mode, not allowed to ingest from an URL."
+        )
 
     try:
-        if ingest.url and not ingest.url.startswith('http'):
+        if ingest.url and not ingest.url.startswith("http"):
             raise HTTPException(
-                status_code=400, detail="Specify the protocol http:// or https://")
+                status_code=400, detail="Specify the protocol http:// or https://"
+            )
 
         project = get_project(projectName, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
-                status_code=400, detail="Only available for RAG projects.")
+                status_code=400, detail="Only available for RAG projects."
+            )
 
         urls = project.vector.list()
         if ingest.url in urls:
@@ -503,45 +586,46 @@ async def ingest_url(request: Request, projectName: str, ingest: URLIngestModel,
         documents = extract_keywords_for_metadata(documents)
 
         n_chunks = index_documents_classic(
-            project, documents, ingest.splitter, ingest.chunks)
+            project, documents, ingest.splitter, ingest.chunks
+        )
         project.vector.save()
 
         return {"source": ingest.url, "documents": len(documents), "chunks": n_chunks}
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/projects/{projectName}/embeddings/ingest/upload", response_model=IngestResponse)
+@router.post(
+    "/projects/{projectName}/embeddings/ingest/upload", response_model=IngestResponse
+)
 async def ingest_file(
-        request: Request,
-        projectName: str,
-        file: UploadFile,
-        options: str = Form("{}"),
-        chunks: int = Form(256),
-        splitter: str = Form("sentence"),
-        classic: bool = Form(False),
-        _: User = Depends(get_current_username_project),
-        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    request: Request,
+    projectName: str,
+    file: UploadFile,
+    options: str = Form("{}"),
+    chunks: int = Form(256),
+    splitter: str = Form("sentence"),
+    classic: bool = Form(False),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
 
     from llama_index.readers.docling import DoclingReader
 
     project = get_project(projectName, db_wrapper, request.app.state.brain)
 
     if project.model.type != "rag":
-        raise HTTPException(
-            status_code=400, detail="Only available for RAG projects.")
+        raise HTTPException(status_code=400, detail="Only available for RAG projects.")
 
-    _, ext = os.path.splitext(file.filename or '')
+    _, ext = os.path.splitext(file.filename or "")
     temp = NamedTemporaryFile(delete=False, suffix=ext)
     try:
         contents = file.file.read()
         with temp as f:
             f.write(contents)
     except Exception:
-        raise HTTPException(
-            status_code=500, detail="Error while saving file.")
+        raise HTTPException(status_code=500, detail="Error while saving file.")
     finally:
         file.file.close()
 
@@ -558,8 +642,7 @@ async def ingest_file(
             logging.error(e)
             traceback.print_tb(e.__traceback__)
 
-            raise HTTPException(
-                status_code=500, detail="Error while loading file.")
+            raise HTTPException(status_code=500, detail="Error while loading file.")
 
     else:
         try:
@@ -569,7 +652,7 @@ async def ingest_file(
             if "File format not allowed" in str(e):
                 raise HTTPException(
                     status_code=400,
-                    detail="Unsupported file format. Retry in classic mode."
+                    detail="Unsupported file format. Retry in classic mode.",
                 )
             else:
                 raise e
@@ -583,8 +666,7 @@ async def ingest_file(
             document.metadata["source"] = unidecode(file.filename)
 
         if classic == True:
-            n_chunks = index_documents_classic(
-                project, documents, splitter, chunks)
+            n_chunks = index_documents_classic(project, documents, splitter, chunks)
         else:
             n_chunks = index_documents_docling(project, documents)
 
@@ -592,25 +674,28 @@ async def ingest_file(
 
         return {
             "source": file.filename,
-            "documents": len(documents), "chunks": n_chunks}
+            "documents": len(documents),
+            "chunks": n_chunks,
+        }
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get('/projects/{projectName}/embeddings')
+@router.get("/projects/{projectName}/embeddings")
 async def get_embeddings(
-        request: Request,
-        projectName: str,
-        _: User = Depends(get_current_username_project_public),
-        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    request: Request,
+    projectName: str,
+    _: User = Depends(get_current_username_project_public),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         project = get_project(projectName, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
-                status_code=400, detail="Only available for RAG projects.")
+                status_code=400, detail="Only available for RAG projects."
+            )
 
         if project.vector is not None:
             output = project.vector.list()
@@ -620,122 +705,176 @@ async def get_embeddings(
         return {"embeddings": output}
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.delete('/projects/{projectName}/embeddings/{source}')
+@router.delete("/projects/{projectName}/embeddings/{source}")
 async def delete_embedding(
-        request: Request,
-        projectName: str,
-        source: str,
-        _: User = Depends(get_current_username_project),
-        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    request: Request,
+    projectName: str,
+    source: str,
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         project = get_project(projectName, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
-                status_code=400, detail="Only available for RAG projects.")
+                status_code=400, detail="Only available for RAG projects."
+            )
 
-        ids = project.vector.delete_source(
-            base64.b64decode(source).decode('utf-8'))
+        ids = project.vector.delete_source(base64.b64decode(source).decode("utf-8"))
 
         return {"deleted": len(ids)}
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/projects/{projectName}/chat")
 async def chat_query(
-        request: Request,
-        projectName: str,
-        q_input: ChatModel,
-        background_tasks: BackgroundTasks,
-        user: User = Depends(get_current_username_project_public),
-        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    request: Request,
+    projectName: str,
+    q_input: ChatModel,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_username_project_public),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         if not q_input.question:
-            raise HTTPException(
-                status_code=400, detail="Missing question")
+            raise HTTPException(status_code=400, detail="Missing question")
 
         project = get_project(projectName, db_wrapper, request.app.state.brain)
 
-        return await chat_main(request, request.app.state.brain, project, q_input, user, db_wrapper, background_tasks)
+        return await chat_main(
+            request,
+            request.app.state.brain,
+            project,
+            q_input,
+            user,
+            db_wrapper,
+            background_tasks,
+        )
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/projects/{projectName}/question")
 async def question_query_endpoint(
-        request: Request,
-        projectName: str,
-        q_input: QuestionModel,
-        background_tasks: BackgroundTasks,
-        user: User = Depends(get_current_username_project_public),
-        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    request: Request,
+    projectName: str,
+    q_input: QuestionModel,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_username_project_public),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         if not q_input.question:
-            raise HTTPException(
-                status_code=400, detail="Question missing")
+            raise HTTPException(status_code=400, detail="Question missing")
 
         project = get_project(projectName, db_wrapper, request.app.state.brain)
 
         if user.level == "public":
             q_input = QuestionModel(
-                question=q_input.question, image=q_input.image, negative=q_input.negative)
+                question=q_input.question,
+                image=q_input.image,
+                negative=q_input.negative,
+            )
 
-        return await question_main(request, request.app.state.brain, project, q_input, user, db_wrapper, background_tasks)
+        return await question_main(
+            request,
+            request.app.state.brain,
+            project,
+            q_input,
+            user,
+            db_wrapper,
+            background_tasks,
+        )
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/projects/{projectName}/tokens")
-async def get_token_consumption(projectName: str, start: int = 0, end: int = 10, _: User = Depends(get_current_username_project), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def get_token_consumption(
+    projectName: str,
+    start: int = 0,
+    end: int = 10,
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         project = db_wrapper.get_project_by_name(projectName)
         if project is None:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        token_consumptions = db_wrapper.db.query(OutputDatabase).filter_by(project_id=project.id).order_by(
-            OutputDatabase.date.desc()).offset(start).limit(end - start).all()
-        return {"token_consumptions": [{"input_tokens": tc.input_tokens, "output_tokens": tc.output_tokens, "timestamp": tc.date} for tc in token_consumptions]}
+        token_consumptions = (
+            db_wrapper.db.query(OutputDatabase)
+            .filter_by(project_id=project.id)
+            .order_by(OutputDatabase.date.desc())
+            .offset(start)
+            .limit(end - start)
+            .all()
+        )
+        return {
+            "token_consumptions": [
+                {
+                    "input_tokens": tc.input_tokens,
+                    "output_tokens": tc.output_tokens,
+                    "timestamp": tc.date,
+                }
+                for tc in token_consumptions
+            ]
+        }
     except Exception as e:
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
-
+        raise HTTPException(status_code=500, detail="Internal server error")
+      
 
 @router.get("/projects/{projectName}/tokens/daily")
-async def get_daily_token_consumption(projectName: str, days: int = 30, _: User = Depends(get_current_username_project), db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def get_monthly_token_consumption(
+    projectName: str,
+    year: int = None,
+    month: int = None,
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     try:
         project = db_wrapper.get_project_by_name(projectName)
         if project is None:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        end_date = datetime.datetime.now(datetime.timezone.utc)
-        start_date = end_date - datetime.timedelta(days=days)
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if year is None:
+            year = now.year
+        if month is None:
+            month = now.month
 
-        token_consumptions = db_wrapper.db.query(
-            func.date(OutputDatabase.date).label('date'),
-            func.sum(OutputDatabase.input_tokens).label('input_tokens'),
-            func.sum(OutputDatabase.output_tokens).label('output_tokens'),
-            func.sum(OutputDatabase.input_cost).label('input_cost'),
-            func.sum(OutputDatabase.output_cost).label('output_cost')
-        ).filter(
-            OutputDatabase.project_id == project.id,
-            OutputDatabase.date >= start_date,
-            OutputDatabase.date <= end_date
-        ).group_by(
-            func.date(OutputDatabase.date)
-        ).all()
+        start_date = datetime.datetime(year, month, 1, tzinfo=datetime.timezone.utc)
+        last_day = calendar.monthrange(year, month)[1]
+        end_date = datetime.datetime(
+            year, month, last_day, 23, 59, 59, tzinfo=datetime.timezone.utc
+        )
 
+        token_consumptions = (
+            db_wrapper.db.query(
+                func.date(OutputDatabase.date).label("date"),
+                func.sum(OutputDatabase.input_tokens).label("input_tokens"),
+                func.sum(OutputDatabase.output_tokens).label("output_tokens"),
+                func.sum(OutputDatabase.input_cost).label("input_cost"),
+                func.sum(OutputDatabase.output_cost).label("output_cost"),
+            )
+            .filter(
+                OutputDatabase.project_id == project.id,
+                OutputDatabase.date >= start_date,
+                OutputDatabase.date <= end_date,
+            )
+            .group_by(func.date(OutputDatabase.date))
+            .all()
+        )
+        
         return {
             "tokens": [
                 {"date": tc.date, "input_tokens": tc.input_tokens, "output_tokens": tc.output_tokens,
@@ -744,7 +883,4 @@ async def get_daily_token_consumption(projectName: str, days: int = 30, _: User 
             ]
         }
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
