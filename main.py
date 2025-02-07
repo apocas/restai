@@ -1,7 +1,7 @@
 import uvicorn
 
-from app.config import RESTAI_PORT
-from app.main import app
+from restai.config import RESTAI_PORT
+from restai.main import app
 
 if __name__ == "__main__":
     port = int(RESTAI_PORT)

@@ -12,7 +12,7 @@ from llama_index.readers.json import (
     JSONReader
 )
 
-from app.loaders.excel import PandasExcelReader
+from restai.loaders.excel import PandasExcelReader
 
 LOADERS = {
     ".csv": (CSVReader, {}),

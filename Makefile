@@ -1,6 +1,6 @@
 .PHONY: start
 start:
-	poetry run uvicorn app.main:app --port 9000 --workers 4
+	poetry run uvicorn restai.main:app --port 9000 --workers 4
 
 .PHONY: database
 database:
@@ -12,7 +12,11 @@ frontend:
 
 .PHONY: dev
 dev:
-	RESTAI_DEV=true uvicorn app.main:app --reload --port 9000
+	RESTAI_DEV=true uvicorn restai.main:app --reload --port 9000
+
+.PHONY: build
+build:
+	poetry build
 
 .PHONY: install
 install:
@@ -24,10 +28,7 @@ install:
 .PHONY: installgpu
 installgpu:
 	poetry install --with gpu
-
-.PHONY: installfix
-installfix:
-	$(echo $(poetry env info -p)/bin/pip3 install flash-attn==2.6.3 --no-build-isolation)
+	poetry run python3 download.py
 
 .PHONY: docs
 docs:
@@ -39,7 +40,7 @@ test:
 
 .PHONY: code
 code:
-	autopep8 --in-place app/*.py
+	black app/*.py
 
 .PHONY: clean
 clean:

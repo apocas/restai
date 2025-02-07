@@ -1,8 +1,8 @@
-[tool.poetry]
+[project]
 name = "restai"
 version = "5.0.3"
 description = "RESTAI, so many 'A's and 'I's, so little time..."
-authors = ["Pedro Dias <petermdias@gmail.com>"]
+authors = [{ name = "Pedro Dias", email = "petermdias@gmail.com" }]
 license = "Apache-2.0"
 readme = "README.md"
 
@@ -58,12 +58,12 @@ llama-index-postprocessor-colbert-rerank = "^0.3.0"
 llama-index-llms-groq = "^0.3.1"
 llama-index-embeddings-openai = "^0.3.1"
 llama-index-readers-file = "^0.4.1"
-deepeval = "^2.0.9"
+deepeval = "^2.3.4"
 llama-index-llms-anthropic = "^0.6.3"
 llama-index-llms-litellm = "^0.3.0"
 psycopg2 = "^2.9.9"
 llama-index-vector-stores-pinecone = "^0.4.2"
-sentry-sdk = {extras = ["fastapi"], version = "^1.45.1"}
+sentry-sdk = { extras = ["fastapi"], version = "^1.45.1" }
 llama-index-llms-gemini = "^0.4.2"
 google-generativeai = "^0.8.3"
 llama-index-llms-vertex = "^0.4.2"
@@ -82,29 +82,27 @@ llama-index-readers-docling = "^0.3.0"
 langchain-huggingface = "^0.1.2"
 llama-index-embeddings-ollama = "^0.5.0"
 llama-index-readers-json = "^0.3.0"
+typer = "0.12.5"
 
 [tool.poetry.group.gpu]
 optional = true
 
 [tool.poetry.group.gpu.dependencies]
 transformers = "^4.45.1"
-insightface = "^0.7.3"
 xformers = "^0.0.28.post2"
 optimum = "1.13.1"
 accelerate = "^1.0.1"
 bitsandbytes = "^0.44.1"
 diffusers = "0.31.0"
 torch = "^2.5.0"
-flash_attn = "^2.6.3"
-auto-gptq = "^0.6.0"
 torchvision = "^0.20.1"
 kornia = "^0.7.4"
 timm = "^1.0.11"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pylint = "3.0.2"
-autopep8 = "2.0.4"
 debugpy = "^1.8.6"
+black = "^25.1.0"
 
 [build-system]
 requires = ["poetry-core"]

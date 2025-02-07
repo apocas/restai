@@ -5,7 +5,7 @@ from passlib.context import CryptContext
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 
-from app.config import (
+from restai.config import (
     MYSQL_HOST,
     MYSQL_URL,
     POSTGRES_HOST,
@@ -13,7 +13,7 @@ from app.config import (
     RESTAI_DEFAULT_PASSWORD,
     RESTAI_DEMO,
 )
-from app.models.databasemodels import (
+from restai.models.databasemodels import (
     Base,
     LLMDatabase,
     ProjectDatabase,
@@ -21,7 +21,7 @@ from app.models.databasemodels import (
     UserDatabase,
     EmbeddingDatabase
 )
-from app.tools import DEFAULT_LLMS, DEFAULT_EMBEDDINGS
+from restai.tools import DEFAULT_LLMS, DEFAULT_EMBEDDINGS
 
 if MYSQL_HOST:
     print("Using MySQL database")
@@ -103,7 +103,7 @@ else:
             
         dbi.commit()
         
-        if RESTAI_DEMO:
+        if RESTAI_DEMO == True:
             print("Creating demo scenario...")
             db_user = UserDatabase(
                 username="demo",

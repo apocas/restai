@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, select
 
-from app.config import MYSQL_URL, SQLITE_PATH
-from app.models.databasemodels import Base
+from restai.config import MYSQL_URL, SQLITE_PATH
+from restai.models.databasemodels import Base
 
 engine_lite = create_engine("sqlite:///" + SQLITE_PATH)
 
