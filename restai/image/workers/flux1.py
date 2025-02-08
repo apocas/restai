@@ -9,7 +9,8 @@ from diffusers import FluxPipeline
 from diffusers import FluxTransformer2DModel
 from diffusers.image_processor import VaeImageProcessor
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
+# os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
+
 
 def flush():
     gc.collect()
@@ -17,16 +18,25 @@ def flush():
     torch.cuda.reset_max_memory_allocated()
     torch.cuda.reset_peak_memory_stats()
 
+
 def worker(prompt, sharedmem):
 
-    pipeline = FluxPipeline.from_pretrained(
-        "black-forest-labs/FLUX.1-dev",
-        transformer=None,
-        vae=None,
-        device_map="balanced",
-        max_memory={0: "24GB", 1: "24GB"},
-        torch_dtype=torch.bfloat16
-    )
+    gpu_count = torch.cuda.device_count()
+
+    if gpu_count < 2:
+        pipeline = FluxPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16
+        )
+    else:
+        pipeline = FluxPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-dev",
+            transformer=None,
+            vae=None,
+            device_map="balanced",
+            max_memory={0: "24GB", 1: "24GB"},
+            torch_dtype=torch.bfloat16,
+        )
+
     with torch.no_grad():
         print("Encoding prompts.")
         prompt_embeds, pooled_prompt_embeds, text_ids = pipeline.encode_prompt(
@@ -40,14 +50,14 @@ def worker(prompt, sharedmem):
     del pipeline
 
     flush()
-    
+
     transformer = FluxTransformer2DModel.from_pretrained(
         "black-forest-labs/FLUX.1-dev",
         subfolder="transformer",
         device_map="auto",
-        torch_dtype=torch.bfloat16
+        torch_dtype=torch.bfloat16,
     )
-    
+
     pipeline = FluxPipeline.from_pretrained(
         "black-forest-labs/FLUX.1-dev",
         text_encoder=None,
@@ -56,7 +66,7 @@ def worker(prompt, sharedmem):
         tokenizer_2=None,
         vae=None,
         transformer=transformer,
-        torch_dtype=torch.bfloat16
+        torch_dtype=torch.bfloat16,
     )
 
     print("Running denoising.")
@@ -70,13 +80,15 @@ def worker(prompt, sharedmem):
         width=width,
         output_type="latent",
     ).images
-    
+
     del pipeline.transformer
     del pipeline
 
     flush()
-    
-    vae = AutoencoderKL.from_pretrained("black-forest-labs/FLUX.1-dev", subfolder="vae", torch_dtype=torch.bfloat16).to("cuda")
+
+    vae = AutoencoderKL.from_pretrained(
+        "black-forest-labs/FLUX.1-dev", subfolder="vae", torch_dtype=torch.bfloat16
+    ).to("cuda")
     vae_scale_factor = 2 ** (len(vae.config.block_out_channels))
     image_processor = VaeImageProcessor(vae_scale_factor=vae_scale_factor)
 
@@ -87,9 +99,9 @@ def worker(prompt, sharedmem):
 
         image = vae.decode(latents, return_dict=False)[0]
         image = image_processor.postprocess(image, output_type="pil")
-        
+
         image_data = io.BytesIO()
         image[0].save(image_data, format="JPEG")
-        image_base64 = base64.b64encode(image_data.getvalue()).decode('utf-8')
+        image_base64 = base64.b64encode(image_data.getvalue()).decode("utf-8")
 
         sharedmem["image"] = image_base64
