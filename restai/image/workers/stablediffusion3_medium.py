@@ -6,7 +6,7 @@ import torch
 
 from restai.config import RESTAI_DEFAULT_DEVICE
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
+#os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 def worker(prompt, sharedmem):
     base = StableDiffusion3Pipeline.from_pretrained("stabilityai/stable-diffusion-3-medium-diffusers", torch_dtype=torch.float16)
