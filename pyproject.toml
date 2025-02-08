@@ -60,7 +60,7 @@ llama-index-readers-file = "^0.4.1"
 deepeval = "^2.3.4"
 llama-index-llms-anthropic = "^0.6.3"
 llama-index-llms-litellm = "^0.3.0"
-psycopg2 = "^2.9.9"
+psycopg2-binary = "^2.9.10"
 llama-index-vector-stores-pinecone = "^0.4.2"
 sentry-sdk = { extras = ["fastapi"], version = "^1.45.1" }
 llama-index-llms-gemini = "^0.4.2"
