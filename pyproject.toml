@@ -7,7 +7,7 @@ license = "Apache-2.0"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.12"
+python = ">=3.10,<=3.12"
 openai = "^1.61.0"
 fastapi = "^0.115.6"
 langchain = "^0.3.13"
