@@ -23,7 +23,7 @@ load_env_vars()
 RESTAI_PORT = os.environ.get("RESTAI_PORT", 9000)
 RESTAI_AUTH_SECRET = os.environ.get("RESTAI_AUTH_SECRET")
 RESTAI_AUTH_DISABLE_LOCAL = os.environ.get("RESTAI_AUTH_DISABLE_LOCAL")
-RESTAI_DEV = os.environ.get("RESTAI_DEV").lower() in ('true', '1')
+RESTAI_DEV = True if os.environ.get("RESTAI_DEV", "").lower() in ('true', '1') else False
 
 LOG_LEVEL = os.environ.get("LOG_LEVEL")
 SENTRY_DSN = os.environ.get("SENTRY_DSN")
@@ -46,7 +46,7 @@ POSTGRES_URL = (
 )
 
 RESTAI_DEFAULT_PASSWORD = os.environ.get("RESTAI_DEFAULT_PASSWORD", "admin")
-RESTAI_DEMO = os.environ.get("RESTAI_DEMO").lower() in ('true', '1')
+RESTAI_DEMO = True if os.environ.get("RESTAI_DEMO", "").lower() in ('true', '1') else False
 
 SQLITE_PATH = os.environ.get("SQLITE_PATH")
 
@@ -63,7 +63,7 @@ RESTAI_SSO_SECRET = os.environ.get("RESTAI_SSO_SECRET")
 RESTAI_SSO_ALG = os.environ.get("RESTAI_SSO_ALG", "HS512")
 RESTAI_SSO_CALLBACK = os.environ.get("RESTAI_SSO_CALLBACK")
 
-RESTAI_GPU = os.environ.get("RESTAI_GPU").lower() in ('true', '1')
+RESTAI_GPU = True if os.environ.get("RESTAI_GPU", "").lower() in ('true', '1') else False
 RESTAI_DEFAULT_DEVICE = os.environ.get("RESTAI_DEFAULT_DEVICE")
 
 EMBEDDINGS_PATH = os.environ.get("EMBEDDINGS_PATH")
