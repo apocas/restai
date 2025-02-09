@@ -222,6 +222,10 @@ def get_llm_class(llm_class_name: str):
             from llama_index.llms.openai import OpenAI
 
             return OpenAI, {}
+        case "OpenAILike":
+            from llama_index.llms.openai_like import OpenAILike
+
+            return OpenAILike, {}
         case "Grok":
             from llama_index.llms.anthropic import Anthropic
 
