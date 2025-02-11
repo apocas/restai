@@ -164,6 +164,10 @@ class UserBase(BaseModel):
     username: str
 
 
+class UserLogin(BaseModel):
+    user: str
+    password: str
+
 class UserCreate(UserBase):
     password: str
     is_admin: bool = False
