@@ -149,7 +149,6 @@ async def ldap_auth(request: Request, form_data: UserLogin, db_wrapper: DBWrappe
             user = db_wrapper.get_user_by_username(mail)
             if user is None:
                 user = db_wrapper.create_user(mail, None, False, False)
-                user.sso = config.RESTAI_SSO_CALLBACK
                 db_wrapper.db.commit()
 
             new_token = create_access_token(
