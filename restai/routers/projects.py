@@ -798,6 +798,8 @@ async def question_query_endpoint(
             background_tasks,
         )
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -834,6 +836,8 @@ async def get_token_consumption(
             ]
         }
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
       
@@ -888,4 +892,7 @@ async def get_monthly_token_consumption(
             ]
         }
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -316,7 +316,7 @@ class DBWrapper:
             return False
 
         changed = False
-        if projectModel.users is not None:
+        if "users" in projectModel and projectModel.users is not None:
             proj_db.users = []
             for user in projectModel.users:
                 u = self.get_user_by_username(user)

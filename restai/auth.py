@@ -8,6 +8,7 @@ from restai.config import RESTAI_AUTH_SECRET, RESTAI_AUTH_DISABLE_LOCAL
 from restai.database import get_db_wrapper, pwd_context, DBWrapper
 from restai.models.databasemodels import ProjectDatabase
 from restai.models.models import User
+import logging
 
 security: HTTPBasic = HTTPBasic()
 
@@ -82,7 +83,10 @@ def get_current_username(
 
                 return User.model_validate(user)
 
-            except Exception:
+            except Exception as e:
+                if isinstance(e, HTTPException):
+                    raise e
+                logging.exception(e)
                 pass
     else:
         raise HTTPException(status_code=401, detail="Invalid credentials")
