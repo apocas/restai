@@ -802,9 +802,9 @@ async def question_query_endpoint(
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
+      
 
-
-@router.get("/projects/{projectName}/tokens")
+@router.get("/projects/{projectName}/logs")
 async def get_token_consumption(
     projectName: str,
     start: int = 0,
@@ -817,7 +817,7 @@ async def get_token_consumption(
         if project is None:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        token_consumptions = (
+        logs = (
             db_wrapper.db.query(OutputDatabase)
             .filter_by(project_id=project.id)
             .order_by(OutputDatabase.date.desc())
@@ -826,14 +826,7 @@ async def get_token_consumption(
             .all()
         )
         return {
-            "token_consumptions": [
-                {
-                    "input_tokens": tc.input_tokens,
-                    "output_tokens": tc.output_tokens,
-                    "timestamp": tc.date,
-                }
-                for tc in token_consumptions
-            ]
+            "logs": logs
         }
     except Exception as e:
         if isinstance(e, HTTPException):

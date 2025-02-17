@@ -415,6 +415,7 @@ def log_inference(project: Project, user: User, output, db: DBWrapper):
             output_tokens=output["tokens"]["output"],
             input_cost=(output["tokens"]["input"] * llm.input_cost) / 1000000,
             output_cost=(output["tokens"]["output"] * llm.output_cost) / 1000000,
+            chat_id=output["id"],
         )
     )
 

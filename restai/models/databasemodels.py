@@ -73,6 +73,8 @@ class OutputDatabase(Base):
     
     date = Column(DateTime)
     
+    chat_id = Column(String(255))
+    
 class RouterEntrancesDatabase(Base):
     __tablename__ = "routerentrances"
 
