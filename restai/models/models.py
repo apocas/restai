@@ -244,3 +244,7 @@ class ClassifierResponse(BaseModel):
     sequence: str
     labels: list[str]
     scores: list[float]
+    
+class KeyCreate(BaseModel):
+    models: list[str]
+    user: str

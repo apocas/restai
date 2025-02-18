@@ -87,3 +87,6 @@ LDAP_APP_PASSWORD = os.environ.get("LDAP_APP_PASSWORD")
 LDAP_USE_TLS = os.environ.get("LDAP_USE_TLS")
 LDAP_CA_CERT_FILE = os.environ.get("LDAP_CA_CERT_FILE")
 LDAP_CIPHERS = os.environ.get("LDAP_CIPHERS")
+
+PROXY_URL = os.environ.get("PROXY_URL")
+PROXY_KEY = os.environ.get("PROXY_KEY")
