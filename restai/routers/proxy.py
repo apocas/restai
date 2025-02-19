@@ -79,7 +79,7 @@ async def route_create_key(
         "Authorization": "Bearer " + config.PROXY_KEY,
         "Content-Type": "application/json",
     }
-    data = {"models": key_create.models, "metadata": {"user": key_create.user}}
+    data = {"models": key_create.models, "key_alias": key_create.name, "max_budget": key_create.max_budget, "budget_duration": key_create.duration_budget, "tpm_limit": key_create.tpm, "rpm_limit": key_create.rpm}
     
     if config.PROXY_TEAM_ID:
         data["team_id"] = config.PROXY_TEAM_ID
@@ -141,7 +141,7 @@ async def route_delete_key(
         return {"error": "Failed to delete key"}
 
 
-@router.get("/proxy/models")
+@router.get("/proxy/info")
 async def route_create_key(
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
@@ -159,6 +159,6 @@ async def route_create_key(
         output = []
         for key in data["data"]:
             output.append({"model": key["id"]})
-        return {"models": output}
+        return {"models": output, "url": config.PROXY_URL}
     else:
         return {"error": "Failed to list keys"}

@@ -247,4 +247,8 @@ class ClassifierResponse(BaseModel):
     
 class KeyCreate(BaseModel):
     models: list[str]
-    user: str
+    name: str
+    rpm: Union[int, None] = None
+    tpm: Union[int, None] = None
+    max_budget: Union[int, None] = None
+    duration_budget: Union[str, None] = None
