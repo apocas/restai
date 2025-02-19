@@ -403,20 +403,22 @@ def get_logger(name: str, level=logging.INFO):
 def log_inference(project: Project, user: User, output, db: DBWrapper):
     llm = LLMModel.model_validate(db.get_llm_by_name(project.model.llm))
 
-    db.db.add(
-        OutputDatabase(
-            user_id=user.id,
-            llm=project.model.llm,
-            question=output["question"],
-            answer=output["answer"],
-            date=datetime.now(),
-            project_id=project.model.id,
-            input_tokens=output["tokens"]["input"],
-            output_tokens=output["tokens"]["output"],
-            input_cost=(output["tokens"]["input"] * llm.input_cost) / 1000000,
-            output_cost=(output["tokens"]["output"] * llm.output_cost) / 1000000,
-            chat_id=output["id"],
-        )
+    output_db_entry = OutputDatabase(
+        user_id=user.id,
+        llm=project.model.llm,
+        question=output["question"],
+        answer=output["answer"],
+        date=datetime.now(),
+        project_id=project.model.id,
+        input_tokens=output["tokens"]["input"],
+        output_tokens=output["tokens"]["output"],
+        input_cost=(output["tokens"]["input"] * llm.input_cost) / 1000000,
+        output_cost=(output["tokens"]["output"] * llm.output_cost) / 1000000,
     )
+
+    if "id" in output:
+        output_db_entry.chat_id = output["id"]
+
+    db.db.add(output_db_entry)
 
     db.db.commit()
