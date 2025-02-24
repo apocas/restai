@@ -105,11 +105,12 @@ class Agent(ProjectBase):
                     yield "data: Inference failed\n" 
                 yield "event: error\n\n"
             else:
-                if str(e) == "Reached max iterations.":
-                    output["answer"] = project.model.censorship or "I'm sorry, I tried my best..."
+                if str(e) == "Reached max iterations." and project.model.censorship:
+                    output["answer"] = project.model.censorship
                     self.brain.post_processing_counting(output)
                     yield output
-            raise e
+                else:
+                    raise e
   
     def question(self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
         output = {
@@ -141,8 +142,13 @@ class Agent(ProjectBase):
 
         agent = ReActAgent.from_tools(toolsu, llm=model.llm, context=questionModel.system or project.model.system, max_iterations=config.AGENT_MAX_ITERATIONS, verbose=True)
         
-        output = self.output(agent, questionModel.question, output, project)
-               
+        try:
+            output = self.output(agent, questionModel.question, output, project)
+        except Exception as e:
+            if str(e) == "Reached max iterations." and project.model.censorship:
+                output["answer"] = project.model.censorship
+            else:
+                raise e
+              
         self.brain.post_processing_counting(output)
-
         yield output
