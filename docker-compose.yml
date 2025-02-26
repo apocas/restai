@@ -1,16 +1,12 @@
 ---
 services:
   redis:
-    profiles:
-      - redis
     image: redis/redis-stack-server
     ports:
       - 6379:6379
     restart: unless-stopped
 
   postgres:
-    profiles:
-      - postgres
     image: postgres:latest
     ports:
       - 5432:5432
@@ -24,20 +20,15 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  mysql:
-    profiles:
-      - mysql
-    image: mysql:8.0
-    restart: unless-stopped
+  chromadb:
+    image: chromadb/chroma
     ports:
-      - 3306:3306
-    volumes:
-      - mysql_data:/var/lib/mysql
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_PASSWORD:-CHANGEME!}
-      - MYSQL_DATABASE=${MYSQL_DB:-restai}
+      - 8000:8000
 
   restai:
+    depends_on:
+      - redis
+      - postgres
     build:
       context: .
       dockerfile: Dockerfile
@@ -48,16 +39,66 @@ services:
         max_attempts: 3
         window: 60s
     ports:
-      - 9000:9000
+      - 9001:9001
     volumes:
       - local_cache:/home/user/.cache
     environment:
-      LOG_LEVEL: DEBUG
+      LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      RESTAI_DEV: ${RESTAI_DEV}
-      WITH_GPU: ${WITH_GPU:-false}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      XAI_API_KEY: ${XAI_API_KEY}
+      ANONYMIZED_TELEMETRY: ${ANONYMIZED_TELEMETRY:-False}
+      HF_TOKEN: ${HF_TOKEN}
+      RESTAI_RUNNER_HOST: ${RESTAI_RUNNER_HOST}
+      RESTAI_RUNNER_USER: ${RESTAI_RUNNER_USER}
+      RESTAI_RUNNER_PASSWORD: ${RESTAI_RUNNER_PASSWORD}
+      RESTAI_RUNNER_PORT: ${RESTAI_RUNNER_PORT}
+      SENTRY_DSN: ${SENTRY_DSN}
+      RESTAI_PORT: ${RESTAI_PORT:-9001}
+      RESTAI_DEV: ${RESTAI_DEV:-False}
+      RESTAI_GPU: ${RESTAI_GPU:-False}
+      POSTGRES_DB: ${POSTGRES_DB:-restai}
+      POSTGRES_USER: ${POSTGRES_USER:-restai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGEME!}
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      RESTAI_DEFAULT_PASSWORD: ${RESTAI_DEFAULT_PASSWORD:-admin}
+      RESTAI_DEMO: ${RESTAI_DEMO:-False}
+      SQLITE_PATH: ${SQLITE_PATH}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      CHROMADB_HOST: ${CHROMADB_HOST:-chromadb}
+      CHROMADB_PORT: ${CHROMADB_PORT:-8000}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      RESTAI_SSO_SECRET: ${RESTAI_SSO_SECRET}
+      RESTAI_SSO_ALG: ${RESTAI_SSO_ALG}
+      RESTAI_SSO_CALLBACK: ${RESTAI_SSO_CALLBACK}
+      RESTAI_DEFAULT_DEVICE: ${RESTAI_DEFAULT_DEVICE}
+      EMBEDDINGS_PATH: ${EMBEDDINGS_PATH}
+      DB_POOL_SIZE: ${DB_POOL_SIZE}
+      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW}
+      DB_POOL_RECYCLE: ${DB_POOL_RECYCLE}
+      AGENT_MAX_ITERATIONS: ${AGENT_MAX_ITERATIONS}
+      ENABLE_LDAP: ${ENABLE_LDAP}
+      LDAP_SERVER_HOST: ${LDAP_SERVER_HOST}
+      LDAP_SERVER_PORT: ${LDAP_SERVER_PORT}
+      LDAP_ATTRIBUTE_FOR_MAIL: ${LDAP_ATTRIBUTE_FOR_MAIL}
+      LDAP_ATTRIBUTE_FOR_USERNAME: ${LDAP_ATTRIBUTE_FOR_USERNAME}
+      LDAP_SEARCH_BASE: ${LDAP_SEARCH_BASE}
+      LDAP_SEARCH_FILTERS: ${LDAP_SEARCH_FILTERS}
+      LDAP_APP_DN: ${LDAP_APP_DN}
+      LDAP_APP_PASSWORD: ${LDAP_APP_PASSWORD}
+      LDAP_USE_TLS: ${LDAP_USE_TLS}
+      LDAP_CA_CERT_FILE: ${LDAP_CA_CERT_FILE}
+      LDAP_CIPHERS: ${LDAP_CIPHERS}
+      PROXY_URL: ${PROXY_URL}
+      PROXY_KEY: ${PROXY_KEY}
+      PROXY_TEAM_ID: ${PROXY_TEAM_ID}
+
+
 
 volumes:
-  mysql_data:
   pgdata:
   local_cache:

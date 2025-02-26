@@ -85,23 +85,8 @@ async def lifespan(fs_app: FastAPI):
     try:
         fs_app.mount(
             "/admin/",
-            StaticFiles(directory="frontend/html/", html=True),
+            StaticFiles(directory="frontend/build/", html=True),
             name="static_admin",
-        )
-        fs_app.mount(
-            "/admin/static/js",
-            StaticFiles(directory="frontend/html/static/js"),
-            name="static_js",
-        )
-        fs_app.mount(
-            "/admin/static/css",
-            StaticFiles(directory="frontend/html/static/css"),
-            name="static_css",
-        )
-        fs_app.mount(
-            "/admin/static/media",
-            StaticFiles(directory="frontend/html/static/media"),
-            name="static_media",
         )
     except Exception as e:
         print(e)
