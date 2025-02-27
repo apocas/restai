@@ -1,3 +1,5 @@
+import logging
+from restai import config
 import shutil
 import chromadb
 from llama_index.core.indices import VectorStoreIndex
@@ -10,6 +12,8 @@ from llama_index.vector_stores.chroma import ChromaVectorStore
 from restai.vectordb.base import VectorBase
 from restai.config import CHROMADB_HOST, CHROMADB_PORT
 
+logging.basicConfig(level=config.LOG_LEVEL)
+logging.getLogger("passlib").setLevel(logging.ERROR)
 
 class ChromaDBVector(VectorBase):
     db = None
@@ -104,7 +108,8 @@ class ChromaDBVector(VectorBase):
         try:
             embeddingsPath = find_embeddings_path(self.project.model.name)
             shutil.rmtree(embeddingsPath, ignore_errors=True)
-        except BaseException:
+        except Exception as e:
+            logging.exception(e)
             pass
 
     def delete_source(self, source):

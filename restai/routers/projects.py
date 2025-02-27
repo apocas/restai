@@ -183,13 +183,13 @@ async def route_delete_project(
 ):
     try:
         proj = get_project(projectName, db_wrapper, request.app.state.brain)
+        proj.delete()
         
         db_wrapper.db.query(OutputDatabase).filter(
             OutputDatabase.project_id == proj.model.id
         ).delete()
 
         db_wrapper.delete_project(db_wrapper.get_project_by_name(projectName))
-        proj.delete()
 
         return {"project": projectName}
 
