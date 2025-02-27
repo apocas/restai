@@ -170,6 +170,8 @@ async def route_get_project(
 
         return final_output
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -194,6 +196,8 @@ async def route_delete_project(
         return {"project": projectName}
 
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -395,6 +399,8 @@ async def clone_project(
 
         return {"project": newProjectName}
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -454,6 +460,8 @@ async def find_embedding(
 
         return {"embeddings": output}
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -481,6 +489,8 @@ async def get_embedding(
         else:
             return docs
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -504,6 +514,8 @@ async def get_embedding(
         chunk = project.vector.find_id(embedding_id)
         return chunk
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -549,6 +561,8 @@ async def ingest_text(
             "chunks": n_chunks,
         }
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -597,6 +611,8 @@ async def ingest_url(
 
         return {"source": ingest.url, "documents": len(documents), "chunks": n_chunks}
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -683,6 +699,8 @@ async def ingest_file(
             "chunks": n_chunks,
         }
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -709,6 +727,8 @@ async def get_embeddings(
 
         return {"embeddings": output}
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -733,6 +753,8 @@ async def delete_embedding(
 
         return {"deleted": len(ids)}
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -762,6 +784,8 @@ async def chat_query(
             background_tasks,
         )
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
