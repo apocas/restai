@@ -106,6 +106,7 @@ class ChromaDBVector(VectorBase):
 
     def delete(self):
         try:
+            self.db.delete_collection(name=self.project.model.name)
             embeddingsPath = find_embeddings_path(self.project.model.name)
             shutil.rmtree(embeddingsPath, ignore_errors=True)
         except Exception as e:
@@ -128,5 +129,5 @@ class ChromaDBVector(VectorBase):
         return id
 
     def reset(self, brain):
-        self.db.reset()
+        self.db.delete_collection(name=self.project.model.name)
         self.index = self._vector_init(brain)
