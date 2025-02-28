@@ -631,9 +631,6 @@ async def ingest_file(
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-
-    from llama_index.readers.docling import DoclingReader
-
     project = get_project(projectName, db_wrapper, request.app.state.brain)
 
     if project.model.type != "rag":
@@ -666,9 +663,12 @@ async def ingest_file(
             raise HTTPException(status_code=500, detail="Error while loading file.")
 
     else:
+        from llama_index.readers.docling import DoclingReader
+        
         try:
             reader = DoclingReader()
             documents = reader.load_data(file_path=Path(temp.name))
+            del reader
         except Exception as e:
             if "File format not allowed" in str(e):
                 raise HTTPException(
