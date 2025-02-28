@@ -22,6 +22,7 @@ from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.response_synthesizers import ResponseMode
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.schema import Document
+import torch
 from unidecode import unidecode
 from restai import config
 from restai.auth import (
@@ -669,6 +670,8 @@ async def ingest_file(
             reader = DoclingReader()
             documents = reader.load_data(file_path=Path(temp.name))
             del reader
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         except Exception as e:
             if "File format not allowed" in str(e):
                 raise HTTPException(
