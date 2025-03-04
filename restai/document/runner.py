@@ -33,11 +33,10 @@ def load_documents(manager, file_path: str):
     """Load documents using docling in a separate process"""
     sharedmem = manager.dict()
     
-    with ILock('docling', timeout=180):
-        p = Process(target=worker, args=(file_path, sharedmem))
-        p.start()
-        p.join()
-        p.kill()
+    p = Process(target=worker, args=(file_path, sharedmem))
+    p.start()
+    p.join()
+    p.kill()
 
     if sharedmem.get('error'):
         raise Exception(sharedmem['error'])
