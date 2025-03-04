@@ -34,6 +34,8 @@ class Brain:
         self.tokenizer = tiktoken.get_encoding("cl100k_base").encode
         self.token_counter = TokenCountingHandler(tokenizer=self.tokenizer)
         Settings.callback_manager = CallbackManager([self.token_counter])
+        
+        self.embeddings_cache = {} 
 
         if config.RESTAI_GPU == True:
             self.generators: list[FunctionTool] = tools.load_generators()
@@ -110,42 +112,48 @@ class Brain:
         else:
             return None
 
-    @staticmethod
-    def get_embedding(embeddingName: str, db: DBWrapper) -> Optional[LLM]:
+    def get_embedding(self, embeddingName: str, db: DBWrapper) -> Optional[LLM]:
         embedding_db = db.get_embedding_by_name(embeddingName)
-
-        if embedding_db is not None:
-            embedding_model = EmbeddingModel.model_validate(embedding_db)
-
-            embedding_class, embedding_default_params = tools.get_embedding_class(
-                embedding_model.class_name
-            )
-            llm_params = json.loads(embedding_model.options)
-            if embedding_default_params is not None:
-                llm_params.update(embedding_default_params)
-            embedding = embedding_class(**llm_params)
-
-            return Embedding(embeddingName, embedding_model, embedding)
+        
+        if self.embeddings_cache.get(embeddingName):
+            return self.embeddings_cache[embeddingName]
         else:
-            if embeddingName in EMBEDDINGS:
-                embedding_class, embedding_args, privacy, description, dimension = (
-                    EMBEDDINGS[embeddingName]
+            if embedding_db is not None:
+                embedding_model = EmbeddingModel.model_validate(embedding_db)
+
+                embedding_class, embedding_default_params = tools.get_embedding_class(
+                    embedding_model.class_name
                 )
-                model = LangchainEmbedding(embedding_class(**embedding_args))
-                return Embedding(
-                    embeddingName,
-                    EmbeddingModel(
-                        name=embeddingName,
-                        class_name="LangChain",
-                        options="{}",
-                        privacy=privacy,
-                        description=description,
-                        dimension=dimension,
-                    ),
-                    model,
-                )
+                llm_params = json.loads(embedding_model.options)
+                if embedding_default_params is not None:
+                    llm_params.update(embedding_default_params)
+                embedding = embedding_class(**llm_params)
+                
+                embedding_final = Embedding(embeddingName, embedding_model, embedding)
+                self.embeddings_cache[embeddingName] = embedding_final
+                return embedding_final
             else:
-                return None
+                if embeddingName in EMBEDDINGS:
+                    embedding_class, embedding_args, privacy, description, dimension = (
+                        EMBEDDINGS[embeddingName]
+                    )
+                    model = LangchainEmbedding(embedding_class(**embedding_args))
+                    embedding_final = Embedding(
+                        embeddingName,
+                        EmbeddingModel(
+                            name=embeddingName,
+                            class_name="LangChain",
+                            options="{}",
+                            privacy=privacy,
+                            description=description,
+                            dimension=dimension,
+                        ),
+                        model,
+                    )
+                    self.embeddings_cache[embeddingName] = embedding_final
+                    return embedding_final
+                else:
+                    return None
 
     def find_project(self, name: str, db: DBWrapper) -> Optional[Project]:
         p: Optional[ProjectDatabase] = db.get_project_by_name(name)

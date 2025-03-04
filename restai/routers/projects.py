@@ -170,6 +170,8 @@ async def route_get_project(
         if llm_model:
             final_output["llm_type"] = llm_model.props.type
             final_output["llm_privacy"] = llm_model.props.privacy
+            
+        del project
 
         return final_output
     except Exception as e:
