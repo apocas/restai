@@ -59,6 +59,8 @@ from restai.models.databasemodels import OutputDatabase
 import datetime
 from sqlalchemy import func
 import calendar
+import tempfile
+import shutil
 
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -635,20 +637,19 @@ async def ingest_file(
     project = get_project(projectName, db_wrapper, request.app.state.brain)
 
     if project.model.type != "rag":
-        raise HTTPException(status_code=400, detail="Only available for RAG projects.")
+        raise HTTPException(
+            status_code=400, detail="Only available for RAG projects."
+        )
 
-    _, ext = os.path.splitext(file.filename or "")
-    temp = NamedTemporaryFile(delete=False, suffix=ext)
+    opts = json.loads(options)
+
+    ext = os.path.splitext(file.filename)[1].lower()
+
+    temp = tempfile.NamedTemporaryFile(delete=False)
     try:
-        contents = file.file.read()
-        with temp as f:
-            f.write(contents)
-    except Exception:
-        raise HTTPException(status_code=500, detail="Error while saving file.")
+        shutil.copyfileobj(file.file, temp)
     finally:
-        file.file.close()
-
-    opts = json.loads(urllib.parse.unquote(options))
+        temp.close()
 
     if classic == True:
         loader = find_file_loader(ext, opts)
@@ -660,18 +661,11 @@ async def ingest_file(
         except Exception as e:
             logging.error(e)
             traceback.print_tb(e.__traceback__)
-
             raise HTTPException(status_code=500, detail="Error while loading file.")
-
     else:
-        from llama_index.readers.docling import DoclingReader
-        
         try:
-            reader = DoclingReader()
-            documents = reader.load_data(file_path=Path(temp.name))
-            del reader
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
+            from restai.document.runner import load_documents
+            documents = load_documents(request.app.state.manager, temp.name)
         except Exception as e:
             if "File format not allowed" in str(e):
                 raise HTTPException(

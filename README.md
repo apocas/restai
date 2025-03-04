@@ -117,7 +117,7 @@
 
 ## LLMs
 
-- You may use any LLM supported by Ollama and/or LlamaIndex.
+- You may use any LLM provider supported by LlamaIndex.
 
 ## Installation
 
