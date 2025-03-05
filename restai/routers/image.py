@@ -114,8 +114,8 @@ async def openai_compatible_generate(
     }
     
     if body.response_format == "url":
-      output["url"] = f"data:image/jpeg;base64,{image}"
+      output["data"][0]["url"] = f"data:image/jpeg;base64,{image}"
     elif body.response_format == "b64_json":
-      output["b64_json"] = image
+      output["data"][0]["b64_json"] = image
     
     return output
