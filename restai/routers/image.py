@@ -60,7 +60,7 @@ class OpenAIImageGenerateRequest(BaseModel):
     n: Optional[int] = 1
     quality: Optional[Literal["standard", "hd"]] = "standard"
     response_format: Optional[Literal["url", "b64_json"]] = "b64_json"
-    size: Optional[Literal["1024x1024", "1024x1792", "1792x1024"]] = "1024x1024"
+    size: Optional[Literal["512x512", "1024x1024", "1024x1792", "1792x1024"]] = "1024x1024"
     style: Optional[Literal["natural", "vivid"]] = "vivid"
     user: Optional[str] = None
 
@@ -105,13 +105,17 @@ async def openai_compatible_generate(
             else:
                 raise HTTPException(status_code=400, detail=f"Invalid model: {body.model}")
 
-    # Format response in OpenAI format
-    return {
+    output = {
         "created": int(time.time()),
         "data": [{
-            "b64_json": image if body.response_format == "b64_json" else None,
-            "url": f"data:image/jpeg;base64,{image}" if body.response_format == "url" else None,
             "revised_prompt": body.prompt,
             "model": body.model
         }]
     }
+    
+    if body.response_format == "url":
+      output["url"] = f"data:image/jpeg;base64,{image}"
+    elif body.response_format == "b64_json":
+      output["b64_json"] = image
+    
+    return output
