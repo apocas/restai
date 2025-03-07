@@ -55,7 +55,7 @@ from restai.vectordb.tools import (
     index_documents_docling,
 )
 from modules.embeddings import EMBEDDINGS
-from restai.models.databasemodels import OutputDatabase
+from restai.models.databasemodels import OutputDatabase, ProjectDatabase
 import datetime
 from sqlalchemy import func
 import calendar
@@ -80,24 +80,26 @@ def get_project(projectName: str, db_wrapper: DBWrapper, brain):
 async def route_get_projects(
     _: Request,
     v_filter: str = Query("own", alias="filter"),
+    start: int = Query(0),
+    end: int = Query(10),
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    all_projects = db_wrapper.get_projects()
+    query = db_wrapper.db.query(ProjectDatabase)
+    
     if v_filter == "own":
-        projects = (
-            all_projects
-            if user.is_admin
-            else [
-                p
-                for p in all_projects
-                if p.name in {proj.name for proj in user.projects}
-            ]
-        )
+        if not user.is_admin:
+            # Filter projects that the user has access to
+            query = query.join(users_projects).filter(users_projects.c.user_id == user.id)
     elif v_filter == "public":
-        projects = [p for p in all_projects if p.public]
+        # Filter only public projects
+        query = query.filter(ProjectDatabase.public == True)
     else:
-        projects = []
+        return {"projects": []}
+
+    # Apply pagination
+    projects = query.offset(start).limit(end - start).all()
+    
     return {"projects": projects}
 
 

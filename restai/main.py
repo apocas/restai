@@ -13,17 +13,17 @@ from contextlib import asynccontextmanager
 async def lifespan(fs_app: FastAPI):
     print(
         """
-        ___ ___ ___ _____ _   ___      _.--'"'.
+       ___ ___ ___ _____ _   ___      _.--'"'.
       | _ \ __/ __|_   _/_\ |_ _|    (  ( (   )
       |   / _|\__ \ | |/ _ \ | |     (o)_    ) )
       |_|_\___|___/ |_/_/ \_\___|        (o)_.'
                                   
-      """
+        """
     )
     from restai.brain import Brain
     from restai.database import get_db_wrapper, DBWrapper
     from restai.auth import get_current_username
-    from restai.routers import llms, projects, tools, users, image, audio, embeddings, proxy
+    from restai.routers import llms, projects, tools, users, image, audio, embeddings, proxy, statistics
     from restai.models.models import User
     from restai.multiprocessing import get_manager
     from modules.loaders import LOADERS
@@ -34,7 +34,7 @@ async def lifespan(fs_app: FastAPI):
 
     @fs_app.get("/")
     async def get():
-        return "RESTAI, so many 'A's and 'I's, so little time..."
+        return "RESTai, so many 'A's and 'I's, so little time..."
 
     @fs_app.get("/version")
     async def get_version():
@@ -98,6 +98,7 @@ async def lifespan(fs_app: FastAPI):
     fs_app.include_router(tools.router)
     fs_app.include_router(users.router)
     fs_app.include_router(proxy.router)
+    fs_app.include_router(statistics.router)
 
     if config.RESTAI_GPU == True:
         fs_app.include_router(image.router)
@@ -118,11 +119,11 @@ if config.SENTRY_DSN:
     )
 
 app = FastAPI(
-    title="RestAI",
-    description="RestAI is an AIaaS (AI as a Service) open-source platform."
+    title="RESTai",
+    description="RESTai is an AIaaS (AI as a Service) open-source platform."
     " Built on top of Llamaindex, Langchain and Transformers."
-    " Supports any public LLM supported by LlamaIndex"
-    " and any local LLM suported by Ollama. Precise embeddings usage and tuning.",
+    " Supports any LLM supported by LlamaIndex."
+    " Precise embeddings usage and tuning.",
     version="5.0.3",
     contact={
         "name": "Pedro Dias",
@@ -151,7 +152,7 @@ if config.RESTAI_DEV == True:
     print("Running in development mode!")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=["http://localhost:3000"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
