@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBasic
 import jwt
 from restai.config import RESTAI_AUTH_SECRET, RESTAI_AUTH_DISABLE_LOCAL
+from restai.constants import ERROR_MESSAGES
 from restai.database import get_db_wrapper, pwd_context, DBWrapper
 from restai.models.databasemodels import ProjectDatabase
 from restai.models.models import User
@@ -40,7 +41,7 @@ def get_current_username(
 
             return User.model_validate(user)
         except Exception:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_TOKEN)
     elif auth_header:
         temp_bearer_token = auth_header.split(" ")[1]
 
@@ -48,7 +49,7 @@ def get_current_username(
             user = db_wrapper.get_user_by_apikey(temp_bearer_token)
 
             if user is None:
-                raise HTTPException(status_code=401, detail="Invalid key")
+                raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
 
             return User.model_validate(user)
         elif "Basic" in auth_header:
@@ -62,12 +63,12 @@ def get_current_username(
                     or not credentials
                     or ("username" not in credentials or "password" not in credentials)
                 ):
-                    raise HTTPException(status_code=401, detail="Invalid credentials")
+                    raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
 
                 user = db_wrapper.get_user_by_username(credentials["username"])
 
                 if user is None or user.sso:
-                    raise HTTPException(status_code=401, detail="Invalid credentials")
+                    raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
 
                 is_correct_username = credentials["username"] == user.username
                 is_correct_password = pwd_context.verify(
@@ -77,7 +78,7 @@ def get_current_username(
                 if not (is_correct_username and is_correct_password):
                     raise HTTPException(
                         status_code=401,
-                        detail="Incorrect email or password",
+                        detail=ERROR_MESSAGES.INVALID_CRED,
                         headers={"WWW-Authenticate": "Basic"},
                     )
 
@@ -89,14 +90,14 @@ def get_current_username(
                 logging.exception(e)
                 pass
     else:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
 
 
 def get_current_username_admin(user: User = Depends(get_current_username)):
     if not user.is_admin:
         raise HTTPException(
-            status_code=401,
-            detail="Insufficient permissions",
+            status_code=403,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
             headers={"WWW-Authenticate": "Basic"},
         )
     return user
@@ -112,7 +113,7 @@ def get_current_username_project(
             if project.name == projectName:
                 found = True
     if not found:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
     return user
 
 
@@ -137,7 +138,7 @@ def get_current_username_project_public(
         user.level = "public"
 
     if not found:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
     return user
 
 
@@ -152,5 +153,5 @@ def get_current_username_user(
         found = True
 
     if not found:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
     return user

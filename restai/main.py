@@ -2,12 +2,15 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI, Request, Depends, status
+from fastapi import FastAPI, Request, Depends, status, Response
 import logging
 from restai import config
 import sentry_sdk
 from contextlib import asynccontextmanager
-
+from restai.database import get_db_wrapper
+from restai.oauth import OAuthManager
+from starlette.middleware.sessions import SessionMiddleware
+from restai.config import OAUTH_PROVIDERS, SECRET_KEY, SESSION_COOKIE_SAME_SITE, SESSION_COOKIE_SECURE
 
 @asynccontextmanager
 async def lifespan(fs_app: FastAPI):
@@ -136,6 +139,28 @@ app = FastAPI(
     },
     lifespan=lifespan,
 )
+
+oauth_manager = OAuthManager(app, db_wrapper=get_db_wrapper())
+
+if len(OAUTH_PROVIDERS) > 0:
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=SECRET_KEY,
+        session_cookie="oui-session",
+        same_site=SESSION_COOKIE_SAME_SITE,
+        https_only=SESSION_COOKIE_SECURE,
+    )
+
+
+@app.get("/oauth/{provider}/login")
+async def oauth_login(provider: str, request: Request):
+    return await oauth_manager.handle_login(request, provider)
+
+
+@app.get("/oauth/{provider}/callback")
+async def oauth_callback(provider: str, request: Request, response: Response):
+    return await oauth_manager.handle_callback(request, provider, response)
+
 
 
 @app.exception_handler(RequestValidationError)
