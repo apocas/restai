@@ -1,4 +1,5 @@
 import logging
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from typing import Literal, Optional
@@ -21,8 +22,10 @@ async def route_list_generators(request: Request,
     generators_names = [generator.__module__.split("restai.image.workers.")[1] for generator in generators]
 
     if not user.is_private:
-        generators_names.append("dalle")
-        generators_names.append("imagen")
+        if os.environ.get("OPENAI_API_KEY"):
+            generators_names.append("dalle")
+        if os.environ.get("GOOGLE_API_KEY"):
+            generators_names.append("imagen")
 
     return {"generators": generators_names}
 
