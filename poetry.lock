@@ -3865,15 +3865,15 @@ llama-index-llms-openai-like = ">=0.3.1,<0.4.0"
 
 [[package]]
 name = "llama-index-llms-litellm"
-version = "0.3.0"
+version = "0.3.1"
 description = "llama-index llms litellm integration"
 optional = false
 python-versions = "<4.0,>=3.9"
 groups = ["main"]
 markers = "python_version <= \"3.11\" or python_version >= \"3.12\""
 files = [
-    {file = "llama_index_llms_litellm-0.3.0-py3-none-any.whl", hash = "sha256:b1422cf66d4e9f1e02256de53333ce3cbf46bf57a4c37c2eccbf47500f57ee0e"},
-    {file = "llama_index_llms_litellm-0.3.0.tar.gz", hash = "sha256:06535d11e0ecf347342641aba1de80f06b521f8086614a71a5569e41371fb630"},
+    {file = "llama_index_llms_litellm-0.3.1-py3-none-any.whl", hash = "sha256:cf42014c303cd486d8a53aef13c9e89db913ff447c7f23cc5e33c1470917d2e5"},
+    {file = "llama_index_llms_litellm-0.3.1.tar.gz", hash = "sha256:c2ac552b91d14df81224fc30fcb2c63afadd07170bc8332c018ac72d650be619"},
 ]
 
 [package.dependencies]
@@ -8724,7 +8724,7 @@ files = [
 
 [package.dependencies]
 greenlet = [
-    {version = "!=0.4.17", optional = true, markers = "python_version < \"3.13\" and (platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\") or extra == \"asyncio\""},
+    {version = "!=0.4.17", markers = "python_version < \"3.13\" and (platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\")"},
     {version = "!=0.4.17", optional = true, markers = "python_version < \"3.13\" and (platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\") or extra == \"asyncio\""},
 ]
 typing-extensions = ">=4.6.0"
@@ -10296,4 +10296,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "48224b4e1a5c288a92ea37022fdadd8eea0e912b46dccc29073281b7d4430be6"
+content-hash = "d8bb90f4b3c652d3c1f0f57fdb247498f39c266233197cc265cd567f7e7308f5"
