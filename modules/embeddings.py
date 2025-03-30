@@ -10,8 +10,8 @@ EMBEDDINGS = {
 }
 
 if os.environ.get("OPENAI_API_KEY"):
-    EMBEDDINGS.append({ "openai_3_small": (OpenAIEmbeddings, {"model": "text-embedding-3-small"}, "public", "https://platform.openai.com/docs/guides/embeddings", 1536) })
-    EMBEDDINGS.append({ "openai_3_large": (OpenAIEmbeddings, {"model": "text-embedding-3-large"}, "public", "https://platform.openai.com/docs/guides/embeddings", 3072) })
-    EMBEDDINGS.append({ "openai_ada_002": (OpenAIEmbeddings, {"model": "text-embedding-ada-002"}, "public", "https://platform.openai.com/docs/guides/embeddings", 1536) })
+    EMBEDDINGS["openai_3_small"] = (OpenAIEmbeddings, {"model": "text-embedding-3-small"}, "public", "https://platform.openai.com/docs/guides/embeddings", 1536)
+    EMBEDDINGS["openai_3_large"] = (OpenAIEmbeddings, {"model": "text-embedding-3-large"}, "public", "https://platform.openai.com/docs/guides/embeddings", 3072)
+    EMBEDDINGS["openai_ada_002"] = (OpenAIEmbeddings, {"model": "text-embedding-ada-002"}, "public", "https://platform.openai.com/docs/guides/embeddings", 1536)
 if os.environ.get("GOOGLE_API_KEY"):
-    EMBEDDINGS.append({ "google_vertexai": (VertexAIEmbeddings, {}, "public", "https://cloud.google.com/vertex-ai/docs/generative-ai/learn/overview", 1408) })
+    EMBEDDINGS["google_vertexai"] = (VertexAIEmbeddings, {}, "public", "https://cloud.google.com/vertex-ai/docs/generative-ai/learn/overview", 1408)

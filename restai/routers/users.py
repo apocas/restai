@@ -25,10 +25,15 @@ from ldap3.utils.conv import escape_filter_chars
 router = APIRouter()
 
 def sanitize_user(user: User) -> User:
-    user_copy = copy.deepcopy(user)
-    if hasattr(user_copy, "api_key"):
-        del user_copy.api_key
-    return user_copy
+    if hasattr(user, 'model_dump'):
+        user_dict = user.model_dump()
+    else:
+        user_dict = User.model_validate(user).model_dump()
+    
+    if "api_key" in user_dict:
+        user_dict["api_key"] = None
+        
+    return User.model_validate(user_dict)
 
 @router.get("/sso")
 async def get_sso(request: Request, db_wrapper: DBWrapper = Depends(get_db_wrapper)):
