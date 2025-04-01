@@ -122,21 +122,8 @@ if config.SENTRY_DSN:
     )
 
 app = FastAPI(
-    title="RESTai",
-    description="RESTai is an AIaaS (AI as a Service) open-source platform."
-    " Built on top of Llamaindex, Langchain and Transformers."
-    " Supports any LLM supported by LlamaIndex."
-    " Precise embeddings usage and tuning.",
+    title=config.RESTAI_NAME,
     version="5.0.3",
-    contact={
-        "name": "Pedro Dias",
-        "url": "https://github.com/apocas/restai",
-        "email": "petermdias@gmail.com",
-    },
-    license_info={
-        "name": "Apache 2.0",
-        "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
-    },
     lifespan=lifespan,
 )
 

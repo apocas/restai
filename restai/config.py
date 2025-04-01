@@ -20,6 +20,8 @@ def load_env_vars():
 
 load_env_vars()
 
+RESTAI_NAME = os.environ.get("RESTAI_NAME") or "RESTai"
+
 RESTAI_PORT = os.environ.get("RESTAI_PORT") or 9000
 RESTAI_AUTH_SECRET = os.environ.get("RESTAI_AUTH_SECRET")
 RESTAI_AUTH_DISABLE_LOCAL = os.environ.get("RESTAI_AUTH_DISABLE_LOCAL")
