@@ -20,6 +20,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
 from typing import Optional
 from restai.config import MYSQL_HOST, MYSQL_URL, POSTGRES_HOST, POSTGRES_URL
+import json
 
 if MYSQL_HOST:
     print("Using MySQL database: " + MYSQL_HOST)
@@ -295,6 +296,7 @@ class DBWrapper:
             human_name=human_name,
             type=project_type,
             creator=creator,
+            options='{"logging": true}'  # Initialize with default options
         )
         self.db.add(db_project)
         self.db.commit()
@@ -429,6 +431,19 @@ class DBWrapper:
                     )
                 )
             changed = True
+
+        # Handle options update
+        if hasattr(projectModel, 'options') and projectModel.options is not None:
+            try:
+                current_options = json.loads(proj_db.options) if proj_db.options else {}
+                new_options = projectModel.options.model_dump()
+                if current_options != new_options:
+                    proj_db.options = json.dumps(new_options)
+                    changed = True
+            except json.JSONDecodeError:
+                # If current options are invalid JSON, update with new options
+                proj_db.options = json.dumps(projectModel.options.model_dump())
+                changed = True
 
         if changed:
             self.db.commit()

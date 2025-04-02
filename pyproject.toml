@@ -83,6 +83,7 @@ typer = "0.12.5"
 ldap3 = "^2.9.1"
 authlib = "^1.5.1"
 itsdangerous = "^2.2.0"
+alembic = "^1.15.2"
 
 [tool.poetry.group.gpu]
 optional = true

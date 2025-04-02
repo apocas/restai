@@ -38,6 +38,7 @@ class ProjectDatabase(Base):
     creator = Column(Integer)
     public = Column(Boolean, default=False)
     default_prompt = Column(Text)
+    options = Column(Text)
     users = relationship('UserDatabase', secondary=users_projects, back_populates='projects', lazy="select")
     entrances = relationship("RouterEntrancesDatabase", back_populates="project", lazy="select")
 

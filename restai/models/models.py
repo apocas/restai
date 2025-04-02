@@ -1,5 +1,6 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, Union
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Optional, Union, Iterable
+import json
 
 
 class URLIngestModel(BaseModel):
@@ -102,6 +103,11 @@ class ProjectUser(BaseModel):
     username: str
     model_config = ConfigDict(from_attributes=True)
     
+class ProjectOptions(BaseModel):
+    logging: bool = False
+    # Add other options here as needed
+    model_config = ConfigDict(from_attributes=True)
+
 class ProjectModel(BaseModel):
     id: int
     name: str
@@ -127,9 +133,22 @@ class ProjectModel(BaseModel):
     public: bool = False
     creator: Union[int, None] = None
     default_prompt: Union[str, None] = None
+    options: Union[str, ProjectOptions] = ProjectOptions()
     users: list[ProjectUser] = []
     model_config = ConfigDict(from_attributes=True)
-    
+
+    @field_validator('options', mode='before')
+    @classmethod
+    def parse_options(cls, v):
+        if isinstance(v, str):
+            try:
+                return ProjectOptions(**json.loads(v))
+            except json.JSONDecodeError:
+                return ProjectOptions()
+        elif isinstance(v, dict):
+            return ProjectOptions(**v)
+        return v
+
 class ProjectModelCreate(BaseModel):
     name: str
     embeddings: Union[str, None] = None
@@ -203,6 +222,7 @@ class ProjectModelUpdate(BaseModel):
     tools: Union[str, None] = None
     public: Union[bool, None] = None
     default_prompt: Union[str, None] = None
+    options: Union[ProjectOptions, None] = None
 
 class SourceModel(BaseModel):
     source: str

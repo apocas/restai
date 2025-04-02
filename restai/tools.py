@@ -401,6 +401,9 @@ def get_logger(name: str, level=logging.INFO):
 
 
 def log_inference(project: Project, user: User, output, db: DBWrapper):
+    if not project.model.options.logging:
+        return
+
     llm = LLMModel.model_validate(db.get_llm_by_name(project.model.llm))
 
     output_db_entry = OutputDatabase(
@@ -420,5 +423,4 @@ def log_inference(project: Project, user: User, output, db: DBWrapper):
         output_db_entry.chat_id = output["id"]
 
     db.db.add(output_db_entry)
-
     db.db.commit()

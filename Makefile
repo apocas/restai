@@ -30,6 +30,10 @@ installgpu:
 	poetry install --with gpu
 	poetry run python3 download.py
 
+.PHONY: migrate
+migrate:
+	poetry run python migrate.py upgrade
+
 .PHONY: docs
 docs:
 	poetry run python3 docs.py
