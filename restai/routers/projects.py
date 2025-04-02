@@ -87,19 +87,10 @@ async def route_get_projects(
 ):
     query = db_wrapper.db.query(ProjectDatabase)
     
-    if v_filter == "own":
-        if not user.is_admin:
-            # Filter projects that the user has access to
-            query = query.join(users_projects).filter(users_projects.c.user_id == user.id)
-    elif v_filter == "public":
-        # Filter only public projects
+    if v_filter == "public":
         query = query.filter(ProjectDatabase.public == True)
-    else:
-        return {"projects": []}
 
-    # Apply pagination
     projects = query.offset(start).limit(end - start).all()
-    
     return {"projects": projects}
 
 
