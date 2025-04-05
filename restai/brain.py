@@ -155,8 +155,8 @@ class Brain:
                 else:
                     return None
 
-    def find_project(self, name: str, db: DBWrapper) -> Optional[Project]:
-        p: Optional[ProjectDatabase] = db.get_project_by_name(name)
+    def find_project(self, id: int, db: DBWrapper) -> Optional[Project]:
+        p: Optional[ProjectDatabase] = db.get_project_by_id(id)
         if p is None:
             return None
 

@@ -173,6 +173,20 @@ DEFAULT_LLMS = {
         0.1,
         0.1,
     ),
+    "gemma3_27b": (
+        "OllamaMultiModal",
+        {
+            "model": "gemma3:27b",
+            "temperature": 0.0001,
+            "keep_alive": 0,
+            "request_timeout": 120,
+        },
+        "private",
+        "https://ollama.com/library/gemma3",
+        "vision",
+        0.1,
+        0.1,
+    ),
 }
 
 DEFAULT_EMBEDDINGS = {

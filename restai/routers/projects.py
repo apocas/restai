@@ -47,6 +47,7 @@ from restai.models.models import (
     User,
 )
 from restai.project import Project
+from restai.brain import Brain
 from restai.vectordb import tools
 from restai.vectordb.tools import (
     find_file_loader,
@@ -69,8 +70,8 @@ logging.getLogger("passlib").setLevel(logging.ERROR)
 router = APIRouter()
 
 
-def get_project(projectName: str, db_wrapper: DBWrapper, brain):
-    project = brain.find_project(projectName, db_wrapper)
+def get_project(projectID: int, db_wrapper: DBWrapper, brain: Brain):
+    project = brain.find_project(projectID, db_wrapper)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
@@ -94,15 +95,15 @@ async def route_get_projects(
     return {"projects": projects}
 
 
-@router.get("/projects/{projectName}")
+@router.get("/projects/{projectID}")
 async def route_get_project(
     request: Request,
-    projectName: str,
+    projectID: int,
     user: User = Depends(get_current_username_project_public),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     try:
-        project = get_project(projectName, db_wrapper, request.app.state.brain)
+        project = get_project(projectID, db_wrapper, request.app.state.brain)
 
         output = project.model.model_dump()
         final_output = {}
@@ -112,6 +113,7 @@ async def route_get_project(
         except Exception:
             llm_model = None
 
+        final_output["id"] = output["id"]
         final_output["name"] = output["name"]
         final_output["type"] = output["type"]
         final_output["llm"] = output["llm"]
@@ -175,24 +177,24 @@ async def route_get_project(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.delete("/projects/{projectName}")
+@router.delete("/projects/{projectID}")
 async def route_delete_project(
     request: Request,
-    projectName: str,
+    projectID: int,
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     try:
-        proj = get_project(projectName, db_wrapper, request.app.state.brain)
+        proj = get_project(projectID, db_wrapper, request.app.state.brain)
         proj.delete()
         
         db_wrapper.db.query(OutputDatabase).filter(
             OutputDatabase.project_id == proj.model.id
         ).delete()
 
-        db_wrapper.delete_project(db_wrapper.get_project_by_name(projectName))
+        db_wrapper.delete_project(db_wrapper.get_project_by_id(projectID))
 
-        return {"project": projectName}
+        return {"project": projectID}
 
     except Exception as e:
         if isinstance(e, HTTPException):
@@ -201,10 +203,10 @@ async def route_delete_project(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.patch("/projects/{projectName}")
+@router.patch("/projects/{projectID}")
 async def route_edit_project(
     request: Request,
-    projectName: str,
+    projectID: int,
     projectModelUpdate: ProjectModelUpdate,
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
@@ -223,8 +225,8 @@ async def route_edit_project(
             )
 
     try:
-        if db_wrapper.edit_project(projectName, projectModelUpdate):
-            return {"project": projectName}
+        if db_wrapper.edit_project(projectID, projectModelUpdate):
+            return {"project": projectID}
         else:
             raise HTTPException(status_code=404, detail="Project not found")
     except Exception as e:
@@ -293,7 +295,7 @@ async def route_create_project(
                 )
 
     try:
-        db_wrapper.create_project(
+        project_db = db_wrapper.create_project(
             projectModel.name,
             projectModel.embeddings,
             projectModel.llm,
@@ -302,7 +304,7 @@ async def route_create_project(
             projectModel.type,
             user.id,
         )
-        project = get_project(projectModel.name, db_wrapper, request.app.state.brain)
+        project = get_project(project_db.id, db_wrapper, request.app.state.brain)
 
         if project.model.vectorstore:
             project.vector = tools.find_vector_db(project)(
@@ -313,12 +315,10 @@ async def route_create_project(
                 ),
             )
 
-        project_db = db_wrapper.get_project_by_name(project.model.name)
-
         user_db = db_wrapper.get_user_by_id(user.id)
         user_db.projects.append(project_db)
         db_wrapper.db.commit()
-        return {"project": projectModel.name}
+        return {"project": project.model.id}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
@@ -326,15 +326,15 @@ async def route_create_project(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/projects/{projectName}/embeddings/reset")
+@router.post("/projects/{projectID}/embeddings/reset")
 async def reset_embeddings(
     request: Request,
-    projectName: str,
+    projectID: int,
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     try:
-        project = get_project(projectName, db_wrapper, request.app.state.brain)
+        project = get_project(projectID, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -349,71 +349,16 @@ async def reset_embeddings(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/projects/{projectName}/clone/{newProjectName}")
-async def clone_project(
-    request: Request,
-    projectName: str,
-    newProjectName: str,
-    _: User = Depends(get_current_username_project),
-    db_wrapper: DBWrapper = Depends(get_db_wrapper),
-):
-    try:
-        project = get_project(projectName, db_wrapper, request.app.state.brain)
-
-        newProject = db_wrapper.get_project_by_name(newProjectName)
-        if newProject is not None:
-            raise HTTPException(status_code=403, detail="Project already exists")
-
-        project_db = db_wrapper.get_project_by_name(projectName)
-
-        newProject_db = db_wrapper.create_project(
-            newProjectName,
-            project.model.embeddings,
-            project.model.llm,
-            project.model.vectorstore,
-            project.model.type,
-        )
-
-        newProject_db.system = project.model.system
-        newProject_db.censorship = project.model.censorship
-        newProject_db.k = project.model.k
-        newProject_db.score = project.model.score
-        newProject_db.llm_rerank = project.model.llm_rerank
-        newProject_db.colbert_rerank = project.model.colbert_rerank
-        newProject_db.cache = project.model.cache
-        newProject_db.cache_threshold = project.model.cache_threshold
-        newProject_db.guard = project.model.guard
-        newProject_db.human_name = project.model.human_name
-        newProject_db.human_description = project.model.human_description
-        newProject_db.tables = project.model.tables
-        newProject_db.connection = project.model.connection
-
-        for user in project_db.users:
-            newProject_db.users.append(user)
-
-        for entrance in project_db.entrances:
-            newProject_db.entrances.append(entrance)
-
-        db_wrapper.db.commit()
-
-        return {"project": newProjectName}
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        logging.exception(e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.post("/projects/{projectName}/embeddings/search")
+@router.post("/projects/{projectID}/embeddings/search")
 async def find_embedding(
     request: Request,
-    projectName: str,
+    projectID: int,
     embedding: FindModel,
     _: User = Depends(get_current_username_project_public),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     try:
-        project = get_project(projectName, db_wrapper, request.app.state.brain)
+        project = get_project(projectID, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -465,16 +410,16 @@ async def find_embedding(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/projects/{projectName}/embeddings/source/{source}")
+@router.get("/projects/{projectID}/embeddings/source/{source}")
 async def get_embedding(
     request: Request,
-    projectName: str,
+    projectID: int,
     source: str,
     _: User = Depends(get_current_username_project_public),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     try:
-        project = get_project(projectName, db_wrapper, request.app.state.brain)
+        project = get_project(projectID, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -494,16 +439,16 @@ async def get_embedding(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/projects/{projectName}/embeddings/id/{embedding_id}")
+@router.get("/projects/{projectID}/embeddings/id/{embedding_id}")
 async def get_embedding(
     request: Request,
-    projectName: str,
+    projectID: int,
     embedding_id: str,
     _: User = Depends(get_current_username_project_public),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     try:
-        project = get_project(projectName, db_wrapper, request.app.state.brain)
+        project = get_project(projectID, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -520,17 +465,17 @@ async def get_embedding(
 
 
 @router.post(
-    "/projects/{projectName}/embeddings/ingest/text", response_model=IngestResponse
+    "/projects/{projectID}/embeddings/ingest/text", response_model=IngestResponse
 )
 async def ingest_text(
     request: Request,
-    projectName: str,
+    projectID: int,
     ingest: TextIngestModel,
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     try:
-        project = get_project(projectName, db_wrapper, request.app.state.brain)
+        project = get_project(projectID, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -567,11 +512,11 @@ async def ingest_text(
 
 
 @router.post(
-    "/projects/{projectName}/embeddings/ingest/url", response_model=IngestResponse
+    "/projects/{projectID}/embeddings/ingest/url", response_model=IngestResponse
 )
 async def ingest_url(
     request: Request,
-    projectName: str,
+    projectID: int,
     ingest: URLIngestModel,
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
@@ -587,7 +532,7 @@ async def ingest_url(
                 status_code=400, detail="Specify the protocol http:// or https://"
             )
 
-        project = get_project(projectName, db_wrapper, request.app.state.brain)
+        project = get_project(projectID, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -617,11 +562,11 @@ async def ingest_url(
 
 
 @router.post(
-    "/projects/{projectName}/embeddings/ingest/upload", response_model=IngestResponse
+    "/projects/{projectID}/embeddings/ingest/upload", response_model=IngestResponse
 )
 async def ingest_file(
     request: Request,
-    projectName: str,
+    projectID: int,
     file: UploadFile,
     options: str = Form("{}"),
     chunks: int = Form(256),
@@ -630,7 +575,7 @@ async def ingest_file(
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    project = get_project(projectName, db_wrapper, request.app.state.brain)
+    project = get_project(projectID, db_wrapper, request.app.state.brain)
 
     if project.model.type != "rag":
         raise HTTPException(
@@ -698,15 +643,15 @@ async def ingest_file(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/projects/{projectName}/embeddings")
+@router.get("/projects/{projectID}/embeddings")
 async def get_embeddings(
     request: Request,
-    projectName: str,
+    projectID: int,
     _: User = Depends(get_current_username_project_public),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     try:
-        project = get_project(projectName, db_wrapper, request.app.state.brain)
+        project = get_project(projectID, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -726,16 +671,16 @@ async def get_embeddings(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.delete("/projects/{projectName}/embeddings/{source}")
+@router.delete("/projects/{projectID}/embeddings/{source}")
 async def delete_embedding(
     request: Request,
-    projectName: str,
+    projectID: int,
     source: str,
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     try:
-        project = get_project(projectName, db_wrapper, request.app.state.brain)
+        project = get_project(projectID, db_wrapper, request.app.state.brain)
 
         if project.model.type != "rag":
             raise HTTPException(
@@ -752,10 +697,10 @@ async def delete_embedding(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/projects/{projectName}/chat")
+@router.post("/projects/{projectID}/chat")
 async def chat_query(
     request: Request,
-    projectName: str,
+    projectID: int,
     q_input: ChatModel,
     background_tasks: BackgroundTasks,
     user: User = Depends(get_current_username_project_public),
@@ -765,7 +710,7 @@ async def chat_query(
         if not q_input.question:
             raise HTTPException(status_code=400, detail="Missing question")
 
-        project = get_project(projectName, db_wrapper, request.app.state.brain)
+        project = get_project(projectID, db_wrapper, request.app.state.brain)
 
         return await chat_main(
             request,
@@ -783,10 +728,10 @@ async def chat_query(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/projects/{projectName}/question")
+@router.post("/projects/{projectID}/question")
 async def question_query_endpoint(
     request: Request,
-    projectName: str,
+    projectID: int,
     q_input: QuestionModel,
     background_tasks: BackgroundTasks,
     user: User = Depends(get_current_username_project_public),
@@ -796,7 +741,7 @@ async def question_query_endpoint(
         if not q_input.question:
             raise HTTPException(status_code=400, detail="Question missing")
 
-        project = get_project(projectName, db_wrapper, request.app.state.brain)
+        project = get_project(projectID, db_wrapper, request.app.state.brain)
 
         if user.level == "public":
             q_input = QuestionModel(
@@ -821,16 +766,16 @@ async def question_query_endpoint(
         raise HTTPException(status_code=500, detail="Internal server error")
       
 
-@router.get("/projects/{projectName}/logs")
+@router.get("/projects/{projectID}/logs")
 async def get_token_consumption(
-    projectName: str,
+    projectID: int,
     start: int = 0,
     end: int = 10,
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     try:
-        project = db_wrapper.get_project_by_name(projectName)
+        project = db_wrapper.get_project_by_id(projectID)
         if project is None:
             raise HTTPException(status_code=404, detail="Project not found")
 
@@ -852,16 +797,16 @@ async def get_token_consumption(
         raise HTTPException(status_code=500, detail="Internal server error")
       
 
-@router.get("/projects/{projectName}/tokens/daily")
+@router.get("/projects/{projectID}/tokens/daily")
 async def get_monthly_token_consumption(
-    projectName: str,
+    projectID: int,
     year: int = None,
     month: int = None,
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     try:
-        project = db_wrapper.get_project_by_name(projectName)
+        project = db_wrapper.get_project_by_id(projectID)
         if project is None:
             raise HTTPException(status_code=404, detail="Project not found")
 

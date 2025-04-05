@@ -1,6 +1,6 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Float, Table, Text
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
@@ -15,7 +15,6 @@ class ProjectDatabase(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True)
-
     name = Column(String(255), unique=True, index=True)
     embeddings = Column(String(255))
     type = Column(String(255))
@@ -38,7 +37,7 @@ class ProjectDatabase(Base):
     creator = Column(Integer)
     public = Column(Boolean, default=False)
     default_prompt = Column(Text)
-    options = Column(Text)
+    options = Column(Text, default="{}")
     users = relationship('UserDatabase', secondary=users_projects, back_populates='projects', lazy="select")
     entrances = relationship("RouterEntrancesDatabase", back_populates="project", lazy="select")
 

@@ -278,6 +278,12 @@ class DBWrapper:
         )
         return project
 
+    def get_project_by_id(self, id: int) -> Optional[ProjectDatabase]:
+        project: Optional[ProjectDatabase] = (
+            self.db.query(ProjectDatabase).filter(ProjectDatabase.id == id).first()
+        )
+        return project
+
     def create_project(
         self,
         name: str,
@@ -312,8 +318,8 @@ class DBWrapper:
         self.db.commit()
         return True
 
-    def edit_project(self, name: str, projectModel: ProjectModelUpdate) -> bool:
-        proj_db: Optional[ProjectDatabase] = self.get_project_by_name(name)
+    def edit_project(self, id: int, projectModel: ProjectModelUpdate) -> bool:
+        proj_db: Optional[ProjectDatabase] = self.get_project_by_id(id)
         if proj_db is None:
             return False
 
@@ -432,7 +438,6 @@ class DBWrapper:
                 )
             changed = True
 
-        # Handle options update
         if hasattr(projectModel, 'options') and projectModel.options is not None:
             try:
                 current_options = json.loads(proj_db.options) if proj_db.options else {}
@@ -441,7 +446,6 @@ class DBWrapper:
                     proj_db.options = json.dumps(new_options)
                     changed = True
             except json.JSONDecodeError:
-                # If current options are invalid JSON, update with new options
                 proj_db.options = json.dumps(projectModel.options.model_dump())
                 changed = True
 

@@ -79,16 +79,12 @@ async def openai_compatible_generate(
     body: OpenAIImageGenerateRequest,
     user: User = Depends(get_current_username)
 ):
-    """OpenAI-compatible image generation endpoint"""
     import time
 
-    # Convert OpenAI request to our internal format
     imageModel = ImageModel(prompt=body.prompt)
 
-    # Map model parameter to generator
     generator = body.model.lower().replace("-", "")
     
-    # Use the existing generator selection logic
     match generator:
         case "dalle3" | "dalle":
             if user.is_private:
