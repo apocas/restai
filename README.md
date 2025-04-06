@@ -17,10 +17,6 @@
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/home.png"  alt="RESTai Home"/>
 </div>
 
-<div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/out.gif"  alt="RESTai Video"/>
-</div>
-
 ## Features
 
 - **Projects**: There are multiple project types, each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision), [router](https://github.com/apocas/restai?tab=readme-ov-file#router), [agent](https://github.com/apocas/restai?tab=readme-ov-file#agent))
@@ -87,7 +83,7 @@
 
 - New generators are easily added. Just create a new tool in the `generators` folder and it will be automatically picked up by RESTai. Check the `app/image/workers` folder for examples using the builtin generators.
 - **text2img**: RESTai supports txt2image like Stable Diffusion, Flux, DallE...
-- **img2img**: RESTai supports img2img like BMBG2, InstantID, ...
+- **img2img**: RESTai supports img2img like BMBG2, ...
 
 #### Flux1
 
@@ -95,7 +91,7 @@
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/flux1.png" width="50%"  style="margin: 10px;"/>
 </div>
 
-#### Stable Diffusion & [InstantID](https://github.com/InstantID/InstantID)
+#### Stable Diffusion
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/vision_sd.png" width="25%"  style="margin: 10px;"/>

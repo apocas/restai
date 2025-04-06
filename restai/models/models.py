@@ -95,7 +95,7 @@ class EmbeddingUpdate(BaseModel):
     privacy: str = None
     description: str = None
     dimension: int = None
-    
+
 class UserProject(BaseModel):
     id: int
     model_config = ConfigDict(from_attributes=True)
@@ -105,8 +105,16 @@ class ProjectUser(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
 class ProjectOptions(BaseModel):
-    logging: bool = False
-    # Add other options here as needed
+    logging: bool = True
+    colbert_rerank: Union[bool, None] = None
+    llm_rerank: Union[bool, None] = None
+    cache: Union[bool, None] = None
+    cache_threshold: Union[float, None] = None
+    tables: Union[str, None] = None
+    tools: Union[str, None] = None
+    score: float = 0.0
+    k: int = 4
+    connection: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
 class ProjectModel(BaseModel):
@@ -117,19 +125,10 @@ class ProjectModel(BaseModel):
     type: str
     system: Union[str, None] = None
     censorship: Union[str, None] = None
-    score: float = 0.0
-    k: int = 4
     vectorstore: Union[str, None] = None
-    connection: Union[str, None] = None
-    tables: Union[str, None] = None
-    llm_rerank: Union[bool, None] = None
-    colbert_rerank: Union[bool, None] = None
-    cache: Union[bool, None] = None
-    cache_threshold: Union[float, None] = None
     guard: Union[str, None] = None
     human_name: Union[str, None] = None
     human_description: Union[str, None] = None
-    tools: Union[str, None] = None
     entrances: Union[list[EntranceModel], None] = None
     public: bool = False
     creator: Union[int, None] = None

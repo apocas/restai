@@ -353,50 +353,6 @@ class DBWrapper:
             proj_db.censorship = projectModel.censorship
             changed = True
 
-        if projectModel.k is not None and proj_db.k != projectModel.k:
-            proj_db.k = projectModel.k
-            changed = True
-
-        if projectModel.score is not None and proj_db.score != projectModel.score:
-            proj_db.score = projectModel.score
-            changed = True
-
-        if (
-            projectModel.connection is not None
-            and proj_db.connection != projectModel.connection
-            and "://xxxx:xxxx@" not in projectModel.connection
-        ):
-            proj_db.connection = projectModel.connection
-            changed = True
-
-        if projectModel.tables is not None and proj_db.tables != projectModel.tables:
-            proj_db.tables = projectModel.tables
-            changed = True
-
-        if (
-            projectModel.llm_rerank is not None
-            and proj_db.llm_rerank != projectModel.llm_rerank
-        ):
-            proj_db.llm_rerank = projectModel.llm_rerank
-            changed = True
-
-        if (
-            projectModel.colbert_rerank is not None
-            and proj_db.colbert_rerank != projectModel.colbert_rerank
-        ):
-            proj_db.colbert_rerank = projectModel.colbert_rerank
-            changed = True
-
-        if projectModel.cache is not None and proj_db.cache != projectModel.cache:
-            proj_db.cache = projectModel.cache
-            changed = True
-
-        if (
-            projectModel.cache_threshold is not None
-            and proj_db.cache_threshold != projectModel.cache_threshold
-        ):
-            proj_db.cache_threshold = projectModel.cache_threshold
-            changed = True
 
         if projectModel.guard is not None and proj_db.guard != projectModel.guard:
             proj_db.guard = projectModel.guard
@@ -414,10 +370,6 @@ class DBWrapper:
             and proj_db.human_description != projectModel.human_description
         ):
             proj_db.human_description = projectModel.human_description
-            changed = True
-
-        if projectModel.tools is not None and proj_db.tools != projectModel.tools:
-            proj_db.tools = projectModel.tools
             changed = True
 
         if projectModel.public is not None and proj_db.public != projectModel.public:
