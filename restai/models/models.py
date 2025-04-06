@@ -155,6 +155,7 @@ class ProjectModelCreate(BaseModel):
     llm: str
     type: str
     human_name: Union[str, None] = None
+    human_description: Union[str, None] = None
     vectorstore: Union[str, None] = None
     
 class ProjectsResponse(BaseModel):
@@ -203,6 +204,7 @@ class UserUpdate(BaseModel):
 
 
 class ProjectModelUpdate(BaseModel):
+    name: Union[str, None] = None
     embeddings: Union[str, None] = None
     llm: Union[str, None] = None
     system: Union[str, None] = None

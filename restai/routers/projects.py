@@ -119,8 +119,10 @@ async def route_get_project(
         final_output["llm"] = output["llm"]
         final_output["human_name"] = output["human_name"]
         final_output["human_description"] = output["human_description"] or ""
-        final_output["censorship"] = output["censorship"]
-        final_output["guard"] = output["guard"]
+        if output["censorship"] is not None:
+            final_output["censorship"] = output["censorship"]
+        if output["guard"] is not None:
+            final_output["guard"] = output["guard"]
         final_output["creator"] = output["creator"]
         final_output["public"] = output["public"]
         final_output["level"] = user.level
@@ -243,9 +245,11 @@ async def route_create_project(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    projectModel.human_name = projectModel.name.strip()
     projectModel.name = unidecode(projectModel.name.strip().lower().replace(" ", "_"))
     projectModel.name = re.sub(r"[^\w\-.]+", "", projectModel.name)
+
+    if projectModel.human_name is None:
+        projectModel.human_name = projectModel.name
 
     if projectModel.type not in [
         "rag",
@@ -301,6 +305,7 @@ async def route_create_project(
             projectModel.llm,
             projectModel.vectorstore,
             projectModel.human_name,
+            projectModel.human_description,
             projectModel.type,
             user.id,
         )
@@ -345,6 +350,8 @@ async def reset_embeddings(
 
         return {"project": project.model.name}
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 

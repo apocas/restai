@@ -291,6 +291,7 @@ class DBWrapper:
         llm: str,
         vectorstore: str,
         human_name: str,
+        human_description: str,
         project_type: str,
         creator: int,
     ) -> ProjectDatabase:
@@ -300,6 +301,7 @@ class DBWrapper:
             llm=llm,
             vectorstore=vectorstore,
             human_name=human_name,
+            human_description=human_description,
             type=project_type,
             creator=creator,
             options='{"logging": true}'  # Initialize with default options
@@ -330,6 +332,10 @@ class DBWrapper:
                 u = self.get_user_by_username(user)
                 if u is not None:
                     proj_db.users.append(u)
+            changed = True
+
+        if projectModel.name is not None and proj_db.name != projectModel.name:
+            proj_db.name = projectModel.name
             changed = True
         
         if projectModel.llm is not None and proj_db.llm != projectModel.llm:
