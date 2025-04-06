@@ -95,8 +95,9 @@ class EmbeddingUpdate(BaseModel):
     privacy: str = None
     description: str = None
     dimension: int = None
+    
 class UserProject(BaseModel):
-    name: str
+    id: int
     model_config = ConfigDict(from_attributes=True)
     
 class ProjectUser(BaseModel):

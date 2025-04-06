@@ -82,7 +82,7 @@ async def route_get_projects(
     _: Request,
     v_filter: str = Query("own", alias="filter"),
     start: int = Query(0),
-    end: int = Query(10),
+    end: int = Query(50),
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -92,7 +92,7 @@ async def route_get_projects(
         query = query.filter(ProjectDatabase.public == True)
 
     projects = query.offset(start).limit(end - start).all()
-    return {"projects": projects}
+    return {"projects": projects, "total": query.count(), "start": start, "end": end}
 
 
 @router.get("/projects/{projectID}")
