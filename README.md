@@ -117,7 +117,7 @@
 
 ## Installation
 
-- RESTai uses [Poetry](https://python-poetry.org/) to manage dependencies. Install it with `pip install poetry`.
+- RESTai uses [uv](https://github.com/astral-sh/uv) to manage dependencies.
 
 ## Development
 
