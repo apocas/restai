@@ -410,16 +410,13 @@ def get_logger(name: str, level=logging.INFO):
 
 
 def log_inference(project: Project, user: User, output, db: DBWrapper):
-    if not project.model.options.logging:
-        return
-
     llm = LLMModel.model_validate(db.get_llm_by_name(project.model.llm))
 
     output_db_entry = OutputDatabase(
         user_id=user.id,
         llm=project.model.llm,
-        question=output["question"],
-        answer=output["answer"],
+        question=output["question"] if project.model.options.logging else None,
+        answer=output["answer"] if project.model.options.logging else None,
         date=datetime.now(),
         project_id=project.model.id,
         input_tokens=output["tokens"]["input"],
