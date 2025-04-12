@@ -52,7 +52,7 @@
 
 ### Agent
 
-- ReAct Agents, specify which tools to use in the project and the agent will figure out how to use them to achieve the objective.
+- Zero-Shot ReAct Agents, specify which tools to use in the project and the agent will figure out how to use them to achieve the objective.
 - New tools are easily added. Just create a new tool in the `tools` folder and it will be automatically picked up by RESTai. Check the `app/llms/tools` folder for examples using the builtin tools.
 
 - **Tools**: Supply all the tools names you want the Agent to use in this project. (separated by commas)
@@ -108,11 +108,23 @@
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/router.png" width="750"  style="margin: 10px;"/>
 </div>
 
-- **Routes**: Very similar to Zero Shot React strategy, but each route is a project. The router will route the question to the project that has the highest score. It's useful when you have multiple projects and you want to route the question to the most suitable one.
+- **Routes**: Very similar to Zero-Shot ReAct strategy, but each route is a project. The router will route the question to the project that has the highest score. It's useful when you have multiple projects and you want to route the question to the most suitable one.
 
 ## LLMs
 
 - You may use any LLM provider supported by LlamaIndex.
+- Builtin LLMs supported:
+  - Ollama
+  - OllamaMultiModal
+  - OpenAI
+  - OpenAILike (anything that is OpenAI compatible)
+  - Grok
+  - Groq
+  - Anthropic
+  - LiteLLM
+  - vLLM
+  - Gemini
+  - AzureOpenAI
 
 ## Installation
 
@@ -130,7 +142,7 @@
 
 ### Stateful
 
-- Only useful for small deployments and/or development purposes. It won't scale.
+- Ideal for small deployments, direct interaction with the GPU layer.
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai_stateful.png" width="750"  style="margin: 10px;"/>
