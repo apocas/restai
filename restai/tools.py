@@ -1,6 +1,5 @@
 from datetime import datetime
 import inspect
-import json
 import logging
 import os
 import pkgutil
@@ -221,17 +220,13 @@ def get_embedding_class(embedding_class_name: str):
 def get_llm_class(llm_class_name: str):
     match llm_class_name:
         case "Ollama":
-            from restai.llms.ollama import Ollama
+            from llama_index.llms.ollama import Ollama
 
             return Ollama, {"request_timeout": 120.0}
         case "OllamaMultiModal":
             from llama_index.multi_modal_llms.ollama import OllamaMultiModal
 
             return OllamaMultiModal, {"request_timeout": 120.0}
-        case "OllamaMultiModal2":
-            from restai.llms.ollamamultimodal import OllamaMultiModalInternal
-
-            return OllamaMultiModalInternal, {"request_timeout": 120.0}
         case "OpenAI":
             from llama_index.llms.openai import OpenAI
 

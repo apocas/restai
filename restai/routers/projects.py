@@ -4,9 +4,7 @@ import logging
 import os
 import re
 import traceback
-import urllib.parse
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from fastapi import (
     APIRouter,
     Depends,
@@ -22,7 +20,6 @@ from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.response_synthesizers import ResponseMode
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.schema import Document
-import torch
 from unidecode import unidecode
 from restai import config
 from restai.auth import (
@@ -36,7 +33,6 @@ from restai.loaders.url import SeleniumWebReader
 from restai.models.models import (
     FindModel,
     IngestResponse,
-    ProjectModel,
     ProjectModelCreate,
     ProjectModelUpdate,
     ProjectsResponse,
@@ -46,7 +42,6 @@ from restai.models.models import (
     URLIngestModel,
     User,
 )
-from restai.project import Project
 from restai.brain import Brain
 from restai.vectordb import tools
 from restai.vectordb.tools import (
