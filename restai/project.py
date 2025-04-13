@@ -9,7 +9,7 @@ class Project:
         self.vector = None
         self.model = model
 
-        if self.model.cache:
+        if self.model.options.cache:
             self.cache = Cache(self)
         else:
             self.cache = None

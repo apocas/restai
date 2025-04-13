@@ -10,7 +10,6 @@ from redisvl.schema import IndexSchema
 
 from restai.config import REDIS_HOST, REDIS_PORT
 from restai.vectordb.base import VectorBase
-from modules.embeddings import EMBEDDINGS
 
 class RedisVector(VectorBase):
     redis = None

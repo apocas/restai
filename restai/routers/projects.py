@@ -4,9 +4,7 @@ import logging
 import os
 import re
 import traceback
-import urllib.parse
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from fastapi import (
     APIRouter,
     Depends,
@@ -22,7 +20,6 @@ from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.response_synthesizers import ResponseMode
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.schema import Document
-import torch
 from unidecode import unidecode
 from restai import config
 from restai.auth import (
@@ -36,7 +33,6 @@ from restai.loaders.url import SeleniumWebReader
 from restai.models.models import (
     FindModel,
     IngestResponse,
-    ProjectModel,
     ProjectModelCreate,
     ProjectModelUpdate,
     ProjectsResponse,
@@ -46,7 +42,6 @@ from restai.models.models import (
     URLIngestModel,
     User,
 )
-from restai.project import Project
 from restai.brain import Brain
 from restai.vectordb import tools
 from restai.vectordb.tools import (
@@ -138,29 +133,18 @@ async def route_get_project(
             else:
                 final_output["chunks"] = 0
             final_output["embeddings"] = output["embeddings"]
-            final_output["k"] = output["k"]
-            final_output["score"] = output["score"]
             final_output["vectorstore"] = output["vectorstore"]
             final_output["system"] = output["system"] or ""
-            final_output["llm_rerank"] = output["llm_rerank"]
-            final_output["colbert_rerank"] = output["colbert_rerank"]
-            final_output["cache"] = output["cache"]
-            final_output["cache_threshold"] = output["cache_threshold"]
+
 
         if project.model.type == "inference":
             final_output["system"] = output["system"] or ""
 
         if project.model.type == "agent":
             final_output["system"] = output["system"] or ""
-            final_output["tools"] = output["tools"]
 
         if project.model.type == "ragsql":
             final_output["system"] = output["system"] or ""
-            final_output["tables"] = output["tables"]
-            if output["connection"] is not None:
-                final_output["connection"] = re.sub(
-                    r"(?<=://).+?(?=@)", "xxxx:xxxx", output["connection"]
-                )
 
         if project.model.type == "router":
             final_output["entrances"] = output["entrances"]

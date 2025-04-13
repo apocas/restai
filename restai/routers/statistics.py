@@ -1,66 +1,19 @@
-import base64
-import json
 import logging
-import os
-import re
-import traceback
-import urllib.parse
-from pathlib import Path
-from tempfile import NamedTemporaryFile
 from fastapi import (
     APIRouter,
     Depends,
-    Form,
     HTTPException,
-    Request,
-    UploadFile,
-    BackgroundTasks,
-    Query,
 )
-from llama_index.core.postprocessor import SimilarityPostprocessor
-from llama_index.core.query_engine import RetrieverQueryEngine
-from llama_index.core.response_synthesizers import ResponseMode
-from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.core.schema import Document
-import torch
-from unidecode import unidecode
 from restai import config
 from restai.auth import (
     get_current_username,
-    get_current_username_project,
-    get_current_username_project_public,
 )
 from restai.database import get_db_wrapper, DBWrapper
-from restai.helper import chat_main, question_main
-from restai.loaders.url import SeleniumWebReader
 from restai.models.models import (
-    FindModel,
-    IngestResponse,
-    ProjectModel,
-    ProjectModelCreate,
-    ProjectModelUpdate,
-    ProjectsResponse,
-    QuestionModel,
-    ChatModel,
-    TextIngestModel,
-    URLIngestModel,
     User,
 )
-from restai.project import Project
-from restai.vectordb import tools
-from restai.vectordb.tools import (
-    find_file_loader,
-    extract_keywords_for_metadata,
-    index_documents_classic,
-    index_documents_docling,
-)
-from modules.embeddings import EMBEDDINGS
 from restai.models.databasemodels import OutputDatabase, ProjectDatabase, users_projects
-import datetime
 from sqlalchemy import func, or_
-import calendar
-import tempfile
-import shutil
 
 
 logging.basicConfig(level=config.LOG_LEVEL)

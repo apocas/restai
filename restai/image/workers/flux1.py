@@ -9,8 +9,11 @@ from diffusers import FluxPipeline
 from diffusers import FluxTransformer2DModel
 from diffusers.image_processor import VaeImageProcessor
 
-# os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
+import torch
+from diffusers import DiffusionPipeline
+from transformers import T5EncoderModel, BitsAndBytesConfig
 
+# os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 def flush():
     gc.collect()
@@ -21,87 +24,38 @@ def flush():
 
 def worker(prompt, sharedmem):
 
-    gpu_count = torch.cuda.device_count()
+    quantization_config = BitsAndBytesConfig(load_in_8bit=True)
 
-    if gpu_count < 2:
-        pipeline = FluxPipeline.from_pretrained(
-            "black-forest-labs/FLUX.1-dev", torch_dtype=torch.bfloat16
-        )
-    else:
-        pipeline = FluxPipeline.from_pretrained(
-            "black-forest-labs/FLUX.1-dev",
-            transformer=None,
-            vae=None,
-            device_map="balanced",
-            max_memory={0: "24GB", 1: "24GB"},
-            torch_dtype=torch.bfloat16,
-        )
-
-    with torch.no_grad():
-        print("Encoding prompts.")
-        prompt_embeds, pooled_prompt_embeds, text_ids = pipeline.encode_prompt(
-            prompt=prompt, prompt_2=None, max_sequence_length=512
-        )
-
-    del pipeline.text_encoder
-    del pipeline.text_encoder_2
-    del pipeline.tokenizer
-    del pipeline.tokenizer_2
-    del pipeline
-
-    flush()
-
-    transformer = FluxTransformer2DModel.from_pretrained(
-        "black-forest-labs/FLUX.1-dev",
-        subfolder="transformer",
-        device_map="auto",
+    model_id = "black-forest-labs/FLUX.1-schnell"
+    text_encoder = T5EncoderModel.from_pretrained(
+        model_id,
+        subfolder="text_encoder_2",
+        quantization_config=quantization_config,
         torch_dtype=torch.bfloat16,
     )
 
-    pipeline = FluxPipeline.from_pretrained(
-        "black-forest-labs/FLUX.1-dev",
-        text_encoder=None,
-        text_encoder_2=None,
-        tokenizer=None,
-        tokenizer_2=None,
-        vae=None,
-        transformer=transformer,
+    pipe = DiffusionPipeline.from_pretrained(
+        model_id,
         torch_dtype=torch.bfloat16,
+        text_encoder_2=text_encoder,
+        device_map="balanced",
+        max_memory={0: "22GiB", "cpu": "10GiB"},
     )
+    pipe.vae.enable_tiling()
 
-    print("Running denoising.")
-    height, width = 768, 1360
-    latents = pipeline(
-        prompt_embeds=prompt_embeds,
-        pooled_prompt_embeds=pooled_prompt_embeds,
-        num_inference_steps=50,
-        guidance_scale=3.5,
-        height=height,
-        width=width,
-        output_type="latent",
-    ).images
+    
+    image = pipe(
+        prompt,
+        prompt_2="",
+        num_images_per_prompt=1,
+        guidance_scale=0.0,
+        num_inference_steps=4,
+        max_sequence_length=256,
+        generator=torch.Generator("cpu").manual_seed(0),
+    ).images[0]
 
-    del pipeline.transformer
-    del pipeline
+    image_data = io.BytesIO()
+    image.save(image_data, format="JPEG")
+    image_base64 = base64.b64encode(image_data.getvalue()).decode("utf-8")
 
-    flush()
-
-    vae = AutoencoderKL.from_pretrained(
-        "black-forest-labs/FLUX.1-dev", subfolder="vae", torch_dtype=torch.bfloat16
-    ).to("cuda")
-    vae_scale_factor = 2 ** (len(vae.config.block_out_channels))
-    image_processor = VaeImageProcessor(vae_scale_factor=vae_scale_factor)
-
-    with torch.no_grad():
-        print("Running decoding.")
-        latents = FluxPipeline._unpack_latents(latents, height, width, vae_scale_factor)
-        latents = (latents / vae.config.scaling_factor) + vae.config.shift_factor
-
-        image = vae.decode(latents, return_dict=False)[0]
-        image = image_processor.postprocess(image, output_type="pil")
-
-        image_data = io.BytesIO()
-        image[0].save(image_data, format="JPEG")
-        image_base64 = base64.b64encode(image_data.getvalue()).decode("utf-8")
-
-        sharedmem["image"] = image_base64
+    sharedmem["image"] = image_base64

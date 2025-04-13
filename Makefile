@@ -1,10 +1,10 @@
 .PHONY: start
 start:
-	poetry run uvicorn restai.main:app --port 9000 --workers 4
+	uv run --no-group gpu uvicorn restai.main:app --port 9000 --workers 4
 
 .PHONY: database
 database:
-	poetry run python database.py
+	uv run --no-group gpu database.py
 
 .PHONY: frontend
 frontend:
@@ -16,27 +16,27 @@ dev:
 
 .PHONY: build
 build:
-	poetry build
+	uv build
 
 .PHONY: install
 install:
-	poetry install
+	uv sync --no-group gpu
 	make database
 	git clone https://github.com/apocas/restai-frontend frontend
 	make frontend
 
 .PHONY: installgpu
 installgpu:
-	poetry install --with gpu
-	poetry run python3 download.py
+	uv sync
+	uv run --no-group gpu download.py
 
 .PHONY: migrate
 migrate:
-	poetry run python migrate.py upgrade
+	uv run --no-group gpu migrate.py upgrade
 
 .PHONY: docs
 docs:
-	poetry run python3 docs.py
+	uv run --no-group gpu docs.py
 
 .PHONY: test
 test:

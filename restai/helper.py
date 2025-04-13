@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, AsyncGenerator, Any, Dict
 
 from starlette.responses import StreamingResponse
 from requests import Response
@@ -21,11 +21,55 @@ import logging
 import base64
 from restai.tools import log_inference
 from restai.config import LOG_LEVEL
+import json
 
 from restai.projects.base import ProjectBase
 
 logging.basicConfig(level=LOG_LEVEL)
 logging.getLogger("passlib").setLevel(logging.ERROR)
+
+
+async def create_streaming_response_with_logging(
+    generator,
+    project: Project,
+    user: User,
+    db: DBWrapper,
+    background_tasks: BackgroundTasks,
+) -> StreamingResponse:
+    """
+    Creates a streaming response with logging of the final output.
+
+    Args:
+        generator: The generator that yields streaming chunks
+        project: The project
+        user: The user
+        db: The database wrapper
+        background_tasks: Background tasks
+
+    Returns:
+        A StreamingResponse
+    """
+
+    async def stream_with_logging():
+        final_output = None
+        
+        for chunk in generator:
+            if isinstance(chunk, str) and chunk.startswith("data: "):
+                try:
+                    data = json.loads(chunk.replace("data: ", ""))
+                    if "answer" in data and "type" in data:
+                        final_output = data
+                except:
+                    pass
+            yield chunk
+
+        if final_output:
+            background_tasks.add_task(log_inference, project, user, final_output, db)
+
+    return StreamingResponse(
+        stream_with_logging(),
+        media_type="text/event-stream",
+    )
 
 
 async def chat_main(
@@ -51,9 +95,12 @@ async def chat_main(
             raise HTTPException(status_code=400, detail="Invalid project type")
 
     if chat_input.stream:
-        return StreamingResponse(
+        return await create_streaming_response_with_logging(
             proj_logic.chat(project, chat_input, user, db),
-            media_type="text/event-stream",
+            project,
+            user,
+            db,
+            background_tasks,
         )
     else:
         output = proj_logic.chat(project, chat_input, user, db)
@@ -120,9 +167,12 @@ async def question_rag(
             )
 
         if q_input.stream:
-            return StreamingResponse(
+            return await create_streaming_response_with_logging(
                 proj_logic.question(project, q_input, user, db),
-                media_type="text/event-stream",
+                project,
+                user,
+                db,
+                background_tasks,
             )
         else:
             output = proj_logic.question(project, q_input, user, db)
@@ -208,9 +258,12 @@ async def question_inference(
             )
 
         if q_input.stream:
-            return StreamingResponse(
+            return await create_streaming_response_with_logging(
                 proj_logic.question(project, q_input, user, db),
-                media_type="text/event-stream",
+                project,
+                user,
+                db,
+                background_tasks,
             )
         else:
             output = proj_logic.question(project, q_input, user, db)
@@ -235,11 +288,24 @@ async def question_agent(
     try:
         projLogic: Agent = Agent(brain)
 
-        output = projLogic.question(project, q_input, user, db)
+        if project.model.type != "agent":
+            raise HTTPException(
+                status_code=400, detail="Only available for AGENT projects."
+            )
 
-        for line in output:
-            background_tasks.add_task(log_inference, project, user, line, db)
-            return line
+        if q_input.stream:
+            return await create_streaming_response_with_logging(
+                projLogic.question(project, q_input, user, db),
+                project,
+                user,
+                db,
+                background_tasks,
+            )
+        else:
+            output = projLogic.question(project, q_input, user, db)
+            for line in output:
+                background_tasks.add_task(log_inference, project, user, line, db)
+                return line
 
     except Exception as e:
         logging.error(e)

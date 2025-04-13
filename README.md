@@ -20,12 +20,12 @@
 ## Features
 
 - **Projects**: There are multiple project types, each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision), [router](https://github.com/apocas/restai?tab=readme-ov-file#router), [agent](https://github.com/apocas/restai?tab=readme-ov-file#agent))
-- **Users**: A user represents a user of the system. It's used for authentication and authorization (basic auth). Each user may have access to multiple projects.
+- **Users**: A user represents a user of the system. Each user may have access to multiple projects.
 - **LLMs**: Supports any public LLM supported by LlamaIndex. Which includes any local LLM supported by Ollama, LiteLLM, etc.
-- **VRAM**: Automatic VRAM management. Local image generators are run in a separate process, which allows for better resource management.
 - **API**: The API is a first-class citizen of RestAI. All endpoints are documented using [Swagger](https://apocas.github.io/restai/).
 - **Frontend**: There is a frontend available at [restai-frontend](https://github.com/apocas/restai-frontend)
 - **Image Generation**: Supports local and remote image generators. Local image generators are run in a separate process. New generators are [easily added](https://github.com/apocas/restai?tab=readme-ov-file#image-generators) and loaded dynamically.
+- **Proxy**: Allows management of an OpenAI compatible proxy. LiteLLM is supported out of the box.
 
 ## Project Types
 
@@ -36,7 +36,7 @@
 </div>
 
 - **Embeddings**: You may use any embeddings model supported by llamaindex. Check embeddings [definition](modules/embeddings.py).
-- **Vectorstore**: There are two vectorstores supported: `Chroma` and `Redis`
+- **Vectorstore**: There are two vectorstores supported: `ChromaDB` and `RedisVL`
 - **Retrieval**: It features an embeddings search and score evaluator, which allows you to evaluate the quality of your embeddings and simulate the RAG process before the LLM. Reranking is also supported, ColBERT and LLM based.
 - **Loaders**: You may use any loader supported by llamaindex.
 - **Sandboxed mode**: RAG projects have "sandboxed" mode, which means that a locked default answer will be given when there aren't embeddings for the provided question. This is useful for chatbots, where you want to provide a default answer when the LLM doesn't know how to answer the question, reduncing hallucination.
@@ -52,7 +52,7 @@
 
 ### Agent
 
-- ReAct Agents, specify which tools to use in the project and the agent will figure out how to use them to achieve the objective.
+- Zero-Shot ReAct Agents, specify which tools to use in the project and the agent will figure out how to use them to achieve the objective.
 - New tools are easily added. Just create a new tool in the `tools` folder and it will be automatically picked up by RESTai. Check the `app/llms/tools` folder for examples using the builtin tools.
 
 - **Tools**: Supply all the tools names you want the Agent to use in this project. (separated by commas)
@@ -82,7 +82,7 @@
 ### Image Generators
 
 - New generators are easily added. Just create a new tool in the `generators` folder and it will be automatically picked up by RESTai. Check the `app/image/workers` folder for examples using the builtin generators.
-- **text2img**: RESTai supports txt2image like Stable Diffusion, Flux, DallE...
+- **text2img**: RESTai supports txt2image like Stable Diffusion, Flux, DallE, ...
 - **img2img**: RESTai supports img2img like BMBG2, ...
 
 #### Flux1
@@ -96,9 +96,8 @@
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/vision_sd.png" width="25%"  style="margin: 10px;"/>
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/avatar.png" width="25%"  style="margin: 10px;"/>
-    <img src="https://github.com/apocas/restai/blob/master/readme/assets/rmbg2.png" width="25%"  style="margin: 10px;"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/rmbg2.png" width="25%"  style="margin: 10px;"/>
 </div>
-
 
 
 ### Router
@@ -109,15 +108,45 @@
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/router.png" width="750"  style="margin: 10px;"/>
 </div>
 
-- **Routes**: Very similar to Zero Shot React strategy, but each route is a project. The router will route the question to the project that has the highest score. It's useful when you have multiple projects and you want to route the question to the most suitable one.
+- **Routes**: Very similar to Zero-Shot ReAct strategy, but each route is a project. The router will route the question to the project that has the highest score. It's useful when you have multiple projects and you want to route the question to the most suitable one.
 
 ## LLMs
 
 - You may use any LLM provider supported by LlamaIndex.
+- Builtin LLMs supported:
+  - Ollama
+  - OllamaMultiModal
+  - OpenAI
+  - OpenAILike (anything that is OpenAI compatible)
+  - Grok
+  - Groq
+  - Anthropic
+  - LiteLLM
+  - vLLM
+  - Gemini
+  - AzureOpenAI
 
 ## Installation
 
-- RESTai uses [Poetry](https://python-poetry.org/) to manage dependencies. Install it with `pip install poetry`.
+- RESTai uses [uv](https://github.com/astral-sh/uv) to manage dependencies.
+
+## Architecture
+
+### Stateless
+
+- Ideal scenario for production environments. There is no state stored in the RESTai service.
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai_stateless.png" width="750"  style="margin: 10px;"/>
+</div>
+
+### Stateful
+
+- Ideal for small deployments, direct interaction with the GPU layer.
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai_stateful.png" width="750"  style="margin: 10px;"/>
+</div>
 
 ## Development
 

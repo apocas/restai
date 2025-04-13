@@ -7,8 +7,8 @@ from fastapi import HTTPException, Request
 import traceback
 import logging
 from restai import config
-from restai.models.databasemodels import LLMDatabase, EmbeddingDatabase
-from restai.models.models import EmbeddingModel, LLMUpdate, User, EmbeddingUpdate
+from restai.models.databasemodels import EmbeddingDatabase
+from restai.models.models import EmbeddingModel, User, EmbeddingUpdate
 from restai.database import get_db_wrapper, DBWrapper
 from restai.auth import get_current_username, get_current_username_admin
 from modules.embeddings import EMBEDDINGS
