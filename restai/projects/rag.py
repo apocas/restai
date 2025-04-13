@@ -25,7 +25,7 @@ class RAG(ProjectBase):
     def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
         model: Optional[LLM] = self.brain.get_llm(project.model.llm, db)
         chat: Chat = Chat(chatModel, self.brain.chat_store)
-        
+
         output = {
             "id": chat.chat_id,
             "question": chatModel.question,
@@ -33,23 +33,25 @@ class RAG(ProjectBase):
             "cached": False,
             "guard": False,
             "type": "chat",
-            "project": project.model.name
+            "project": project.model.name,
         }
-        
+
         if project.model.guard:
             guard = Guard(project.model.guard, self.brain, db)
             if guard.verify(chatModel.question):
-                output["answer"] = project.model.censorship or self.brain.defaultCensorship
+                output["answer"] = (
+                    project.model.censorship or self.brain.defaultCensorship
+                )
                 output["guard"] = True
                 self.brain.post_processing_counting(output)
                 yield output
 
-        threshold = project.model.score or 0.0
-        k = project.model.k or 1
+        threshold = project.model.options.score or 0.0
+        k = project.model.options.k or 1
 
         sysTemplate = project.model.system or self.brain.defaultSystem
-        
-        if project.model.colbert_rerank or project.model.llm_rerank:
+
+        if project.model.options.colbert_rerank or project.model.options.llm_rerank:
             final_k = k * 2
         else:
             final_k = k
@@ -61,21 +63,25 @@ class RAG(ProjectBase):
 
         postprocessors = []
 
-        if project.model.colbert_rerank:
-            postprocessors.append(ColbertRerank(
-                top_n=k,
-                model="colbert-ir/colbertv2.0",
-                tokenizer="colbert-ir/colbertv2.0",
-                keep_retrieval_score=True,
-            ))
+        if project.model.options.colbert_rerank:
+            postprocessors.append(
+                ColbertRerank(
+                    top_n=k,
+                    model="colbert-ir/colbertv2.0",
+                    tokenizer="colbert-ir/colbertv2.0",
+                    keep_retrieval_score=True,
+                )
+            )
 
-        if project.model.llm_rerank:
-            postprocessors.append(LLMRerank(
-                choice_batch_size=k,
-                top_n=k,
-                llm=model.llm,
-            ))
-            
+        if project.model.options.llm_rerank:
+            postprocessors.append(
+                LLMRerank(
+                    choice_batch_size=k,
+                    top_n=k,
+                    llm=model.llm,
+                )
+            )
+
         postprocessors.append(SimilarityPostprocessor(similarity_cutoff=threshold))
 
         chat_engine = ContextChatEngine.from_defaults(
@@ -83,7 +89,7 @@ class RAG(ProjectBase):
             system_prompt=sysTemplate,
             memory=chat.memory,
             node_postprocessors=postprocessors,
-            llm=model.llm
+            llm=model.llm,
         )
 
         try:
@@ -93,47 +99,46 @@ class RAG(ProjectBase):
                 response = chat_engine.chat(chatModel.question)
 
             for node in response.source_nodes:
-                source = {
-                    "score": node.score,
-                    "id": node.node_id,
-                    "text": node.text
-                }
+                source = {"score": node.score, "id": node.node_id, "text": node.text}
 
                 if "source" in node.metadata:
                     source["source"] = node.metadata["source"]
                 if "keywords" in node.metadata:
                     source["keywords"] = node.metadata["keywords"]
-                    
+
                 output["sources"].append(source)
 
             if chatModel.stream:
                 if hasattr(response, "response_gen"):
-                    resp = ""
+                    parts = []
                     for text in response.response_gen:
-                        resp += text
+                        parts.append(text)
                         yield "data: " + json.dumps({"text": text}) + "\n\n"
-                    output["answer"] = resp
-                    
+
+                    output["answer"] = "".join(parts)
+
                     self.brain.post_processing_reasoning(output)
                     self.brain.post_processing_counting(output)
-                    
+
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
                 else:
                     output["answer"] = self.brain.defaultCensorship
                     yield "data: " + json.dumps({"text": "text"}) + "\n\n"
-                    
+
                     self.brain.post_processing_reasoning(output)
                     self.brain.post_processing_counting(output)
-                    
+
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
-            else:  
+            else:
                 if len(response.source_nodes) == 0:
-                    output["answer"] = project.model.censorship or self.brain.defaultCensorship
+                    output["answer"] = (
+                        project.model.censorship or self.brain.defaultCensorship
+                    )
                 else:
                     output["answer"] = response.response
-                    
+
                     if project.cache:
                         project.cache.add(chatModel.question, response.response)
 
@@ -141,43 +146,50 @@ class RAG(ProjectBase):
                 self.brain.post_processing_counting(output)
 
                 yield output
-        except Exception as e:              
+        except Exception as e:
             if chatModel.stream:
                 yield "data: Inference failed\n"
                 yield "event: error\n\n"
             raise e
 
-
-    def question(self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
+    def question(
+        self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper
+    ):
         output = {
-          "question": questionModel.question,
-          "type": "question",
-          "sources": [],
-          "cached": False,
-          "guard": False,
-          "tokens": {
-              "input": 0,
-              "output": 0
-          },
-          "project": project.model.name
+            "question": questionModel.question,
+            "type": "question",
+            "sources": [],
+            "cached": False,
+            "guard": False,
+            "tokens": {"input": 0, "output": 0},
+            "project": project.model.name,
         }
-        
+
         if project.model.guard:
             guard = Guard(project.model.guard, self.brain, db)
             if guard.verify(questionModel.question):
-                output["answer"] = project.model.censorship or self.brain.defaultCensorship
+                output["answer"] = (
+                    project.model.censorship or self.brain.defaultCensorship
+                )
                 output["guard"] = True
                 self.brain.post_processing_counting(output)
                 yield output
-            
+
         model = self.brain.get_llm(project.model.llm, db)
 
-        sysTemplate = questionModel.system or project.model.system or self.brain.defaultSystem
+        sysTemplate = (
+            questionModel.system or project.model.system or self.brain.defaultSystem
+        )
 
         k = questionModel.k or project.model.k or 2
-        threshold = questionModel.score or project.model.score or 0.2
+        threshold = questionModel.score or project.model.options.score or 0.0
 
-        if questionModel.colbert_rerank or questionModel.llm_rerank or project.model.colbert_rerank or project.model.llm_rerank:
+        if (
+            questionModel.colbert_rerank
+            or questionModel.llm_rerank
+            or project.model.options.colbert_rerank
+            or project.model.options.llm_rerank
+        ):
             final_k = k * 2
         else:
             final_k = k
@@ -199,79 +211,101 @@ class RAG(ProjectBase):
         )
 
         qa_prompt = PromptTemplate(qa_prompt_tmpl)
-     
+
         model.llm.system_prompt = sysTemplate
 
-        response_synthesizer = get_response_synthesizer(llm=model.llm, text_qa_template=qa_prompt, streaming=questionModel.stream)
+        response_synthesizer = get_response_synthesizer(
+            llm=model.llm, text_qa_template=qa_prompt, streaming=questionModel.stream
+        )
 
         postprocessors = []
 
         if questionModel.colbert_rerank or project.model.colbert_rerank:
-            postprocessors.append(ColbertRerank(
-                top_n=k,
-                model="colbert-ir/colbertv2.0",
-                tokenizer="colbert-ir/colbertv2.0",
-                keep_retrieval_score=True,
-            ))
+            postprocessors.append(
+                ColbertRerank(
+                    top_n=k,
+                    model="colbert-ir/colbertv2.0",
+                    tokenizer="colbert-ir/colbertv2.0",
+                    keep_retrieval_score=True,
+                )
+            )
 
         if questionModel.llm_rerank or project.model.llm_rerank:
-            postprocessors.append(LLMRerank(
-                choice_batch_size=k,
-                top_n=k,
-                llm=model.llm,
-            ))
-            
+            postprocessors.append(
+                LLMRerank(
+                    choice_batch_size=k,
+                    top_n=k,
+                    llm=model.llm,
+                )
+            )
+
         postprocessors.append(SimilarityPostprocessor(similarity_cutoff=threshold))
-        
+
         query_engine = RetrieverQueryEngine(
             retriever=retriever,
             response_synthesizer=response_synthesizer,
-            node_postprocessors=postprocessors
+            node_postprocessors=postprocessors,
         )
 
         try:
             response = query_engine.query(questionModel.question)
 
-            if hasattr(response, "source_nodes"): 
+            if hasattr(response, "source_nodes"):
                 for node in response.source_nodes:
                     output["sources"].append(
-                        {"source": node.metadata["source"], "keywords": node.metadata["keywords"], "score": node.score, "id": node.node_id, "text": node.text})
-            
+                        {
+                            "source": node.metadata["source"],
+                            "keywords": node.metadata["keywords"],
+                            "score": node.score,
+                            "id": node.node_id,
+                            "text": node.text,
+                        }
+                    )
+
             if questionModel.eval and not questionModel.stream:
-                metric = eval_rag(questionModel.question, response, self.brain.get_llm("openai_gpt4", db).llm)
-                output["evaluation"] = {
-                    "reason": metric.reason,
-                    "score": metric.score
-                }
+                metric = eval_rag(
+                    questionModel.question,
+                    response,
+                    self.brain.get_llm("openai_gpt4", db).llm,
+                )
+                output["evaluation"] = {"reason": metric.reason, "score": metric.score}
 
             if questionModel.stream:
-                if hasattr(response, "response_gen"): 
+                if hasattr(response, "response_gen"):
                     failed = True
                     answer = ""
                     for text in response.response_gen:
                         failed = False
                         answer += text
-                        yield "data: " + json.dumps({"text": text}) + "\n\n"                      
+                        yield "data: " + json.dumps({"text": text}) + "\n\n"
                     if failed:
                         yield "data: " + response.response_txt + "\n\n"
                     output["answer"] = answer
+
                     self.brain.post_processing_reasoning(output)
                     self.brain.post_processing_counting(output)
+
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
-                else :
+                else:
                     output["answer"] = self.brain.defaultCensorship
-                    yield "data: " + json.dumps({"text": self.brain.defaultCensorship}) + "\n\n"
+                    yield "data: " + json.dumps(
+                        {"text": self.brain.defaultCensorship}
+                    ) + "\n\n"
+                    
                     self.brain.post_processing_reasoning(output)
                     self.brain.post_processing_counting(output)
+                    
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
             else:
                 if len(response.source_nodes) == 0:
-                    output["answer"] = project.model.censorship or self.brain.defaultCensorship
+                    output["answer"] = (
+                        project.model.censorship or self.brain.defaultCensorship
+                    )
                 else:
                     output["answer"] = response.response
-                    
+
                     if project.cache:
                         project.cache.add(questionModel.question, response.response)
 

@@ -2,6 +2,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, Union, Iterable
 import json
 
+from restai import config
+
 
 class URLIngestModel(BaseModel):
     url: str
@@ -114,6 +116,7 @@ class ProjectOptions(BaseModel):
     tools: Union[str, None] = None
     score: float = 0.0
     k: int = 4
+    max_iterations: int = config.AGENT_MAX_ITERATIONS
     connection: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
