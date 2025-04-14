@@ -41,7 +41,7 @@ class UserDatabase(Base):
     is_admin = Column(Boolean, default=False)
     is_private = Column(Boolean, default=False)
     api_key = Column(String(4096))
-    sso = Column(String(4096))
+    options = Column(Text, default="{}")
     projects = relationship('ProjectDatabase', secondary=users_projects, back_populates='users')
     
 

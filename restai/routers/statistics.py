@@ -37,9 +37,7 @@ async def get_top_projects_by_tokens(
             .join(OutputDatabase, ProjectDatabase.id == OutputDatabase.project_id)
         )
 
-        # Filter based on user access
         if not user.is_admin:
-            # Get projects user has access to (either owned or public)
             query = query.filter(
                 or_(
                     ProjectDatabase.id.in_(

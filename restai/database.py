@@ -75,6 +75,7 @@ class DBWrapper:
             hashed_password=password_hash,
             is_admin=admin,
             is_private=private,
+            options='{"credit": -1.0}'
         )
         self.db.add(db_user)
         self.db.commit()
@@ -175,11 +176,17 @@ class DBWrapper:
         if user_update.is_private is not None:
             user.is_private = user_update.is_private
 
-        if user_update.sso is not None:
-            user.sso = user_update.sso
-
         if user_update.api_key is not None:
             user.api_key = user_update.api_key
+        
+        if hasattr(user_update, 'options') and user_update.options is not None:
+            try:
+                current_options = json.loads(user.options) if user.options else {}
+                new_options = user_update.options.model_dump()
+                if current_options != new_options:
+                    user.options = json.dumps(new_options)
+            except json.JSONDecodeError:
+                user.options = json.dumps(user_update.options.model_dump())
 
         self.db.commit()
         return True

@@ -67,7 +67,7 @@ def get_current_username(
 
                 user = db_wrapper.get_user_by_username(credentials["username"])
 
-                if user is None or user.sso:
+                if user is None:
                     raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
 
                 is_correct_username = credentials["username"] == user.username

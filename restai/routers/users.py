@@ -1,11 +1,9 @@
 from fastapi import APIRouter
-import copy
 import uuid
 from unidecode import unidecode
 from fastapi import Depends, HTTPException, Request
 import traceback
 import re
-import jwt
 import logging
 from datetime import timedelta
 import secrets
@@ -34,37 +32,6 @@ def sanitize_user(user: User) -> User:
         user_dict["api_key"] = None
         
     return User.model_validate(user_dict)
-
-@router.get("/sso")
-async def get_sso(request: Request, db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    params = dict(request.query_params)
-
-    if "jwt" not in params:
-        raise HTTPException(status_code=400, detail="Missing JWT token")
-
-    try:
-        data = jwt.decode(
-            params["jwt"], config.RESTAI_SSO_SECRET, algorithms=[config.RESTAI_SSO_ALG]
-        )
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    user = db_wrapper.get_user_by_username(data["preferred_username"])
-    if user is None:
-        user = db_wrapper.create_user(data["preferred_username"], None, False, False)
-        user.sso = config.RESTAI_SSO_CALLBACK
-        db_wrapper.db.commit()
-
-    new_token = create_access_token(
-        data={"username": user.username}, expires_delta=timedelta(minutes=1440)
-    )
-
-    response = RedirectResponse("./admin")
-    response.set_cookie(
-        key="restai_token", value=new_token, samesite="strict", expires=86400
-    )
-
-    return response
 
 
 @router.post("/ldap")
@@ -173,21 +140,6 @@ async def ldap_auth(request: Request, form_data: UserLogin, db_wrapper: DBWrappe
             )
     except Exception as e:
         raise HTTPException(400, detail=str(e))
-
-@router.get("/users/{username}/sso")
-async def route_get_user(
-    username: str, db_wrapper: DBWrapper = Depends(get_db_wrapper)
-):
-    try:
-        user = db_wrapper.get_user_by_username(username)
-        if user is None:
-            return {"sso": config.RESTAI_SSO_CALLBACK}
-        return {"sso": user.sso}
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        logging.exception(e)
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/users/{username}", response_model=User)

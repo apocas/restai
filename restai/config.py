@@ -65,10 +65,6 @@ CHROMADB_PORT = os.environ.get("CHROMADB_PORT")
 
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 
-RESTAI_SSO_SECRET = os.environ.get("RESTAI_SSO_SECRET")
-RESTAI_SSO_ALG = os.environ.get("RESTAI_SSO_ALG") or "HS512"
-RESTAI_SSO_CALLBACK = os.environ.get("RESTAI_SSO_CALLBACK")
-
 RESTAI_GPU = (
     True if os.environ.get("RESTAI_GPU", "").lower() in ("true", "1") else False
 )

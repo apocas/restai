@@ -169,6 +169,10 @@ class ProjectInfo(ProjectModel):
     llm_type: Union[str, None] = None
     llm_privacy: Union[str, None] = None
 
+class UserOptions(BaseModel):
+    credit: float = -1.0
+    model_config = ConfigDict(from_attributes=True)
+
 class User(BaseModel):
     id: int
     username: str
@@ -176,9 +180,21 @@ class User(BaseModel):
     is_private: bool = False
     projects: list[UserProject] = []
     api_key: Union[str, None] = None
-    sso: Union[str, None] = None
     level: Union[str, None] = None
+    options: Union[str, UserOptions] = UserOptions()
     model_config = ConfigDict(from_attributes=True)
+    
+    @field_validator('options', mode='before')
+    @classmethod
+    def parse_options(cls, v):
+        if isinstance(v, str):
+            try:
+                return UserOptions(**json.loads(v))
+            except json.JSONDecodeError:
+                return UserOptions()
+        elif isinstance(v, dict):
+            return UserOptions(**v)
+        return v
 
 class UsersResponse(BaseModel):
     users: list[User]
@@ -203,7 +219,7 @@ class UserUpdate(BaseModel):
     is_private: bool = None
     projects: list[str] = None
     api_key: str = None
-    sso: str = None
+    options: Union[UserOptions, None] = None
 
 
 class ProjectModelUpdate(BaseModel):
