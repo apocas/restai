@@ -11,6 +11,7 @@ from fastapi import (
 from starlette.responses import RedirectResponse
 
 
+from restai import config
 from restai.auth import create_access_token
 from restai.config import (
     AUTO_CREATE_USER,
@@ -123,7 +124,7 @@ class OAuthManager:
         if user is None and AUTO_CREATE_USER:
             user = self.db_wrapper.create_user(email, None, False, False)
             self.db_wrapper.db.commit()
-        else:
+        elif user is None:
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACCESS_PROHIBITED
             )
@@ -140,4 +141,4 @@ class OAuthManager:
             httponly=True,
         )
 
-        return RedirectResponse("./admin", headers=response.headers)
+        return RedirectResponse(config.RESTAI_URL + "/admin", headers=response.headers)

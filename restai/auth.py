@@ -10,19 +10,19 @@ from restai.database import get_db_wrapper, pwd_context, DBWrapper
 from restai.models.databasemodels import ProjectDatabase
 from restai.models.models import User
 import logging
+import json
 
 security: HTTPBasic = HTTPBasic()
 
-
 def create_access_token(
-    data: dict[str, str | datetime], expires_delta: Optional[timedelta] = None
+    data: dict, expires_delta: Optional[timedelta] = None
 ):
-    to_encode: dict[str, str | datetime] = data.copy()
+    to_encode: dict = data.copy()
     if expires_delta:
         expire: datetime = datetime.now(timezone.utc) + expires_delta
     else:
         expire: datetime = datetime.now(timezone.utc) + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire.timestamp()})
     encoded_jwt: str = jwt.encode(to_encode, RESTAI_AUTH_SECRET, algorithm="HS512")
     return encoded_jwt
 

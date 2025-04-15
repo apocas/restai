@@ -85,6 +85,11 @@ async def route_get_projects(
     
     if v_filter == "public":
         query = query.filter(ProjectDatabase.public == True)
+    elif not user.is_admin:
+        query = query.filter(
+            (ProjectDatabase.creator == user.id) | 
+            (ProjectDatabase.id.in_([p.id for p in user.projects]))
+        )
 
     projects = query.offset(start).limit(end - start).all()
     return {"projects": projects, "total": query.count(), "start": start, "end": end}

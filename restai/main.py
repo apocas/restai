@@ -11,6 +11,7 @@ from restai.database import get_db_wrapper
 from restai.oauth import OAuthManager
 from starlette.middleware.sessions import SessionMiddleware
 from restai.config import OAUTH_PROVIDERS, SECRET_KEY, SESSION_COOKIE_SAME_SITE, SESSION_COOKIE_SECURE
+from restai.routers.users import sanitize_user
 
 @asynccontextmanager
 async def lifespan(fs_app: FastAPI):
@@ -26,7 +27,7 @@ async def lifespan(fs_app: FastAPI):
     from restai.brain import Brain
     from restai.database import get_db_wrapper, DBWrapper
     from restai.auth import get_current_username
-    from restai.routers import llms, projects, tools, users, image, audio, embeddings, proxy, statistics
+    from restai.routers import llms, projects, tools, users, image, audio, embeddings, proxy, statistics, auth
     from restai.models.models import User
     from restai.multiprocessing import get_manager
     from modules.loaders import LOADERS
@@ -102,6 +103,7 @@ async def lifespan(fs_app: FastAPI):
     fs_app.include_router(users.router)
     fs_app.include_router(proxy.router)
     fs_app.include_router(statistics.router)
+    fs_app.include_router(auth.router)
 
     if config.RESTAI_GPU == True:
         fs_app.include_router(image.router)

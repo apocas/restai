@@ -15,12 +15,17 @@ def load_env_vars():
     if "LOG_LEVEL" not in os.environ:
         os.environ["LOG_LEVEL"] = "INFO"
 
+    if "DEEPEVAL_UPDATE_WARNING_OPT_OUT" not in os.environ:
+        os.environ["DEEPEVAL_UPDATE_WARNING_OPT_OUT"] = "YES"
+
     os.environ["ALLOW_RESET"] = "true"
 
 
 load_env_vars()
 
 RESTAI_NAME = os.environ.get("RESTAI_NAME") or "RESTai"
+
+RESTAI_URL = os.environ.get("RESTAI_URL")
 
 RESTAI_PORT = os.environ.get("RESTAI_PORT") or 9000
 RESTAI_AUTH_SECRET = os.environ.get("RESTAI_AUTH_SECRET")
