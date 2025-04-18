@@ -268,9 +268,8 @@ async def route_create_project(
         raise HTTPException(status_code=404, detail="Embeddings not found")
     if request.app.state.brain.get_llm(projectModel.llm, db_wrapper) is None:
         raise HTTPException(status_code=404, detail="LLM not found")
-
-    proj = request.app.state.brain.find_project(projectModel.name, db_wrapper)
-    if proj is not None:
+      
+    if db_wrapper.db.query(ProjectDatabase).filter(ProjectDatabase.creator == user.id, ProjectDatabase.name == projectModel.name).first() is not None:
         raise HTTPException(status_code=403, detail="Project already exists")
 
     if user.is_private:

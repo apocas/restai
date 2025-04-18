@@ -75,7 +75,7 @@ class DBWrapper:
             hashed_password=password_hash,
             is_admin=admin,
             is_private=private,
-            options='{"credit": -1.0}'
+            options='{"credit": -1.0}',
         )
         self.db.add(db_user)
         self.db.commit()
@@ -178,8 +178,8 @@ class DBWrapper:
 
         if user_update.api_key is not None:
             user.api_key = user_update.api_key
-        
-        if hasattr(user_update, 'options') and user_update.options is not None:
+
+        if hasattr(user_update, "options") and user_update.options is not None:
             try:
                 current_options = json.loads(user.options) if user.options else {}
                 new_options = user_update.options.model_dump()
@@ -311,7 +311,7 @@ class DBWrapper:
             human_description=human_description,
             type=project_type,
             creator=creator,
-            options='{"logging": true}'  # Initialize with default options
+            options='{"logging": true}',  # Initialize with default options
         )
         self.db.add(db_project)
         self.db.commit()
@@ -342,9 +342,20 @@ class DBWrapper:
             changed = True
 
         if projectModel.name is not None and proj_db.name != projectModel.name:
+            if (
+                self.db.query(ProjectDatabase)
+                .filter(
+                    ProjectDatabase.creator == proj_db.creator,
+                    ProjectDatabase.name == projectModel.name,
+                    ProjectDatabase.id != proj_db.id,
+                )
+                .first()
+                is not None
+            ):
+                return False
             proj_db.name = projectModel.name
             changed = True
-        
+
         if projectModel.llm is not None and proj_db.llm != projectModel.llm:
             proj_db.llm = projectModel.llm
             changed = True
@@ -359,7 +370,6 @@ class DBWrapper:
         ):
             proj_db.censorship = projectModel.censorship
             changed = True
-
 
         if projectModel.guard is not None and proj_db.guard != projectModel.guard:
             proj_db.guard = projectModel.guard
@@ -403,7 +413,7 @@ class DBWrapper:
                 )
             changed = True
 
-        if hasattr(projectModel, 'options') and projectModel.options is not None:
+        if hasattr(projectModel, "options") and projectModel.options is not None:
             try:
                 current_options = json.loads(proj_db.options) if proj_db.options else {}
                 new_options = projectModel.options.model_dump()
