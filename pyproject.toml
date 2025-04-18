@@ -82,6 +82,7 @@ dependencies = [
     "authlib>=1.5.2,<2",
     "itsdangerous>=2.2.0,<3",
     "alembic>=1.15.2,<2",
+    "llama-index-multi-modal-llms-gemini>=0.5.0",
 ]
 
 [dependency-groups]

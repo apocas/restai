@@ -2699,6 +2699,20 @@ wheels = [
 ]
 
 [[package]]
+name = "llama-index-multi-modal-llms-gemini"
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "llama-index-core" },
+    { name = "llama-index-llms-gemini" },
+    { name = "pillow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/22/98/ecb2751eba6531c2e1ae604b0bb941d5b851240c94bc6def3f7efd6209c1/llama_index_multi_modal_llms_gemini-0.5.0.tar.gz", hash = "sha256:cc3d1f211261f707f02d7ff7a825190003c6ec7b9cb1083e38d720a07bcf7f1d", size = 2335 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/47/56/f2c426dbf1edbd3be1a8eb96c89328db1fed862b22d8e6976cba9d028310/llama_index_multi_modal_llms_gemini-0.5.0-py3-none-any.whl", hash = "sha256:1399cf743453a943cd2e68642cdb88e1d4fa5a5170a51f81cb1c4c6216ec3989", size = 2938 },
+]
+
+[[package]]
 name = "llama-index-multi-modal-llms-ollama"
 version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -5114,6 +5128,7 @@ dependencies = [
     { name = "llama-index-llms-openai" },
     { name = "llama-index-llms-openai-like" },
     { name = "llama-index-llms-vllm" },
+    { name = "llama-index-multi-modal-llms-gemini" },
     { name = "llama-index-multi-modal-llms-ollama" },
     { name = "llama-index-node-parser-docling" },
     { name = "llama-index-postprocessor-colbert-rerank" },
@@ -5214,6 +5229,7 @@ requires-dist = [
     { name = "llama-index-llms-openai", specifier = ">=0.3.30,<0.4" },
     { name = "llama-index-llms-openai-like", specifier = ">=0.3.4,<0.4" },
     { name = "llama-index-llms-vllm", specifier = ">=0.5.0,<0.6" },
+    { name = "llama-index-multi-modal-llms-gemini", specifier = ">=0.5.0" },
     { name = "llama-index-multi-modal-llms-ollama", specifier = ">=0.4.0,<0.5" },
     { name = "llama-index-node-parser-docling", specifier = ">=0.3.1,<0.4" },
     { name = "llama-index-postprocessor-colbert-rerank", specifier = ">=0.3.0,<0.4" },

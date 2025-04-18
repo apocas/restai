@@ -227,6 +227,10 @@ def get_llm_class(llm_class_name: str):
             from llama_index.multi_modal_llms.ollama import OllamaMultiModal
 
             return OllamaMultiModal, {"request_timeout": 120.0}
+        case "OllamaMultiModal2":
+            from restai.llms.ollamamultimodal import OllamaMultiModalInternal
+
+            return OllamaMultiModalInternal, {"request_timeout": 120.0}
         case "OpenAI":
             from llama_index.llms.openai import OpenAI
 
@@ -259,6 +263,11 @@ def get_llm_class(llm_class_name: str):
             from llama_index.llms.vllm import Vllm
 
             return Vllm, {}
+          
+        case "GeminiMultiModal":
+            from llama_index.multi_modal_llms.gemini import GeminiMultiModal
+
+            return GeminiMultiModal, {}
         case "Gemini":
             from llama_index.llms.gemini import Gemini
             from vertexai.generative_models import (

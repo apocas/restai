@@ -46,5 +46,7 @@ class Vision(ProjectBase):
             raise e
 
         output["answer"] = response.text
+        
+        self.brain.post_processing_counting(output)
 
         return output
