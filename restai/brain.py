@@ -35,7 +35,7 @@ class Brain:
         self.token_counter = TokenCountingHandler(tokenizer=self.tokenizer)
         Settings.callback_manager = CallbackManager([self.token_counter])
         
-        self.embeddings_cache = {} 
+        self.embeddings_cache = {}
 
         if config.RESTAI_GPU == True:
             self.generators: list[FunctionTool] = tools.load_generators()
@@ -81,18 +81,25 @@ class Brain:
         return output
 
     def post_processing_counting(self, output):
-        if len(self.token_counter.llm_token_counts) > 0:
+        counting_event_found = None
+
+        for i in range(len(self.token_counter.llm_token_counts) - 1, -1, -1):
+            counting_event = self.token_counter.llm_token_counts[i]
+            if hasattr(counting_event, 'prompt') and counting_event.prompt and counting_event.prompt.endswith(output["question"]):
+                counting_event_found = counting_event
+                break
+                
+        if counting_event_found is not None:
             output["tokens"] = {
-                "input": self.token_counter.llm_token_counts[-1].prompt_token_count,
-                "output": self.token_counter.llm_token_counts[
-                    -1
-                ].completion_token_count,
+                "input": counting_event_found.prompt_token_count,
+                "output": counting_event_found.completion_token_count,
+                "accuracy": "medium"
             }
-            self.token_counter.reset_counts()
         else:
             output["tokens"] = {
                 "input": tools.tokens_from_string(output["question"]),
                 "output": tools.tokens_from_string(output["answer"]),
+                "accuracy": "low"
             }
 
     @staticmethod
@@ -165,11 +172,11 @@ class Brain:
             return None
 
         project: Project = Project(proj)
-        project.model = proj
-        if project.model.type == "rag":
+        project.props = proj
+        if project.props.type == "rag":
             try:
                 project.vector = vector_tools.find_vector_db(project)(
-                    self, project, self.get_embedding(project.model.embeddings, db)
+                    self, project, self.get_embedding(project.props.embeddings, db)
                 )
             except Exception as e:
                 logging.error(e)

@@ -11,10 +11,10 @@ class Cache:
     def __init__(self, project):
         self.project = project
         self.client = chromadb.PersistentClient(
-            path=find_embeddings_path(self.project.model.name + "_cache")
+            path=find_embeddings_path(self.project.props.name + "_cache")
         )
         self.collection = self.client.get_or_create_collection(
-            name=self.project.model.name + "_cache"
+            name=self.project.props.name + "_cache"
         )
 
     def verify(self, question):
@@ -28,7 +28,7 @@ class Cache:
             return None
         else:
             distance = math.exp(-results["distances"][0][0])
-            if distance > self.project.model.cache_threshold:
+            if distance > self.project.props.cache_threshold:
                 metadata = results["metadatas"][0][0]
                 answer = metadata["answer"]
                 return answer
@@ -46,7 +46,7 @@ class Cache:
 
     def delete(self):
         try:
-            embeddingsPath = find_embeddings_path(self.project.model.name + "_cache")
+            embeddingsPath = find_embeddings_path(self.project.props.name + "_cache")
             shutil.rmtree(embeddingsPath, ignore_errors=True)
         except BaseException:
             pass

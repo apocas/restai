@@ -23,13 +23,13 @@ class Vision(ProjectBase):
                 "input": 0,
                 "output": 0
             },
-            "project": project.model.name
+            "project": project.props.name
         }
 
-        if project.model.guard:
-            guard = Guard(project.model.guard, self.brain, db)
+        if project.props.guard:
+            guard = Guard(project.props.guard, self.brain, db)
             if guard.verify(questionModel.question):
-                output["answer"] = project.model.censorship or self.brain.defaultCensorship
+                output["answer"] = project.props.censorship or self.brain.defaultCensorship
                 output["guard"] = True
                 output["tokens"] = {
                     "input": tools.tokens_from_string(output["question"]),
@@ -37,7 +37,7 @@ class Vision(ProjectBase):
                 }
                 return output
 
-        model = self.brain.get_llm(project.model.llm, db)
+        model = self.brain.get_llm(project.props.llm, db)
 
         try:
             response = model.llm.complete(prompt=questionModel.question,

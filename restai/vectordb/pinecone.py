@@ -28,7 +28,7 @@ class PineconeVector(VectorBase):
         self.embedding = embedding
         
         self._vector_init()
-        pi = self.pinecone.Index(self.project.model.name)
+        pi = self.pinecone.Index(self.project.props.name)
         
         vector_store = PineconeVectorStore(pinecone_index=pi)
         storage_context = StorageContext.from_defaults(vector_store=vector_store)
@@ -36,9 +36,9 @@ class PineconeVector(VectorBase):
 
 
     def _vector_init(self):
-        if self.project.model.name not in self.pinecone.list_indexes().names():
+        if self.project.props.name not in self.pinecone.list_indexes().names():
             self.pinecone.create_index(
-                name=self.project.model.name,
+                name=self.project.props.name,
                 dimension=self.embedding.props.dimension,
                 metric="cosine",
                 spec=PodSpec(
@@ -71,8 +71,8 @@ class PineconeVector(VectorBase):
 
     def list(self):
         output = []
-        pi = self.pinecone.Index(self.project.model.name)
-        _, _, _, _, dimension = EMBEDDINGS[self.project.model.embeddings]
+        pi = self.pinecone.Index(self.project.props.name)
+        _, _, _, _, dimension = EMBEDDINGS[self.project.props.embeddings]
         
         stats = pi.describe_index_stats()
         if len(stats.namespaces) > 0 and hasattr(stats.namespaces[""], "vector_count"):
@@ -91,8 +91,8 @@ class PineconeVector(VectorBase):
 
 
     def list_source(self, source):
-        pi = self.pinecone.Index(self.project.model.name)
-        _, _, _, _, dimension = EMBEDDINGS[self.project.model.embeddings]
+        pi = self.pinecone.Index(self.project.props.name)
+        _, _, _, _, dimension = EMBEDDINGS[self.project.props.embeddings]
         
         num_vectors = pi.describe_index_stats()
         num_vectors = num_vectors.namespaces[""].vector_count
@@ -112,7 +112,7 @@ class PineconeVector(VectorBase):
 
     def info(self):
         num_vectors = 0
-        pi = self.pinecone.Index(self.project.model.name)
+        pi = self.pinecone.Index(self.project.props.name)
         stats = pi.describe_index_stats()
         if len(stats.namespaces) > 0 and hasattr(stats.namespaces[""], "vector_count"):
             num_vectors = stats.namespaces[""].vector_count
@@ -123,8 +123,8 @@ class PineconeVector(VectorBase):
         ids = []
         metadatas = []
       
-        pi = self.pinecone.Index(self.project.model.name)
-        _, _, _, _, dimension = EMBEDDINGS[self.project.model.embeddings]
+        pi = self.pinecone.Index(self.project.props.name)
+        _, _, _, _, dimension = EMBEDDINGS[self.project.props.embeddings]
         
         num_vectors = pi.describe_index_stats()
         num_vectors = num_vectors.namespaces[""].vector_count
@@ -144,7 +144,7 @@ class PineconeVector(VectorBase):
 
     def find_id(self, id):
         output = {"id": id}
-        pi = self.pinecone.Index(self.project.model.name)
+        pi = self.pinecone.Index(self.project.props.name)
 
         results = pi.query(
             top_k=1,
@@ -164,14 +164,14 @@ class PineconeVector(VectorBase):
 
 
     def delete(self):
-        self.pinecone.delete_index(self.project.model.name)
+        self.pinecone.delete_index(self.project.props.name)
         
 
     def delete_source(self, source):
         ids = []
       
-        pi = self.pinecone.Index(self.project.model.name)
-        _, _, _, _, dimension = EMBEDDINGS[self.project.model.embeddings]
+        pi = self.pinecone.Index(self.project.props.name)
+        _, _, _, _, dimension = EMBEDDINGS[self.project.props.embeddings]
         
         num_vectors = pi.describe_index_stats()
         num_vectors = num_vectors.namespaces[""].vector_count
@@ -190,7 +190,7 @@ class PineconeVector(VectorBase):
 
 
     def delete_id(self, id):
-        pi = self.pinecone.Index(self.project.model.name)
+        pi = self.pinecone.Index(self.project.props.name)
         pi.delete(ids=[id], namespace="")
         return id
 

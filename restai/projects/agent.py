@@ -45,9 +45,9 @@ class Agent(ProjectBase):
             done = step_output.is_last
             iterations += 1
 
-            if not done and (iterations > project.model.options.max_iterations or iterations > config.AGENT_MAX_ITERATIONS):
+            if not done and (iterations > project.props.options.max_iterations or iterations > config.AGENT_MAX_ITERATIONS):
                 output["answer"] = (
-                    project.model.censorship or "I'm sorry, I tried my best..."
+                    project.props.censorship or "I'm sorry, I tried my best..."
                 )
                 output["reasoning"] = {"output": "", "steps": []}
                 break
@@ -67,32 +67,32 @@ class Agent(ProjectBase):
             "sources": [],
             "guard": False,
             "tokens": {"input": 0, "output": 0},
-            "project": project.model.name,
+            "project": project.props.name,
             "id": chat.chat_id,
         }
 
-        if project.model.guard:
-            guard = Guard(project.model.guard, self.brain, db)
+        if project.props.guard:
+            guard = Guard(project.props.guard, self.brain, db)
             if guard.verify(chatModel.question):
                 output["answer"] = (
-                    project.model.censorship or self.brain.defaultCensorship
+                    project.props.censorship or self.brain.defaultCensorship
                 )
                 output["guard"] = True
                 self.brain.post_processing_counting(output)
                 yield output
 
-        model = self.brain.get_llm(project.model.llm, db)
+        model = self.brain.get_llm(project.props.llm, db)
 
-        tools_u = self.brain.get_tools(set((project.model.options.tools or "").split(",")))
+        tools_u = self.brain.get_tools(set((project.props.options.tools or "").split(",")))
         if len(tools_u) == 0:
             chatModel.question += "\nDont use any tool just respond to the user."
 
         agent = ReActAgent.from_tools(
             tools_u,
             llm=model.llm,
-            context=project.model.system,
+            context=project.props.system,
             memory=chat.memory,
-            max_iterations=project.model.options.max_iterations,
+            max_iterations=project.props.options.max_iterations,
             verbose=True,
         )
 
@@ -121,8 +121,8 @@ class Agent(ProjectBase):
                     yield "data: Inference failed\n"
                 yield "event: error\n\n"
             else:
-                if str(e) == "Reached max iterations." and project.model.censorship:
-                    output["answer"] = project.model.censorship
+                if str(e) == "Reached max iterations." and project.props.censorship:
+                    output["answer"] = project.props.censorship
                     self.brain.post_processing_counting(output)
                     yield output
                 else:
@@ -137,22 +137,22 @@ class Agent(ProjectBase):
             "sources": [],
             "guard": False,
             "tokens": {"input": 0, "output": 0},
-            "project": project.model.name,
+            "project": project.props.name,
         }
 
-        if project.model.guard:
-            guard = Guard(project.model.guard, self.brain, db)
+        if project.props.guard:
+            guard = Guard(project.props.guard, self.brain, db)
             if guard.verify(questionModel.question):
                 output["answer"] = (
-                    project.model.censorship or self.brain.defaultCensorship
+                    project.props.censorship or self.brain.defaultCensorship
                 )
                 output["guard"] = True
                 self.brain.post_processing_counting(output)
                 yield output
 
-        model = self.brain.get_llm(project.model.llm, db)
+        model = self.brain.get_llm(project.props.llm, db)
 
-        toolsu = self.brain.get_tools((project.model.options.tools or "").split(","))
+        toolsu = self.brain.get_tools((project.props.options.tools or "").split(","))
 
         if len(toolsu) == 0:
             questionModel.question += "\nDont use any tool just respond to the user."
@@ -160,16 +160,16 @@ class Agent(ProjectBase):
         agent = ReActAgent.from_tools(
             toolsu,
             llm=model.llm,
-            context=questionModel.system or project.model.system,
-            max_iterations=project.model.options.max_iterations,
+            context=questionModel.system or project.props.system,
+            max_iterations=project.props.options.max_iterations,
             verbose=True,
         )
 
         try:
             output = self.output(agent, questionModel.question, output, project)
         except Exception as e:
-            if str(e) == "Reached max iterations." and project.model.censorship:
-                output["answer"] = project.model.censorship
+            if str(e) == "Reached max iterations." and project.props.censorship:
+                output["answer"] = project.props.censorship
             else:
                 raise e
 

@@ -20,14 +20,14 @@ class ChromaDBVector(VectorBase):
     chroma_collection = None
 
     def __init__(self, brain, project, embedding: Embedding):
-        path = find_embeddings_path(project.model.name)
+        path = find_embeddings_path(project.props.name)
         
         if CHROMADB_HOST:
             self.db = chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT)
         else:
             self.db = chromadb.PersistentClient(path=path)
         
-        self.chroma_collection = self.db.get_or_create_collection(project.model.name)
+        self.chroma_collection = self.db.get_or_create_collection(project.props.name)
         self.project = project
         self.embedding = embedding
         self.index = self._vector_init(brain)
@@ -49,7 +49,7 @@ class ChromaDBVector(VectorBase):
 
     def list(self):
         output = []
-        collection = self.db.get_or_create_collection(self.project.model.name)
+        collection = self.db.get_or_create_collection(self.project.props.name)
 
         docs = collection.get(
             include=["metadatas"]
@@ -66,7 +66,7 @@ class ChromaDBVector(VectorBase):
     def list_source(self, source):
         output = []
 
-        collection = self.db.get_or_create_collection(self.project.model.name)
+        collection = self.db.get_or_create_collection(self.project.props.name)
 
         docs = collection.get(
             include=["metadatas"]
@@ -81,7 +81,7 @@ class ChromaDBVector(VectorBase):
         return output
 
     def info(self):
-        collection = self.db.get_or_create_collection(self.project.model.name)
+        collection = self.db.get_or_create_collection(self.project.props.name)
 
         docs = collection.get(
             include=["metadatas"]
@@ -89,14 +89,14 @@ class ChromaDBVector(VectorBase):
         return len(docs["ids"])
 
     def find_source(self, source: str):
-        collection = self.db.get_or_create_collection(self.project.model.name)
+        collection = self.db.get_or_create_collection(self.project.props.name)
         docs = collection.get(where={'source': source})
         return docs
 
     def find_id(self, id):
         output = {"id": id}
 
-        collection = self.db.get_or_create_collection(self.project.model.name)
+        collection = self.db.get_or_create_collection(self.project.props.name)
         docs = collection.get(ids=[id])
         output["metadata"] = {
             k: v for k, v in docs["metadatas"][0].items() if not k.startswith('_')}
@@ -106,15 +106,15 @@ class ChromaDBVector(VectorBase):
 
     def delete(self):
         try:
-            self.db.delete_collection(name=self.project.model.name)
-            embeddingsPath = find_embeddings_path(self.project.model.name)
+            self.db.delete_collection(name=self.project.props.name)
+            embeddingsPath = find_embeddings_path(self.project.props.name)
             shutil.rmtree(embeddingsPath, ignore_errors=True)
         except Exception as e:
             logging.exception(e)
             pass
 
     def delete_source(self, source):
-        collection = self.db.get_or_create_collection(self.project.model.name)
+        collection = self.db.get_or_create_collection(self.project.props.name)
         ids = collection.get(where={'source': source})['ids']
         if len(ids):
             collection.delete(ids)
@@ -122,12 +122,12 @@ class ChromaDBVector(VectorBase):
         return ids
 
     def delete_id(self, id):
-        collection = self.db.get_or_create_collection(self.project.model.name)
+        collection = self.db.get_or_create_collection(self.project.props.name)
         ids = collection.get(ids=[id])['ids']
         if len(ids):
             collection.delete(ids)
         return id
 
     def reset(self, brain):
-        self.db.delete_collection(name=self.project.model.name)
+        self.db.delete_collection(name=self.project.props.name)
         self.index = self._vector_init(brain)

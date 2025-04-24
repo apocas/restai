@@ -20,26 +20,26 @@ class Inference(ProjectBase):
             "sources": [],
             "guard": False,
             "tokens": {"input": 0, "output": 0},
-            "project": project.model.name,
+            "project": project.props.name,
             "id": chat.chat_id,
         }
 
-        if project.model.guard:
-            guard = Guard(project.model.guard, self.brain, db)
+        if project.props.guard:
+            guard = Guard(project.props.guard, self.brain, db)
             if guard.verify(chat_model.question):
                 output["answer"] = (
-                    project.model.censorship or self.brain.defaultCensorship
+                    project.props.censorship or self.brain.defaultCensorship
                 )
                 output["guard"] = True
                 self.brain.post_processing_counting(output)
                 yield output
 
-        model = self.brain.get_llm(project.model.llm, db)
+        llm_model = self.brain.get_llm(project.props.llm, db)
 
-        sysTemplate = project.model.system or self.brain.defaultSystem
+        sysTemplate = project.props.system or self.brain.defaultSystem
 
         if sysTemplate:
-            model.llm.system_prompt = sysTemplate
+            llm_model.llm.system_prompt = sysTemplate
 
             if not chat.memory.get_all():
                 chat.memory.chat_store.add_message(
@@ -55,7 +55,7 @@ class Inference(ProjectBase):
 
         try:
             if chat_model.stream:
-                resp_gen = model.llm.stream_chat(messages)
+                resp_gen = llm_model.llm.stream_chat(messages)
                 parts = []
                 for text in resp_gen:
                     parts.append(text.delta)
@@ -75,7 +75,7 @@ class Inference(ProjectBase):
                 yield "data: " + json.dumps(output) + "\n"
                 yield "event: close\n\n"
             else:
-                resp = model.llm.chat(messages)
+                resp = llm_model.llm.chat(messages)
                 if resp.message and resp.message.content:
                     output["answer"] = resp.message.content.strip()
                 else:
@@ -108,23 +108,23 @@ class Inference(ProjectBase):
             "sources": [],
             "guard": False,
             "tokens": {"input": 0, "output": 0},
-            "project": project.model.name,
+            "project": project.props.name,
         }
 
-        if project.model.guard:
-            guard = Guard(project.model.guard, self.brain, db)
+        if project.props.guard:
+            guard = Guard(project.props.guard, self.brain, db)
             if guard.verify(question_model.question):
                 output["answer"] = (
-                    project.model.censorship or self.brain.defaultCensorship
+                    project.props.censorship or self.brain.defaultCensorship
                 )
                 output["guard"] = True
                 self.brain.post_processing_counting(output)
                 yield output
 
-        model = self.brain.get_llm(project.model.llm, db)
+        model = self.brain.get_llm(project.props.llm, db)
 
         sysTemplate = (
-            question_model.system or project.model.system or self.brain.defaultSystem
+            question_model.system or project.props.system or self.brain.defaultSystem
         )
 
         messages = []

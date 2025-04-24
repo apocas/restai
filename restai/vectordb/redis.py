@@ -28,8 +28,8 @@ class RedisVector(VectorBase):
         custom_schema = IndexSchema.from_dict(
             {
                 "index": {
-                    "name": self.project.model.name,
-                    "prefix": "llama_" + self.project.model.name,
+                    "name": self.project.props.name,
+                    "prefix": "llama_" + self.project.props.name,
                     "key_separator": "/",
                 },
                 "fields": [
@@ -71,7 +71,7 @@ class RedisVector(VectorBase):
     def list(self):
         output = []
       
-        keys = self.redis.keys("llama_" + self.project.model.name + "/*")
+        keys = self.redis.keys("llama_" + self.project.props.name + "/*")
         for key in keys:
             source = self.redis.hget(key, "source")
             if source not in output:
@@ -83,7 +83,7 @@ class RedisVector(VectorBase):
     def list_source(self, source):
         output = []
       
-        keys = self.redis.keys("llama_" + self.project.model.name + "/*")
+        keys = self.redis.keys("llama_" + self.project.props.name + "/*")
         for key in keys:
             sourcer = self.redis.hget(key, "source").strip()
             id = self.redis.hget(key, "id").strip()
@@ -94,12 +94,12 @@ class RedisVector(VectorBase):
 
 
     def info(self):
-        keys = self.redis.keys("llama_" + self.project.model.name + "/*")
+        keys = self.redis.keys("llama_" + self.project.props.name + "/*")
         return len(keys)
 
 
     def find_source(self, source):
-        keys = self.redis.keys("llama_" + self.project.model.name + "/*")
+        keys = self.redis.keys("llama_" + self.project.props.name + "/*")
         ids = []
         metadatas = []
         documents = []
@@ -117,7 +117,7 @@ class RedisVector(VectorBase):
     def find_id(self, id):
         output = {"id": id}
         
-        ids = "llama_" + self.project.model.name + "/" + id
+        ids = "llama_" + self.project.props.name + "/" + id
         keys = self.redis.hkeys(ids)
         keys = [k for k in keys if not k.startswith(
             '_') and k != "vector" and k != "text" and k != "doc_id" and k != "id"]
@@ -131,8 +131,8 @@ class RedisVector(VectorBase):
 
     def delete(self):
         try:
-            self.redis.ft(self.project.model.name).dropindex(True)
-            embeddingsPath = find_embeddings_path(self.project.model.name)
+            self.redis.ft(self.project.props.name).dropindex(True)
+            embeddingsPath = find_embeddings_path(self.project.props.name)
             shutil.rmtree(embeddingsPath, ignore_errors=True)
         except BaseException:
             pass
@@ -140,7 +140,7 @@ class RedisVector(VectorBase):
 
     def delete_source(self, source):
         ids = []
-        keys = self.redis.keys("llama_" + self.project.model.name + "/*")
+        keys = self.redis.keys("llama_" + self.project.props.name + "/*")
         for key in keys:
             lsource = self.redis.hget(key, "source")
             if lsource == source:

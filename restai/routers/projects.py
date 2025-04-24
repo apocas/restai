@@ -105,11 +105,11 @@ async def route_get_project(
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
-        output = project.model.model_dump()
+        output = project.props.model_dump()
         final_output = {}
 
         try:
-            llm_model = request.app.state.brain.get_llm(project.model.llm, db_wrapper)
+            llm_model = request.app.state.brain.get_llm(project.props.llm, db_wrapper)
         except Exception:
             llm_model = None
 
@@ -130,7 +130,7 @@ async def route_get_project(
         final_output["users"] = [u["username"] for u in output["users"]]
         final_output["options"] = output["options"]
 
-        if project.model.type == "rag":
+        if project.props.type == "rag":
             if project.vector is not None:
                 chunks = project.vector.info()
                 if chunks is not None:
@@ -142,16 +142,16 @@ async def route_get_project(
             final_output["system"] = output["system"] or ""
 
 
-        if project.model.type == "inference":
+        if project.props.type == "inference":
             final_output["system"] = output["system"] or ""
 
-        if project.model.type == "agent":
+        if project.props.type == "agent":
             final_output["system"] = output["system"] or ""
 
-        if project.model.type == "ragsql":
+        if project.props.type == "ragsql":
             final_output["system"] = output["system"] or ""
 
-        if project.model.type == "router":
+        if project.props.type == "router":
             final_output["entrances"] = output["entrances"]
 
         if llm_model:
@@ -180,7 +180,7 @@ async def route_delete_project(
         proj.delete()
         
         db_wrapper.db.query(OutputDatabase).filter(
-            OutputDatabase.project_id == proj.model.id
+            OutputDatabase.project_id == proj.props.id
         ).delete()
 
         db_wrapper.delete_project(db_wrapper.get_project_by_id(projectID))
@@ -299,19 +299,19 @@ async def route_create_project(
         )
         project = get_project(project_db.id, db_wrapper, request.app.state.brain)
 
-        if project.model.vectorstore:
+        if project.props.vectorstore:
             project.vector = tools.find_vector_db(project)(
                 request.app.state.brain,
                 project,
                 request.app.state.brain.get_embedding(
-                    project.model.embeddings, db_wrapper
+                    project.props.embeddings, db_wrapper
                 ),
             )
 
         user_db = db_wrapper.get_user_by_id(user.id)
         user_db.projects.append(project_db)
         db_wrapper.db.commit()
-        return {"project": project.model.id}
+        return {"project": project.props.id}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
@@ -329,14 +329,14 @@ async def reset_embeddings(
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
-        if project.model.type != "rag":
+        if project.props.type != "rag":
             raise HTTPException(
                 status_code=400, detail="Only available for RAG projects."
             )
 
         project.vector.reset(request.app.state.brain)
 
-        return {"project": project.model.name}
+        return {"project": project.props.name}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
@@ -355,7 +355,7 @@ async def find_embedding(
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
-        if project.model.type != "rag":
+        if project.props.type != "rag":
             raise HTTPException(
                 status_code=400, detail="Only available for RAG projects."
             )
@@ -363,12 +363,12 @@ async def find_embedding(
         output = []
 
         if embedding.text:
-            k = embedding.k or project.model.k or 2
+            k = embedding.k or project.props.k or 2
 
             if embedding.score is not None:
                 threshold = embedding.score
             else:
-                threshold = embedding.score or project.model.score or 0.2
+                threshold = embedding.score or project.props.score or 0.2
 
             retriever = VectorIndexRetriever(
                 index=project.vector.index,
@@ -416,7 +416,7 @@ async def get_embedding(
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
-        if project.model.type != "rag":
+        if project.props.type != "rag":
             raise HTTPException(
                 status_code=400, detail="Only available for RAG projects."
             )
@@ -445,7 +445,7 @@ async def get_embedding(
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
-        if project.model.type != "rag":
+        if project.props.type != "rag":
             raise HTTPException(
                 status_code=400, detail="Only available for RAG projects."
             )
@@ -472,7 +472,7 @@ async def ingest_text(
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
-        if project.model.type != "rag":
+        if project.props.type != "rag":
             raise HTTPException(
                 status_code=400, detail="Only available for RAG projects."
             )
@@ -529,7 +529,7 @@ async def ingest_url(
 
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
-        if project.model.type != "rag":
+        if project.props.type != "rag":
             raise HTTPException(
                 status_code=400, detail="Only available for RAG projects."
             )
@@ -572,7 +572,7 @@ async def ingest_file(
 ):
     project = get_project(projectID, db_wrapper, request.app.state.brain)
 
-    if project.model.type != "rag":
+    if project.props.type != "rag":
         raise HTTPException(
             status_code=400, detail="Only available for RAG projects."
         )
@@ -648,7 +648,7 @@ async def get_embeddings(
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
-        if project.model.type != "rag":
+        if project.props.type != "rag":
             raise HTTPException(
                 status_code=400, detail="Only available for RAG projects."
             )
@@ -677,7 +677,7 @@ async def delete_embedding(
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
-        if project.model.type != "rag":
+        if project.props.type != "rag":
             raise HTTPException(
                 status_code=400, detail="Only available for RAG projects."
             )

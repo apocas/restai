@@ -23,7 +23,7 @@ from restai.projects.base import ProjectBase
 class RAG(ProjectBase):
 
     def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
-        model: Optional[LLM] = self.brain.get_llm(project.model.llm, db)
+        model: Optional[LLM] = self.brain.get_llm(project.props.llm, db)
         chat: Chat = Chat(chatModel, self.brain.chat_store)
 
         output = {
@@ -33,25 +33,25 @@ class RAG(ProjectBase):
             "cached": False,
             "guard": False,
             "type": "chat",
-            "project": project.model.name,
+            "project": project.props.name,
         }
 
-        if project.model.guard:
-            guard = Guard(project.model.guard, self.brain, db)
+        if project.props.guard:
+            guard = Guard(project.props.guard, self.brain, db)
             if guard.verify(chatModel.question):
                 output["answer"] = (
-                    project.model.censorship or self.brain.defaultCensorship
+                    project.props.censorship or self.brain.defaultCensorship
                 )
                 output["guard"] = True
                 self.brain.post_processing_counting(output)
                 yield output
 
-        threshold = project.model.options.score or 0.0
-        k = project.model.options.k or 1
+        threshold = project.props.options.score or 0.0
+        k = project.props.options.k or 1
 
-        sysTemplate = project.model.system or self.brain.defaultSystem
+        sysTemplate = project.props.system or self.brain.defaultSystem
 
-        if project.model.options.colbert_rerank or project.model.options.llm_rerank:
+        if project.props.options.colbert_rerank or project.props.options.llm_rerank:
             final_k = k * 2
         else:
             final_k = k
@@ -63,7 +63,7 @@ class RAG(ProjectBase):
 
         postprocessors = []
 
-        if project.model.options.colbert_rerank:
+        if project.props.options.colbert_rerank:
             postprocessors.append(
                 ColbertRerank(
                     top_n=k,
@@ -73,7 +73,7 @@ class RAG(ProjectBase):
                 )
             )
 
-        if project.model.options.llm_rerank:
+        if project.props.options.llm_rerank:
             postprocessors.append(
                 LLMRerank(
                     choice_batch_size=k,
@@ -134,7 +134,7 @@ class RAG(ProjectBase):
             else:
                 if len(response.source_nodes) == 0:
                     output["answer"] = (
-                        project.model.censorship or self.brain.defaultCensorship
+                        project.props.censorship or self.brain.defaultCensorship
                     )
                 else:
                     output["answer"] = response.response
@@ -162,33 +162,33 @@ class RAG(ProjectBase):
             "cached": False,
             "guard": False,
             "tokens": {"input": 0, "output": 0},
-            "project": project.model.name,
+            "project": project.props.name,
         }
 
-        if project.model.guard:
-            guard = Guard(project.model.guard, self.brain, db)
+        if project.props.guard:
+            guard = Guard(project.props.guard, self.brain, db)
             if guard.verify(questionModel.question):
                 output["answer"] = (
-                    project.model.censorship or self.brain.defaultCensorship
+                    project.props.censorship or self.brain.defaultCensorship
                 )
                 output["guard"] = True
                 self.brain.post_processing_counting(output)
                 yield output
 
-        model = self.brain.get_llm(project.model.llm, db)
+        model = self.brain.get_llm(project.props.llm, db)
 
         sysTemplate = (
-            questionModel.system or project.model.system or self.brain.defaultSystem
+            questionModel.system or project.props.system or self.brain.defaultSystem
         )
 
-        k = questionModel.k or project.model.k or 2
-        threshold = questionModel.score or project.model.options.score or 0.0
+        k = questionModel.k or project.props.k or 2
+        threshold = questionModel.score or project.props.options.score or 0.0
 
         if (
             questionModel.colbert_rerank
             or questionModel.llm_rerank
-            or project.model.options.colbert_rerank
-            or project.model.options.llm_rerank
+            or project.props.options.colbert_rerank
+            or project.props.options.llm_rerank
         ):
             final_k = k * 2
         else:
@@ -220,7 +220,7 @@ class RAG(ProjectBase):
 
         postprocessors = []
 
-        if questionModel.colbert_rerank or project.model.colbert_rerank:
+        if questionModel.colbert_rerank or project.props.colbert_rerank:
             postprocessors.append(
                 ColbertRerank(
                     top_n=k,
@@ -230,7 +230,7 @@ class RAG(ProjectBase):
                 )
             )
 
-        if questionModel.llm_rerank or project.model.llm_rerank:
+        if questionModel.llm_rerank or project.props.llm_rerank:
             postprocessors.append(
                 LLMRerank(
                     choice_batch_size=k,
@@ -301,7 +301,7 @@ class RAG(ProjectBase):
             else:
                 if len(response.source_nodes) == 0:
                     output["answer"] = (
-                        project.model.censorship or self.brain.defaultCensorship
+                        project.props.censorship or self.brain.defaultCensorship
                     )
                 else:
                     output["answer"] = response.response

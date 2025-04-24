@@ -82,7 +82,7 @@ async def chat_main(
     background_tasks: BackgroundTasks,
 ):
     proj_logic: ProjectBase
-    match project.model.type:
+    match project.props.type:
         case "rag":
             proj_logic = RAG(brain)
         case "router":
@@ -118,7 +118,7 @@ async def question_main(
     db: DBWrapper,
     background_tasks: BackgroundTasks,
 ):
-    match project.model.type:
+    match project.props.type:
         case "rag":
             cached = await process_cache(project, q_input)
             if cached:
@@ -161,7 +161,7 @@ async def question_rag(
     try:
         proj_logic = RAG(brain)
 
-        if project.model.type != "rag":
+        if project.props.type != "rag":
             raise HTTPException(
                 status_code=400, detail="Only available for RAG projects."
             )
@@ -220,7 +220,7 @@ async def question_router(
     try:
         projLogic = Router(brain)
 
-        if project.model.type != "router":
+        if project.props.type != "router":
             raise HTTPException(
                 status_code=400, detail="Only available for ROUTER projects."
             )
@@ -252,7 +252,7 @@ async def question_inference(
     try:
         proj_logic: Inference = Inference(brain)
 
-        if project.model.type != "inference":
+        if project.props.type != "inference":
             raise HTTPException(
                 status_code=400, detail="Only available for INFERENCE projects."
             )
@@ -288,7 +288,7 @@ async def question_agent(
     try:
         projLogic: Agent = Agent(brain)
 
-        if project.model.type != "agent":
+        if project.props.type != "agent":
             raise HTTPException(
                 status_code=400, detail="Only available for AGENT projects."
             )
@@ -325,7 +325,7 @@ async def question_query_sql(
     try:
         projLogic: RAGSql = RAGSql(brain)
 
-        if project.model.type != "ragsql":
+        if project.props.type != "ragsql":
             raise HTTPException(
                 status_code=400, detail="Only available for RAGSQL projects."
             )
@@ -347,7 +347,7 @@ async def question_vision(
     try:
         projLogic: Vision = Vision(brain)
 
-        if project.model.type != "vision":
+        if project.props.type != "vision":
             raise HTTPException(
                 status_code=400, detail="Only available for VISION projects."
             )

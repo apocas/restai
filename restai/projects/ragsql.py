@@ -15,17 +15,17 @@ class RAGSql(ProjectBase):
         raise HTTPException(status_code=400, detail="Chat mode not available for this project type.")
 
     def question(self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
-        model = self.brain.get_llm(project.model.llm, db)
+        model = self.brain.get_llm(project.props.llm, db)
 
-        engine = create_engine(project.model.connection)
+        engine = create_engine(project.props.connection)
 
         sql_database = SQLDatabase(engine)
 
         tables = None
         if hasattr(questionModel, 'tables') and questionModel.tables is not None:
             tables = questionModel.tables
-        elif project.model.tables:
-            tables = [table.strip() for table in project.model.tables.split(',')]
+        elif project.props.tables:
+            tables = [table.strip() for table in project.props.tables.split(',')]
 
         query_engine = NLSQLTableQueryEngine(
             llm=model.llm,
@@ -33,7 +33,7 @@ class RAGSql(ProjectBase):
             tables=tables,
         )
 
-        question = (project.model.system or self.brain.defaultSystem) + "\n Question: " + questionModel.question
+        question = (project.props.system or self.brain.defaultSystem) + "\n Question: " + questionModel.question
 
         try:
             response = query_engine.query(question)
@@ -45,7 +45,7 @@ class RAGSql(ProjectBase):
             "answer": response.response,
             "sources": [response.metadata['sql_query']],
             "type": "questionsql",
-            "project": project.model.name
+            "project": project.props.name
         }
         
         output["tokens"] = {

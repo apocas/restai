@@ -22,13 +22,13 @@ if TYPE_CHECKING:
 
 
 def find_vector_db(project: "Project") -> type["VectorBase"]:
-    if project.model.vectorstore == "redis" and REDIS_HOST:
+    if project.props.vectorstore == "redis" and REDIS_HOST:
         from restai.vectordb.redis import RedisVector
         return RedisVector
-    elif project.model.vectorstore == "chromadb" or project.model.vectorstore == "chroma":
+    elif project.props.vectorstore == "chromadb" or project.props.vectorstore == "chroma":
         from restai.vectordb.chromadb import ChromaDBVector
         return ChromaDBVector
-    elif project.model.vectorstore == "pinecone" and PINECONE_API_KEY:
+    elif project.props.vectorstore == "pinecone" and PINECONE_API_KEY:
         from restai.vectordb.pinecone import PineconeVector
         return PineconeVector
     else:

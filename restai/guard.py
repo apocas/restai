@@ -15,9 +15,9 @@ class Guard:
         self.db: DBWrapper = db
 
     def verify(self, prompt: str) -> bool:
-        model: Optional[LLM] = self.brain.get_llm(self.project.model.llm, self.db)
+        model: Optional[LLM] = self.brain.get_llm(self.project.props.llm, self.db)
 
-        sysTemplate: Optional[str] = self.project.model.system
+        sysTemplate: Optional[str] = self.project.props.system
         model.llm.system_prompt = sysTemplate
 
         messages = [

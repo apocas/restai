@@ -16,14 +16,14 @@ class Router(ProjectBase):
     def question(self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
         choices = []
           
-        for entrance in project.model.entrances:
+        for entrance in project.props.entrances:
             choices.append(ToolMetadata(description=entrance.description, name=entrance.name))
         
 
-        selector = LLMSingleSelector.from_defaults(llm=self.brain.get_llm(project.model.llm, db).llm)
+        selector = LLMSingleSelector.from_defaults(llm=self.brain.get_llm(project.props.llm, db).llm)
         selector_result = selector.select(
             choices, query=questionModel.question
         )
         
-        projectNameDest = project.model.entrances[selector_result.selections[0].index].destination
+        projectNameDest = project.props.entrances[selector_result.selections[0].index].destination
         return projectNameDest
