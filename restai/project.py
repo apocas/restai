@@ -1,4 +1,3 @@
-import tiktoken
 from restai.cache import Cache
 from restai.models.models import ProjectModel
 from restai.vectordb.tools import find_embeddings_path

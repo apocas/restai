@@ -9,6 +9,7 @@ from restai.guard import Guard
 from restai.models.models import ChatModel, QuestionModel, User
 from restai.project import Project
 from restai.projects.base import ProjectBase
+from llama_index.tools.mcp import BasicMCPClient, McpToolSpec
 
 
 class Agent(ProjectBase):
@@ -84,6 +85,17 @@ class Agent(ProjectBase):
         model = self.brain.get_llm(project.props.llm, db)
 
         tools_u = self.brain.get_tools(set((project.props.options.tools or "").split(",")))
+        
+        if project.props.options.mcp_host:
+            allowed_tools = set((project.props.options.mcp_allowed_tools or "").split(","))
+            mcp_client = BasicMCPClient(project.props.options.mcp_host)
+            mcp_tool_spec = McpToolSpec(
+                client=mcp_client,
+                allowed_tools=allowed_tools,
+            )
+
+            tools_u = tools_u + mcp_tool_spec.to_tool_list()
+        
         if len(tools_u) == 0:
             chatModel.question += "\nDont use any tool just respond to the user."
 

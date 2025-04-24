@@ -41,7 +41,7 @@ dependencies = [
     "ip-adapter>=0.1.0,<0.2",
     "ilock>=1.0.3,<2",
     "docx2txt>=0.8,<0.9",
-    "llama-index-core>=0.12.28,<0.13",
+    "llama-index-core>=0.12.33,<0.13",
     "llama-index-embeddings-langchain>=0.3.0,<0.4",
     "llama-index-vector-stores-redis>=0.5.0,<0.6",
     "llama-index-vector-stores-chroma>=0.4.1,<0.5",
@@ -83,6 +83,7 @@ dependencies = [
     "itsdangerous>=2.2.0,<3",
     "alembic>=1.15.2,<2",
     "llama-index-multi-modal-llms-gemini>=0.5.0",
+    "llama-index-tools-mcp>=0.1.2",
 ]
 
 [dependency-groups]
