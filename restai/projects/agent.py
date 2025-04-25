@@ -1,6 +1,6 @@
 import json
 
-from llama_index.core.agent import ReActAgent
+from llama_index.core.agent import ReActAgent, FunctionCallingAgent
 
 from restai import config
 from restai.chat import Chat
@@ -86,27 +86,36 @@ class Agent(ProjectBase):
 
         tools_u = self.brain.get_tools(set((project.props.options.tools or "").split(",")))
         
-        if project.props.options.mcp_host:
-            allowed_tools = set((project.props.options.mcp_allowed_tools or "").split(","))
-            mcp_client = BasicMCPClient(project.props.options.mcp_host)
-            mcp_tool_spec = McpToolSpec(
-                client=mcp_client,
-                allowed_tools=allowed_tools,
-            )
-
-            tools_u = tools_u + mcp_tool_spec.to_tool_list()
+        if project.props.options.mcp_servers:
+            for mcp_server in project.props.options.mcp_servers:
+                allowed_tools = set((mcp_server.tools or "").split(","))
+                mcp_client = BasicMCPClient(mcp_server.host)
+                mcp_tool_spec = McpToolSpec(
+                    client=mcp_client,
+                    allowed_tools=allowed_tools,
+                )
+                tools_u = tools_u + mcp_tool_spec.to_tool_list()
         
         if len(tools_u) == 0:
             chatModel.question += "\nDont use any tool just respond to the user."
 
-        agent = ReActAgent.from_tools(
-            tools_u,
-            llm=model.llm,
-            context=project.props.system,
-            memory=chat.memory,
-            max_iterations=project.props.options.max_iterations,
-            verbose=True,
-        )
+        if project.props.options.function_agent is True:
+            agent = FunctionCallingAgent.from_tools(
+                tools_u,
+                llm=model.llm,
+                system_prompt=project.props.system,
+                memory=chat.memory,
+                verbose=True,
+            )
+        else:
+            agent = ReActAgent.from_tools(
+                tools_u,
+                llm=model.llm,
+                context=project.props.system,
+                memory=chat.memory,
+                max_iterations=project.props.options.max_iterations,
+                verbose=True,
+            )
 
         try:
             if chatModel.stream:
