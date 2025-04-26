@@ -241,6 +241,7 @@ class ProjectModelUpdate(BaseModel):
     human_name: Union[str, None] = None
     human_description: Union[str, None] = None
     tools: Union[str, None] = None
+    users: list[str] = None
     public: Union[bool, None] = None
     default_prompt: Union[str, None] = None
     options: Union[ProjectOptions, None] = None
