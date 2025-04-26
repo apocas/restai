@@ -9,7 +9,8 @@ from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 def worker(prompt, sharedmem):
-    file : UploadFile = sharedmem["file"]
+    file_path = sharedmem["file_path"]
+    filename = sharedmem["filename"]
     
     device = os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda:0"
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
@@ -31,16 +32,12 @@ def worker(prompt, sharedmem):
         device=device,
     )
     
-    file_ext = os.path.splitext(file.filename)[1].lower()
-    if not file_ext:
-        content_type = file.content_type
-        file_ext = mimetypes.guess_extension(content_type)
-
-    temp_file = tempfile.NamedTemporaryFile(suffix=file_ext, delete=False)
-
-    temp_file.write(file.file.read())
-    temp_file.close()
+    result = pipe(file_path, return_timestamps=True)
     
-    result = pipe(temp_file.name)
-    
-    sharedmem["output"] = result["text"].strip()
+    if isinstance(result, dict) and "text" in result:
+        sharedmem["output"] = result["text"].strip()
+    elif isinstance(result, dict) and "chunks" in result:
+        full_text = " ".join([chunk["text"] for chunk in result["chunks"]])
+        sharedmem["output"] = full_text.strip()
+    else:
+        sharedmem["output"] = str(result).strip()
