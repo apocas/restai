@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime
 
 from passlib.context import CryptContext
 from sqlalchemy import create_engine, inspect
@@ -19,7 +20,8 @@ from restai.models.databasemodels import (
     ProjectDatabase,
     RouterEntrancesDatabase,
     UserDatabase,
-    EmbeddingDatabase
+    EmbeddingDatabase,
+    TeamDatabase
 )
 from restai.tools import DEFAULT_LLMS, DEFAULT_EMBEDDINGS
 
@@ -72,6 +74,20 @@ else:
         dbi.add(db_user)
         
         dbi.commit()
+        
+        # Create a default team and add the admin user to it
+        default_team = TeamDatabase(
+            name="Default Team",
+            description="Default team created during initialization",
+            created_at=datetime.now()
+        )
+        dbi.add(default_team)
+        dbi.commit()
+        
+        # Add admin as both a team member and a team admin
+        default_team.users.append(db_user)
+        default_team.admins.append(db_user)
+        dbi.commit()
 
         for llm in DEFAULT_LLMS:
             llm_class, llm_args, privacy, description, typel, input_cost, output_cost = DEFAULT_LLMS[llm]
@@ -87,6 +103,9 @@ else:
             )
             dbi.add(db_llm)
             
+            # Add this LLM to the default team
+            default_team.llms.append(db_llm)
+            
         dbi.commit()
         
         for embedding in DEFAULT_EMBEDDINGS:
@@ -100,6 +119,9 @@ else:
                 dimension=dimension
             )
             dbi.add(db_embedding)
+            
+            # Add this embedding model to the default team
+            default_team.embeddings.append(db_embedding)
             
         dbi.commit()
         
@@ -165,6 +187,40 @@ else:
             demo_project3.users.append(db_user)
             demo_project4.users.append(db_user)
             demo_project5.users.append(db_user)
+            
+            demo_team = TeamDatabase(
+                name="Demo Team",
+                description="A team for demonstration purposes",
+                created_at=datetime.now(),
+                creator=db_user.id
+            )
+            dbi.add(demo_team)
+            dbi.commit()
+            
+            # Add the demo user to the team
+            demo_team.users.append(db_user)
+            demo_team.admins.append(db_user)
+            
+            # Add the required LLMs and embeddings to the demo team
+            llama_llm = dbi.query(LLMDatabase).filter(LLMDatabase.name == "llama31_8b").first()
+            llava_llm = dbi.query(LLMDatabase).filter(LLMDatabase.name == "llava16_13b").first()
+            mpnet_embedding = dbi.query(EmbeddingDatabase).filter(EmbeddingDatabase.name == "all-mpnet-base-v2").first()
+            
+            if llama_llm:
+                demo_team.llms.append(llama_llm)
+            if llava_llm:
+                demo_team.llms.append(llava_llm)
+            if mpnet_embedding:
+                demo_team.embeddings.append(mpnet_embedding)
+                
+            # Associate the projects with the team
+            demo_team.projects.append(demo_project1)
+            demo_team.projects.append(demo_project2)
+            demo_team.projects.append(demo_project3)
+            demo_team.projects.append(demo_project4)
+            demo_team.projects.append(demo_project5)
+            
+            dbi.commit()
             
         dbi.commit()
         dbi.close()

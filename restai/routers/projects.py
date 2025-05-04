@@ -252,6 +252,21 @@ async def route_create_project(
 
     if projectModel.name.strip() == "":
         raise HTTPException(status_code=400, detail="Invalid project name")
+        
+    # Validate that a team ID is provided
+    if not projectModel.team_id:
+        raise HTTPException(status_code=400, detail="Team selection is required")
+        
+    # Check if the team exists
+    team = db_wrapper.get_team_by_id(projectModel.team_id)
+    if team is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+    
+    # Verify user belongs to the team or is an admin
+    is_team_member = user.id in [u.id for u in team.users]
+    is_team_admin = user.id in [u.id for u in team.admins]
+    if not (is_team_member or is_team_admin or user.is_admin):
+        raise HTTPException(status_code=403, detail="User does not have access to this team")
 
     if config.RESTAI_DEMO == True and not user.is_admin:
         if projectModel.type == "ragsql" or projectModel.type == "agent":
@@ -260,20 +275,29 @@ async def route_create_project(
                 detail="Demo mode, not allowed to create this type of projects.",
             )
 
-    if (
-        projectModel.type == "rag"
-        and request.app.state.brain.get_embedding(projectModel.embeddings, db_wrapper)
-        is None
-    ):
-        raise HTTPException(status_code=404, detail="Embeddings not found")
-    if request.app.state.brain.get_llm(projectModel.llm, db_wrapper) is None:
+    # Validate LLM exists
+    llm_model = request.app.state.brain.get_llm(projectModel.llm, db_wrapper)
+    if llm_model is None:
         raise HTTPException(status_code=404, detail="LLM not found")
+        
+    # Validate team has access to the LLM
+    if llm_model.props.name not in [llm.name for llm in team.llms]:
+        raise HTTPException(status_code=403, detail=f"Team does not have access to LLM '{projectModel.llm}'")
+
+    # Validate embeddings for RAG projects
+    if projectModel.type == "rag":
+        embedding_model = request.app.state.brain.get_embedding(projectModel.embeddings, db_wrapper)
+        if embedding_model is None:
+            raise HTTPException(status_code=404, detail="Embeddings not found")
+            
+        # Validate team has access to the embeddings
+        if embedding_model.name not in [embedding.name for embedding in team.embeddings]:
+            raise HTTPException(status_code=403, detail=f"Team does not have access to embedding model '{projectModel.embeddings}'")
       
     if db_wrapper.db.query(ProjectDatabase).filter(ProjectDatabase.creator == user.id, ProjectDatabase.name == projectModel.name).first() is not None:
         raise HTTPException(status_code=403, detail="Project already exists")
 
     if user.is_private:
-        llm_model = request.app.state.brain.get_llm(projectModel.llm, db_wrapper)
         if llm_model.props.privacy != "private":
             raise HTTPException(
                 status_code=403, detail="User allowed to private models only"
@@ -296,7 +320,12 @@ async def route_create_project(
             projectModel.human_description,
             projectModel.type,
             user.id,
+            projectModel.team_id,
         )
+        
+        if project_db is None:
+            raise HTTPException(status_code=400, detail="Failed to create project, check team's access to selected LLM and embeddings")
+            
         project = get_project(project_db.id, db_wrapper, request.app.state.brain)
 
         if project.props.vectorstore:

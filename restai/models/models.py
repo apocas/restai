@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, Union, Iterable
 import json
+from datetime import datetime
 
 from restai import config
 
@@ -68,6 +69,7 @@ class LLMModel(BaseModel):
     type: str
     input_cost: float = 0.0
     output_cost: float = 0.0
+    teams: list["TeamModel"] = []
     model_config = ConfigDict(from_attributes=True)
 
 class EmbeddingModel(BaseModel):
@@ -77,6 +79,7 @@ class EmbeddingModel(BaseModel):
     privacy: str
     description: Union[str, None] = None
     dimension: int = 1536
+    teams: list["TeamModel"] = []
     model_config = ConfigDict(from_attributes=True)
     
 class Tool(BaseModel):
@@ -138,6 +141,7 @@ class ProjectModel(BaseModel):
     default_prompt: Union[str, None] = None
     options: Union[str, ProjectOptions] = ProjectOptions()
     users: list[ProjectUser] = []
+    teams: list["TeamModel"] = []
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator('options', mode='before')
@@ -160,6 +164,7 @@ class ProjectModelCreate(BaseModel):
     human_name: Union[str, None] = None
     human_description: Union[str, None] = None
     vectorstore: Union[str, None] = None
+    team_id: int
     
 class ProjectsResponse(BaseModel):
     projects: list[ProjectModel]
@@ -182,6 +187,8 @@ class User(BaseModel):
     api_key: Union[str, None] = None
     level: Union[str, None] = None
     options: Union[str, UserOptions] = UserOptions()
+    teams: list["TeamModel"] = []
+    admin_teams: list["TeamModel"] = []
     model_config = ConfigDict(from_attributes=True)
     
     @field_validator('options', mode='before')
@@ -294,3 +301,57 @@ class KeyCreate(BaseModel):
     tpm: Union[int, None] = None
     max_budget: Union[int, None] = None
     duration_budget: Union[str, None] = None
+
+class TeamUser(BaseModel):
+    id: int
+    username: str
+    model_config = ConfigDict(from_attributes=True)
+    
+class TeamLLM(BaseModel):
+    id: int
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+    
+class TeamEmbedding(BaseModel):
+    id: int
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+    
+class TeamProject(BaseModel):
+    id: int
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+
+class TeamModel(BaseModel):
+    id: int
+    name: str
+    description: Union[str, None] = None
+    created_at: datetime = None
+    users: list[TeamUser] = []
+    admins: list[TeamUser] = []
+    projects: list[TeamProject] = []
+    llms: list[TeamLLM] = []
+    embeddings: list[TeamEmbedding] = []
+    model_config = ConfigDict(from_attributes=True)
+
+class TeamModelCreate(BaseModel):
+    name: str
+    description: Union[str, None] = None
+    users: list[str] = []
+    admins: list[str] = []
+    projects: list[str] = []
+    llms: list[str] = []
+    embeddings: list[str] = []
+    creator_id: Union[int, None] = None
+    
+class TeamModelUpdate(BaseModel):
+    name: Union[str, None] = None
+    description: Union[str, None] = None
+    users: list[str] = None
+    admins: list[str] = None
+    projects: list[str] = None
+    llms: list[str] = None
+    embeddings: list[str] = None
+    
+class TeamsResponse(BaseModel):
+    teams: list[TeamModel]

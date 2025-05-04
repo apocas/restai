@@ -1,11 +1,13 @@
 from sqlalchemy import create_engine
 from restai import config
+from datetime import datetime
 from restai.models.databasemodels import (
     LLMDatabase,
     EmbeddingDatabase,
     ProjectDatabase,
     RouterEntrancesDatabase,
     UserDatabase,
+    TeamDatabase,
 )
 from restai.models.models import (
     LLMModel,
@@ -15,10 +17,13 @@ from restai.models.models import (
     UserUpdate,
     EmbeddingModel,
     EmbeddingUpdate,
+    TeamModel,
+    TeamModelUpdate,
+    TeamModelCreate,
 )
 from sqlalchemy.orm import sessionmaker, Session
 from passlib.context import CryptContext
-from typing import Optional
+from typing import Optional, List
 from restai.config import MYSQL_HOST, MYSQL_URL, POSTGRES_HOST, POSTGRES_URL
 import json
 
@@ -301,7 +306,24 @@ class DBWrapper:
         human_description: str,
         project_type: str,
         creator: int,
-    ) -> ProjectDatabase:
+        team_id: int,
+    ) -> Optional[ProjectDatabase]:
+        # Validate that the team exists
+        team = self.get_team_by_id(team_id)
+        if team is None:
+            return None
+            
+        # Validate that the team has access to the specified LLM
+        llm_db = self.get_llm_by_name(llm)
+        if llm_db is None or llm_db not in team.llms:
+            return None
+            
+        # If embeddings are specified, validate that the team has access to it
+        if embeddings:
+            embedding_db = self.get_embedding_by_name(embeddings)
+            if embedding_db is None or embedding_db not in team.embeddings:
+                return None
+                
         db_project: ProjectDatabase = ProjectDatabase(
             name=name,
             embeddings=embeddings,
@@ -316,11 +338,11 @@ class DBWrapper:
         self.db.add(db_project)
         self.db.commit()
         self.db.refresh(db_project)
+        
+        # Associate the project with the team
+        self.add_project_to_team(team, db_project)
+        
         return db_project
-
-    def get_projects(self) -> list[ProjectDatabase]:
-        projects: list[ProjectDatabase] = self.db.query(ProjectDatabase).all()
-        return projects
 
     def delete_project(self, project: ProjectDatabase) -> bool:
         self.db.delete(project)
@@ -333,6 +355,11 @@ class DBWrapper:
             return False
 
         changed = False
+        
+        # Get all teams that have this project to validate LLM/embedding access
+        teams_with_project = [team for team in self.get_teams() if proj_db in team.projects]
+        if not teams_with_project:
+            return False  # Project should belong to at least one team
         
         if projectModel.users is not None:
             proj_db.users = []
@@ -358,7 +385,40 @@ class DBWrapper:
             changed = True
 
         if projectModel.llm is not None and proj_db.llm != projectModel.llm:
+            # Validate that at least one team has access to this LLM
+            llm_db = self.get_llm_by_name(projectModel.llm)
+            if llm_db is None:
+                return False
+                
+            llm_access = False
+            for team in teams_with_project:
+                if llm_db in team.llms:
+                    llm_access = True
+                    break
+                    
+            if not llm_access:
+                return False  # No team has access to this LLM
+                
             proj_db.llm = projectModel.llm
+            changed = True
+
+        if projectModel.embeddings is not None and proj_db.embeddings != projectModel.embeddings:
+            # Validate that at least one team has access to this embedding model
+            if projectModel.embeddings:  # Only check if embeddings is not empty
+                embedding_db = self.get_embedding_by_name(projectModel.embeddings)
+                if embedding_db is None:
+                    return False
+                    
+                embedding_access = False
+                for team in teams_with_project:
+                    if embedding_db in team.embeddings:
+                        embedding_access = True
+                        break
+                        
+                if not embedding_access:
+                    return False  # No team has access to this embedding model
+            
+            proj_db.embeddings = projectModel.embeddings
             changed = True
 
         if projectModel.system is not None and proj_db.system != projectModel.system:
@@ -428,6 +488,177 @@ class DBWrapper:
         if changed:
             self.db.commit()
         return True
+
+    def create_team(self, team_create: TeamModelCreate) -> TeamDatabase:
+        db_team: TeamDatabase = TeamDatabase(
+            name=team_create.name,
+            description=team_create.description,
+            creator_id=team_create.creator_id,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        self.db.add(db_team)
+        self.db.commit()
+        self.db.refresh(db_team)
+        return db_team
+
+    def get_team_by_id(self, team_id: int) -> Optional[TeamDatabase]:
+        team: Optional[TeamDatabase] = (
+            self.db.query(TeamDatabase).filter(TeamDatabase.id == team_id).first()
+        )
+        return team
+
+    def get_team_by_name(self, name: str) -> Optional[TeamDatabase]:
+        team: Optional[TeamDatabase] = (
+            self.db.query(TeamDatabase).filter(TeamDatabase.name == name).first()
+        )
+        return team
+
+    def get_teams(self) -> List[TeamDatabase]:
+        teams: List[TeamDatabase] = self.db.query(TeamDatabase).all()
+        return teams
+
+    def update_team(self, team: TeamDatabase, team_update: TeamModelUpdate) -> bool:
+        changed = False
+
+        if team_update.name is not None and team.name != team_update.name:
+            team.name = team_update.name
+            changed = True
+
+        if team_update.description is not None and team.description != team_update.description:
+            team.description = team_update.description
+            changed = True
+
+        if changed:
+            team.updated_at = datetime.utcnow()
+            self.db.commit()
+        return changed
+
+    def delete_team(self, team: TeamDatabase) -> bool:
+        self.db.delete(team)
+        self.db.commit()
+        return True
+
+    def add_user_to_team(self, team: TeamDatabase, user: UserDatabase) -> bool:
+        if user not in team.users:
+            team.users.append(user)
+            self.db.commit()
+        return True
+    
+    def remove_user_from_team(self, team: TeamDatabase, user: UserDatabase) -> bool:
+        if user in team.users:
+            team.users.remove(user)
+            self.db.commit()
+        return True
+    
+    def add_admin_to_team(self, team: TeamDatabase, user: UserDatabase) -> bool:
+        if user not in team.admins:
+            team.admins.append(user)
+            self.db.commit()
+        return True
+    
+    def remove_admin_from_team(self, team: TeamDatabase, user: UserDatabase) -> bool:
+        if user in team.admins:
+            team.admins.remove(user)
+            self.db.commit()
+        return True
+    
+    def add_project_to_team(self, team: TeamDatabase, project: ProjectDatabase) -> bool:
+        if project not in team.projects:
+            team.projects.append(project)
+            self.db.commit()
+        return True
+    
+    def remove_project_from_team(self, team: TeamDatabase, project: ProjectDatabase) -> bool:
+        if project in team.projects:
+            team.projects.remove(project)
+            self.db.commit()
+        return True
+    
+    def add_llm_to_team(self, team: TeamDatabase, llm: LLMDatabase) -> bool:
+        if llm not in team.llms:
+            team.llms.append(llm)
+            self.db.commit()
+        return True
+    
+    def remove_llm_from_team(self, team: TeamDatabase, llm: LLMDatabase) -> bool:
+        if llm in team.llms:
+            team.llms.remove(llm)
+            self.db.commit()
+        return True
+    
+    def add_embedding_to_team(self, team: TeamDatabase, embedding: EmbeddingDatabase) -> bool:
+        if embedding not in team.embeddings:
+            team.embeddings.append(embedding)
+            self.db.commit()
+        return True
+    
+    def remove_embedding_from_team(self, team: TeamDatabase, embedding: EmbeddingDatabase) -> bool:
+        if embedding in team.embeddings:
+            team.embeddings.remove(embedding)
+            self.db.commit()
+        return True
+        
+    def get_teams_for_user(self, user_id: int) -> List[TeamDatabase]:
+        """Get all teams where the user is a member or admin"""
+        user = self.get_user_by_id(user_id)
+        if user is None:
+            return []
+        return list(set(user.teams + user.admin_teams))
+        
+    def update_team_members(self, team: TeamDatabase, team_update: TeamModelUpdate) -> bool:
+        changed = False
+        
+        # Update users
+        if team_update.users is not None:
+            team.users = []
+            for username in team_update.users:
+                user_db = self.get_user_by_username(username)
+                if user_db is not None:
+                    team.users.append(user_db)
+            changed = True
+            
+        # Update admins
+        if team_update.admins is not None:
+            team.admins = []
+            for username in team_update.admins:
+                user_db = self.get_user_by_username(username)
+                if user_db is not None:
+                    team.admins.append(user_db)
+            changed = True
+            
+        # Update projects
+        if team_update.projects is not None:
+            team.projects = []
+            for project_name in team_update.projects:
+                project_db = self.get_project_by_name(project_name)
+                if project_db is not None:
+                    team.projects.append(project_db)
+            changed = True
+            
+        # Update LLMs
+        if team_update.llms is not None:
+            team.llms = []
+            for llm_name in team_update.llms:
+                llm_db = self.get_llm_by_name(llm_name)
+                if llm_db is not None:
+                    team.llms.append(llm_db)
+            changed = True
+            
+        # Update embeddings
+        if team_update.embeddings is not None:
+            team.embeddings = []
+            for embedding_name in team_update.embeddings:
+                embedding_db = self.get_embedding_by_name(embedding_name)
+                if embedding_db is not None:
+                    team.embeddings.append(embedding_db)
+            changed = True
+            
+        if changed:
+            team.updated_at = datetime.utcnow()
+            self.db.commit()
+            
+        return changed
 
 
 def get_db_wrapper() -> DBWrapper:

@@ -155,3 +155,74 @@ def get_current_username_user(
     if not found:
         raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
     return user
+
+
+def get_current_username_platform_admin(user: User = Depends(get_current_username)):
+    """Check if user is a platform admin (can manage teams)"""
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return user
+
+
+def get_current_username_team_admin(
+    team_id: int, user: User = Depends(get_current_username), db_wrapper: DBWrapper = Depends(get_db_wrapper)
+):
+    """Check if user is an admin for the specified team or a platform admin"""
+    if user.is_admin:  # Platform admins can manage any team
+        return user
+        
+    # Check if user is a team admin for this team
+    is_team_admin = False
+    team = db_wrapper.get_team_by_id(team_id)
+    
+    if team is None:
+        raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+    
+    for admin in team.admins:
+        if admin.id == user.id:
+            is_team_admin = True
+            break
+    
+    if not is_team_admin:
+        raise HTTPException(
+            status_code=403,
+            detail=ERROR_MESSAGES.NOT_TEAM_ADMIN,
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    
+    return user
+
+
+def get_current_username_team_member(
+    team_id: int, user: User = Depends(get_current_username), db_wrapper: DBWrapper = Depends(get_db_wrapper)
+):
+    """Check if user is a member of the specified team (admin or normal member)"""
+    if user.is_admin:  # Platform admins can access any team
+        return user
+        
+    # Check if user is a team member
+    team = db_wrapper.get_team_by_id(team_id)
+    
+    if team is None:
+        raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+    
+    is_team_member = False
+    
+    # Check if user is an admin or member
+    for team_user in team.users + team.admins:
+        if team_user.id == user.id:
+            is_team_member = True
+            break
+    
+    if not is_team_member:
+        raise HTTPException(
+            status_code=403,
+            detail=ERROR_MESSAGES.NOT_TEAM_MEMBER,
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    
+    return user

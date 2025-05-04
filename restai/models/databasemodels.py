@@ -11,6 +11,59 @@ users_projects = Table(
     Column("project_id", ForeignKey("projects.id"), primary_key=True),
 )
 
+# Team-related relationship tables
+teams_users = Table(
+    "teams_users",
+    Base.metadata,
+    Column("team_id", ForeignKey("teams.id"), primary_key=True),
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
+)
+
+teams_admins = Table(
+    "teams_admins",
+    Base.metadata,
+    Column("team_id", ForeignKey("teams.id"), primary_key=True),
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
+)
+
+teams_projects = Table(
+    "teams_projects",
+    Base.metadata,
+    Column("team_id", ForeignKey("teams.id"), primary_key=True),
+    Column("project_id", ForeignKey("projects.id"), primary_key=True),
+)
+
+teams_llms = Table(
+    "teams_llms",
+    Base.metadata,
+    Column("team_id", ForeignKey("teams.id"), primary_key=True),
+    Column("llm_id", ForeignKey("llms.id"), primary_key=True),
+)
+
+teams_embeddings = Table(
+    "teams_embeddings",
+    Base.metadata,
+    Column("team_id", ForeignKey("teams.id"), primary_key=True),
+    Column("embedding_id", ForeignKey("embeddings.id"), primary_key=True),
+)
+
+class TeamDatabase(Base):
+    __tablename__ = "teams"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), unique=True, index=True)
+    description = Column(Text)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+    creator_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
+    # Many-to-many relationships
+    users = relationship('UserDatabase', secondary=teams_users, back_populates='teams')
+    admins = relationship('UserDatabase', secondary=teams_admins, back_populates='admin_teams')
+    projects = relationship('ProjectDatabase', secondary=teams_projects, back_populates='teams')
+    llms = relationship('LLMDatabase', secondary=teams_llms, back_populates='teams')
+    embeddings = relationship('EmbeddingDatabase', secondary=teams_embeddings, back_populates='teams')
+
 class ProjectDatabase(Base):
     __tablename__ = "projects"
 
@@ -31,6 +84,7 @@ class ProjectDatabase(Base):
     options = Column(Text, default="{}")
     users = relationship('UserDatabase', secondary=users_projects, back_populates='projects', lazy="select")
     entrances = relationship("RouterEntrancesDatabase", back_populates="project", lazy="select")
+    teams = relationship('TeamDatabase', secondary=teams_projects, back_populates='projects')
 
 class UserDatabase(Base):
     __tablename__ = "users"
@@ -38,12 +92,13 @@ class UserDatabase(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(255), unique=True, index=True)
     hashed_password = Column(String(255))
-    is_admin = Column(Boolean, default=False)
+    is_admin = Column(Boolean, default=False)  # Platform admin
     is_private = Column(Boolean, default=False)
     api_key = Column(String(4096))
     options = Column(Text, default="{}")
     projects = relationship('ProjectDatabase', secondary=users_projects, back_populates='users')
-    
+    teams = relationship('TeamDatabase', secondary=teams_users, back_populates='users')
+    admin_teams = relationship('TeamDatabase', secondary=teams_admins, back_populates='admins')
 
 class OutputDatabase(Base):
     __tablename__ = "output"
@@ -91,6 +146,7 @@ class LLMDatabase(Base):
     type = Column(String(255))
     input_cost = Column(Float, default=0.0)
     output_cost = Column(Float, default=0.0)
+    teams = relationship('TeamDatabase', secondary=teams_llms, back_populates='llms')
     
 class EmbeddingDatabase(Base):
     __tablename__ = "embeddings"
@@ -103,3 +159,4 @@ class EmbeddingDatabase(Base):
     privacy = Column(String(255))
     description = Column(Text)
     dimension = Column(Integer, default=1536)
+    teams = relationship('TeamDatabase', secondary=teams_embeddings, back_populates='embeddings')

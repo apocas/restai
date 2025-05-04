@@ -27,7 +27,7 @@ async def lifespan(fs_app: FastAPI):
     from restai.brain import Brain
     from restai.database import get_db_wrapper, DBWrapper
     from restai.auth import get_current_username
-    from restai.routers import llms, projects, tools, users, image, audio, embeddings, proxy, statistics, auth
+    from restai.routers import llms, projects, tools, users, image, audio, embeddings, proxy, statistics, auth, teams
     from restai.models.models import User
     from restai.multiprocessing import get_manager
     from modules.loaders import LOADERS
@@ -104,6 +104,7 @@ async def lifespan(fs_app: FastAPI):
     fs_app.include_router(proxy.router)
     fs_app.include_router(statistics.router)
     fs_app.include_router(auth.router)
+    fs_app.include_router(teams.router)
 
     if config.RESTAI_GPU == True:
         fs_app.include_router(image.router)

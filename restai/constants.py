@@ -30,6 +30,10 @@ class ERROR_MESSAGES(str, Enum):
     FILE_NOT_SUPPORTED = "Oops! It seems like the file format you're trying to upload is not supported. Please upload a file with a supported format and try again."
 
     NOT_FOUND = "We could not find what you're looking for :/"
+    TEAM_NOT_FOUND = "The team you're looking for could not be found."
+    TEAM_NAME_TAKEN = "This team name is already in use. Please choose a different name."
+    NOT_TEAM_ADMIN = "You do not have administrative privileges for this team."
+    NOT_TEAM_MEMBER = "You are not a member of this team."
 
     PANDOC_NOT_INSTALLED = "Pandoc is not installed on the server. Please contact your administrator for assistance."
     INCORRECT_FORMAT = (
