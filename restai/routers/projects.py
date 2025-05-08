@@ -33,8 +33,10 @@ from restai.loaders.url import SeleniumWebReader
 from restai.models.models import (
     FindModel,
     IngestResponse,
+    ProjectModel,
     ProjectModelCreate,
     ProjectModelUpdate,
+    ProjectResponse,
     ProjectsResponse,
     QuestionModel,
     ChatModel,
@@ -92,7 +94,26 @@ async def route_get_projects(
         )
 
     projects = query.offset(start).limit(end - start).all()
-    return {"projects": projects, "total": query.count(), "start": start, "end": end}
+    
+    # Process the projects to simplify team objects
+    serialized_projects = []
+    for project in projects:
+        # Create a Pydantic model from the SQLAlchemy object (handles all properties dynamically)
+        project_model = ProjectModel.model_validate(project)
+        
+        # Convert to dict and modify just the team property
+        project_dict = project_model.model_dump()
+        
+        # Simplify the team object if it exists
+        if project_dict.get('team'):
+            project_dict['team'] = {
+                "id": project_dict['team']['id'],
+                "name": project_dict['team']['name']
+            }
+            
+        serialized_projects.append(project_dict)
+        
+    return {"projects": serialized_projects, "total": query.count(), "start": start, "end": end}
 
 
 @router.get("/projects/{projectID}")
@@ -112,46 +133,34 @@ async def route_get_project(
             llm_model = request.app.state.brain.get_llm(project.props.llm, db_wrapper)
         except Exception:
             llm_model = None
+            
+        final_output = output
 
-        final_output["id"] = output["id"]
-        final_output["name"] = output["name"]
-        final_output["type"] = output["type"]
-        final_output["llm"] = output["llm"]
-        final_output["human_name"] = output["human_name"]
         final_output["human_description"] = output["human_description"] or ""
-        if output["censorship"] is not None:
-            final_output["censorship"] = output["censorship"]
-        if output["guard"] is not None:
-            final_output["guard"] = output["guard"]
-        final_output["creator"] = output["creator"]
-        final_output["public"] = output["public"]
         final_output["level"] = user.level
-        final_output["default_prompt"] = output["default_prompt"]
         final_output["users"] = [u["username"] for u in output["users"]]
-        final_output["options"] = output["options"]
+        
+        if project.props.team:
+            final_output["team"] = {"id": project.props.team.id, "name": project.props.team.name}
 
-        if project.props.type == "rag":
+        match project.props.type:
+          case "rag":
             if project.vector is not None:
-                chunks = project.vector.info()
-                if chunks is not None:
-                    final_output["chunks"] = chunks
+              chunks = project.vector.info()
+              if chunks is not None:
+                final_output["chunks"] = chunks
             else:
-                final_output["chunks"] = 0
+              final_output["chunks"] = 0
             final_output["embeddings"] = output["embeddings"]
             final_output["vectorstore"] = output["vectorstore"]
             final_output["system"] = output["system"] or ""
-
-
-        if project.props.type == "inference":
+          case "inference":
             final_output["system"] = output["system"] or ""
-
-        if project.props.type == "agent":
+          case "agent":
             final_output["system"] = output["system"] or ""
-
-        if project.props.type == "ragsql":
+          case "ragsql":
             final_output["system"] = output["system"] or ""
-
-        if project.props.type == "router":
+          case "router":
             final_output["entrances"] = output["entrances"]
 
         if llm_model:
@@ -202,12 +211,46 @@ async def route_edit_project(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    # Check if the project exists
+    project = db_wrapper.get_project_by_id(projectID)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Validate LLM if being updated
     if (
         projectModelUpdate.llm
         and request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper) is None
     ):
         raise HTTPException(status_code=404, detail="LLM not found")
+    
+    # Validate team if being updated
+    if projectModelUpdate.team_id:
+        # Check if the new team exists
+        team = db_wrapper.get_team_by_id(projectModelUpdate.team_id)
+        if team is None:
+            raise HTTPException(status_code=404, detail="Team not found")
+        
+        # Verify user belongs to the new team or is an admin
+        is_team_member = user.id in [u.id for u in team.users]
+        is_team_admin = user.id in [u.id for u in team.admins]
+        if not (is_team_member or is_team_admin or user.is_admin):
+            raise HTTPException(status_code=403, detail="User does not have access to this team")
+        
+        # Validate team has access to the LLM
+        llm_name = projectModelUpdate.llm or project.llm
+        llm_model = request.app.state.brain.get_llm(llm_name, db_wrapper)
+        if llm_model and llm_model.props.name not in [llm.name for llm in team.llms]:
+            raise HTTPException(status_code=403, detail=f"Team does not have access to LLM '{llm_name}'")
+        
+        # Validate team has access to embeddings for RAG projects
+        if project.type == "rag":
+            embedding_name = projectModelUpdate.embeddings or project.embeddings
+            if embedding_name:
+                embedding_model = request.app.state.brain.get_embedding(embedding_name, db_wrapper)
+                if embedding_model and embedding_model.name not in [embedding.name for embedding in team.embeddings]:
+                    raise HTTPException(status_code=403, detail=f"Team does not have access to embedding model '{embedding_name}'")
 
+    # Validate private user restrictions
     if user.is_private:
         llm_model = request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper)
         if llm_model.props.privacy != "private":

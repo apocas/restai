@@ -60,7 +60,7 @@ class TeamDatabase(Base):
     # Many-to-many relationships
     users = relationship('UserDatabase', secondary=teams_users, back_populates='teams')
     admins = relationship('UserDatabase', secondary=teams_admins, back_populates='admin_teams')
-    projects = relationship('ProjectDatabase', secondary=teams_projects, back_populates='teams')
+    projects = relationship('ProjectDatabase', back_populates='team')
     llms = relationship('LLMDatabase', secondary=teams_llms, back_populates='teams')
     embeddings = relationship('EmbeddingDatabase', secondary=teams_embeddings, back_populates='teams')
 
@@ -82,9 +82,10 @@ class ProjectDatabase(Base):
     public = Column(Boolean, default=False)
     default_prompt = Column(Text)
     options = Column(Text, default="{}")
+    team_id = Column(Integer, ForeignKey("teams.id"))
     users = relationship('UserDatabase', secondary=users_projects, back_populates='projects', lazy="select")
     entrances = relationship("RouterEntrancesDatabase", back_populates="project", lazy="select")
-    teams = relationship('TeamDatabase', secondary=teams_projects, back_populates='projects')
+    team = relationship('TeamDatabase', back_populates='projects')
 
 class UserDatabase(Base):
     __tablename__ = "users"

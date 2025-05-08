@@ -123,7 +123,7 @@ class ProjectOptions(BaseModel):
     connection: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
-class ProjectModel(BaseModel):
+class ProjectBaseModel(BaseModel):
     id: int
     name: str
     embeddings: Union[str, None] = None
@@ -141,7 +141,6 @@ class ProjectModel(BaseModel):
     default_prompt: Union[str, None] = None
     options: Union[str, ProjectOptions] = ProjectOptions()
     users: list[ProjectUser] = []
-    teams: list["TeamModel"] = []
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator('options', mode='before')
@@ -156,6 +155,10 @@ class ProjectModel(BaseModel):
             return ProjectOptions(**v)
         return v
 
+class ProjectModel(ProjectBaseModel):
+    team: Union["TeamModel", None] = None
+    model_config = ConfigDict(from_attributes=True)
+
 class ProjectModelCreate(BaseModel):
     name: str
     embeddings: Union[str, None] = None
@@ -166,8 +169,13 @@ class ProjectModelCreate(BaseModel):
     vectorstore: Union[str, None] = None
     team_id: int
     
+class ProjectResponse(ProjectBaseModel):
+    team: Union["TeamResponse", None] = None
 class ProjectsResponse(BaseModel):
-    projects: list[ProjectModel]
+    projects: list[ProjectResponse]
+    total: int
+    start: int
+    end: int
 
 class ProjectInfo(ProjectModel):
     chunks: int = 0
@@ -252,6 +260,7 @@ class ProjectModelUpdate(BaseModel):
     public: Union[bool, None] = None
     default_prompt: Union[str, None] = None
     options: Union[ProjectOptions, None] = None
+    team_id: Union[int, None] = None
 
 class SourceModel(BaseModel):
     source: str
@@ -333,6 +342,10 @@ class TeamModel(BaseModel):
     llms: list[TeamLLM] = []
     embeddings: list[TeamEmbedding] = []
     model_config = ConfigDict(from_attributes=True)
+    
+class TeamResponse(BaseModel):
+    id: int
+    name: str
 
 class TeamModelCreate(BaseModel):
     name: str

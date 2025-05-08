@@ -10,8 +10,14 @@ from contextlib import asynccontextmanager
 from restai.database import get_db_wrapper
 from restai.oauth import OAuthManager
 from starlette.middleware.sessions import SessionMiddleware
-from restai.config import OAUTH_PROVIDERS, SECRET_KEY, SESSION_COOKIE_SAME_SITE, SESSION_COOKIE_SECURE
+from restai.config import (
+    OAUTH_PROVIDERS,
+    SECRET_KEY,
+    SESSION_COOKIE_SAME_SITE,
+    SESSION_COOKIE_SECURE,
+)
 from restai.routers.users import sanitize_user
+
 
 @asynccontextmanager
 async def lifespan(fs_app: FastAPI):
@@ -27,7 +33,19 @@ async def lifespan(fs_app: FastAPI):
     from restai.brain import Brain
     from restai.database import get_db_wrapper, DBWrapper
     from restai.auth import get_current_username
-    from restai.routers import llms, projects, tools, users, image, audio, embeddings, proxy, statistics, auth, teams
+    from restai.routers import (
+        llms,
+        projects,
+        tools,
+        users,
+        image,
+        audio,
+        embeddings,
+        proxy,
+        statistics,
+        auth,
+        teams,
+    )
     from restai.models.models import User
     from restai.multiprocessing import get_manager
     from modules.loaders import LOADERS
@@ -44,6 +62,13 @@ async def lifespan(fs_app: FastAPI):
     async def get_version():
         return {
             "version": fs_app.version,
+        }
+
+    @fs_app.get("/setup")
+    async def get_setup():
+        return {
+            "sso": config.OAUTH_PROVIDERS,
+            "proxy": bool(config.PROXY_URL),
         }
 
     @fs_app.get("/info")
@@ -150,7 +175,6 @@ async def oauth_login(provider: str, request: Request):
 @app.get("/oauth/{provider}/callback")
 async def oauth_callback(provider: str, request: Request, response: Response):
     return await oauth_manager.handle_callback(request, provider, response)
-
 
 
 @app.exception_handler(RequestValidationError)
