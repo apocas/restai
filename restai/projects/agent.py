@@ -67,10 +67,18 @@ class Agent(ProjectBase):
           for mcp_server in project.props.options.mcp_servers:
               allowed_tools = set((mcp_server.tools or "").split(","))
               mcp_client = BasicMCPClient(mcp_server.host)
-              mcp_tool_spec = McpToolSpec(
-                  client=mcp_client,
-                  allowed_tools=allowed_tools,
-              )
+              
+              # Only include allowed_tools if it's not empty
+              if allowed_tools and allowed_tools != {""}: 
+                  mcp_tool_spec = McpToolSpec(
+                      client=mcp_client,
+                      allowed_tools=allowed_tools,
+                  )
+              else:
+                  mcp_tool_spec = McpToolSpec(
+                      client=mcp_client,
+                  )
+                  
               tools_u = tools_u + await mcp_tool_spec.to_tool_list_async()
                 
       return tools_u
@@ -105,7 +113,10 @@ class Agent(ProjectBase):
         if len(tools_u) == 0:
             chatModel.question += "\nDont use any tool just respond to the user."
 
-        if project.props.options.function_agent is True:
+        # Check if function_agent attribute exists and is True
+        use_function_agent = hasattr(project.props.options, "function_agent") and project.props.options.function_agent is True
+        
+        if use_function_agent:
             agent = FunctionCallingAgent.from_tools(
                 tools_u,
                 llm=model.llm,

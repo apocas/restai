@@ -22,7 +22,7 @@ from restai.projects.base import ProjectBase
 
 class RAG(ProjectBase):
 
-    def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
+    async def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
         model: Optional[LLM] = self.brain.get_llm(project.props.llm, db)
         chat: Chat = Chat(chatModel, self.brain.chat_store)
 
@@ -152,7 +152,7 @@ class RAG(ProjectBase):
                 yield "event: error\n\n"
             raise e
 
-    def question(
+    async def question(
         self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper
     ):
         output = {

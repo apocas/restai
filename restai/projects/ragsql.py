@@ -11,10 +11,10 @@ from sqlalchemy import create_engine
 
 class RAGSql(ProjectBase):
 
-    def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
+    async def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
         raise HTTPException(status_code=400, detail="Chat mode not available for this project type.")
 
-    def question(self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
+    async def question(self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
         model = self.brain.get_llm(project.props.llm, db)
 
         engine = create_engine(project.props.connection)

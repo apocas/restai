@@ -53,7 +53,7 @@ async def create_streaming_response_with_logging(
     async def stream_with_logging():
         final_output = None
         
-        for chunk in generator:
+        async for chunk in generator:
             if isinstance(chunk, str) and chunk.startswith("data: "):
                 try:
                     data = json.loads(chunk.replace("data: ", ""))
@@ -103,8 +103,9 @@ async def chat_main(
             background_tasks,
         )
     else:
-        output = proj_logic.chat(project, chat_input, user, db)
-        for line in output:
+        # Handle the async generator for non-streaming case
+        output_generator = proj_logic.chat(project, chat_input, user, db)
+        async for line in output_generator:
             background_tasks.add_task(log_inference, project, user, line, db)
             return line
 
@@ -175,8 +176,8 @@ async def question_rag(
                 background_tasks,
             )
         else:
-            output = proj_logic.question(project, q_input, user, db)
-            for line in output:
+            output_generator = proj_logic.question(project, q_input, user, db)
+            async for line in output_generator:
                 background_tasks.add_task(log_inference, project, user, line, db)
                 return line
     except Exception as e:
@@ -266,8 +267,8 @@ async def question_inference(
                 background_tasks,
             )
         else:
-            output = proj_logic.question(project, q_input, user, db)
-            for line in output:
+            output_generator = proj_logic.question(project, q_input, user, db)
+            async for line in output_generator:
                 background_tasks.add_task(log_inference, project, user, line, db)
                 return line
 
@@ -302,8 +303,8 @@ async def question_agent(
                 background_tasks,
             )
         else:
-            output = projLogic.question(project, q_input, user, db)
-            for line in output:
+            output_generator = projLogic.question(project, q_input, user, db)
+            async for line in output_generator:
                 background_tasks.add_task(log_inference, project, user, line, db)
                 return line
 

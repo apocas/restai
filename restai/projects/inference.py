@@ -11,7 +11,7 @@ from restai.projects.base import ProjectBase
 
 class Inference(ProjectBase):
 
-    def chat(self, project: Project, chat_model: ChatModel, user: User, db: DBWrapper):
+    async def chat(self, project: Project, chat_model: ChatModel, user: User, db: DBWrapper):
 
         chat: Chat = Chat(chat_model, self.brain.chat_store)
         output = {
@@ -99,7 +99,7 @@ class Inference(ProjectBase):
                 yield "event: error\n\n"
             raise e
 
-    def question(
+    async def question(
         self, project: Project, question_model: QuestionModel, user: User, db: DBWrapper
     ):
         output = {

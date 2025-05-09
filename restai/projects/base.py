@@ -11,9 +11,9 @@ class ProjectBase(ABC):
         self.brain: Brain = brain
 
     @abstractmethod
-    def chat(self, project: Project, chat_model: ChatModel, user: User, db: DBWrapper):
+    async def chat(self, project: Project, chat_model: ChatModel, user: User, db: DBWrapper):
         raise HTTPException(status_code=400, detail="Chat mode not available for this project type.")
 
     @abstractmethod
-    def question(self, project: Project, question_model: QuestionModel, user: User, db: DBWrapper):
+    async def question(self, project: Project, question_model: QuestionModel, user: User, db: DBWrapper):
         raise HTTPException(status_code=400, detail="Question mode not available for this project type.")
