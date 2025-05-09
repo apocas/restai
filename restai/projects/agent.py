@@ -59,8 +59,24 @@ class Agent(ProjectBase):
             output["reasoning"] = {"output": resp_reasoning, "steps": steps}
 
         return output
+      
+    async def prepare_tools(self, project: Project):
+      tools_u = self.brain.get_tools(set((project.props.options.tools or "").split(",")))
+        
+      if project.props.options.mcp_servers:
+          for mcp_server in project.props.options.mcp_servers:
+              allowed_tools = set((mcp_server.tools or "").split(","))
+              mcp_client = BasicMCPClient(mcp_server.host)
+              mcp_tool_spec = McpToolSpec(
+                  client=mcp_client,
+                  allowed_tools=allowed_tools,
+              )
+              tools_u = tools_u + await mcp_tool_spec.to_tool_list_async()
+                
+      return tools_u
+      
 
-    def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
+    async def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
         chat: Chat = Chat(chatModel, self.brain.chat_store)
         output = {
             "question": chatModel.question,
@@ -84,17 +100,7 @@ class Agent(ProjectBase):
 
         model = self.brain.get_llm(project.props.llm, db)
 
-        tools_u = self.brain.get_tools(set((project.props.options.tools or "").split(",")))
-        
-        if project.props.options.mcp_servers:
-            for mcp_server in project.props.options.mcp_servers:
-                allowed_tools = set((mcp_server.tools or "").split(","))
-                mcp_client = BasicMCPClient(mcp_server.host)
-                mcp_tool_spec = McpToolSpec(
-                    client=mcp_client,
-                    allowed_tools=allowed_tools,
-                )
-                tools_u = tools_u + mcp_tool_spec.to_tool_list()
+        tools_u = await self.prepare_tools(project)
         
         if len(tools_u) == 0:
             chatModel.question += "\nDont use any tool just respond to the user."
@@ -149,7 +155,7 @@ class Agent(ProjectBase):
                 else:
                     raise e
 
-    def question(
+    async def question(
         self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper
     ):
         output = {
@@ -173,13 +179,13 @@ class Agent(ProjectBase):
 
         model = self.brain.get_llm(project.props.llm, db)
 
-        toolsu = self.brain.get_tools((project.props.options.tools or "").split(","))
+        tools_u = await self.prepare_tools(project)
 
-        if len(toolsu) == 0:
+        if len(tools_u) == 0:
             questionModel.question += "\nDont use any tool just respond to the user."
 
         agent = ReActAgent.from_tools(
-            toolsu,
+            tools_u,
             llm=model.llm,
             context=questionModel.system or project.props.system,
             max_iterations=project.props.options.max_iterations,

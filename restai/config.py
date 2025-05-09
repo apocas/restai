@@ -59,6 +59,11 @@ RESTAI_DEMO = (
     True if os.environ.get("RESTAI_DEMO", "").lower() in ("true", "1") else False
 )
 
+MCP_SERVER = (
+    True if os.environ.get("MCP_SERVER", "").lower() in ("true", "1") else False
+)
+
+
 SQLITE_PATH = os.environ.get("SQLITE_PATH")
 
 

@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Request, Depends, status, Response
 import logging
+
+from fastmcp import FastMCP
 from restai import config
 import sentry_sdk
 from contextlib import asynccontextmanager
@@ -16,8 +18,6 @@ from restai.config import (
     SESSION_COOKIE_SAME_SITE,
     SESSION_COOKIE_SECURE,
 )
-from restai.routers.users import sanitize_user
-
 
 @asynccontextmanager
 async def lifespan(fs_app: FastAPI):
@@ -176,6 +176,11 @@ async def oauth_login(provider: str, request: Request):
 async def oauth_callback(provider: str, request: Request, response: Response):
     return await oauth_manager.handle_callback(request, provider, response)
 
+if config.MCP_SERVER:
+    print("MCP server starting...")
+    #mcp = FastMCP.from_fastapi(app=app)
+    #mcp.run()
+    
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -185,7 +190,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(
         content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
     )
-
 
 if config.RESTAI_DEV == True:
     print("Running in development mode!")

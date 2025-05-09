@@ -109,6 +109,9 @@ class ProjectUser(BaseModel):
     username: str
     model_config = ConfigDict(from_attributes=True)
     
+class MCPServer(BaseModel):
+    host: str
+    tools: Union[str, None] = None
 class ProjectOptions(BaseModel):
     logging: bool = True
     colbert_rerank: Union[bool, None] = None
@@ -121,6 +124,7 @@ class ProjectOptions(BaseModel):
     k: int = 4
     max_iterations: int = config.AGENT_MAX_ITERATIONS
     connection: Union[str, None] = None
+    mcp_servers: Union[list[MCPServer], None] = None
     model_config = ConfigDict(from_attributes=True)
 
 class ProjectBaseModel(BaseModel):

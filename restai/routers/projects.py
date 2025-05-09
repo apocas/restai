@@ -20,6 +20,7 @@ from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.response_synthesizers import ResponseMode
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.schema import Document
+from llama_index.tools.mcp import BasicMCPClient, McpToolSpec
 from unidecode import unidecode
 from restai import config
 from restai.auth import (
@@ -913,6 +914,75 @@ async def get_monthly_token_consumption(
                 for tc in token_consumptions
             ]
         }
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/projects/{projectID}/tools")
+async def get_project_tools(
+    request: Request,
+    projectID: int,
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    try:
+        # Get the project by ID
+        project = get_project(projectID, db_wrapper, request.app.state.brain)
+        
+        # Check if the project is of type agent
+        if project.props.type != "agent":
+            raise HTTPException(
+                status_code=400, detail="Tools endpoint only available for agent-type projects"
+            )
+        
+        # Check if the project has MCP servers configured
+        if not project.props.options or not project.props.options.mcp_servers:
+            return {"tools": [], "message": "No MCP servers configured for this project"}
+        
+        # Dictionary to store tools per MCP server
+        all_tools = {}
+        
+        # Connect to each MCP server and retrieve tools
+        for mcp_server in project.props.options.mcp_servers:
+            server_name = mcp_server.host
+            try:
+                # Create MCP client
+                mcp_client = BasicMCPClient(mcp_server.host)
+                
+                mcp_tool_spec = McpToolSpec(
+                    client=mcp_client,
+                )
+
+                # Use the asynchronous version instead of the synchronous one
+                tools = await mcp_tool_spec.to_tool_list_async()
+
+                # Get available tools
+                tools_info = []
+                
+                for tool in tools:
+                    tools_info.append({
+                        "name": tool.metadata.name,
+                        "description": tool.metadata.description,
+                        "schema": tool.metadata.fn_schema_str
+                    })
+                
+                # Add tools to the result
+                all_tools[server_name] = {
+                    "tools": tools_info
+                }
+                
+            except Exception as e:
+                # Handle connection errors
+                all_tools[server_name] = {
+                    "error": str(e),
+                    "message": f"Failed to connect to MCP server: {mcp_server.host}"
+                }
+                
+        return {"mcp_servers": all_tools}
+        
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
