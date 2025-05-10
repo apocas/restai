@@ -367,7 +367,7 @@ async def question_vision(
                     raise ValueError("Content is null.")
                 q_input.image = base64.b64encode(image_data).decode("utf-8")
 
-        output = projLogic.question(project, q_input, user, db)
+        output = await projLogic.question(project, q_input, user, db)
 
         if q_input.lite:
             del output["image"]
