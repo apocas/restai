@@ -192,7 +192,7 @@ else:
                 name="Demo Team",
                 description="A team for demonstration purposes",
                 created_at=datetime.now(),
-                creator=db_user.id
+                creator_id=db_user.id
             )
             dbi.add(demo_team)
             dbi.commit()
