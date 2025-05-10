@@ -66,9 +66,17 @@ async def lifespan(fs_app: FastAPI):
 
     @fs_app.get("/setup")
     async def get_setup():
+        sso_list = []
+        if isinstance(config.OAUTH_PROVIDERS, dict):
+            sso_list = list(config.OAUTH_PROVIDERS.keys())
+        elif isinstance(config.OAUTH_PROVIDERS, (list, tuple)):
+            sso_list = list(config.OAUTH_PROVIDERS)
+        else:
+            sso_list = []
         return {
-            "sso": config.OAUTH_PROVIDERS,
+            "sso": sso_list,
             "proxy": bool(config.PROXY_URL),
+            "gpu": config.RESTAI_GPU,
         }
 
     @fs_app.get("/info")
