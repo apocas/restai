@@ -366,7 +366,16 @@ class DBWrapper:
             for username in projectModel.users:
                 user_db = self.get_user_by_username(username)
                 if user_db is not None:
-                    proj_db.users.append(user_db)
+                    # Validate that the user belongs to at least one of the teams associated with this project
+                    user_is_in_team = False
+                    for team in teams_with_project:
+                        if user_db in team.users or user_db in team.admins:
+                            user_is_in_team = True
+                            break
+                    
+                    # Only add the user if they belong to one of the project's teams
+                    if user_is_in_team:
+                        proj_db.users.append(user_db)
             changed = True
 
         if projectModel.name is not None and proj_db.name != projectModel.name:
