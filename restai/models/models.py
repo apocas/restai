@@ -215,8 +215,13 @@ class User(BaseModel):
             return UserOptions(**v)
         return v
 
+class LimitedUser(BaseModel):
+    id: int
+    username: str
+    model_config = ConfigDict(from_attributes=True)
+
 class UsersResponse(BaseModel):
-    users: list[User]
+    users: list[Union[User, LimitedUser]]
     
 class UserBase(BaseModel):
     username: str

@@ -9,10 +9,11 @@ from datetime import timedelta
 import secrets
 from fastapi.responses import RedirectResponse
 from restai import config
-from restai.models.models import User, UserCreate, UserLogin, UserUpdate, UsersResponse
+from restai.models.models import User, UserCreate, UserLogin, UserUpdate, UsersResponse, LimitedUser
 from restai.database import get_db_wrapper, DBWrapper
 from restai.auth import (
     create_access_token,
+    get_current_username,
     get_current_username_admin,
     get_current_username_user,
 )
@@ -180,11 +181,38 @@ async def route_get_user_apikey(
 
 @router.get("/users", response_model=UsersResponse)
 async def route_get_users(
-    _: User = Depends(get_current_username_admin),
+    user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    users = db_wrapper.get_users()
-    users_final = [sanitize_user(User.model_validate(user)) for user in users]
+    # If user is admin, return all users
+    if user.is_admin:
+        users = db_wrapper.get_users()
+        users_final = [sanitize_user(User.model_validate(user_obj)) for user_obj in users]
+    # For regular users, only return users from their teams
+    else:
+        # Get the set of unique users from all teams the current user belongs to
+        team_users = set()
+        for team in user.teams:
+            # Add all users from this team to our set
+            for team_user in team.users:
+                team_users.add(team_user.id)
+        
+        # Get all users and filter by the team user IDs
+        users = db_wrapper.get_users()
+        team_users_list = []
+        for user_obj in users:
+            if user_obj.id in team_users:
+                team_users_list.append(user_obj)
+        
+        # Convert to LimitedUser objects
+        users_final = []
+        for user_obj in team_users_list:
+            user_model = User.model_validate(user_obj)
+            limited_user = LimitedUser(
+                id=user_model.id,
+                username=user_model.username
+            )
+            users_final.append(limited_user)
 
     return {"users": users_final}
 
