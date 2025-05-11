@@ -68,7 +68,7 @@ async def api_create_llm(
         llm: LLMDatabase = db_wrapper.create_llm(
             llmc.name,
             llmc.class_name,
-            llmc.options,
+            json.dumps(llmc.options),
             llmc.privacy,
             llmc.description,
             llmc.type,
