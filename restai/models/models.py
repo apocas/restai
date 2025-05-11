@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Optional, Union, Iterable
+from typing import Any, Dict, Optional, Union, Iterable
 import json
 from datetime import datetime
 
@@ -377,3 +377,27 @@ class TeamModelUpdate(BaseModel):
     
 class TeamsResponse(BaseModel):
     teams: list[TeamModel]
+    
+class OllamaInstanceModel(BaseModel):
+    host: str = "localhost"
+    port: int = 11434
+
+
+class OllamaModelInfo(BaseModel):
+    name: str
+    modified_at: Optional[str] = None
+    size: Optional[int] = None
+    digest: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+
+
+class OllamaModelPullRequest(BaseModel):
+    name: str
+    host: str = "localhost"
+    port: int = 11434
+
+
+class OllamaModelPullResponse(BaseModel):
+    status: str
+    model: str
+    digest: Optional[str] = None
