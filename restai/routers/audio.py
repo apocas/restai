@@ -27,9 +27,11 @@ async def route_list_generators(
 
 @router.post("/audio/{generator}/transcript")
 async def route_generate_transcript(request: Request, generator: str, file: UploadFile):
-
-    await file.seek(0, 2)
-    file_size = await file.tell()
+    # Get file size from the file's content length if available
+    file_size = 0
+    contents = await file.read()
+    file_size = len(contents)
+    # Reset the file pointer to the beginning
     await file.seek(0)
 
     max_size_bytes = config.MAX_AUDIO_UPLOAD_SIZE * 1024 * 1024
