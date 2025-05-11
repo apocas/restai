@@ -63,7 +63,7 @@ class RouterModel(BaseModel):
 class LLMModel(BaseModel):
     name: str
     class_name: str
-    options: str
+    options: Dict[str, Any]
     privacy: str
     description: Union[str, None] = None
     type: str
@@ -71,6 +71,16 @@ class LLMModel(BaseModel):
     output_cost: float = 0.0
     teams: list["TeamModel"] = []
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('options', mode='before')
+    @classmethod
+    def parse_options(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                return {}
+        return v
 
 class EmbeddingModel(BaseModel):
     name: str
@@ -85,21 +95,36 @@ class EmbeddingModel(BaseModel):
 class Tool(BaseModel):
     name: str
     description: str
+
 class LLMUpdate(BaseModel):
     class_name: str = None
-    options: str = None
+    options: Union[str, Dict[str, Any], None] = None
     privacy: str = None
     description: str = None
     type: str = None
     input_cost: float = None
     output_cost: float = None
-    
+
+    @field_validator('options', mode='before')
+    @classmethod
+    def serialize_options(cls, v):
+        if isinstance(v, dict):
+            return json.dumps(v)
+        return v
+
 class EmbeddingUpdate(BaseModel):
     class_name: str = None
-    options: str = None
+    options: Union[str, Dict[str, Any], None] = None
     privacy: str = None
     description: str = None
     dimension: int = None
+
+    @field_validator('options', mode='before')
+    @classmethod
+    def serialize_options(cls, v):
+        if isinstance(v, dict):
+            return json.dumps(v)
+        return v
 
 class UserProject(BaseModel):
     id: int

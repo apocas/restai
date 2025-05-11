@@ -21,10 +21,9 @@ def mask_api_key(options: Optional[str]) -> Optional[str]:
     if options is None:
         return options
     try:
-        opts = json.loads(options)
-        if "api_key" in opts:
-            opts["api_key"] = "********"
-        return json.dumps(opts)
+        if "api_key" in options:
+            options["api_key"] = "********"
+        return options
     except Exception as e:
         logging.exception(e)
         return options

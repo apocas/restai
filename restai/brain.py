@@ -110,7 +110,7 @@ class Brain:
             llm_model = LLMModel.model_validate(llm_db)
 
             llm_class, llm_default_params = tools.get_llm_class(llm_model.class_name)
-            llm_params = json.loads(llm_model.options)
+            llm_params = llm_model.options
             if llm_default_params is not None:
                 llm_params.update(llm_default_params)
             llm = llm_class(**llm_params)
