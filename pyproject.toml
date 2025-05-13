@@ -101,6 +101,8 @@ gpu = [
     "kornia>=0.8.0,<0.9",
     "timm>=1.0.15,<2",
     "triton>=3.2.0,<4",
+    "diffusers>=0.33.1",
+    "accelerate>=1.6.0",
 ]
 dev = [
     "pylint==3.0.2",

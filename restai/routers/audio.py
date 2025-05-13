@@ -1,4 +1,8 @@
 import logging
+import tempfile
+import os
+import shutil
+import subprocess
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 
@@ -27,27 +31,54 @@ async def route_list_generators(
 
 @router.post("/audio/{generator}/transcript")
 async def route_generate_transcript(request: Request, generator: str, file: UploadFile):
-    # Get file size from the file's content length if available
-    file_size = 0
+    # Read the uploaded file contents
     contents = await file.read()
     file_size = len(contents)
-    # Reset the file pointer to the beginning
     await file.seek(0)
 
     max_size_bytes = config.MAX_AUDIO_UPLOAD_SIZE * 1024 * 1024
-
     if file_size > max_size_bytes:
         raise HTTPException(
             status_code=413,
             detail=f"File too large. Maximum size allowed is {config.MAX_AUDIO_UPLOAD_SIZE} MB.",
         )
 
-    generators = request.app.state.brain.get_audio_generators([generator])
-    if len(generators) > 0:
-        from restai.audio.runner import generate
+    # Save the uploaded file to a temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[-1]) as temp_in:
+        temp_in.write(contents)
+        temp_in.flush()
+        input_path = temp_in.name
 
-        transcript = generate(request.app.state.manager, generators[0], "", file)
-    else:
-        raise HTTPException(status_code=400, detail="Invalid generator")
+    # Prepare a temporary output mp3 file
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_out:
+        output_path = temp_out.name
+
+    # Convert the input file to mp3 using ffmpeg
+    try:
+        result = subprocess.run([
+            'ffmpeg', '-y', '-i', input_path, '-vn', '-ar', '44100', '-ac', '2', '-b:a', '192k', output_path
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if result.returncode != 0:
+            raise HTTPException(status_code=400, detail=f"Failed to convert file to mp3: {result.stderr.decode()}")
+
+        # Open the converted mp3 file as UploadFile for the runner
+        with open(output_path, 'rb') as mp3_file:
+            mp3_upload = UploadFile(filename='converted.mp3', file=mp3_file, content_type='audio/mpeg')
+            generators = request.app.state.brain.get_audio_generators([generator])
+            if len(generators) > 0:
+                from restai.audio.runner import generate
+                transcript = generate(request.app.state.manager, generators[0], "", mp3_upload)
+            else:
+                raise HTTPException(status_code=400, detail="Invalid generator")
+    finally:
+        # Clean up temporary files
+        try:
+            os.remove(input_path)
+        except Exception:
+            pass
+        try:
+            os.remove(output_path)
+        except Exception:
+            pass
 
     return {"answer": transcript}
