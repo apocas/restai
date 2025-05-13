@@ -49,36 +49,61 @@ async def route_generate_transcript(request: Request, generator: str, file: Uplo
         temp_in.flush()
         input_path = temp_in.name
 
-    # Prepare a temporary output mp3 file
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_out:
-        output_path = temp_out.name
+    # Check if the file is already mp3
+    file_ext = os.path.splitext(file.filename)[-1].lower()
+    is_mp3 = file_ext == '.mp3'
 
-    # Convert the input file to mp3 using ffmpeg
-    try:
-        result = subprocess.run([
-            'ffmpeg', '-y', '-i', input_path, '-vn', '-ar', '44100', '-ac', '2', '-b:a', '192k', output_path
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if result.returncode != 0:
-            raise HTTPException(status_code=400, detail=f"Failed to convert file to mp3: {result.stderr.decode()}")
+    if is_mp3:
+        # Use the uploaded file directly
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_mp3:
+            temp_mp3.write(contents)
+            temp_mp3.flush()
+            mp3_path = temp_mp3.name
+        try:
+            with open(mp3_path, 'rb') as mp3_file:
+                mp3_upload = UploadFile(filename=file.filename, file=mp3_file)
+                generators = request.app.state.brain.get_audio_generators([generator])
+                if len(generators) > 0:
+                    from restai.audio.runner import generate
+                    transcript = generate(request.app.state.manager, generators[0], "", mp3_upload)
+                else:
+                    raise HTTPException(status_code=400, detail="Invalid generator")
+        finally:
+            try:
+                os.remove(mp3_path)
+            except Exception:
+                pass
+    else:
+        # Prepare a temporary output mp3 file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_out:
+            output_path = temp_out.name
 
-        # Open the converted mp3 file as UploadFile for the runner
-        with open(output_path, 'rb') as mp3_file:
-            mp3_upload = UploadFile(filename='converted.mp3', file=mp3_file, content_type='audio/mpeg')
-            generators = request.app.state.brain.get_audio_generators([generator])
-            if len(generators) > 0:
-                from restai.audio.runner import generate
-                transcript = generate(request.app.state.manager, generators[0], "", mp3_upload)
-            else:
-                raise HTTPException(status_code=400, detail="Invalid generator")
-    finally:
-        # Clean up temporary files
+        # Convert the input file to mp3 using ffmpeg
         try:
-            os.remove(input_path)
-        except Exception:
-            pass
-        try:
-            os.remove(output_path)
-        except Exception:
-            pass
+            result = subprocess.run([
+                'ffmpeg', '-y', '-i', input_path, '-vn', '-ar', '44100', '-ac', '2', '-b:a', '192k', output_path
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if result.returncode != 0:
+                raise HTTPException(status_code=400, detail=f"Failed to convert file to mp3: {result.stderr.decode()}")
+
+            # Open the converted mp3 file as UploadFile for the runner
+            with open(output_path, 'rb') as mp3_file:
+                mp3_upload = UploadFile(filename='converted.mp3', file=mp3_file)
+                generators = request.app.state.brain.get_audio_generators([generator])
+                if len(generators) > 0:
+                    from restai.audio.runner import generate
+                    transcript = generate(request.app.state.manager, generators[0], "", mp3_upload)
+                else:
+                    raise HTTPException(status_code=400, detail="Invalid generator")
+        finally:
+            # Clean up temporary files
+            try:
+                os.remove(input_path)
+            except Exception:
+                pass
+            try:
+                os.remove(output_path)
+            except Exception:
+                pass
 
     return {"answer": transcript}

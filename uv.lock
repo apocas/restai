@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.10, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12.4' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
@@ -5190,7 +5189,6 @@ name = "restai"
 version = "5.0.3"
 source = { editable = "." }
 dependencies = [
-    { name = "accelerate" },
     { name = "alembic" },
     { name = "authlib" },
     { name = "bs4" },
@@ -5294,7 +5292,6 @@ gpu = [
 
 [package.metadata]
 requires-dist = [
-    { name = "accelerate", specifier = ">=1.6.0" },
     { name = "alembic", specifier = ">=1.15.2,<2" },
     { name = "authlib", specifier = ">=1.5.2,<2" },
     { name = "bs4", specifier = ">=0.0.2,<0.0.3" },
@@ -5385,7 +5382,6 @@ gpu = [
     { name = "accelerate", specifier = ">=1.6.0,<2" },
     { name = "bitsandbytes", specifier = ">=0.45.4,<0.46" },
     { name = "diffusers", specifier = "==0.33.1" },
-    { name = "diffusers", specifier = ">=0.33.1" },
     { name = "kornia", specifier = ">=0.8.0,<0.9" },
     { name = "optimum", specifier = "==1.24.0" },
     { name = "sentencepiece", specifier = ">=0.2.0" },
