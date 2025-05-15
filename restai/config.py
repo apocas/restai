@@ -54,6 +54,8 @@ POSTGRES_URL = (
     f"{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:5432/{POSTGRES_DB}"
 )
 
+SQL_URL = POSTGRES_URL if POSTGRES_HOST else (MYSQL_URL if MYSQL_HOST else None)
+
 RESTAI_DEFAULT_PASSWORD = os.environ.get("RESTAI_DEFAULT_PASSWORD") or "admin"
 RESTAI_DEMO = (
     True if os.environ.get("RESTAI_DEMO", "").lower() in ("true", "1") else False
@@ -65,6 +67,9 @@ MCP_SERVER = (
 
 
 SQLITE_PATH = os.environ.get("SQLITE_PATH")
+
+
+HF_TOKEN = os.environ.get("HF_TOKEN")
 
 
 REDIS_HOST = os.environ.get("REDIS_HOST")
@@ -133,19 +138,16 @@ OAUTH_EMAIL_CLAIM = os.environ.get("OAUTH_EMAIL_CLAIM", "email")
 OAUTH_ALLOWED_DOMAINS = [
     domain.strip() for domain in os.environ.get("OAUTH_ALLOWED_DOMAINS", "*").split(",")
 ]
-AUTO_CREATE_USER = (
-    os.environ.get("AUTO_CREATE_USER", "False").lower() == "true"
-)
+AUTO_CREATE_USER = os.environ.get("AUTO_CREATE_USER", "False").lower() == "true"
 SESSION_COOKIE_SAME_SITE = os.environ.get("SESSION_COOKIE_SAME_SITE", "lax")
 SESSION_COOKIE_SECURE = (
     os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
 )
 SECRET_KEY = os.environ.get(
     "SECRET_KEY",
-    os.environ.get(
-        "JWT_SECRET_KEY", "t0p-s3cr3t"
-    ),
+    os.environ.get("JWT_SECRET_KEY", "t0p-s3cr3t"),
 )
+
 
 def load_oauth_providers():
     OAUTH_PROVIDERS.clear()
@@ -166,11 +168,7 @@ def load_oauth_providers():
             "register": google_oauth_register,
         }
 
-    if (
-        MICROSOFT_CLIENT_ID
-        and MICROSOFT_CLIENT_SECRET
-        and MICROSOFT_CLIENT_TENANT_ID
-    ):
+    if MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET and MICROSOFT_CLIENT_TENANT_ID:
 
         def microsoft_oauth_register(client):
             client.register(
@@ -211,11 +209,7 @@ def load_oauth_providers():
             "sub_claim": "id",
         }
 
-    if (
-        OAUTH_CLIENT_ID
-        and OAUTH_CLIENT_SECRET
-        and OPENID_PROVIDER_URL
-    ):
+    if OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OPENID_PROVIDER_URL:
 
         def oidc_oauth_register(client):
             client.register(

@@ -8,7 +8,8 @@ database:
 
 .PHONY: frontend
 frontend:
-	cd frontend && git pull && npm install && npm run build
+	git clone https://github.com/apocas/restai-frontend frontend
+	make frontend
 
 .PHONY: dev
 dev:
@@ -22,8 +23,6 @@ build:
 install:
 	uv sync --no-group gpu
 	make database
-	git clone https://github.com/apocas/restai-frontend frontend
-	make frontend
 
 .PHONY: installgpu
 installgpu:
