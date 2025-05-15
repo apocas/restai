@@ -13,7 +13,8 @@
         "debug-in-terminal"
       ],
       "env": {
-        "RESTAI_DEV": "true"
+        "RESTAI_DEV": "true",
+        "LD_LIBRARY_PATH": "${env:LD_LIBRARY_PATH}:${env:HOME}/.local/lib/python3.10/site-packages/nvidia/cudnn/lib"
       }
     },
     {
@@ -27,7 +28,10 @@
       "args": [],
       "purpose": [
         "debug-in-terminal"
-      ]
+      ],
+      "env": {
+        "LD_LIBRARY_PATH": "${env:LD_LIBRARY_PATH}:${env:HOME}/.local/lib/python3.10/site-packages/nvidia/cudnn/lib"
+      }
     }
   ]
 }

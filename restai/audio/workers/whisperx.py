@@ -15,7 +15,7 @@ def worker(prompt, sharedmem):
 
     batch_size = 16
 
-    model = whisperx.load_model("large-v2", device, compute_type="float16")
+    model = whisperx.load_model("large-v3", "cuda", compute_type="float16")
 
     audio = whisperx.load_audio(file_path)
     result = model.transcribe(audio, batch_size=batch_size)
@@ -46,6 +46,12 @@ def worker(prompt, sharedmem):
 
     diarize_segments = diarize_model(audio)
     result = whisperx.assign_word_speakers(diarize_segments, result)
-
-    print(diarize_segments)
-    print(result["segments"])
+    
+    # Concatenate all segment texts to build the complete transcription
+    full_text = " ".join([segment["text"] for segment in result["segments"]])
+    
+    sharedmem["output"] = {
+      "text": full_text,
+      "chunks": result["segments"],
+      "word_chunks": result["word_segments"],
+    }

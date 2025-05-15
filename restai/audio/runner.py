@@ -6,7 +6,7 @@ import os
 import shutil
 
 
-def generate(manager, worker, prompt:str, file: UploadFile):
+def generate(manager, worker, prompt:str, file: UploadFile, options: dict = None):
     sharedmem = manager.dict()
     
     temp_file = None
@@ -18,6 +18,7 @@ def generate(manager, worker, prompt:str, file: UploadFile):
             temp_file.close()
             sharedmem["file_path"] = temp_file.name
             sharedmem["filename"] = file.filename
+            sharedmem["options"] = options
         except Exception as e:
             if temp_file:
                 os.unlink(temp_file.name)

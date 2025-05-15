@@ -6,12 +6,13 @@ import torch
 from fastapi import UploadFile
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+
 
 def worker(prompt, sharedmem):
     file_path = sharedmem["file_path"]
     filename = sharedmem["filename"]
-    
+
     device = os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda:0"
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
     model_id = "openai/whisper-large-v3-turbo"
@@ -31,19 +32,23 @@ def worker(prompt, sharedmem):
         torch_dtype=torch_dtype,
         device=device,
     )
-    
-    result = pipe(file_path, return_timestamps=True)
-    
+
+    gkwargs = {}
+    if sharedmem["options"] and "language" in sharedmem["options"]:
+        gkwargs["language"] = sharedmem["options"]["language"]
+
+    result = pipe(file_path, return_timestamps=True, generate_kwargs=gkwargs)
+
     if isinstance(result, dict) and "text" in result and "chunks" in result:
         sharedmem["output"] = {
             "text": result["text"].strip(),
             "chunks": [
                 {
                     "text": chunk["text"].strip(),
-                    "timestamp": chunk.get("timestamp", None)
+                    "timestamp": chunk.get("timestamp", None),
                 }
                 for chunk in result["chunks"]
-            ]
+            ],
         }
     elif isinstance(result, dict) and "text" in result:
         sharedmem["output"] = {"text": result["text"].strip(), "chunks": []}
@@ -53,10 +58,10 @@ def worker(prompt, sharedmem):
             "chunks": [
                 {
                     "text": chunk["text"].strip(),
-                    "timestamp": chunk.get("timestamp", None)
+                    "timestamp": chunk.get("timestamp", None),
                 }
                 for chunk in result["chunks"]
-            ]
+            ],
         }
     else:
         sharedmem["output"] = {"text": str(result).strip(), "chunks": []}

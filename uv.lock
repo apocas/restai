@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.10, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12.4' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
@@ -5802,7 +5801,6 @@ dependencies = [
     { name = "unstructured" },
     { name = "uvicorn" },
     { name = "wheel" },
-    { name = "whisperx" },
     { name = "wikipedia" },
     { name = "yake" },
 ]
@@ -5825,6 +5823,7 @@ gpu = [
     { name = "torchvision" },
     { name = "transformers" },
     { name = "triton" },
+    { name = "whisperx" },
     { name = "xformers" },
 ]
 
@@ -5906,7 +5905,6 @@ requires-dist = [
     { name = "unstructured", specifier = ">=0.17.2,<0.18" },
     { name = "uvicorn", specifier = ">=0.34.0,<0.35" },
     { name = "wheel", specifier = ">=0.42.0,<0.43" },
-    { name = "whisperx", specifier = ">=3.3.1" },
     { name = "wikipedia", specifier = ">=1.4.0,<2" },
     { name = "yake", specifier = ">=0.4.8,<0.5" },
 ]
@@ -5929,6 +5927,7 @@ gpu = [
     { name = "torchvision", specifier = ">=0.21.0,<0.22" },
     { name = "transformers", specifier = ">=4.42.0,<=4.42.4" },
     { name = "triton", specifier = ">=3.2.0,<4" },
+    { name = "whisperx", specifier = ">=3.3.1" },
     { name = "xformers", specifier = ">=0.0.29.post3,<0.0.30" },
 ]
 

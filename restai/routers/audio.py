@@ -4,7 +4,7 @@ import os
 import shutil
 import subprocess
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, Form
 
 from restai import config
 from restai.auth import get_current_username
@@ -30,7 +30,7 @@ async def route_list_generators(
 
 
 @router.post("/audio/{generator}/transcript")
-async def route_generate_transcript(request: Request, generator: str, file: UploadFile):
+async def route_generate_transcript(request: Request, generator: str, file: UploadFile, language: str = Form(...)):
     # Read the uploaded file contents
     contents = await file.read()
     file_size = len(contents)
@@ -64,8 +64,11 @@ async def route_generate_transcript(request: Request, generator: str, file: Uplo
                 mp3_upload = UploadFile(filename=file.filename, file=mp3_file)
                 generators = request.app.state.brain.get_audio_generators([generator])
                 if len(generators) > 0:
+                    opts = {}
+                    if language:
+                        opts["language"] = language
                     from restai.audio.runner import generate
-                    transcript = generate(request.app.state.manager, generators[0], "", mp3_upload)
+                    transcript = generate(request.app.state.manager, generators[0], "", mp3_upload, opts)
                 else:
                     raise HTTPException(status_code=400, detail="Invalid generator")
         finally:
