@@ -1,2 +1,2 @@
- apt-get install ffmpeg
+ apt-get install ffmpeg python3-venv
  
