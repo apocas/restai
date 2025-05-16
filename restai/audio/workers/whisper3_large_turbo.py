@@ -1,15 +1,12 @@
-import mimetypes
 import os
-import tempfile
-
-import torch
-from fastapi import UploadFile
-from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
 
 def worker(prompt, sharedmem):
+    import torch
+    from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
+
     file_path = sharedmem["file_path"]
     filename = sharedmem["filename"]
 

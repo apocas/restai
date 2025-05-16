@@ -1,13 +1,14 @@
 import os
-import torch
-import whisperx
-import gc
-
-from restai import config
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
 def worker(prompt, sharedmem):
+    import torch
+    import whisperx
+    import gc
+
+    from restai import config
+  
     file_path = sharedmem["file_path"]
     filename = sharedmem["filename"]
 
