@@ -183,3 +183,5 @@ lab.py
 # pyenv
 .python-version
 .aider*
+
+.venv-cudnn8

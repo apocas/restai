@@ -22,6 +22,7 @@ build:
 .PHONY: install
 install:
 	uv sync --no-group gpu
+	bash install_cudnn_env.sh
 	make database
 
 .PHONY: installgpu
