@@ -10,6 +10,12 @@ from restai.config import RESTAI_DEFAULT_DEVICE
 
 #os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
+def get_python_executable():
+    current_file_path = os.path.abspath(__file__)
+    project_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file_path))))
+    
+    return os.path.join(project_path, ".venvs/.venv-sd/bin/python")
+
 def worker(prompt, sharedmem):
     base = "stabilityai/stable-diffusion-xl-base-1.0"
     repo = "ByteDance/SDXL-Lightning"

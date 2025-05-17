@@ -14,7 +14,7 @@
       ],
       "env": {
         "RESTAI_DEV": "true",
-        "LD_LIBRARY_PATH": "${env:LD_LIBRARY_PATH}:${workspaceFolder}/.venv-cudnn8/lib/python3.12/site-packages/nvidia/cudnn/lib"
+        "LD_LIBRARY_PATH": "${env:LD_LIBRARY_PATH}:${workspaceFolder}/.venvs/.venv-whisperx/lib/python3.12/site-packages/nvidia/cudnn/lib"
       }
     },
     {
@@ -30,7 +30,7 @@
         "debug-in-terminal"
       ],
       "env": {
-        "LD_LIBRARY_PATH": "${env:LD_LIBRARY_PATH}:${workspaceFolder}/.venv-cudnn8/lib/python3.12/site-packages/nvidia/cudnn/lib"
+        "LD_LIBRARY_PATH": "${env:LD_LIBRARY_PATH}:${workspaceFolder}/.venvs/.venv-whisperx/lib/python3.12/site-packages/nvidia/cudnn/lib"
       }
     }
   ]

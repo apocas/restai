@@ -5925,7 +5925,7 @@ gpu = [
     { name = "timm", specifier = ">=1.0.15,<2" },
     { name = "torch", specifier = ">=2.6.0,<3" },
     { name = "torchvision", specifier = ">=0.21.0,<0.22" },
-    { name = "transformers", specifier = ">=4.42.0,<=4.42.4" },
+    { name = "transformers", specifier = ">=4.42.4,<4.46.0" },
     { name = "triton", specifier = ">=3.2.0,<4" },
     { name = "whisperx", specifier = ">=3.3.1" },
     { name = "xformers", specifier = ">=0.0.29.post3,<0.0.30" },

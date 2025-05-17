@@ -97,11 +97,9 @@ gpu = [
     "diffusers==0.33.1",
     "sentencepiece>=0.2.0",
     "torch>=2.6.0,<3",
-    "torchvision>=0.21.0,<0.22",
     "kornia>=0.8.0,<0.9",
     "timm>=1.0.15,<2",
-    "triton>=3.2.0,<4",
-    "whisperx>=3.3.1",
+    "triton>=3.2.0,<4"
 ]
 dev = [
     "pylint==3.0.2",
