@@ -1,12 +1,4 @@
-import base64
-import io
 import os
-import torch
-from diffusers import StableDiffusionXLPipeline, UNet2DConditionModel, EulerDiscreteScheduler
-from huggingface_hub import hf_hub_download
-from safetensors.torch import load_file
-
-from restai.config import RESTAI_DEFAULT_DEVICE
 
 #os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
@@ -17,6 +9,16 @@ def get_python_executable():
     return os.path.join(project_path, ".venvs/.venv-sd/bin/python")
 
 def worker(prompt, sharedmem):
+    import base64
+    import io
+    import torch
+    from diffusers import StableDiffusionXLPipeline, UNet2DConditionModel, EulerDiscreteScheduler
+    from huggingface_hub import hf_hub_download
+    from safetensors.torch import load_file
+
+    from restai.config import RESTAI_DEFAULT_DEVICE
+
+
     base = "stabilityai/stable-diffusion-xl-base-1.0"
     repo = "ByteDance/SDXL-Lightning"
     ckpt = "sdxl_lightning_4step_unet.safetensors"

@@ -1,11 +1,4 @@
-import base64
-import io
 import os
-
-import torch
-from diffusers import BitsAndBytesConfig, SD3Transformer2DModel
-from diffusers import StableDiffusion3Pipeline
-from transformers import T5EncoderModel
 
 #os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
@@ -16,6 +9,13 @@ def get_python_executable():
     return os.path.join(project_path, ".venvs/.venv-sd/bin/python")
 
 def worker(prompt, sharedmem):
+    import base64
+    import io
+    import torch
+    from diffusers import BitsAndBytesConfig, SD3Transformer2DModel
+    from diffusers import StableDiffusion3Pipeline
+    from transformers import T5EncoderModel
+
     model_id = "stabilityai/stable-diffusion-3.5-medium"
 
     nf4_config = BitsAndBytesConfig(

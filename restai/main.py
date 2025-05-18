@@ -18,6 +18,7 @@ from restai.config import (
     SESSION_COOKIE_SAME_SITE,
     SESSION_COOKIE_SECURE,
 )
+from restai.version_utils import get_version_from_pyproject
 
 @asynccontextmanager
 async def lifespan(fs_app: FastAPI):
@@ -159,7 +160,7 @@ if config.SENTRY_DSN:
 
 app = FastAPI(
     title=config.RESTAI_NAME,
-    version="5.0.3",
+    version=get_version_from_pyproject(),
     lifespan=lifespan,
 )
 

@@ -1,18 +1,4 @@
-import base64
-import gc
-import io
 import os
-import sys
-
-import torch
-from diffusers import AutoencoderKL
-from diffusers import FluxPipeline
-from diffusers import FluxTransformer2DModel
-from diffusers.image_processor import VaeImageProcessor
-
-import torch
-from diffusers import DiffusionPipeline
-from transformers import T5EncoderModel, BitsAndBytesConfig
 
 # os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
@@ -22,20 +8,10 @@ def get_python_executable():
     
     return os.path.join(project_path, ".venvs/.venv-sd/bin/python")
 
-def get_python_executable():
-    # Calculate the project path automatically by going up from the current file
-    # Current file is at: /restai/restai/image/workers/flux1.py
-    # So we need to go up 4 levels to get to the project root
-    current_file_path = os.path.abspath(__file__)
-    project_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file_path))))
-    
-    # Fallback to environment variable or hardcoded path if something goes wrong
-    if not os.path.exists(project_path):
-        project_path = os.environ.get("RESTAI_PROJECT_PATH","./")
-    
-    return os.path.join(project_path, ".venv-sd/bin/python")
-
 def flush():
+    import torch
+    import gc
+    
     gc.collect()
     torch.cuda.empty_cache()
     torch.cuda.reset_max_memory_allocated()
@@ -43,6 +19,11 @@ def flush():
 
 
 def worker(prompt, sharedmem):
+    import base64
+    import io
+    import torch
+    from diffusers import DiffusionPipeline
+    from transformers import T5EncoderModel, BitsAndBytesConfig
 
     quantization_config = BitsAndBytesConfig(load_in_8bit=True)
 

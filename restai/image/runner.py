@@ -19,12 +19,13 @@ def generate(manager, worker, imageModel, options: dict = None, venv_python: str
             temp_file.write(imageModel.image)
             temp_file.close()
             sharedmem["input_image_path"] = temp_file.name
-            sharedmem["prompt"] = getattr(imageModel, 'prompt', None)
-            sharedmem["options"] = options
         except Exception as e:
             if temp_file:
                 os.unlink(temp_file.name)
             raise e
+
+    sharedmem["prompt"] = imageModel.prompt
+    sharedmem["options"] = options
 
     # Save sharedmem to a temp file for IPC
     sharedmem_file = tempfile.NamedTemporaryFile(delete=False)

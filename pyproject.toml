@@ -1,6 +1,6 @@
 [project]
 name = "restai"
-version = "5.0.3"
+version = "6.0.0"
 description = "RESTAI, so many 'A's and 'I's, so little time..."
 authors = [{ name = "Pedro Dias", email = "petermdias@gmail.com" }]
 requires-python = ">=3.10,<3.13"
@@ -85,6 +85,7 @@ dependencies = [
     "fastmcp>=2.0",
     "llama-index-node-parser-docling>=0.3.2",
     "llama-index-readers-docling>=0.3.2",
+    "tomli>=2.2.1",
 ]
 
 [dependency-groups]

@@ -1,10 +1,4 @@
-import base64
-import io
 import os
-from diffusers import DiffusionPipeline
-import torch
-
-from restai.config import RESTAI_DEFAULT_DEVICE
 
 #os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
@@ -15,6 +9,13 @@ def get_python_executable():
     return os.path.join(project_path, ".venvs/.venv-sd/bin/python")
 
 def worker(prompt, sharedmem):
+    import base64
+    import io
+    from diffusers import DiffusionPipeline
+    import torch
+
+    from restai.config import RESTAI_DEFAULT_DEVICE
+
     base = DiffusionPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16, variant="fp16", use_safetensors=True
     )

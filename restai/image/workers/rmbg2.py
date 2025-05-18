@@ -1,11 +1,4 @@
-import base64
-import io
 import os
-
-import torch
-from PIL import Image
-from torchvision import transforms
-from transformers import AutoModelForImageSegmentation
 
 #os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
@@ -16,6 +9,13 @@ def get_python_executable():
     return os.path.join(project_path, ".venvs/.venv-sd/bin/python")
 
 def worker(prompt, sharedmem):
+    import base64
+    import io
+    import torch
+    from PIL import Image
+    from torchvision import transforms
+    from transformers import AutoModelForImageSegmentation
+
     img_data = base64.b64decode(sharedmem["input_image"])
     input_image = Image.open(io.BytesIO(img_data))
     
