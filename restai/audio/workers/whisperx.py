@@ -2,11 +2,30 @@ import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
+
 def get_python_executable():
     current_file_path = os.path.abspath(__file__)
-    project_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file_path))))
-    
+    project_path = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(current_file_path)))
+    )
+
     return os.path.join(project_path, ".venvs/.venv-whisperx/bin/python")
+
+
+def get_environment_variables():
+    env = {}  # Initialize env dictionary
+    project_root = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    )
+    env["LD_LIBRARY_PATH"] = (
+        os.environ.get("LD_LIBRARY_PATH", "")
+        + ":"
+        + project_root
+        + "/.venvs/.venv-whisperx/lib/python3.12/site-packages/nvidia/cudnn/lib"
+    )
+
+    return env
+
 
 def worker(prompt, sharedmem):
     import torch
@@ -14,7 +33,7 @@ def worker(prompt, sharedmem):
     import gc
 
     from restai import config
-  
+
     file_path = sharedmem["file_path"]
     filename = sharedmem["filename"]
 
@@ -53,12 +72,12 @@ def worker(prompt, sharedmem):
 
     diarize_segments = diarize_model(audio)
     result = whisperx.assign_word_speakers(diarize_segments, result)
-    
+
     # Concatenate all segment texts to build the complete transcription
     full_text = " ".join([segment["text"] for segment in result["segments"]])
-    
+
     sharedmem["output"] = {
-      "text": full_text,
-      "chunks": result["segments"],
-      "word_chunks": result["word_segments"],
+        "text": full_text,
+        "chunks": result["segments"],
+        "word_chunks": result["word_segments"],
     }

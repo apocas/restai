@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Request, Depends, status, Response
 import logging
+import sys
 
 from fastmcp import FastMCP
 from restai import config
@@ -14,9 +15,11 @@ from restai.oauth import OAuthManager
 from starlette.middleware.sessions import SessionMiddleware
 from restai.config import (
     OAUTH_PROVIDERS,
-    SECRET_KEY,
+    SSO_SECRET_KEY,
     SESSION_COOKIE_SAME_SITE,
     SESSION_COOKIE_SECURE,
+    RESTAI_AUTH_SECRET,
+    RESTAI_URL
 )
 from restai.version_utils import get_version_from_pyproject
 
@@ -54,6 +57,17 @@ async def lifespan(fs_app: FastAPI):
 
     fs_app.state.manager = get_manager()
     fs_app.state.brain = Brain()
+    
+    if not SSO_SECRET_KEY:
+      logging.error("SSO_SECRET_KEY env var missing.")
+      sys.exit(1)
+      
+    if not RESTAI_AUTH_SECRET:
+      logging.error("RESTAI_AUTH_SECRET env var missing.")
+      sys.exit(1)
+      
+    if not RESTAI_URL:
+      logging.warning("RESTAI_URL env var missing. OAUTH auth schemes may not work properly.")
 
     @fs_app.get("/")
     async def get():
@@ -169,7 +183,7 @@ oauth_manager = OAuthManager(app, db_wrapper=get_db_wrapper())
 if len(OAUTH_PROVIDERS) > 0:
     app.add_middleware(
         SessionMiddleware,
-        secret_key=SECRET_KEY,
+        secret_key=SSO_SECRET_KEY,
         session_cookie="oui-session",
         same_site=SESSION_COOKIE_SAME_SITE,
         https_only=SESSION_COOKIE_SECURE,

@@ -27,9 +27,12 @@ install:
 .PHONY: installgpu
 installgpu:
 	uv sync
-	bash install_sd_env.sh
-	bash install_whisperx_env.sh
+	make envs
 	uv run --no-group gpu download.py
+
+.PHONY: envs
+envs:
+	bash worker_envs/install.sh
 
 .PHONY: migrate
 migrate:

@@ -143,10 +143,7 @@ SESSION_COOKIE_SAME_SITE = os.environ.get("SESSION_COOKIE_SAME_SITE", "lax")
 SESSION_COOKIE_SECURE = (
     os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
 )
-SECRET_KEY = os.environ.get(
-    "SECRET_KEY",
-    os.environ.get("JWT_SECRET_KEY", "t0p-s3cr3t"),
-)
+SSO_SECRET_KEY = os.environ.get("SSO_SECRET_KEY")
 
 
 def load_oauth_providers():
