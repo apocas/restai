@@ -14,9 +14,8 @@ import json
 
 security: HTTPBasic = HTTPBasic()
 
-def create_access_token(
-    data: dict, expires_delta: Optional[timedelta] = None
-):
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode: dict = data.copy()
     if expires_delta:
         expire: datetime = datetime.now(timezone.utc) + expires_delta
@@ -54,7 +53,14 @@ def get_current_username(
             return User.model_validate(user)
         elif "Basic" in auth_header:
             try:
-                credentials_b64 = base64.b64decode(temp_bearer_token).decode("utf-8")
+                try:
+                    credentials_b64 = base64.b64decode(temp_bearer_token).decode(
+                        "utf-8"
+                    )
+                except Exception:
+                    raise HTTPException(
+                        status_code=401, detail=ERROR_MESSAGES.INVALID_CRED
+                    )
                 username, password = credentials_b64.split(":", 1)
                 credentials = {"username": username, "password": password}
 
@@ -63,12 +69,16 @@ def get_current_username(
                     or not credentials
                     or ("username" not in credentials or "password" not in credentials)
                 ):
-                    raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
+                    raise HTTPException(
+                        status_code=401, detail=ERROR_MESSAGES.INVALID_CRED
+                    )
 
                 user = db_wrapper.get_user_by_username(credentials["username"])
 
                 if user is None:
-                    raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
+                    raise HTTPException(
+                        status_code=401, detail=ERROR_MESSAGES.INVALID_CRED
+                    )
 
                 is_correct_username = credentials["username"] == user.username
                 is_correct_password = pwd_context.verify(
@@ -169,60 +179,64 @@ def get_current_username_platform_admin(user: User = Depends(get_current_usernam
 
 
 def get_current_username_team_admin(
-    team_id: int, user: User = Depends(get_current_username), db_wrapper: DBWrapper = Depends(get_db_wrapper)
+    team_id: int,
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Check if user is an admin for the specified team or a platform admin"""
     if user.is_admin:  # Platform admins can manage any team
         return user
-        
+
     # Check if user is a team admin for this team
     is_team_admin = False
     team = db_wrapper.get_team_by_id(team_id)
-    
+
     if team is None:
         raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
-    
+
     for admin in team.admins:
         if admin.id == user.id:
             is_team_admin = True
             break
-    
+
     if not is_team_admin:
         raise HTTPException(
             status_code=403,
             detail=ERROR_MESSAGES.NOT_TEAM_ADMIN,
             headers={"WWW-Authenticate": "Basic"},
         )
-    
+
     return user
 
 
 def get_current_username_team_member(
-    team_id: int, user: User = Depends(get_current_username), db_wrapper: DBWrapper = Depends(get_db_wrapper)
+    team_id: int,
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Check if user is a member of the specified team (admin or normal member)"""
     if user.is_admin:  # Platform admins can access any team
         return user
-        
+
     # Check if user is a team member
     team = db_wrapper.get_team_by_id(team_id)
-    
+
     if team is None:
         raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
-    
+
     is_team_member = False
-    
+
     # Check if user is an admin or member
     for team_user in team.users + team.admins:
         if team_user.id == user.id:
             is_team_member = True
             break
-    
+
     if not is_team_member:
         raise HTTPException(
             status_code=403,
             detail=ERROR_MESSAGES.NOT_TEAM_MEMBER,
             headers={"WWW-Authenticate": "Basic"},
         )
-    
+
     return user
