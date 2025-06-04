@@ -20,6 +20,7 @@ from restai.auth import (
 from ssl import CERT_REQUIRED, PROTOCOL_TLS
 from ldap3 import Server, Connection, NONE, Tls
 from ldap3.utils.conv import escape_filter_chars
+from restai.utils.crypto import encrypt_api_key, decrypt_api_key
 
 router = APIRouter()
 
@@ -170,7 +171,8 @@ async def route_get_user_apikey(
             raise HTTPException(status_code=404, detail="User not found")
 
         apikey = uuid.uuid4().hex + secrets.token_urlsafe(32)
-        db_wrapper.update_user(user, UserUpdate(api_key=apikey))
+        encrypted_apikey = encrypt_api_key(apikey)
+        db_wrapper.update_user(user, UserUpdate(api_key=encrypted_apikey))
         return {"api_key": apikey}
     except Exception as e:
         if isinstance(e, HTTPException):

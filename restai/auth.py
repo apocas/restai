@@ -10,7 +10,6 @@ from restai.database import get_db_wrapper, pwd_context, DBWrapper
 from restai.models.databasemodels import ProjectDatabase
 from restai.models.models import User
 import logging
-import json
 
 security: HTTPBasic = HTTPBasic()
 

@@ -21,7 +21,7 @@ from restai.config import (
     RESTAI_AUTH_SECRET,
     RESTAI_URL
 )
-from restai.version_utils import get_version_from_pyproject
+from restai.utils.version import get_version_from_pyproject
 
 @asynccontextmanager
 async def lifespan(fs_app: FastAPI):

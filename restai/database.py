@@ -26,6 +26,7 @@ from passlib.context import CryptContext
 from typing import Optional, List
 from restai.config import MYSQL_HOST, MYSQL_URL, POSTGRES_HOST, POSTGRES_URL
 import json
+from restai.utils.crypto import decrypt_api_key
 
 if MYSQL_HOST:
     print("Using MySQL database: " + MYSQL_HOST)
@@ -158,10 +159,14 @@ class DBWrapper:
         return llm
 
     def get_user_by_apikey(self, apikey: str) -> Optional[UserDatabase]:
-        user: Optional[UserDatabase] = (
-            self.db.query(UserDatabase).filter(UserDatabase.api_key == apikey).first()
-        )
-        return user
+        # Try to find user by decrypting stored API keys
+        for user in self.db.query(UserDatabase).filter(UserDatabase.api_key.isnot(None)):
+            try:
+                if decrypt_api_key(user.api_key) == apikey:
+                    return user
+            except Exception:
+                continue
+        return None
 
     def get_user_by_username(self, username: str) -> Optional[UserDatabase]:
         user: Optional[UserDatabase] = (
