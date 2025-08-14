@@ -158,6 +158,43 @@ async def lifespan(fs_app: FastAPI):
         fs_app.include_router(image.router)
         fs_app.include_router(audio.router)
 
+    # Initialize MCP server if enabled
+    if config.MCP_SERVER:
+        print("MCP server starting...")
+        from restai.mcp_server import create_mcp_server
+        from restai.auth import get_current_username
+        from restai.database import get_db_wrapper
+        from fastapi import Request, HTTPException, status
+        from restai.models.models import User
+        from fastapi.responses import JSONResponse
+        from starlette.types import ASGIApp, Receive, Scope, Send
+
+        # Create MCP server that exposes projects as tools
+        mcp = create_mcp_server(fs_app, fs_app.state.brain)
+
+        # Custom ASGI middleware for authentication
+        class MCPAuthMiddleware:
+            def __init__(self, app: ASGIApp):
+                self.app = app
+            async def __call__(self, scope: Scope, receive: Receive, send: Send):
+                if scope["type"] == "http":
+                    request = Request(scope, receive=receive)
+                    try:
+                        user = await get_current_username(request, db_wrapper=get_db_wrapper())
+                        scope["state"] = getattr(scope, "state", {})
+                        scope["state"]["user"] = user
+                    except HTTPException:
+                        response = JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Unauthorized"})
+                        await response(scope, receive, send)
+                        return
+                await self.app(scope, receive, send)
+
+        # Wrap FastMCP with the authentication middleware
+        mcp_with_auth = MCPAuthMiddleware(mcp)
+
+        # Mount the MCP server endpoints
+        fs_app.mount("/mcp", mcp_with_auth)
+
     yield
 
 
@@ -199,10 +236,6 @@ async def oauth_login(provider: str, request: Request):
 async def oauth_callback(provider: str, request: Request, response: Response):
     return await oauth_manager.handle_callback(request, provider, response)
 
-if config.MCP_SERVER:
-    print("MCP server starting...")
-    #mcp = FastMCP.from_fastapi(app=app)
-    #mcp.run()
     
 
 @app.exception_handler(RequestValidationError)

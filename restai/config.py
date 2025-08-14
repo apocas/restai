@@ -1,4 +1,5 @@
 import os
+from cryptography.fernet import Fernet
 
 from dotenv import load_dotenv
 
@@ -22,6 +23,19 @@ def load_env_vars():
 
 
 load_env_vars()
+
+# Ensure RESTAI_AUTH_SECRET is set in the environment
+if not os.environ.get("RESTAI_AUTH_SECRET"):
+    secret = Fernet.generate_key().decode()
+    os.environ["RESTAI_AUTH_SECRET"] = secret
+    # Write to .env file
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+    try:
+        with open(env_path, "a") as f:
+            f.write(f"\nRESTAI_AUTH_SECRET=\"{secret}\"\n")
+            print(f"New random RESTAI_AUTH_SECRET written to {env_path}")
+    except Exception as e:
+        print(f"Warning: Could not write RESTAI_AUTH_SECRET to .env: {e}")
 
 RESTAI_NAME = os.environ.get("RESTAI_NAME") or "RESTai"
 

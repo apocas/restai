@@ -2513,7 +2513,7 @@ wheels = [
 
 [[package]]
 name = "llama-index-core"
-version = "0.12.35"
+version = "0.12.40"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -2541,9 +2541,9 @@ dependencies = [
     { name = "typing-inspect" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f9/b1/d8125319df640211f858e64230018bfe80e81e62265390ceeb87d4158285/llama_index_core-0.12.35.tar.gz", hash = "sha256:6b03747aafb01582c286f2cd76385c82350245b21037a3984241a6c2fb884525", size = 7287848 }
+sdist = { url = "https://files.pythonhosted.org/packages/0e/ec/437530c6d57e76d6b50c780f29203938c6aa06316e34d8ed2175dc01fc8d/llama_index_core-0.12.40.tar.gz", hash = "sha256:f1a95bcdc57f22b62fb28efb9a8bf85fa042c0044837bdb56d46b8b536795048", size = 7292527 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ce/3e/029e3533ea673be65a1c0eb92a6ea349693c44ca1a436d52096c031e09f8/llama_index_core-0.12.35-py3-none-any.whl", hash = "sha256:19db7b5ac22012d8c240efe9b3b8b59cbab4002adbe70d915840781f30453f3d", size = 7660425 },
+    { url = "https://files.pythonhosted.org/packages/f7/ac/a4a4e2905547f9be33fc3c8197db56877dc8d8712c2d2fba82d820b193ae/llama_index_core-0.12.40-py3-none-any.whl", hash = "sha256:2ebc75b3753a4182d80ffa467196ec113d83a3b186af1dd765100500551c322c", size = 7665458 },
 ]
 
 [[package]]
@@ -2882,16 +2882,16 @@ wheels = [
 
 [[package]]
 name = "llama-index-tools-mcp"
-version = "0.1.2"
+version = "0.2.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "llama-index-core" },
     { name = "mcp" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ca/d8/0c70993e905058a985f67d3bb3f210e9c3724fa2e085e8928cb165e59af5/llama_index_tools_mcp-0.1.2.tar.gz", hash = "sha256:3882fb982505ca51da265abf7016e0021f9e7ba9413aafc4f228770d56d9da70", size = 5119 }
+sdist = { url = "https://files.pythonhosted.org/packages/46/3b/5d5883dcb2310038f6f49ad367c46f57e84396a712721ef8f45f151fbe84/llama_index_tools_mcp-0.2.4.tar.gz", hash = "sha256:3308bd941e138e946209771fce82f620e503e2065a162e96e2fbd36696209d64", size = 11147 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c4/0e/d2001941e32ae8b8e04a41fbacc479efc09dbdebd829c641e9a6998e7409/llama_index_tools_mcp-0.1.2-py3-none-any.whl", hash = "sha256:67c8692320ec392ab4193e86e2ed52b4e56555fdf9a53b52f702f1d7632e89e2", size = 5774 },
+    { url = "https://files.pythonhosted.org/packages/de/92/cc2145fc4938eb77b2b2944dc69ad4d43058630b2c12658c16c71c4bda38/llama_index_tools_mcp-0.2.4-py3-none-any.whl", hash = "sha256:f838c777cc6ed58b37eb91c4d4a660b9fa169206a192b89247ea41de7653bfae", size = 11960 },
 ]
 
 [[package]]
@@ -3136,7 +3136,7 @@ wheels = [
 
 [[package]]
 name = "mcp"
-version = "1.8.0"
+version = "1.9.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -3149,9 +3149,9 @@ dependencies = [
     { name = "starlette" },
     { name = "uvicorn", marker = "sys_platform != 'emscripten'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ff/97/0a3e08559557b0ac5799f9fb535fbe5a4e4dcdd66ce9d32e7a74b4d0534d/mcp-1.8.0.tar.gz", hash = "sha256:263dfb700540b726c093f0c3e043f66aded0730d0b51f04eb0a3eb90055fe49b", size = 264641 }
+sdist = { url = "https://files.pythonhosted.org/packages/f2/df/8fefc0c6c7a5c66914763e3ff3893f9a03435628f6625d5e3b0dc45d73db/mcp-1.9.3.tar.gz", hash = "sha256:587ba38448e81885e5d1b84055cfcc0ca56d35cd0c58f50941cab01109405388", size = 333045 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b2/b2/4ac3bd17b1fdd65658f18de4eb0c703517ee0b483dc5f56467802a9197e0/mcp-1.8.0-py3-none-any.whl", hash = "sha256:889d9d3b4f12b7da59e7a3933a0acadae1fce498bfcd220defb590aa291a1334", size = 119544 },
+    { url = "https://files.pythonhosted.org/packages/79/45/823ad05504bea55cb0feb7470387f151252127ad5c72f8882e8fe6cf5c0e/mcp-1.9.3-py3-none-any.whl", hash = "sha256:69b0136d1ac9927402ed4cf221d4b8ff875e7132b0b06edd446448766f34f9b9", size = 131063 },
 ]
 
 [[package]]
@@ -5336,7 +5336,7 @@ requires-dist = [
     { name = "llama-index-readers-file", specifier = ">=0.4.7,<0.5" },
     { name = "llama-index-readers-json", specifier = ">=0.3.0,<0.4" },
     { name = "llama-index-storage-chat-store-redis", specifier = ">=0.4.1,<0.5" },
-    { name = "llama-index-tools-mcp", specifier = ">=0.1.2" },
+    { name = "llama-index-tools-mcp", specifier = ">=0.2.4" },
     { name = "llama-index-vector-stores-chroma", specifier = ">=0.4.1,<0.5" },
     { name = "llama-index-vector-stores-pinecone", specifier = ">=0.4.5,<0.5" },
     { name = "llama-index-vector-stores-redis", specifier = ">=0.5.0,<0.6" },
