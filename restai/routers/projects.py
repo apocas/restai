@@ -247,7 +247,7 @@ async def route_edit_project(
             embedding_name = projectModelUpdate.embeddings or project.embeddings
             if embedding_name:
                 embedding_model = request.app.state.brain.get_embedding(embedding_name, db_wrapper)
-                if embedding_model and embedding_model.name not in [embedding.name for embedding in team.embeddings]:
+                if embedding_model and embedding_model.model_name not in [embedding.name for embedding in team.embeddings]:
                     raise HTTPException(status_code=403, detail=f"Team does not have access to embedding model '{embedding_name}'")
 
     # Validate private user restrictions
