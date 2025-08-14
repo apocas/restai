@@ -209,6 +209,10 @@ DEFAULT_EMBEDDINGS = {
 
 def get_embedding_class(embedding_class_name: str):
     match embedding_class_name:
+        case "LangChain":
+            from langchain_openai import OpenAIEmbeddings
+            
+            return OpenAIEmbeddings, {}
         case "OllamaEmbeddings" | "Ollama":
             from llama_index.embeddings.ollama import OllamaEmbedding
 
