@@ -1,6 +1,6 @@
 import json
 
-from llama_index.core.agent import ReActAgent, FunctionCallingAgent
+from llama_index.core.agent import ReActAgent, FunctionAgent
 
 from restai import config
 from restai.chat import Chat
@@ -117,7 +117,7 @@ class Agent(ProjectBase):
         use_function_agent = hasattr(project.props.options, "function_agent") and project.props.options.function_agent is True
         
         if use_function_agent:
-            agent = FunctionCallingAgent.from_tools(
+            agent = FunctionAgent.from_tools(
                 tools_u,
                 llm=model.llm,
                 system_prompt=project.props.system,
