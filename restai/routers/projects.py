@@ -334,7 +334,7 @@ async def route_create_project(
             raise HTTPException(status_code=404, detail="Embeddings not found")
             
         # Validate team has access to the embeddings
-        if embedding_model.name not in [embedding.name for embedding in team.embeddings]:
+        if embedding_model.model_name not in [embedding.name for embedding in team.embeddings]:
             raise HTTPException(status_code=403, detail=f"Team does not have access to embedding model '{projectModel.embeddings}'")
       
     if db_wrapper.db.query(ProjectDatabase).filter(ProjectDatabase.creator == user.id, ProjectDatabase.name == projectModel.name).first() is not None:
