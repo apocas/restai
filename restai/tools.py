@@ -204,15 +204,64 @@ DEFAULT_EMBEDDINGS = {
         "https://ollama.com/library/mxbai-embed-large",
         1536,
     ),
+    "all-mpnet-base-v2": (
+        "LangChain.HuggingFace",
+        {"model_name": "all-mpnet-base-v2"},
+        "private",
+        "all-mpnet-base-v2 - https://www.sbert.net/docs/pretrained_models.html - https://huggingface.co/sentence-transformers/all-mpnet-base-v2",
+        768,
+    ),
+    "paraphrase-multilingual-mpnet-base-v2": (
+        "LangChain.HuggingFace",
+        {"model_name": "paraphrase-multilingual-mpnet-base-v2"},
+        "private",
+        "paraphrase-multilingual-mpnet-base-v2 - https://www.sbert.net/docs/pretrained_models.html - https://huggingface.co/sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+        768,
+    ),
 }
+
+if os.environ.get("OPENAI_API_KEY"):
+    DEFAULT_EMBEDDINGS["openai_3_small"] = (
+        "LangChain.Openai",
+        {"model": "text-embedding-3-small"},
+        "public",
+        "https://platform.openai.com/docs/guides/embeddings",
+        1536,
+    )
+    DEFAULT_EMBEDDINGS["openai_3_large"] = (
+        "LangChain.Openai",
+        {"model": "text-embedding-3-large"},
+        "public",
+        "https://platform.openai.com/docs/guides/embeddings",
+        3072,
+    )
+    DEFAULT_EMBEDDINGS["openai_ada_002"] = (
+        "LangChain.Openai",
+        {"model": "text-embedding-ada-002"},
+        "public",
+        "https://platform.openai.com/docs/guides/embeddings",
+        1536,
+    )
+if os.environ.get("GOOGLE_API_KEY"):
+    DEFAULT_EMBEDDINGS["google_vertexai"] = (
+        "LangChain.GoogleVertexAI",
+        {},
+        "public",
+        "https://cloud.google.com/vertex-ai/docs/generative-ai/learn/overview",
+        1408,
+    )
 
 
 def get_embedding_class(embedding_class_name: str):
     match embedding_class_name:
-        case "LangChain":
+        case "LangChain" | "LangChain.Openai":
             from langchain_openai import OpenAIEmbeddings
-            
+
             return OpenAIEmbeddings, {}
+        case "LangChain.HuggingFace":
+            from langchain_huggingface import HuggingFaceEmbeddings
+
+            return HuggingFaceEmbeddings, {}
         case "OllamaEmbeddings" | "Ollama":
             from llama_index.embeddings.ollama import OllamaEmbedding
 
@@ -267,7 +316,7 @@ def get_llm_class(llm_class_name: str):
             from llama_index.llms.vllm import Vllm
 
             return Vllm, {}
-          
+
         case "GeminiMultiModal":
             from llama_index.multi_modal_llms.gemini import GeminiMultiModal
 

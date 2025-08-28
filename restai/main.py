@@ -53,7 +53,6 @@ async def lifespan(fs_app: FastAPI):
     from restai.models.models import User
     from restai.multiprocessing import get_manager
     from modules.loaders import LOADERS
-    from modules.embeddings import EMBEDDINGS
 
     fs_app.state.manager = get_manager()
     fs_app.state.brain = Brain()
@@ -115,12 +114,6 @@ async def lifespan(fs_app: FastAPI):
                     "description": llm.description,
                     "type": llm.type,
                 }
-            )
-
-        for embedding in EMBEDDINGS:
-            _, _, privacy, description, _ = EMBEDDINGS[embedding]
-            output["embeddings"].append(
-                {"name": embedding, "privacy": privacy, "description": description}
             )
 
         db_embeddings = db_wrapper.get_embeddings()

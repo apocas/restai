@@ -53,7 +53,6 @@ from restai.vectordb.tools import (
     index_documents_classic,
     index_documents_docling,
 )
-from modules.embeddings import EMBEDDINGS
 from restai.models.databasemodels import OutputDatabase, ProjectDatabase
 import datetime
 from sqlalchemy import func
@@ -333,6 +332,11 @@ async def route_create_project(
         if embedding_model is None:
             raise HTTPException(status_code=404, detail="Embeddings not found")
             
+        if embedding_model.props.privacy != "private":
+            raise HTTPException(
+                status_code=403, detail="User not allowed to use public models"
+            )
+            
         # Validate team has access to the embeddings
         if embedding_model.model_name not in [embedding.name for embedding in team.embeddings]:
             raise HTTPException(status_code=403, detail=f"Team does not have access to embedding model '{projectModel.embeddings}'")
@@ -347,11 +351,6 @@ async def route_create_project(
             )
 
         if projectModel.type == "rag":
-            _, _, embedding_privacy, _, _ = EMBEDDINGS[projectModel.embeddings]
-            if embedding_privacy != "private":
-                raise HTTPException(
-                    status_code=403, detail="User allowed to private models only"
-                )
 
     try:
         project_db = db_wrapper.create_project(

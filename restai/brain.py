@@ -2,7 +2,6 @@ import json
 import logging
 import traceback
 from typing import Optional, Iterable
-from llama_index.embeddings.langchain import LangchainEmbedding
 from restai.database import DBWrapper
 from restai.models.databasemodels import ProjectDatabase
 from restai.vectordb import tools as vector_tools
@@ -11,7 +10,6 @@ from restai.llm import LLM
 from restai.embedding import Embedding
 from restai.models.models import LLMModel, ProjectModel, ClassifierModel, EmbeddingModel
 from restai.project import Project
-from modules.embeddings import EMBEDDINGS
 from transformers import pipeline
 from llama_index.core.tools import FunctionTool
 from restai import config
@@ -34,7 +32,7 @@ class Brain:
         self.tokenizer = tiktoken.get_encoding("cl100k_base").encode
         self.token_counter = TokenCountingHandler(tokenizer=self.tokenizer)
         Settings.callback_manager = CallbackManager([self.token_counter])
-        
+
         self.embeddings_cache = {}
 
         if config.RESTAI_GPU == True:
@@ -85,21 +83,25 @@ class Brain:
 
         for i in range(len(self.token_counter.llm_token_counts) - 1, -1, -1):
             counting_event = self.token_counter.llm_token_counts[i]
-            if hasattr(counting_event, 'prompt') and counting_event.prompt and counting_event.prompt.endswith(output["question"]):
+            if (
+                hasattr(counting_event, "prompt")
+                and counting_event.prompt
+                and counting_event.prompt.endswith(output["question"])
+            ):
                 counting_event_found = counting_event
                 break
-                
+
         if counting_event_found is not None:
             output["tokens"] = {
                 "input": counting_event_found.prompt_token_count,
                 "output": counting_event_found.completion_token_count,
-                "accuracy": "medium"
+                "accuracy": "medium",
             }
         else:
             output["tokens"] = {
                 "input": tools.tokens_from_string(output["question"]),
                 "output": tools.tokens_from_string(output["answer"]),
-                "accuracy": "low"
+                "accuracy": "low",
             }
 
     @staticmethod
@@ -119,9 +121,9 @@ class Brain:
         else:
             return None
 
-    def get_embedding(self, embeddingName: str, db: DBWrapper) -> Optional[LLM]:
+    def get_embedding(self, embeddingName: str, db: DBWrapper) -> Optional[Embedding]:
         embedding_db = db.get_embedding_by_name(embeddingName)
-        
+
         if self.embeddings_cache.get(embeddingName):
             return self.embeddings_cache[embeddingName]
         else:
@@ -135,32 +137,10 @@ class Brain:
                 if embedding_default_params is not None:
                     llm_params.update(embedding_default_params)
                 embedding = embedding_class(**llm_params)
-                
+
                 embedding_final = Embedding(embeddingName, embedding_model, embedding)
                 self.embeddings_cache[embeddingName] = embedding_final
                 return embedding_final
-            else:
-                if embeddingName in EMBEDDINGS:
-                    embedding_class, embedding_args, privacy, description, dimension = (
-                        EMBEDDINGS[embeddingName]
-                    )
-                    model = LangchainEmbedding(embedding_class(**embedding_args))
-                    embedding_final = Embedding(
-                        embeddingName,
-                        EmbeddingModel(
-                            name=embeddingName,
-                            class_name="LangChain",
-                            options="{}",
-                            privacy=privacy,
-                            description=description,
-                            dimension=dimension,
-                        ),
-                        model,
-                    )
-                    self.embeddings_cache[embeddingName] = embedding_final
-                    return embedding_final
-                else:
-                    return None
 
     def find_project(self, id: int, db: DBWrapper) -> Optional[Project]:
         p: Optional[ProjectDatabase] = db.get_project_by_id(id)
