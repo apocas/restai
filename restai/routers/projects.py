@@ -350,8 +350,6 @@ async def route_create_project(
                 status_code=403, detail="User allowed to private models only"
             )
 
-        if projectModel.type == "rag":
-
     try:
         project_db = db_wrapper.create_project(
             projectModel.name,
