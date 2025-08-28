@@ -92,8 +92,6 @@ REDIS_PORT = os.environ.get("REDIS_PORT")
 CHROMADB_HOST = os.environ.get("CHROMADB_HOST")
 CHROMADB_PORT = os.environ.get("CHROMADB_PORT")
 
-PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
-
 RESTAI_GPU = (
     True if os.environ.get("RESTAI_GPU", "").lower() in ("true", "1") else False
 )

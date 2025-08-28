@@ -8,7 +8,6 @@ from llama_index.core.schema import Document
 from llama_index.core.text_splitter import TokenTextSplitter, SentenceSplitter
 
 from restai.config import EMBEDDINGS_PATH
-from restai.config import REDIS_HOST, PINECONE_API_KEY
 
 from modules.loaders import LOADERS
 
@@ -22,15 +21,9 @@ if TYPE_CHECKING:
 
 
 def find_vector_db(project: "Project") -> type["VectorBase"]:
-    if project.props.vectorstore == "redis" and REDIS_HOST:
-        from restai.vectordb.redis import RedisVector
-        return RedisVector
-    elif project.props.vectorstore == "chromadb" or project.props.vectorstore == "chroma":
+    if project.props.vectorstore == "chromadb" or project.props.vectorstore == "chroma":
         from restai.vectordb.chromadb import ChromaDBVector
         return ChromaDBVector
-    elif project.props.vectorstore == "pinecone" and PINECONE_API_KEY:
-        from restai.vectordb.pinecone import PineconeVector
-        return PineconeVector
     else:
         raise Exception("Invalid vectorDB type.")
 
