@@ -181,7 +181,7 @@ class RAG(ProjectBase):
             questionModel.system or project.props.system or self.brain.defaultSystem
         )
 
-        k = questionModel.k or project.props.k or 2
+        k = questionModel.k or project.props.options.k or 2
         threshold = questionModel.score or project.props.options.score or 0.0
 
         if (
