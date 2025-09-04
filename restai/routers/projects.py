@@ -432,7 +432,7 @@ async def find_embedding(
         output = []
 
         if embedding.text:
-            k = embedding.k or project.props.k or 2
+            k = embedding.k or project.props.options.k or 2
 
             if embedding.score is not None:
                 threshold = embedding.score
