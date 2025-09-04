@@ -220,7 +220,7 @@ class RAG(ProjectBase):
 
         postprocessors = []
 
-        if questionModel.colbert_rerank or project.props.colbert_rerank:
+        if questionModel.colbert_rerank or project.props.options.colbert_rerank:
             postprocessors.append(
                 ColbertRerank(
                     top_n=k,
@@ -230,7 +230,7 @@ class RAG(ProjectBase):
                 )
             )
 
-        if questionModel.llm_rerank or project.props.llm_rerank:
+        if questionModel.llm_rerank or project.props.options.llm_rerank:
             postprocessors.append(
                 LLMRerank(
                     choice_batch_size=k,
