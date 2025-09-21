@@ -84,35 +84,38 @@ async def route_get_projects(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     query = db_wrapper.db.query(ProjectDatabase)
-    
+
     if v_filter == "public":
         query = query.filter(ProjectDatabase.public == True)
     elif not user.is_admin:
-        query = query.filter(
-            (ProjectDatabase.id.in_([p.id for p in user.projects]))
-        )
+        query = query.filter((ProjectDatabase.id.in_([p.id for p in user.projects])))
 
     projects = query.offset(start).limit(end - start).all()
-    
+
     # Process the projects to simplify team objects
     serialized_projects = []
     for project in projects:
         # Create a Pydantic model from the SQLAlchemy object (handles all properties dynamically)
         project_model = ProjectModel.model_validate(project)
-        
+
         # Convert to dict and modify just the team property
         project_dict = project_model.model_dump()
-        
+
         # Simplify the team object if it exists
-        if project_dict.get('team'):
-            project_dict['team'] = {
-                "id": project_dict['team']['id'],
-                "name": project_dict['team']['name']
+        if project_dict.get("team"):
+            project_dict["team"] = {
+                "id": project_dict["team"]["id"],
+                "name": project_dict["team"]["name"],
             }
-            
+
         serialized_projects.append(project_dict)
-        
-    return {"projects": serialized_projects, "total": query.count(), "start": start, "end": end}
+
+    return {
+        "projects": serialized_projects,
+        "total": query.count(),
+        "start": start,
+        "end": end,
+    }
 
 
 @router.get("/projects/{projectID}")
@@ -132,40 +135,43 @@ async def route_get_project(
             llm_model = request.app.state.brain.get_llm(project.props.llm, db_wrapper)
         except Exception:
             llm_model = None
-            
+
         final_output = output
 
         final_output["human_description"] = output["human_description"] or ""
         final_output["level"] = user.level
         final_output["users"] = [u["username"] for u in output["users"]]
-        
+
         if project.props.team:
-            final_output["team"] = {"id": project.props.team.id, "name": project.props.team.name}
+            final_output["team"] = {
+                "id": project.props.team.id,
+                "name": project.props.team.name,
+            }
 
         match project.props.type:
-          case "rag":
-            if project.vector is not None:
-              chunks = project.vector.info()
-              if chunks is not None:
-                final_output["chunks"] = chunks
-            else:
-              final_output["chunks"] = 0
-            final_output["embeddings"] = output["embeddings"]
-            final_output["vectorstore"] = output["vectorstore"]
-            final_output["system"] = output["system"] or ""
-          case "inference":
-            final_output["system"] = output["system"] or ""
-          case "agent":
-            final_output["system"] = output["system"] or ""
-          case "ragsql":
-            final_output["system"] = output["system"] or ""
-          case "router":
-            final_output["entrances"] = output["entrances"]
+            case "rag":
+                if project.vector is not None:
+                    chunks = project.vector.info()
+                    if chunks is not None:
+                        final_output["chunks"] = chunks
+                else:
+                    final_output["chunks"] = 0
+                final_output["embeddings"] = output["embeddings"]
+                final_output["vectorstore"] = output["vectorstore"]
+                final_output["system"] = output["system"] or ""
+            case "inference":
+                final_output["system"] = output["system"] or ""
+            case "agent":
+                final_output["system"] = output["system"] or ""
+            case "ragsql":
+                final_output["system"] = output["system"] or ""
+            case "router":
+                final_output["entrances"] = output["entrances"]
 
         if llm_model:
             final_output["llm_type"] = llm_model.props.type
             final_output["llm_privacy"] = llm_model.props.privacy
-            
+
         del project
 
         return final_output
@@ -186,7 +192,7 @@ async def route_delete_project(
     try:
         proj = get_project(projectID, db_wrapper, request.app.state.brain)
         proj.delete()
-        
+
         db_wrapper.db.query(OutputDatabase).filter(
             OutputDatabase.project_id == proj.props.id
         ).delete()
@@ -214,40 +220,51 @@ async def route_edit_project(
     project = db_wrapper.get_project_by_id(projectID)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Validate LLM if being updated
     if (
         projectModelUpdate.llm
         and request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper) is None
     ):
         raise HTTPException(status_code=404, detail="LLM not found")
-    
+
     # Validate team if being updated
     if projectModelUpdate.team_id:
         # Check if the new team exists
         team = db_wrapper.get_team_by_id(projectModelUpdate.team_id)
         if team is None:
             raise HTTPException(status_code=404, detail="Team not found")
-        
+
         # Verify user belongs to the new team or is an admin
         is_team_member = user.id in [u.id for u in team.users]
         is_team_admin = user.id in [u.id for u in team.admins]
         if not (is_team_member or is_team_admin or user.is_admin):
-            raise HTTPException(status_code=403, detail="User does not have access to this team")
-        
+            raise HTTPException(
+                status_code=403, detail="User does not have access to this team"
+            )
+
         # Validate team has access to the LLM
         llm_name = projectModelUpdate.llm or project.llm
         llm_model = request.app.state.brain.get_llm(llm_name, db_wrapper)
         if llm_model and llm_model.props.name not in [llm.name for llm in team.llms]:
-            raise HTTPException(status_code=403, detail=f"Team does not have access to LLM '{llm_name}'")
-        
+            raise HTTPException(
+                status_code=403, detail=f"Team does not have access to LLM '{llm_name}'"
+            )
+
         # Validate team has access to embeddings for RAG projects
         if project.type == "rag":
             embedding_name = projectModelUpdate.embeddings or project.embeddings
             if embedding_name:
-                embedding_model = request.app.state.brain.get_embedding(embedding_name, db_wrapper)
-                if embedding_model and embedding_model.model_name not in [embedding.name for embedding in team.embeddings]:
-                    raise HTTPException(status_code=403, detail=f"Team does not have access to embedding model '{embedding_name}'")
+                embedding_model = request.app.state.brain.get_embedding(
+                    embedding_name, db_wrapper
+                )
+                if embedding_model and embedding_model.model_name not in [
+                    embedding.name for embedding in team.embeddings
+                ]:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Team does not have access to embedding model '{embedding_name}'",
+                    )
 
     # Validate private user restrictions
     if user.is_private:
@@ -294,21 +311,23 @@ async def route_create_project(
 
     if projectModel.name.strip() == "":
         raise HTTPException(status_code=400, detail="Invalid project name")
-        
+
     # Validate that a team ID is provided
     if not projectModel.team_id:
         raise HTTPException(status_code=400, detail="Team selection is required")
-        
+
     # Check if the team exists
     team = db_wrapper.get_team_by_id(projectModel.team_id)
     if team is None:
         raise HTTPException(status_code=404, detail="Team not found")
-    
+
     # Verify user belongs to the team or is an admin
     is_team_member = user.id in [u.id for u in team.users]
     is_team_admin = user.id in [u.id for u in team.admins]
     if not (is_team_member or is_team_admin or user.is_admin):
-        raise HTTPException(status_code=403, detail="User does not have access to this team")
+        raise HTTPException(
+            status_code=403, detail="User does not have access to this team"
+        )
 
     if config.RESTAI_DEMO == True and not user.is_admin:
         if projectModel.type == "ragsql" or projectModel.type == "agent":
@@ -321,34 +340,51 @@ async def route_create_project(
     llm_model = request.app.state.brain.get_llm(projectModel.llm, db_wrapper)
     if llm_model is None:
         raise HTTPException(status_code=404, detail="LLM not found")
-        
+
     # Validate team has access to the LLM
     if llm_model.props.name not in [llm.name for llm in team.llms]:
-        raise HTTPException(status_code=403, detail=f"Team does not have access to LLM '{projectModel.llm}'")
+        raise HTTPException(
+            status_code=403,
+            detail=f"Team does not have access to LLM '{projectModel.llm}'",
+        )
 
     # Validate embeddings for RAG projects
     if projectModel.type == "rag":
-        embedding_model = request.app.state.brain.get_embedding(projectModel.embeddings, db_wrapper)
+        embedding_model = request.app.state.brain.get_embedding(
+            projectModel.embeddings, db_wrapper
+        )
         if embedding_model is None:
             raise HTTPException(status_code=404, detail="Embeddings not found")
-            
-        if embedding_model.props.privacy != "private":
+
+        if user.is_private and embedding_model.props.privacy != "private":
             raise HTTPException(
                 status_code=403, detail="User not allowed to use public models"
             )
-            
+
         # Validate team has access to the embeddings
-        if embedding_model.model_name not in [embedding.name for embedding in team.embeddings]:
-            raise HTTPException(status_code=403, detail=f"Team does not have access to embedding model '{projectModel.embeddings}'")
-      
-    if db_wrapper.db.query(ProjectDatabase).filter(ProjectDatabase.creator == user.id, ProjectDatabase.name == projectModel.name).first() is not None:
+        if embedding_model.model_name not in [
+            embedding.name for embedding in team.embeddings
+        ]:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Team does not have access to embedding model '{projectModel.embeddings}'",
+            )
+
+    if (
+        db_wrapper.db.query(ProjectDatabase)
+        .filter(
+            ProjectDatabase.creator == user.id,
+            ProjectDatabase.name == projectModel.name,
+        )
+        .first()
+        is not None
+    ):
         raise HTTPException(status_code=403, detail="Project already exists")
 
-    if user.is_private:
-        if llm_model.props.privacy != "private":
-            raise HTTPException(
-                status_code=403, detail="User allowed to private models only"
-            )
+    if user.is_private and llm_model.props.privacy != "private":
+        raise HTTPException(
+            status_code=403, detail="User not allowed to use public models"
+        )
 
     try:
         project_db = db_wrapper.create_project(
@@ -362,10 +398,13 @@ async def route_create_project(
             user.id,
             projectModel.team_id,
         )
-        
+
         if project_db is None:
-            raise HTTPException(status_code=400, detail="Failed to create project, check team's access to selected LLM and embeddings")
-            
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to create project, check team's access to selected LLM and embeddings",
+            )
+
         project = get_project(project_db.id, db_wrapper, request.app.state.brain)
 
         if project.props.vectorstore:
@@ -642,9 +681,7 @@ async def ingest_file(
     project = get_project(projectID, db_wrapper, request.app.state.brain)
 
     if project.props.type != "rag":
-        raise HTTPException(
-            status_code=400, detail="Only available for RAG projects."
-        )
+        raise HTTPException(status_code=400, detail="Only available for RAG projects.")
 
     opts = json.loads(options)
 
@@ -670,6 +707,7 @@ async def ingest_file(
     else:
         try:
             from restai.document.runner import load_documents
+
             documents = load_documents(request.app.state.manager, temp.name)
         except Exception as e:
             if "File format not allowed" in str(e):
@@ -828,7 +866,7 @@ async def question_query_endpoint(
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
-      
+
 
 @router.get("/projects/{projectID}/logs")
 async def get_token_consumption(
@@ -851,15 +889,13 @@ async def get_token_consumption(
             .limit(end - start)
             .all()
         )
-        return {
-            "logs": logs
-        }
+        return {"logs": logs}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
-      
+
 
 @router.get("/projects/{projectID}/tokens/daily")
 async def get_monthly_token_consumption(
@@ -902,11 +938,16 @@ async def get_monthly_token_consumption(
             .group_by(func.date(OutputDatabase.date))
             .all()
         )
-        
+
         return {
             "tokens": [
-                {"date": tc.date, "input_tokens": tc.input_tokens, "output_tokens": tc.output_tokens,
-                    "input_cost": tc.input_cost, "output_cost": tc.output_cost}
+                {
+                    "date": tc.date,
+                    "input_tokens": tc.input_tokens,
+                    "output_tokens": tc.output_tokens,
+                    "input_cost": tc.input_cost,
+                    "output_cost": tc.output_cost,
+                }
                 for tc in token_consumptions
             ]
         }
@@ -927,27 +968,31 @@ async def get_project_tools(
     try:
         # Get the project by ID
         project = get_project(projectID, db_wrapper, request.app.state.brain)
-        
+
         # Check if the project is of type agent
         if project.props.type != "agent":
             raise HTTPException(
-                status_code=400, detail="Tools endpoint only available for agent-type projects"
+                status_code=400,
+                detail="Tools endpoint only available for agent-type projects",
             )
-        
+
         # Check if the project has MCP servers configured
         if not project.props.options or not project.props.options.mcp_servers:
-            return {"tools": [], "message": "No MCP servers configured for this project"}
-        
+            return {
+                "tools": [],
+                "message": "No MCP servers configured for this project",
+            }
+
         # Dictionary to store tools per MCP server
         all_tools = {}
-        
+
         # Connect to each MCP server and retrieve tools
         for mcp_server in project.props.options.mcp_servers:
             server_name = mcp_server.host
             try:
                 # Create MCP client
                 mcp_client = BasicMCPClient(mcp_server.host)
-                
+
                 mcp_tool_spec = McpToolSpec(
                     client=mcp_client,
                 )
@@ -957,28 +1002,28 @@ async def get_project_tools(
 
                 # Get available tools
                 tools_info = []
-                
+
                 for tool in tools:
-                    tools_info.append({
-                        "name": tool.metadata.name,
-                        "description": tool.metadata.description,
-                        "schema": tool.metadata.fn_schema_str
-                    })
-                
+                    tools_info.append(
+                        {
+                            "name": tool.metadata.name,
+                            "description": tool.metadata.description,
+                            "schema": tool.metadata.fn_schema_str,
+                        }
+                    )
+
                 # Add tools to the result
-                all_tools[server_name] = {
-                    "tools": tools_info
-                }
-                
+                all_tools[server_name] = {"tools": tools_info}
+
             except Exception as e:
                 # Handle connection errors
                 all_tools[server_name] = {
                     "error": str(e),
-                    "message": f"Failed to connect to MCP server: {mcp_server.host}"
+                    "message": f"Failed to connect to MCP server: {mcp_server.host}",
                 }
-                
+
         return {"mcp_servers": all_tools}
-        
+
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
