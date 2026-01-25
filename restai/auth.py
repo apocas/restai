@@ -38,6 +38,9 @@ def get_current_username(
             data = jwt.decode(auth_cookie, RESTAI_AUTH_SECRET, algorithms=["HS512"])
 
             user = db_wrapper.get_user_by_username(data["username"])
+            
+            if user is None:
+                raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_TOKEN)
 
             return User.model_validate(user)
         except Exception:

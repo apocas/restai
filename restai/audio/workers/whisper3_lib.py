@@ -20,8 +20,10 @@ def worker(prompt, sharedmem):
     file_path = sharedmem["file_path"]
     filename = sharedmem["filename"]
 
+    # Validate if "options" exists in sharedmem
+    options = sharedmem.get("options", {})
     result = model.transcribe(
-        file_path, language=sharedmem["options"].get("language", None), temperature=0.0
+      file_path, language=options.get("language", None), temperature=0.0
     )
 
     sharedmem["output"] = {"text": result["text"].strip(), "chunks": result["segments"]}
