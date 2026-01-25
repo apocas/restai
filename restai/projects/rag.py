@@ -181,7 +181,7 @@ class RAG(ProjectBase):
             questionModel.system or project.props.system or self.brain.defaultSystem
         )
 
-        k = questionModel.k or project.props.k or 2
+        k = questionModel.k or project.props.options.k or 2
         threshold = questionModel.score or project.props.options.score or 0.0
 
         if (
@@ -220,7 +220,7 @@ class RAG(ProjectBase):
 
         postprocessors = []
 
-        if questionModel.colbert_rerank or project.props.colbert_rerank:
+        if questionModel.colbert_rerank or project.props.options.colbert_rerank:
             postprocessors.append(
                 ColbertRerank(
                     top_n=k,
@@ -230,7 +230,7 @@ class RAG(ProjectBase):
                 )
             )
 
-        if questionModel.llm_rerank or project.props.llm_rerank:
+        if questionModel.llm_rerank or project.props.options.llm_rerank:
             postprocessors.append(
                 LLMRerank(
                     choice_batch_size=k,

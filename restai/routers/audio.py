@@ -30,7 +30,13 @@ async def route_list_generators(
 
 
 @router.post("/audio/{generator}/transcript")
-async def route_generate_transcript(request: Request, generator: str, file: UploadFile, language: str = Form(...)):
+async def route_generate_transcript(
+    request: Request,
+    generator: str,
+    file: UploadFile,
+    language: str = Form(...),
+    _: User = Depends(get_current_username)  # Require authentication
+):
     # Read the uploaded file contents
     contents = await file.read()
     file_size = len(contents)

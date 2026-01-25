@@ -11,7 +11,6 @@ from restai.models.databasemodels import EmbeddingDatabase
 from restai.models.models import EmbeddingModel, User, EmbeddingUpdate
 from restai.database import get_db_wrapper, DBWrapper
 from restai.auth import get_current_username, get_current_username_admin
-from modules.embeddings import EMBEDDINGS
 
 logging.basicConfig(level=config.LOG_LEVEL)
 logging.getLogger('passlib').setLevel(logging.ERROR)
@@ -23,10 +22,6 @@ router = APIRouter()
 async def api_get_embedding(embedding_name: str,
                       _: User = Depends(get_current_username),
                       db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-  
-    if embedding_name in EMBEDDINGS:
-        _, _, privacy, description, _ = EMBEDDINGS[embedding_name]
-        return EmbeddingModel(name=embedding_name, class_name="LangChain", options="{}", privacy=privacy, description=description)
   
     try:
         llm = EmbeddingModel.model_validate(db_wrapper.get_embedding_by_name(embedding_name))
@@ -54,10 +49,6 @@ async def api_get_embeddings(
             if 'api_key' in options:
                 options["api_key"] = "********"
                 embedding.options = json.dumps(options)
-    
-    for embedding in EMBEDDINGS:
-        _, _, privacy, description, dimension = EMBEDDINGS[embedding]
-        embeddings.append(EmbeddingModel(name=embedding, class_name="LangChain", options="{}", privacy=privacy, description=description, dimension=dimension))
     
     return embeddings
 
