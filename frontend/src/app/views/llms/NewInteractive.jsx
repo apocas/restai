@@ -1,0 +1,375 @@
+import { useState, useEffect } from "react";
+import {
+  Grid,
+  styled,
+  Box,
+  Card,
+  TextField,
+  Button,
+  MenuItem,
+  Divider,
+  Typography,
+  Switch,
+  FormControlLabel,
+} from "@mui/material";
+import useAuth from "app/hooks/useAuth";
+import Breadcrumb from "app/components/Breadcrumb";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { H4 } from "app/components/Typography";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ReactJson from "@microlink/react-json-view";
+import { PROVIDER_CONFIG } from "./providerConfig";
+
+const Container = styled("div")(({ theme }) => ({
+  margin: 10,
+  [theme.breakpoints.down("sm")]: { margin: 16 },
+  "& .breadcrumb": {
+    marginBottom: 30,
+    [theme.breakpoints.down("sm")]: { marginBottom: 16 },
+  },
+}));
+
+const ContentBox = styled("div")(({ theme }) => ({
+  margin: "30px",
+  [theme.breakpoints.down("sm")]: { margin: "16px" },
+}));
+
+const ProviderCard = styled(Card)(({ theme }) => ({
+  padding: theme.spacing(2.5),
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  height: "100%",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
+  "&:hover": {
+    transform: "translateY(-3px)",
+    boxShadow: theme.shadows[8],
+  },
+}));
+
+export default function NewInteractive() {
+  const auth = useAuth();
+  const navigate = useNavigate();
+  const url = process.env.REACT_APP_RESTAI_API_URL || "";
+
+  const [selectedProvider, setSelectedProvider] = useState(null);
+  const [formState, setFormState] = useState({
+    name: "",
+    type: "",
+    privacy: "private",
+    description: "",
+  });
+  const [optionsState, setOptionsState] = useState({});
+
+  useEffect(() => {
+    document.title =
+      (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - New LLM";
+  }, []);
+
+  const handleSelectProvider = (providerKey) => {
+    const provider = PROVIDER_CONFIG[providerKey];
+    setSelectedProvider(providerKey);
+
+    // Initialize options with defaults
+    const defaults = {};
+    provider.fields.forEach((field) => {
+      if (field.default !== undefined && field.default !== "") {
+        defaults[field.name] = field.default;
+      }
+    });
+    setOptionsState(defaults);
+    setFormState((prev) => ({ ...prev, type: provider.defaultType }));
+  };
+
+  const handleBack = () => {
+    setSelectedProvider(null);
+    setOptionsState({});
+    setFormState({ name: "", type: "", privacy: "private", description: "" });
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormState((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleOptionChange = (fieldName, value) => {
+    setOptionsState((prev) => ({ ...prev, [fieldName]: value }));
+  };
+
+  const handleJsonUpdate = (update) => {
+    setOptionsState(update.updated_src);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formState.name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
+
+    // Build options, omitting empty strings
+    const options = {};
+    Object.entries(optionsState).forEach(([key, value]) => {
+      if (value !== "" && value !== undefined) {
+        options[key] = value;
+      }
+    });
+
+    try {
+      const response = await fetch(url + "/llms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Basic " + auth.user.token,
+        },
+        body: JSON.stringify({
+          name: formState.name,
+          class_name: selectedProvider,
+          options: JSON.stringify(options),
+          privacy: formState.privacy,
+          type: formState.type,
+          description: formState.description,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        toast.error(data.detail || "Failed to create LLM");
+        return;
+      }
+
+      const data = await response.json();
+      navigate("/llm/" + data.name);
+    } catch (err) {
+      toast.error(err.toString());
+    }
+  };
+
+  const renderField = (field) => {
+    const value = optionsState[field.name] ?? field.default ?? "";
+
+    if (field.type === "boolean") {
+      return (
+        <Grid item xs={12} key={field.name}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={!!optionsState[field.name]}
+                onChange={(e) =>
+                  handleOptionChange(field.name, e.target.checked)
+                }
+              />
+            }
+            label={field.label}
+          />
+        </Grid>
+      );
+    }
+
+    return (
+      <Grid item xs={12} sm={6} key={field.name}>
+        <TextField
+          fullWidth
+          size="small"
+          label={field.label}
+          type={field.type === "password" ? "password" : field.type === "number" ? "number" : "text"}
+          required={field.required}
+          value={value}
+          placeholder={field.placeholder || ""}
+          inputProps={field.type === "number" ? { step: field.step || 1 } : {}}
+          onChange={(e) => {
+            const val =
+              field.type === "number"
+                ? e.target.value === "" ? "" : Number(e.target.value)
+                : e.target.value;
+            handleOptionChange(field.name, val);
+          }}
+        />
+      </Grid>
+    );
+  };
+
+  // Phase 1: Provider selection grid
+  if (!selectedProvider) {
+    return (
+      <Container>
+        <Box className="breadcrumb">
+          <Breadcrumb
+            routeSegments={[
+              { name: "LLMs", path: "/llms" },
+              { name: "New LLM", path: "/llms/new" },
+            ]}
+          />
+        </Box>
+
+        <ContentBox>
+          <H4 sx={{ mb: 3 }}>Select a Provider</H4>
+          <Grid container spacing={2}>
+            {Object.entries(PROVIDER_CONFIG).map(([key, provider]) => (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={key}>
+                <ProviderCard
+                  elevation={3}
+                  onClick={() => handleSelectProvider(key)}
+                >
+                  <Typography variant="h6" gutterBottom>
+                    {provider.label}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    {provider.description}
+                  </Typography>
+                </ProviderCard>
+              </Grid>
+            ))}
+          </Grid>
+        </ContentBox>
+      </Container>
+    );
+  }
+
+  // Phase 2: Configuration form
+  const provider = PROVIDER_CONFIG[selectedProvider];
+
+  return (
+    <Container>
+      <Box className="breadcrumb">
+        <Breadcrumb
+          routeSegments={[
+            { name: "LLMs", path: "/llms" },
+            { name: "New LLM", path: "/llms/new" },
+            { name: provider.label },
+          ]}
+        />
+      </Box>
+
+      <ContentBox>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={handleBack}
+          sx={{ mb: 2 }}
+        >
+          Back to Providers
+        </Button>
+
+        <Card elevation={3} sx={{ p: 3 }}>
+          <H4>New {provider.label} LLM</H4>
+          <Divider sx={{ my: 2 }} />
+
+          <form onSubmit={handleSubmit}>
+            <Grid container spacing={3}>
+              {/* Common fields */}
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Class"
+                  value={selectedProvider}
+                  InputProps={{ readOnly: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  required
+                  size="small"
+                  name="name"
+                  label="Name"
+                  value={formState.name}
+                  onChange={handleFormChange}
+                  placeholder="Unique name for this LLM"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  select
+                  size="small"
+                  name="type"
+                  label="Type"
+                  value={formState.type}
+                  onChange={handleFormChange}
+                >
+                  {["qa", "chat", "vision"].map((t) => (
+                    <MenuItem key={t} value={t}>
+                      {t}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  select
+                  size="small"
+                  name="privacy"
+                  label="Privacy"
+                  value={formState.privacy}
+                  onChange={handleFormChange}
+                >
+                  {["public", "private"].map((p) => (
+                    <MenuItem key={p} value={p}>
+                      {p}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  name="description"
+                  label="Description"
+                  value={formState.description}
+                  onChange={handleFormChange}
+                />
+              </Grid>
+
+              {/* Provider-specific fields */}
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="subtitle2" sx={{ mt: 1, mb: 1 }}>
+                  {provider.label} Options
+                </Typography>
+              </Grid>
+
+              {provider.fields.map(renderField)}
+
+              {/* Live JSON viewer/editor */}
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="subtitle2" sx={{ mt: 1, mb: 1 }}>
+                  Options JSON
+                </Typography>
+                <Typography variant="caption" color="textSecondary" sx={{ mb: 1, display: "block" }}>
+                  Auto-updated from the fields above. Click values to edit, or use +/- to add/remove custom options.
+                </Typography>
+                <ReactJson
+                  src={optionsState}
+                  name={false}
+                  enableClipboard={true}
+                  onEdit={handleJsonUpdate}
+                  onAdd={handleJsonUpdate}
+                  onDelete={handleJsonUpdate}
+                  displayDataTypes={false}
+                  displayObjectSize={false}
+                />
+              </Grid>
+            </Grid>
+
+            <Box mt={3}>
+              <Button color="primary" variant="contained" type="submit">
+                Create LLM
+              </Button>
+            </Box>
+          </form>
+        </Card>
+      </ContentBox>
+    </Container>
+  );
+}

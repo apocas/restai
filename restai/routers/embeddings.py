@@ -7,7 +7,7 @@ from fastapi import HTTPException, Request
 import traceback
 import logging
 from restai import config
-from restai.models.databasemodels import EmbeddingDatabase
+from restai.models.databasemodels import EmbeddingDatabase, ProjectDatabase
 from restai.models.models import EmbeddingModel, User, EmbeddingUpdate
 from restai.database import get_db_wrapper, DBWrapper
 from restai.auth import get_current_username, get_current_username_admin
@@ -98,6 +98,17 @@ async def api_delete_embedding(embedding_name: str,
         embedding: Optional[EmbeddingDatabase] = db_wrapper.get_embedding_by_name(embedding_name)
         if embedding is None:
             raise Exception("Embedding not found")
+
+        projects_using = db_wrapper.db.query(ProjectDatabase).filter(
+            ProjectDatabase.embeddings == embedding_name
+        ).all()
+        if projects_using:
+            names = [p.name for p in projects_using]
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot delete embedding '{embedding_name}': used by projects: {', '.join(names)}"
+            )
+
         db_wrapper.delete_embedding(embedding)
         return {"deleted": embedding_name}
     except Exception as e:

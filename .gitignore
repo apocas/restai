@@ -176,7 +176,6 @@ pytest.ini
 .env
 .local
 restai.db
-frontend
 restai_prod
 lab.py
 

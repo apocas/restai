@@ -102,13 +102,41 @@ async def get_ollama_models(
                     logging.error(f"Error converting modified_at to string: {dt_error}")
                     modified_at = ""
             
+            model_name = model.get("name", "") or model.get("model", "")
+
+            # Fetch capabilities and embedding_length via show()
+            capabilities = None
+            embedding_length = None
+            try:
+                show_response = client.show(model_name)
+                if hasattr(show_response, "capabilities"):
+                    capabilities = show_response.capabilities
+                elif isinstance(show_response, dict):
+                    capabilities = show_response.get("capabilities")
+
+                model_info_data = None
+                if hasattr(show_response, "model_info"):
+                    model_info_data = show_response.model_info
+                elif isinstance(show_response, dict):
+                    model_info_data = show_response.get("model_info", {})
+
+                if model_info_data and isinstance(model_info_data, dict):
+                    for key, value in model_info_data.items():
+                        if key.endswith(".embedding_length"):
+                            embedding_length = value
+                            break
+            except Exception as show_error:
+                logging.warning(f"Could not fetch show info for {model_name}: {show_error}")
+
             models_info.append(
                 OllamaModelInfo(
-                    name=model.get("name", "") or model.get("model", ""),
+                    name=model_name,
                     size=model.get("size", 0),
                     digest=model.get("digest", ""),
                     modified_at=modified_at,
-                    details=details
+                    details=details,
+                    capabilities=capabilities,
+                    embedding_length=embedding_length
                 )
             )
         

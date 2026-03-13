@@ -1,5 +1,7 @@
+from pathlib import Path
+
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Request, Depends, status, Response
@@ -23,10 +25,13 @@ from restai.config import (
 )
 from restai.utils.version import get_version_from_pyproject
 
+PROJECT_ROOT = Path(__file__).parent.parent
+FRONTEND_BUILD_DIR = PROJECT_ROOT / "frontend" / "build"
+
 @asynccontextmanager
 async def lifespan(fs_app: FastAPI):
     print(
-        """
+        r"""
        ___ ___ ___ _____ _   ___      _.--'"'.
       | _ \ __/ __|_   _/_\ |_ _|    (  ( (   )
       |   / _|\__ \ | |/ _ \ | |     (o)_    ) )
@@ -56,15 +61,7 @@ async def lifespan(fs_app: FastAPI):
 
     fs_app.state.manager = get_manager()
     fs_app.state.brain = Brain()
-    
-    if not SSO_SECRET_KEY:
-      logging.error("SSO_SECRET_KEY env var missing.")
-      sys.exit(1)
-      
-    if not RESTAI_AUTH_SECRET:
-      logging.error("RESTAI_AUTH_SECRET env var missing.")
-      sys.exit(1)
-      
+
     if not RESTAI_URL:
       logging.warning("RESTAI_URL env var missing. OAUTH auth schemes may not work properly.")
 
@@ -128,11 +125,25 @@ async def lifespan(fs_app: FastAPI):
         return output
 
     try:
-        fs_app.mount(
-            "/admin/",
-            StaticFiles(directory="frontend/build/", html=True),
-            name="static_admin",
-        )
+            fs_app.mount(
+                "/admin/static",
+                StaticFiles(directory=str(FRONTEND_BUILD_DIR / "static")),
+                name="static_assets",
+            )
+            fs_app.mount(
+                "/admin/assets",
+                StaticFiles(directory=str(FRONTEND_BUILD_DIR / "assets")),
+                name="static_images",
+            )
+
+            # SPA catch-all route for /admin/* - must be defined after static mounts
+            @fs_app.get("/admin/{full_path:path}")
+            async def serve_spa(full_path: str):
+                """Serve index.html for all /admin/* routes to support SPA routing"""
+                index_file = FRONTEND_BUILD_DIR / "index.html"
+                if index_file.exists():
+                    return FileResponse(str(index_file))
+                return JSONResponse(status_code=404, content={"detail": "Frontend not found"})
     except Exception as e:
         print(e)
         print("Admin frontend not available.")
@@ -182,8 +193,9 @@ async def lifespan(fs_app: FastAPI):
                         return
                 await self.app(scope, receive, send)
 
-        # Wrap FastMCP with the authentication middleware
-        mcp_with_auth = MCPAuthMiddleware(mcp)
+        # Get the ASGI app from FastMCP and wrap with authentication middleware
+        mcp_asgi_app = mcp.http_app()
+        mcp_with_auth = MCPAuthMiddleware(mcp_asgi_app)
 
         # Mount the MCP server endpoints
         fs_app.mount("/mcp", mcp_with_auth)

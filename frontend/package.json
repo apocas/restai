@@ -1,0 +1,77 @@
+{
+  "name": "restai-frontend",
+  "version": "2.1.0",
+  "private": true,
+  "homepage": "/admin",
+  "scripts": {
+    "start": "REACT_APP_VERSION=$npm_package_version react-scripts start",
+    "build": "REACT_APP_VERSION=$npm_package_version react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "ghp": "react-scripts build && gh-pages -d build"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@microlink/react-json-view": "^1.31.8",
+    "@microsoft/fetch-event-source": "^2.0.1",
+    "@mui/icons-material": "^5.18.0",
+    "@mui/lab": "^5.0.0-alpha.177",
+    "@mui/material": "^5.18.0",
+    "@reduxjs/toolkit": "^2.11.2",
+    "autosuggest-highlight": "^3.3.4",
+    "axios": "^1.13.6",
+    "boring-avatars": "^2.0.4",
+    "clsx": "^2.1.1",
+    "crypto-js": "^4.2.0",
+    "date-fns": "^4.1.0",
+    "echarts": "^6.0.0",
+    "echarts-for-react": "^3.0.6",
+    "js-cookie": "^3.0.5",
+    "json-edit-react": "^1.29.0",
+    "jwt-decode": "^4.0.0",
+    "lodash": "^4.17.23",
+    "mui-datatables": "^4.3.0",
+    "notistack": "^3.0.2",
+    "prop-types": "^15.8.1",
+    "react": "^18.3.1",
+    "react-audio-voice-recorder": "^2.2.0",
+    "react-code-blocks": "^0.1.6",
+    "react-d3-tree": "^3.6.6",
+    "react-dom": "^18.3.1",
+    "react-dropzone": "^15.0.0",
+    "react-highlight": "^0.15.0",
+    "react-modal-image": "^2.6.0",
+    "react-perfect-scrollbar": "^1.5.8",
+    "react-qr-code": "^2.0.18",
+    "react-redux": "^9.2.0",
+    "react-router-dom": "^6.30.3",
+    "react-scripts": "^5.0.1",
+    "react-toastify": "^11.0.5",
+    "recharts": "^3.8.0",
+    "shortid": "^2.2.17"
+  },
+  "devDependencies": {
+    "axios-mock-adapter": "^2.1.0",
+    "cross-env": "^10.1.0",
+    "customize-cra": "^1.0.0",
+    "gh-pages": "^6.3.0"
+  }
+}

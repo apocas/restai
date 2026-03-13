@@ -24,18 +24,21 @@ def load_env_vars():
 
 load_env_vars()
 
-# Ensure RESTAI_AUTH_SECRET is set in the environment
-if not os.environ.get("RESTAI_AUTH_SECRET"):
-    secret = Fernet.generate_key().decode()
-    os.environ["RESTAI_AUTH_SECRET"] = secret
-    # Write to .env file
-    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
-    try:
-        with open(env_path, "a") as f:
-            f.write(f"\nRESTAI_AUTH_SECRET=\"{secret}\"\n")
-            print(f"New random RESTAI_AUTH_SECRET written to {env_path}")
-    except Exception as e:
-        print(f"Warning: Could not write RESTAI_AUTH_SECRET to .env: {e}")
+env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+
+def _ensure_env_secret(var_name):
+    if not os.environ.get(var_name):
+        secret = Fernet.generate_key().decode()
+        os.environ[var_name] = secret
+        try:
+            with open(env_path, "a") as f:
+                f.write(f"\n{var_name}=\"{secret}\"\n")
+                print(f"New random {var_name} written to {env_path}")
+        except Exception as e:
+            print(f"Warning: Could not write {var_name} to .env: {e}")
+
+_ensure_env_secret("RESTAI_AUTH_SECRET")
+_ensure_env_secret("SSO_SECRET_KEY")
 
 RESTAI_NAME = os.environ.get("RESTAI_NAME") or "RESTai"
 

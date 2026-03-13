@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Any, Dict, Optional, Union, Iterable
+from typing import Any, Dict, List, Optional, Union, Iterable
 import json
 from datetime import datetime
 
@@ -414,6 +414,8 @@ class OllamaModelInfo(BaseModel):
     size: Optional[int] = None
     digest: Optional[str] = None
     details: Optional[Dict[str, Any]] = None
+    capabilities: Optional[List[str]] = None
+    embedding_length: Optional[int] = None
 
 
 class OllamaModelPullRequest(BaseModel):

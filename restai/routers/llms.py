@@ -7,7 +7,7 @@ from fastapi import HTTPException, Request
 import traceback
 import logging
 from restai import config
-from restai.models.databasemodels import LLMDatabase
+from restai.models.databasemodels import LLMDatabase, ProjectDatabase
 from restai.models.models import LLMModel, LLMUpdate, User
 from restai.database import get_db_wrapper, DBWrapper
 from restai.auth import get_current_username, get_current_username_admin
@@ -114,6 +114,17 @@ async def api_delete_llm(
         llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_name(llm_name)
         if llm is None:
             raise HTTPException(status_code=404, detail="LLM not found")
+
+        projects_using = db_wrapper.db.query(ProjectDatabase).filter(
+            (ProjectDatabase.llm == llm_name) | (ProjectDatabase.guard == llm_name)
+        ).all()
+        if projects_using:
+            names = [p.name for p in projects_using]
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot delete LLM '{llm_name}': used by projects: {', '.join(names)}"
+            )
+
         db_wrapper.delete_llm(llm)
         return {"deleted": llm_name}
     except Exception as e:
