@@ -7,7 +7,6 @@ from restai import config
 from restai.auth import create_access_token, get_current_username
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.models import User
-from restai.routers.users import sanitize_user
 
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -45,7 +44,7 @@ async def get_whoami(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     user_model = User.model_validate(db_wrapper.get_user_by_username(user.username))
-    return sanitize_user(user_model)
+    return user_model
 
 
 @router.post("/auth/logout")

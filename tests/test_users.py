@@ -3,7 +3,7 @@ import jwt
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 
-from restai.config import RESTAI_DEFAULT_PASSWORD, RESTAI_SSO_SECRET, RESTAI_SSO_ALG
+from restai.config import RESTAI_DEFAULT_PASSWORD
 from restai.main import app
 from restai.models.models import UserCreate, UserUpdate
 
@@ -67,23 +67,90 @@ def test_update_user():
         response = client.get(f"/users/{test_username}", auth=(test_username, "new_password"))
         assert response.status_code == 200
 
-def test_user_apikey():
+def test_user_apikeys():
     with TestClient(app) as client:
-        # Test generating API key
+        # 1. Create key with description
         response = client.post(
-            f"/users/{test_username}/apikey",
+            f"/users/{test_username}/apikeys",
+            json={"description": "test key 1"},
             auth=(test_username, "new_password")
         )
         assert response.status_code == 200
-        assert "api_key" in response.json()
-        api_key = response.json()["api_key"]
-        
-        # Test using API key for authentication
+        data = response.json()
+        assert "api_key" in data
+        assert "id" in data
+        assert data["key_prefix"] == data["api_key"][:8]
+        assert data["description"] == "test key 1"
+        key1 = data["api_key"]
+        key1_id = data["id"]
+
+        # 2. Auth with Bearer token
         response = client.get(
             f"/users/{test_username}",
-            headers={"Authorization": f"Bearer {api_key}"}
+            headers={"Authorization": f"Bearer {key1}"}
         )
         assert response.status_code == 200
+
+        # 3. Create second key
+        response = client.post(
+            f"/users/{test_username}/apikeys",
+            json={"description": "test key 2"},
+            auth=(test_username, "new_password")
+        )
+        assert response.status_code == 200
+        key2 = response.json()["api_key"]
+        key2_id = response.json()["id"]
+
+        # 4. List keys - should have 2, no full key exposed
+        response = client.get(
+            f"/users/{test_username}/apikeys",
+            auth=(test_username, "new_password")
+        )
+        assert response.status_code == 200
+        keys = response.json()
+        assert len(keys) == 2
+        descriptions = {k["description"] for k in keys}
+        assert descriptions == {"test key 1", "test key 2"}
+        for k in keys:
+            assert "api_key" not in k
+
+        # 5. Auth with second key
+        response = client.get(
+            f"/users/{test_username}",
+            headers={"Authorization": f"Bearer {key2}"}
+        )
+        assert response.status_code == 200
+
+        # 6. Delete first key
+        response = client.delete(
+            f"/users/{test_username}/apikeys/{key1_id}",
+            auth=(test_username, "new_password")
+        )
+        assert response.status_code == 200
+
+        # 7. Auth with deleted key -> 401
+        response = client.get(
+            f"/users/{test_username}",
+            headers={"Authorization": f"Bearer {key1}"}
+        )
+        assert response.status_code == 401
+
+        # 8. Auth with second key still works
+        response = client.get(
+            f"/users/{test_username}",
+            headers={"Authorization": f"Bearer {key2}"}
+        )
+        assert response.status_code == 200
+
+        # 9. List keys - should have 1 remaining
+        response = client.get(
+            f"/users/{test_username}/apikeys",
+            auth=(test_username, "new_password")
+        )
+        assert response.status_code == 200
+        keys = response.json()
+        assert len(keys) == 1
+        assert keys[0]["description"] == "test key 2"
 
 def test_user_permissions_on_projects():
     with TestClient(app) as client:

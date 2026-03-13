@@ -203,7 +203,7 @@ const tabList = [
   { id: 1, name: "Basic Information", Icon: InfoIcon },
   { id: 2, name: "Password", Icon: HttpsIcon },
   { id: 3, name: "Projects", Icon: ContentCopy },
-  { id: 12, name: "API Key", Icon: KeyIcon },
+  { id: 12, name: "API Keys", Icon: KeyIcon },
   { id: 13, name: "Delete account", Icon: DeleteForeverIcon }
 ];
 

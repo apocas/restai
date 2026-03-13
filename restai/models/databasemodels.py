@@ -95,11 +95,26 @@ class UserDatabase(Base):
     hashed_password = Column(String(255))
     is_admin = Column(Boolean, default=False)  # Platform admin
     is_private = Column(Boolean, default=False)
-    api_key = Column(String(4096))
+    api_key = Column(String(4096))  # Legacy column, kept for existing DBs
     options = Column(Text, default="{}")
     projects = relationship('ProjectDatabase', secondary=users_projects, back_populates='users')
     teams = relationship('TeamDatabase', secondary=teams_users, back_populates='users')
     admin_teams = relationship('TeamDatabase', secondary=teams_admins, back_populates='admins')
+    api_keys = relationship('ApiKeyDatabase', back_populates='user', cascade='all, delete-orphan')
+
+
+class ApiKeyDatabase(Base):
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    key_hash = Column(String(64), nullable=False, unique=True, index=True)
+    encrypted_key = Column(String(4096), nullable=False)
+    key_prefix = Column(String(12), nullable=False)
+    description = Column(String(255), default="")
+    created_at = Column(DateTime, nullable=False)
+
+    user = relationship('UserDatabase', back_populates='api_keys')
 
 class OutputDatabase(Base):
     __tablename__ = "output"

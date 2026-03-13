@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 from restai import config
 from datetime import datetime
 from restai.models.databasemodels import (
+    ApiKeyDatabase,
     LLMDatabase,
     EmbeddingDatabase,
     ProjectDatabase,
@@ -26,7 +27,7 @@ from passlib.context import CryptContext
 from typing import Optional, List
 from restai.config import MYSQL_HOST, MYSQL_URL, POSTGRES_HOST, POSTGRES_URL
 import json
-from restai.utils.crypto import decrypt_api_key
+from restai.utils.crypto import decrypt_api_key, hash_api_key
 
 if MYSQL_HOST:
     print("Using MySQL database: " + MYSQL_HOST)
@@ -159,7 +160,15 @@ class DBWrapper:
         return llm
 
     def get_user_by_apikey(self, apikey: str) -> Optional[UserDatabase]:
-        # Try to find user by decrypting stored API keys
+        key_hash = hash_api_key(apikey)
+        api_key_row = (
+            self.db.query(ApiKeyDatabase)
+            .filter(ApiKeyDatabase.key_hash == key_hash)
+            .first()
+        )
+        if api_key_row is not None:
+            return api_key_row.user
+        # Fallback: check legacy api_key column for migration period
         for user in self.db.query(UserDatabase).filter(UserDatabase.api_key.isnot(None)):
             try:
                 if decrypt_api_key(user.api_key) == apikey:
@@ -176,6 +185,40 @@ class DBWrapper:
         )
         return user
 
+    def create_api_key(self, user_id: int, encrypted_key: str, key_hash: str, key_prefix: str, description: str) -> ApiKeyDatabase:
+        api_key = ApiKeyDatabase(
+            user_id=user_id,
+            encrypted_key=encrypted_key,
+            key_hash=key_hash,
+            key_prefix=key_prefix,
+            description=description,
+            created_at=datetime.utcnow(),
+        )
+        self.db.add(api_key)
+        self.db.commit()
+        self.db.refresh(api_key)
+        return api_key
+
+    def get_api_keys_for_user(self, user_id: int) -> list[ApiKeyDatabase]:
+        return (
+            self.db.query(ApiKeyDatabase)
+            .filter(ApiKeyDatabase.user_id == user_id)
+            .order_by(ApiKeyDatabase.created_at.desc())
+            .all()
+        )
+
+    def delete_api_key(self, api_key_id: int, user_id: int) -> bool:
+        api_key = (
+            self.db.query(ApiKeyDatabase)
+            .filter(ApiKeyDatabase.id == api_key_id, ApiKeyDatabase.user_id == user_id)
+            .first()
+        )
+        if api_key is None:
+            return False
+        self.db.delete(api_key)
+        self.db.commit()
+        return True
+
     def update_user(self, user: User, user_update: UserUpdate) -> bool:
         if user_update.password is not None:
             user.hashed_password = pwd_context.hash(user_update.password)
@@ -185,9 +228,6 @@ class DBWrapper:
 
         if user_update.is_private is not None:
             user.is_private = user_update.is_private
-
-        if user_update.api_key is not None:
-            user.api_key = user_update.api_key
 
         if hasattr(user_update, "options") and user_update.options is not None:
             try:

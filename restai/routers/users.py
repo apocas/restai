@@ -9,7 +9,17 @@ from datetime import timedelta
 import secrets
 from fastapi.responses import RedirectResponse
 from restai import config
-from restai.models.models import User, UserCreate, UserLogin, UserUpdate, UsersResponse, LimitedUser
+from restai.models.models import (
+    ApiKeyCreate,
+    ApiKeyCreatedResponse,
+    ApiKeyResponse,
+    User,
+    UserCreate,
+    UserLogin,
+    UserUpdate,
+    UsersResponse,
+    LimitedUser,
+)
 from restai.database import get_db_wrapper, DBWrapper
 from restai.auth import (
     create_access_token,
@@ -20,20 +30,9 @@ from restai.auth import (
 from ssl import CERT_REQUIRED, PROTOCOL_TLS
 from ldap3 import Server, Connection, NONE, Tls
 from ldap3.utils.conv import escape_filter_chars
-from restai.utils.crypto import encrypt_api_key, decrypt_api_key
+from restai.utils.crypto import encrypt_api_key, hash_api_key
 
 router = APIRouter()
-
-def sanitize_user(user: User) -> User:
-    if hasattr(user, 'model_dump'):
-        user_dict = user.model_dump()
-    else:
-        user_dict = User.model_validate(user).model_dump()
-    
-    if "api_key" in user_dict:
-        user_dict["api_key"] = None
-        
-    return User.model_validate(user_dict)
 
 
 @router.post("/ldap")
@@ -152,16 +151,17 @@ async def route_get_user_details(
 ):
     try:
         user_model = User.model_validate(db_wrapper.get_user_by_username(username))
-        return sanitize_user(user_model)
+        return user_model
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.post("/users/{username}/apikey")
-async def route_get_user_apikey(
+@router.post("/users/{username}/apikeys", response_model=ApiKeyCreatedResponse)
+async def route_create_user_apikey(
     username: str,
+    body: ApiKeyCreate = ApiKeyCreate(),
     _: User = Depends(get_current_username_user),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -170,10 +170,66 @@ async def route_get_user_apikey(
         if user is None:
             raise HTTPException(status_code=404, detail="User not found")
 
-        apikey = uuid.uuid4().hex + secrets.token_urlsafe(32)
-        encrypted_apikey = encrypt_api_key(apikey)
-        db_wrapper.update_user(user, UserUpdate(api_key=encrypted_apikey))
-        return {"api_key": apikey}
+        plaintext = uuid.uuid4().hex + secrets.token_urlsafe(32)
+        encrypted = encrypt_api_key(plaintext)
+        key_hash = hash_api_key(plaintext)
+        key_prefix = plaintext[:8]
+
+        api_key_row = db_wrapper.create_api_key(
+            user_id=user.id,
+            encrypted_key=encrypted,
+            key_hash=key_hash,
+            key_prefix=key_prefix,
+            description=body.description,
+        )
+        return ApiKeyCreatedResponse(
+            id=api_key_row.id,
+            api_key=plaintext,
+            key_prefix=key_prefix,
+            description=api_key_row.description,
+            created_at=api_key_row.created_at,
+        )
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/users/{username}/apikeys", response_model=list[ApiKeyResponse])
+async def route_list_user_apikeys(
+    username: str,
+    _: User = Depends(get_current_username_user),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    try:
+        user = db_wrapper.get_user_by_username(username)
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        keys = db_wrapper.get_api_keys_for_user(user.id)
+        return [ApiKeyResponse.model_validate(k) for k in keys]
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/users/{username}/apikeys/{key_id}")
+async def route_delete_user_apikey(
+    username: str,
+    key_id: int,
+    _: User = Depends(get_current_username_user),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    try:
+        user = db_wrapper.get_user_by_username(username)
+        if user is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        deleted = db_wrapper.delete_api_key(key_id, user.id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="API key not found")
+        return {"deleted": key_id}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
@@ -189,7 +245,7 @@ async def route_get_users(
     # If user is admin, return all users
     if user.is_admin:
         users = db_wrapper.get_users()
-        users_final = [sanitize_user(User.model_validate(user_obj)) for user_obj in users]
+        users_final = [User.model_validate(user_obj) for user_obj in users]
     # For regular users, only return users from their teams
     else:
         # Get the set of unique users from all teams the current user belongs to
@@ -271,7 +327,7 @@ async def route_update_user(
                 if project_db is not None:
                     user_to_update.projects.append(project_db)
             db_wrapper.db.commit()
-        return sanitize_user(user_to_update)
+        return User.model_validate(user_to_update)
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

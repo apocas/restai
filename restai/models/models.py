@@ -215,19 +215,36 @@ class UserOptions(BaseModel):
     credit: float = -1.0
     model_config = ConfigDict(from_attributes=True)
 
+class ApiKeyCreate(BaseModel):
+    description: str = ""
+
+class ApiKeyResponse(BaseModel):
+    id: int
+    key_prefix: str
+    description: str
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class ApiKeyCreatedResponse(BaseModel):
+    id: int
+    api_key: str
+    key_prefix: str
+    description: str
+    created_at: datetime
+
 class User(BaseModel):
     id: int
     username: str
     is_admin: bool = False
     is_private: bool = False
     projects: list[UserProject] = []
-    api_key: Union[str, None] = None
+    api_keys: list[ApiKeyResponse] = []
     level: Union[str, None] = None
     options: Union[str, UserOptions] = UserOptions()
     teams: list["TeamModel"] = []
     admin_teams: list["TeamModel"] = []
     model_config = ConfigDict(from_attributes=True)
-    
+
     @field_validator('options', mode='before')
     @classmethod
     def parse_options(cls, v):
@@ -267,7 +284,6 @@ class UserUpdate(BaseModel):
     is_admin: bool = None
     is_private: bool = None
     projects: list[str] = None
-    api_key: str = None
     options: Union[UserOptions, None] = None
 
 

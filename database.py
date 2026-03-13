@@ -15,6 +15,7 @@ from restai.config import (
     RESTAI_DEMO,
 )
 from restai.models.databasemodels import (
+    ApiKeyDatabase,
     Base,
     LLMDatabase,
     ProjectDatabase,

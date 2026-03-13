@@ -1,3 +1,5 @@
+import hashlib
+
 from cryptography.fernet import Fernet, InvalidToken
 
 from restai import config
@@ -17,3 +19,6 @@ def decrypt_api_key(token: str) -> str:
         return fernet.decrypt(token.encode()).decode()
     except InvalidToken:
         raise ValueError("Invalid API key token or decryption failed.")
+
+def hash_api_key(plaintext: str) -> str:
+    return hashlib.sha256(plaintext.encode()).hexdigest()
