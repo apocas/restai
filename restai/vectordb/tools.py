@@ -20,10 +20,34 @@ if TYPE_CHECKING:
     from restai.vectordb.base import VectorBase
 
 
+def get_available_vectorstores() -> list[str]:
+    from restai.config import (
+        PGVECTOR_HOST, WEAVIATE_HOST,
+        PINECONE_API_KEY, PINECONE_INDEX,
+    )
+    available = ["chroma"]
+    if PGVECTOR_HOST:
+        available.append("pgvector")
+    if WEAVIATE_HOST:
+        available.append("weaviate")
+    if PINECONE_API_KEY and PINECONE_INDEX:
+        available.append("pinecone")
+    return available
+
+
 def find_vector_db(project: "Project") -> type["VectorBase"]:
     if project.props.vectorstore == "chromadb" or project.props.vectorstore == "chroma":
         from restai.vectordb.chromadb import ChromaDBVector
         return ChromaDBVector
+    elif project.props.vectorstore == "pgvector":
+        from restai.vectordb.pgvector import PGVectorDB
+        return PGVectorDB
+    elif project.props.vectorstore == "weaviate":
+        from restai.vectordb.weaviate import WeaviateDB
+        return WeaviateDB
+    elif project.props.vectorstore == "pinecone":
+        from restai.vectordb.pinecone import PineconeDB
+        return PineconeDB
     else:
         raise Exception("Invalid vectorDB type.")
 

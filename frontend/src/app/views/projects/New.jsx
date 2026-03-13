@@ -21,7 +21,7 @@ const ContentBox = styled("div")(({ theme }) => ({
 export default function ProjectNewView() {
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [projects, setProjects] = useState([]);
-  const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
+  const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [], "vectorstores": ["chroma"] });
   const auth = useAuth();
 
 

@@ -103,6 +103,20 @@ REDIS_PORT = os.environ.get("REDIS_PORT")
 CHROMADB_HOST = os.environ.get("CHROMADB_HOST")
 CHROMADB_PORT = os.environ.get("CHROMADB_PORT")
 
+PGVECTOR_HOST = os.environ.get("PGVECTOR_HOST") or POSTGRES_HOST
+PGVECTOR_PORT = os.environ.get("PGVECTOR_PORT") or os.environ.get("POSTGRES_PORT", "5432")
+PGVECTOR_USER = os.environ.get("PGVECTOR_USER") or POSTGRES_USER
+PGVECTOR_PASSWORD = os.environ.get("PGVECTOR_PASSWORD") or POSTGRES_PASSWORD
+PGVECTOR_DB = os.environ.get("PGVECTOR_DB", "restai_vectors")
+
+WEAVIATE_HOST = os.environ.get("WEAVIATE_HOST")
+WEAVIATE_PORT = os.environ.get("WEAVIATE_PORT", "8080")
+WEAVIATE_GRPC_PORT = os.environ.get("WEAVIATE_GRPC_PORT", "50051")
+WEAVIATE_API_KEY = os.environ.get("WEAVIATE_API_KEY")
+
+PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
+PINECONE_INDEX = os.environ.get("PINECONE_INDEX")
+
 RESTAI_GPU = (
     True if os.environ.get("RESTAI_GPU", "").lower() in ("true", "1") else False
 )

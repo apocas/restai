@@ -95,11 +95,14 @@ async def lifespan(fs_app: FastAPI):
         _: User = Depends(get_current_username),
         db_wrapper: DBWrapper = Depends(get_db_wrapper),
     ):
+        from restai.vectordb.tools import get_available_vectorstores
+
         output = {
             "version": fs_app.version,
             "loaders": list(LOADERS.keys()),
             "embeddings": [],
             "llms": [],
+            "vectorstores": get_available_vectorstores(),
         }
 
         db_llms = db_wrapper.get_llms()
