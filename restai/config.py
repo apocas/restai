@@ -1,5 +1,5 @@
 import os
-from cryptography.fernet import Fernet
+import secrets
 
 from dotenv import load_dotenv
 
@@ -26,9 +26,9 @@ load_env_vars()
 
 env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
 
-def _ensure_env_secret(var_name):
+def _ensure_env_secret(var_name, generator=None):
     if not os.environ.get(var_name):
-        secret = Fernet.generate_key().decode()
+        secret = generator() if generator else secrets.token_urlsafe(64)
         os.environ[var_name] = secret
         try:
             with open(env_path, "a") as f:
@@ -39,6 +39,14 @@ def _ensure_env_secret(var_name):
 
 _ensure_env_secret("RESTAI_AUTH_SECRET")
 _ensure_env_secret("SSO_SECRET_KEY")
+
+def _generate_fernet_key():
+    from cryptography.fernet import Fernet
+    return Fernet.generate_key().decode()
+
+_ensure_env_secret("RESTAI_FERNET_KEY", generator=_generate_fernet_key)
+
+RESTAI_FERNET_KEY = os.environ.get("RESTAI_FERNET_KEY")
 
 RESTAI_NAME = os.environ.get("RESTAI_NAME") or "RESTai"
 

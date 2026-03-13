@@ -1,10 +1,9 @@
-import os
 from cryptography.fernet import Fernet, InvalidToken
 
 from restai import config
 
-# Load encryption key from environment variable
-FERNET_KEY = config.RESTAI_AUTH_SECRET
+# Load encryption key from dedicated Fernet environment variable
+FERNET_KEY = config.RESTAI_FERNET_KEY
 if not FERNET_KEY:
     raise RuntimeError("RESTAI_FERNET_KEY environment variable not set.")
 
