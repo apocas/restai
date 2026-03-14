@@ -49,6 +49,7 @@ class QuestionModel(InteractionModel):
 
 class ChatModel(InteractionModel):
     id: Union[str, None] = None
+    image: Union[str, None] = None
 
 class EntranceModel(BaseModel):
     destination: str
@@ -341,9 +342,6 @@ class QuestionResponse(InferenceResponse):
 
 class RagSqlResponse(InferenceResponse):
     sources: list[str]
-
-class VisionResponse(QuestionResponse):
-    image: Union[str, None] = None
 
 class ChatResponse(QuestionResponse):
     id: str

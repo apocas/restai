@@ -1,12 +1,23 @@
+import base64
 import json
 import logging
-from llama_index.core.base.llms.types import ChatMessage, MessageRole
+from llama_index.core.base.llms.types import ChatMessage, MessageRole, TextBlock, ImageBlock
 from restai.chat import Chat
 from restai.database import DBWrapper
 from restai.guard import Guard
 from restai.models.models import ChatModel, QuestionModel, User
 from restai.project import Project
 from restai.projects.base import ProjectBase
+
+
+def _build_user_message(text: str, image_b64: str | None = None) -> ChatMessage:
+    """Build a ChatMessage, using multimodal blocks when an image is present."""
+    if image_b64:
+        return ChatMessage(role=MessageRole.USER, blocks=[
+            TextBlock(text=text),
+            ImageBlock(image=base64.b64decode(image_b64)),
+        ])
+    return ChatMessage(role=MessageRole.USER, content=text)
 
 
 class Inference(ProjectBase):
@@ -47,11 +58,16 @@ class Inference(ProjectBase):
                     ChatMessage(role=MessageRole.SYSTEM, content=sysTemplate),
                 )
 
+        # Store text-only message in chat history (image is per-message, not persisted)
         chat.memory.chat_store.add_message(
             chat.memory.chat_store_key,
             ChatMessage(role=MessageRole.USER, content=chat_model.question),
         )
+
+        # Build messages for LLM call — replace the last USER message with multimodal if image present
         messages = chat.memory.get_all()
+        if chat_model.image:
+            messages[-1] = _build_user_message(chat_model.question, chat_model.image)
 
         try:
             if chat_model.stream:
@@ -61,9 +77,9 @@ class Inference(ProjectBase):
                     parts.append(text.delta)
                     yield "data: " + json.dumps({"text": text.delta}) + "\n\n"
                 response = "".join(parts)
-                
+
                 output["answer"] = response
-                
+
                 chat.memory.chat_store.add_message(
                     chat.memory.chat_store_key,
                     ChatMessage(role=MessageRole.ASSISTANT, content=response),
@@ -133,20 +149,18 @@ class Inference(ProjectBase):
             model.llm.system_prompt = sysTemplate
             messages.append(ChatMessage(role=MessageRole.SYSTEM, content=sysTemplate))
 
-        messages.append(
-            ChatMessage(role=MessageRole.USER, content=question_model.question)
-        )
+        messages.append(_build_user_message(question_model.question, question_model.image))
 
         try:
             if question_model.stream:
                 resp_gen = model.llm.stream_chat(messages)
-                                    
+
                 parts = []
                 for text in resp_gen:
                     parts.append(text.delta)
                     yield "data: " + json.dumps({"text": text.delta}) + "\n\n"
                 response = "".join(parts)
-                
+
                 output["answer"] = response
 
                 self.brain.post_processing_reasoning(output)

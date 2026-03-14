@@ -22,7 +22,7 @@ import BAvatar from "boring-avatars";
 const Form = styled("form")(() => ({ padding: "16px" }));
 
 export default function ProjectNew({ projects, info }) {
-  const typeList = ["rag", "inference", "agent", "ragsql", "vision", "router"];
+  const typeList = ["rag", "inference", "agent", "ragsql", "router"];
   var vectorstoreList = info.vectorstores || ["chroma"];
   const auth = useAuth();
   const navigate = useNavigate();
@@ -260,11 +260,6 @@ export default function ProjectNew({ projects, info }) {
                       helperText={teamLLMs.length === 0 ? "No LLMs available for this team" : ""}
                     >
                       {teamLLMs
-                        .filter(item =>
-                          state.projecttype === "vision"
-                            ? item.type === "vision"
-                            : item.type !== "vision"
-                        )
                         .map((item) => (
                           <MenuItem value={item.name} key={item.name}>
                             {item.name}

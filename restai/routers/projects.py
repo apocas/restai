@@ -350,7 +350,6 @@ async def route_create_project(
         "inference",
         "router",
         "ragsql",
-        "vision",
         "agent",
     ]:
         raise HTTPException(status_code=404, detail="Invalid project type")

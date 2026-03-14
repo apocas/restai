@@ -1,10 +1,11 @@
-import { Card, Divider, Box, Grid, TextField, Button, Typography } from "@mui/material";
+import { Card, Divider, Box, Grid, TextField, Button, Typography, MenuItem } from "@mui/material";
 import { H4 } from "app/components/Typography";
 import { useState, useEffect } from "react";
 import useAuth from "app/hooks/useAuth";
 import { toast } from 'react-toastify';
 import { useNavigate } from "react-router-dom";
 import { JsonEditor } from 'json-edit-react';
+import { PROVIDER_CONFIG } from '../providerConfig';
 
 export default function LLMEdit({ llm }) {
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
@@ -98,13 +99,18 @@ export default function LLMEdit({ llm }) {
             <Grid item sm={6} xs={12}>
               <TextField
                 fullWidth
+                select
                 InputLabelProps={{ shrink: true }}
                 name="class_name"
                 label="Class Name"
                 variant="outlined"
                 onChange={handleChange}
-                value={state.class_name}
-              />
+                value={state.class_name || ""}
+              >
+                {Object.entries(PROVIDER_CONFIG).map(([key, config]) => (
+                  <MenuItem key={key} value={key}>{config.label}</MenuItem>
+                ))}
+              </TextField>
             </Grid>
 
             <Grid item sm={6} xs={12}>
@@ -121,13 +127,18 @@ export default function LLMEdit({ llm }) {
             <Grid item sm={6} xs={12}>
               <TextField
                 fullWidth
+                select
                 InputLabelProps={{ shrink: true }}
                 name="privacy"
                 label="Privacy"
                 variant="outlined"
                 onChange={handleChange}
-                value={state.privacy}
-              />
+                value={state.privacy || ""}
+              >
+                {["public", "private"].map((p) => (
+                  <MenuItem key={p} value={p}>{p}</MenuItem>
+                ))}
+              </TextField>
             </Grid>
 
             <Grid item sm={6} xs={12}>
@@ -145,13 +156,18 @@ export default function LLMEdit({ llm }) {
             <Grid item sm={6} xs={12}>
               <TextField
                 fullWidth
+                select
                 InputLabelProps={{ shrink: true }}
                 name="type"
                 label="Type"
                 variant="outlined"
                 onChange={handleChange}
-                value={state.type}
-              />
+                value={state.type || ""}
+              >
+                {["qa", "chat", "vision"].map((t) => (
+                  <MenuItem key={t} value={t}>{t}</MenuItem>
+                ))}
+              </TextField>
             </Grid>
 
             <Grid item sm={6} xs={12}>

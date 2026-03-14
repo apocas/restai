@@ -103,8 +103,6 @@ export default function ProjectsTable({ projects = [], title = "Projects" }) {
             customBodyRender: (value, tableMeta, updateValue) => (
               <div>{value === "rag" ? (
                 <Small bgcolor={bgSecondary}>{value}</Small>
-              ) : value === "vision" ? (
-                <Small bgcolor={bgPrimary}>{value}</Small>
               ) : value === "inference" ? (
                 <Small bgcolor={palette.success.light}>{value}</Small>
               ) : value === "agent" ? (

@@ -213,9 +213,6 @@ export default function ChatContainer({
           }
         })
         .then((response) => {
-          if (project.type === "vision" && !response.image) {
-            response.image = image;
-          }
           setMessages([...messages, response]);
           setCanSubmit(true);
           if (response.guard === true) {
@@ -306,7 +303,7 @@ export default function ChatContainer({
   }, [messages]);
 
   useEffect(() => {
-    if (project.type === "vision" || project.type === "router") {
+    if (project.type === "router") {
       setChat(false);
     }
     if (project.default_prompt) {
@@ -455,7 +452,7 @@ export default function ChatContainer({
               onClick={() => handleClickImage(image)}
             />
           )}
-          {project.type === "vision" && (
+          {project.type === "inference" && (
             <Fragment>
               <label htmlFor="upload-single-file">
                 <Fab

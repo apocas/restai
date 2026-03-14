@@ -10,7 +10,6 @@ from restai.projects.inference import Inference
 from restai.projects.rag import RAG
 from restai.projects.ragsql import RAGSql
 from restai.projects.router import Router
-from restai.projects.vision import Vision
 from restai.models.models import QuestionModel, User, ChatModel
 from restai.brain import Brain
 import requests
@@ -27,6 +26,20 @@ from restai.projects.base import ProjectBase
 
 logging.basicConfig(level=LOG_LEVEL)
 logging.getLogger("passlib").setLevel(logging.ERROR)
+
+
+def resolve_image(image: str) -> str:
+    """If image is a URL, fetch it and return base64-encoded data. Otherwise return as-is."""
+    url_pattern = re.compile(
+        r"https?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(),]|%[0-9a-fA-F][0-9a-fA-F])+"
+    )
+    if re.match(url_pattern, image):
+        response = requests.get(image)
+        response.raise_for_status()
+        if response.content is None:
+            raise ValueError("Content is null.")
+        return base64.b64encode(response.content).decode("utf-8")
+    return image
 
 
 async def create_streaming_response_with_logging(
@@ -89,6 +102,8 @@ async def chat_main(
             proj_logic = Router(brain)
         case "inference":
             proj_logic = Inference(brain)
+            if chat_input.image:
+                chat_input.image = resolve_image(chat_input.image)
         case "agent":
             proj_logic = Agent(brain)
         case _:
@@ -140,8 +155,6 @@ async def question_main(
             return await question_router(
                 request, brain, project, q_input, user, db, background_tasks
             )
-        case "vision":
-            return await question_vision(project, brain, q_input, user, db)
         case "agent":
             return await question_agent(
                 brain, project, q_input, user, db, background_tasks
@@ -258,6 +271,9 @@ async def question_inference(
                 status_code=400, detail="Only available for INFERENCE projects."
             )
 
+        if q_input.image:
+            q_input.image = resolve_image(q_input.image)
+
         if q_input.stream:
             return await create_streaming_response_with_logging(
                 proj_logic.question(project, q_input, user, db),
@@ -342,39 +358,3 @@ async def question_query_sql(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def question_vision(
-    project: Project, brain: Brain, q_input: QuestionModel, user: User, db: DBWrapper
-):
-    try:
-        projLogic: Vision = Vision(brain)
-
-        if project.props.type != "vision":
-            raise HTTPException(
-                status_code=400, detail="Only available for VISION projects."
-            )
-
-        if q_input.image:
-            url_pattern: re.Pattern = re.compile(
-                r"https?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(),]|%[0-9a-fA-F][0-9a-fA-F])+"
-            )
-            is_url: bool = re.match(url_pattern, q_input.image) is not None
-
-            if is_url:
-                response: Response = requests.get(q_input.image)
-                response.raise_for_status()
-                image_data: Optional[bytes] = response.content
-                if image_data is None:
-                    raise ValueError("Content is null.")
-                q_input.image = base64.b64encode(image_data).decode("utf-8")
-
-        output = await projLogic.question(project, q_input, user, db)
-
-        if q_input.lite:
-            del output["image"]
-
-        # log_inference.info({"user": user.username, "project": projectName, "output": output})
-        return output
-    except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))

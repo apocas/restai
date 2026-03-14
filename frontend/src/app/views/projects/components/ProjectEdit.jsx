@@ -563,11 +563,6 @@ export default function ProjectEdit({ project, projects, info }) {
                       // Filter by both team access and project type
                       return teamLLMNames.includes(item.name);
                     })
-                    .filter(item =>
-                      state.type === "vision"
-                        ? item.type === "vision"
-                        : item.type !== "vision"
-                    )
                     .map((item) => (
                       <MenuItem value={item.name} key={item.name}>
                         {item.name}
