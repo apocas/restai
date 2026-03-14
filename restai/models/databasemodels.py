@@ -164,6 +164,12 @@ class LLMDatabase(Base):
     output_cost = Column(Float, default=0.0)
     teams = relationship('TeamDatabase', secondary=teams_llms, back_populates='llms')
     
+class SettingDatabase(Base):
+    __tablename__ = "settings"
+    key = Column(String(255), primary_key=True)
+    value = Column(Text, nullable=True)
+
+
 class EmbeddingDatabase(Base):
     __tablename__ = "embeddings"
 

@@ -146,6 +146,8 @@ LDAP_USE_TLS = os.environ.get("LDAP_USE_TLS")
 LDAP_CA_CERT_FILE = os.environ.get("LDAP_CA_CERT_FILE")
 LDAP_CIPHERS = os.environ.get("LDAP_CIPHERS")
 
+HIDE_BRANDING = os.environ.get("RESTAI_HIDE", "").lower() in ("true", "1")
+
 PROXY_URL = os.environ.get("PROXY_URL")
 PROXY_KEY = os.environ.get("PROXY_KEY")
 PROXY_TEAM_ID = os.environ.get("PROXY_TEAM_ID")

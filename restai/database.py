@@ -7,6 +7,7 @@ from restai.models.databasemodels import (
     EmbeddingDatabase,
     ProjectDatabase,
     RouterEntrancesDatabase,
+    SettingDatabase,
     UserDatabase,
     TeamDatabase,
 )
@@ -660,6 +661,16 @@ class DBWrapper:
             return []
         return list(set(user.teams + user.admin_teams))
         
+    def get_settings(self) -> list[SettingDatabase]:
+        return self.db.query(SettingDatabase).all()
+
+    def get_setting(self, key: str) -> Optional[SettingDatabase]:
+        return self.db.query(SettingDatabase).filter(SettingDatabase.key == key).first()
+
+    def upsert_setting(self, key: str, value: str) -> None:
+        self.db.merge(SettingDatabase(key=key, value=value))
+        self.db.commit()
+
     def update_team_members(self, team: TeamDatabase, team_update: TeamModelUpdate) -> bool:
         changed = False
         

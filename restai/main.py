@@ -54,6 +54,7 @@ async def lifespan(fs_app: FastAPI):
         statistics,
         auth,
         teams,
+        settings,
     )
     from restai.models.models import User
     from restai.multiprocessing import get_manager
@@ -61,6 +62,13 @@ async def lifespan(fs_app: FastAPI):
 
     fs_app.state.manager = get_manager()
     fs_app.state.brain = Brain()
+
+    from restai.settings import ensure_settings_table, seed_defaults, load_settings
+    from restai.database import engine as db_engine
+    ensure_settings_table(db_engine)
+    settings_db_wrapper = get_db_wrapper()
+    seed_defaults(settings_db_wrapper)
+    load_settings(settings_db_wrapper)
 
     if not RESTAI_URL:
       logging.warning("RESTAI_URL env var missing. OAUTH auth schemes may not work properly.")
@@ -88,6 +96,9 @@ async def lifespan(fs_app: FastAPI):
             "sso": sso_list,
             "proxy": bool(config.PROXY_URL),
             "gpu": config.RESTAI_GPU,
+            "app_name": config.RESTAI_NAME,
+            "hide_branding": config.HIDE_BRANDING,
+            "proxy_url": config.PROXY_URL or "",
         }
 
     @fs_app.get("/info")
@@ -160,6 +171,7 @@ async def lifespan(fs_app: FastAPI):
     fs_app.include_router(statistics.router)
     fs_app.include_router(auth.router)
     fs_app.include_router(teams.router)
+    fs_app.include_router(settings.router)
 
     if config.RESTAI_GPU == True:
         fs_app.include_router(image.router)

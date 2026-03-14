@@ -1,0 +1,247 @@
+import { useState, useEffect } from "react";
+import {
+  Grid, styled, Box, Card, Divider, TextField, Button,
+  Switch, FormControlLabel, Typography
+} from "@mui/material";
+import useAuth from "app/hooks/useAuth";
+import Breadcrumb from "app/components/Breadcrumb";
+import { toast } from "react-toastify";
+import { usePlatformCapabilities } from "app/contexts/PlatformContext";
+import { Settings as SettingsIcon } from "@mui/icons-material";
+import { H4 } from "app/components/Typography";
+
+const Container = styled("div")(({ theme }) => ({
+  margin: 10,
+  [theme.breakpoints.down("sm")]: { margin: 16 },
+  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
+}));
+
+const ContentBox = styled("div")(({ theme }) => ({
+  margin: "30px",
+  [theme.breakpoints.down("sm")]: { margin: "16px" }
+}));
+
+const FlexBox = styled(Box)({
+  display: "flex",
+  alignItems: "center"
+});
+
+export default function SettingsPage() {
+  const url = process.env.REACT_APP_RESTAI_API_URL || "";
+  const auth = useAuth();
+  const { refreshCapabilities } = usePlatformCapabilities();
+
+  const [form, setForm] = useState({
+    app_name: "RESTai",
+    hide_branding: false,
+    proxy_enabled: false,
+    proxy_url: "",
+    proxy_key: "",
+    proxy_team_id: "",
+    agent_max_iterations: 20,
+    max_audio_upload_size: 10
+  });
+  const [saving, setSaving] = useState(false);
+
+  const fetchSettings = () => {
+    fetch(url + "/settings", {
+      headers: new Headers({ "Authorization": "Basic " + auth.user.token })
+    })
+      .then((res) => {
+        if (!res.ok) throw Error(res.statusText);
+        return res.json();
+      })
+      .then((data) => setForm(data))
+      .catch((err) => toast.error(err.toString()));
+  };
+
+  useEffect(() => {
+    document.title = "RESTai - Settings";
+    fetchSettings();
+  }, []);
+
+  const handleChange = (field) => (e) => {
+    const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = () => {
+    setSaving(true);
+    const body = { ...form };
+    // Convert numeric fields
+    body.agent_max_iterations = parseInt(body.agent_max_iterations, 10) || 20;
+    body.max_audio_upload_size = parseInt(body.max_audio_upload_size, 10) || 10;
+
+    fetch(url + "/settings", {
+      method: "PATCH",
+      headers: new Headers({
+        "Authorization": "Basic " + auth.user.token,
+        "Content-Type": "application/json"
+      }),
+      body: JSON.stringify(body)
+    })
+      .then((res) => {
+        if (!res.ok) {
+          return res.json().then((d) => { throw Error(d.detail || res.statusText); });
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setForm(data);
+        toast.success("Settings saved");
+        refreshCapabilities();
+      })
+      .catch((err) => toast.error(err.toString()))
+      .finally(() => setSaving(false));
+  };
+
+  return (
+    <Container>
+      <Box className="breadcrumb">
+        <Breadcrumb routeSegments={[{ name: "Settings", path: "/settings" }]} />
+      </Box>
+
+      <ContentBox>
+        <Grid container spacing={3}>
+          {/* General */}
+          <Grid item xs={12}>
+            <Card elevation={3}>
+              <FlexBox>
+                <SettingsIcon sx={{ ml: 2 }} />
+                <H4 sx={{ p: 2 }}>General</H4>
+              </FlexBox>
+              <Divider />
+              <Box sx={{ p: 3 }}>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="App Name"
+                      value={form.app_name}
+                      onChange={handleChange("app_name")}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={form.hide_branding}
+                          onChange={handleChange("hide_branding")}
+                        />
+                      }
+                      label="Hide Branding"
+                    />
+                  </Grid>
+                </Grid>
+              </Box>
+            </Card>
+          </Grid>
+
+          {/* LLM Proxy */}
+          <Grid item xs={12}>
+            <Card elevation={3}>
+              <FlexBox>
+                <SettingsIcon sx={{ ml: 2 }} />
+                <H4 sx={{ p: 2 }}>LLM Proxy</H4>
+              </FlexBox>
+              <Divider />
+              <Box sx={{ p: 3 }}>
+                <Grid container spacing={3}>
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={form.proxy_enabled}
+                          onChange={handleChange("proxy_enabled")}
+                        />
+                      }
+                      label="Enable Proxy"
+                    />
+                  </Grid>
+                  {form.proxy_enabled && (
+                    <>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Proxy URL"
+                          value={form.proxy_url}
+                          onChange={handleChange("proxy_url")}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Proxy Key"
+                          type="password"
+                          value={form.proxy_key}
+                          onChange={handleChange("proxy_key")}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Proxy Team ID"
+                          value={form.proxy_team_id}
+                          onChange={handleChange("proxy_team_id")}
+                        />
+                      </Grid>
+                    </>
+                  )}
+                </Grid>
+              </Box>
+            </Card>
+          </Grid>
+
+          {/* Limits */}
+          <Grid item xs={12}>
+            <Card elevation={3}>
+              <FlexBox>
+                <SettingsIcon sx={{ ml: 2 }} />
+                <H4 sx={{ p: 2 }}>Limits</H4>
+              </FlexBox>
+              <Divider />
+              <Box sx={{ p: 3 }}>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Agent Max Iterations"
+                      type="number"
+                      inputProps={{ min: 1 }}
+                      value={form.agent_max_iterations}
+                      onChange={handleChange("agent_max_iterations")}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Max Audio Upload Size (MB)"
+                      type="number"
+                      inputProps={{ min: 1 }}
+                      value={form.max_audio_upload_size}
+                      onChange={handleChange("max_audio_upload_size")}
+                    />
+                  </Grid>
+                </Grid>
+              </Box>
+            </Card>
+          </Grid>
+
+          {/* Save */}
+          <Grid item xs={12}>
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save Settings"}
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+      </ContentBox>
+    </Container>
+  );
+}

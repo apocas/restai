@@ -10,6 +10,7 @@ import KeysTable from "./components/KeysTable";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import { toast } from 'react-toastify';
+import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 
 import { Route } from "@mui/icons-material";
 import { CopyBlock, monoBlue } from "react-code-blocks";
@@ -49,9 +50,10 @@ export default function Keys() {
   const [info, setInfo] = useState({ "models": [], "url": "" });
   const auth = useAuth();
   const bgPrimary = palette.primary.main;
+  const { platformCapabilities } = usePlatformCapabilities();
 
   const replaceVars = (code) => {
-    code = code.replaceAll('<RESTAI_PROXY>', process.env.REACT_APP_RESTAI_PROXY || "127.0.0.1");
+    code = code.replaceAll('<RESTAI_PROXY>', platformCapabilities.proxy_url || "127.0.0.1");
     return code;
   }
 
@@ -139,7 +141,7 @@ print(completion)`);
               <TableBody>
               <TableRow>
                   <TableCell sx={{ pl: 2 }}>External Proxy</TableCell>
-                  <TableCell colSpan={4}>{process.env.REACT_APP_RESTAI_PROXY || info.url}</TableCell>
+                  <TableCell colSpan={4}>{platformCapabilities.proxy_url || info.url}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell sx={{ pl: 2 }}>Internal Proxy</TableCell>

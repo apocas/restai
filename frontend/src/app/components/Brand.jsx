@@ -3,6 +3,7 @@ import { Box, styled } from "@mui/material";
 import { Span } from "./Typography";
 import { MatxLogo } from "app/components";
 import useSettings from "app/hooks/useSettings";
+import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 
 const BrandRoot = styled(Box)(() => ({
   display: "flex",
@@ -19,6 +20,7 @@ const StyledSpan = styled(Span)(({ mode }) => ({
 
 export default function Brand({ children }) {
   const { settings } = useSettings();
+  const { platformCapabilities } = usePlatformCapabilities();
   const leftSidebar = settings.layout1Settings.leftSidebar;
   const { mode } = leftSidebar;
 
@@ -27,7 +29,7 @@ export default function Brand({ children }) {
       <Box display="flex" alignItems="center">
         <MatxLogo />
         <StyledSpan mode={mode} className="sidenavHoverShow">
-          {process.env.REACT_APP_RESTAI_NAME || "RESTai"}
+          {platformCapabilities.app_name || "RESTai"}
         </StyledSpan>
       </Box>
 

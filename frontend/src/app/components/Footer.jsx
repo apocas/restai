@@ -7,6 +7,7 @@ import { topBarHeight } from "app/utils/constant";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from "react-router-dom";
+import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 
 const AppFooter = styled(Toolbar)(() => ({
   display: "flex",
@@ -36,6 +37,7 @@ const FooterContent = styled("div")(() => ({
 export default function Footer() {
   const theme = useTheme();
   const { settings } = useSettings();
+  const { platformCapabilities } = usePlatformCapabilities();
 
   const footerTheme = settings.themes[settings.footer.theme] || theme;
 
@@ -76,7 +78,7 @@ export default function Footer() {
         <AppFooter>
           <FooterContent style={{ textAlign: "center" }}>
             <Paragraph alignItems="center" width={"100%"}>
-              {!process.env.REACT_APP_RESTAI_HIDE && (
+              {!platformCapabilities.hide_branding && (
                 <>
                   Powered by <b><a href="https://github.com/apocas/restai">RESTai</a></b>, so many 'A's and 'I's, so little time...
                   <br />

@@ -444,3 +444,25 @@ class OllamaModelPullResponse(BaseModel):
     status: str
     model: str
     digest: Optional[str] = None
+
+
+class SettingsResponse(BaseModel):
+    app_name: str
+    hide_branding: bool
+    proxy_enabled: bool
+    proxy_url: Optional[str] = ""
+    proxy_key: Optional[str] = ""
+    proxy_team_id: Optional[str] = ""
+    agent_max_iterations: int
+    max_audio_upload_size: int
+
+
+class SettingsUpdate(BaseModel):
+    app_name: Optional[str] = None
+    hide_branding: Optional[bool] = None
+    proxy_enabled: Optional[bool] = None
+    proxy_url: Optional[str] = None
+    proxy_key: Optional[str] = None
+    proxy_team_id: Optional[str] = None
+    agent_max_iterations: Optional[int] = None
+    max_audio_upload_size: Optional[int] = None

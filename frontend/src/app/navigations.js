@@ -4,6 +4,12 @@ import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 // Default navigations without conditional items
 export const defaultNavigations = [
   { name: "Home", path: "/home", icon: "dashboard" },
+  {
+    name: "Settings",
+    icon: "settings",
+    path: "/settings",
+    auth: authRoles.admin,
+  },
   { label: "AIaaS", type: "label" },
   {
     name: "Projects",
@@ -96,27 +102,17 @@ export const gpuDependentItems = {
     icon: "speaker",
     path: "/audio",
   },
-  aiProxy: {
-    name: "AI Proxy",
-    icon: "route",
-    path: "/proxy",
-    auth: authRoles.admin,
-    children: [
-      { name: "API Keys", iconText: "SI", path: "/proxy/keys", auth: authRoles.admin },
-      { name: "New Key", iconText: "SU", path: "/proxy/keys/new", auth: authRoles.admin },
-    ]
-  }
 };
 
 // Pure function to build navigation structure based on gpu capability
 // This doesn't use any hooks
 export const buildNavigations = (hasGpu, hasProxy) => {
   const navigations = [...defaultNavigations];
-  
+
   // Insert GPU-dependent items before the Docs label
   const docsLabelIndex = navigations.findIndex(item => item.label === "Docs");
   const insertPosition = docsLabelIndex !== -1 ? docsLabelIndex : navigations.length;
-  
+
   // Only show Image Gen if GPU is available
   if (hasGpu) {
     navigations.splice(insertPosition, 0, gpuDependentItems.imageGen);
@@ -127,9 +123,19 @@ export const buildNavigations = (hasGpu, hasProxy) => {
     navigations.splice(insertPosition + (hasGpu ? 1 : 0), 0, gpuDependentItems.audioGen);
   }
 
-  // Only show AI Proxy if GPU is available
+  // Show AI Proxy after Tools when proxy is enabled
   if (hasProxy) {
-    navigations.splice(insertPosition + (hasProxy ? 2 : 0), 0, gpuDependentItems.aiProxy);
+    const toolsIndex = navigations.findIndex(item => item.path === "/projects/tools");
+    navigations.splice(toolsIndex + 1, 0, {
+      name: "AI Proxy",
+      icon: "route",
+      path: "/proxy",
+      auth: authRoles.admin,
+      children: [
+        { name: "API Keys", iconText: "SI", path: "/proxy/keys", auth: authRoles.admin },
+        { name: "New Key", iconText: "SU", path: "/proxy/keys/new", auth: authRoles.admin },
+      ]
+    });
   }
 
   return navigations;

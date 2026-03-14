@@ -20,6 +20,7 @@ from restai.models.databasemodels import (
     LLMDatabase,
     ProjectDatabase,
     RouterEntrancesDatabase,
+    SettingDatabase,
     UserDatabase,
     EmbeddingDatabase,
     TeamDatabase
