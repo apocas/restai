@@ -20,7 +20,8 @@
 ## Features
 
 - **Projects**: There are multiple project types, each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [router](https://github.com/apocas/restai?tab=readme-ov-file#router), [agent](https://github.com/apocas/restai?tab=readme-ov-file#agent))
-- **Users**: A user represents a user of the system. Each user may have access to multiple projects.
+- **Teams**: Multi-tenancy layer. Each team has its own users, team admins, projects, and access to specific LLMs and embeddings. Projects belong to a team, and users can only use the models their team has been granted access to.
+- **Users**: A user represents a user of the system. Users belong to one or more teams and may have access to multiple projects within those teams.
 - **LLMs**: Supports any public LLM supported by LlamaIndex. Which includes any local LLM supported by Ollama, LiteLLM, etc.
 - **API**: The API is a first-class citizen of RestAI. All endpoints are documented using [Swagger](https://apocas.github.io/restai/).
 - **Frontend**: A React-based frontend is included in the `frontend/` folder and served automatically at `/admin`.
