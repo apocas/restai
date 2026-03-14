@@ -15,7 +15,7 @@ const LLMsNew = Loadable(lazy(() => import("app/views/llms/NewInteractive")));
 const LLMsInfo = Loadable(lazy(() => import("app/views/llms/Info")));
 const LLMsEdit = Loadable(lazy(() => import("app/views/llms/Edit")));
 const Embeddings = Loadable(lazy(() => import("app/views/embeddings/List")));
-const EmbeddingsNew = Loadable(lazy(() => import("app/views/embeddings/New")));
+const EmbeddingsNew = Loadable(lazy(() => import("app/views/embeddings/NewInteractive")));
 const EmbeddingsInfo = Loadable(lazy(() => import("app/views/embeddings/Info")));
 const EmbeddingsEdit = Loadable(lazy(() => import("app/views/embeddings/Edit")));
 const Projects = Loadable(lazy(() => import("app/views/projects/List")));
