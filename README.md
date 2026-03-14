@@ -23,7 +23,7 @@
 - **Users**: A user represents a user of the system. Each user may have access to multiple projects.
 - **LLMs**: Supports any public LLM supported by LlamaIndex. Which includes any local LLM supported by Ollama, LiteLLM, etc.
 - **API**: The API is a first-class citizen of RestAI. All endpoints are documented using [Swagger](https://apocas.github.io/restai/).
-- **Frontend**: There is a frontend available at [restai-frontend](https://github.com/apocas/restai-frontend)
+- **Frontend**: A React-based frontend is included in the `frontend/` folder and served automatically at `/admin`.
 - **Image Generation**: Supports local and remote image generators. Local image generators are run in a separate process. New generators are [easily added](https://github.com/apocas/restai?tab=readme-ov-file#image-generators) and loaded dynamically.
 - **Proxy**: Allows management of an OpenAI compatible proxy. LiteLLM is supported out of the box.
 - **Telegram**: Connect any project to Telegram via BotFather. Messages are processed through the project's chat pipeline and responses are sent back automatically.
@@ -281,8 +281,10 @@ To delete everything or a specific container don't forget to pass the necessary 
 
 ## Frontend
 
-- Source code at [https://github.com/apocas/restai-frontend](https://github.com/apocas/restai-frontend).
-- `make install` automatically installs the frontend.
+- The frontend is included in the `frontend/` folder (React 18 + MUI).
+- `make install` automatically installs dependencies and builds it.
+- In development, run `cd frontend && npm start` for a dev server on port 3000 (proxies API requests to port 9000).
+- In production, the built frontend is served by the backend at `/admin`.
 
 ## Tests
 
