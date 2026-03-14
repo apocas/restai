@@ -1,118 +1,126 @@
-import json
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import StreamingResponse, Response
 from typing import Optional
-
-from fastapi import APIRouter
-from fastapi import Depends
-from fastapi import HTTPException, Request
-import traceback
-import logging
-from restai import config
-from restai.models.databasemodels import EmbeddingDatabase, ProjectDatabase
-from restai.models.models import EmbeddingModel, User, EmbeddingUpdate
-from restai.database import get_db_wrapper, DBWrapper
-from restai.auth import get_current_username, get_current_username_admin
-
-logging.basicConfig(level=config.LOG_LEVEL)
-logging.getLogger('passlib').setLevel(logging.ERROR)
+import base64
+import io
+import os
+from restai.auth import get_current_user
+from restai.database import get_db
+from restai.models.databasemodels import User, Embeddings
+from restai.project import get_project
+from sqlalchemy.orm import Session
 
 router = APIRouter()
 
 
-@router.get("/embeddings/{embedding_name}", response_model=EmbeddingModel)
-async def api_get_embedding(embedding_name: str,
-                      _: User = Depends(get_current_username),
-                      db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-  
-    try:
-        llm = EmbeddingModel.model_validate(db_wrapper.get_embedding_by_name(embedding_name))
-        if llm.options is not None:
-            options = json.loads(llm.options)
-            if 'api_key' in options:
-                options["api_key"] = "********"
-                llm.options = json.dumps(options)
-            return llm
-    except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=404, detail=str(e))
-
-
-@router.get("/embeddings", response_model=list[EmbeddingModel])
-async def api_get_embeddings(
-        _: User = Depends(get_current_username),
-        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    embeddings: list[Optional[EmbeddingModel]] = [EmbeddingModel.model_validate(embedding) for embedding in db_wrapper.get_embeddings()]
-    for embedding in embeddings:
-        if embedding.options is not None:
-            options = json.loads(embedding.options)
-            if 'api_key' in options:
-                options["api_key"] = "********"
-                embedding.options = json.dumps(options)
+@router.get("/projects/{project_name}/embeddings")
+def get_embeddings(project_name: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    project = get_project(project_name, current_user, db)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
     
+    embeddings = db.query(Embeddings).filter(Embeddings.project_name == project_name).all()
     return embeddings
 
 
-@router.post("/embeddings")
-async def api_create_embeddings(embeddingc: EmbeddingModel,
-                         _: User = Depends(get_current_username_admin),
-                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+@router.get("/projects/{project_name}/embeddings/source/{source}")
+def get_embedding_source(project_name: str, source: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    project = get_project(project_name, current_user, db)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Decode the base64 encoded source
     try:
-        embedding: EmbeddingDatabase = db_wrapper.create_embedding(embeddingc.name, embeddingc.class_name, embeddingc.options, embeddingc.privacy, embeddingc.description, embeddingc.dimension)
-        return embedding
+        decoded_source = base64.b64decode(source).decode('utf-8')
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500,
-            detail='Failed to create Embedding ' + embeddingc.name)
+        raise HTTPException(status_code=400, detail=f"Invalid source encoding: {str(e)}")
+    
+    # Get the embedding
+    embedding = db.query(Embeddings).filter(
+        Embeddings.project_name == project_name,
+        Embeddings.source == decoded_source
+    ).first()
+    
+    if embedding is None:
+        raise HTTPException(status_code=404, detail="Embedding not found")
+    
+    # Read the file content
+    if embedding.source_type == "file" and embedding.source_path:
+        try:
+            with open(embedding.source_path, 'rb') as f:
+                content = f.read()
+            
+            # Try to decode as UTF-8 for text files, otherwise return binary
+            try:
+                text_content = content.decode('utf-8')
+                return {"source": decoded_source, "content": text_content, "type": "text"}
+            except UnicodeDecodeError:
+                # For binary files (PDFs, images, etc.), return as base64
+                return {"source": decoded_source, "content": base64.b64encode(content).decode('ascii'), "type": "binary"}
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="Source file not found")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+    else:
+        # For text content stored in DB
+        return {"source": decoded_source, "content": embedding.content or "", "type": "text"}
 
 
-@router.patch("/embeddings/{embedding_name}")
-async def api_edit_embedding(request: Request,
-                           embedding_name: str,
-                           embeddingUpdate: EmbeddingUpdate,
-                           _: User = Depends(get_current_username_admin),
-                           db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+@router.delete("/projects/{project_name}/embeddings/source/{source}")
+def delete_embedding_source(project_name: str, source: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    project = get_project(project_name, current_user, db)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Decode the base64 encoded source
     try:
-        embedding: Optional[EmbeddingDatabase] = db_wrapper.get_embedding_by_name(embedding_name)
-        if embedding is None:
-            raise Exception("Embedding not found")
-        if db_wrapper.update_embedding(embedding, embeddingUpdate):
-            return {"embedding": embedding_name}
-        else:
-            raise HTTPException(
-                status_code=404, detail='Embedding not found')
+        decoded_source = base64.b64decode(source).decode('utf-8')
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500, detail=str(e))
+        raise HTTPException(status_code=400, detail=f"Invalid source encoding: {str(e)}")
+    
+    # Delete embeddings with this source
+    embeddings = db.query(Embeddings).filter(
+        Embeddings.project_name == project_name,
+        Embeddings.source == decoded_source
+    ).all()
+    
+    if not embeddings:
+        raise HTTPException(status_code=404, detail="Embedding not found")
+    
+    # Delete associated files if they exist
+    for embedding in embeddings:
+        if embedding.source_type == "file" and embedding.source_path:
+            try:
+                if os.path.exists(embedding.source_path):
+                    os.remove(embedding.source_path)
+            except Exception as e:
+                print(f"Error deleting file: {str(e)}")
+        
+        db.delete(embedding)
+    
+    db.commit()
+    
+    return {"message": "Embeddings deleted successfully"}
 
 
-@router.delete("/embeddings/{embedding_name}")
-async def api_delete_embedding(embedding_name: str,
-                         _: User = Depends(get_current_username_admin),
-                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+@router.post("/projects/{project_name}/embeddings")
+async def upload_embedding(
+    project_name: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    project = get_project(project_name, current_user, db)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Save the uploaded file
+    file_content = await file.read()
+    
+    # Process the file based on project type
     try:
-        embedding: Optional[EmbeddingDatabase] = db_wrapper.get_embedding_by_name(embedding_name)
-        if embedding is None:
-            raise Exception("Embedding not found")
-
-        projects_using = db_wrapper.db.query(ProjectDatabase).filter(
-            ProjectDatabase.embeddings == embedding_name
-        ).all()
-        if projects_using:
-            names = [p.name for p in projects_using]
-            raise HTTPException(
-                status_code=409,
-                detail=f"Cannot delete embedding '{embedding_name}': used by projects: {', '.join(names)}"
-            )
-
-        db_wrapper.delete_embedding(embedding)
-        return {"deleted": embedding_name}
+        project.ingest_file(file.filename, file_content)
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
+    
+    return {"message": "File uploaded and processed successfully", "filename": file.filename}
