@@ -492,14 +492,21 @@ export default function ProjectEdit({ project, projects, info }) {
             </Grid>
 
             <Grid item sm={6} xs={12}>
-              <TextField
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                name="guard"
-                label="Prompt Guard Project"
-                variant="outlined"
-                onChange={handleChange}
-                value={state.guard ?? ''}
+              <Autocomplete
+                options={projects.filter((p) => p.name !== project.name).map((p) => p.name)}
+                value={state.guard || null}
+                onChange={(event, newValue) => {
+                  setState({ ...state, guard: newValue || "" });
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    label="Prompt Guard Project"
+                    variant="outlined"
+                  />
+                )}
               />
             </Grid>
 
@@ -529,41 +536,30 @@ export default function ProjectEdit({ project, projects, info }) {
                   <Divider sx={{ mb: 1 }} />
                 </Grid>
                 <Grid item sm={6} xs={12}>
-                  <FormControlLabel
-                    label="Tools"
-                    sx={{ ml: 0 }}
-                    width="200px"
-                    control={
-                      <Autocomplete
-                        multiple
-                        id="tags-standard"
-                        name="tools"
+                  <Autocomplete
+                    multiple
+                    options={tools.map((tool) => tool.name)}
+                    getOptionLabel={(option) => option}
+                    isOptionEqualToValue={(option, value) => option === value}
+                    onChange={(event, newValue) => {
+                      setState({
+                        ...state,
+                        options: {
+                          ...state.options,
+                          tools: newValue.join(",")
+                        }
+                      });
+                    }}
+                    value={state.options?.tools ? state.options.tools.split(",").filter(tool => tool.trim() !== "") : []}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
                         fullWidth
-                        options={tools.map((tool) => tool.name)}
-                        getOptionLabel={(option) => option}
-                        isOptionEqualToValue={(option, value) => option === value}
-                        onChange={(event, newValue) => {
-                          setState({
-                            ...state,
-                            options: {
-                              ...state.options,
-                              tools: newValue.join(",")
-                            }
-                          });
-                        }}
-                        value={state.options?.tools ? state.options.tools.split(",").filter(tool => tool.trim() !== "") : []}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            fullWidth
-                            variant="standard"
-                            label=""
-                            placeholder=""
-                          />
-                        )}
-                        sx={{ width: '200px' }}
+                        InputLabelProps={{ shrink: true }}
+                        label="Tools"
+                        variant="outlined"
                       />
-                    }
+                    )}
                   />
                 </Grid>
               </Fragment>
