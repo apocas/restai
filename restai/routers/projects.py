@@ -54,6 +54,7 @@ from restai.vectordb.tools import (
     index_documents_docling,
 )
 from restai.models.databasemodels import OutputDatabase, ProjectDatabase
+from restai.settings import mask_key
 import datetime
 from sqlalchemy import func
 import calendar
@@ -107,6 +108,12 @@ async def route_get_projects(
                 "id": project_dict["team"]["id"],
                 "name": project_dict["team"]["name"],
             }
+
+        # Mask telegram token in list
+        if isinstance(project_dict.get("options"), dict):
+            token = project_dict["options"].get("telegram_token")
+            if token:
+                project_dict["options"]["telegram_token"] = mask_key(token)
 
         serialized_projects.append(project_dict)
 
@@ -172,6 +179,12 @@ async def route_get_project(
             final_output["llm_type"] = llm_model.props.type
             final_output["llm_privacy"] = llm_model.props.privacy
 
+        # Mask telegram token
+        if isinstance(final_output.get("options"), dict):
+            token = final_output["options"].get("telegram_token")
+            if token:
+                final_output["options"]["telegram_token"] = mask_key(token)
+
         del project
 
         return final_output
@@ -191,6 +204,12 @@ async def route_delete_project(
 ):
     try:
         proj = get_project(projectID, db_wrapper, request.app.state.brain)
+
+        # Stop Telegram poller if running
+        if proj.props.options and proj.props.options.telegram_token:
+            from restai.telegram import stop_poller
+            stop_poller(projectID)
+
         proj.delete()
 
         db_wrapper.db.query(OutputDatabase).filter(
@@ -274,8 +293,35 @@ async def route_edit_project(
                 status_code=403, detail="User not allowed to use public models"
             )
 
+    # Handle masked Telegram token — preserve existing value
+    if projectModelUpdate.options:
+        existing_opts = json.loads(project.options) if project.options else {}
+        new_telegram_token = projectModelUpdate.options.telegram_token
+        if new_telegram_token and new_telegram_token.startswith("****"):
+            projectModelUpdate.options.telegram_token = existing_opts.get("telegram_token")
+
     try:
         if db_wrapper.edit_project(projectID, projectModelUpdate):
+            # Start/stop Telegram poller based on token changes
+            if projectModelUpdate.options:
+                from restai.telegram import start_poller, stop_poller, validate_token
+
+                saved_opts = json.loads(
+                    db_wrapper.get_project_by_id(projectID).options or "{}"
+                )
+                saved_token = saved_opts.get("telegram_token")
+
+                if saved_token:
+                    try:
+                        validate_token(saved_token)
+                        start_poller(projectID, saved_token, request.app)
+                    except Exception as e:
+                        logging.warning(
+                            f"Failed to start Telegram poller for project {projectID}: {e}"
+                        )
+                else:
+                    stop_poller(projectID)
+
             return {"project": projectID}
         else:
             raise HTTPException(status_code=404, detail="Project not found")

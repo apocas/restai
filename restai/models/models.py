@@ -150,6 +150,7 @@ class ProjectOptions(BaseModel):
     max_iterations: int = config.AGENT_MAX_ITERATIONS
     connection: Union[str, None] = None
     mcp_servers: Union[list[MCPServer], None] = None
+    telegram_token: Union[str, None] = None
     model_config = ConfigDict(from_attributes=True)
 
 class ProjectBaseModel(BaseModel):

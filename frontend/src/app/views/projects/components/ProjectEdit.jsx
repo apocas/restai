@@ -57,6 +57,10 @@ export default function ProjectEdit({ project, projects, info }) {
       opts.options.tools = state.options.tools
     }
 
+    if (state.options.telegram_token !== undefined) {
+      opts.options.telegram_token = state.options.telegram_token;
+    }
+
     if (project.type === "rag") {
       opts.options.colbert_rerank = state.options.colbert_rerank
       opts.options.llm_rerank = state.options.llm_rerank
@@ -233,6 +237,9 @@ export default function ProjectEdit({ project, projects, info }) {
           score: event.target.value
         }
       });
+    }
+    else if (event.target.name === "telegram_token") {
+      setState({ ...state, options: { ...state.options, telegram_token: event.target.value } });
     }
     else {
       setState({ ...state, [event.target.name]: (event.target.type === "checkbox" ? event.target.checked : event.target.value) });
@@ -650,6 +657,27 @@ export default function ProjectEdit({ project, projects, info }) {
                         onChange={handleChange}
                       />
                     }
+                  />
+                </Grid>
+              </Fragment>
+            )}
+
+            {(state.type === "rag" || state.type === "inference" || state.type === "agent") && (
+              <Fragment>
+                <Grid item sm={12} xs={12}>
+                  <Divider sx={{ mb: 1 }} />
+                </Grid>
+                <Grid item sm={6} xs={12}>
+                  <TextField
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    name="telegram_token"
+                    label="Telegram Bot Token"
+                    type="password"
+                    variant="outlined"
+                    onChange={handleChange}
+                    value={state.options?.telegram_token ?? ''}
+                    helperText="Paste the token from @BotFather to connect this project to Telegram"
                   />
                 </Grid>
               </Fragment>

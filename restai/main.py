@@ -57,6 +57,7 @@ async def lifespan(fs_app: FastAPI):
         settings,
     )
     from restai.models.models import User
+    from restai.models.databasemodels import ProjectDatabase
     from restai.multiprocessing import get_manager
     from modules.loaders import LOADERS
 
@@ -215,7 +216,26 @@ async def lifespan(fs_app: FastAPI):
         # Mount the MCP server endpoints
         fs_app.mount("/mcp", mcp_with_auth)
 
+    # Start Telegram pollers for all projects with a token
+    import json as _json
+    from restai.telegram import start_poller, stop_all_pollers
+
+    tg_db_wrapper = get_db_wrapper()
+    all_projects = tg_db_wrapper.db.query(ProjectDatabase).all()
+    for proj in all_projects:
+        opts = _json.loads(proj.options) if proj.options else {}
+        token = opts.get("telegram_token")
+        if token:
+            try:
+                start_poller(proj.id, token, fs_app)
+            except Exception as e:
+                logging.warning(f"Failed to start Telegram poller for project {proj.id}: {e}")
+    tg_db_wrapper.db.close()
+
     yield
+
+    # Shutdown: stop all Telegram pollers
+    stop_all_pollers()
 
 
 logging.basicConfig(level=config.LOG_LEVEL)

@@ -10,6 +10,11 @@ export const defaultNavigations = [
     path: "/settings",
     auth: authRoles.admin,
   },
+  {
+    name: "Library",
+    icon: "library_books",
+    path: "/projects/library",
+  },
   { label: "AIaaS", type: "label" },
   {
     name: "Projects",
@@ -20,11 +25,6 @@ export const defaultNavigations = [
       { name: "List Projects", iconText: "SI", path: "/projects" },
       { name: "New Project", iconText: "SU", path: "/projects/new" },
     ]
-  },
-  {
-    name: "Library",
-    icon: "library_books",
-    path: "/projects/library",
   },
   {
     name: "Teams",
