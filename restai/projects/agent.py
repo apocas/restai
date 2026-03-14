@@ -1,6 +1,12 @@
 import json
 
 from llama_index.core.agent import ReActAgent, FunctionAgent
+from llama_index.core.agent.workflow.workflow_events import (
+    AgentStream,
+    AgentOutput,
+    ToolCall,
+    ToolCallResult,
+)
 
 from restai import config
 from restai.chat import Chat
@@ -14,62 +20,16 @@ from llama_index.tools.mcp import BasicMCPClient, McpToolSpec
 
 class Agent(ProjectBase):
 
-    @staticmethod
-    def output(agent, prompt, output, project):
-        done = False
-        iterations = 0
-        resp_reasoning = ""
-        steps = []
-
-        task = agent.create_task(prompt)
-
-        while not done:
-            step_output = agent.run_step(task.task_id)
-            step_final = {"actions": [], "output": ""}
-            if step_output.output.sources:
-                for source in step_output.output.sources:
-                    resp_reasoning += "Action: " + source.tool_name + "\n"
-                    resp_reasoning += "Action Input: " + str(source.raw_input) + "\n"
-                    resp_reasoning += "Action Output: " + str(source.raw_output) + "\n"
-                    step_final["actions"].append(
-                        {
-                            "action": source.tool_name,
-                            "input": source.raw_input,
-                            "output": str(source.raw_output),
-                        }
-                    )
-            step_final["output"] = step_output.output.response
-            steps.append(step_final)
-
-            resp_reasoning += step_output.output.response + "\n"
-
-            done = step_output.is_last
-            iterations += 1
-
-            if not done and (iterations > project.props.options.max_iterations or iterations > config.AGENT_MAX_ITERATIONS):
-                output["answer"] = (
-                    project.props.censorship or "I'm sorry, I tried my best..."
-                )
-                output["reasoning"] = {"output": "", "steps": []}
-                break
-
-        if done:
-            response = agent.finalize_response(task.task_id)
-            output["answer"] = str(response)
-            output["reasoning"] = {"output": resp_reasoning, "steps": steps}
-
-        return output
-      
     async def prepare_tools(self, project: Project):
       tools_u = self.brain.get_tools(set((project.props.options.tools or "").split(",")))
-        
+
       if project.props.options.mcp_servers:
           for mcp_server in project.props.options.mcp_servers:
               allowed_tools = set((mcp_server.tools or "").split(","))
               mcp_client = BasicMCPClient(mcp_server.host)
-              
+
               # Only include allowed_tools if it's not empty
-              if allowed_tools and allowed_tools != {""}: 
+              if allowed_tools and allowed_tools != {""}:
                   mcp_tool_spec = McpToolSpec(
                       client=mcp_client,
                       allowed_tools=allowed_tools,
@@ -78,11 +38,25 @@ class Agent(ProjectBase):
                   mcp_tool_spec = McpToolSpec(
                       client=mcp_client,
                   )
-                  
+
               tools_u = tools_u + await mcp_tool_spec.to_tool_list_async()
-                
+
       return tools_u
-      
+
+    def _create_agent(self, tools_u, model, system_prompt, project, use_function_agent=False):
+        max_iterations = min(
+            project.props.options.max_iterations or config.AGENT_MAX_ITERATIONS,
+            config.AGENT_MAX_ITERATIONS,
+        )
+
+        AgentClass = FunctionAgent if use_function_agent else ReActAgent
+        return AgentClass(
+            tools=tools_u,
+            llm=model.llm,
+            system_prompt=system_prompt,
+            verbose=True,
+            timeout=None,
+        ), max_iterations
 
     async def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
         chat: Chat = Chat(chatModel, self.brain.chat_store)
@@ -105,61 +79,89 @@ class Agent(ProjectBase):
                 output["guard"] = True
                 self.brain.post_processing_counting(output)
                 yield output
+                return
 
         model = self.brain.get_llm(project.props.llm, db)
 
         tools_u = await self.prepare_tools(project)
-        
+
         if len(tools_u) == 0:
             chatModel.question += "\nDont use any tool just respond to the user."
 
-        # Check if function_agent attribute exists and is True
         use_function_agent = hasattr(project.props.options, "function_agent") and project.props.options.function_agent is True
-        
-        if use_function_agent:
-            agent = FunctionAgent.from_tools(
-                tools_u,
-                llm=model.llm,
-                system_prompt=project.props.system,
-                memory=chat.memory,
-                verbose=True,
-            )
-        else:
-            agent = ReActAgent.from_tools(
-                tools_u,
-                llm=model.llm,
-                context=project.props.system,
-                memory=chat.memory,
-                max_iterations=project.props.options.max_iterations,
-                verbose=True,
-            )
+
+        agent, max_iterations = self._create_agent(
+            tools_u, model, project.props.system, project, use_function_agent
+        )
 
         try:
+            handler = agent.run(
+                user_msg=chatModel.question,
+                memory=chat.memory,
+                max_iterations=max_iterations,
+            )
+
             if chatModel.stream:
-                resp_gen = agent.stream_chat(chatModel.question)
-                
-                parts = []
-                for text in resp_gen.response_gen:
-                    parts.append(text)
-                    yield "data: " + json.dumps({"text": text}) + "\n\n"
-                output["answer"] = "".join(parts)
-                
+                resp_reasoning = ""
+                steps = []
+
+                async for event in handler.stream_events():
+                    if isinstance(event, AgentStream):
+                        if event.delta:
+                            yield "data: " + json.dumps({"text": event.delta}) + "\n\n"
+                    elif isinstance(event, ToolCallResult):
+                        resp_reasoning += "Action: " + event.tool_name + "\n"
+                        resp_reasoning += "Action Input: " + json.dumps(event.tool_kwargs) + "\n"
+                        resp_reasoning += "Action Output: " + str(event.tool_output.content) + "\n"
+                        steps.append({
+                            "actions": [{
+                                "action": event.tool_name,
+                                "input": event.tool_kwargs,
+                                "output": str(event.tool_output.content),
+                            }],
+                            "output": "",
+                        })
+
+                result = await handler
+                output["answer"] = str(result.response.content or "")
+                output["reasoning"] = {"output": resp_reasoning, "steps": steps}
+
                 yield "data: " + json.dumps(output) + "\n"
                 yield "event: close\n\n"
             else:
-                output = self.output(agent, chatModel.question, output, project)
+                result = await handler
+                resp_reasoning = ""
+                steps = []
+
+                for tc in (result.tool_calls or []):
+                    if isinstance(tc, ToolCallResult):
+                        resp_reasoning += "Action: " + tc.tool_name + "\n"
+                        resp_reasoning += "Action Input: " + json.dumps(tc.tool_kwargs) + "\n"
+                        resp_reasoning += "Action Output: " + str(tc.tool_output.content) + "\n"
+                        steps.append({
+                            "actions": [{
+                                "action": tc.tool_name,
+                                "input": tc.tool_kwargs,
+                                "output": str(tc.tool_output.content),
+                            }],
+                            "output": "",
+                        })
+
+                output["answer"] = str(result.response.content or "")
+                output["reasoning"] = {"output": resp_reasoning, "steps": steps}
 
                 self.brain.post_processing_counting(output)
                 yield output
         except Exception as e:
+            error_msg = str(e)
             if chatModel.stream:
-                if str(e) == "Reached max iterations.":
+                if "Max iterations" in error_msg:
                     yield "data: I'm sorry, I tried my best...\n"
                 else:
                     yield "data: Inference failed\n"
                 yield "event: error\n\n"
             else:
-                if str(e) == "Reached max iterations." and project.props.censorship:
+                if "Max iterations" in error_msg and project.props.censorship:
                     output["answer"] = project.props.censorship
                     self.brain.post_processing_counting(output)
                     yield output
@@ -187,6 +189,7 @@ class Agent(ProjectBase):
                 output["guard"] = True
                 self.brain.post_processing_counting(output)
                 yield output
+                return
 
         model = self.brain.get_llm(project.props.llm, db)
 
@@ -195,18 +198,37 @@ class Agent(ProjectBase):
         if len(tools_u) == 0:
             questionModel.question += "\nDont use any tool just respond to the user."
 
-        agent = ReActAgent.from_tools(
-            tools_u,
-            llm=model.llm,
-            context=questionModel.system or project.props.system,
-            max_iterations=project.props.options.max_iterations,
-            verbose=True,
-        )
+        system_prompt = questionModel.system or project.props.system
+        agent, max_iterations = self._create_agent(tools_u, model, system_prompt, project)
 
         try:
-            output = self.output(agent, questionModel.question, output, project)
+            handler = agent.run(
+                user_msg=questionModel.question,
+                max_iterations=max_iterations,
+            )
+            result = await handler
+
+            resp_reasoning = ""
+            steps = []
+            for tc in (result.tool_calls or []):
+                if isinstance(tc, ToolCallResult):
+                    resp_reasoning += "Action: " + tc.tool_name + "\n"
+                    resp_reasoning += "Action Input: " + json.dumps(tc.tool_kwargs) + "\n"
+                    resp_reasoning += "Action Output: " + str(tc.tool_output.content) + "\n"
+                    steps.append({
+                        "actions": [{
+                            "action": tc.tool_name,
+                            "input": tc.tool_kwargs,
+                            "output": str(tc.tool_output.content),
+                        }],
+                        "output": "",
+                    })
+
+            output["answer"] = str(result.response.content or "")
+            output["reasoning"] = {"output": resp_reasoning, "steps": steps}
         except Exception as e:
-            if str(e) == "Reached max iterations." and project.props.censorship:
+            error_msg = str(e)
+            if "Max iterations" in error_msg and project.props.censorship:
                 output["answer"] = project.props.censorship
             else:
                 raise e
