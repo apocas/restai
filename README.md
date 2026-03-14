@@ -58,11 +58,94 @@
 
 - **Tools**: Supply all the tools names you want the Agent to use in this project. (separated by commas)
 - **Terminal**: Core tool that allows the agent to execute commands via SSH. (using [containerssh.io](https://containerssh.io) or similar is recommended)
+- **MCP Servers**: Connect to external tool servers using the [Model Context Protocol](https://modelcontextprotocol.io). See [MCP Servers](#mcp-servers) below.
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent1.png" width="40%"  style="margin: 10px;"/>
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent2.png" width="40%"  style="margin: 10px;"/>
 </div>
+
+#### MCP Servers
+
+Agent projects can connect to external [MCP (Model Context Protocol)](https://modelcontextprotocol.io) servers to access additional tools. Two transport modes are supported:
+
+##### HTTP/SSE
+
+Connect to a remote MCP server over HTTP. Use the full URL as the host:
+
+```
+http://localhost:3001/sse
+http://mcp-server.example.com/mcp
+```
+
+URLs ending in `/sse` use the SSE transport; all other HTTP URLs use the Streamable HTTP transport.
+
+##### Stdio
+
+Run a local MCP server as a subprocess. Enter the command as the host and provide arguments separately:
+
+| Field | Example |
+|-------|---------|
+| Command | `npx` |
+| Arguments | `-y @modelcontextprotocol/server-filesystem /tmp` |
+| Env vars | `PORT=3001 DEBUG=true` |
+
+Other stdio examples:
+
+| Command | Arguments | Description |
+|---------|-----------|-------------|
+| `npx` | `-y @modelcontextprotocol/server-everything` | MCP reference test server |
+| `npx` | `-y @modelcontextprotocol/server-filesystem /home/user/data` | Filesystem access |
+| `python` | `-m mcp_server_sqlite --db-path /tmp/test.db` | SQLite access |
+| `uvx` | `mcp-server-git --repository /path/to/repo` | Git repository tools |
+
+##### Tool filtering
+
+After adding a server, click **Check** to discover available tools. You can then select which tools the agent is allowed to use. Leaving the selection empty means all tools from that server are available.
+
+##### API
+
+MCP servers can also be configured via the API by including `mcp_servers` in the project options:
+
+```json
+{
+  "options": {
+    "mcp_servers": [
+      {
+        "host": "http://localhost:3001/sse",
+        "tools": "tool1,tool2"
+      },
+      {
+        "host": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+        "env": {"HOME": "/home/user"},
+        "tools": null
+      }
+    ]
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `host` | string | URL for HTTP/SSE servers, or command name for stdio servers |
+| `args` | list of strings | Arguments for stdio servers (optional) |
+| `env` | object | Environment variables for stdio servers (optional) |
+| `tools` | string or null | Comma-separated tool names to allow, or `null` for all tools |
+
+You can probe an MCP server before saving it to discover available tools:
+
+```bash
+# HTTP server
+curl -X POST http://localhost:9000/tools/mcp/probe \
+  -H 'Content-Type: application/json' \
+  -d '{"host": "http://localhost:3001/sse"}'
+
+# Stdio server
+curl -X POST http://localhost:9000/tools/mcp/probe \
+  -H 'Content-Type: application/json' \
+  -d '{"host": "npx", "args": ["-y", "@modelcontextprotocol/server-everything"]}'
+```
 
 ### Inference
 
