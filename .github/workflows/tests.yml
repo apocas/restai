@@ -20,5 +20,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --no-group gpu
 
+      - name: Initialize database
+        run: uv run --no-group gpu python database.py
+
       - name: Run tests
         run: uv run --no-group gpu pytest tests/ -v --tb=short --ignore=tests/test_projects.py
