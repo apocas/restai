@@ -19,28 +19,33 @@ export default function ProjectEdit({ project, projects, info }) {
   const navigate = useNavigate();
 
   const handleAddMcpServer = () => {
-    setMcpServers([...mcpServers, { host: "", tools: null, availableTools: [], loading: false, error: null }]);
+    setMcpServers([...mcpServers, { host: "", args: [], env: {}, tools: null, availableTools: [], loading: false, error: null }]);
   };
 
   const handleRemoveMcpServer = (index) => {
     setMcpServers(mcpServers.filter((_, i) => i !== index));
   };
 
-  const handleMcpServerHostChange = (index, value) => {
+  const handleMcpServerFieldChange = (index, field, value) => {
     const updated = [...mcpServers];
-    updated[index] = { ...updated[index], host: value };
+    updated[index] = { ...updated[index], [field]: value };
     setMcpServers(updated);
   };
 
   const handleProbeMcpServer = (index) => {
+    const server = mcpServers[index];
     const updated = [...mcpServers];
     updated[index] = { ...updated[index], loading: true, error: null };
     setMcpServers(updated);
 
+    const body = { host: server.host };
+    if (server.args && server.args.length > 0) body.args = server.args;
+    if (server.env && Object.keys(server.env).length > 0) body.env = server.env;
+
     fetch(url + "/tools/mcp/probe", {
       method: 'POST',
       headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      body: JSON.stringify({ host: mcpServers[index].host }),
+      body: JSON.stringify(body),
     })
       .then((res) => {
         if (!res.ok) {
@@ -68,6 +73,10 @@ export default function ProjectEdit({ project, projects, info }) {
     const updated = [...mcpServers];
     updated[index] = { ...updated[index], tools: selectedToolNames.length > 0 ? selectedToolNames.join(",") : null };
     setMcpServers(updated);
+  };
+
+  const isStdioServer = (host) => {
+    return host && !host.startsWith("http://") && !host.startsWith("https://");
   };
 
   const handleSubmit = (event) => {
@@ -112,7 +121,12 @@ export default function ProjectEdit({ project, projects, info }) {
 
       const filteredMcpServers = mcpServers
         .filter(s => s.host.trim() !== "")
-        .map(s => ({ host: s.host, tools: s.tools || null }));
+        .map(s => {
+          const entry = { host: s.host, tools: s.tools || null };
+          if (s.args && s.args.length > 0) entry.args = s.args;
+          if (s.env && Object.keys(s.env).length > 0) entry.env = s.env;
+          return entry;
+        });
       opts.options.mcp_servers = filteredMcpServers.length > 0 ? filteredMcpServers : null;
     }
 
@@ -331,6 +345,8 @@ export default function ProjectEdit({ project, projects, info }) {
     if (project.type === "agent" && project.options?.mcp_servers) {
       const servers = project.options.mcp_servers.map(s => ({
         host: s.host,
+        args: s.args || [],
+        env: s.env || {},
         tools: s.tools || null,
         availableTools: s.tools ? s.tools.split(",").map(t => ({ name: t.trim(), description: "", schema: "" })) : [],
         loading: false,
@@ -341,10 +357,14 @@ export default function ProjectEdit({ project, projects, info }) {
       // Auto-probe each server to get available tools
       servers.forEach((server, index) => {
         if (server.host) {
+          const body = { host: server.host };
+          if (server.args && server.args.length > 0) body.args = server.args;
+          if (server.env && Object.keys(server.env).length > 0) body.env = server.env;
+
           fetch(url + "/tools/mcp/probe", {
             method: 'POST',
             headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-            body: JSON.stringify({ host: server.host }),
+            body: JSON.stringify(body),
           })
             .then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to probe")))
             .then(data => {
@@ -665,21 +685,30 @@ export default function ProjectEdit({ project, projects, info }) {
                 </Grid>
                 <Grid item sm={12} xs={12}>
                   <Typography variant="subtitle1" gutterBottom>MCP Servers</Typography>
+                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 2 }}>
+                    Connect to external tool servers using the MCP protocol. Two connection modes are supported:
+                    <br />
+                    <strong>HTTP/SSE</strong> — enter a URL (e.g. <code>http://localhost:3001/sse</code> or <code>http://localhost:8000/mcp</code>)
+                    <br />
+                    <strong>Stdio</strong> — enter a command (e.g. <code>npx</code>, <code>python</code>, <code>uvx</code>) and its arguments below (e.g. <code>-y @modelcontextprotocol/server-filesystem /tmp</code>)
+                  </Typography>
                   {mcpServers.map((server, index) => (
                     <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                         <TextField
                           fullWidth
                           size="small"
-                          label="MCP Server URL"
+                          label={isStdioServer(server.host) ? "Command" : "URL or Command"}
+                          placeholder="http://localhost:3001/sse or npx"
                           value={server.host}
-                          onChange={(e) => handleMcpServerHostChange(index, e.target.value)}
+                          onChange={(e) => handleMcpServerFieldChange(index, 'host', e.target.value)}
                         />
                         <Button
                           variant="outlined"
                           size="small"
                           disabled={!server.host.trim() || server.loading}
                           onClick={() => handleProbeMcpServer(index)}
+                          sx={{ minWidth: 80 }}
                         >
                           {server.loading ? <CircularProgress size={20} /> : "Check"}
                         </Button>
@@ -687,6 +716,42 @@ export default function ProjectEdit({ project, projects, info }) {
                           <DeleteIcon />
                         </IconButton>
                       </Box>
+                      {isStdioServer(server.host) && (
+                        <Box sx={{ mb: 1 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Arguments"
+                            placeholder="-y @modelcontextprotocol/server-filesystem /tmp"
+                            helperText="Space-separated arguments passed to the command"
+                            value={(server.args || []).join(" ")}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleMcpServerFieldChange(index, 'args', val ? val.split(" ").filter(a => a !== "") : []);
+                            }}
+                            sx={{ mb: 1 }}
+                          />
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Environment Variables"
+                            placeholder="KEY=value ANOTHER=value"
+                            helperText="Space-separated KEY=value pairs (e.g. PORT=3001 DEBUG=true)"
+                            value={Object.entries(server.env || {}).map(([k, v]) => `${k}=${v}`).join(" ")}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const env = {};
+                              if (val) {
+                                val.split(" ").filter(p => p.includes("=")).forEach(pair => {
+                                  const eqIdx = pair.indexOf("=");
+                                  env[pair.substring(0, eqIdx)] = pair.substring(eqIdx + 1);
+                                });
+                              }
+                              handleMcpServerFieldChange(index, 'env', env);
+                            }}
+                          />
+                        </Box>
+                      )}
                       {server.error && (
                         <Typography variant="body2" color="error" sx={{ mb: 1 }}>{server.error}</Typography>
                       )}

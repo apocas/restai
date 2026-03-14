@@ -136,10 +136,14 @@ class ProjectUser(BaseModel):
     
 class MCPServer(BaseModel):
     host: str
+    args: Union[list[str], None] = None
+    env: Union[dict[str, str], None] = None
     tools: Union[str, None] = None
 
 class MCPProbeRequest(BaseModel):
     host: str
+    args: Union[list[str], None] = None
+    env: Union[dict[str, str], None] = None
 
 class ProjectOptions(BaseModel):
     logging: bool = True

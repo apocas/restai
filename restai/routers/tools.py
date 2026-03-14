@@ -52,7 +52,11 @@ async def probe_mcp_server(
     try:
         from llama_index.tools.mcp import BasicMCPClient, McpToolSpec
 
-        mcp_client = BasicMCPClient(probe_request.host)
+        mcp_client = BasicMCPClient(
+            probe_request.host,
+            args=probe_request.args or [],
+            env=probe_request.env or {},
+        )
         mcp_tool_spec = McpToolSpec(client=mcp_client)
         tools = await mcp_tool_spec.to_tool_list_async()
 

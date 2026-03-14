@@ -26,7 +26,11 @@ class Agent(ProjectBase):
       if project.props.options.mcp_servers:
           for mcp_server in project.props.options.mcp_servers:
               allowed_tools = set((mcp_server.tools or "").split(","))
-              mcp_client = BasicMCPClient(mcp_server.host)
+              mcp_client = BasicMCPClient(
+                  mcp_server.host,
+                  args=mcp_server.args or [],
+                  env=mcp_server.env or {},
+              )
 
               # Only include allowed_tools if it's not empty
               if allowed_tools and allowed_tools != {""}:

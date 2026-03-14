@@ -1037,7 +1037,11 @@ async def get_project_tools(
             server_name = mcp_server.host
             try:
                 # Create MCP client
-                mcp_client = BasicMCPClient(mcp_server.host)
+                mcp_client = BasicMCPClient(
+                    mcp_server.host,
+                    args=mcp_server.args or [],
+                    env=mcp_server.env or {},
+                )
 
                 mcp_tool_spec = McpToolSpec(
                     client=mcp_client,
