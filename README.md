@@ -19,7 +19,7 @@
 
 ## Features
 
-- **Projects**: There are multiple project types, each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [vision](https://github.com/apocas/restai?tab=readme-ov-file#vision), [router](https://github.com/apocas/restai?tab=readme-ov-file#router), [agent](https://github.com/apocas/restai?tab=readme-ov-file#agent))
+- **Projects**: There are multiple project types, each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [router](https://github.com/apocas/restai?tab=readme-ov-file#router), [agent](https://github.com/apocas/restai?tab=readme-ov-file#agent))
 - **Users**: A user represents a user of the system. Each user may have access to multiple projects.
 - **LLMs**: Supports any public LLM supported by LlamaIndex. Which includes any local LLM supported by Ollama, LiteLLM, etc.
 - **API**: The API is a first-class citizen of RestAI. All endpoints are documented using [Swagger](https://apocas.github.io/restai/).
@@ -153,15 +153,7 @@ curl -X POST http://localhost:9000/tools/mcp/probe \
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/inference.png" width="750"  style="margin: 10px;"/>
 </div>
 
-### Vision
-
-- **img2text**: RESTai supports virtually any vision model.
-
-#### LLaVA
-
-<div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/llava.png" width="25%"  style="margin: 10px;"/>
-</div>
+- **Multimodal**: Inference projects support sending images alongside text in both question and chat modes. Use any vision-capable LLM (e.g. LLaVA, Gemini, GPT-4o) and pass an image as a base64 string or URL in the `image` field of the request body.
 
 ### Image Generators
 
