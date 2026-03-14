@@ -9,16 +9,41 @@ from restai.main import app
 from restai.models.models import ProjectModelCreate, ProjectModelUpdate, FindModel, TextIngestModel, URLIngestModel, ChatModel, QuestionModel
 
 project_id = None
+test_team_id = None
+test_llm = None
+test_embedding = None
 test_project_name = "test_project_" + str(random.randint(0, 1000000))
+test_team_name = "test_team_" + str(random.randint(0, 1000000))
 
 def test_create_project():
     with TestClient(app) as client:
+        # Discover available LLM and embedding
+        llms_resp = client.get("/llms", auth=("admin", RESTAI_DEFAULT_PASSWORD))
+        assert llms_resp.status_code == 200
+        global test_llm
+        test_llm = llms_resp.json()[0]["name"]
+
+        embeddings_resp = client.get("/embeddings", auth=("admin", RESTAI_DEFAULT_PASSWORD))
+        assert embeddings_resp.status_code == 200
+        global test_embedding
+        test_embedding = embeddings_resp.json()[0]["name"]
+
+        # Create a team first
+        team_response = client.post(
+            "/teams",
+            json={"name": test_team_name, "llms": [test_llm], "embeddings": [test_embedding]},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD)
+        )
+        assert team_response.status_code == 200
+        global test_team_id
+        test_team_id = team_response.json()["id"]
+
         response = client.post(
             "/projects", 
             json={
                 "name": test_project_name, 
-                "llm": "llama31_8b",
-                "embeddings": "all-mpnet-base-v2",
+                "llm": test_llm,
+                "embeddings": test_embedding,
                 "vectorstore": "chroma",
                 "type": "rag",
                 "human_name": "Test Project",
@@ -26,7 +51,8 @@ def test_create_project():
                 "censorship": False,
                 "guard": False,
                 "public": False,
-                "options": {}
+                "options": {},
+                "team_id": test_team_id
             }, 
             auth=("admin", RESTAI_DEFAULT_PASSWORD)
         )
@@ -58,8 +84,8 @@ def test_get_project():
         assert data["id"] == project_id
         assert data["name"] == test_project_name
         assert data["type"] == "rag"
-        assert data["llm"] == "llama31_8b"
-        assert data["embeddings"] == "all-mpnet-base-v2"
+        assert data["llm"] == test_llm
+        assert data["embeddings"] == test_embedding
         assert data["human_name"] == "Test Project"
         assert data["human_description"] == "A test project"
         assert data["public"] == False
@@ -193,4 +219,7 @@ def test_delete_project():
         # Verify project is deleted
         response = client.get(f"/projects/{project_id}", auth=("admin", RESTAI_DEFAULT_PASSWORD))
         assert response.status_code == 404
+
+        # Cleanup: delete the team
+        client.delete(f"/teams/{test_team_id}", auth=("admin", RESTAI_DEFAULT_PASSWORD))
 

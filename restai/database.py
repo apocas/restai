@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from restai import config
-from datetime import datetime
+from datetime import datetime, timezone
 from restai.models.databasemodels import (
     ApiKeyDatabase,
     LLMDatabase,
@@ -193,7 +193,7 @@ class DBWrapper:
             key_hash=key_hash,
             key_prefix=key_prefix,
             description=description,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
         self.db.add(api_key)
         self.db.commit()
@@ -549,8 +549,8 @@ class DBWrapper:
             name=team_create.name,
             description=team_create.description,
             creator_id=team_create.creator_id,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
         )
         self.db.add(db_team)
         self.db.commit()
@@ -585,7 +585,7 @@ class DBWrapper:
             changed = True
 
         if changed:
-            team.updated_at = datetime.utcnow()
+            team.updated_at = datetime.now(timezone.utc)
             self.db.commit()
         return changed
 
@@ -720,7 +720,7 @@ class DBWrapper:
             changed = True
             
         if changed:
-            team.updated_at = datetime.utcnow()
+            team.updated_at = datetime.now(timezone.utc)
             self.db.commit()
             
         return changed

@@ -154,14 +154,30 @@ def test_user_apikeys():
 
 def test_user_permissions_on_projects():
     with TestClient(app) as client:
+        # Discover available LLM
+        llms_resp = client.get("/llms", auth=(test_admin_username, RESTAI_DEFAULT_PASSWORD))
+        assert llms_resp.status_code == 200
+        test_llm = llms_resp.json()[0]["name"]
+
+        # Create a team and add the test user
+        team_name = f"perm_team_{random.randint(0, 1000000)}"
+        team_resp = client.post(
+            "/teams",
+            json={"name": team_name, "users": [test_username], "llms": [test_llm]},
+            auth=(test_admin_username, RESTAI_DEFAULT_PASSWORD)
+        )
+        assert team_resp.status_code == 200
+        team_id = team_resp.json()["id"]
+
         # Create a project as the test user
         user_project_name = f"user_project_{random.randint(0, 1000000)}"
         response = client.post(
             "/projects", 
             json={
                 "name": user_project_name, 
-                "llm": "llama31_8b", 
-                "type": "inference"
+                "llm": test_llm, 
+                "type": "inference",
+                "team_id": team_id
             }, 
             auth=(test_username, "new_password")
         )
@@ -174,8 +190,9 @@ def test_user_permissions_on_projects():
             "/projects", 
             json={
                 "name": admin_project_name, 
-                "llm": "llama31_8b", 
-                "type": "inference"
+                "llm": test_llm, 
+                "type": "inference",
+                "team_id": team_id
             }, 
             auth=(test_admin_username, RESTAI_DEFAULT_PASSWORD)
         )
@@ -205,6 +222,9 @@ def test_user_permissions_on_projects():
         
         response = client.delete(f"/projects/{admin_project_id}", auth=(test_admin_username, RESTAI_DEFAULT_PASSWORD))
         assert response.status_code == 200
+
+        # Cleanup: delete the team
+        client.delete(f"/teams/{team_id}", auth=(test_admin_username, RESTAI_DEFAULT_PASSWORD))
 
 
 def test_delete_user():
