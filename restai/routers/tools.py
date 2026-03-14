@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from restai import config
 from restai.auth import get_current_username
-from restai.models.models import ClassifierModel, ClassifierResponse, OllamaInstanceModel, OllamaModelInfo, OllamaModelPullRequest, OllamaModelPullResponse, Tool, User
+from restai.models.models import ClassifierModel, ClassifierResponse, MCPProbeRequest, OllamaInstanceModel, OllamaModelInfo, OllamaModelPullRequest, OllamaModelPullResponse, Tool, User
 
 logging.basicConfig(level=config.LOG_LEVEL)
 logging.getLogger("passlib").setLevel(logging.ERROR)
@@ -42,6 +42,36 @@ async def get_tools(request: Request, _: User = Depends(get_current_username)):
         )
 
     return _tools
+
+
+@router.post("/tools/mcp/probe")
+async def probe_mcp_server(
+    probe_request: MCPProbeRequest,
+    _: User = Depends(get_current_username),
+):
+    try:
+        from llama_index.tools.mcp import BasicMCPClient, McpToolSpec
+
+        mcp_client = BasicMCPClient(probe_request.host)
+        mcp_tool_spec = McpToolSpec(client=mcp_client)
+        tools = await mcp_tool_spec.to_tool_list_async()
+
+        tools_info = []
+        for tool in tools:
+            tools_info.append({
+                "name": tool.metadata.name,
+                "description": tool.metadata.description,
+                "schema": tool.metadata.fn_schema_str,
+            })
+
+        return {"tools": tools_info}
+    except Exception as e:
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to connect to MCP server at {probe_request.host}: {str(e)}"
+        )
 
 
 @router.post("/tools/ollama/models", response_model=List[OllamaModelInfo])

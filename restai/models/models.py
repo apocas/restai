@@ -137,6 +137,10 @@ class ProjectUser(BaseModel):
 class MCPServer(BaseModel):
     host: str
     tools: Union[str, None] = None
+
+class MCPProbeRequest(BaseModel):
+    host: str
+
 class ProjectOptions(BaseModel):
     logging: bool = True
     colbert_rerank: Union[bool, None] = None

@@ -1,4 +1,5 @@
-import { Card, Divider, Box, Grid, TextField, Button, MenuItem, Switch, Autocomplete, Slider, Typography } from "@mui/material";
+import { Card, Divider, Box, Grid, TextField, Button, MenuItem, Switch, Autocomplete, Slider, Typography, IconButton, CircularProgress } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import { H4 } from "app/components/Typography";
 import { useState, useEffect, Fragment } from "react";
@@ -14,7 +15,60 @@ export default function ProjectEdit({ project, projects, info }) {
   const [tools, setTools] = useState([]);
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [mcpServers, setMcpServers] = useState([]);
   const navigate = useNavigate();
+
+  const handleAddMcpServer = () => {
+    setMcpServers([...mcpServers, { host: "", tools: null, availableTools: [], loading: false, error: null }]);
+  };
+
+  const handleRemoveMcpServer = (index) => {
+    setMcpServers(mcpServers.filter((_, i) => i !== index));
+  };
+
+  const handleMcpServerHostChange = (index, value) => {
+    const updated = [...mcpServers];
+    updated[index] = { ...updated[index], host: value };
+    setMcpServers(updated);
+  };
+
+  const handleProbeMcpServer = (index) => {
+    const updated = [...mcpServers];
+    updated[index] = { ...updated[index], loading: true, error: null };
+    setMcpServers(updated);
+
+    fetch(url + "/tools/mcp/probe", {
+      method: 'POST',
+      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
+      body: JSON.stringify({ host: mcpServers[index].host }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          return res.json().then((data) => { throw new Error(data.detail || res.statusText); });
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setMcpServers(prev => {
+          const next = [...prev];
+          next[index] = { ...next[index], availableTools: data.tools || [], loading: false, error: null };
+          return next;
+        });
+      })
+      .catch((err) => {
+        setMcpServers(prev => {
+          const next = [...prev];
+          next[index] = { ...next[index], loading: false, error: err.message };
+          return next;
+        });
+      });
+  };
+
+  const handleMcpToolsChange = (index, selectedToolNames) => {
+    const updated = [...mcpServers];
+    updated[index] = { ...updated[index], tools: selectedToolNames.length > 0 ? selectedToolNames.join(",") : null };
+    setMcpServers(updated);
+  };
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -55,6 +109,11 @@ export default function ProjectEdit({ project, projects, info }) {
 
     if (project.type === "agent") {
       opts.options.tools = state.options.tools
+
+      const filteredMcpServers = mcpServers
+        .filter(s => s.host.trim() !== "")
+        .map(s => ({ host: s.host, tools: s.tools || null }));
+      opts.options.mcp_servers = filteredMcpServers.length > 0 ? filteredMcpServers : null;
     }
 
     if (state.options.telegram_token !== undefined) {
@@ -267,6 +326,38 @@ export default function ProjectEdit({ project, projects, info }) {
     fetchTools();
     fetchUsers();
     fetchTeams();
+
+    // Initialize MCP servers from project options
+    if (project.type === "agent" && project.options?.mcp_servers) {
+      const servers = project.options.mcp_servers.map(s => ({
+        host: s.host,
+        tools: s.tools || null,
+        availableTools: s.tools ? s.tools.split(",").map(t => ({ name: t.trim(), description: "", schema: "" })) : [],
+        loading: false,
+        error: null,
+      }));
+      setMcpServers(servers);
+
+      // Auto-probe each server to get available tools
+      servers.forEach((server, index) => {
+        if (server.host) {
+          fetch(url + "/tools/mcp/probe", {
+            method: 'POST',
+            headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
+            body: JSON.stringify({ host: server.host }),
+          })
+            .then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to probe")))
+            .then(data => {
+              setMcpServers(prev => {
+                const next = [...prev];
+                next[index] = { ...next[index], availableTools: data.tools || [] };
+                return next;
+              });
+            })
+            .catch(() => { /* silently fail on auto-probe */ });
+        }
+      });
+    }
 
     // If the project has a team, fetch its complete details
     if (project && project.team && project.team.id) {
@@ -568,6 +659,60 @@ export default function ProjectEdit({ project, projects, info }) {
                       />
                     )}
                   />
+                </Grid>
+                <Grid item sm={12} xs={12}>
+                  <Divider sx={{ mb: 1 }} />
+                </Grid>
+                <Grid item sm={12} xs={12}>
+                  <Typography variant="subtitle1" gutterBottom>MCP Servers</Typography>
+                  {mcpServers.map((server, index) => (
+                    <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label="MCP Server URL"
+                          value={server.host}
+                          onChange={(e) => handleMcpServerHostChange(index, e.target.value)}
+                        />
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          disabled={!server.host.trim() || server.loading}
+                          onClick={() => handleProbeMcpServer(index)}
+                        >
+                          {server.loading ? <CircularProgress size={20} /> : "Check"}
+                        </Button>
+                        <IconButton size="small" onClick={() => handleRemoveMcpServer(index)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      </Box>
+                      {server.error && (
+                        <Typography variant="body2" color="error" sx={{ mb: 1 }}>{server.error}</Typography>
+                      )}
+                      {server.availableTools.length > 0 && (
+                        <Autocomplete
+                          multiple
+                          freeSolo
+                          size="small"
+                          options={server.availableTools.map(t => t.name)}
+                          value={server.tools ? server.tools.split(",").map(t => t.trim()).filter(t => t !== "") : []}
+                          onChange={(e, newValue) => handleMcpToolsChange(index, newValue)}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="Tools (leave empty for all)"
+                              variant="outlined"
+                              helperText={`${server.availableTools.length} tool(s) available`}
+                            />
+                          )}
+                        />
+                      )}
+                    </Box>
+                  ))}
+                  <Button variant="outlined" size="small" onClick={handleAddMcpServer}>
+                    Add MCP Server
+                  </Button>
                 </Grid>
               </Fragment>
             )}
