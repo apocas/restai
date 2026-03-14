@@ -93,6 +93,16 @@ export default function ProjectInfo({ project, projects }) {
             </TableCell>
           </TableRow>
           <TableRow>
+            <TableCell sx={{ pl: 2 }}>Telegram</TableCell>
+            <TableCell>
+              <Switch
+                disabled
+                checked={!!project.options?.telegram_token}
+                inputProps={{ "aria-label": "telegram status" }}
+              />
+            </TableCell>
+          </TableRow>
+          <TableRow>
             <TableCell sx={{ pl: 2 }}>Users</TableCell>
             <TableCell>
               <Box display="flex" alignItems="center" gap={1}>
