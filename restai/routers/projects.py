@@ -16,8 +16,6 @@ from fastapi import (
     Query,
 )
 from llama_index.core.postprocessor import SimilarityPostprocessor
-from llama_index.core.query_engine import RetrieverQueryEngine
-from llama_index.core.response_synthesizers import ResponseMode
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.schema import Document
 from llama_index.tools.mcp import BasicMCPClient, McpToolSpec
@@ -527,17 +525,12 @@ async def find_embedding(
                 similarity_top_k=k,
             )
 
-            query_engine = RetrieverQueryEngine.from_args(
-                retriever=retriever,
-                node_postprocessors=[
-                    SimilarityPostprocessor(similarity_cutoff=threshold)
-                ],
-                response_mode=ResponseMode.NO_TEXT,
-            )
+            nodes = retriever.retrieve(embedding.text)
 
-            response = query_engine.query(embedding.text)
+            postprocessor = SimilarityPostprocessor(similarity_cutoff=threshold)
+            nodes = postprocessor.postprocess_nodes(nodes)
 
-            for node in response.source_nodes:
+            for node in nodes:
                 output.append(
                     {
                         "source": node.metadata["source"],
