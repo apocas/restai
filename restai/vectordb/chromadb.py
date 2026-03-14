@@ -13,7 +13,6 @@ from restai.vectordb.base import VectorBase
 from restai.config import CHROMADB_HOST, CHROMADB_PORT
 
 logging.basicConfig(level=config.LOG_LEVEL)
-logging.getLogger("passlib").setLevel(logging.ERROR)
 
 class ChromaDBVector(VectorBase):
     db = None

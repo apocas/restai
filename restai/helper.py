@@ -25,7 +25,6 @@ import json
 from restai.projects.base import ProjectBase
 
 logging.basicConfig(level=LOG_LEVEL)
-logging.getLogger("passlib").setLevel(logging.ERROR)
 
 
 def resolve_image(image: str) -> str:

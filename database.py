@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime
 
-from passlib.context import CryptContext
+import bcrypt
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 
@@ -59,7 +59,8 @@ except Exception:
 SessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=engine)
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 if os.getenv("RESTAI_DB_SCHEMA"):
     Base.metadata.create_all(bind=engine)
@@ -71,7 +72,7 @@ else:
         dbi = SessionLocal()
         db_user = UserDatabase(
             username="admin",
-            hashed_password=pwd_context.hash(default_password),
+            hashed_password=hash_password(default_password),
             is_admin=True)
         dbi.add(db_user)
         
@@ -131,7 +132,7 @@ else:
             print("Creating demo scenario...")
             db_user = UserDatabase(
                 username="demo",
-                hashed_password=pwd_context.hash("demo"),
+                hashed_password=hash_password("demo"),
                 is_private=True,
             )
             dbi.add(db_user)

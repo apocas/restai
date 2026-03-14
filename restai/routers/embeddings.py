@@ -13,7 +13,6 @@ from restai.database import get_db_wrapper, DBWrapper
 from restai.auth import get_current_username, get_current_username_admin
 
 logging.basicConfig(level=config.LOG_LEVEL)
-logging.getLogger('passlib').setLevel(logging.ERROR)
 
 router = APIRouter()
 

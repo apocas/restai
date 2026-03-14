@@ -10,7 +10,6 @@ from restai.auth import get_current_username
 from restai.models.models import ImageModel, User
 
 logging.basicConfig(level=config.LOG_LEVEL)
-logging.getLogger('passlib').setLevel(logging.ERROR)
 
 router = APIRouter()
 

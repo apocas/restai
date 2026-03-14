@@ -17,7 +17,6 @@ from sqlalchemy import func, or_
 
 
 logging.basicConfig(level=config.LOG_LEVEL)
-logging.getLogger("passlib").setLevel(logging.ERROR)
 
 router = APIRouter()
 

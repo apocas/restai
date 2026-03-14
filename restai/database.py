@@ -24,7 +24,7 @@ from restai.models.models import (
     TeamModelCreate,
 )
 from sqlalchemy.orm import sessionmaker, Session
-from passlib.context import CryptContext
+import bcrypt
 from typing import Optional, List
 from restai.config import MYSQL_HOST, MYSQL_URL, POSTGRES_HOST, POSTGRES_URL
 import json
@@ -57,7 +57,11 @@ else:
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
 
 class DBWrapper:
@@ -75,7 +79,7 @@ class DBWrapper:
     ) -> UserDatabase:
         password_hash: Optional[str]
         if password:
-            password_hash = pwd_context.hash(password)
+            password_hash = hash_password(password)
         else:
             password_hash = None
         db_user: UserDatabase = UserDatabase(
@@ -222,7 +226,7 @@ class DBWrapper:
 
     def update_user(self, user: User, user_update: UserUpdate) -> bool:
         if user_update.password is not None:
-            user.hashed_password = pwd_context.hash(user_update.password)
+            user.hashed_password = hash_password(user_update.password)
 
         if user_update.is_admin is not None:
             user.is_admin = user_update.is_admin

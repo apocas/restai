@@ -239,7 +239,6 @@ async def lifespan(fs_app: FastAPI):
 
 
 logging.basicConfig(level=config.LOG_LEVEL)
-logging.getLogger("passlib").setLevel(logging.ERROR)
 
 if config.SENTRY_DSN:
     sentry_sdk.init(

@@ -13,7 +13,6 @@ from restai.vectordb.base import VectorBase
 from restai.config import PINECONE_API_KEY, PINECONE_INDEX
 
 logging.basicConfig(level=config.LOG_LEVEL)
-logging.getLogger("passlib").setLevel(logging.ERROR)
 
 
 def _sanitize_namespace(name: str) -> str:

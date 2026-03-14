@@ -24,8 +24,6 @@ from restai.constants import ERROR_MESSAGES
 
 
 logging.basicConfig(level=LOG_LEVEL)
-log = logging.getLogger("passlib")
-log.setLevel(logging.ERROR)
 
 
 class OAuthManager:

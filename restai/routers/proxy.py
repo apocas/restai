@@ -15,7 +15,6 @@ from restai.models.models import (
 )
 
 logging.basicConfig(level=config.LOG_LEVEL)
-logging.getLogger("passlib").setLevel(logging.ERROR)
 
 router = APIRouter()
 

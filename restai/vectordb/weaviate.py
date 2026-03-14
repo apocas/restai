@@ -20,7 +20,6 @@ from restai.config import (
 )
 
 logging.basicConfig(level=config.LOG_LEVEL)
-logging.getLogger("passlib").setLevel(logging.ERROR)
 
 
 def _sanitize_collection_name(name: str) -> str:

@@ -22,7 +22,6 @@ dependencies = [
     "bs4>=0.0.2,<0.0.3",
     "selenium>=4.41.0,<5",
     "yake>=0.4.8,<0.5",
-    "passlib>=1.7.4,<2",
     "bcrypt>=4.2.0,<5",
     "SQLAlchemy>=2.0.48,<3",
     "jq>=1.8.0,<2",

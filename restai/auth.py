@@ -6,7 +6,7 @@ from fastapi.security import HTTPBasic
 import jwt
 from restai.config import RESTAI_AUTH_SECRET, RESTAI_AUTH_DISABLE_LOCAL
 from restai.constants import ERROR_MESSAGES
-from restai.database import get_db_wrapper, pwd_context, DBWrapper
+from restai.database import get_db_wrapper, verify_password, DBWrapper
 from restai.models.databasemodels import ProjectDatabase
 from restai.models.models import User
 import logging
@@ -83,7 +83,7 @@ def get_current_username(
                     )
 
                 is_correct_username = credentials["username"] == user.username
-                is_correct_password = pwd_context.verify(
+                is_correct_password = verify_password(
                     credentials["password"], user.hashed_password
                 )
 
