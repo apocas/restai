@@ -1,0 +1,24 @@
+name: Tests
+
+on:
+  push:
+    branches: [master, beta]
+  pull_request:
+    branches: [master, beta]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --no-group gpu
+
+      - name: Run tests
+        run: uv run --no-group gpu pytest tests/ -v --tb=short --ignore=tests/test_projects.py
