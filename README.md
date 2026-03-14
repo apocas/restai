@@ -26,6 +26,7 @@
 - **Frontend**: There is a frontend available at [restai-frontend](https://github.com/apocas/restai-frontend)
 - **Image Generation**: Supports local and remote image generators. Local image generators are run in a separate process. New generators are [easily added](https://github.com/apocas/restai?tab=readme-ov-file#image-generators) and loaded dynamically.
 - **Proxy**: Allows management of an OpenAI compatible proxy. LiteLLM is supported out of the box.
+- **Telegram**: Connect any project to Telegram via BotFather. Messages are processed through the project's chat pipeline and responses are sent back automatically.
 
 ## Project Types
 
@@ -109,6 +110,24 @@
 </div>
 
 - **Routes**: Very similar to Zero-Shot ReAct strategy, but each route is a project. The router will route the question to the project that has the highest score. It's useful when you have multiple projects and you want to route the question to the most suitable one.
+
+## Telegram Integration
+
+Connect your RESTai projects directly to Telegram. Any project of type **RAG**, **Inference**, or **Agent** can be linked to a Telegram bot.
+
+### Setup
+
+1. Create a bot using [BotFather](https://t.me/BotFather) on Telegram and copy the bot token.
+2. In the project edit page, paste the token in the **Telegram Bot Token** field.
+3. Save the project — RESTai will validate the token and start polling for messages automatically.
+
+### How it works
+
+- RESTai runs a background poller per project that long-polls the Telegram API for new messages.
+- Incoming messages are processed through the project's standard chat pipeline (`chat_main`).
+- Responses are sent back to the Telegram chat automatically (long messages are chunked to respect Telegram's 4096 character limit).
+- Each Telegram user is identified by their `chat_id`, enabling per-user conversation history.
+- Pollers start automatically on app startup for all projects with a configured token, and stop cleanly on shutdown.
 
 ## LLMs
 
