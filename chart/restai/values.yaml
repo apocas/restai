@@ -1,0 +1,250 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/apocas/restai
+  pullPolicy: IfNotPresent
+  # Overrides the image tag (default is the chart appVersion)
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+# -- RestAI application configuration (non-sensitive, stored in ConfigMap)
+config:
+  port: 9000
+  logLevel: "INFO"
+  dev: false
+  demo: false
+  gpu: false
+  mcpServer: false
+  agentMaxIterations: 20
+  maxAudioUploadSize: 10
+  embeddingsPath: "/app/embeddings/"
+  appName: "RESTai"
+  hideBranding: false
+  anonymizedTelemetry: false
+
+  # Database — one of: postgresql, mysql, sqlite
+  database:
+    type: "postgresql"
+    postgres:
+      host: ""
+      port: "5432"
+      database: "restai"
+      user: "restai"
+    mysql:
+      host: ""
+      database: "restai"
+      user: "restai"
+    poolSize: 100
+    maxOverflow: 300
+    poolRecycle: 300
+
+  # Redis (optional — enables persistent chat store)
+  redis:
+    enabled: false
+    host: ""
+    port: "6379"
+
+  # Vector store (configure the one you use)
+  vectorStore:
+    chromadb:
+      host: ""
+      port: "8000"
+    pgvector:
+      host: ""
+      port: ""
+      user: ""
+      database: "restai_vectors"
+    weaviate:
+      host: ""
+      port: "8080"
+      grpcPort: "50051"
+    pinecone:
+      index: ""
+
+  # LDAP authentication
+  ldap:
+    enabled: false
+    serverHost: ""
+    serverPort: ""
+    searchBase: ""
+    searchFilters: ""
+    attributeForMail: ""
+    attributeForUsername: ""
+    appDn: ""
+    useTls: ""
+    caCertFile: ""
+    ciphers: ""
+
+  # OAuth / SSO providers (client IDs are non-sensitive)
+  oauth:
+    google:
+      clientId: ""
+      scope: "openid email profile"
+      redirectUri: ""
+    microsoft:
+      clientId: ""
+      tenantId: ""
+      scope: "openid email profile"
+      redirectUri: ""
+    github:
+      clientId: ""
+      scope: "user:email"
+      redirectUri: ""
+    oidc:
+      clientId: ""
+      providerUrl: ""
+      redirectUri: ""
+      scopes: "openid email profile"
+      providerName: "SSO"
+      emailClaim: "email"
+    allowedDomains: "*"
+    autoCreateUser: false
+    sessionCookieSameSite: "lax"
+    sessionCookieSecure: false
+
+  # Proxy mode
+  proxy:
+    url: ""
+    teamId: ""
+
+  # Base URL for OAuth callbacks
+  restaiUrl: ""
+  defaultDevice: ""
+
+# -- Sensitive values (stored in K8s Secret)
+# IMPORTANT: For production/multi-replica deployments, you MUST set authSecret,
+# ssoSecretKey, and fernetKey to fixed values. If left empty, each pod generates
+# random values which breaks JWT validation and encryption across pods/restarts.
+secrets:
+  # Application secrets (MUST be set for production)
+  authSecret: ""
+  ssoSecretKey: ""
+  fernetKey: ""
+
+  # Admin password
+  defaultPassword: "admin"
+
+  # Database passwords
+  postgresPassword: ""
+  mysqlPassword: ""
+
+  # LLM API keys
+  openaiApiKey: ""
+  anthropicApiKey: ""
+  groqApiKey: ""
+  googleApiKey: ""
+  xaiApiKey: ""
+  hfToken: ""
+
+  # Vector store secrets
+  weaviateApiKey: ""
+  pineconeApiKey: ""
+
+  # LDAP
+  ldapAppPassword: ""
+
+  # OAuth client secrets
+  googleClientSecret: ""
+  microsoftClientSecret: ""
+  githubClientSecret: ""
+  oidcClientSecret: ""
+
+  # Proxy
+  proxyKey: ""
+
+  # Monitoring
+  sentryDsn: ""
+
+# -- Use an existing K8s Secret instead of chart-managed secrets.
+# When set, the chart will NOT create a Secret resource and will reference
+# this secret name in envFrom. Your secret must contain the expected env var
+# keys (e.g. RESTAI_AUTH_SECRET, POSTGRES_PASSWORD, OPENAI_API_KEY, etc.)
+existingSecret: ""
+
+# -- Service
+service:
+  type: ClusterIP
+  port: 9000
+
+# -- Ingress
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: restai.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+    # - secretName: restai-tls
+    #   hosts:
+    #     - restai.local
+
+# -- Resource limits
+resources: {}
+  # limits:
+  #   cpu: 2000m
+  #   memory: 4Gi
+  # requests:
+  #   cpu: 500m
+  #   memory: 1Gi
+
+# -- Horizontal Pod Autoscaler
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# -- Probes
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+startupProbe:
+  httpGet:
+    path: /health/live
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  # 30 * 10s = 5 min startup window (Brain init can be slow)
+  failureThreshold: 30
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000

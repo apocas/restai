@@ -275,6 +275,126 @@ To delete everything or a specific container don't forget to pass the necessary 
 
 *Note: the local_cache volume will also get removed since it's in the main service and not in any profile*
 
+## Kubernetes
+
+A Helm chart is provided in `chart/restai/` for deploying RestAI on Kubernetes.
+
+### Quick Start
+
+```bash
+helm install restai chart/restai/ \
+  --set config.database.postgres.host=my-postgres \
+  --set secrets.postgresPassword=mypassword
+```
+
+### Prerequisites
+
+RestAI requires a PostgreSQL database (recommended) or MySQL. Deploy these separately using your preferred method, for example:
+
+```bash
+helm install postgres oci://registry-1.docker.io/bitnamicharts/postgresql \
+  --set auth.database=restai \
+  --set auth.username=restai \
+  --set auth.password=mypassword
+```
+
+Optional services:
+- **Redis** — for persistent chat history across restarts (`config.redis.enabled=true`)
+- **ChromaDB** — for RAG vector storage (`config.vectorStore.chromadb.host`)
+
+### Production Configuration
+
+For production and multi-replica deployments, you **must** set fixed application secrets. Without them, each pod generates random values which breaks JWT validation and API key encryption across pods and restarts.
+
+```bash
+helm install restai chart/restai/ \
+  --set config.database.postgres.host=postgres \
+  --set secrets.postgresPassword=mypassword \
+  --set secrets.authSecret=$(openssl rand -base64 48) \
+  --set secrets.ssoSecretKey=$(openssl rand -base64 48) \
+  --set secrets.fernetKey=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
+```
+
+Or use a values file:
+
+```yaml
+# values-production.yaml
+replicaCount: 3
+
+config:
+  database:
+    postgres:
+      host: postgres
+      database: restai
+      user: restai
+  redis:
+    enabled: true
+    host: redis-master
+    port: "6379"
+  vectorStore:
+    chromadb:
+      host: chromadb
+      port: "8000"
+
+secrets:
+  postgresPassword: "your-db-password"
+  authSecret: "your-fixed-auth-secret"
+  ssoSecretKey: "your-fixed-sso-secret"
+  fernetKey: "your-fixed-fernet-key"
+  defaultPassword: "change-me"
+  openaiApiKey: "sk-..."
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: restai.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: restai-tls
+      hosts:
+        - restai.example.com
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+```
+
+```bash
+helm install restai chart/restai/ -f values-production.yaml
+```
+
+### External Secret Management
+
+If you manage secrets externally (e.g. HashiCorp Vault, Sealed Secrets, External Secrets Operator), use `existingSecret` to reference your own K8s Secret instead of having the chart create one:
+
+```yaml
+existingSecret: "my-restai-secrets"
+```
+
+Your secret must contain the expected environment variable keys (e.g. `RESTAI_AUTH_SECRET`, `POSTGRES_PASSWORD`, `OPENAI_API_KEY`, etc.).
+
+### Health Checks
+
+RestAI exposes two health endpoints used by the Helm chart for Kubernetes probes:
+
+- `GET /health/live` — liveness probe, always returns 200 if the process is running
+- `GET /health/ready` — readiness probe, checks database and Redis connectivity
+
 ## API
 
 - **Endpoints**: All the API endpoints are documented and available at: [Endpoints](https://apocas.github.io/restai/api.html)

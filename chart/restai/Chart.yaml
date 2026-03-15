@@ -1,0 +1,16 @@
+apiVersion: v2
+name: restai
+description: AIaaS (AI as a Service) platform — create AI agents and consume them via REST API
+type: application
+version: 0.1.0
+appVersion: "6.0.0"
+keywords:
+  - ai
+  - llm
+  - rag
+  - inference
+  - agent
+  - mcp
+home: https://github.com/apocas/restai
+sources:
+  - https://github.com/apocas/restai

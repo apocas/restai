@@ -84,6 +84,42 @@ async def lifespan(fs_app: FastAPI):
             "version": fs_app.version,
         }
 
+    @fs_app.get("/health/live")
+    async def health_live():
+        return {"status": "ok"}
+
+    @fs_app.get("/health/ready")
+    async def health_ready():
+        health = {"status": "ok"}
+        try:
+            from sqlalchemy import text
+            db_check = get_db_wrapper()
+            db_check.db.execute(text("SELECT 1"))
+            db_check.db.close()
+            health["database"] = "ok"
+        except Exception:
+            health["database"] = "error"
+            health["status"] = "degraded"
+
+        if config.REDIS_HOST:
+            try:
+                import redis
+                r = redis.Redis(
+                    host=config.REDIS_HOST,
+                    port=int(config.REDIS_PORT or 6379),
+                    socket_connect_timeout=2,
+                )
+                r.ping()
+                r.close()
+                health["redis"] = "ok"
+            except Exception:
+                health["redis"] = "error"
+                health["status"] = "degraded"
+
+        if health["status"] != "ok":
+            return JSONResponse(content=health, status_code=503)
+        return health
+
     @fs_app.get("/setup")
     async def get_setup():
         sso_list = []
