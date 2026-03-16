@@ -409,7 +409,7 @@ RestAI exposes two health endpoints used by the Helm chart for Kubernetes probes
 
 ## Frontend
 
-- React 18 + MUI, located in the `frontend/` folder ([restai-frontend](https://github.com/apocas/restai-frontend)).
+- React 18 + MUI, located in the `frontend/` folder.
 - `make install` automatically installs dependencies and builds it.
 - Development: `cd frontend && npm start` for a dev server on port 3000 (proxies API requests to port 9000).
 - Production: built frontend is served by the backend at `/admin`.
