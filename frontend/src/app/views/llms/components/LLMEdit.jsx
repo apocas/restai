@@ -42,6 +42,9 @@ export default function LLMEdit({ llm }) {
     if (state.output_cost !== llm.output_cost) {
       update.output_cost = state.output_cost;
     }
+    if (state.context_window !== llm.context_window) {
+      update.context_window = parseInt(state.context_window);
+    }
 
     fetch(url + "/llms/" + llm.name, {
       method: 'PATCH',
@@ -191,6 +194,20 @@ export default function LLMEdit({ llm }) {
                 variant="outlined"
                 onChange={handleChange}
                 value={state.output_cost}
+              />
+            </Grid>
+
+            <Grid item sm={6} xs={12}>
+              <TextField
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                name="context_window"
+                label="Context Window"
+                type="number"
+                variant="outlined"
+                onChange={handleChange}
+                value={state.context_window}
+                helperText="Maximum number of tokens the LLM can process"
               />
             </Grid>
 

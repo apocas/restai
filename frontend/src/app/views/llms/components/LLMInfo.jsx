@@ -92,6 +92,10 @@ export default function LLMInfo({ llm, projects }) {
             <TableCell sx={{ pl: 2 }}>Output Cost (per Million Tokens)</TableCell>
             <TableCell colSpan={4}>{llm.output_cost}€</TableCell>
           </TableRow>
+          <TableRow>
+            <TableCell sx={{ pl: 2 }}>Context Window</TableCell>
+            <TableCell colSpan={4}>{llm.context_window || 4096} tokens</TableCell>
+          </TableRow>
         </TableBody>
       </Table>
 

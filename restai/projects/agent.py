@@ -63,7 +63,10 @@ class Agent(ProjectBase):
         ), max_iterations
 
     async def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
-        chat: Chat = Chat(chatModel, self.brain.chat_store)
+        model = self.brain.get_llm(project.props.llm, db)
+        context_window = model.props.context_window if model else 4096
+        token_limit = int(context_window * 0.75)
+        chat: Chat = Chat(chatModel, self.brain.chat_store, token_limit=token_limit, llm=model.llm if model else None)
         output = {
             "question": chatModel.question,
             "type": "agent",
@@ -84,8 +87,6 @@ class Agent(ProjectBase):
                 self.brain.post_processing_counting(output)
                 yield output
                 return
-
-        model = self.brain.get_llm(project.props.llm, db)
 
         tools_u = await self.prepare_tools(project)
 

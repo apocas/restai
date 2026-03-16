@@ -24,7 +24,9 @@ class RAG(ProjectBase):
 
     async def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
         model: Optional[LLM] = self.brain.get_llm(project.props.llm, db)
-        chat: Chat = Chat(chatModel, self.brain.chat_store)
+        context_window = model.props.context_window if model else 4096
+        token_limit = int(context_window * 0.75)
+        chat: Chat = Chat(chatModel, self.brain.chat_store, token_limit=token_limit, llm=model.llm if model else None)
 
         output = {
             "id": chat.chat_id,

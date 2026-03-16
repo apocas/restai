@@ -71,6 +71,7 @@ async def api_create_llm(
             llmc.privacy,
             llmc.description,
             llmc.type,
+            llmc.context_window,
         )
         return llm
     except Exception as e:

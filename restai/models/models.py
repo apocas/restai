@@ -70,6 +70,7 @@ class LLMModel(BaseModel):
     type: str
     input_cost: float = 0.0
     output_cost: float = 0.0
+    context_window: Union[int, None] = 4096
     teams: list["TeamModel"] = []
     model_config = ConfigDict(from_attributes=True)
 
@@ -105,6 +106,7 @@ class LLMUpdate(BaseModel):
     type: str = None
     input_cost: float = None
     output_cost: float = None
+    context_window: int = None
 
     @field_validator('options', mode='before')
     @classmethod

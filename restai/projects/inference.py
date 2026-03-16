@@ -24,7 +24,10 @@ class Inference(ProjectBase):
 
     async def chat(self, project: Project, chat_model: ChatModel, user: User, db: DBWrapper):
 
-        chat: Chat = Chat(chat_model, self.brain.chat_store)
+        llm_model = self.brain.get_llm(project.props.llm, db)
+        context_window = llm_model.props.context_window if llm_model else 4096
+        token_limit = int(context_window * 0.75)
+        chat: Chat = Chat(chat_model, self.brain.chat_store, token_limit=token_limit, llm=llm_model.llm if llm_model else None)
         output = {
             "question": chat_model.question,
             "type": "inference",
@@ -45,8 +48,6 @@ class Inference(ProjectBase):
                 self.brain.post_processing_counting(output)
                 yield output
 
-        llm_model = self.brain.get_llm(project.props.llm, db)
-
         sysTemplate = project.props.system or self.brain.defaultSystem
 
         if sysTemplate:
@@ -65,7 +66,7 @@ class Inference(ProjectBase):
         )
 
         # Build messages for LLM call — replace the last USER message with multimodal if image present
-        messages = chat.memory.get_all()
+        messages = chat.memory.get()
         if chat_model.image:
             messages[-1] = _build_user_message(chat_model.question, chat_model.image)
 

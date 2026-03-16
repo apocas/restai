@@ -102,6 +102,7 @@ class DBWrapper:
         privacy: str,
         description: str,
         llm_type: str,
+        context_window: int = 4096,
     ) -> LLMDatabase:
         db_llm: LLMDatabase = LLMDatabase(
             name=name,
@@ -110,6 +111,7 @@ class DBWrapper:
             privacy=privacy,
             description=description,
             type=llm_type,
+            context_window=context_window,
         )
         self.db.add(db_llm)
         self.db.commit()
@@ -273,6 +275,12 @@ class DBWrapper:
             and llm.output_cost != llmUpdate.output_cost
         ):
             llm.output_cost = llmUpdate.output_cost
+
+        if (
+            llmUpdate.context_window is not None
+            and llm.context_window != llmUpdate.context_window
+        ):
+            llm.context_window = llmUpdate.context_window
 
         self.db.commit()
         return True

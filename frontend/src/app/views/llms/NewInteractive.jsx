@@ -60,6 +60,7 @@ export default function NewInteractive() {
     type: "",
     privacy: "private",
     description: "",
+    context_window: 4096,
   });
   const [optionsState, setOptionsState] = useState({});
 
@@ -86,7 +87,7 @@ export default function NewInteractive() {
   const handleBack = () => {
     setSelectedProvider(null);
     setOptionsState({});
-    setFormState({ name: "", type: "", privacy: "private", description: "" });
+    setFormState({ name: "", type: "", privacy: "private", description: "", context_window: 4096 });
   };
 
   const handleFormChange = (e) => {
@@ -132,6 +133,7 @@ export default function NewInteractive() {
           privacy: formState.privacy,
           type: formState.type,
           description: formState.description,
+          context_window: parseInt(formState.context_window) || 4096,
         }),
       });
 
@@ -327,6 +329,19 @@ export default function NewInteractive() {
                   label="Description"
                   value={formState.description}
                   onChange={handleFormChange}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  name="context_window"
+                  label="Context Window"
+                  type="number"
+                  value={formState.context_window}
+                  onChange={handleFormChange}
+                  helperText="Maximum number of tokens the LLM can process"
                 />
               </Grid>
 
