@@ -19,15 +19,19 @@
 
 ## Features
 
-- **Projects**: There are multiple project types, each with its own features. ([rag](https://github.com/apocas/restai?tab=readme-ov-file#rag), [ragsql](https://github.com/apocas/restai?tab=readme-ov-file#ragsql), [inference](https://github.com/apocas/restai?tab=readme-ov-file#inference), [router](https://github.com/apocas/restai?tab=readme-ov-file#router), [agent](https://github.com/apocas/restai?tab=readme-ov-file#agent))
+- **Projects**: Multiple project types, each with its own features. ([RAG](#rag), [RAGSQL](#ragsql), [Inference](#inference), [Router](#router), [Agent](#agent))
 - **Teams**: Multi-tenancy layer. Each team has its own users, team admins, projects, and access to specific LLMs and embeddings. Projects belong to a team, and users can only use the models their team has been granted access to.
-- **Users**: A user represents a user of the system. Users belong to one or more teams and may have access to multiple projects within those teams.
-- **LLMs**: Supports any public LLM supported by LlamaIndex. Which includes any local LLM supported by Ollama, LiteLLM, etc.
-- **API**: The API is a first-class citizen of RestAI. All endpoints are documented using [Swagger](https://apocas.github.io/restai/).
-- **Frontend**: A React-based frontend is included in the `frontend/` folder and served automatically at `/admin`.
-- **Image Generation**: Supports local and remote image generators. Local image generators are run in a separate process. New generators are [easily added](https://github.com/apocas/restai?tab=readme-ov-file#image-generators) and loaded dynamically.
-- **Proxy**: Allows management of an OpenAI compatible proxy. LiteLLM is supported out of the box.
+- **Users**: Users belong to one or more teams and may have access to multiple projects within those teams.
+- **LLMs**: Supports any LLM supported by LlamaIndex. Includes Ollama, OpenAI, Anthropic, Gemini, Groq, Grok, LiteLLM, vLLM, Azure OpenAI, and any OpenAI-compatible endpoint. Each LLM has a configurable context window for automatic chat memory management.
+- **Chat Memory**: Conversations automatically manage context window limits. When chat history exceeds the LLM's context window, older messages are summarized rather than dropped, preserving important context.
+- **Vector Stores**: Supports [ChromaDB](https://www.trychroma.com/) (default), [PGVector](https://github.com/pgvector/pgvector), [Weaviate](https://weaviate.io/), and [Pinecone](https://www.pinecone.io/) for RAG embeddings storage.
+- **Databases**: SQLite (default), PostgreSQL, and MySQL for application data.
+- **API**: The API is a first-class citizen. All endpoints are documented using [Swagger](https://apocas.github.io/restai/).
+- **Frontend**: A React-based frontend is served automatically at `/admin`.
+- **Image Generation**: Supports local and remote image generators (Stable Diffusion, Flux, DALL-E, etc.). New generators are loaded dynamically.
+- **Proxy**: OpenAI-compatible proxy management. LiteLLM is supported out of the box.
 - **Telegram**: Connect any project to Telegram via BotFather. Messages are processed through the project's chat pipeline and responses are sent back automatically.
+- **MCP**: Agent projects support [Model Context Protocol](https://modelcontextprotocol.io) servers for extensible tool access.
 
 ## Project Types
 
@@ -37,12 +41,12 @@
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/rag.png" width="750" style="margin: 10px;"  alt="RESTai RAG"/>
 </div>
 
-- **Embeddings**: You may use any embeddings model supported by llamaindex. Check embeddings [definition](modules/embeddings.py).
-- **Vectorstore**: There are two vectorstores supported: `ChromaDB` and `RedisVL`
-- **Retrieval**: It features an embeddings search and score evaluator, which allows you to evaluate the quality of your embeddings and simulate the RAG process before the LLM. Reranking is also supported, ColBERT and LLM based.
-- **Loaders**: You may use any loader supported by llamaindex.
-- **Sandboxed mode**: RAG projects have "sandboxed" mode, which means that a locked default answer will be given when there aren't embeddings for the provided question. This is useful for chatbots, where you want to provide a default answer when the LLM doesn't know how to answer the question, reduncing hallucination.
-- **Evaluation**: You may evaluate your RAG agent using [deepeval](https://github.com/confident-ai/deepeval). Using the `eval` property in the RAG endpoint.
+- **Embeddings**: Any embeddings model supported by LlamaIndex. Builtin support for OpenAI, Ollama, and HuggingFace embeddings.
+- **Vector Stores**: ChromaDB (default), PGVector, Weaviate, and Pinecone. Configured per-project.
+- **Retrieval**: Features an embeddings search and score evaluator to simulate the RAG process before the LLM. Reranking is also supported (ColBERT and LLM-based).
+- **Loaders**: Any loader supported by LlamaIndex.
+- **Sandboxed mode**: A locked default answer is given when there aren't relevant embeddings for the question, reducing hallucination.
+- **Evaluation**: Evaluate your RAG pipeline using [deepeval](https://github.com/confident-ai/deepeval) via the `eval` property in the RAG endpoint.
 
 ### RAGSQL
 
@@ -54,11 +58,11 @@
 
 ### Agent
 
-- Zero-Shot ReAct Agents, specify which tools to use in the project and the agent will figure out how to use them to achieve the objective.
-- New tools are easily added. Just create a new tool in the `tools` folder and it will be automatically picked up by RESTai. Check the `app/llms/tools` folder for examples using the builtin tools.
+- Zero-Shot ReAct Agents — specify which tools to use and the agent will figure out how to achieve the objective.
+- Supports both ReAct and Function Calling agent strategies.
 
-- **Tools**: Supply all the tools names you want the Agent to use in this project. (separated by commas)
-- **Terminal**: Core tool that allows the agent to execute commands via SSH. (using [containerssh.io](https://containerssh.io) or similar is recommended)
+- **Tools**: Builtin tools plus any custom tools. Supply tool names in the project configuration.
+- **Terminal**: Core tool that allows the agent to execute commands via SSH (using [containerssh.io](https://containerssh.io) or similar is recommended).
 - **MCP Servers**: Connect to external tool servers using the [Model Context Protocol](https://modelcontextprotocol.io). See [MCP Servers](#mcp-servers) below.
 
 <div align="center">
@@ -158,9 +162,9 @@ curl -X POST http://localhost:9000/tools/mcp/probe \
 
 ### Image Generators
 
-- New generators are easily added. Just create a new tool in the `generators` folder and it will be automatically picked up by RESTai. Check the `app/image/workers` folder for examples using the builtin generators.
-- **text2img**: RESTai supports txt2image like Stable Diffusion, Flux, DallE, ...
-- **img2img**: RESTai supports img2img like BMBG2, ...
+- New generators are loaded dynamically. Requires `RESTAI_GPU=true`.
+- **text2img**: Stable Diffusion, Flux, DALL-E, and more.
+- **img2img**: RMBG2 and other image-to-image models.
 
 #### Flux1
 
@@ -207,23 +211,36 @@ Connect your RESTai projects directly to Telegram. Any project of type **RAG**, 
 
 ## LLMs
 
-- You may use any LLM provider supported by LlamaIndex.
-- Builtin LLMs supported:
-  - Ollama
-  - OllamaMultiModal
-  - OpenAI
-  - OpenAILike (anything that is OpenAI compatible)
-  - Grok
-  - Groq
-  - Anthropic
-  - LiteLLM
-  - vLLM
-  - Gemini
-  - AzureOpenAI
+- Any LLM provider supported by LlamaIndex can be used.
+- Each LLM has a configurable **context window** size. Chat memory is automatically managed — when history exceeds the context window, older messages are summarized using the LLM instead of being silently dropped.
+- Builtin providers:
+
+| Provider | Class Name | Type |
+|----------|-----------|------|
+| [Ollama](https://ollama.com/) | `Ollama` | chat |
+| Ollama MultiModal | `OllamaMultiModal` | vision |
+| [OpenAI](https://platform.openai.com/) | `OpenAI` | chat |
+| OpenAI-Compatible | `OpenAILike` | chat |
+| [Anthropic](https://www.anthropic.com/) | `Anthropic` | chat |
+| [Google Gemini](https://ai.google.dev/) | `Gemini` | chat |
+| Gemini MultiModal | `GeminiMultiModal` | vision |
+| [Groq](https://groq.com/) | `Groq` | chat |
+| [Grok (xAI)](https://x.ai/) | `Grok` | chat |
+| [LiteLLM](https://litellm.ai/) | `LiteLLM` | chat |
+| [vLLM](https://vllm.ai/) | `vLLM` | chat |
+| [Azure OpenAI](https://azure.microsoft.com/en-us/products/ai-services/openai-service) | `AzureOpenAI` | chat |
 
 ## Installation
 
-- RESTai uses [uv](https://github.com/astral-sh/uv) to manage dependencies.
+RESTai uses [uv](https://github.com/astral-sh/uv) to manage dependencies. Python 3.11+ is required.
+
+```bash
+make install    # Install deps, initialize DB, build frontend
+make dev        # Development server with hot reload (port 9000)
+make start      # Production server (4 workers, port 9000)
+```
+
+Default admin credentials: `admin` / `admin` (configurable via `RESTAI_DEFAULT_PASSWORD` env var).
 
 ## Architecture
 
@@ -243,26 +260,16 @@ Connect your RESTai projects directly to Telegram. Any project of type **RAG**, 
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai_stateful.png" width="750"  style="margin: 10px;"/>
 </div>
 
-## Development
-
-- `make install`
-- `make dev` (starts RESTai in development mode)
-
-## Production
-
-- `make install`
-- `make start`
-
 ## Docker
 
 - Edit the .env file accordingly
 - `docker compose --env-file .env up --build`
 
-You can specify profiles `docker compose --profile redis --profile mysql ....` to include additional components like the redis cache backend or a DB server, here are the supported profiles:
+You can specify profiles to include additional components:
 
-- `--profile redis` Starts and sets redis as the cache backend
-- `--profile mysql` Starts and enables Mysql as the database server
-- `--profile postgres` Starts and enables Postgres as the database server
+- `--profile redis` — Redis for persistent chat history
+- `--profile mysql` — MySQL as the database server
+- `--profile postgres` — PostgreSQL as the database server
 
 The variables MYSQL_HOST and POSTGRES_HOST should match the names of the respective services "mysql" and "postgres" and not localhost or 127.0.0.1 when using the containers
 
@@ -300,7 +307,7 @@ helm install postgres oci://registry-1.docker.io/bitnamicharts/postgresql \
 
 Optional services:
 - **Redis** — for persistent chat history across restarts (`config.redis.enabled=true`)
-- **ChromaDB** — for RAG vector storage (`config.vectorStore.chromadb.host`)
+- **Vector store** for RAG — ChromaDB (`config.vectorStore.chromadb.host`), PGVector, Weaviate, or Pinecone
 
 ### Production Configuration
 
@@ -402,10 +409,10 @@ RestAI exposes two health endpoints used by the Helm chart for Kubernetes probes
 
 ## Frontend
 
-- The frontend is included in the `frontend/` folder (React 18 + MUI).
+- React 18 + MUI, located in the `frontend/` folder ([restai-frontend](https://github.com/apocas/restai-frontend)).
 - `make install` automatically installs dependencies and builds it.
-- In development, run `cd frontend && npm start` for a dev server on port 3000 (proxies API requests to port 9000).
-- In production, the built frontend is served by the backend at `/admin`.
+- Development: `cd frontend && npm start` for a dev server on port 3000 (proxies API requests to port 9000).
+- Production: built frontend is served by the backend at `/admin`.
 
 ## Tests
 
