@@ -77,12 +77,6 @@ export const defaultNavigations = [
   },
   { label: "Docs", type: "label" },
   {
-    name: "API",
-    icon: "launch",
-    type: "extLink",
-    path: "https://apocas.github.io/restai/api.html"
-  },
-  {
     name: "Swagger",
     icon: "launch",
     type: "extLink",
