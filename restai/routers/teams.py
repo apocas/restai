@@ -1,16 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from restai.models.models import (
-    TeamModel, 
-    TeamModelCreate, 
-    TeamModelUpdate, 
+    TeamModel,
+    TeamModelCreate,
+    TeamModelUpdate,
     TeamsResponse,
     User
 )
-from restai.models.databasemodels import TeamDatabase
+from restai.models.databasemodels import TeamDatabase, OutputDatabase, ProjectDatabase, UserDatabase
 from restai.database import get_db_wrapper, DBWrapper
 from restai.auth import (
     get_current_username,
@@ -442,6 +442,77 @@ async def remove_embedding_from_team(
             
         db_wrapper.remove_embedding_from_team(team, embedding)
         return {"removed_embedding": embedding_name, "team": team.name}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/teams/{team_id}/transactions")
+async def get_team_transactions(
+    team_id: int = Path(description="Team ID"),
+    start: int = Query(0, description="Pagination start offset"),
+    end: int = Query(100, description="Pagination end offset"),
+    user: User = Depends(get_current_username_team_member),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get budget transactions (inference logs) for all projects in a team."""
+    try:
+        team = db_wrapper.get_team_by_id(team_id)
+        if team is None:
+            raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+
+        team_project_ids = db_wrapper.db.query(ProjectDatabase.id).filter(
+            ProjectDatabase.team_id == team_id
+        )
+
+        now = datetime.now(timezone.utc)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        base_query = (
+            db_wrapper.db.query(
+                OutputDatabase,
+                ProjectDatabase.name.label("project_name"),
+                UserDatabase.username.label("username"),
+            )
+            .join(ProjectDatabase, OutputDatabase.project_id == ProjectDatabase.id)
+            .outerjoin(UserDatabase, OutputDatabase.user_id == UserDatabase.id)
+            .filter(
+                OutputDatabase.project_id.in_(team_project_ids),
+                OutputDatabase.date >= month_start
+            )
+        )
+
+        total = base_query.count()
+
+        rows = (
+            base_query
+            .order_by(OutputDatabase.date.desc())
+            .offset(start)
+            .limit(end - start)
+            .all()
+        )
+
+        transactions = []
+        for output, project_name, username in rows:
+            input_cost = output.input_cost or 0
+            output_cost = output.output_cost or 0
+            transactions.append({
+                "id": output.id,
+                "date": output.date.isoformat() if output.date else None,
+                "project": project_name,
+                "user": username,
+                "llm": output.llm,
+                "input_tokens": output.input_tokens or 0,
+                "output_tokens": output.output_tokens or 0,
+                "input_cost": input_cost,
+                "output_cost": output_cost,
+                "total_cost": input_cost + output_cost,
+                "question": output.question,
+                "answer": output.answer,
+            })
+
+        return {"transactions": transactions, "total": total}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

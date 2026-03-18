@@ -134,7 +134,7 @@ class OutputDatabase(Base):
     input_cost = Column(Float)
     output_cost = Column(Float)
     
-    date = Column(DateTime)
+    date = Column(DateTime, index=True)
     
     chat_id = Column(String(255))
     

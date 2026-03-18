@@ -694,18 +694,26 @@ class DBWrapper:
         self.db.commit()
 
     def get_user_spending(self, user_id: int) -> float:
+        now = datetime.now(timezone.utc)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         result = self.db.query(
             func.coalesce(func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost), 0.0)
-        ).filter(OutputDatabase.user_id == user_id).scalar()
+        ).filter(
+            OutputDatabase.user_id == user_id,
+            OutputDatabase.date >= month_start
+        ).scalar()
         return float(result)
 
     def get_team_spending(self, team_id: int) -> float:
+        now = datetime.now(timezone.utc)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         result = self.db.query(
             func.coalesce(func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost), 0.0)
         ).filter(
             OutputDatabase.project_id.in_(
                 self.db.query(ProjectDatabase.id).filter(ProjectDatabase.team_id == team_id)
-            )
+            ),
+            OutputDatabase.date >= month_start
         ).scalar()
         return float(result)
 

@@ -15,13 +15,19 @@ import {
   Avatar,
   Divider,
   IconButton,
-  Tooltip
+  Tooltip,
+  CircularProgress,
+  LinearProgress
 } from "@mui/material";
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import { useNavigate, useParams } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
 import { Breadcrumb } from "app/components";
 import { toast } from 'react-toastify';
-import { Person, Settings, Delete, Group, Code, Psychology, AccountBalanceWallet } from "@mui/icons-material";
+import { Person, Settings, Delete, Group, Code, Psychology, AccountBalanceWallet, Receipt, AllInclusive } from "@mui/icons-material";
+import MUIDataTable from "mui-datatables";
+import ReactJson from '@microlink/react-json-view';
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
@@ -62,6 +68,14 @@ export default function TeamView() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
 
+  const [transactions, setTransactions] = useState([]);
+  const [txPage, setTxPage] = useState(0);
+  const [txRows, setTxRows] = useState(100);
+  const [txCount, setTxCount] = useState(0);
+  const [txLog, setTxLog] = useState({});
+  const [txRowsExpanded, setTxRowsExpanded] = useState([]);
+  const [txLoaded, setTxLoaded] = useState(false);
+
   const isTeamAdmin = team?.admins?.some(admin => admin.id === user.id) || user.is_admin;
 
   const fetchTeam = async () => {
@@ -85,6 +99,27 @@ export default function TeamView() {
       document.title = `${process.env.REACT_APP_RESTAI_NAME || "RESTai"} - Team: ${team.name}`;
     }
   }, [team]);
+
+  const fetchTransactions = async () => {
+    const txStart = txPage * txRows;
+    const txEnd = txStart + txRows;
+    try {
+      const data = await api.get(`/teams/${id}/transactions?start=${txStart}&end=${txEnd}`, user.token);
+      if (data.transactions) {
+        setTransactions(data.transactions);
+        setTxCount(data.total);
+      }
+    } catch (error) {
+      // errors auto-toasted
+    }
+  };
+
+  useEffect(() => {
+    if (tabValue === 3 && team) {
+      fetchTransactions();
+      setTxLoaded(true);
+    }
+  }, [tabValue, team, txPage, txRows]);
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -208,11 +243,37 @@ export default function TeamView() {
             <Typography variant="body1" color="textSecondary">
               {team.description || "No description provided"}
             </Typography>
-            {team.budget >= 0 && (
-              <Box display="flex" alignItems="center" gap={1} mt={1}>
-                <AccountBalanceWallet fontSize="small" color="action" />
-                <Typography variant="body2" color="textSecondary">
-                  Budget: {team.budget.toFixed(2)} | Spent: {(team.spending ?? 0).toFixed(2)} | Remaining: {(team.remaining ?? 0).toFixed(2)}
+            {team.budget >= 0 ? (() => {
+              const spent = team.spending ?? 0;
+              const budget = team.budget;
+              const pct = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
+              const barColor = pct > 90 ? "error" : pct > 70 ? "warning" : "primary";
+              return (
+                <Box mt={1.5} maxWidth={400}>
+                  <Box display="flex" justifyContent="space-between" mb={0.5}>
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                      <AccountBalanceWallet sx={{ fontSize: 16, color: "text.secondary" }} />
+                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        Spent (this month): ${spent.toFixed(2)} / ${budget.toFixed(2)}
+                      </Typography>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      ${(team.remaining ?? 0).toFixed(2)} left
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={pct}
+                    color={barColor}
+                    sx={{ height: 8, borderRadius: 4 }}
+                  />
+                </Box>
+              );
+            })() : (
+              <Box display="flex" alignItems="center" gap={0.5} mt={1}>
+                <AllInclusive sx={{ fontSize: 16, color: "text.disabled" }} />
+                <Typography variant="caption" color="text.disabled" fontWeight={600}>
+                  Unlimited budget
                 </Typography>
               </Box>
             )}
@@ -234,6 +295,7 @@ export default function TeamView() {
             <Tab label="Users" icon={<Group />} iconPosition="start" />
             <Tab label="Projects" icon={<Code />} iconPosition="start" />
             <Tab label="Models" icon={<Psychology />} iconPosition="start" />
+            <Tab label="Transactions" icon={<Receipt />} iconPosition="start" />
           </Tabs>
         </Box>
         
@@ -408,6 +470,95 @@ export default function TeamView() {
               </List>
             </Grid>
           </Grid>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={3}>
+            <MUIDataTable
+              title="Transactions"
+              options={{
+                print: false,
+                selectableRows: "none",
+                expandableRows: true,
+                expandableRowsHeader: false,
+                expandableRowsOnClick: true,
+                download: false,
+                filter: false,
+                viewColumns: false,
+                rowsExpanded: txRowsExpanded,
+                rowsPerPage: txRows,
+                rowsPerPageOptions: [50, 100, 500],
+                elevation: 0,
+                count: txCount,
+                page: txPage,
+                serverSide: true,
+                textLabels: {
+                  body: {
+                    noMatch: "No transactions found",
+                  },
+                },
+                onTableChange: (action, tableState) => {
+                  switch (action) {
+                    case 'changePage':
+                      setTxPage(tableState.page);
+                      break;
+                    case 'changeRowsPerPage':
+                      setTxRows(tableState.rowsPerPage);
+                      setTxPage(0);
+                      break;
+                    default:
+                      break;
+                  }
+                },
+                isRowExpandable: () => true,
+                renderExpandableRow: (rowData, rowMeta) => {
+                  const colSpan = rowData.length + 1;
+                  return (
+                    <TableRow>
+                      <TableCell sx={{ p: 2, backgroundColor: "#f0f0f0" }} colSpan={colSpan}>
+                        <ReactJson src={txLog} enableClipboard={false} />
+                      </TableCell>
+                    </TableRow>
+                  );
+                },
+                onRowExpansionChange: (_, allRowsExpanded) => {
+                  setTxRowsExpanded(allRowsExpanded.slice(-1).map(item => item.index));
+                  if (allRowsExpanded.length > 0) {
+                    setTxLog(transactions[allRowsExpanded[0].dataIndex]);
+                  }
+                },
+              }}
+              data={transactions.map(tx => [
+                tx.date,
+                tx.project,
+                tx.user,
+                tx.llm,
+                tx.input_tokens,
+                tx.output_tokens,
+                (tx.total_cost || 0),
+              ])}
+              columns={[
+                {
+                  name: "Date",
+                  options: {
+                    customHeadRender: ({ index, ...column }) => (
+                      <TableCell key={index} style={{ width: "180px" }}>{column.label}</TableCell>
+                    ),
+                    customBodyRender: (value) => new Date(value).toLocaleString(),
+                  },
+                },
+                { name: "Project" },
+                { name: "User" },
+                { name: "LLM" },
+                { name: "Input Tokens", options: { customBodyRender: (value) => (value || 0).toLocaleString() } },
+                { name: "Output Tokens", options: { customBodyRender: (value) => (value || 0).toLocaleString() } },
+                {
+                  name: "Cost",
+                  options: {
+                    customBodyRender: (value) => (value || 0).toFixed(4),
+                  },
+                },
+              ]}
+            />
         </TabPanel>
       </StyledCard>
     </Container>
