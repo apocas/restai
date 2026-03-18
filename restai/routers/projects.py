@@ -244,6 +244,25 @@ async def route_edit_project(
     ):
         raise HTTPException(status_code=404, detail="LLM not found")
 
+    # Validate team LLM/embedding access even when team_id is not changing
+    if projectModelUpdate.llm and not projectModelUpdate.team_id:
+        current_team = db_wrapper.get_team_by_id(project.team_id)
+        if current_team:
+            llm_model = request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper)
+            if llm_model and llm_model.props.name not in [l.name for l in current_team.llms]:
+                raise HTTPException(
+                    status_code=403, detail=f"Team does not have access to LLM '{projectModelUpdate.llm}'"
+                )
+
+    if projectModelUpdate.embeddings and not projectModelUpdate.team_id and project.type == "rag":
+        current_team = db_wrapper.get_team_by_id(project.team_id)
+        if current_team:
+            embedding_model = request.app.state.brain.get_embedding(projectModelUpdate.embeddings, db_wrapper)
+            if embedding_model and embedding_model.model_name not in [e.name for e in current_team.embeddings]:
+                raise HTTPException(
+                    status_code=403, detail=f"Team does not have access to embedding model '{projectModelUpdate.embeddings}'"
+                )
+
     # Validate team if being updated
     if projectModelUpdate.team_id:
         # Check if the new team exists

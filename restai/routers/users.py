@@ -317,6 +317,12 @@ async def route_update_user(
         if not user.is_admin and user_update.is_admin is True:
             raise HTTPException(status_code=403, detail="Insuficient permissions")
 
+        if not user.is_admin and user_update.is_private is False and user_to_update.is_private:
+            raise HTTPException(status_code=403, detail="Insuficient permissions")
+
+        if not user.is_admin and user_update.projects is not None:
+            raise HTTPException(status_code=403, detail="Only admins can modify project assignments")
+
         db_wrapper.update_user(user_to_update, user_update)
 
         if user_update.projects is not None:

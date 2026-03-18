@@ -100,7 +100,7 @@ def get_current_username(
                 if isinstance(e, HTTPException):
                     raise e
                 logging.exception(e)
-                pass
+                raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
     else:
         raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
 
