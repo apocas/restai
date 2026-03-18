@@ -48,7 +48,7 @@ docker compose --env-file .env up --build
 - **Multi-project AI platform** — RAG, Agents, Routers, SQL-to-NL, and Inference in one place
 - **Full Web UI included** — React dashboard with analytics, not just an API
 - **Any LLM** — OpenAI, Anthropic, Ollama, Gemini, Groq, LiteLLM, vLLM, Azure, and more
-- **Production-ready** — Teams, RBAC, OAuth/LDAP, token tracking, Kubernetes-native
+- **Feature complete** — Teams, RBAC, OAuth/LDAP, token tracking, Kubernetes-native
 - **Extensible tools** — MCP (Model Context Protocol) for unlimited agent integrations
 - **Token tracking & cost analytics** — built-in dashboard with daily usage, per-project costs, and top LLM charts
 
