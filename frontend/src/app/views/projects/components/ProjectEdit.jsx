@@ -5,11 +5,10 @@ import { H4 } from "app/components/Typography";
 import { useState, useEffect, Fragment } from "react";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { toast } from 'react-toastify';
 import { JsonEditor } from 'json-edit-react';
+import api from "app/utils/api";
 
 export default function ProjectEdit({ project, projects, info }) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const [state, setState] = useState({});
   const [tools, setTools] = useState([]);
@@ -42,17 +41,7 @@ export default function ProjectEdit({ project, projects, info }) {
     if (server.args && server.args.length > 0) body.args = server.args;
     if (server.env && Object.keys(server.env).length > 0) body.env = server.env;
 
-    fetch(url + "/tools/mcp/probe", {
-      method: 'POST',
-      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      body: JSON.stringify(body),
-    })
-      .then((res) => {
-        if (!res.ok) {
-          return res.json().then((data) => { throw new Error(data.detail || res.statusText); });
-        }
-        return res.json();
-      })
+    api.post("/tools/mcp/probe", body, auth.user.token)
       .then((data) => {
         setMcpServers(prev => {
           const next = [...prev];
@@ -147,80 +136,32 @@ export default function ProjectEdit({ project, projects, info }) {
       }
     }
 
-    fetch(url + "/projects/" + project.id, {
-      method: 'PATCH',
-      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      body: JSON.stringify(opts),
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    api.patch("/projects/" + project.id, opts, auth.user.token)
       .then(() => {
         navigate("/project/" + project.id);
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
   }
 
   const fetchTools = () => {
-    return fetch(url + "/tools/agent", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then((res) => res.json())
+    return api.get("/tools/agent", auth.user.token)
       .then((d) => {
         setTools(d)
-      }).catch(err => {
-        console.log(err.toString());
-        toast.error("Error fetching Tools");
-      });
+      }).catch(() => {});
   }
 
   const fetchUsers = () => {
-    return fetch(url + "/users", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    return api.get("/users", auth.user.token)
       .then((d) => {
         setUsers(d.users);
-      }).catch(err => {
-        console.log(err.toString());
-        toast.error("Error fetching Users");
-      });
+      }).catch(() => {});
   }
 
   const fetchTeams = () => {
-    return fetch(url + "/teams", {
-      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token })
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    return api.get("/teams", auth.user.token)
       .then((d) => {
         setTeams(d.teams || []);
       })
-      .catch(err => {
-        console.log("Error fetching teams:", err.toString());
-        toast.error("Error fetching teams");
-      });
+      .catch(() => {});
   };
 
   // Add a specific handler for team selection that fetches team details
@@ -235,19 +176,7 @@ export default function ProjectEdit({ project, projects, info }) {
 
     // Then fetch the complete team details to get LLMs and embeddings
     if (teamId) {
-      fetch(url + "/teams/" + teamId, {
-        headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token })
-      })
-        .then(function (response) {
-          if (!response.ok) {
-            response.json().then(function (data) {
-              toast.error(data.detail);
-            });
-            throw Error(response.statusText);
-          } else {
-            return response.json();
-          }
-        })
+      api.get("/teams/" + teamId, auth.user.token)
         .then((teamData) => {
           // Update state with the full team object
           setState(prevState => ({
@@ -255,10 +184,7 @@ export default function ProjectEdit({ project, projects, info }) {
             team: teamData
           }));
         })
-        .catch(err => {
-          console.log("Error fetching team details:", err.toString());
-          toast.error("Error loading team details");
-        });
+        .catch(() => {});
     } else {
       // If no team is selected, clear the team object
       setState(prevState => ({
@@ -361,12 +287,7 @@ export default function ProjectEdit({ project, projects, info }) {
           if (server.args && server.args.length > 0) body.args = server.args;
           if (server.env && Object.keys(server.env).length > 0) body.env = server.env;
 
-          fetch(url + "/tools/mcp/probe", {
-            method: 'POST',
-            headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-            body: JSON.stringify(body),
-          })
-            .then(res => res.ok ? res.json() : Promise.reject(new Error("Failed to probe")))
+          api.post("/tools/mcp/probe", body, auth.user.token, { silent: true })
             .then(data => {
               setMcpServers(prev => {
                 const next = [...prev];
@@ -381,15 +302,7 @@ export default function ProjectEdit({ project, projects, info }) {
 
     // If the project has a team, fetch its complete details
     if (project && project.team && project.team.id) {
-      fetch(url + "/teams/" + project.team.id, {
-        headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token })
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw Error(response.statusText);
-          }
-          return response.json();
-        })
+      api.get("/teams/" + project.team.id, auth.user.token, { silent: true })
         .then(teamData => {
           // Update state with full team details, preserving other state properties
           setState(prevState => ({
@@ -397,11 +310,9 @@ export default function ProjectEdit({ project, projects, info }) {
             team: teamData
           }));
         })
-        .catch(err => {
-          console.log("Error fetching team details:", err.toString());
-        });
+        .catch(() => {});
     }
-  }, [project, url, auth.user.token]);
+  }, [project, auth.user.token]);
 
   useEffect(() => {
     if (project && project.users) {

@@ -15,8 +15,8 @@ import {
 } from "@mui/material";
 
 import { H4 } from "app/components/Typography";
-import { toast } from 'react-toastify';
 import ReactJson from '@microlink/react-json-view';
+import api from "app/utils/api";
 import BAvatar from "boring-avatars";
 
 const Form = styled("form")(() => ({ padding: "16px" }));
@@ -34,69 +34,38 @@ export default function ProjectNew({ projects, info }) {
   const [teamLLMs, setTeamLLMs] = useState([]);
   const [teamEmbeddings, setTeamEmbeddings] = useState([]);
 
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
-
   // Fetch teams the user belongs to
   const fetchTeams = () => {
-    fetch(url + "/teams", { 
-      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token })
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    api.get("/teams", auth.user.token)
       .then((d) => {
         setTeams(d.teams || []);
       })
-      .catch(err => {
-        console.log("Error fetching teams:", err.toString());
-      });
+      .catch(() => {});
   };
 
   // Fetch team details including available LLMs and embeddings
   const fetchTeamDetails = (teamId) => {
-    fetch(url + "/teams/" + teamId, { 
-      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token })
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    api.get("/teams/" + teamId, auth.user.token)
       .then((team) => {
         setSelectedTeam(team);
-        
+
         // Get the team's available LLMs from the team response
         const availableLLMs = team.llms || [];
         // Map LLM ids/names to full LLM objects by matching with info.llms
-        const filteredLLMs = info.llms.filter(llm => 
+        const filteredLLMs = info.llms.filter(llm =>
           availableLLMs.some(teamLLM => teamLLM.name === llm.name)
         );
         setTeamLLMs(filteredLLMs);
-        
+
         // Get the team's available embeddings from the team response
         const availableEmbeddings = team.embeddings || [];
         // Map embedding ids/names to full embedding objects by matching with info.embeddings
-        const filteredEmbeddings = info.embeddings.filter(embedding => 
+        const filteredEmbeddings = info.embeddings.filter(embedding =>
           availableEmbeddings.some(teamEmbedding => teamEmbedding.name === embedding.name)
         );
         setTeamEmbeddings(filteredEmbeddings);
       })
-      .catch(err => {
-        console.log("Error fetching team details:", err.toString());
-        toast.error("Failed to load team models");
-      });
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -134,26 +103,10 @@ export default function ProjectNew({ projects, info }) {
       opts.team_id = state.team_id;
     }
 
-    fetch(url + "/projects", {
-      method: 'POST',
-      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      body: JSON.stringify(opts),
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    api.post("/projects", opts, auth.user.token)
       .then((response) => {
         navigate("/project/" + response.project);
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
   };
 
   const handleChange = (event) => {

@@ -16,8 +16,8 @@ import sha256 from 'crypto-js/sha256';
 import FormControlLabel from "@mui/material/FormControlLabel";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { toast } from 'react-toastify';
 import { People, AccountTree, Key } from "@mui/icons-material";
+import api from "app/utils/api";
 
 const ContentWrapper = styled(Box)(({ theme }) => ({
   zIndex: 1,
@@ -34,7 +34,6 @@ const ImageWrapper = styled(Box)(({ theme }) => ({
 }));
 
 export default function BasicInformation({ user }) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const [state, setState] = useState({});
   const navigate = useNavigate();
@@ -54,25 +53,11 @@ export default function BasicInformation({ user }) {
       update.is_private = state.is_private;
     }
 
-    fetch(url + "/users/" + user.username, {
-      method: 'PATCH',
-      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      body: JSON.stringify(update),
-    }).then(function (response) {
-      if (!response.ok) {
-        response.json().then(function (data) {
-          toast.error(data.detail);
-        });
-        throw Error(response.statusText);
-      } else {
-        return response.json();
-      }
-    }).then(response => {
-      window.location.href = "/admin/user/" + user.username;
-    }).catch(err => {
-      console.log(err.toString());
-      toast.error("Error updating user");
-    });
+    api.patch("/users/" + user.username, update, auth.user.token)
+      .then(() => {
+        window.location.href = "/admin/user/" + user.username;
+      })
+      .catch(() => {});
   }
 
   const handleChange = (event) => {

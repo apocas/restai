@@ -6,6 +6,7 @@ import { MatxTheme } from "./components";
 import { AuthProvider } from "./contexts/JWTAuthContext";
 import SettingsProvider from "./contexts/SettingsContext";
 import PlatformProvider from "./contexts/PlatformContext";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 import routes from "./routes";
 
@@ -13,15 +14,17 @@ export default function App() {
   const content = useRoutes(routes);
 
   return (
-    <PlatformProvider>
-      <SettingsProvider>
-        <AuthProvider>
-          <MatxTheme>
-            <CssBaseline />
-            {content}
-          </MatxTheme>
-        </AuthProvider>
-      </SettingsProvider>
-    </PlatformProvider>
+    <ErrorBoundary>
+      <PlatformProvider>
+        <SettingsProvider>
+          <AuthProvider>
+            <MatxTheme>
+              <CssBaseline />
+              {content}
+            </MatxTheme>
+          </AuthProvider>
+        </SettingsProvider>
+      </PlatformProvider>
+    </ErrorBoundary>
   );
 }

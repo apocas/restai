@@ -26,9 +26,9 @@ import { FlexBetween } from "app/components/FlexBox";
 import { H5 } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
 import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 export default function ApiKeys({ user }) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const [keys, setKeys] = useState([]);
   const [createOpen, setCreateOpen] = useState(false);
@@ -36,15 +36,9 @@ export default function ApiKeys({ user }) {
   const [newKey, setNewKey] = useState(null);
 
   const fetchKeys = () => {
-    fetch(url + "/users/" + user.username + "/apikeys", {
-      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
-    })
-      .then((response) => {
-        if (!response.ok) throw Error(response.statusText);
-        return response.json();
-      })
+    api.get("/users/" + user.username + "/apikeys", auth.user.token)
       .then((data) => setKeys(data))
-      .catch((err) => toast.error(err.toString()));
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -52,41 +46,23 @@ export default function ApiKeys({ user }) {
   }, [user.username]);
 
   const handleCreate = () => {
-    fetch(url + "/users/" + user.username + "/apikeys", {
-      method: 'POST',
-      headers: new Headers({
-        'Content-Type': 'application/json',
-        'Authorization': 'Basic ' + auth.user.token,
-      }),
-      body: JSON.stringify({ description }),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          response.json().then((data) => toast.error(data.detail));
-          throw Error(response.statusText);
-        }
-        return response.json();
-      })
+    api.post("/users/" + user.username + "/apikeys", { description }, auth.user.token)
       .then((data) => {
         setNewKey(data.api_key);
         setCreateOpen(false);
         setDescription("");
         fetchKeys();
       })
-      .catch((err) => toast.error(err.toString()));
+      .catch(() => {});
   };
 
   const handleDelete = (keyId) => {
     if (!window.confirm("Are you sure you want to delete this API key?")) return;
-    fetch(url + "/users/" + user.username + "/apikeys/" + keyId, {
-      method: 'DELETE',
-      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
-    })
-      .then((response) => {
-        if (!response.ok) throw Error(response.statusText);
+    api.delete("/users/" + user.username + "/apikeys/" + keyId, auth.user.token)
+      .then(() => {
         fetchKeys();
       })
-      .catch((err) => toast.error(err.toString()));
+      .catch(() => {});
   };
 
   const copyToClipboard = (text) => {

@@ -15,6 +15,7 @@ import { useEffect } from "react";
 import sha256 from 'crypto-js/sha256';
 import CustomizedDialogMessage from "./CustomizedDialogMessage";
 import { toast } from 'react-toastify';
+import api from "app/utils/api";
 import { AudioRecorder } from 'react-audio-voice-recorder';
 
 const HiddenInput = styled("input")({ display: "none" });
@@ -78,7 +79,6 @@ export default function ImageChatContainer({
     avatar: "/admin/assets/images/musician.jpg"
   }
 }) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
 
   const [messages, setMessages] = useState([]);
@@ -118,21 +118,7 @@ export default function ImageChatContainer({
       formData.append("language", language);
 
       setMessages([...messages, { id: body.id, prompt: prompt + " (" + state.generator + ")", input_audio: file, answer: null, sources: [] }]);
-      fetch(url + "/audio/" + state.generator + "/transcript", {
-        method: 'POST',
-        headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
-        body: formData,
-      })
-        .then(function (response) {
-          if (!response.ok) {
-            response.json().then(function (data) {
-              toast.error(data.detail);
-            });
-            throw Error(response.statusText);
-          } else {
-            return response.json();
-          }
-        })
+      api.post("/audio/" + state.generator + "/transcript", formData, auth.user.token)
         .then((response) => {
           if (!response.prompt) {
             response.prompt = prompt + " (" + state.generator + ")";
@@ -142,8 +128,7 @@ export default function ImageChatContainer({
           }
           setMessages([...messages, response]);
           setCanSubmit(true);
-        }).catch(err => {
-          toast.error(err.toString());
+        }).catch(() => {
           setMessages([...messages, { id: null, prompt: prompt, answer: "Error, something went wrong with my transistors.", sources: [] }]);
           setCanSubmit(true);
         });

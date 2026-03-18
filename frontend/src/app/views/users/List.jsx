@@ -3,7 +3,7 @@ import { Grid, styled, Box } from "@mui/material";
 import UsersTable from "../dashboard/shared/UsersTable";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 const ContentBox = styled("div")(({ theme }) => ({
   margin: "30px",
@@ -18,28 +18,15 @@ const Container = styled("div")(({ theme }) => ({
 
 
 export default function Users() {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [users, setUsers] = useState([]);
   const auth = useAuth();
 
   const fetchProjects = () => {
-    return fetch(url + "/users", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    return api.get("/users", auth.user.token)
       .then((d) => {
         setUsers(d.users)
-      }
-      ).catch(err => {
-        toast.error(err.toString());
-      });
+      })
+      .catch(() => {});
   }
   useEffect(() => {
     document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + ' - Projects';

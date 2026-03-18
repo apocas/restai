@@ -9,7 +9,7 @@ import {
 import KeysTable from "./components/KeysTable";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 
 import { Route } from "@mui/icons-material";
@@ -45,7 +45,6 @@ const Small = styled("small")(({ bgcolor }) => ({
 
 export default function Keys() {
   const { palette } = useTheme();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [keys, setKeys] = useState([]);
   const [info, setInfo] = useState({ "models": [], "url": "" });
   const auth = useAuth();
@@ -76,41 +75,19 @@ print(completion)`);
   }
 
   const fetchKeys = () => {
-    return auth.checkAuth().then(fetch(url + "/proxy/keys", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
-      .then((d) => {
-        setKeys(d.keys)
-      }
-      ).catch(err => {
-        toast.error(err.toString());
-      }));
+    return auth.checkAuth().then(
+      api.get("/proxy/keys", auth.user.token)
+        .then((d) => {
+          setKeys(d.keys)
+        })
+        .catch(() => {})
+    );
   }
 
   const fetchInfo = () => {
-    return fetch(url + "/proxy/info", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
-      .then((d) => setInfo(d)
-      ).catch(err => {
-        toast.error(err.toString());
-      });
+    return api.get("/proxy/info", auth.user.token)
+      .then((d) => setInfo(d))
+      .catch(() => {});
   }
 
   useEffect(() => {

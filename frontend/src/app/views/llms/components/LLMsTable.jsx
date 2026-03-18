@@ -12,6 +12,7 @@ import MUIDataTable from "mui-datatables";
 import { Edit, Delete } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 const StyledButton = styled(Button)(({ theme }) => ({
   margin: theme.spacing(1)
@@ -29,7 +30,6 @@ const Small = styled("small")(({ bgcolor }) => ({
 }));
 
 export default function LLMsTable({ llms = [], title = "LLMs" }) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const { palette } = useTheme();
   const bgError = palette.error.main;
@@ -39,20 +39,11 @@ export default function LLMsTable({ llms = [], title = "LLMs" }) {
 
   const handleDeleteClick = (llm) => {
     if (window.confirm(`Are you sure you want to delete '${llm.name}'?`)) {
-      fetch(url + "/llms/" + llm.name, {
-        method: 'DELETE',
-        headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Error deleting LLM');
-          }
+      api.delete("/llms/" + llm.name, auth.user.token)
+        .then(() => {
           toast.success(`Successfully deleted ${llm.name}`);
           window.location.reload();
-        }).catch(err => {
-          console.log(err.toString());
-          toast.error("Error deleting LLM");
-        });
+        }).catch(() => {});
     }
   };
 

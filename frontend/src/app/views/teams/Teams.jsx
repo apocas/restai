@@ -14,6 +14,7 @@ import useAuth from "app/hooks/useAuth";
 import { Breadcrumb } from "app/components";
 import TeamTable from "./components/TeamTable";
 import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
   margin: "30px",
@@ -32,25 +33,13 @@ export default function Teams() {
   const [teams, setTeams] = useState([]);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
 
   const fetchTeams = async () => {
     try {
-      const response = await fetch(`${url}/teams`, {
-        headers: new Headers({ 'Authorization': 'Basic ' + user.token }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.detail || "Failed to fetch teams");
-        return;
-      }
-
-      const data = await response.json();
+      const data = await api.get("/teams", user.token);
       setTeams(data.teams);
     } catch (error) {
-      console.error("Error fetching teams:", error);
-      toast.error("Error fetching teams");
+      // errors auto-toasted
     }
   };
 
@@ -77,22 +66,11 @@ export default function Teams() {
     }
 
     try {
-      const response = await fetch(`${url}/teams/${teamId}`, {
-        method: 'DELETE',
-        headers: new Headers({ 'Authorization': 'Basic ' + user.token }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.detail || "Failed to delete team");
-        return;
-      }
-
+      await api.delete(`/teams/${teamId}`, user.token);
       toast.success("Team deleted successfully");
       fetchTeams();
     } catch (error) {
-      console.error("Error deleting team:", error);
-      toast.error("Error deleting team");
+      // errors auto-toasted
     }
   };
 

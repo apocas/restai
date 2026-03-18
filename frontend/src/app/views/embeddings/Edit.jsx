@@ -4,7 +4,7 @@ import useAuth from "app/hooks/useAuth";
 import EmbeddingEdit from "./components/EmbeddingEdit";
 import Breadcrumb from "app/components/Breadcrumb";
 import { useParams } from "react-router-dom";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -20,20 +20,16 @@ const ContentBox = styled("div")(({ theme }) => ({
 
 export default function EmbeddingEditView() {
   const { id } = useParams();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [embedding, setEmbedding] = useState({});
   const auth = useAuth();
 
 
   const fetchLLM = (llm) => {
-    return fetch(url + "/embeddings/" + llm, { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then((res) => res.json())
+    return api.get("/embeddings/" + llm, auth.user.token)
       .then((d) => {
         setEmbedding(d)
         return d
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
   }
 
   useEffect(() => {

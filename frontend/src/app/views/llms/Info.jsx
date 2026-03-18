@@ -4,7 +4,7 @@ import useAuth from "app/hooks/useAuth";
 import LLMInfo from "./components/LLMInfo";
 import Breadcrumb from "app/components/Breadcrumb";
 import { useParams } from "react-router-dom";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -19,59 +19,30 @@ const ContentBox = styled("div")(({ theme }) => ({
 
 export default function LLMViewInfo() {
   const { id } = useParams();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [projects, setProjects] = useState([]);
   const [llm, setLLM] = useState({});
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const auth = useAuth();
 
   const fetchLLM = (llmName) => {
-    return fetch(url + "/llms/" + llmName, { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then((res) => res.json())
+    return api.get("/llms/" + llmName, auth.user.token)
       .then((d) => {
         setLLM(d)
         return d
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
   }
 
   const fetchProjects = () => {
-    return fetch(url + "/projects", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    return api.get("/projects", auth.user.token)
       .then((d) => {
         setProjects(d.projects)
-      }
-      ).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
   }
 
-  const fetchInfo = async () => {
-    try {
-      const response = await fetch(url + "/info", {
-        headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token })
-      });
-  
-      const data = await response.json();
-      if (!response.ok) {
-        toast.error(data.detail);
-        //throw new Error(response.statusText);
-      } else {
-        setInfo(data);
-      }
-    } catch (err) {
-      toast.error(err.toString());
-    }
+  const fetchInfo = () => {
+    return api.get("/info", auth.user.token)
+      .then((d) => setInfo(d))
+      .catch(() => {});
   };
 
   useEffect(() => {

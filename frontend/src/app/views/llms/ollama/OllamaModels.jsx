@@ -17,6 +17,7 @@ import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import { toast } from 'react-toastify';
 import { H4 } from "app/components/Typography";
+import api from "app/utils/api";
 import SearchIcon from '@mui/icons-material/Search';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
@@ -41,7 +42,6 @@ const StyledButton = styled(Button)(({ theme }) => ({
 export default function OllamaModels() {
   const navigate = useNavigate();
   const auth = useAuth();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [loading, setLoading] = useState(false);
   const [models, setModels] = useState([]);
   const [ollamaConfig, setOllamaConfig] = useState({
@@ -68,26 +68,11 @@ export default function OllamaModels() {
   const fetchOllamaModels = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${url}/tools/ollama/models`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Basic ' + auth.user.token
-        },
-        body: JSON.stringify(ollamaConfig)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to fetch Ollama models');
-      }
-
-      const data = await response.json();
+      const data = await api.post("/tools/ollama/models", ollamaConfig, auth.user.token);
       setModels(data);
       setConnected(true);
       toast.success(`Found ${data.length} models on Ollama instance at ${ollamaConfig.host}:${ollamaConfig.port}`);
     } catch (error) {
-      toast.error(error.message);
       console.error('Error fetching Ollama models:', error);
       setModels([]);
       setConnected(false);
@@ -100,31 +85,17 @@ export default function OllamaModels() {
     try {
       toast.info(`Pulling model ${modelName}. This may take some time...`);
 
-      const response = await fetch(`${url}/tools/ollama/pull`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Basic ' + auth.user.token
-        },
-        body: JSON.stringify({
-          name: modelName,
-          host: ollamaConfig.host,
-          port: ollamaConfig.port
-        })
-      });
+      await api.post("/tools/ollama/pull", {
+        name: modelName,
+        host: ollamaConfig.host,
+        port: ollamaConfig.port
+      }, auth.user.token);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to pull Ollama model');
-      }
-
-      const data = await response.json();
       toast.success(`Successfully pulled model ${modelName}`);
 
       // Refresh the models list
       fetchOllamaModels();
     } catch (error) {
-      toast.error(error.message);
       console.error('Error pulling Ollama model:', error);
     }
   };
@@ -176,19 +147,7 @@ export default function OllamaModels() {
           privacy: "private",
         };
 
-        const response = await fetch(`${url}/embeddings`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Basic ' + auth.user.token
-          },
-          body: JSON.stringify(embeddingData)
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || 'Failed to add embedding to the system');
-        }
+        await api.post("/embeddings", embeddingData, auth.user.token);
 
         toast.success(`Successfully added embedding ${addingModel.name} to the system`);
         setAddingModel(null);
@@ -214,24 +173,11 @@ export default function OllamaModels() {
         description: `Ollama model ${addingModel.name} from ${ollamaConfig.host}:${ollamaConfig.port}`
       };
 
-      const response = await fetch(`${url}/llms`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Basic ' + auth.user.token
-        },
-        body: JSON.stringify(modelData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to add model to the system');
-      }
+      await api.post("/llms", modelData, auth.user.token);
 
       toast.success(`Successfully added model ${addingModel.name} to the system`);
       setAddingModel(null);
     } catch (error) {
-      toast.error(error.message);
       console.error('Error adding model to the system:', error);
     }
   };

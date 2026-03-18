@@ -3,7 +3,7 @@ import { Grid, styled, Box } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
 import ProjectNew from "./components/ProjectNew";
 import Breadcrumb from "app/components/Breadcrumb";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 
 const Container = styled("div")(({ theme }) => ({
@@ -19,48 +19,23 @@ const ContentBox = styled("div")(({ theme }) => ({
 
 
 export default function ProjectNewView() {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [projects, setProjects] = useState([]);
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [], "vectorstores": ["chroma"] });
   const auth = useAuth();
 
 
   const fetchProjects = () => {
-    return fetch(url + "/projects", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    return api.get("/projects", auth.user.token)
       .then((d) => {
         setProjects(d.projects)
-      }
-      ).catch(err => {
-        toast.error(err.toString());
-      });
+      })
+      .catch(() => {});
   }
 
   const fetchInfo = () => {
-    return fetch(url + "/info", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
-      .then((d) => setInfo(d)
-      ).catch(err => {
-        toast.error(err.toString());
-      });
+    return api.get("/info", auth.user.token)
+      .then((d) => setInfo(d))
+      .catch(() => {});
   }
 
   useEffect(() => {

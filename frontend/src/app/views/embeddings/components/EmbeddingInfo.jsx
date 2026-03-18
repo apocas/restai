@@ -16,7 +16,7 @@ import { Edit, Delete } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import ReactJson from '@microlink/react-json-view';
 import useAuth from "app/hooks/useAuth";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 const ContentBox = styled(FlexBox)({
   alignItems: "center",
@@ -25,24 +25,14 @@ const ContentBox = styled(FlexBox)({
 
 export default function EmbeddingInfo({ embedding, projects }) {
   const navigate = useNavigate();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
 
   const handleDeleteClick = () => {
     if (window.confirm("Are you sure you to delete the embedding " + embedding.name + "?")) {
-      fetch(url + "/embeddings/" + embedding.name, {
-        method: 'DELETE',
-        headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Error deleting embedding');
-          }
+      api.delete("/embeddings/" + embedding.name, auth.user.token)
+        .then(() => {
           navigate("/embeddings");
-        }).catch(err => {
-          console.log(err.toString());
-          toast.error("Error deleting embedding");
-        });
+        }).catch(() => {});
     }
   };
 

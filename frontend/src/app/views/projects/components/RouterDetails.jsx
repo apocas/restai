@@ -6,7 +6,7 @@ import { FlexBox } from "app/components/FlexBox";
 import { FileUpload } from "@mui/icons-material";
 import React from 'react';
 import Tree from 'react-d3-tree';
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -17,7 +17,6 @@ import CustomizedDialogEntrance from "./CustomizedDialogEntrance";
 
 
 export default function RouterDetails({ project, projects }) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const [selectedProject, setSelectedProject] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -40,27 +39,12 @@ export default function RouterDetails({ project, projects }) {
         "entrances": project.entrances
       }
 
-      fetch(url + "/projects/" + project.id, {
-        method: 'PATCH',
-        headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-        body: JSON.stringify(opts),
-      })
-        .then(function (response) {
-          if (!response.ok) {
-            response.json().then(function (data) {
-              toast.error(data.detail);
-            });
-            throw Error(response.statusText);
-          } else {
-            return response.json();
-          }
-        })
+      api.patch("/projects/" + project.id, opts, auth.user.token)
         .then(() => {
           setLoading(false);
           //window.location.href = "/admin/project/" + project.id;
-        }).catch(err => {
+        }).catch(() => {
           setLoading(false);
-          toast.error(err.toString());
         });
     }
   }

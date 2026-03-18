@@ -70,6 +70,7 @@ export default function JwtLogin() {
         await login(state.email, state.password);
         window.location.href = "/admin";
       } catch (e) {
+        toast.error(e.message);
         setLoading(false);
       }
     }

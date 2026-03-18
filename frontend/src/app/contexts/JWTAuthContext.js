@@ -45,21 +45,26 @@ export const AuthProvider = ({ children }) => {
       basicAuth = btoa(`${email}:${password}`);
     }
 
-    const response = await axios.post(
-      `${process.env.REACT_APP_RESTAI_API_URL || ""}/auth/login`,
-      {},
-      {
-        auth: {
-          username: email,
-          password: password
+    try {
+      const response = await axios.post(
+        `${process.env.REACT_APP_RESTAI_API_URL || ""}/auth/login`,
+        {},
+        {
+          auth: {
+            username: email,
+            password: password
+          }
         }
-      }
-    );
+      );
 
-    const user = response.data;
-    user.role = user.is_admin ? "ADMIN" : "USER";
+      const user = response.data;
+      user.role = user.is_admin ? "ADMIN" : "USER";
 
-    dispatch({ type: "INIT", payload: { isAuthenticated: true, user } });
+      dispatch({ type: "INIT", payload: { isAuthenticated: true, user } });
+    } catch (err) {
+      const detail = err.response?.data?.detail || "Login failed. Check your credentials.";
+      throw new Error(detail);
+    }
   };
 
   const checkAuth = async () => {

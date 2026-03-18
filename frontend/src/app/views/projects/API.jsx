@@ -5,7 +5,7 @@ import APIPython from "./components/APIPython";
 import APIPHP from "./components/APIPHP";
 import Breadcrumb from "app/components/Breadcrumb";
 import { useParams } from "react-router-dom";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 
 const Container = styled("div")(({ theme }) => ({
@@ -21,7 +21,6 @@ const ContentBox = styled("div")(({ theme }) => ({
 
 export default function ProjectAPI() {
   const { id } = useParams();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [project, setProject] = useState({});
   const auth = useAuth();
 
@@ -30,14 +29,11 @@ export default function ProjectAPI() {
 
   const fetchProject = (projectID) => {
     auth.checkAuth();
-    return fetch(url + "/projects/" + projectID, { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then((res) => res.json())
+    return api.get("/projects/" + projectID, auth.user.token)
       .then((d) => {
         setProject(d)
         return d
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
   }
 
   useEffect(() => {

@@ -10,6 +10,7 @@ import {
 import MUIDataTable from "mui-datatables";
 import useAuth from "app/hooks/useAuth";
 import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 const Small = styled("small")(({ bgcolor }) => ({
   width: 50,
@@ -30,7 +31,6 @@ const FlexBox = styled(Box)({
 export default function KeysTable({ keys = [], info, title = "API Keys" }) {
   const { palette } = useTheme();
   const bgPrimary = palette.primary.main;
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
 
   const handleDeleteClick = (key_id, key_name) => {
@@ -39,19 +39,11 @@ export default function KeysTable({ keys = [], info, title = "API Keys" }) {
       return;
     }
     if (window.confirm("Are you sure you to delete the key " + key_name + "?")) {
-      fetch(url + "/proxy/keys/" + key_id, {
-        method: 'DELETE',
-        headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Error deleting key');
-          }
+      api.delete("/proxy/keys/" + key_id, auth.user.token)
+        .then(() => {
           window.location.reload();
-        }).catch(err => {
-          console.log(err.toString());
-          toast.error("Error deleting key");
-        });
+        })
+        .catch(() => {});
     }
   };
 

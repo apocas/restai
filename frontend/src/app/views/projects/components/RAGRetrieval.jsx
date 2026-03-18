@@ -3,6 +3,7 @@ import { Box, Card, Divider, Button, TextField, Grid, CircularProgress } from "@
 import { toast } from 'react-toastify';
 import { H4 } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
+import api from "app/utils/api";
 import { FlexBox } from "app/components/FlexBox";
 import { FileUpload, Delete } from "@mui/icons-material";
 import MUIDataTable from "mui-datatables";
@@ -12,7 +13,6 @@ import ReactJson from '@microlink/react-json-view';
 
 
 export default function RAGRetrieval({ project }) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const [chunks, setChunks] = useState([]);
   const [rowsExpanded, setRowsExpanded] = useState([]);
@@ -26,43 +26,21 @@ export default function RAGRetrieval({ project }) {
     data.k = state.k
     data.score = state.cutoff
 
-    fetch(url + "/projects/" + project.id + "/embeddings/search", {
-      method: 'POST',
-      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      body: JSON.stringify(data),
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    api.post("/projects/" + project.id + "/embeddings/search", data, auth.user.token)
       .then((response) => {
         if (response.embeddings.length === 0) {
           toast.warning("No embeddings found for this query. Decrease the score cutoff parameter.");
         }
         setChunks(response.embeddings);
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
   }
 
   const handleViewClick = (source) => {
     setEmbedding(null);
-    fetch(url + "/projects/" + project.id + "/embeddings/id/" + source.id, {
-      method: 'GET',
-      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-    })
-      .then(response => response.json())
+    api.get("/projects/" + project.id + "/embeddings/id/" + source.id, auth.user.token)
       .then(response => {
         setEmbedding(response);
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
   }
 
   const handleChange = (event) => {

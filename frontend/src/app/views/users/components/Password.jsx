@@ -4,6 +4,7 @@ import { FlexBox } from "app/components/FlexBox";
 import { H5, Paragraph } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
 import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 const Dot = styled("div")(({ theme }) => ({
   width: 8,
@@ -14,7 +15,6 @@ const Dot = styled("div")(({ theme }) => ({
 }));
 
 export default function Password({user}) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const [state, setState] = useState({});
 
@@ -28,25 +28,11 @@ export default function Password({user}) {
 
     var update = {"password": state.newPassword};
 
-    fetch(url + "/users/" + user.username, {
-      method: 'PATCH',
-      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      body: JSON.stringify(update),
-    }).then(function (response) {
-      if (!response.ok) {
-        response.json().then(function (data) {
-          toast.error(data.detail);
-        });
-        throw Error(response.statusText);
-      } else {
-        return response.json();
-      }
-    }).then(response => {
-      window.location.href = "/admin/user/" + user.username;
-    }).catch(err => {
-      console.log(err.toString());
-      toast.error("Error updating user");
-    });
+    api.patch("/users/" + user.username, update, auth.user.token)
+      .then(() => {
+        window.location.href = "/admin/user/" + user.username;
+      })
+      .catch(() => {});
   };
 
   const handleChange = (event) => {

@@ -14,7 +14,6 @@ from restai.models.models import QuestionModel, User, ChatModel
 from restai.brain import Brain
 import requests
 from fastapi import HTTPException, Request
-import traceback
 import re
 import logging
 import base64
@@ -193,9 +192,10 @@ async def question_rag(
                 background_tasks.add_task(log_inference, project, user, line, db)
                 return line
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def process_cache(project: Project, q_input: QuestionModel):
@@ -249,9 +249,10 @@ async def question_router(
             )
 
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def question_inference(
@@ -288,9 +289,10 @@ async def question_inference(
                 return line
 
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def question_agent(
@@ -324,9 +326,10 @@ async def question_agent(
                 return line
 
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def question_query_sql(
@@ -352,8 +355,9 @@ async def question_query_sql(
 
         return output
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 

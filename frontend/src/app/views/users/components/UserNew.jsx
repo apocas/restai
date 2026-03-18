@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 
 import { H4 } from "app/components/Typography";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 const Form = styled("form")(() => ({ padding: "16px" }));
 
@@ -21,8 +21,6 @@ export default function UserNew() {
   const navigate = useNavigate();
 
   const [state, setState] = useState({});
-
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -35,26 +33,11 @@ export default function UserNew() {
       "is_private": false
     }
 
-    fetch(url + "/users", {
-      method: 'POST',
-      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      body: JSON.stringify(opts),
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    api.post("/users", opts, auth.user.token)
       .then((response) => {
         navigate("/user/" + response.username);
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      })
+      .catch(() => {});
 
   };
 

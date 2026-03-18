@@ -22,6 +22,7 @@ import useAuth from "app/hooks/useAuth";
 import { Breadcrumb } from "app/components";
 import { toast } from 'react-toastify';
 import { Person, Settings, Delete, Group, Code, Psychology } from "@mui/icons-material";
+import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
   margin: "30px",
@@ -59,7 +60,6 @@ export default function TeamView() {
   const [tabValue, setTabValue] = useState(0);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [loading, setLoading] = useState(true);
 
   const isTeamAdmin = team?.admins?.some(admin => admin.id === user.id) || user.is_admin;
@@ -67,21 +67,10 @@ export default function TeamView() {
   const fetchTeam = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${url}/teams/${id}`, {
-        headers: new Headers({ 'Authorization': 'Basic ' + user.token }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.detail || "Failed to fetch team details");
-        return;
-      }
-
-      const data = await response.json();
+      const data = await api.get(`/teams/${id}`, user.token);
       setTeam(data);
     } catch (error) {
-      console.error("Error fetching team:", error);
-      toast.error("Error fetching team details");
+      // errors auto-toasted
     } finally {
       setLoading(false);
     }
@@ -109,24 +98,13 @@ export default function TeamView() {
     if (!window.confirm(`Are you sure you want to remove ${username} from this team?`)) {
       return;
     }
-    
+
     try {
-      const response = await fetch(`${url}/teams/${id}/users/${username}`, {
-        method: 'DELETE',
-        headers: new Headers({ 'Authorization': 'Basic ' + user.token }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.detail || "Failed to remove user from team");
-        return;
-      }
-
+      await api.delete(`/teams/${id}/users/${username}`, user.token);
       toast.success(`${username} removed from team`);
       fetchTeam();
     } catch (error) {
-      console.error("Error removing user:", error);
-      toast.error("Error removing user from team");
+      // errors auto-toasted
     }
   };
 
@@ -134,24 +112,13 @@ export default function TeamView() {
     if (!window.confirm(`Are you sure you want to remove admin privileges from ${username}?`)) {
       return;
     }
-    
+
     try {
-      const response = await fetch(`${url}/teams/${id}/admins/${username}`, {
-        method: 'DELETE',
-        headers: new Headers({ 'Authorization': 'Basic ' + user.token }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.detail || "Failed to remove admin privileges");
-        return;
-      }
-
+      await api.delete(`/teams/${id}/admins/${username}`, user.token);
       toast.success(`Admin privileges removed from ${username}`);
       fetchTeam();
     } catch (error) {
-      console.error("Error removing admin:", error);
-      toast.error("Error removing admin privileges");
+      // errors auto-toasted
     }
   };
 
@@ -159,24 +126,13 @@ export default function TeamView() {
     if (!window.confirm("Are you sure you want to remove this project from the team?")) {
       return;
     }
-    
+
     try {
-      const response = await fetch(`${url}/teams/${id}/projects/${projectId}`, {
-        method: 'DELETE',
-        headers: new Headers({ 'Authorization': 'Basic ' + user.token }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.detail || "Failed to remove project from team");
-        return;
-      }
-
+      await api.delete(`/teams/${id}/projects/${projectId}`, user.token);
       toast.success("Project removed from team");
       fetchTeam();
     } catch (error) {
-      console.error("Error removing project:", error);
-      toast.error("Error removing project from team");
+      // errors auto-toasted
     }
   };
 
@@ -184,24 +140,13 @@ export default function TeamView() {
     if (!window.confirm(`Are you sure you want to remove ${llmName} from this team?`)) {
       return;
     }
-    
+
     try {
-      const response = await fetch(`${url}/teams/${id}/llms/${llmName}`, {
-        method: 'DELETE',
-        headers: new Headers({ 'Authorization': 'Basic ' + user.token }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.detail || "Failed to remove LLM from team");
-        return;
-      }
-
+      await api.delete(`/teams/${id}/llms/${llmName}`, user.token);
       toast.success(`${llmName} removed from team`);
       fetchTeam();
     } catch (error) {
-      console.error("Error removing LLM:", error);
-      toast.error("Error removing LLM from team");
+      // errors auto-toasted
     }
   };
 
@@ -209,24 +154,13 @@ export default function TeamView() {
     if (!window.confirm(`Are you sure you want to remove ${embeddingName} from this team?`)) {
       return;
     }
-    
+
     try {
-      const response = await fetch(`${url}/teams/${id}/embeddings/${embeddingName}`, {
-        method: 'DELETE',
-        headers: new Headers({ 'Authorization': 'Basic ' + user.token }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.detail || "Failed to remove embedding from team");
-        return;
-      }
-
+      await api.delete(`/teams/${id}/embeddings/${embeddingName}`, user.token);
       toast.success(`${embeddingName} removed from team`);
       fetchTeam();
     } catch (error) {
-      console.error("Error removing embedding:", error);
-      toast.error("Error removing embedding from team");
+      // errors auto-toasted
     }
   };
 

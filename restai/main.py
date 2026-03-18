@@ -358,9 +358,18 @@ async def oauth_callback(provider: str, request: Request, response: Response):
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     exc_str = f"{exc}".replace("\n", " ").replace("   ", " ")
     logging.error(f"{request}: {exc_str}")
-    content = {"status_code": 10422, "message": exc_str, "data": None}
+    content = {"detail": exc_str}
     return JSONResponse(
         content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logging.exception(f"Unhandled exception on {request.method} {request.url}: {exc}")
+    return JSONResponse(
+        content={"detail": "Internal server error"},
+        status_code=500
     )
 
 if config.RESTAI_DEV == True:

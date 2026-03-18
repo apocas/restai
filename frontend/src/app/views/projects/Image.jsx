@@ -5,7 +5,7 @@ import { MatxSidenavContainer } from "app/components/MatxSidenav";
 import ImageChatContainer from "./components/ImageChatContainer";
 import useAuth from "app/hooks/useAuth";
 import { useState, useEffect } from "react";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -15,28 +15,15 @@ const Container = styled("div")(({ theme }) => ({
 
 
 export default function Image() {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const [generators, setGenerators] = useState([]);
 
   const fetchGenerators = () => {
-    return fetch(url + "/image", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    return api.get("/image", auth.user.token)
       .then((d) => {
         setGenerators(d.generators)
-      }
-      ).catch(err => {
-        toast.error(err.toString());
-      });
+      })
+      .catch(() => {});
   }
 
   useEffect(() => {

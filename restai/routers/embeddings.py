@@ -4,7 +4,6 @@ from typing import Optional
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException, Request
-import traceback
 import logging
 from restai import config
 from restai.models.databasemodels import EmbeddingDatabase, ProjectDatabase
@@ -31,10 +30,11 @@ async def api_get_embedding(embedding_name: str,
                 llm.options = json.dumps(options)
             return llm
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
         raise HTTPException(
-            status_code=404, detail=str(e))
+            status_code=404, detail="Embedding not found")
 
 
 @router.get("/embeddings", response_model=list[EmbeddingModel])
@@ -79,17 +79,18 @@ async def api_edit_embedding(request: Request,
     try:
         embedding: Optional[EmbeddingDatabase] = db_wrapper.get_embedding_by_name(embedding_name)
         if embedding is None:
-            raise Exception("Embedding not found")
+            raise HTTPException(status_code=404, detail="Embedding not found")
         if db_wrapper.update_embedding(embedding, embeddingUpdate):
             return {"embedding": embedding_name}
         else:
             raise HTTPException(
                 status_code=404, detail='Embedding not found')
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
         raise HTTPException(
-            status_code=500, detail=str(e))
+            status_code=500, detail="Internal server error")
 
 
 @router.delete("/embeddings/{embedding_name}")
@@ -100,7 +101,7 @@ async def api_delete_embedding(embedding_name: str,
     try:
         embedding: Optional[EmbeddingDatabase] = db_wrapper.get_embedding_by_name(embedding_name)
         if embedding is None:
-            raise Exception("Embedding not found")
+            raise HTTPException(status_code=404, detail="Embedding not found")
 
         projects_using = db_wrapper.db.query(ProjectDatabase).filter(
             ProjectDatabase.embeddings == embedding_name
@@ -115,7 +116,8 @@ async def api_delete_embedding(embedding_name: str,
         db_wrapper.delete_embedding(embedding)
         return {"deleted": embedding_name}
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
         raise HTTPException(
-            status_code=500, detail=str(e))
+            status_code=500, detail="Internal server error")

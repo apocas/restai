@@ -2,6 +2,7 @@ import logging
 from fastapi import (
     APIRouter,
     Depends,
+    HTTPException,
 )
 import requests
 from restai import config
@@ -42,7 +43,7 @@ async def route_create_key(
         data = response.json()
         return {"key": data["key"], "models": data["models"]}
     else:
-        return {"error": "Failed to generate new key"}
+        raise HTTPException(status_code=502, detail="Failed to generate proxy key")
 
 
 @router.get("/proxy/keys")
@@ -70,7 +71,7 @@ async def route_get_keys(
             )
         return {"keys": output}
     else:
-        return {"error": "Failed to list keys"}
+        raise HTTPException(status_code=502, detail="Failed to list proxy keys")
 
 
 @router.delete("/proxy/keys/{key_id}")
@@ -92,7 +93,7 @@ async def route_delete_key(
     if response.status_code == 200:
         return {"message": "Key deleted"}
     else:
-        return {"error": "Failed to delete key"}
+        raise HTTPException(status_code=502, detail="Failed to delete proxy key")
 
 
 @router.get("/proxy/info")
@@ -116,4 +117,4 @@ async def route_proxy_info(
             output.append(key["id"])
         return {"models": output, "url": config.PROXY_URL}
     else:
-        return {"error": "Failed to list keys"}
+        raise HTTPException(status_code=502, detail="Failed to list proxy models")

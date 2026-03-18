@@ -19,6 +19,7 @@ import CustomizedDialogMessage from "./CustomizedDialogMessage";
 import CustomizedDialogImage from "./CustomizedDialogImage";
 import { toast } from 'react-toastify';
 import Terminal from "./Terminal";
+import api from "app/utils/api";
 
 
 const HiddenInput = styled("input")({ display: "none" });
@@ -197,21 +198,7 @@ export default function ChatContainer({
     if (canSubmit) {
       setCanSubmit(false);
       setMessages([...messages, { id: body.id, question: question, answer: null, sources: [] }]);
-      fetch(url + "/projects/" + project.id + "/" + endpoint, {
-        method: 'POST',
-        headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-        body: JSON.stringify(body),
-      })
-        .then(function (response) {
-          if (!response.ok) {
-            response.json().then(function (data) {
-              toast.error(data.detail);
-            });
-            throw Error(response.statusText);
-          } else {
-            return response.json();
-          }
-        })
+      api.post("/projects/" + project.id + "/" + endpoint, body, auth.user.token)
         .then((response) => {
           setMessages([...messages, response]);
           setCanSubmit(true);
@@ -220,8 +207,7 @@ export default function ChatContainer({
           } else if (project.type === "rag" && response.sources.length === 0) {
             toast.warning('No sources found for this question. Decrease the score cutoff parameter.', { duration: 6000, position: 'top-right' });
           }
-        }).catch(err => {
-          toast.error(err.toString());
+        }).catch(() => {
           setMessages([...messages, { id: null, question: question, answer: "Error, something went wrong with my transistors.", sources: [] }]);
           setCanSubmit(true);
         });

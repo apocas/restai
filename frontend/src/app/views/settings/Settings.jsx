@@ -7,6 +7,7 @@ import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import { toast } from "react-toastify";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
+import api from "app/utils/api";
 import { Settings as SettingsIcon } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
 
@@ -27,7 +28,6 @@ const FlexBox = styled(Box)({
 });
 
 export default function SettingsPage() {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const { refreshCapabilities } = usePlatformCapabilities();
 
@@ -45,15 +45,9 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
 
   const fetchSettings = () => {
-    fetch(url + "/settings", {
-      headers: new Headers({ "Authorization": "Basic " + auth.user.token })
-    })
-      .then((res) => {
-        if (!res.ok) throw Error(res.statusText);
-        return res.json();
-      })
+    api.get("/settings", auth.user.token)
       .then((data) => setForm(data))
-      .catch((err) => toast.error(err.toString()));
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -73,26 +67,13 @@ export default function SettingsPage() {
     body.agent_max_iterations = parseInt(body.agent_max_iterations, 10) || 20;
     body.max_audio_upload_size = parseInt(body.max_audio_upload_size, 10) || 10;
 
-    fetch(url + "/settings", {
-      method: "PATCH",
-      headers: new Headers({
-        "Authorization": "Basic " + auth.user.token,
-        "Content-Type": "application/json"
-      }),
-      body: JSON.stringify(body)
-    })
-      .then((res) => {
-        if (!res.ok) {
-          return res.json().then((d) => { throw Error(d.detail || res.statusText); });
-        }
-        return res.json();
-      })
+    api.patch("/settings", body, auth.user.token)
       .then((data) => {
         setForm(data);
         toast.success("Settings saved");
         refreshCapabilities();
       })
-      .catch((err) => toast.error(err.toString()))
+      .catch(() => {})
       .finally(() => setSaving(false));
   };
 

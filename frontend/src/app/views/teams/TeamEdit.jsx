@@ -17,6 +17,7 @@ import useAuth from "app/hooks/useAuth";
 import { Breadcrumb } from "app/components";
 import { toast } from 'react-toastify';
 import { Group, Code, Psychology } from "@mui/icons-material";
+import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
   margin: "30px",
@@ -68,7 +69,6 @@ export default function TeamEdit() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
 
   const fetchTeam = async () => {
     if (isNewTeam) {
@@ -77,18 +77,8 @@ export default function TeamEdit() {
     }
 
     try {
-      const response = await fetch(`${url}/teams/${id}`, {
-        headers: new Headers({ 'Authorization': 'Basic ' + user.token }),
-      });
+      const data = await api.get(`/teams/${id}`, user.token);
 
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.detail || "Failed to fetch team details");
-        return;
-      }
-
-      const data = await response.json();
-      
       // Preprocess the data for form usage
       setTeam({
         ...data,
@@ -98,73 +88,38 @@ export default function TeamEdit() {
         llms: data.llms || [],
         embeddings: data.embeddings || []
       });
-      
+
       setLoading(false);
     } catch (error) {
-      console.error("Error fetching team:", error);
-      toast.error("Error fetching team details");
       setLoading(false);
     }
   };
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`${url}/users`, {
-        headers: new Headers({ 'Authorization': 'Basic ' + user.token }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.detail || "Failed to fetch users");
-        return;
-      }
-
-      const data = await response.json();
+      const data = await api.get("/users", user.token);
       setUsers(data.users);
     } catch (error) {
-      console.error("Error fetching users:", error);
-      toast.error("Error fetching users");
+      // errors auto-toasted
     }
   };
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch(`${url}/projects`, {
-        headers: new Headers({ 'Authorization': 'Basic ' + user.token }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.detail || "Failed to fetch projects");
-        return;
-      }
-
-      const data = await response.json();
+      const data = await api.get("/projects", user.token);
       setProjects(data.projects);
     } catch (error) {
-      console.error("Error fetching projects:", error);
-      toast.error("Error fetching projects");
+      // errors auto-toasted
     }
   };
 
   const fetchModels = async () => {
     try {
-      const response = await fetch(`${url}/info`, {
-        headers: new Headers({ 'Authorization': 'Basic ' + user.token }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.detail || "Failed to fetch models");
-        return;
-      }
-
-      const data = await response.json();
+      const data = await api.get("/info", user.token);
       setLLMs(data.llms);
       setEmbeddings(data.embeddings);
     } catch (error) {
-      console.error("Error fetching models:", error);
-      toast.error("Error fetching models");
+      // errors auto-toasted
     }
   };
 
@@ -194,7 +149,7 @@ export default function TeamEdit() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       const payload = {
         name: team.name,
@@ -206,32 +161,17 @@ export default function TeamEdit() {
         embeddings: team.embeddings.map(e => e.name)
       };
 
-      const method = isNewTeam ? 'POST' : 'PATCH';
       const endpoint = isNewTeam ? '/teams' : `/teams/${id}`;
-      
-      const response = await fetch(`${url}${endpoint}`, {
-        method,
-        headers: new Headers({
-          'Content-Type': 'application/json',
-          'Authorization': 'Basic ' + user.token 
-        }),
-        body: JSON.stringify(payload)
-      });
+      const data = isNewTeam
+        ? await api.post(endpoint, payload, user.token)
+        : await api.patch(endpoint, payload, user.token);
 
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.detail || `Failed to ${isNewTeam ? 'create' : 'update'} team`);
-        return;
-      }
-
-      const data = await response.json();
       toast.success(`Team ${isNewTeam ? 'created' : 'updated'} successfully`);
-      
+
       // Redirect to the team view page
       navigate(isNewTeam ? `/team/${data.id}` : `/team/${id}`);
     } catch (error) {
-      console.error(`Error ${isNewTeam ? 'creating' : 'updating'} team:`, error);
-      toast.error(`Error ${isNewTeam ? 'creating' : 'updating'} team`);
+      // errors auto-toasted
     }
   };
 

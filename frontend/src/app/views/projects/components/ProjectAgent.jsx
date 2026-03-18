@@ -20,7 +20,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useState, useEffect } from "react";
 import { H4 } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 const FlexBox = styled(Box)({
   display: "flex",
@@ -32,43 +32,27 @@ const ServerTools = styled(Box)({
 });
 
 export default function ProjectAgent({ project, projects }) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const [tools, setTools] = useState([]);
   const [mcpTools, setMcpTools] = useState({});
   const [loading, setLoading] = useState(false);
 
   const fetchTools = () => {
-    return fetch(url + "/tools/agent", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then((res) => res.json())
+    return api.get("/tools/agent", auth.user.token)
       .then((d) => {
         setTools(d)
-      }).catch(err => {
-        console.log(err.toString());
-        toast.error("Error fetching Tools");
-      });
+      }).catch(() => {});
   }
-  
+
   const fetchMcpTools = () => {
     if (!project || !project.id) return;
-    
+
     setLoading(true);
-    return fetch(`${url}/projects/${project.id}/tools`, { 
-      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) 
-    })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! Status: ${res.status}`);
-        }
-        return res.json();
-      })
+    return api.get(`/projects/${project.id}/tools`, auth.user.token)
       .then((data) => {
         setMcpTools(data.mcp_servers || {});
       })
-      .catch(err => {
-        console.log(err.toString());
-        toast.error("Error fetching MCP server tools");
-      })
+      .catch(() => {})
       .finally(() => {
         setLoading(false);
       });

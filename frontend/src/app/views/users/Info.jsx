@@ -24,7 +24,7 @@ import Password from "./components/Password";
 import Projects from "./components/Projects";
 import DeleteAccount from "./components/DeleteAccount";
 import BasicInformation from "./components/BasicInformation";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 import InfoIcon from '@mui/icons-material/Info';
 import KeyIcon from '@mui/icons-material/Key';
 import HttpsIcon from '@mui/icons-material/Https';
@@ -51,7 +51,6 @@ const Container = styled("div")(({ theme }) => ({
 
 export default function UserInfo() {
   const { id } = useParams();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [projects, setProjects] = useState([]);
   const [user, setUser] = useState({});
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
@@ -95,52 +94,26 @@ export default function UserInfo() {
   }
 
   const fetchUser = (username) => {
-    return fetch(url + "/users/" + username, { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then((res) => res.json())
+    return api.get("/users/" + username, auth.user.token)
       .then((d) => {
         setUser(d)
         return d
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      })
+      .catch(() => {});
   }
 
   const fetchProjects = () => {
-    return fetch(url + "/projects", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    return api.get("/projects", auth.user.token)
       .then((d) => {
         setProjects(d.projects)
-      }
-      ).catch(err => {
-        toast.error(err.toString());
-      });
+      })
+      .catch(() => {});
   }
 
   const fetchInfo = () => {
-    return fetch(url + "/info", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
-      .then((d) => setInfo(d)
-      ).catch(err => {
-        toast.error(err.toString());
-      });
+    return api.get("/info", auth.user.token)
+      .then((d) => setInfo(d))
+      .catch(() => {});
   }
 
   useEffect(() => {

@@ -2,7 +2,6 @@ from fastapi import APIRouter
 import uuid
 from unidecode import unidecode
 from fastapi import Depends, HTTPException, Request
-import traceback
 import re
 import logging
 from datetime import timedelta
@@ -66,8 +65,10 @@ async def ldap_auth(request: Request, form_data: UserLogin, db_wrapper: DBWrappe
             ciphers=LDAP_CIPHERS,
         )
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         logging.exception(e)
-        raise HTTPException(400, detail=str(e))
+        raise HTTPException(400, detail="LDAP authentication failed")
 
     try:
         server = Server(
@@ -141,7 +142,10 @@ async def ldap_auth(request: Request, form_data: UserLogin, db_wrapper: DBWrappe
                 f"User {form_data.user} does not match the record. Search result: {str(entry[f'{LDAP_ATTRIBUTE_FOR_USERNAME}'])}",
             )
     except Exception as e:
-        raise HTTPException(400, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(400, detail="LDAP authentication failed")
 
 
 @router.get("/users/{username}", response_model=User)
@@ -155,9 +159,10 @@ async def route_get_user_details(
         user_model = User.model_validate(db_wrapper.get_user_by_username(username))
         return user_model
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=404, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=404, detail="User not found")
 
 
 @router.post("/users/{username}/apikeys", response_model=ApiKeyCreatedResponse, status_code=201)

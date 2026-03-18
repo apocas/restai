@@ -3,29 +3,20 @@ import { Card, Box, Divider, Stack, Checkbox, Button } from '@mui/material';
 import { H5, H6, Paragraph } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 export default function DeleteAccount({user}) {
   const [isChecked, setIsChecked] = useState(false);
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const navigate = useNavigate();
 
   const handleDeleteClick = () => {
     if (isChecked) {
-      fetch(url + "/users/" + user.username, {
-        method: 'DELETE',
-        headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Error deleting user');
-          }
+      api.delete("/users/" + user.username, auth.user.token)
+        .then(() => {
           navigate("/users");
-        }).catch(err => {
-          console.log(err.toString());
-          toast.error("Error deleting user");
-        });
+        })
+        .catch(() => {});
     }
   };
 

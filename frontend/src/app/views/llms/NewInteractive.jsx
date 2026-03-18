@@ -20,6 +20,7 @@ import { H4 } from "app/components/Typography";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ReactJson from "@microlink/react-json-view";
 import { PROVIDER_CONFIG } from "./providerConfig";
+import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -52,7 +53,6 @@ const ProviderCard = styled(Card)(({ theme }) => ({
 export default function NewInteractive() {
   const auth = useAuth();
   const navigate = useNavigate();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
 
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [formState, setFormState] = useState({
@@ -120,33 +120,19 @@ export default function NewInteractive() {
     });
 
     try {
-      const response = await fetch(url + "/llms", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Basic " + auth.user.token,
-        },
-        body: JSON.stringify({
-          name: formState.name,
-          class_name: selectedProvider,
-          options: JSON.stringify(options),
-          privacy: formState.privacy,
-          type: formState.type,
-          description: formState.description,
-          context_window: parseInt(formState.context_window) || 4096,
-        }),
-      });
+      const data = await api.post("/llms", {
+        name: formState.name,
+        class_name: selectedProvider,
+        options: JSON.stringify(options),
+        privacy: formState.privacy,
+        type: formState.type,
+        description: formState.description,
+        context_window: parseInt(formState.context_window) || 4096,
+      }, auth.user.token);
 
-      if (!response.ok) {
-        const data = await response.json();
-        toast.error(data.detail || "Failed to create LLM");
-        return;
-      }
-
-      const data = await response.json();
       navigate("/llm/" + data.name);
     } catch (err) {
-      toast.error(err.toString());
+      // error auto-toasted
     }
   };
 

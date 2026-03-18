@@ -9,7 +9,7 @@ import DailyTokensChart from "./shared/DailyTokensChart";
 import TopLLMsChart from "./shared/TopLLMsChart";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 
 const ContentBox = styled("div")(({ theme }) => ({
@@ -37,7 +37,6 @@ const Container = styled("div")(({ theme }) => ({
 
 export default function Analytics() {
   const { palette } = useTheme();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [projects, setProjects] = useState([]);
   const [topProjects, setTopProjects] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -48,77 +47,33 @@ export default function Analytics() {
   const currency = platformCapabilities.currency || "EUR";
 
   const fetchProjects = () => {
-    return fetch(url + "/projects", {
-      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
-      credentials: 'include'
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    return api.get("/projects", auth.user.token)
       .then((d) => {
         setProjects(d.projects)
-      }
-      ).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
   }
 
   const fetchTopProjects = () => {
-    return fetch(url + "/statistics/top-projects", {
-      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
-      credentials: 'include'
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    return api.get("/statistics/top-projects", auth.user.token)
       .then((d) => {
         setTopProjects(d.projects)
-      }
-      ).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
   }
 
   const fetchSummary = () => {
-    return fetch(url + "/statistics/summary", {
-      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
-      credentials: 'include'
-    })
-      .then((r) => { if (!r.ok) throw Error(r.statusText); return r.json(); })
+    return api.get("/statistics/summary", auth.user.token)
       .then((d) => setSummary(d))
       .catch((err) => console.error("Failed to fetch summary:", err));
   };
 
   const fetchDailyTokens = () => {
-    return fetch(url + "/statistics/daily-tokens?days=30", {
-      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
-      credentials: 'include'
-    })
-      .then((r) => { if (!r.ok) throw Error(r.statusText); return r.json(); })
+    return api.get("/statistics/daily-tokens?days=30", auth.user.token)
       .then((d) => setDailyTokens(d.tokens || []))
       .catch((err) => console.error("Failed to fetch daily tokens:", err));
   };
 
   const fetchTopLLMs = () => {
-    return fetch(url + "/statistics/top-llms?limit=10", {
-      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
-      credentials: 'include'
-    })
-      .then((r) => { if (!r.ok) throw Error(r.statusText); return r.json(); })
+    return api.get("/statistics/top-llms?limit=10", auth.user.token)
       .then((d) => setTopLLMs(d.llms || []))
       .catch((err) => console.error("Failed to fetch top LLMs:", err));
   };

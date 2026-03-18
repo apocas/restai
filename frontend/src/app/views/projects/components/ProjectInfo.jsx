@@ -19,9 +19,9 @@ import { Edit } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { SportsEsports, Delete, Code, Article } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
-import { toast } from 'react-toastify';
 import sha256 from 'crypto-js/sha256';
 import BAvatar from "boring-avatars";
+import api from "app/utils/api";
 
 const ContentBox = styled(FlexBox)({
   alignItems: "center",
@@ -35,25 +35,15 @@ const StyledAvatar = styled(Avatar)(() => ({
 
 export default function ProjectInfo({ project, projects }) {
   const navigate = useNavigate();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
 
 
   const handleDeleteClick = () => {
     if (window.confirm("Are you sure you to delete the project " + project.name + "?")) {
-      fetch(url + "/projects/" + project.id, {
-        method: 'DELETE',
-        headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Error deleting project');
-          }
+      api.delete("/projects/" + project.id, auth.user.token)
+        .then(() => {
           navigate("/projects");
-        }).catch(err => {
-          console.log(err.toString());
-          toast.error("Error deleting project");
-        });
+        }).catch(() => {});
     }
   };
 

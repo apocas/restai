@@ -15,6 +15,7 @@ import {
 import { H4 } from "app/components/Typography";
 import { toast } from 'react-toastify';
 import ReactJson from '@microlink/react-json-view';
+import api from "app/utils/api";
 
 const Form = styled("form")(() => ({ padding: "16px" }));
 
@@ -26,8 +27,6 @@ export default function KeyNew({ info }) {
 
   const [state, setState] = useState({});
 
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     var opts = {
@@ -35,28 +34,13 @@ export default function KeyNew({ info }) {
       "models": state.models
     }
 
-    fetch(url + "/proxy/keys", {
-      method: 'POST',
-      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      body: JSON.stringify(opts),
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    api.post("/proxy/keys", opts, auth.user.token)
       .then((response) => {
         toast.success("Key created successfully");
         alert(response.key);
         navigate("/proxy/keys");
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      })
+      .catch(() => {});
 
   };
 

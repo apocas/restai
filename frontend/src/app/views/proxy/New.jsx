@@ -3,7 +3,7 @@ import { Grid, styled, Box } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
 import KeyNew from "./components/KeyNew";
 import Breadcrumb from "app/components/Breadcrumb";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 
 const Container = styled("div")(({ theme }) => ({
@@ -19,27 +19,14 @@ const ContentBox = styled("div")(({ theme }) => ({
 
 
 export default function ProjectNewView() {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [info, setInfo] = useState({ "models": [], "url": "" });
   const auth = useAuth();
 
 
   const fetchInfo = () => {
-    return fetch(url + "/proxy/info", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
-      .then((d) => setInfo(d)
-      ).catch(err => {
-        toast.error(err.toString());
-      });
+    return api.get("/proxy/info", auth.user.token)
+      .then((d) => setInfo(d))
+      .catch(() => {});
   }
 
   useEffect(() => {

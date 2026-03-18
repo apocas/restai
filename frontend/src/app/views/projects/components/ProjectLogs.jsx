@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Box, Card, CircularProgress } from "@mui/material";
-import { toast } from 'react-toastify';
 import useAuth from "app/hooks/useAuth";
 import { FlexBox } from "app/components/FlexBox";
 import { Article } from "@mui/icons-material";
@@ -8,10 +7,10 @@ import MUIDataTable from "mui-datatables";
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import ReactJson from '@microlink/react-json-view';
+import api from "app/utils/api";
 
 
 export default function RAGRetrieval({ project }) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const [rowsExpanded, setRowsExpanded] = useState([]);
   const [logs, setLogs] = useState([]);
@@ -26,18 +25,8 @@ export default function RAGRetrieval({ project }) {
 
   const fetchLogs = (projectID) => {
     auth.checkAuth();
-    return fetch(url + "/projects/" + projectID + "/logs?start=" + start + "&end=" + end, { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then((res) => {
-        if (!res.ok) {
-          if (res.status === 404) {
-            throw new Error('Logs not found. Permissions?');
-          }
-          throw new Error('Error fetching logs');
-        }
-        return res.json();
-      })
+    return api.get("/projects/" + projectID + "/logs?start=" + start + "&end=" + end, auth.user.token)
       .then((d) => {
-
         if (d.logs) {
           setLogs(d.logs)
           if (d.logs.length === 0) {
@@ -46,9 +35,7 @@ export default function RAGRetrieval({ project }) {
           }
         }
         return d
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
   }
 
   const handleViewClick = (source) => {

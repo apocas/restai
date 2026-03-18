@@ -4,7 +4,7 @@ import useAuth from "app/hooks/useAuth";
 import LLMEdit from "./components/LLMEdit";
 import Breadcrumb from "app/components/Breadcrumb";
 import { useParams } from "react-router-dom";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -20,20 +20,16 @@ const ContentBox = styled("div")(({ theme }) => ({
 
 export default function LLMEditView() {
   const { id } = useParams();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [llm, setLLM] = useState({});
   const auth = useAuth();
 
 
   const fetchLLM = (llm) => {
-    return fetch(url + "/llms/" + llm, { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then((res) => res.json())
+    return api.get("/llms/" + llm, auth.user.token)
       .then((d) => {
         setLLM(d)
         return d
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
   }
 
   useEffect(() => {

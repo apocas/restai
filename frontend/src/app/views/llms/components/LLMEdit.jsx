@@ -2,13 +2,12 @@ import { Card, Divider, Box, Grid, TextField, Button, Typography, MenuItem } fro
 import { H4 } from "app/components/Typography";
 import { useState, useEffect } from "react";
 import useAuth from "app/hooks/useAuth";
-import { toast } from 'react-toastify';
 import { useNavigate } from "react-router-dom";
 import { JsonEditor } from 'json-edit-react';
 import { PROVIDER_CONFIG } from '../providerConfig';
+import api from "app/utils/api";
 
 export default function LLMEdit({ llm }) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const [state, setState] = useState({});
   const navigate = useNavigate();
@@ -46,25 +45,10 @@ export default function LLMEdit({ llm }) {
       update.context_window = parseInt(state.context_window);
     }
 
-    fetch(url + "/llms/" + llm.name, {
-      method: 'PATCH',
-      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      body: JSON.stringify(update),
-    }).then(function (response) {
-      if (!response.ok) {
-        response.json().then(function (data) {
-          toast.error(data.detail);
-        });
-        throw Error(response.statusText);
-      } else {
-        return response.json();
-      }
-    }).then(response => {
-      window.location.href = "/admin/llm/" + llm.name;
-    }).catch(err => {
-      console.log(err.toString());
-      toast.error("Error updating LLM");
-    });
+    api.patch("/llms/" + llm.name, update, auth.user.token)
+      .then(() => {
+        window.location.href = "/admin/llm/" + llm.name;
+      }).catch(() => {});
   }
 
 

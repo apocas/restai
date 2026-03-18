@@ -3,7 +3,7 @@ import { Grid, styled, Box } from "@mui/material";
 import ProjectsTableLibrary from "../dashboard/shared/ProjectsTableLibrary";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 
 const ContentBox = styled("div")(({ theme }) => ({
@@ -19,32 +19,15 @@ const Container = styled("div")(({ theme }) => ({
 
 
 export default function Library() {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [projects, setProjects] = useState([]);
   const auth = useAuth();
 
-  const baseUrl = url ? url : window.location.origin;
-  const urlWithParams = new URL("/projects", baseUrl);
-  urlWithParams.searchParams.append('filter', 'public');
-
   const fetchProjects = () => {
-    return fetch(urlWithParams, { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    return api.get("/projects?filter=public", auth.user.token)
       .then((d) => {
         setProjects(d.projects)
-      }
-      ).catch(err => {
-        toast.error(err.toString());
-      });
+      })
+      .catch(() => {});
   }
   useEffect(() => {
     document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + ' - Projects';

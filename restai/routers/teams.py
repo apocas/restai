@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
-import traceback
 import logging
 from datetime import datetime
 from typing import List, Optional
@@ -43,9 +42,10 @@ async def get_teams(
             
         return {"teams": [TeamModel.model_validate(team) for team in teams]}
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/teams/{team_id}", response_model=TeamModel)
 async def get_team(
@@ -66,9 +66,8 @@ async def get_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/teams", response_model=TeamModel, status_code=201)
 async def create_team(
@@ -103,9 +102,8 @@ async def create_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.patch("/teams/{team_id}", response_model=TeamModel)
 async def update_team(
@@ -139,9 +137,8 @@ async def update_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/teams/{team_id}")
 async def delete_team(
@@ -163,9 +160,8 @@ async def delete_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/teams/{team_id}/users/{username}")
 async def add_user_to_team(
@@ -192,9 +188,8 @@ async def add_user_to_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/teams/{team_id}/users/{username}")
 async def remove_user_from_team(
@@ -221,9 +216,8 @@ async def remove_user_from_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/teams/{team_id}/admins/{username}")
 async def add_admin_to_team(
@@ -250,9 +244,8 @@ async def add_admin_to_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/teams/{team_id}/admins/{username}")
 async def remove_admin_from_team(
@@ -279,9 +272,8 @@ async def remove_admin_from_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/teams/{team_id}/projects/{project_id}")
 async def add_project_to_team(
@@ -308,9 +300,8 @@ async def add_project_to_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/teams/{team_id}/projects/{project_id}")
 async def remove_project_from_team(
@@ -337,9 +328,8 @@ async def remove_project_from_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/teams/{team_id}/llms/{llm_name}")
 async def add_llm_to_team(
@@ -366,9 +356,8 @@ async def add_llm_to_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/teams/{team_id}/llms/{llm_name}")
 async def remove_llm_from_team(
@@ -395,9 +384,8 @@ async def remove_llm_from_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/teams/{team_id}/embeddings/{embedding_name}")
 async def add_embedding_to_team(
@@ -424,9 +412,8 @@ async def add_embedding_to_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/teams/{team_id}/embeddings/{embedding_name}")
 async def remove_embedding_from_team(
@@ -453,6 +440,5 @@ async def remove_embedding_from_team(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")

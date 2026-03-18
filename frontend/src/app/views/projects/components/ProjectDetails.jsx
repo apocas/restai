@@ -11,12 +11,11 @@ import ProjectAgent from "./ProjectAgent";
 import RouterDetails from "./RouterDetails";
 import ProjectSecurity from "./ProjectSecurity";
 import { useState, useEffect } from "react";
-import { toast } from 'react-toastify';
 import useAuth from "app/hooks/useAuth";
+import api from "app/utils/api";
 
 export default function ProjectDetails({ project, projects, info }) {
   const auth = useAuth();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [tokens, setTokens] = useState({ "tokens": [] });
 
   const now = new Date();
@@ -25,19 +24,9 @@ export default function ProjectDetails({ project, projects, info }) {
 
   const fetchTokens = (year, month) => {
     const params = new URLSearchParams({ year, month });
-    return fetch(url + "/projects/" + project.id + "/tokens/daily?" + params.toString(), { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            console.log(data);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
-      .then((d) => setTokens(d.tokens)
-      ).catch(err => {
+    return api.get("/projects/" + project.id + "/tokens/daily?" + params.toString(), auth.user.token, { silent: true })
+      .then((d) => setTokens(d.tokens))
+      .catch((err) => {
         console.log(err.toString());
       });
   }

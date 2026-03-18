@@ -18,6 +18,7 @@ import { H4 } from "app/components/Typography";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ReactJson from "@microlink/react-json-view";
 import { EMBEDDING_PROVIDER_CONFIG } from "./embeddingProviderConfig";
+import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -50,7 +51,6 @@ const ProviderCard = styled(Card)(({ theme }) => ({
 export default function NewInteractive() {
   const auth = useAuth();
   const navigate = useNavigate();
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
 
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [formState, setFormState] = useState({
@@ -117,32 +117,18 @@ export default function NewInteractive() {
     });
 
     try {
-      const response = await fetch(url + "/embeddings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Basic " + auth.user.token,
-        },
-        body: JSON.stringify({
-          name: formState.name,
-          class_name: selectedProvider,
-          options: JSON.stringify(options),
-          privacy: formState.privacy,
-          description: formState.description,
-          dimension: Number(formState.dimension),
-        }),
-      });
+      const data = await api.post("/embeddings", {
+        name: formState.name,
+        class_name: selectedProvider,
+        options: JSON.stringify(options),
+        privacy: formState.privacy,
+        description: formState.description,
+        dimension: Number(formState.dimension),
+      }, auth.user.token);
 
-      if (!response.ok) {
-        const data = await response.json();
-        toast.error(data.detail || "Failed to create Embedding");
-        return;
-      }
-
-      const data = await response.json();
       navigate("/embedding/" + data.name);
     } catch (err) {
-      toast.error(err.toString());
+      // error auto-toasted
     }
   };
 

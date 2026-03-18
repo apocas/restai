@@ -5,6 +5,7 @@ import { useDropzone } from "react-dropzone";
 import { toast } from 'react-toastify';
 import { H4 } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
+import api from "app/utils/api";
 import { FlexAlignCenter, FlexBox } from "app/components/FlexBox";
 import { FileUpload } from "@mui/icons-material";
 import { convertHexToRGB } from "app/utils/utils";
@@ -31,7 +32,6 @@ const DropZone = styled(FlexAlignCenter)(({ isDragActive, theme }) => ({
 }));
 
 export default function RAGUpload({ project }) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -62,22 +62,10 @@ export default function RAGUpload({ project }) {
       }
 
       try {
-        const response = await fetch(url + "/projects/" + project.id + "/embeddings/ingest/upload", {
-          method: 'POST',
-          headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
-          body: formData,
-        });
-    
-        const data = await response.json();
-        if (!response.ok) {
-          toast.error(data.detail);
-          toast.warning("Retry in classic mode if the error persists.");
-          //throw new Error(response.statusText);
-        } else {
-          window.location.reload();
-        }
+        await api.post("/projects/" + project.id + "/embeddings/ingest/upload", formData, auth.user.token);
+        window.location.reload();
       } catch (err) {
-        toast.error(err.toString());
+        toast.warning("Retry in classic mode if the error persists.");
       } finally {
         setLoading(false);
       }
@@ -89,21 +77,10 @@ export default function RAGUpload({ project }) {
       }
 
       try {
-        const response = await fetch(url + "/projects/" + project.id + "/embeddings/ingest/url", {
-          method: 'POST',
-          headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-          body: JSON.stringify(body),
-        });
-    
-        const data = await response.json();
-        if (!response.ok) {
-          toast.error(data.detail);
-          //throw new Error(response.statusText);
-        } else {
-          window.location.reload();
-        }        
+        await api.post("/projects/" + project.id + "/embeddings/ingest/url", body, auth.user.token);
+        window.location.reload();
       } catch (err) {
-        toast.error(err.toString());
+        // errors auto-toasted
       } finally {
         setLoading(false);
       }

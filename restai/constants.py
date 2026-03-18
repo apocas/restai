@@ -60,3 +60,11 @@ class ERROR_MESSAGES(str, Enum):
         "Duplicate content detected. Please provide unique content to proceed."
     )
     FILE_NOT_PROCESSED = "Extracted content is not available for this file. Please ensure that the file is processed before proceeding."
+
+    INTERNAL_ERROR = "Internal server error"
+    PROJECT_NOT_FOUND = "Project not found"
+    LLM_NOT_FOUND = "LLM not found"
+    EMBEDDING_NOT_FOUND = "Embedding not found"
+    USER_NOT_FOUND = "User not found"
+    LDAP_AUTH_FAILED = "LDAP authentication failed"
+    CLASSIFICATION_FAILED = "Classification failed"

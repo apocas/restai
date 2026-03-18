@@ -26,9 +26,10 @@ async def classifier(
     try:
         return request.app.state.brain.classify(input_model)
     except Exception as e:
-        logging.error(e)
-        traceback.print_tb(e.__traceback__)
-        raise HTTPException(status_code=500, detail=str(e))
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Classification failed")
 
 
 @router.get("/tools/agent", response_model=list[Tool])

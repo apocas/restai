@@ -12,7 +12,7 @@ import {
   TextField
 } from "@mui/material";
 import { H4 } from "app/components/Typography";
-import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
 const Form = styled("form")(() => ({ padding: "16px" }));
 
@@ -22,37 +22,19 @@ export default function EmbeddingNew({ projects, info }) {
 
   const [state, setState] = useState({});
 
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
-
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    fetch(url + "/embeddings", {
-      method: 'POST',
-      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      body: JSON.stringify({
-        "name": state.name,
-        "class_name": state.class,
-        "options": state.options,
-        "privacy": state.privacy,
-        "description": state.description
-      })
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          response.json().then(function (data) {
-            toast.error(data.detail);
-          });
-          throw Error(response.statusText);
-        } else {
-          return response.json();
-        }
-      })
+    api.post("/embeddings", {
+      "name": state.name,
+      "class_name": state.class,
+      "options": state.options,
+      "privacy": state.privacy,
+      "description": state.description
+    }, auth.user.token)
       .then((response) => {
         navigate("/embedding/" + response.name);
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
 
   };
 

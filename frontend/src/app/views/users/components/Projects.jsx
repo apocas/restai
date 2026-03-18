@@ -13,11 +13,10 @@ import { H5, Paragraph } from "app/components/Typography";
 import { FlexBetween, FlexBox } from "app/components/FlexBox";
 import { convertHexToRGB } from "app/utils/utils";
 import useAuth from "app/hooks/useAuth";
-import { toast } from 'react-toastify';
 import BAvatar from "boring-avatars";
+import api from "app/utils/api";
 
 export default function Preferences({ user, projects }) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const [state, setState] = useState({});
 
@@ -59,22 +58,17 @@ export default function Preferences({ user, projects }) {
     if (event)
       event.preventDefault();
 
-    fetch(url + "/users/" + user.username, {
-      method: 'PATCH',
-      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      body: JSON.stringify({
-        "projects": user.projects.map((p) => {
-          // Try to get name from the project object or from the projectMap
-          const projectName = p.name || (projectMap[p.id] && projectMap[p.id].name);
-          return projectName;
-        }).filter(name => name != null) // Filter out null/undefined values
-      }),
-    })
-      .then(response => {
+    api.patch("/users/" + user.username, {
+      "projects": user.projects.map((p) => {
+        // Try to get name from the project object or from the projectMap
+        const projectName = p.name || (projectMap[p.id] && projectMap[p.id].name);
+        return projectName;
+      }).filter(name => name != null) // Filter out null/undefined values
+    }, auth.user.token)
+      .then(() => {
         window.location.href = "/admin/user/" + user.username;
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      })
+      .catch(() => {});
 
   }
 

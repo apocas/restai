@@ -712,7 +712,7 @@ async def ingest_url(
 
         urls = project.vector.list()
         if ingest.url in urls:
-            raise Exception("URL already ingested. Delete first.")
+            raise HTTPException(status_code=409, detail="URL already ingested. Delete first.")
 
         loader = SeleniumWebReader()
 

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Box, Card, Divider, Button } from "@mui/material";
-import { toast } from 'react-toastify';
 import { H4 } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
+import api from "app/utils/api";
 import { FlexBox } from "app/components/FlexBox";
 import { FileUpload, Delete } from "@mui/icons-material";
 import MUIDataTable from "mui-datatables";
@@ -12,7 +12,6 @@ import ReactJson from '@microlink/react-json-view';
 
 
 export default function RAGBrowser({ project }) {
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const auth = useAuth();
   const [embeddings, setEmbeddings] = useState([]);
   const [rowsExpanded, setRowsExpanded] = useState([]);
@@ -22,50 +21,30 @@ export default function RAGBrowser({ project }) {
   const fetchEmbeddings = (projectID) => {
     setEmbeddings([]);
     if (project.chunks < 30000 || !project.chunks) {
-      return fetch(url + "/projects/" + projectID + "/embeddings", {
-        headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      })
-        .then((res) => res.json())
-        .then((d) => setEmbeddings(d.embeddings)
-        ).catch(err => {
-          toast.error(err.toString());
-        });
+      return api.get("/projects/" + projectID + "/embeddings", auth.user.token)
+        .then((d) => setEmbeddings(d.embeddings))
+        .catch(() => {});
     }
   }
 
   const handleDeleteClick = (embedding) => {
     if (window.confirm("Are you sure you to delete this embedding " + embedding + "?")) {
-      fetch(url + "/projects/" + project.id+ "/embeddings/" + btoa(embedding), {
-        method: 'DELETE',
-        headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Error deleting embedding');
-          }
+      api.delete("/projects/" + project.id + "/embeddings/" + btoa(embedding), auth.user.token)
+        .then(() => {
           window.location.reload();
-        }).catch(err => {
-          console.log(err.toString());
-          toast.error("Error deleting embedding");
-        });
+        }).catch(() => {});
     }
   };
 
   const handleViewClick = (source) => {
-    fetch(url + "/projects/" + project.id + "/embeddings/source/" + btoa(source), {
-      method: 'GET',
-      headers: new Headers({ 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth.user.token }),
-    })
-      .then(response => response.json())
+    api.get("/projects/" + project.id + "/embeddings/source/" + btoa(source), auth.user.token)
       .then(response => {
         response.source = source;
         setEmbedding(response);
         setTimeout(() => {
           //ref.current?.scrollIntoView({ behavior: 'smooth' });
         }, 150);
-      }).catch(err => {
-        toast.error(err.toString());
-      });
+      }).catch(() => {});
   }
 
   const handleChange = (event) => {
