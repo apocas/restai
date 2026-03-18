@@ -16,7 +16,7 @@ import sha256 from 'crypto-js/sha256';
 import FormControlLabel from "@mui/material/FormControlLabel";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { People, AccountTree, Key } from "@mui/icons-material";
+import { People, AccountTree, Key, AccountBalanceWallet } from "@mui/icons-material";
 import api from "app/utils/api";
 
 const ContentWrapper = styled(Box)(({ theme }) => ({
@@ -109,6 +109,15 @@ export default function BasicInformation({ user }) {
                   {user.sso ? "SSO" : "Local"}
                 </Small>
               </FlexBox>
+
+              {user.options?.credit >= 0 && (
+                <FlexBox alignItems="center" gap={1}>
+                  <AccountBalanceWallet sx={{ color: "text.disabled" }} />
+                  <Small fontWeight={600} color="text.disabled">
+                    Credit: {user.options.credit.toFixed(2)} | Spent: {(user.spending ?? 0).toFixed(2)} | Left: {(user.remaining ?? 0).toFixed(2)}
+                  </Small>
+                </FlexBox>
+              )}
             </FlexBetween>
           </Box>
         </ContentWrapper>

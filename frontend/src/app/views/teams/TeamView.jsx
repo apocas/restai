@@ -21,7 +21,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
 import { Breadcrumb } from "app/components";
 import { toast } from 'react-toastify';
-import { Person, Settings, Delete, Group, Code, Psychology } from "@mui/icons-material";
+import { Person, Settings, Delete, Group, Code, Psychology, AccountBalanceWallet } from "@mui/icons-material";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
@@ -208,6 +208,14 @@ export default function TeamView() {
             <Typography variant="body1" color="textSecondary">
               {team.description || "No description provided"}
             </Typography>
+            {team.budget >= 0 && (
+              <Box display="flex" alignItems="center" gap={1} mt={1}>
+                <AccountBalanceWallet fontSize="small" color="action" />
+                <Typography variant="body2" color="textSecondary">
+                  Budget: {team.budget.toFixed(2)} | Spent: {(team.spending ?? 0).toFixed(2)} | Remaining: {(team.remaining ?? 0).toFixed(2)}
+                </Typography>
+              </Box>
+            )}
           </Box>
           {isTeamAdmin && (
             <Button

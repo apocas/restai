@@ -1,10 +1,11 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from restai import config
 from datetime import datetime, timezone
 from restai.models.databasemodels import (
     ApiKeyDatabase,
     LLMDatabase,
     EmbeddingDatabase,
+    OutputDatabase,
     ProjectDatabase,
     RouterEntrancesDatabase,
     SettingDatabase,
@@ -565,6 +566,7 @@ class DBWrapper:
             name=team_create.name,
             description=team_create.description,
             creator_id=team_create.creator_id,
+            budget=team_create.budget,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -598,6 +600,10 @@ class DBWrapper:
 
         if team_update.description is not None and team.description != team_update.description:
             team.description = team_update.description
+            changed = True
+
+        if team_update.budget is not None and team.budget != team_update.budget:
+            team.budget = team_update.budget
             changed = True
 
         if changed:
@@ -686,6 +692,22 @@ class DBWrapper:
     def upsert_setting(self, key: str, value: str) -> None:
         self.db.merge(SettingDatabase(key=key, value=value))
         self.db.commit()
+
+    def get_user_spending(self, user_id: int) -> float:
+        result = self.db.query(
+            func.coalesce(func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost), 0.0)
+        ).filter(OutputDatabase.user_id == user_id).scalar()
+        return float(result)
+
+    def get_team_spending(self, team_id: int) -> float:
+        result = self.db.query(
+            func.coalesce(func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost), 0.0)
+        ).filter(
+            OutputDatabase.project_id.in_(
+                self.db.query(ProjectDatabase.id).filter(ProjectDatabase.team_id == team_id)
+            )
+        ).scalar()
+        return float(result)
 
     def update_team_members(self, team: TeamDatabase, team_update: TeamModelUpdate) -> bool:
         changed = False

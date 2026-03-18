@@ -22,6 +22,7 @@ from restai.config import LOG_LEVEL
 import json
 
 from restai.projects.base import ProjectBase
+from restai.budget import check_budget
 
 logging.basicConfig(level=LOG_LEVEL)
 
@@ -92,6 +93,8 @@ async def chat_main(
     db: DBWrapper,
     background_tasks: BackgroundTasks,
 ):
+    check_budget(user, project, db)
+
     proj_logic: ProjectBase
     match project.props.type:
         case "rag":
@@ -132,6 +135,8 @@ async def question_main(
     db: DBWrapper,
     background_tasks: BackgroundTasks,
 ):
+    check_budget(user, project, db)
+
     match project.props.type:
         case "rag":
             cached = await process_cache(project, q_input)

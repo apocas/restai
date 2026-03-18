@@ -156,7 +156,13 @@ async def route_get_user_details(
 ):
     """Get user details by username."""
     try:
-        user_model = User.model_validate(db_wrapper.get_user_by_username(username))
+        user_db = db_wrapper.get_user_by_username(username)
+        user_model = User.model_validate(user_db)
+        credit = user_model.options.credit if hasattr(user_model.options, 'credit') else -1.0
+        if credit >= 0:
+            spending = db_wrapper.get_user_spending(user_db.id)
+            user_model.spending = spending
+            user_model.remaining = credit - spending
         return user_model
     except Exception as e:
         if isinstance(e, HTTPException):

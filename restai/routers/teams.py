@@ -61,8 +61,13 @@ async def get_team(
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
             raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
-            
-        return TeamModel.model_validate(team)
+
+        result = TeamModel.model_validate(team)
+        if result.budget >= 0:
+            spending = db_wrapper.get_team_spending(team_id)
+            result.spending = spending
+            result.remaining = result.budget - spending
+        return result
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

@@ -55,6 +55,7 @@ export default function TeamEdit() {
   const [team, setTeam] = useState({
     name: "",
     description: "",
+    budget: -1,
     users: [],
     admins: [],
     projects: [],
@@ -154,6 +155,7 @@ export default function TeamEdit() {
       const payload = {
         name: team.name,
         description: team.description,
+        budget: parseFloat(team.budget),
         users: team.users.map(u => u.username),
         admins: team.admins.map(a => a.username),
         projects: team.projects.map(p => p.name),
@@ -229,6 +231,20 @@ export default function TeamEdit() {
                 multiline
                 rows={3}
                 variant="outlined"
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Budget (-1 = unlimited)"
+                name="budget"
+                type="number"
+                value={team.budget}
+                onChange={handleChange}
+                variant="outlined"
+                helperText="Set to -1 for unlimited budget"
+                inputProps={{ step: "0.01" }}
               />
             </Grid>
           </Grid>

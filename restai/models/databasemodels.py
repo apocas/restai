@@ -56,7 +56,8 @@ class TeamDatabase(Base):
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    
+    budget = Column(Float, default=-1.0)
+
     # Many-to-many relationships
     users = relationship('UserDatabase', secondary=teams_users, back_populates='teams')
     admins = relationship('UserDatabase', secondary=teams_admins, back_populates='admin_teams')
