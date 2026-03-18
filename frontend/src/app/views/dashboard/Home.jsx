@@ -5,9 +5,12 @@ import ProjectsTypesChart from "./shared/ProjectsTypesChart";
 import ProjectsLLMsChart from "./shared/ProjectsLLMsChart";
 import ProjectsTable from "./shared/ProjectsTable";
 import TopProjectsTable from "./shared/TopProjectsTable";
+import DailyTokensChart from "./shared/DailyTokensChart";
+import TopLLMsChart from "./shared/TopLLMsChart";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import { toast } from 'react-toastify';
+import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 
 const ContentBox = styled("div")(({ theme }) => ({
   margin: "30px",
@@ -37,10 +40,15 @@ export default function Analytics() {
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [projects, setProjects] = useState([]);
   const [topProjects, setTopProjects] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [dailyTokens, setDailyTokens] = useState([]);
+  const [topLLMs, setTopLLMs] = useState([]);
   const auth = useAuth();
+  const { platformCapabilities } = usePlatformCapabilities();
+  const currency = platformCapabilities.currency || "EUR";
 
   const fetchProjects = () => {
-    return fetch(url + "/projects", { 
+    return fetch(url + "/projects", {
       headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
       credentials: 'include'
     })
@@ -63,9 +71,7 @@ export default function Analytics() {
   }
 
   const fetchTopProjects = () => {
-    if (!auth.user.is_admin) return;
-
-    return fetch(url + "/statistics/top-projects", { 
+    return fetch(url + "/statistics/top-projects", {
       headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
       credentials: 'include'
     })
@@ -87,10 +93,43 @@ export default function Analytics() {
       });
   }
 
+  const fetchSummary = () => {
+    return fetch(url + "/statistics/summary", {
+      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
+      credentials: 'include'
+    })
+      .then((r) => { if (!r.ok) throw Error(r.statusText); return r.json(); })
+      .then((d) => setSummary(d))
+      .catch((err) => console.error("Failed to fetch summary:", err));
+  };
+
+  const fetchDailyTokens = () => {
+    return fetch(url + "/statistics/daily-tokens?days=30", {
+      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
+      credentials: 'include'
+    })
+      .then((r) => { if (!r.ok) throw Error(r.statusText); return r.json(); })
+      .then((d) => setDailyTokens(d.tokens || []))
+      .catch((err) => console.error("Failed to fetch daily tokens:", err));
+  };
+
+  const fetchTopLLMs = () => {
+    return fetch(url + "/statistics/top-llms?limit=10", {
+      headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }),
+      credentials: 'include'
+    })
+      .then((r) => { if (!r.ok) throw Error(r.statusText); return r.json(); })
+      .then((d) => setTopLLMs(d.llms || []))
+      .catch((err) => console.error("Failed to fetch top LLMs:", err));
+  };
+
   useEffect(() => {
     document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + ' - Home';
     fetchProjects();
     fetchTopProjects();
+    fetchSummary();
+    fetchDailyTokens();
+    fetchTopLLMs();
   }, []);
 
   return (
@@ -103,8 +142,9 @@ export default function Analytics() {
         <ContentBox className="analytics">
           <Grid container spacing={3}>
             <Grid item lg={8} md={8} sm={12} xs={12}>
-              <ProjectsStats projects={projects} />
-              {auth.user.is_admin && <TopProjectsTable projects={topProjects} />}
+              <ProjectsStats projects={projects} summary={summary} currency={currency} />
+              <DailyTokensChart data={dailyTokens} currency={currency} />
+              <TopProjectsTable projects={topProjects} currency={currency} />
               <ProjectsTable projects={projects.slice(Math.max(projects.length - 5, 0)).reverse()} title={"Latest 5 Projects"} />
             </Grid>
 
@@ -130,6 +170,8 @@ export default function Analytics() {
                   color={[palette.primary.dark, palette.primary.main, palette.primary.light]}
                 />
               </Card>
+
+              <TopLLMsChart data={topLLMs} />
             </Grid>
           </Grid>
         </ContentBox>

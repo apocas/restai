@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import MUIDataTable from "mui-datatables";
 import BAvatar from "boring-avatars";
 
+const CURRENCY_SYMBOLS = { USD: "$", EUR: "\u20AC" };
+
 const StyledButton = styled(Button)(({ theme }) => ({
   margin: theme.spacing(1)
 }));
@@ -18,9 +20,10 @@ const Small = styled("small")(({ bgcolor }) => ({
   boxShadow: "0 0 2px 0 rgba(0, 0, 0, 0.12), 0 2px 2px 0 rgba(0, 0, 0, 0.24)"
 }));
 
-const TopProjectsTable = ({ projects }) => {
+const TopProjectsTable = ({ projects, currency = "USD" }) => {
   const navigate = useNavigate();
   const { palette } = useTheme();
+  const currencySymbol = CURRENCY_SYMBOLS[currency] || "$";
 
   return (
     <Card elevation={3} sx={{ pt: "20px", mb: 3 }}>
@@ -47,11 +50,13 @@ const TopProjectsTable = ({ projects }) => {
           }
         }}
         data={projects.map((project, index) => [
-          index + 1, 
+          index + 1,
           project.id,
-          project.name, 
-          project.type, 
-          project.total_tokens, 
+          project.name,
+          project.type,
+          project.llm || "",
+          project.input_tokens || 0,
+          project.output_tokens || 0,
           project.total_cost
         ])}
         columns={[{
@@ -63,10 +68,10 @@ const TopProjectsTable = ({ projects }) => {
               </Box>
             ),
             setCellHeaderProps: () => ({
-              style: { width: '100px' }
+              style: { width: '60px' }
             }),
             setCellProps: () => ({
-              style: { width: '100px' }
+              style: { width: '60px' }
             })
           }
         }, {
@@ -101,17 +106,26 @@ const TopProjectsTable = ({ projects }) => {
             )
           }
         }, {
-          name: "Token Count",
+          name: "LLM",
+        }, {
+          name: "Input Tokens",
           options: {
-            customBodyRender: (value, tableMeta, updateValue) => (
+            customBodyRender: (value) => (
+              <div>{value.toLocaleString()}</div>
+            )
+          }
+        }, {
+          name: "Output Tokens",
+          options: {
+            customBodyRender: (value) => (
               <div>{value.toLocaleString()}</div>
             )
           }
         }, {
           name: "Cost",
           options: {
-            customBodyRender: (value, tableMeta, updateValue) => (
-              <div>{value.toFixed(3)} €</div>
+            customBodyRender: (value) => (
+              <div>{currencySymbol}{value.toFixed(3)}</div>
             )
           }
         }]}

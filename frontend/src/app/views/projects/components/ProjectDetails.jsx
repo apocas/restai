@@ -19,8 +19,13 @@ export default function ProjectDetails({ project, projects, info }) {
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [tokens, setTokens] = useState({ "tokens": [] });
 
-  const fetchTokens = () => {
-    return fetch(url + "/projects/" + project.id + "/tokens/daily", { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+
+  const fetchTokens = (year, month) => {
+    const params = new URLSearchParams({ year, month });
+    return fetch(url + "/projects/" + project.id + "/tokens/daily?" + params.toString(), { headers: new Headers({ 'Authorization': 'Basic ' + auth.user.token }) })
       .then(function (response) {
         if (!response.ok) {
           response.json().then(function (data) {
@@ -39,9 +44,9 @@ export default function ProjectDetails({ project, projects, info }) {
 
   useEffect(() => {
     if (project.name) {
-      fetchTokens();
+      fetchTokens(selectedYear, selectedMonth);
     }
-  }, [project]);
+  }, [project, selectedYear, selectedMonth]);
 
   return (
     <Fade in timeout={300}>
@@ -87,11 +92,16 @@ export default function ProjectDetails({ project, projects, info }) {
           </Grid>
         )}
 
-        {tokens && tokens.length > 0 &&
-          <Grid item lg={12} md={6} xs={12}>
-            <ProjectTokens project={project} tokens={tokens} />
-          </Grid>
-        }
+        <Grid item lg={12} md={12} xs={12}>
+          <ProjectTokens
+            project={project}
+            tokens={tokens}
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
+            setSelectedYear={setSelectedYear}
+            setSelectedMonth={setSelectedMonth}
+          />
+        </Grid>
       </Grid>
     </Fade>
   );

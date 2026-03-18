@@ -103,6 +103,8 @@ class DBWrapper:
         description: str,
         llm_type: str,
         context_window: int = 4096,
+        input_cost: float = 0.0,
+        output_cost: float = 0.0,
     ) -> LLMDatabase:
         db_llm: LLMDatabase = LLMDatabase(
             name=name,
@@ -112,6 +114,8 @@ class DBWrapper:
             description=description,
             type=llm_type,
             context_window=context_window,
+            input_cost=input_cost,
+            output_cost=output_cost,
         )
         self.db.add(db_llm)
         self.db.commit()

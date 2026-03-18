@@ -464,6 +464,7 @@ class SettingsResponse(BaseModel):
     proxy_team_id: Optional[str] = ""
     agent_max_iterations: int
     max_audio_upload_size: int
+    currency: str = "EUR"
 
 
 class SettingsUpdate(BaseModel):
@@ -475,3 +476,4 @@ class SettingsUpdate(BaseModel):
     proxy_team_id: Optional[str] = None
     agent_max_iterations: Optional[int] = None
     max_audio_upload_size: Optional[int] = None
+    currency: Optional[str] = None

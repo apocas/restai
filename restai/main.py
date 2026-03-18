@@ -136,6 +136,7 @@ async def lifespan(fs_app: FastAPI):
             "app_name": config.RESTAI_NAME,
             "hide_branding": config.HIDE_BRANDING,
             "proxy_url": config.PROXY_URL or "",
+            "currency": config.CURRENCY or "EUR",
         }
 
     @fs_app.get("/info")

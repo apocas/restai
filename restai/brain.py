@@ -92,6 +92,7 @@ class Brain:
                 break
 
         if counting_event_found is not None:
+            self.token_counter.llm_token_counts = self.token_counter.llm_token_counts[i+1:]
             output["tokens"] = {
                 "input": counting_event_found.prompt_token_count,
                 "output": counting_event_found.completion_token_count,

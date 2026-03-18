@@ -72,6 +72,8 @@ async def api_create_llm(
             llmc.description,
             llmc.type,
             llmc.context_window,
+            llmc.input_cost,
+            llmc.output_cost,
         )
         return llm
     except Exception as e:

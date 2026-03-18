@@ -7,7 +7,8 @@ export const PlatformContext = createContext({
     proxy: null,
     app_name: "RESTai",
     hide_branding: false,
-    proxy_url: ""
+    proxy_url: "",
+    currency: "EUR"
   },
   isLoading: true,
   refreshCapabilities: () => {}
@@ -22,7 +23,8 @@ export default function PlatformProvider({ children }) {
     proxy: null,
     app_name: "RESTai",
     hide_branding: false,
-    proxy_url: ""
+    proxy_url: "",
+    currency: "EUR"
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -39,7 +41,8 @@ export default function PlatformProvider({ children }) {
           proxy: data.proxy || null,
           app_name: data.app_name || "RESTai",
           hide_branding: data.hide_branding || false,
-          proxy_url: data.proxy_url || ""
+          proxy_url: data.proxy_url || "",
+          currency: data.currency || "USD"
         });
       } else {
         console.error("Failed to fetch platform capabilities");

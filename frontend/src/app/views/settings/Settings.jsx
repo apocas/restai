@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Grid, styled, Box, Card, Divider, TextField, Button,
-  Switch, FormControlLabel, Typography
+  Switch, FormControlLabel, Typography, Select, MenuItem, InputLabel, FormControl
 } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
@@ -39,7 +39,8 @@ export default function SettingsPage() {
     proxy_key: "",
     proxy_team_id: "",
     agent_max_iterations: 20,
-    max_audio_upload_size: 10
+    max_audio_upload_size: 10,
+    currency: "EUR"
   });
   const [saving, setSaving] = useState(false);
 
@@ -121,7 +122,7 @@ export default function SettingsPage() {
                       onChange={handleChange("app_name")}
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid item xs={12} md={3}>
                     <FormControlLabel
                       control={
                         <Switch
@@ -131,6 +132,19 @@ export default function SettingsPage() {
                       }
                       label="Hide Branding"
                     />
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <FormControl fullWidth>
+                      <InputLabel>Currency</InputLabel>
+                      <Select
+                        value={form.currency}
+                        label="Currency"
+                        onChange={handleChange("currency")}
+                      >
+                        <MenuItem value="USD">USD ($)</MenuItem>
+                        <MenuItem value="EUR">EUR (&euro;)</MenuItem>
+                      </Select>
+                    </FormControl>
                   </Grid>
                 </Grid>
               </Box>

@@ -148,6 +148,8 @@ LDAP_CIPHERS = os.environ.get("LDAP_CIPHERS")
 
 HIDE_BRANDING = os.environ.get("RESTAI_HIDE", "").lower() in ("true", "1")
 
+CURRENCY = os.environ.get("CURRENCY", "EUR")
+
 PROXY_URL = os.environ.get("PROXY_URL")
 PROXY_KEY = os.environ.get("PROXY_KEY")
 PROXY_TEAM_ID = os.environ.get("PROXY_TEAM_ID")

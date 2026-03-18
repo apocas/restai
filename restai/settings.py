@@ -13,6 +13,7 @@ SETTINGS_DEFAULTS = {
     "proxy_team_id": ("PROXY_TEAM_ID", ""),
     "agent_max_iterations": ("AGENT_MAX_ITERATIONS", "20"),
     "max_audio_upload_size": ("MAX_AUDIO_UPLOAD_SIZE", "10"),
+    "currency": ("CURRENCY", "EUR"),
 }
 
 # Which config attrs map to which setting keys
@@ -24,6 +25,7 @@ _CONFIG_ATTR_MAP = {
     "proxy_team_id": "PROXY_TEAM_ID",
     "agent_max_iterations": "AGENT_MAX_ITERATIONS",
     "max_audio_upload_size": "MAX_AUDIO_UPLOAD_SIZE",
+    "currency": "CURRENCY",
 }
 
 _BOOL_KEYS = {"hide_branding", "proxy_enabled"}
@@ -102,4 +104,5 @@ def get_all_settings(db_wrapper) -> dict:
         "proxy_team_id": rows.get("proxy_team_id", ""),
         "agent_max_iterations": int(rows.get("agent_max_iterations", "20")),
         "max_audio_upload_size": int(rows.get("max_audio_upload_size", "10")),
+        "currency": rows.get("currency", "EUR"),
     }

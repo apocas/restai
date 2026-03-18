@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import inspect
 import logging
 import os
@@ -244,7 +244,7 @@ def log_inference(project: Project, user: User, output, db: DBWrapper):
         llm=project.props.llm,
         question=output["question"] if project.props.options.logging else None,
         answer=output["answer"] if project.props.options.logging else None,
-        date=datetime.now(),
+        date=datetime.now(timezone.utc),
         project_id=project.props.id,
         input_tokens=output["tokens"]["input"],
         output_tokens=output["tokens"]["output"],
