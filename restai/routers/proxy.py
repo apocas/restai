@@ -3,6 +3,7 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Path,
 )
 import requests
 from restai import config
@@ -76,7 +77,7 @@ async def route_get_keys(
 
 @router.delete("/proxy/keys/{key_id}")
 async def route_delete_key(
-    key_id: str,
+    key_id: str = Path(description="Proxy key ID"),
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):

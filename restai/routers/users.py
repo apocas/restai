@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 import uuid
 from unidecode import unidecode
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Path, Request
 import re
 import logging
 from datetime import timedelta
@@ -150,7 +150,7 @@ async def ldap_auth(request: Request, form_data: UserLogin, db_wrapper: DBWrappe
 
 @router.get("/users/{username}", response_model=User)
 async def route_get_user_details(
-    username: str,
+    username: str = Path(description="Username"),
     _: User = Depends(get_current_username_user),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -167,7 +167,7 @@ async def route_get_user_details(
 
 @router.post("/users/{username}/apikeys", response_model=ApiKeyCreatedResponse, status_code=201)
 async def route_create_user_apikey(
-    username: str,
+    username: str = Path(description="Username"),
     body: ApiKeyCreate = ApiKeyCreate(),
     _: User = Depends(get_current_username_user),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
@@ -206,7 +206,7 @@ async def route_create_user_apikey(
 
 @router.get("/users/{username}/apikeys", response_model=list[ApiKeyResponse])
 async def route_list_user_apikeys(
-    username: str,
+    username: str = Path(description="Username"),
     _: User = Depends(get_current_username_user),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -226,8 +226,8 @@ async def route_list_user_apikeys(
 
 @router.delete("/users/{username}/apikeys/{key_id}")
 async def route_delete_user_apikey(
-    username: str,
-    key_id: int,
+    username: str = Path(description="Username"),
+    key_id: int = Path(description="API key ID"),
     _: User = Depends(get_current_username_user),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -316,8 +316,8 @@ async def route_create_user(
 
 @router.patch("/users/{username}", response_model=User)
 async def route_update_user(
-    username: str,
-    user_update: UserUpdate,
+    username: str = Path(description="Username"),
+    user_update: UserUpdate = ...,
     user: User = Depends(get_current_username_user),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -356,7 +356,7 @@ async def route_update_user(
 
 @router.delete("/users/{username}")
 async def route_delete_user(
-    username: str,
+    username: str = Path(description="Username"),
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):

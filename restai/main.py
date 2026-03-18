@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Request, Depends, status, Response
+from fastapi import Path as PathParam
 import logging
 import sys
 
@@ -342,13 +343,13 @@ if len(OAUTH_PROVIDERS) > 0:
 
 
 @app.get("/oauth/{provider}/login", tags=["Auth"])
-async def oauth_login(provider: str, request: Request):
+async def oauth_login(provider: str = PathParam(description="OAuth provider name"), request: Request = ...):
     """Initiate OAuth login flow for the specified provider."""
     return await oauth_manager.handle_login(request, provider)
 
 
 @app.get("/oauth/{provider}/callback", tags=["Auth"])
-async def oauth_callback(provider: str, request: Request, response: Response):
+async def oauth_callback(provider: str = PathParam(description="OAuth provider name"), request: Request = ..., response: Response = ...):
     """Handle OAuth callback from the specified provider."""
     return await oauth_manager.handle_callback(request, provider, response)
 

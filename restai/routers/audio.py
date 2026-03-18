@@ -4,7 +4,7 @@ import os
 import shutil
 import subprocess
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, UploadFile, Form
 
 from restai import config
 from restai.auth import get_current_username
@@ -32,9 +32,9 @@ async def route_list_generators(
 @router.post("/audio/{generator}/transcript")
 async def route_generate_transcript(
     request: Request,
-    generator: str,
-    file: UploadFile,
-    language: str = Form(...),
+    generator: str = Path(description="Audio transcription generator name"),
+    file: UploadFile = ...,
+    language: str = Form(..., description="Language code for transcription"),
     _: User = Depends(get_current_username)  # Require authentication
 ):
     """Transcribe an audio file using the specified generator."""

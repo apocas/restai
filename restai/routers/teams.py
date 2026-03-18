@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Request
 import logging
 from datetime import datetime
 from typing import List, Optional
@@ -49,7 +49,7 @@ async def get_teams(
 
 @router.get("/teams/{team_id}", response_model=TeamModel)
 async def get_team(
-    team_id: int,
+    team_id: int = Path(description="Team ID"),
     user: User = Depends(get_current_username_team_member),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
@@ -107,8 +107,8 @@ async def create_team(
 
 @router.patch("/teams/{team_id}", response_model=TeamModel)
 async def update_team(
-    team_id: int,
-    team_update: TeamModelUpdate,
+    team_id: int = Path(description="Team ID"),
+    team_update: TeamModelUpdate = ...,
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
@@ -142,7 +142,7 @@ async def update_team(
 
 @router.delete("/teams/{team_id}")
 async def delete_team(
-    team_id: int,
+    team_id: int = Path(description="Team ID"),
     user: User = Depends(get_current_username_platform_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
@@ -165,8 +165,8 @@ async def delete_team(
 
 @router.post("/teams/{team_id}/users/{username}")
 async def add_user_to_team(
-    team_id: int,
-    username: str,
+    team_id: int = Path(description="Team ID"),
+    username: str = Path(description="Username"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
@@ -193,8 +193,8 @@ async def add_user_to_team(
 
 @router.delete("/teams/{team_id}/users/{username}")
 async def remove_user_from_team(
-    team_id: int,
-    username: str,
+    team_id: int = Path(description="Team ID"),
+    username: str = Path(description="Username"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
@@ -221,8 +221,8 @@ async def remove_user_from_team(
 
 @router.post("/teams/{team_id}/admins/{username}")
 async def add_admin_to_team(
-    team_id: int,
-    username: str,
+    team_id: int = Path(description="Team ID"),
+    username: str = Path(description="Username"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
@@ -249,8 +249,8 @@ async def add_admin_to_team(
 
 @router.delete("/teams/{team_id}/admins/{username}")
 async def remove_admin_from_team(
-    team_id: int,
-    username: str,
+    team_id: int = Path(description="Team ID"),
+    username: str = Path(description="Username"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
@@ -277,8 +277,8 @@ async def remove_admin_from_team(
 
 @router.post("/teams/{team_id}/projects/{project_id}")
 async def add_project_to_team(
-    team_id: int,
-    project_id: int,
+    team_id: int = Path(description="Team ID"),
+    project_id: int = Path(description="Project ID"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
@@ -305,8 +305,8 @@ async def add_project_to_team(
 
 @router.delete("/teams/{team_id}/projects/{project_id}")
 async def remove_project_from_team(
-    team_id: int,
-    project_id: int,
+    team_id: int = Path(description="Team ID"),
+    project_id: int = Path(description="Project ID"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
@@ -333,8 +333,8 @@ async def remove_project_from_team(
 
 @router.post("/teams/{team_id}/llms/{llm_name}")
 async def add_llm_to_team(
-    team_id: int,
-    llm_name: str,
+    team_id: int = Path(description="Team ID"),
+    llm_name: str = Path(description="LLM name"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
@@ -361,8 +361,8 @@ async def add_llm_to_team(
 
 @router.delete("/teams/{team_id}/llms/{llm_name}")
 async def remove_llm_from_team(
-    team_id: int,
-    llm_name: str,
+    team_id: int = Path(description="Team ID"),
+    llm_name: str = Path(description="LLM name"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
@@ -389,8 +389,8 @@ async def remove_llm_from_team(
 
 @router.post("/teams/{team_id}/embeddings/{embedding_name}")
 async def add_embedding_to_team(
-    team_id: int,
-    embedding_name: str,
+    team_id: int = Path(description="Team ID"),
+    embedding_name: str = Path(description="Embedding model name"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
@@ -417,8 +417,8 @@ async def add_embedding_to_team(
 
 @router.delete("/teams/{team_id}/embeddings/{embedding_name}")
 async def remove_embedding_from_team(
-    team_id: int,
-    embedding_name: str,
+    team_id: int = Path(description="Team ID"),
+    embedding_name: str = Path(description="Embedding model name"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):

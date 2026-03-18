@@ -4,6 +4,7 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Query,
 )
 from restai import config
 from restai.auth import (
@@ -24,7 +25,7 @@ router = APIRouter()
 
 @router.get("/statistics/top-projects")
 async def get_top_projects_by_tokens(
-    limit: int = 10,
+    limit: int = Query(10, description="Maximum number of projects to return"),
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -145,7 +146,7 @@ async def get_statistics_summary(
 
 @router.get("/statistics/daily-tokens")
 async def get_daily_tokens(
-    days: int = 30,
+    days: int = Query(30, description="Number of days to look back"),
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -194,7 +195,7 @@ async def get_daily_tokens(
 
 @router.get("/statistics/top-llms")
 async def get_top_llms(
-    limit: int = 10,
+    limit: int = Query(10, description="Maximum number of LLMs to return"),
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):

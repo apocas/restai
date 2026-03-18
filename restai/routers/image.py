@@ -1,7 +1,7 @@
 import logging
 import os
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from typing import Literal, Optional
 from pydantic import BaseModel
 
@@ -32,8 +32,8 @@ async def route_list_generators(request: Request,
 
 @router.post("/image/{generator}/generate")
 async def route_generate_image(request: Request,
-                               generator: str,
-                               imageModel: ImageModel,
+                               generator: str = Path(description="Image generator name"),
+                               imageModel: ImageModel = ...,
                                user: User = Depends(get_current_username)):
     """Generate an image using the specified generator."""
     match generator:

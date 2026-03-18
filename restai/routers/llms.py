@@ -3,7 +3,7 @@ from typing import Optional
 
 from fastapi import APIRouter
 from fastapi import Depends
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Path, Request
 import traceback
 import logging
 from restai import config
@@ -29,7 +29,7 @@ def mask_api_key(options: Optional[str]) -> Optional[str]:
 
 @router.get("/llms/{llm_name}", response_model=LLMModel)
 async def api_get_llm(
-    llm_name: str,
+    llm_name: str = Path(description="LLM name"),
     _: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -88,8 +88,8 @@ async def api_create_llm(
 @router.patch("/llms/{llm_name}")
 async def api_edit_llm(
     request: Request,
-    llm_name: str,
-    llmUpdate: LLMUpdate,
+    llm_name: str = Path(description="LLM name"),
+    llmUpdate: LLMUpdate = ...,
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -112,7 +112,7 @@ async def api_edit_llm(
 
 @router.delete("/llms/{llm_name}")
 async def api_delete_llm(
-    llm_name: str,
+    llm_name: str = Path(description="LLM name"),
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):

@@ -3,7 +3,7 @@ from typing import Optional
 
 from fastapi import APIRouter
 from fastapi import Depends
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Path, Request
 import logging
 from restai import config
 from restai.models.databasemodels import EmbeddingDatabase, ProjectDatabase
@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 @router.get("/embeddings/{embedding_name}", response_model=EmbeddingModel)
-async def api_get_embedding(embedding_name: str,
+async def api_get_embedding(embedding_name: str = Path(description="Embedding model name"),
                       _: User = Depends(get_current_username),
                       db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     """Get embedding model configuration by name."""
@@ -71,8 +71,8 @@ async def api_create_embeddings(embeddingc: EmbeddingModel,
 
 @router.patch("/embeddings/{embedding_name}")
 async def api_edit_embedding(request: Request,
-                           embedding_name: str,
-                           embeddingUpdate: EmbeddingUpdate,
+                           embedding_name: str = Path(description="Embedding model name"),
+                           embeddingUpdate: EmbeddingUpdate = ...,
                            _: User = Depends(get_current_username_admin),
                            db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     """Update embedding model configuration (admin only)."""
@@ -94,7 +94,7 @@ async def api_edit_embedding(request: Request,
 
 
 @router.delete("/embeddings/{embedding_name}")
-async def api_delete_embedding(embedding_name: str,
+async def api_delete_embedding(embedding_name: str = Path(description="Embedding model name"),
                          _: User = Depends(get_current_username_admin),
                          db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     """Delete an embedding model provider (admin only)."""
