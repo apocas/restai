@@ -28,6 +28,7 @@ async def get_top_projects_by_tokens(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get projects ranked by total token consumption."""
     try:
         query = (
             db_wrapper.db.query(
@@ -101,6 +102,7 @@ async def get_statistics_summary(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get platform-wide usage summary (tokens, costs, counts)."""
     try:
         token_query = db_wrapper.db.query(
             func.coalesce(func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens), 0).label("total_tokens"),
@@ -147,6 +149,7 @@ async def get_daily_tokens(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get daily token consumption over a time period."""
     try:
         start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
@@ -195,6 +198,7 @@ async def get_top_llms(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get LLMs ranked by total token consumption."""
     try:
         query = (
             db_wrapper.db.query(

@@ -26,7 +26,7 @@ def test_setup_dependencies():
                 },
                 auth=("admin", RESTAI_DEFAULT_PASSWORD),
             )
-            assert response.status_code == 200
+            assert response.status_code == 201
 
         # Create test LLM
         response = client.post(
@@ -40,7 +40,7 @@ def test_setup_dependencies():
             },
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
 
         # Create test embedding
         response = client.post(
@@ -54,7 +54,7 @@ def test_setup_dependencies():
             },
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
 
 
 def test_create_team():
@@ -65,7 +65,7 @@ def test_create_team():
             json={"name": team_name},
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["name"] == team_name
         assert "id" in data

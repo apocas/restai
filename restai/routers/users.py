@@ -37,6 +37,7 @@ router = APIRouter()
 
 @router.post("/ldap")
 async def ldap_auth(request: Request, form_data: UserLogin, db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    """Authenticate via LDAP and create session."""
     ENABLE_LDAP = config.ENABLE_LDAP
     LDAP_SERVER_HOST = config.LDAP_SERVER_HOST
     LDAP_SERVER_PORT = config.LDAP_SERVER_PORT
@@ -149,6 +150,7 @@ async def route_get_user_details(
     _: User = Depends(get_current_username_user),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get user details by username."""
     try:
         user_model = User.model_validate(db_wrapper.get_user_by_username(username))
         return user_model
@@ -158,13 +160,14 @@ async def route_get_user_details(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.post("/users/{username}/apikeys", response_model=ApiKeyCreatedResponse)
+@router.post("/users/{username}/apikeys", response_model=ApiKeyCreatedResponse, status_code=201)
 async def route_create_user_apikey(
     username: str,
     body: ApiKeyCreate = ApiKeyCreate(),
     _: User = Depends(get_current_username_user),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Create a new API key for a user."""
     try:
         user = db_wrapper.get_user_by_username(username)
         if user is None:
@@ -202,6 +205,7 @@ async def route_list_user_apikeys(
     _: User = Depends(get_current_username_user),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """List all API keys for a user."""
     try:
         user = db_wrapper.get_user_by_username(username)
         if user is None:
@@ -222,6 +226,7 @@ async def route_delete_user_apikey(
     _: User = Depends(get_current_username_user),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Delete an API key."""
     try:
         user = db_wrapper.get_user_by_username(username)
         if user is None:
@@ -242,6 +247,7 @@ async def route_get_users(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """List all users. Admins see all, others see team members only."""
     # If user is admin, return all users
     if user.is_admin:
         users = db_wrapper.get_users()
@@ -275,12 +281,13 @@ async def route_get_users(
     return {"users": users_final}
 
 
-@router.post("/users")
+@router.post("/users", status_code=201)
 async def route_create_user(
     user_create: UserCreate,
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Create a new user (admin only)."""
     try:
         user_create.username = unidecode(
             user_create.username.strip().lower().replace(" ", ".")
@@ -309,6 +316,7 @@ async def route_update_user(
     user: User = Depends(get_current_username_user),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Update user properties."""
     try:
         user_to_update = db_wrapper.get_user_by_username(username)
         if user_to_update is None:
@@ -347,6 +355,7 @@ async def route_delete_user(
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Delete a user (admin only)."""
     try:
         user_link = db_wrapper.get_user_by_username(username)
         if user_link is None:

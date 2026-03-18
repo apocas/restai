@@ -33,6 +33,7 @@ async def api_get_llm(
     _: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get LLM configuration by name."""
     try:
         llm = LLMModel.model_validate(db_wrapper.get_llm_by_name(llm_name))
         llm.options = mask_api_key(llm.options)
@@ -49,6 +50,7 @@ async def api_get_llms(
     _: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """List all registered LLMs."""
     llms: list[Optional[LLMModel]] = [
         LLMModel.model_validate(llm) for llm in db_wrapper.get_llms()
     ]
@@ -57,12 +59,13 @@ async def api_get_llms(
     return llms
 
 
-@router.post("/llms")
+@router.post("/llms", status_code=201)
 async def api_create_llm(
     llmc: LLMModel,
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Register a new LLM provider (admin only)."""
     try:
         llm: LLMDatabase = db_wrapper.create_llm(
             llmc.name,
@@ -90,6 +93,7 @@ async def api_edit_llm(
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Update LLM configuration (admin only)."""
     try:
         llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_name(llm_name)
         if llm is None:
@@ -112,6 +116,7 @@ async def api_delete_llm(
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Delete an LLM provider (admin only)."""
     try:
         llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_name(llm_name)
         if llm is None:

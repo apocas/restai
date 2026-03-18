@@ -21,6 +21,7 @@ async def login(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Authenticate and receive a session cookie."""
     jwt_token = create_access_token(
         data={"username": user.username}, expires_delta=timedelta(minutes=1440)
     )
@@ -42,6 +43,7 @@ async def get_whoami(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get the currently authenticated user's profile."""
     user_model = User.model_validate(db_wrapper.get_user_by_username(user.username))
     return user_model
 
@@ -50,6 +52,7 @@ async def get_whoami(
 async def logout(
     request: Request, response: Response, user: User = Depends(get_current_username)
 ):
+    """Clear the session cookie and log out."""
     response.delete_cookie(key="restai_token")
 
     return {"message": "Logged out successfully."}

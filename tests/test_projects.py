@@ -34,7 +34,7 @@ def test_create_project():
             json={"name": test_team_name, "llms": [test_llm], "embeddings": [test_embedding]},
             auth=("admin", RESTAI_DEFAULT_PASSWORD)
         )
-        assert team_response.status_code == 200
+        assert team_response.status_code == 201
         global test_team_id
         test_team_id = team_response.json()["id"]
 
@@ -56,7 +56,7 @@ def test_create_project():
             }, 
             auth=("admin", RESTAI_DEFAULT_PASSWORD)
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         global project_id
         project_id = response.json()["project"]
 

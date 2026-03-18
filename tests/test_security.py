@@ -61,7 +61,7 @@ def test_security_setup():
                 json={"username": uname, "password": pwd, "is_admin": False, "is_private": False},
                 auth=ADMIN,
             )
-            assert r.status_code == 200, f"Failed to create {uname}: {r.text}"
+            assert r.status_code == 201, f"Failed to create {uname}: {r.text}"
 
         # Create LLMs
         for name in [llmA_name, llmB_name]:
@@ -76,7 +76,7 @@ def test_security_setup():
                 },
                 auth=ADMIN,
             )
-            assert r.status_code == 200, f"Failed to create LLM {name}: {r.text}"
+            assert r.status_code == 201, f"Failed to create LLM {name}: {r.text}"
 
         # Create embeddings
         for name in [embA_name, embB_name]:
@@ -91,7 +91,7 @@ def test_security_setup():
                 },
                 auth=ADMIN,
             )
-            assert r.status_code == 200, f"Failed to create embedding {name}: {r.text}"
+            assert r.status_code == 201, f"Failed to create embedding {name}: {r.text}"
 
         # Create teamA with userA as member, llmA, embA
         r = client.post(
@@ -104,7 +104,7 @@ def test_security_setup():
             },
             auth=ADMIN,
         )
-        assert r.status_code == 200
+        assert r.status_code == 201
         teamA_id = r.json()["id"]
 
         # Create teamB with userB as member, llmB, embB
@@ -118,7 +118,7 @@ def test_security_setup():
             },
             auth=ADMIN,
         )
-        assert r.status_code == 200
+        assert r.status_code == 201
         teamB_id = r.json()["id"]
 
         # Create projectA owned by userA in teamA
@@ -132,7 +132,7 @@ def test_security_setup():
             },
             auth=USER_A,
         )
-        assert r.status_code == 200, f"ProjectA creation failed: {r.status_code} {r.text}"
+        assert r.status_code == 201, f"ProjectA creation failed: {r.status_code} {r.text}"
         projectA_id = r.json()["project"]
 
         # Create projectB owned by userB in teamB
@@ -146,7 +146,7 @@ def test_security_setup():
             },
             auth=USER_B,
         )
-        assert r.status_code == 200
+        assert r.status_code == 201
         projectB_id = r.json()["project"]
 
 
@@ -947,7 +947,7 @@ def test_project_name_sanitization():
         )
         # Should succeed with sanitized name or fail gracefully (not 500)
         assert r.status_code != 500, f"Server error on special chars: {r.text}"
-        if r.status_code == 200:
+        if r.status_code == 201:
             # Clean up
             pid = r.json()["project"]
             client.delete(f"/projects/{pid}", auth=ADMIN)
@@ -963,7 +963,7 @@ def test_very_long_project_name():
             auth=USER_A,
         )
         assert r.status_code != 500, f"Server error on long name: {r.text}"
-        if r.status_code == 200:
+        if r.status_code == 201:
             pid = r.json()["project"]
             client.delete(f"/projects/{pid}", auth=ADMIN)
 
@@ -982,7 +982,7 @@ def test_sql_injection_in_project_name():
             auth=USER_A,
         )
         assert r.status_code != 500, f"Server error on SQL injection attempt: {r.text}"
-        if r.status_code == 200:
+        if r.status_code == 201:
             pid = r.json()["project"]
             client.delete(f"/projects/{pid}", auth=ADMIN)
 
@@ -1001,7 +1001,7 @@ def test_xss_in_username():
             auth=ADMIN,
         )
         assert r.status_code != 500, f"Server error on XSS attempt: {r.text}"
-        if r.status_code == 200:
+        if r.status_code == 201:
             created_name = r.json()["username"]
             # Verify the name was sanitized (no angle brackets)
             assert "<" not in created_name

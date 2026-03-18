@@ -21,7 +21,7 @@ router = APIRouter()
 async def api_get_embedding(embedding_name: str,
                       _: User = Depends(get_current_username),
                       db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-  
+    """Get embedding model configuration by name."""
     try:
         llm = EmbeddingModel.model_validate(db_wrapper.get_embedding_by_name(embedding_name))
         if llm.options is not None:
@@ -41,6 +41,7 @@ async def api_get_embedding(embedding_name: str,
 async def api_get_embeddings(
         _: User = Depends(get_current_username),
         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    """List all registered embedding models."""
     embeddings: list[Optional[EmbeddingModel]] = [EmbeddingModel.model_validate(embedding) for embedding in db_wrapper.get_embeddings()]
     for embedding in embeddings:
         if embedding.options is not None:
@@ -52,10 +53,11 @@ async def api_get_embeddings(
     return embeddings
 
 
-@router.post("/embeddings")
+@router.post("/embeddings", status_code=201)
 async def api_create_embeddings(embeddingc: EmbeddingModel,
                          _: User = Depends(get_current_username_admin),
                          db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    """Register a new embedding model provider (admin only)."""
     try:
         embedding: EmbeddingDatabase = db_wrapper.create_embedding(embeddingc.name, embeddingc.class_name, embeddingc.options, embeddingc.privacy, embeddingc.description, embeddingc.dimension)
         return embedding
@@ -73,6 +75,7 @@ async def api_edit_embedding(request: Request,
                            embeddingUpdate: EmbeddingUpdate,
                            _: User = Depends(get_current_username_admin),
                            db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    """Update embedding model configuration (admin only)."""
     try:
         embedding: Optional[EmbeddingDatabase] = db_wrapper.get_embedding_by_name(embedding_name)
         if embedding is None:
@@ -93,6 +96,7 @@ async def api_edit_embedding(request: Request,
 async def api_delete_embedding(embedding_name: str,
                          _: User = Depends(get_current_username_admin),
                          db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    """Delete an embedding model provider (admin only)."""
     try:
         embedding: Optional[EmbeddingDatabase] = db_wrapper.get_embedding_by_name(embedding_name)
         if embedding is None:

@@ -25,6 +25,7 @@ async def route_create_key(
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Create a new LiteLLM proxy API key (admin only)."""
     url = config.PROXY_URL + "/key/generate"
     headers = {
         "Authorization": "Bearer " + config.PROXY_KEY,
@@ -49,6 +50,7 @@ async def route_get_keys(
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """List all LiteLLM proxy API keys (admin only)."""
     url = config.PROXY_URL + "/user/info"
     headers = {
         "Authorization": "Bearer " + config.PROXY_KEY,
@@ -77,6 +79,7 @@ async def route_delete_key(
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Delete a LiteLLM proxy API key (admin only)."""
     url = config.PROXY_URL + "/key/delete"
     headers = {
         "Authorization": "Bearer " + config.PROXY_KEY,
@@ -97,6 +100,7 @@ async def route_proxy_info(
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get LiteLLM proxy info and available models (admin only)."""
     url = config.PROXY_URL + "/models"
     headers = {
         "Authorization": "Bearer " + config.PROXY_KEY,

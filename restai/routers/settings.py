@@ -13,6 +13,7 @@ async def get_settings(
     user=Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get current platform settings (admin only)."""
     return get_all_settings(db_wrapper)
 
 
@@ -22,6 +23,7 @@ async def patch_settings(
     user=Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Update platform settings (admin only)."""
     if body.agent_max_iterations is not None and body.agent_max_iterations < 1:
         raise HTTPException(status_code=400, detail="agent_max_iterations must be >= 1")
     if body.max_audio_upload_size is not None and body.max_audio_upload_size < 1:

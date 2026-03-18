@@ -22,6 +22,7 @@ async def classifier(
     input_model: ClassifierModel,
     _: User = Depends(get_current_username),
 ):
+    """Classify text into provided labels using zero-shot classification."""
     try:
         return request.app.state.brain.classify(input_model)
     except Exception as e:
@@ -32,7 +33,7 @@ async def classifier(
 
 @router.get("/tools/agent", response_model=list[Tool])
 async def get_tools(request: Request, _: User = Depends(get_current_username)):
-
+    """List all registered agent tools."""
     _tools = []
 
     for tool in request.app.state.brain.get_tools():
@@ -48,6 +49,7 @@ async def probe_mcp_server(
     probe_request: MCPProbeRequest,
     _: User = Depends(get_current_username),
 ):
+    """Probe an MCP server to discover available tools."""
     try:
         from llama_index.tools.mcp import BasicMCPClient, McpToolSpec
 

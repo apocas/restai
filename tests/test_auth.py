@@ -20,7 +20,7 @@ def test_setup_user():
             },
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         assert response.json()["username"] == test_username
 
 

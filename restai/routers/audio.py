@@ -19,6 +19,7 @@ router = APIRouter()
 async def route_list_generators(
     request: Request, _: User = Depends(get_current_username)
 ):
+    """List available audio transcription generators."""
     generators = request.app.state.brain.get_audio_generators()
     generators_names = [
         generator.__module__.split("restai.audio.workers.")[1]
@@ -36,6 +37,7 @@ async def route_generate_transcript(
     language: str = Form(...),
     _: User = Depends(get_current_username)  # Require authentication
 ):
+    """Transcribe an audio file using the specified generator."""
     # Read the uploaded file contents
     contents = await file.read()
     file_size = len(contents)

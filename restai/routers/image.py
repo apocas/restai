@@ -17,6 +17,7 @@ router = APIRouter()
 @router.get("/image")
 async def route_list_generators(request: Request,
                                 user: User = Depends(get_current_username)):
+    """List available image generators."""
     generators = request.app.state.brain.get_generators()
     generators_names = [generator.__module__.split("restai.image.workers.")[1] for generator in generators]
 
@@ -34,6 +35,7 @@ async def route_generate_image(request: Request,
                                generator: str,
                                imageModel: ImageModel,
                                user: User = Depends(get_current_username)):
+    """Generate an image using the specified generator."""
     match generator:
         case "dalle" | "dalle3":
             if user.is_private:
@@ -78,6 +80,7 @@ async def openai_compatible_generate(
     body: OpenAIImageGenerateRequest,
     user: User = Depends(get_current_username)
 ):
+    """OpenAI-compatible image generation endpoint."""
     import time
 
     imageModel = ImageModel(prompt=body.prompt)

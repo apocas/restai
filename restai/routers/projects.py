@@ -10,6 +10,7 @@ from fastapi import (
     Depends,
     Form,
     HTTPException,
+    Path as PathParam,
     Request,
     UploadFile,
     BackgroundTasks,
@@ -72,15 +73,16 @@ def get_project(projectID: int, db_wrapper: DBWrapper, brain: Brain):
     return project
 
 
-@router.get("/projects", response_model=ProjectsResponse)
+@router.get("/projects", response_model=ProjectsResponse, tags=["Projects"])
 async def route_get_projects(
     _: Request,
-    v_filter: str = Query("own", alias="filter"),
-    start: int = Query(0),
-    end: int = Query(50),
+    v_filter: str = Query("own", alias="filter", description="Filter mode: 'own' for user's projects, 'public' for public projects"),
+    start: int = Query(0, description="Pagination start offset"),
+    end: int = Query(50, description="Pagination end offset"),
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """List projects accessible to the current user."""
     query = db_wrapper.db.query(ProjectDatabase)
 
     if v_filter == "public":
@@ -122,13 +124,14 @@ async def route_get_projects(
     }
 
 
-@router.get("/projects/{projectID}")
+@router.get("/projects/{projectID}", tags=["Projects"])
 async def route_get_project(
     request: Request,
-    projectID: int,
+    projectID: int = PathParam(description="Project ID"),
     user: User = Depends(get_current_username_project_public),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get detailed information about a specific project."""
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
@@ -192,13 +195,14 @@ async def route_get_project(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.delete("/projects/{projectID}")
+@router.delete("/projects/{projectID}", tags=["Projects"])
 async def route_delete_project(
     request: Request,
-    projectID: int,
+    projectID: int = PathParam(description="Project ID"),
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Delete a project and all associated data."""
     try:
         proj = get_project(projectID, db_wrapper, request.app.state.brain)
 
@@ -224,14 +228,15 @@ async def route_delete_project(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.patch("/projects/{projectID}")
+@router.patch("/projects/{projectID}", tags=["Projects"])
 async def route_edit_project(
     request: Request,
-    projectID: int,
-    projectModelUpdate: ProjectModelUpdate,
+    projectID: int = PathParam(description="Project ID"),
+    projectModelUpdate: ProjectModelUpdate = ...,
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Update project configuration."""
     # Check if the project exists
     project = db_wrapper.get_project_by_id(projectID)
     if project is None:
@@ -348,13 +353,14 @@ async def route_edit_project(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/projects")
+@router.post("/projects", status_code=201, tags=["Projects"])
 async def route_create_project(
     request: Request,
     projectModel: ProjectModelCreate,
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Create a new AI project."""
     projectModel.name = unidecode(projectModel.name.strip().lower().replace(" ", "_"))
     projectModel.name = re.sub(r"[^\w\-.]+", "", projectModel.name)
 
@@ -488,13 +494,14 @@ async def route_create_project(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/projects/{projectID}/embeddings/reset")
+@router.post("/projects/{projectID}/embeddings/reset", tags=["Knowledge"])
 async def reset_embeddings(
     request: Request,
-    projectID: int,
+    projectID: int = PathParam(description="Project ID"),
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Reset all embeddings for a RAG project."""
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
@@ -513,14 +520,15 @@ async def reset_embeddings(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/projects/{projectID}/embeddings/search")
+@router.post("/projects/{projectID}/embeddings/search", tags=["Knowledge"])
 async def find_embedding(
     request: Request,
-    projectID: int,
-    embedding: FindModel,
+    projectID: int = PathParam(description="Project ID"),
+    embedding: FindModel = ...,
     _: User = Depends(get_current_username_project_public),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Search embeddings by text similarity or source."""
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
@@ -569,14 +577,15 @@ async def find_embedding(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/projects/{projectID}/embeddings/source/{source}")
+@router.get("/projects/{projectID}/embeddings/source/{source}", tags=["Knowledge"])
 async def get_embedding(
     request: Request,
-    projectID: int,
-    source: str,
+    projectID: int = PathParam(description="Project ID"),
+    source: str = PathParam(description="Base64-encoded source identifier"),
     _: User = Depends(get_current_username_project_public),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get embedding chunks for a specific source."""
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
@@ -598,14 +607,15 @@ async def get_embedding(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/projects/{projectID}/embeddings/id/{embedding_id}")
-async def get_embedding(
+@router.get("/projects/{projectID}/embeddings/id/{embedding_id}", tags=["Knowledge"])
+async def get_embedding_by_id(
     request: Request,
-    projectID: int,
-    embedding_id: str,
+    projectID: int = PathParam(description="Project ID"),
+    embedding_id: str = PathParam(description="Embedding chunk ID"),
     _: User = Depends(get_current_username_project_public),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get a specific embedding chunk by ID."""
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
@@ -624,15 +634,16 @@ async def get_embedding(
 
 
 @router.post(
-    "/projects/{projectID}/embeddings/ingest/text", response_model=IngestResponse
+    "/projects/{projectID}/embeddings/ingest/text", response_model=IngestResponse, tags=["Knowledge"]
 )
 async def ingest_text(
     request: Request,
-    projectID: int,
-    ingest: TextIngestModel,
+    projectID: int = PathParam(description="Project ID"),
+    ingest: TextIngestModel = ...,
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Ingest raw text into the knowledge base."""
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
@@ -671,15 +682,16 @@ async def ingest_text(
 
 
 @router.post(
-    "/projects/{projectID}/embeddings/ingest/url", response_model=IngestResponse
+    "/projects/{projectID}/embeddings/ingest/url", response_model=IngestResponse, tags=["Knowledge"]
 )
 async def ingest_url(
     request: Request,
-    projectID: int,
-    ingest: URLIngestModel,
+    projectID: int = PathParam(description="Project ID"),
+    ingest: URLIngestModel = ...,
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Ingest a web page into the knowledge base."""
     if config.RESTAI_DEMO == True and not user.is_admin:
         raise HTTPException(
             status_code=403, detail="Demo mode, not allowed to ingest from an URL."
@@ -721,12 +733,12 @@ async def ingest_url(
 
 
 @router.post(
-    "/projects/{projectID}/embeddings/ingest/upload", response_model=IngestResponse
+    "/projects/{projectID}/embeddings/ingest/upload", response_model=IngestResponse, tags=["Knowledge"]
 )
 async def ingest_file(
     request: Request,
-    projectID: int,
-    file: UploadFile,
+    projectID: int = PathParam(description="Project ID"),
+    file: UploadFile = ...,
     options: str = Form("{}"),
     chunks: int = Form(256),
     splitter: str = Form("sentence"),
@@ -734,6 +746,7 @@ async def ingest_file(
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Upload and ingest a file into the knowledge base."""
     project = get_project(projectID, db_wrapper, request.app.state.brain)
 
     if project.props.type != "rag":
@@ -801,13 +814,14 @@ async def ingest_file(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/projects/{projectID}/embeddings")
+@router.get("/projects/{projectID}/embeddings", tags=["Knowledge"])
 async def get_embeddings(
     request: Request,
-    projectID: int,
+    projectID: int = PathParam(description="Project ID"),
     _: User = Depends(get_current_username_project_public),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """List all embedding sources for a RAG project."""
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
@@ -829,14 +843,15 @@ async def get_embeddings(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.delete("/projects/{projectID}/embeddings/{source}")
+@router.delete("/projects/{projectID}/embeddings/{source}", tags=["Knowledge"])
 async def delete_embedding(
     request: Request,
-    projectID: int,
-    source: str,
+    projectID: int = PathParam(description="Project ID"),
+    source: str = PathParam(description="Base64-encoded source identifier"),
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Delete all embeddings for a specific source."""
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
@@ -855,15 +870,16 @@ async def delete_embedding(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/projects/{projectID}/chat")
+@router.post("/projects/{projectID}/chat", tags=["Chat"])
 async def chat_query(
     request: Request,
-    projectID: int,
-    q_input: ChatModel,
-    background_tasks: BackgroundTasks,
+    projectID: int = PathParam(description="Project ID"),
+    q_input: ChatModel = ...,
+    background_tasks: BackgroundTasks = ...,
     user: User = Depends(get_current_username_project_public),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Send a chat message to a project with conversation history."""
     try:
         if not q_input.question:
             raise HTTPException(status_code=400, detail="Missing question")
@@ -886,15 +902,16 @@ async def chat_query(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/projects/{projectID}/question")
+@router.post("/projects/{projectID}/question", tags=["Chat"])
 async def question_query_endpoint(
     request: Request,
-    projectID: int,
-    q_input: QuestionModel,
-    background_tasks: BackgroundTasks,
+    projectID: int = PathParam(description="Project ID"),
+    q_input: QuestionModel = ...,
+    background_tasks: BackgroundTasks = ...,
     user: User = Depends(get_current_username_project_public),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Send a one-shot question to a project."""
     try:
         if not q_input.question:
             raise HTTPException(status_code=400, detail="Question missing")
@@ -924,14 +941,15 @@ async def question_query_endpoint(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/projects/{projectID}/logs")
+@router.get("/projects/{projectID}/logs", tags=["Statistics"])
 async def get_token_consumption(
-    projectID: int,
-    start: int = 0,
-    end: int = 10,
+    projectID: int = PathParam(description="Project ID"),
+    start: int = Query(0, description="Pagination start offset"),
+    end: int = Query(10, description="Pagination end offset"),
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get inference logs for a project."""
     try:
         project = db_wrapper.get_project_by_id(projectID)
         if project is None:
@@ -953,14 +971,15 @@ async def get_token_consumption(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/projects/{projectID}/tokens/daily")
+@router.get("/projects/{projectID}/tokens/daily", tags=["Statistics"])
 async def get_monthly_token_consumption(
-    projectID: int,
-    year: int = None,
-    month: int = None,
+    projectID: int = PathParam(description="Project ID"),
+    year: int = Query(None, description="Year for the report (defaults to current year)"),
+    month: int = Query(None, description="Month for the report (defaults to current month)"),
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """Get daily token consumption for a project."""
     try:
         project = db_wrapper.get_project_by_id(projectID)
         if project is None:
@@ -1014,13 +1033,14 @@ async def get_monthly_token_consumption(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/projects/{projectID}/tools")
+@router.get("/projects/{projectID}/tools", tags=["Projects"])
 async def get_project_tools(
     request: Request,
-    projectID: int,
+    projectID: int = PathParam(description="Project ID"),
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+    """List available MCP tools for an agent project."""
     try:
         # Get the project by ID
         project = get_project(projectID, db_wrapper, request.app.state.brain)

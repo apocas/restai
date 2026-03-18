@@ -70,7 +70,7 @@ async def get_team(
         traceback.print_tb(e.__traceback__)
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/teams", response_model=TeamModel)
+@router.post("/teams", response_model=TeamModel, status_code=201)
 async def create_team(
     team_create: TeamModelCreate,
     user: User = Depends(get_current_username_platform_admin),

@@ -74,22 +74,26 @@ async def lifespan(fs_app: FastAPI):
     if not RESTAI_URL:
       logging.warning("RESTAI_URL env var missing. OAUTH auth schemes may not work properly.")
 
-    @fs_app.get("/")
+    @fs_app.get("/", tags=["Health"])
     async def get():
+        """Root endpoint."""
         return "RESTai, so many 'A's and 'I's, so little time..."
 
-    @fs_app.get("/version")
+    @fs_app.get("/version", tags=["Health"])
     async def get_version():
+        """Get the current RESTai version."""
         return {
             "version": fs_app.version,
         }
 
-    @fs_app.get("/health/live")
+    @fs_app.get("/health/live", tags=["Health"])
     async def health_live():
+        """Liveness probe. Returns 200 if the service is running."""
         return {"status": "ok"}
 
-    @fs_app.get("/health/ready")
+    @fs_app.get("/health/ready", tags=["Health"])
     async def health_ready():
+        """Readiness probe. Checks database and Redis connectivity."""
         health = {"status": "ok"}
         try:
             from sqlalchemy import text
@@ -120,8 +124,9 @@ async def lifespan(fs_app: FastAPI):
             return JSONResponse(content=health, status_code=503)
         return health
 
-    @fs_app.get("/setup")
+    @fs_app.get("/setup", tags=["Health"])
     async def get_setup():
+        """Get platform setup information including SSO providers and feature flags."""
         sso_list = []
         if isinstance(config.OAUTH_PROVIDERS, dict):
             sso_list = list(config.OAUTH_PROVIDERS.keys())
@@ -139,11 +144,12 @@ async def lifespan(fs_app: FastAPI):
             "currency": config.CURRENCY or "EUR",
         }
 
-    @fs_app.get("/info")
+    @fs_app.get("/info", tags=["Health"])
     async def get_info(
         _: User = Depends(get_current_username),
         db_wrapper: DBWrapper = Depends(get_db_wrapper),
     ):
+        """Get platform information including available LLMs, embeddings, and loaders."""
         from restai.vectordb.tools import get_available_vectorstores
 
         output = {
@@ -200,20 +206,20 @@ async def lifespan(fs_app: FastAPI):
         print(e)
         print("Admin frontend not available.")
 
-    fs_app.include_router(llms.router)
-    fs_app.include_router(embeddings.router)
+    fs_app.include_router(llms.router, tags=["LLMs"])
+    fs_app.include_router(embeddings.router, tags=["Embeddings"])
     fs_app.include_router(projects.router)
-    fs_app.include_router(tools.router)
-    fs_app.include_router(users.router)
-    fs_app.include_router(proxy.router)
-    fs_app.include_router(statistics.router)
-    fs_app.include_router(auth.router)
-    fs_app.include_router(teams.router)
-    fs_app.include_router(settings.router)
+    fs_app.include_router(tools.router, tags=["Tools"])
+    fs_app.include_router(users.router, tags=["Users"])
+    fs_app.include_router(proxy.router, tags=["Proxy"])
+    fs_app.include_router(statistics.router, tags=["Statistics"])
+    fs_app.include_router(auth.router, tags=["Auth"])
+    fs_app.include_router(teams.router, tags=["Teams"])
+    fs_app.include_router(settings.router, tags=["Settings"])
 
     if config.RESTAI_GPU == True:
-        fs_app.include_router(image.router)
-        fs_app.include_router(audio.router)
+        fs_app.include_router(image.router, tags=["Image"])
+        fs_app.include_router(audio.router, tags=["Audio"])
 
     # Initialize MCP server if enabled
     if config.MCP_SERVER:
@@ -285,10 +291,42 @@ if config.SENTRY_DSN:
         profiles_sample_rate=1.0,
     )
 
+OPENAPI_TAGS = [
+    {"name": "Projects", "description": "Create and manage AI projects (RAG, inference, agent, vision, router, RAG-SQL)"},
+    {"name": "Knowledge", "description": "Manage embeddings and knowledge base for RAG projects"},
+    {"name": "Chat", "description": "Chat and question endpoints for interacting with projects"},
+    {"name": "Teams", "description": "Manage teams, members, admins, and resource access"},
+    {"name": "Users", "description": "User management and API key management"},
+    {"name": "LLMs", "description": "Register and configure Large Language Model providers"},
+    {"name": "Embeddings", "description": "Register and configure embedding model providers"},
+    {"name": "Tools", "description": "Text classification, MCP server probing, Ollama model management"},
+    {"name": "Proxy", "description": "LiteLLM proxy key management"},
+    {"name": "Statistics", "description": "Platform usage statistics and analytics"},
+    {"name": "Auth", "description": "Authentication, login, logout, and session management"},
+    {"name": "Settings", "description": "Platform settings (admin only)"},
+    {"name": "Image", "description": "GPU-accelerated image generation"},
+    {"name": "Audio", "description": "GPU-accelerated audio transcription"},
+    {"name": "Health", "description": "Health checks and system information"},
+]
+
 app = FastAPI(
     title=config.RESTAI_NAME,
+    description="""RESTai is an AIaaS (AI as a Service) platform. Create AI projects and consume them via REST API.
+
+Supports multiple project types: **RAG**, **Inference**, **Agent**, **Vision**, **Router**, and **RAG-SQL**.
+
+## Authentication
+
+All endpoints require authentication via one of:
+- **JWT Cookie** (`restai_token`)
+- **Bearer API Key** (`Authorization: Bearer <key>`)
+- **Basic Auth** (`Authorization: Basic <credentials>`)
+""",
     version=get_version_from_pyproject(),
     lifespan=lifespan,
+    openapi_tags=OPENAPI_TAGS,
+    contact={"name": "RESTai", "url": "https://github.com/apocas/restai"},
+    license_info={"name": "Apache 2.0", "url": "https://www.apache.org/licenses/LICENSE-2.0"},
 )
 
 oauth_manager = OAuthManager(app, db_wrapper=get_db_wrapper())
@@ -303,13 +341,15 @@ if len(OAUTH_PROVIDERS) > 0:
     )
 
 
-@app.get("/oauth/{provider}/login")
+@app.get("/oauth/{provider}/login", tags=["Auth"])
 async def oauth_login(provider: str, request: Request):
+    """Initiate OAuth login flow for the specified provider."""
     return await oauth_manager.handle_login(request, provider)
 
 
-@app.get("/oauth/{provider}/callback")
+@app.get("/oauth/{provider}/callback", tags=["Auth"])
 async def oauth_callback(provider: str, request: Request, response: Response):
+    """Handle OAuth callback from the specified provider."""
     return await oauth_manager.handle_callback(request, provider, response)
 
     

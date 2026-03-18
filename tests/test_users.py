@@ -29,7 +29,7 @@ def test_create_user():
             }, 
             auth=(test_admin_username, RESTAI_DEFAULT_PASSWORD)
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert data["username"] == test_username
 
@@ -75,7 +75,7 @@ def test_user_apikeys():
             json={"description": "test key 1"},
             auth=(test_username, "new_password")
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.json()
         assert "api_key" in data
         assert "id" in data
@@ -97,7 +97,7 @@ def test_user_apikeys():
             json={"description": "test key 2"},
             auth=(test_username, "new_password")
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         key2 = response.json()["api_key"]
         key2_id = response.json()["id"]
 
@@ -167,7 +167,7 @@ def test_user_permissions_on_projects():
             },
             auth=(test_admin_username, RESTAI_DEFAULT_PASSWORD),
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 201
 
         # Create a team and add the test user
         team_name = f"perm_team_{random.randint(0, 1000000)}"
@@ -176,7 +176,7 @@ def test_user_permissions_on_projects():
             json={"name": team_name, "users": [test_username], "llms": [test_llm]},
             auth=(test_admin_username, RESTAI_DEFAULT_PASSWORD)
         )
-        assert team_resp.status_code == 200
+        assert team_resp.status_code == 201
         team_id = team_resp.json()["id"]
 
         # Create a project as the test user
@@ -191,9 +191,9 @@ def test_user_permissions_on_projects():
             },
             auth=(test_username, "new_password")
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         user_project_id = response.json()["project"]
-        
+
         # Create a project as admin
         admin_project_name = f"admin_project_{random.randint(0, 1000000)}"
         response = client.post(
@@ -206,9 +206,9 @@ def test_user_permissions_on_projects():
             }, 
             auth=(test_admin_username, RESTAI_DEFAULT_PASSWORD)
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
         admin_project_id = response.json()["project"]
-        
+
         # Test user can see own projects
         response = client.get("/projects", auth=(test_username, "new_password"))
         assert response.status_code == 200
