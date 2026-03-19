@@ -49,23 +49,32 @@ def test_get_user():
 
 def test_update_user():
     with TestClient(app) as client:
-        # Test updating user details
+        # Test user updating their own password
         response = client.patch(
             f"/users/{test_username}",
             json={
-                "is_private": True,
                 "password": "new_password"
             },
             auth=(test_username, "test_password")
         )
         assert response.status_code == 200
-        data = response.json()
-        assert data["username"] == test_username
-        assert data["is_private"] == True
-        
+
         # Verify changes by logging in with new password
         response = client.get(f"/users/{test_username}", auth=(test_username, "new_password"))
         assert response.status_code == 200
+
+        # Test admin updating is_private (only admins/team admins can change this)
+        response = client.patch(
+            f"/users/{test_username}",
+            json={
+                "is_private": True,
+            },
+            auth=(test_admin_username, RESTAI_DEFAULT_PASSWORD)
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["username"] == test_username
+        assert data["is_private"] == True
 
 def test_user_apikeys():
     with TestClient(app) as client:
