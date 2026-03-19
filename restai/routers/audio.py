@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Request, UploadFile
 from restai import config
 from restai.auth import get_current_username
 from restai.database import get_db_wrapper, DBWrapper
-from restai.direct_access import resolve_team_for_audio_generator, check_user_budget, log_direct_usage
+from restai.direct_access import resolve_team_for_audio_generator, log_direct_usage
 from restai.models.models import User
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -141,7 +141,6 @@ async def openai_compatible_transcription(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """OpenAI-compatible audio transcription endpoint."""
-    check_user_budget(user, db_wrapper)
     team_id = resolve_team_for_audio_generator(user, model, db_wrapper)
 
     contents = await file.read()

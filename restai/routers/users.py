@@ -158,11 +158,6 @@ async def route_get_user_details(
     try:
         user_db = db_wrapper.get_user_by_username(username)
         user_model = User.model_validate(user_db)
-        credit = user_model.options.credit if hasattr(user_model.options, 'credit') else -1.0
-        if credit >= 0:
-            spending = db_wrapper.get_user_spending(user_db.id)
-            user_model.spending = spending
-            user_model.remaining = credit - spending
         return user_model
     except Exception as e:
         if isinstance(e, HTTPException):
@@ -349,26 +344,6 @@ async def route_update_user(
 
         if not user.is_admin and user_update.projects is not None:
             raise HTTPException(status_code=403, detail="Only admins can modify project assignments")
-
-        if user_update.options is not None and hasattr(user_update.options, 'credit') and user_update.options.credit is not None:
-            current_credit = -1.0
-            try:
-                import json as _json
-                current_options = _json.loads(user_to_update.options) if user_to_update.options else {}
-                current_credit = current_options.get("credit", -1.0)
-            except Exception:
-                pass
-            if user_update.options.credit != current_credit:
-                # Only platform admins or team admins (of a team containing the target user) can change credit
-                can_change = user.is_admin
-                if not can_change:
-                    caller_db = db_wrapper.get_user_by_username(user.username)
-                    for team in caller_db.admin_teams:
-                        if user_to_update in team.users or user_to_update in team.admins:
-                            can_change = True
-                            break
-                if not can_change:
-                    raise HTTPException(status_code=403, detail="Only platform admins or team admins can modify user credit")
 
         db_wrapper.update_user(user_to_update, user_update)
 

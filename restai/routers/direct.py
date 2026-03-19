@@ -10,7 +10,6 @@ from fastapi.responses import StreamingResponse
 from restai.auth import get_current_username
 from restai.database import get_db_wrapper, DBWrapper
 from restai.direct_access import (
-    check_user_budget,
     log_direct_usage,
     resolve_team_for_llm,
     resolve_team_for_image_generator,
@@ -53,7 +52,6 @@ async def chat_completions(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """OpenAI-compatible chat completions endpoint for direct LLM access."""
-    check_user_budget(user, db_wrapper)
     team_id = resolve_team_for_llm(user, body.model, db_wrapper)
 
     llm_obj = request.app.state.brain.get_llm(body.model, db_wrapper)

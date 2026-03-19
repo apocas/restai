@@ -381,7 +381,6 @@ class ProjectInfo(ProjectModel):
 
 class UserOptions(BaseModel):
     """User-level configuration options."""
-    credit: float = Field(default=-1.0, description="User's credit balance (-1.0 means unlimited)")
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -423,8 +422,6 @@ class User(BaseModel):
     api_keys: list[ApiKeyResponse] = Field(default=[], description="API keys owned by this user")
     level: Union[str, None] = Field(default=None, description="User's subscription or access level")
     options: Union[str, UserOptions] = Field(default=UserOptions(), description="User configuration options")
-    spending: Union[float, None] = Field(default=None, description="Total amount spent by the user (only present when credit >= 0)")
-    remaining: Union[float, None] = Field(default=None, description="Remaining credit (only present when credit >= 0)")
     teams: list["TeamModel"] = Field(default=[], description="Teams the user is a member of")
     admin_teams: list["TeamModel"] = Field(default=[], description="Teams the user is an admin of")
     model_config = ConfigDict(from_attributes=True)

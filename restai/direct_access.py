@@ -6,26 +6,6 @@ from fastapi import HTTPException
 from restai.database import DBWrapper
 from restai.models.databasemodels import OutputDatabase
 from restai.models.models import User
-import json
-
-
-def _get_user_credit(user: User) -> float:
-    options = user.options
-    if isinstance(options, str):
-        try:
-            return json.loads(options).get("credit", -1.0)
-        except json.JSONDecodeError:
-            return -1.0
-    return options.credit
-
-
-def check_user_budget(user: User, db: DBWrapper):
-    """Raises HTTP 402 if user credit is exhausted."""
-    credit = _get_user_credit(user)
-    if credit >= 0:
-        spending = db.get_user_spending(user.id)
-        if credit - spending <= 0:
-            raise HTTPException(status_code=402, detail="User budget exhausted")
 
 
 def resolve_team_for_llm(user: User, llm_name: str, db: DBWrapper) -> Optional[int]:

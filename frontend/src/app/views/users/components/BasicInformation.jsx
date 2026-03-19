@@ -7,9 +7,7 @@ import {
   styled,
   Divider,
   TextField,
-  Switch,
-  LinearProgress,
-  Typography
+  Switch
 } from "@mui/material";
 import AvatarBadge from "./AvatarBadge";
 import { H4, H5, Small } from "app/components/Typography";
@@ -18,7 +16,7 @@ import sha256 from 'crypto-js/sha256';
 import FormControlLabel from "@mui/material/FormControlLabel";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { People, AccountTree, Key, AccountBalanceWallet, AllInclusive } from "@mui/icons-material";
+import { People, AccountTree, Key } from "@mui/icons-material";
 import api from "app/utils/api";
 
 const ContentWrapper = styled(Box)(({ theme }) => ({
@@ -55,12 +53,6 @@ export default function BasicInformation({ user }) {
       update.is_private = state.is_private;
     }
 
-    const newCredit = parseFloat(state.credit);
-    const oldCredit = user.options?.credit ?? -1.0;
-    if (!isNaN(newCredit) && newCredit !== oldCredit) {
-      update.options = { credit: newCredit };
-    }
-
     api.patch("/users/" + user.username, update, auth.user.token)
       .then(() => {
         window.location.href = "/admin/user/" + user.username;
@@ -74,7 +66,7 @@ export default function BasicInformation({ user }) {
   };
 
   useEffect(() => {
-    setState({ ...user, credit: user.options?.credit ?? -1.0 });
+    setState({ ...user });
   }, [user]);
 
   return (
@@ -120,42 +112,6 @@ export default function BasicInformation({ user }) {
 
             </FlexBetween>
 
-            {user.options?.credit >= 0 ? (() => {
-              const spent = user.spending ?? 0;
-              const credit = user.options.credit;
-              const pct = credit > 0 ? Math.min((spent / credit) * 100, 100) : 0;
-              const barColor = pct > 90 ? "error" : pct > 70 ? "warning" : "primary";
-              return (
-                <Box maxWidth={400} margin="auto" mt={2}>
-                  <FlexBetween mb={0.5}>
-                    <FlexBox alignItems="center" gap={0.5}>
-                      <AccountBalanceWallet sx={{ fontSize: 16, color: "text.secondary" }} />
-                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                        Spent (this month): ${spent.toFixed(2)} / ${credit.toFixed(2)}
-                      </Typography>
-                    </FlexBox>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                      ${(user.remaining ?? 0).toFixed(2)} left
-                    </Typography>
-                  </FlexBetween>
-                  <LinearProgress
-                    variant="determinate"
-                    value={pct}
-                    color={barColor}
-                    sx={{ height: 8, borderRadius: 4 }}
-                  />
-                </Box>
-              );
-            })() : (
-              <Box maxWidth={400} margin="auto" mt={2}>
-                <FlexBox alignItems="center" justifyContent="center" gap={0.5}>
-                  <AllInclusive sx={{ fontSize: 16, color: "text.disabled" }} />
-                  <Typography variant="caption" color="text.disabled" fontWeight={600}>
-                    Unlimited
-                  </Typography>
-                </FlexBox>
-              </Box>
-            )}
           </Box>
         </ContentWrapper>
       </Card>
@@ -224,20 +180,6 @@ export default function BasicInformation({ user }) {
                     />
                   </Grid>
 
-                  <Grid item sm={6} xs={12}>
-                    <TextField
-                      fullWidth
-                      InputLabelProps={{ shrink: true }}
-                      name="credit"
-                      label="Credit Balance (-1 = unlimited)"
-                      variant="outlined"
-                      type="number"
-                      inputProps={{ step: "0.01" }}
-                      onChange={handleChange}
-                      value={state.credit ?? -1.0}
-                      helperText="Set the user's spending credit limit. -1 means no limit."
-                    />
-                  </Grid>
                 </>
               )}
 

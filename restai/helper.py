@@ -93,7 +93,7 @@ async def chat_main(
     db: DBWrapper,
     background_tasks: BackgroundTasks,
 ):
-    check_budget(user, project, db)
+    check_budget(project, db)
 
     proj_logic: ProjectBase
     match project.props.type:
@@ -135,7 +135,7 @@ async def question_main(
     db: DBWrapper,
     background_tasks: BackgroundTasks,
 ):
-    check_budget(user, project, db)
+    check_budget(project, db)
 
     match project.props.type:
         case "rag":

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from restai import config
 from restai.auth import get_current_username
 from restai.database import get_db_wrapper, DBWrapper
-from restai.direct_access import resolve_team_for_image_generator, check_user_budget, log_direct_usage
+from restai.direct_access import resolve_team_for_image_generator, log_direct_usage
 from restai.models.models import ImageModel, User
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -97,8 +97,6 @@ async def openai_compatible_generate(
 ):
     """OpenAI-compatible image generation endpoint."""
     import time
-
-    check_user_budget(user, db_wrapper)
 
     generator = body.model.lower().replace("-", "")
     team_id = resolve_team_for_image_generator(user, generator, db_wrapper)
