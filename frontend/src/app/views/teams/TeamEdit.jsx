@@ -60,12 +60,16 @@ export default function TeamEdit() {
     admins: [],
     projects: [],
     llms: [],
-    embeddings: []
+    embeddings: [],
+    image_generators: [],
+    audio_generators: []
   });
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
   const [llms, setLLMs] = useState([]);
   const [embeddings, setEmbeddings] = useState([]);
+  const [imageGenerators, setImageGenerators] = useState([]);
+  const [audioGenerators, setAudioGenerators] = useState([]);
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -87,7 +91,9 @@ export default function TeamEdit() {
         admins: data.admins || [],
         projects: data.projects || [],
         llms: data.llms || [],
-        embeddings: data.embeddings || []
+        embeddings: data.embeddings || [],
+        image_generators: (data.image_generators || []).map(g => ({ name: g })),
+        audio_generators: (data.audio_generators || []).map(g => ({ name: g }))
       });
 
       setLoading(false);
@@ -124,11 +130,26 @@ export default function TeamEdit() {
     }
   };
 
+  const fetchGenerators = async () => {
+    try {
+      const imgData = await api.get("/image", user.token, { silent: true });
+      setImageGenerators((imgData.generators || []).map(g => ({ name: g })));
+    } catch (error) {
+      // GPU not enabled — keep empty, admin can still type free-form
+    }
+    try {
+      const audioData = await api.get("/audio", user.token, { silent: true });
+      setAudioGenerators((audioData.generators || []).map(g => ({ name: g })));
+    } catch (error) {
+      // GPU not enabled — keep empty, admin can still type free-form
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
-      await Promise.all([fetchTeam(), fetchUsers(), fetchProjects(), fetchModels()]);
+      await Promise.all([fetchTeam(), fetchUsers(), fetchProjects(), fetchModels(), fetchGenerators()]);
     };
-    
+
     fetchData();
   }, [id]);
 
@@ -160,7 +181,9 @@ export default function TeamEdit() {
         admins: team.admins.map(a => a.username),
         projects: team.projects.map(p => p.name),
         llms: team.llms.map(l => l.name),
-        embeddings: team.embeddings.map(e => e.name)
+        embeddings: team.embeddings.map(e => e.name),
+        image_generators: team.image_generators.map(g => g.name),
+        audio_generators: team.audio_generators.map(g => g.name)
       };
 
       const endpoint = isNewTeam ? '/teams' : `/teams/${id}`;
@@ -382,6 +405,66 @@ export default function TeamEdit() {
                     />
                   )}
                 />
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Typography variant="h6" gutterBottom>Image Generators</Typography>
+                {imageGenerators.length > 0 ? (
+                  <Autocomplete
+                    multiple
+                    id="image-generators-select"
+                    options={imageGenerators}
+                    getOptionLabel={(option) => option.name}
+                    value={team.image_generators}
+                    onChange={(event, newValue) => {
+                      setTeam({ ...team, image_generators: newValue });
+                    }}
+                    isOptionEqualToValue={(option, value) => option.name === value.name}
+                    filterSelectedOptions
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        variant="outlined"
+                        label="Select Image Generators"
+                        placeholder="Image Generators"
+                      />
+                    )}
+                  />
+                ) : (
+                  <Typography variant="body2" color="textSecondary">
+                    No image generators available. GPU may not be enabled on this instance.
+                  </Typography>
+                )}
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Typography variant="h6" gutterBottom>Audio Generators</Typography>
+                {audioGenerators.length > 0 ? (
+                  <Autocomplete
+                    multiple
+                    id="audio-generators-select"
+                    options={audioGenerators}
+                    getOptionLabel={(option) => option.name}
+                    value={team.audio_generators}
+                    onChange={(event, newValue) => {
+                      setTeam({ ...team, audio_generators: newValue });
+                    }}
+                    isOptionEqualToValue={(option, value) => option.name === value.name}
+                    filterSelectedOptions
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        variant="outlined"
+                        label="Select Audio Generators"
+                        placeholder="Audio Generators"
+                      />
+                    )}
+                  />
+                ) : (
+                  <Typography variant="body2" color="textSecondary">
+                    No audio generators available. GPU may not be enabled on this instance.
+                  </Typography>
+                )}
               </Grid>
             </Grid>
           </TabPanel>

@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine, func, or_
 from restai import config
 from datetime import datetime, timezone
 from restai.models.databasemodels import (
@@ -11,6 +11,8 @@ from restai.models.databasemodels import (
     SettingDatabase,
     UserDatabase,
     TeamDatabase,
+    TeamImageGeneratorDatabase,
+    TeamAudioGeneratorDatabase,
 )
 from restai.models.models import (
     LLMModel,
@@ -710,8 +712,11 @@ class DBWrapper:
         result = self.db.query(
             func.coalesce(func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost), 0.0)
         ).filter(
-            OutputDatabase.project_id.in_(
-                self.db.query(ProjectDatabase.id).filter(ProjectDatabase.team_id == team_id)
+            or_(
+                OutputDatabase.project_id.in_(
+                    self.db.query(ProjectDatabase.id).filter(ProjectDatabase.team_id == team_id)
+                ),
+                OutputDatabase.team_id == team_id
             ),
             OutputDatabase.date >= month_start
         ).scalar()
@@ -764,12 +769,77 @@ class DBWrapper:
                 if embedding_db is not None:
                     team.embeddings.append(embedding_db)
             changed = True
-            
+
+        # Update image generators
+        if team_update.image_generators is not None:
+            team.image_generators = []
+            self.db.flush()
+            for gen_name in team_update.image_generators:
+                team.image_generators.append(
+                    TeamImageGeneratorDatabase(team_id=team.id, generator_name=gen_name)
+                )
+            changed = True
+
+        # Update audio generators
+        if team_update.audio_generators is not None:
+            team.audio_generators = []
+            self.db.flush()
+            for gen_name in team_update.audio_generators:
+                team.audio_generators.append(
+                    TeamAudioGeneratorDatabase(team_id=team.id, generator_name=gen_name)
+                )
+            changed = True
+
         if changed:
             team.updated_at = datetime.now(timezone.utc)
             self.db.commit()
             
         return changed
+
+
+    def add_image_generator_to_team(self, team: TeamDatabase, generator_name: str) -> bool:
+        existing = self.db.query(TeamImageGeneratorDatabase).filter(
+            TeamImageGeneratorDatabase.team_id == team.id,
+            TeamImageGeneratorDatabase.generator_name == generator_name
+        ).first()
+        if existing is None:
+            team.image_generators.append(
+                TeamImageGeneratorDatabase(team_id=team.id, generator_name=generator_name)
+            )
+            self.db.commit()
+        return True
+
+    def remove_image_generator_from_team(self, team: TeamDatabase, generator_name: str) -> bool:
+        item = self.db.query(TeamImageGeneratorDatabase).filter(
+            TeamImageGeneratorDatabase.team_id == team.id,
+            TeamImageGeneratorDatabase.generator_name == generator_name
+        ).first()
+        if item is not None:
+            self.db.delete(item)
+            self.db.commit()
+        return True
+
+    def add_audio_generator_to_team(self, team: TeamDatabase, generator_name: str) -> bool:
+        existing = self.db.query(TeamAudioGeneratorDatabase).filter(
+            TeamAudioGeneratorDatabase.team_id == team.id,
+            TeamAudioGeneratorDatabase.generator_name == generator_name
+        ).first()
+        if existing is None:
+            team.audio_generators.append(
+                TeamAudioGeneratorDatabase(team_id=team.id, generator_name=generator_name)
+            )
+            self.db.commit()
+        return True
+
+    def remove_audio_generator_from_team(self, team: TeamDatabase, generator_name: str) -> bool:
+        item = self.db.query(TeamAudioGeneratorDatabase).filter(
+            TeamAudioGeneratorDatabase.team_id == team.id,
+            TeamAudioGeneratorDatabase.generator_name == generator_name
+        ).first()
+        if item is not None:
+            self.db.delete(item)
+            self.db.commit()
+        return True
 
 
 def get_db_wrapper() -> DBWrapper:

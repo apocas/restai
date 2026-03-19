@@ -10,6 +10,7 @@ from restai.models.models import (
     TeamsResponse,
     User
 )
+from sqlalchemy import or_
 from restai.models.databasemodels import TeamDatabase, OutputDatabase, ProjectDatabase, UserDatabase
 from restai.database import get_db_wrapper, DBWrapper
 from restai.auth import (
@@ -475,10 +476,13 @@ async def get_team_transactions(
                 ProjectDatabase.name.label("project_name"),
                 UserDatabase.username.label("username"),
             )
-            .join(ProjectDatabase, OutputDatabase.project_id == ProjectDatabase.id)
+            .outerjoin(ProjectDatabase, OutputDatabase.project_id == ProjectDatabase.id)
             .outerjoin(UserDatabase, OutputDatabase.user_id == UserDatabase.id)
             .filter(
-                OutputDatabase.project_id.in_(team_project_ids),
+                or_(
+                    OutputDatabase.project_id.in_(team_project_ids),
+                    OutputDatabase.team_id == team_id
+                ),
                 OutputDatabase.date >= month_start
             )
         )
@@ -513,6 +517,90 @@ async def get_team_transactions(
             })
 
         return {"transactions": transactions, "total": total}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/teams/{team_id}/image_generators/{generator_name}")
+async def add_image_generator_to_team(
+    team_id: int = Path(description="Team ID"),
+    generator_name: str = Path(description="Image generator name"),
+    user: User = Depends(get_current_username_team_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper)
+):
+    """Add an image generator to a team."""
+    try:
+        team = db_wrapper.get_team_by_id(team_id)
+        if team is None:
+            raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+
+        db_wrapper.add_image_generator_to_team(team, generator_name)
+        return {"added_image_generator": generator_name, "team": team.name}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.delete("/teams/{team_id}/image_generators/{generator_name}")
+async def remove_image_generator_from_team(
+    team_id: int = Path(description="Team ID"),
+    generator_name: str = Path(description="Image generator name"),
+    user: User = Depends(get_current_username_team_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper)
+):
+    """Remove an image generator from a team."""
+    try:
+        team = db_wrapper.get_team_by_id(team_id)
+        if team is None:
+            raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+
+        db_wrapper.remove_image_generator_from_team(team, generator_name)
+        return {"removed_image_generator": generator_name, "team": team.name}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/teams/{team_id}/audio_generators/{generator_name}")
+async def add_audio_generator_to_team(
+    team_id: int = Path(description="Team ID"),
+    generator_name: str = Path(description="Audio generator name"),
+    user: User = Depends(get_current_username_team_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper)
+):
+    """Add an audio generator to a team."""
+    try:
+        team = db_wrapper.get_team_by_id(team_id)
+        if team is None:
+            raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+
+        db_wrapper.add_audio_generator_to_team(team, generator_name)
+        return {"added_audio_generator": generator_name, "team": team.name}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.delete("/teams/{team_id}/audio_generators/{generator_name}")
+async def remove_audio_generator_from_team(
+    team_id: int = Path(description="Team ID"),
+    generator_name: str = Path(description="Audio generator name"),
+    user: User = Depends(get_current_username_team_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper)
+):
+    """Remove an audio generator from a team."""
+    try:
+        team = db_wrapper.get_team_by_id(team_id)
+        if team is None:
+            raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+
+        db_wrapper.remove_audio_generator_from_team(team, generator_name)
+        return {"removed_audio_generator": generator_name, "team": team.name}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

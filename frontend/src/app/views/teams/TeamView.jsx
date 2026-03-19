@@ -25,7 +25,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
 import { Breadcrumb } from "app/components";
 import { toast } from 'react-toastify';
-import { Person, Settings, Delete, Group, Code, Psychology, AccountBalanceWallet, Receipt, AllInclusive } from "@mui/icons-material";
+import { Person, Settings, Delete, Group, Code, Psychology, AccountBalanceWallet, Receipt, AllInclusive, Image, Speaker } from "@mui/icons-material";
 import MUIDataTable from "mui-datatables";
 import ReactJson from '@microlink/react-json-view';
 import api from "app/utils/api";
@@ -193,6 +193,34 @@ export default function TeamView() {
     try {
       await api.delete(`/teams/${id}/embeddings/${embeddingName}`, user.token);
       toast.success(`${embeddingName} removed from team`);
+      fetchTeam();
+    } catch (error) {
+      // errors auto-toasted
+    }
+  };
+
+  const handleRemoveImageGenerator = async (generatorName) => {
+    if (!window.confirm(`Are you sure you want to remove ${generatorName} from this team?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/teams/${id}/image_generators/${generatorName}`, user.token);
+      toast.success(`${generatorName} removed from team`);
+      fetchTeam();
+    } catch (error) {
+      // errors auto-toasted
+    }
+  };
+
+  const handleRemoveAudioGenerator = async (generatorName) => {
+    if (!window.confirm(`Are you sure you want to remove ${generatorName} from this team?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/teams/${id}/audio_generators/${generatorName}`, user.token);
+      toast.success(`${generatorName} removed from team`);
       fetchTeam();
     } catch (error) {
       // errors auto-toasted
@@ -466,6 +494,68 @@ export default function TeamView() {
                   ))
                 ) : (
                   <Typography variant="body2" color="textSecondary">No embedding models assigned to this team</Typography>
+                )}
+              </List>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Typography variant="h6" gutterBottom>Image Generators</Typography>
+              <List>
+                {team.image_generators?.length > 0 ? (
+                  team.image_generators.map((gen) => (
+                    <Fragment key={gen}>
+                      <ListItem secondaryAction={
+                        isTeamAdmin && (
+                          <Tooltip title="Remove Image Generator">
+                            <IconButton edge="end" onClick={() => handleRemoveImageGenerator(gen)}>
+                              <Delete />
+                            </IconButton>
+                          </Tooltip>
+                        )
+                      }>
+                        <ListItemAvatar>
+                          <Avatar>
+                            <Image />
+                          </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText primary={gen} />
+                      </ListItem>
+                      <Divider variant="inset" component="li" />
+                    </Fragment>
+                  ))
+                ) : (
+                  <Typography variant="body2" color="textSecondary">No image generators assigned to this team</Typography>
+                )}
+              </List>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Typography variant="h6" gutterBottom>Audio Generators</Typography>
+              <List>
+                {team.audio_generators?.length > 0 ? (
+                  team.audio_generators.map((gen) => (
+                    <Fragment key={gen}>
+                      <ListItem secondaryAction={
+                        isTeamAdmin && (
+                          <Tooltip title="Remove Audio Generator">
+                            <IconButton edge="end" onClick={() => handleRemoveAudioGenerator(gen)}>
+                              <Delete />
+                            </IconButton>
+                          </Tooltip>
+                        )
+                      }>
+                        <ListItemAvatar>
+                          <Avatar>
+                            <Speaker />
+                          </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText primary={gen} />
+                      </ListItem>
+                      <Divider variant="inset" component="li" />
+                    </Fragment>
+                  ))
+                ) : (
+                  <Typography variant="body2" color="textSecondary">No audio generators assigned to this team</Typography>
                 )}
               </List>
             </Grid>

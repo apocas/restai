@@ -75,6 +75,11 @@ export const defaultNavigations = [
     icon: "build",
     path: "/projects/tools",
   },
+  {
+    name: "Direct Access",
+    icon: "api",
+    path: "/direct",
+  },
   { label: "Docs", type: "label" },
   {
     name: "Swagger",

@@ -1,12 +1,14 @@
 import logging
 import os
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Request
 from typing import Literal, Optional
 from pydantic import BaseModel
 
 from restai import config
 from restai.auth import get_current_username
+from restai.database import get_db_wrapper, DBWrapper
+from restai.direct_access import resolve_team_for_image_generator, check_user_budget, log_direct_usage
 from restai.models.models import ImageModel, User
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -15,8 +17,11 @@ router = APIRouter()
 
 
 @router.get("/image")
-async def route_list_generators(request: Request,
-                                user: User = Depends(get_current_username)):
+async def route_list_generators(
+    request: Request,
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     """List available image generators."""
     generators = request.app.state.brain.get_generators()
     generators_names = [generator.__module__.split("restai.image.workers.")[1] for generator in generators]
@@ -26,6 +31,14 @@ async def route_list_generators(request: Request,
             generators_names.append("dalle")
         if os.environ.get("GOOGLE_API_KEY"):
             generators_names.append("imagen")
+
+    if not user.is_admin:
+        teams = db_wrapper.get_teams_for_user(user.id)
+        allowed = set()
+        for team in teams:
+            for ig in team.image_generators:
+                allowed.add(ig.generator_name)
+        generators_names = [g for g in generators_names if g in allowed]
 
     return {"generators": generators_names}
 
@@ -59,7 +72,7 @@ async def route_generate_image(request: Request,
 
 
 class OpenAIImageGenerateRequest(BaseModel):
-    model: Optional[str] = "dall-e-3"
+    model: Optional[str] = "dalle3"
     prompt: str
     n: Optional[int] = 1
     quality: Optional[Literal["standard", "hd"]] = "standard"
@@ -78,14 +91,19 @@ class OpenAIImageResponse(BaseModel):
 async def openai_compatible_generate(
     request: Request,
     body: OpenAIImageGenerateRequest,
-    user: User = Depends(get_current_username)
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """OpenAI-compatible image generation endpoint."""
     import time
 
-    imageModel = ImageModel(prompt=body.prompt)
+    check_user_budget(user, db_wrapper)
 
     generator = body.model.lower().replace("-", "")
+    team_id = resolve_team_for_image_generator(user, generator, db_wrapper)
+
+    imageModel = ImageModel(prompt=body.prompt)
     
     match generator:
         case "dalle3" | "dalle":
@@ -106,6 +124,17 @@ async def openai_compatible_generate(
             else:
                 raise HTTPException(status_code=400, detail=f"Invalid model: {body.model}")
 
+    background_tasks.add_task(
+        log_direct_usage,
+        db_wrapper,
+        user.id,
+        team_id,
+        generator,
+        body.prompt,
+        "(image generated)",
+        0, 0, 0.0, 0.0,
+    )
+
     output = {
         "created": int(time.time()),
         "data": [{
@@ -113,10 +142,10 @@ async def openai_compatible_generate(
             "model": body.model
         }]
     }
-    
+
     if body.response_format == "url":
       output["data"][0]["url"] = f"data:image/jpeg;base64,{image}"
     elif body.response_format == "b64_json":
       output["data"][0]["b64_json"] = image
-    
+
     return output

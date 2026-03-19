@@ -2,6 +2,7 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, F
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import declarative_base
 
+
 Base = declarative_base()
 
 users_projects = Table(
@@ -64,6 +65,8 @@ class TeamDatabase(Base):
     projects = relationship('ProjectDatabase', back_populates='team')
     llms = relationship('LLMDatabase', secondary=teams_llms, back_populates='teams')
     embeddings = relationship('EmbeddingDatabase', secondary=teams_embeddings, back_populates='teams')
+    image_generators = relationship("TeamImageGeneratorDatabase", back_populates="team", cascade="all, delete-orphan")
+    audio_generators = relationship("TeamAudioGeneratorDatabase", back_populates="team", cascade="all, delete-orphan")
 
 class ProjectDatabase(Base):
     __tablename__ = "projects"
@@ -124,9 +127,10 @@ class OutputDatabase(Base):
     question = Column(Text)
     answer = Column(Text)
     
-    project_id = Column(Integer, ForeignKey('projects.id'))
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=True)
     user_id = Column(Integer, ForeignKey('users.id'))
-    
+    team_id = Column(Integer, ForeignKey('teams.id'), nullable=True)
+
     llm = Column(String(255))
     
     input_tokens = Column(Integer)
@@ -184,3 +188,17 @@ class EmbeddingDatabase(Base):
     description = Column(Text)
     dimension = Column(Integer, default=1536)
     teams = relationship('TeamDatabase', secondary=teams_embeddings, back_populates='embeddings')
+
+
+class TeamImageGeneratorDatabase(Base):
+    __tablename__ = "teams_image_generators"
+    team_id = Column(Integer, ForeignKey("teams.id"), primary_key=True)
+    generator_name = Column(String(255), primary_key=True)
+    team = relationship("TeamDatabase", back_populates="image_generators")
+
+
+class TeamAudioGeneratorDatabase(Base):
+    __tablename__ = "teams_audio_generators"
+    team_id = Column(Integer, ForeignKey("teams.id"), primary_key=True)
+    generator_name = Column(String(255), primary_key=True)
+    team = relationship("TeamDatabase", back_populates="audio_generators")

@@ -658,7 +658,23 @@ class TeamModel(BaseModel):
     projects: list[TeamProject] = Field(default=[], description="Projects owned by this team")
     llms: list[TeamLLM] = Field(default=[], description="LLMs accessible to this team")
     embeddings: list[TeamEmbedding] = Field(default=[], description="Embedding models accessible to this team")
+    image_generators: list[str] = Field(default=[], description="Image generator names accessible to this team")
+    audio_generators: list[str] = Field(default=[], description="Audio generator names accessible to this team")
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('image_generators', mode='before')
+    @classmethod
+    def parse_image_generators(cls, v):
+        if v and len(v) > 0 and hasattr(v[0], 'generator_name'):
+            return [item.generator_name for item in v]
+        return v
+
+    @field_validator('audio_generators', mode='before')
+    @classmethod
+    def parse_audio_generators(cls, v):
+        if v and len(v) > 0 and hasattr(v[0], 'generator_name'):
+            return [item.generator_name for item in v]
+        return v
 
 
 class TeamResponse(BaseModel):
@@ -677,6 +693,8 @@ class TeamModelCreate(BaseModel):
     projects: list[str] = Field(default=[], description="Project names to assign to this team")
     llms: list[str] = Field(default=[], description="LLM names to make accessible to this team")
     embeddings: list[str] = Field(default=[], description="Embedding model names to make accessible to this team")
+    image_generators: list[str] = Field(default=[], description="Image generator names to make accessible to this team")
+    audio_generators: list[str] = Field(default=[], description="Audio generator names to make accessible to this team")
     creator_id: Union[int, None] = Field(default=None, description="User ID of the team creator (set automatically)")
     model_config = ConfigDict(json_schema_extra={
         "example": {
@@ -701,6 +719,8 @@ class TeamModelUpdate(BaseModel):
     projects: list[str] = Field(default=None, description="Updated list of project names (replaces existing)")
     llms: list[str] = Field(default=None, description="Updated list of LLM names (replaces existing)")
     embeddings: list[str] = Field(default=None, description="Updated list of embedding model names (replaces existing)")
+    image_generators: list[str] = Field(default=None, description="Updated list of image generator names (replaces existing)")
+    audio_generators: list[str] = Field(default=None, description="Updated list of audio generator names (replaces existing)")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "name": "engineering-v2",
@@ -796,3 +816,47 @@ class DeleteResponse(BaseModel):
 class MessageResponse(BaseModel):
     """Generic operation response."""
     message: str = Field(description="Status message")
+
+
+class OpenAIChatMessage(BaseModel):
+    """A single message in an OpenAI chat completion request."""
+    role: str = Field(description="Message role: 'system', 'user', or 'assistant'")
+    content: str = Field(description="Message content")
+
+
+class OpenAIChatCompletionRequest(BaseModel):
+    """OpenAI-compatible chat completion request."""
+    model: str = Field(description="Model name to use")
+    messages: list[OpenAIChatMessage] = Field(description="List of messages in the conversation")
+    temperature: Optional[float] = Field(default=None, description="Sampling temperature")
+    max_tokens: Optional[int] = Field(default=None, description="Maximum tokens to generate")
+    stream: bool = Field(default=False, description="Enable streaming response via SSE")
+
+
+class OpenAIChatCompletionChoice(BaseModel):
+    """A single choice in a chat completion response."""
+    index: int = Field(description="Choice index")
+    message: OpenAIChatMessage = Field(description="The generated message")
+    finish_reason: str = Field(default="stop", description="Reason the generation stopped")
+
+
+class OpenAIChatCompletionUsage(BaseModel):
+    """Token usage info for a chat completion."""
+    prompt_tokens: int = Field(description="Number of input tokens")
+    completion_tokens: int = Field(description="Number of output tokens")
+    total_tokens: int = Field(description="Total tokens used")
+
+
+class OpenAIChatCompletionResponse(BaseModel):
+    """OpenAI-compatible chat completion response."""
+    id: str = Field(description="Unique completion identifier")
+    object: str = Field(default="chat.completion", description="Object type")
+    created: int = Field(description="Unix timestamp of creation")
+    model: str = Field(description="Model used")
+    choices: list[OpenAIChatCompletionChoice] = Field(description="Generated completions")
+    usage: OpenAIChatCompletionUsage = Field(description="Token usage statistics")
+
+
+class OpenAIAudioTranscriptionResponse(BaseModel):
+    """OpenAI-compatible audio transcription response."""
+    text: str = Field(description="Transcribed text")
