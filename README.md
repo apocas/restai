@@ -127,9 +127,34 @@ Local and remote image generators loaded dynamically. Supports Stable Diffusion,
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/rmbg2.png?raw=true" width="22%" alt="RMBG2"/>
 </div>
 
+### Direct Access (OpenAI-Compatible)
+
+Use LLMs, image generators, and audio transcription directly via OpenAI-compatible API endpoints — no project required. Team-level permissions control which models each user can access, and all usage counts toward team budgets.
+
+**Supported endpoints:**
+- `POST /v1/chat/completions` — Chat with any LLM (streaming supported)
+- `POST /v1/images/generations` — Generate images via DALL-E, Flux, Stable Diffusion, etc.
+- `POST /v1/audio/transcriptions` — Transcribe audio files
+
+Works with any OpenAI-compatible SDK:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:9000/v1", api_key="YOUR_API_KEY")
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Hello!"}],
+)
+```
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/directaccess.png?raw=true" width="750" alt="RESTai Direct Access"/>
+</div>
+
 ### Teams & Multi-tenancy
 
-Each team has its own users, admins, projects, and LLM/embedding access controls. Users can belong to multiple teams.
+Each team has its own users, admins, projects, and LLM/embedding access controls — including image and audio generator permissions. Users can belong to multiple teams.
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/teams.png?raw=true" width="750" alt="RESTai Teams"/>
