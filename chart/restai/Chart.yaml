@@ -3,7 +3,7 @@ name: restai
 description: AIaaS (AI as a Service) platform — create AI agents and consume them via REST API
 type: application
 version: 0.1.0
-appVersion: "6.0.0"
+appVersion: "5.0.7"
 keywords:
   - ai
   - llm

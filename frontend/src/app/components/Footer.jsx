@@ -84,7 +84,7 @@ export default function Footer() {
                   <br />
                 </>
               )}
-              {(version) && <span style={{ fontSize: "0.7rem" }}>Core v{version + ', UI v' + process.env.REACT_APP_VERSION}</span>}
+              {(version) && <span style={{ fontSize: "0.7rem" }}>v{version}</span>}
             </Paragraph>
           </FooterContent>
         </AppFooter>
