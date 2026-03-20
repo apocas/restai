@@ -8,7 +8,7 @@ import {
   Divider,
   Alert,
 } from "@mui/material";
-import { Psychology, Image, Speaker } from "@mui/icons-material";
+import { Psychology, Image, Speaker, DataArray } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import { Breadcrumb } from "app/components";
 import api from "app/utils/api";
@@ -40,7 +40,7 @@ const CodeBlock = styled("pre")(({ theme }) => ({
 }));
 
 export default function DirectAccess() {
-  const [models, setModels] = useState({ llms: [], image_generators: [], audio_generators: [] });
+  const [models, setModels] = useState({ llms: [], embeddings: [], image_generators: [], audio_generators: [] });
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -73,7 +73,7 @@ export default function DirectAccess() {
           Direct Access
         </Typography>
         <Typography variant="body1" color="textSecondary" paragraph>
-          Access LLMs, image generators, and audio transcription directly via OpenAI-compatible API endpoints.
+          Access LLMs, embeddings, image generators, and audio transcription directly via OpenAI-compatible API endpoints.
           Use your API key for authentication (Bearer token or Basic auth).
         </Typography>
 
@@ -153,6 +153,76 @@ for chunk in stream:
   -d '{
     "model": "${models.llms[0]?.name || 'your-model'}",
     "messages": [{"role": "user", "content": "Hello!"}]
+  }'`}</code>
+        </CodeBlock>
+      </StyledCard>
+
+      {/* Embeddings Section */}
+      <StyledCard>
+        <Box display="flex" alignItems="center" gap={1} mb={2}>
+          <DataArray color="primary" />
+          <Typography variant="h5">Embeddings</Typography>
+        </Box>
+        <Typography variant="body2" color="textSecondary" paragraph>
+          <strong>POST</strong> {baseUrl}/v1/embeddings
+        </Typography>
+        <Typography variant="body2" paragraph>
+          OpenAI-compatible embeddings endpoint. Generate vector embeddings for text inputs.
+          Supports single or batch input. Works with any embedding model your team has access to.
+        </Typography>
+
+        {models.embeddings.length > 0 ? (
+          <Box mb={2}>
+            <Typography variant="subtitle2" gutterBottom>Available Models:</Typography>
+            <Box display="flex" flexWrap="wrap" gap={1}>
+              {models.embeddings.map((emb) => (
+                <Chip key={emb.name} label={`${emb.name} (dim: ${emb.dimension})`} size="small" variant="outlined" />
+              ))}
+            </Box>
+          </Box>
+        ) : (
+          !loading && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              No embedding models available. Ask your team admin to grant embedding model access to your team.
+            </Alert>
+          )
+        )}
+
+        <Divider sx={{ my: 2 }} />
+        <Typography variant="subtitle2" gutterBottom>Python (openai SDK):</Typography>
+        <CodeBlock>
+          <code>{`from openai import OpenAI
+
+client = OpenAI(
+    base_url="${baseUrl}/v1",
+    api_key="YOUR_API_KEY",
+)
+
+response = client.embeddings.create(
+    model="${models.embeddings[0]?.name || 'your-embedding-model'}",
+    input="Hello, world!",
+)
+print(response.data[0].embedding[:5])  # first 5 dimensions`}</code>
+        </CodeBlock>
+
+        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>Batch example:</Typography>
+        <CodeBlock>
+          <code>{`response = client.embeddings.create(
+    model="${models.embeddings[0]?.name || 'your-embedding-model'}",
+    input=["First text", "Second text", "Third text"],
+)
+for item in response.data:
+    print(f"Index {item.index}: {len(item.embedding)} dimensions")`}</code>
+        </CodeBlock>
+
+        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>curl:</Typography>
+        <CodeBlock>
+          <code>{`curl ${baseUrl}/v1/embeddings \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "${models.embeddings[0]?.name || 'your-embedding-model'}",
+    "input": "Hello, world!"
   }'`}</code>
         </CodeBlock>
       </StyledCard>

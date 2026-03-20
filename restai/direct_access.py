@@ -70,6 +70,24 @@ def resolve_team_for_audio_generator(user: User, generator_name: str, db: DBWrap
     raise HTTPException(status_code=403, detail="You do not have access to this audio generator")
 
 
+def resolve_team_for_embedding(user: User, embedding_name: str, db: DBWrapper) -> Optional[int]:
+    """Resolve which team grants the user access to an embedding model."""
+    if user.is_admin:
+        return None
+
+    teams = db.get_teams_for_user(user.id)
+    for team in teams:
+        for emb in team.embeddings:
+            if emb.name == embedding_name:
+                if team.budget >= 0:
+                    spending = db.get_team_spending(team.id)
+                    if team.budget - spending <= 0:
+                        continue
+                return team.id
+
+    raise HTTPException(status_code=403, detail="You do not have access to this embedding model")
+
+
 def log_direct_usage(
     db: DBWrapper,
     user_id: int,

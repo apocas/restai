@@ -857,3 +857,30 @@ class OpenAIChatCompletionResponse(BaseModel):
 class OpenAIAudioTranscriptionResponse(BaseModel):
     """OpenAI-compatible audio transcription response."""
     text: str = Field(description="Transcribed text")
+
+
+class OpenAIEmbeddingRequest(BaseModel):
+    """OpenAI-compatible embedding request."""
+    model: str = Field(description="Embedding model name to use")
+    input: Union[str, list[str]] = Field(description="Text(s) to embed")
+
+
+class OpenAIEmbeddingData(BaseModel):
+    """A single embedding result."""
+    object: str = Field(default="embedding")
+    embedding: list[float] = Field(description="The embedding vector")
+    index: int = Field(description="Index of the input text")
+
+
+class OpenAIEmbeddingUsage(BaseModel):
+    """Token usage for an embedding request."""
+    prompt_tokens: int = Field(description="Number of input tokens")
+    total_tokens: int = Field(description="Total tokens used")
+
+
+class OpenAIEmbeddingResponse(BaseModel):
+    """OpenAI-compatible embedding response."""
+    object: str = Field(default="list")
+    data: list[OpenAIEmbeddingData] = Field(description="Embedding results")
+    model: str = Field(description="Model used")
+    usage: OpenAIEmbeddingUsage = Field(description="Token usage statistics")

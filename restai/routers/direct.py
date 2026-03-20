@@ -14,6 +14,7 @@ from restai.direct_access import (
     resolve_team_for_llm,
     resolve_team_for_image_generator,
     resolve_team_for_audio_generator,
+    resolve_team_for_embedding,
 )
 from restai.models.models import (
     OpenAIChatCompletionRequest,
@@ -21,6 +22,10 @@ from restai.models.models import (
     OpenAIChatCompletionChoice,
     OpenAIChatCompletionUsage,
     OpenAIChatMessage,
+    OpenAIEmbeddingRequest,
+    OpenAIEmbeddingResponse,
+    OpenAIEmbeddingData,
+    OpenAIEmbeddingUsage,
     User,
 )
 from restai.tools import tokens_from_string
@@ -189,6 +194,47 @@ async def chat_completions(
         )
 
 
+@router.post("/v1/embeddings")
+async def embeddings(
+    request: Request,
+    body: OpenAIEmbeddingRequest,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """OpenAI-compatible embeddings endpoint."""
+    team_id = resolve_team_for_embedding(user, body.model, db_wrapper)
+
+    embedding_obj = request.app.state.brain.get_embedding(body.model, db_wrapper)
+    if embedding_obj is None:
+        raise HTTPException(status_code=404, detail=f"Embedding model '{body.model}' not found")
+
+    texts = [body.input] if isinstance(body.input, str) else body.input
+
+    results = embedding_obj.embedding.get_text_embedding_batch(texts)
+
+    total_tokens = sum(tokens_from_string(t) for t in texts)
+
+    background_tasks.add_task(
+        log_direct_usage,
+        db_wrapper, user.id, team_id, body.model,
+        f"(embed {len(texts)} text(s))", "(embeddings generated)",
+        total_tokens, 0, 0.0, 0.0,
+    )
+
+    return OpenAIEmbeddingResponse(
+        model=body.model,
+        data=[
+            OpenAIEmbeddingData(embedding=emb, index=i)
+            for i, emb in enumerate(results)
+        ],
+        usage=OpenAIEmbeddingUsage(
+            prompt_tokens=total_tokens,
+            total_tokens=total_tokens,
+        ),
+    )
+
+
 @router.get("/direct/models")
 async def list_accessible_models(
     request: Request,
@@ -202,6 +248,9 @@ async def list_accessible_models(
         # Admins see everything
         all_llms = db_wrapper.get_llms()
         llms = [{"name": l.name, "type": l.type} for l in all_llms]
+
+        all_embeddings = db_wrapper.get_embeddings()
+        embeddings_list = [{"name": e.name, "dimension": e.dimension} for e in all_embeddings]
 
         image_generators = []
         audio_generators = []
@@ -224,6 +273,7 @@ async def list_accessible_models(
 
         return {
             "llms": llms,
+            "embeddings": embeddings_list,
             "image_generators": image_generators,
             "audio_generators": audio_generators,
         }
@@ -231,12 +281,15 @@ async def list_accessible_models(
     # Non-admin: aggregate from teams
     teams = db_wrapper.get_teams_for_user(user.id)
     llm_names = set()
+    embedding_names = set()
     image_gen_names = set()
     audio_gen_names = set()
 
     for team in teams:
         for llm in team.llms:
             llm_names.add((llm.name, llm.type))
+        for emb in team.embeddings:
+            embedding_names.add((emb.name, emb.dimension))
         for ig in team.image_generators:
             image_gen_names.add(ig.generator_name)
         for ag in team.audio_generators:
@@ -244,6 +297,7 @@ async def list_accessible_models(
 
     return {
         "llms": [{"name": n, "type": t} for n, t in llm_names],
+        "embeddings": [{"name": n, "dimension": d} for n, d in embedding_names],
         "image_generators": sorted(image_gen_names),
         "audio_generators": sorted(audio_gen_names),
     }
