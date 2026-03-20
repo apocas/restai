@@ -14,10 +14,7 @@ from starlette.responses import RedirectResponse
 from restai import config
 from restai.auth import create_access_token
 from restai.config import (
-    AUTO_CREATE_USER,
     LOG_LEVEL,
-    OAUTH_ALLOWED_DOMAINS,
-    OAUTH_EMAIL_CLAIM,
     OAUTH_PROVIDERS,
 )
 from restai.constants import ERROR_MESSAGES
@@ -31,6 +28,12 @@ class OAuthManager:
         self.oauth = OAuth()
         self.app = app
         self.db_wrapper = db_wrapper
+        for _, provider_config in OAUTH_PROVIDERS.items():
+            provider_config["register"](self.oauth)
+
+    def reinit(self):
+        """Re-register OAuth providers from current config."""
+        self.oauth = OAuth()
         for _, provider_config in OAUTH_PROVIDERS.items():
             provider_config["register"](self.oauth)
 
@@ -59,7 +62,7 @@ class OAuthManager:
             log.warning(f"OAuth callback error: {e}")
             raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
         user_data: UserInfo = token.get("userinfo")
-        if not user_data or OAUTH_EMAIL_CLAIM not in user_data:
+        if not user_data or config.OAUTH_EMAIL_CLAIM not in user_data:
             user_data: UserInfo = await client.userinfo(token=token)
         if not user_data:
             log.warning(f"OAuth callback failed, user data is missing: {token}")
@@ -70,7 +73,7 @@ class OAuthManager:
             log.warning(f"OAuth callback failed, sub is missing: {user_data}")
             raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
         provider_sub = f"{provider}@{sub}"
-        email_claim = OAUTH_EMAIL_CLAIM
+        email_claim = config.OAUTH_EMAIL_CLAIM
         email = user_data.get(email_claim, "")
         if not email:
             if provider == "github":
@@ -110,8 +113,8 @@ class OAuthManager:
                 raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
         email = email.lower()
         if (
-            "*" not in OAUTH_ALLOWED_DOMAINS
-            and email.split("@")[-1] not in OAUTH_ALLOWED_DOMAINS
+            "*" not in config.OAUTH_ALLOWED_DOMAINS
+            and email.split("@")[-1] not in config.OAUTH_ALLOWED_DOMAINS
         ):
             log.warning(
                 f"OAuth callback failed, e-mail domain is not in the list of allowed domains: {user_data}"
@@ -119,7 +122,7 @@ class OAuthManager:
             raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
 
         user = self.db_wrapper.get_user_by_username(email)
-        if user is None and AUTO_CREATE_USER:
+        if user is None and config.AUTO_CREATE_USER:
             user = self.db_wrapper.create_user(email, None, False, False)
             self.db_wrapper.db.commit()
         elif user is None:

@@ -786,6 +786,36 @@ class SettingsResponse(BaseModel):
     redis_port: Optional[str] = Field(default="6379", description="Redis port")
     redis_password: Optional[str] = Field(default="", description="Redis password (masked)")
     redis_database: Optional[str] = Field(default="0", description="Redis database number")
+    # Authentication
+    auth_disable_local: bool = Field(default=False, description="Disable local username/password authentication")
+    sso_auto_create_user: bool = Field(default=False, description="Auto-create user on first SSO login")
+    sso_allowed_domains: Optional[str] = Field(default="*", description="Comma-separated allowed email domains for SSO")
+    # Google OAuth
+    sso_google_client_id: Optional[str] = Field(default="", description="Google OAuth client ID")
+    sso_google_client_secret: Optional[str] = Field(default="", description="Google OAuth client secret (masked)")
+    sso_google_redirect_uri: Optional[str] = Field(default="", description="Google OAuth redirect URI")
+    sso_google_scope: Optional[str] = Field(default="openid email profile", description="Google OAuth scope")
+    # Microsoft OAuth
+    sso_microsoft_client_id: Optional[str] = Field(default="", description="Microsoft OAuth client ID")
+    sso_microsoft_client_secret: Optional[str] = Field(default="", description="Microsoft OAuth client secret (masked)")
+    sso_microsoft_tenant_id: Optional[str] = Field(default="", description="Microsoft OAuth tenant ID")
+    sso_microsoft_redirect_uri: Optional[str] = Field(default="", description="Microsoft OAuth redirect URI")
+    sso_microsoft_scope: Optional[str] = Field(default="openid email profile", description="Microsoft OAuth scope")
+    # GitHub OAuth
+    sso_github_client_id: Optional[str] = Field(default="", description="GitHub OAuth client ID")
+    sso_github_client_secret: Optional[str] = Field(default="", description="GitHub OAuth client secret (masked)")
+    sso_github_redirect_uri: Optional[str] = Field(default="", description="GitHub OAuth redirect URI")
+    sso_github_scope: Optional[str] = Field(default="user:email", description="GitHub OAuth scope")
+    # Generic OIDC
+    sso_oidc_client_id: Optional[str] = Field(default="", description="OIDC client ID")
+    sso_oidc_client_secret: Optional[str] = Field(default="", description="OIDC client secret (masked)")
+    sso_oidc_provider_url: Optional[str] = Field(default="", description="OIDC provider discovery URL")
+    sso_oidc_redirect_uri: Optional[str] = Field(default="", description="OIDC redirect URI")
+    sso_oidc_scopes: Optional[str] = Field(default="openid email profile", description="OIDC scopes")
+    sso_oidc_provider_name: Optional[str] = Field(default="SSO", description="OIDC provider display name")
+    sso_oidc_email_claim: Optional[str] = Field(default="email", description="OIDC email claim field")
+    # GPU
+    gpu_enabled: bool = Field(default=False, description="Whether GPU features are enabled")
 
 
 class SettingsUpdate(BaseModel):
@@ -803,6 +833,36 @@ class SettingsUpdate(BaseModel):
     redis_port: Optional[str] = Field(default=None, description="Redis port")
     redis_password: Optional[str] = Field(default=None, description="Redis password")
     redis_database: Optional[str] = Field(default=None, description="Redis database number")
+    # Authentication
+    auth_disable_local: Optional[bool] = Field(default=None, description="Disable local username/password authentication")
+    sso_auto_create_user: Optional[bool] = Field(default=None, description="Auto-create user on first SSO login")
+    sso_allowed_domains: Optional[str] = Field(default=None, description="Comma-separated allowed email domains for SSO")
+    # Google OAuth
+    sso_google_client_id: Optional[str] = Field(default=None, description="Google OAuth client ID")
+    sso_google_client_secret: Optional[str] = Field(default=None, description="Google OAuth client secret")
+    sso_google_redirect_uri: Optional[str] = Field(default=None, description="Google OAuth redirect URI")
+    sso_google_scope: Optional[str] = Field(default=None, description="Google OAuth scope")
+    # Microsoft OAuth
+    sso_microsoft_client_id: Optional[str] = Field(default=None, description="Microsoft OAuth client ID")
+    sso_microsoft_client_secret: Optional[str] = Field(default=None, description="Microsoft OAuth client secret")
+    sso_microsoft_tenant_id: Optional[str] = Field(default=None, description="Microsoft OAuth tenant ID")
+    sso_microsoft_redirect_uri: Optional[str] = Field(default=None, description="Microsoft OAuth redirect URI")
+    sso_microsoft_scope: Optional[str] = Field(default=None, description="Microsoft OAuth scope")
+    # GitHub OAuth
+    sso_github_client_id: Optional[str] = Field(default=None, description="GitHub OAuth client ID")
+    sso_github_client_secret: Optional[str] = Field(default=None, description="GitHub OAuth client secret")
+    sso_github_redirect_uri: Optional[str] = Field(default=None, description="GitHub OAuth redirect URI")
+    sso_github_scope: Optional[str] = Field(default=None, description="GitHub OAuth scope")
+    # Generic OIDC
+    sso_oidc_client_id: Optional[str] = Field(default=None, description="OIDC client ID")
+    sso_oidc_client_secret: Optional[str] = Field(default=None, description="OIDC client secret")
+    sso_oidc_provider_url: Optional[str] = Field(default=None, description="OIDC provider discovery URL")
+    sso_oidc_redirect_uri: Optional[str] = Field(default=None, description="OIDC redirect URI")
+    sso_oidc_scopes: Optional[str] = Field(default=None, description="OIDC scopes")
+    sso_oidc_provider_name: Optional[str] = Field(default=None, description="OIDC provider display name")
+    sso_oidc_email_claim: Optional[str] = Field(default=None, description="OIDC email claim field")
+    # GPU
+    gpu_enabled: Optional[bool] = Field(default=None, description="Whether GPU features are enabled")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "app_name": "My AI Platform",

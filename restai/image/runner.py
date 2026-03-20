@@ -2,7 +2,6 @@ from torch.multiprocessing import Process
 from ilock import ILock
 import tempfile
 import os
-import shutil
 import subprocess
 import sys
 import pickle
@@ -11,18 +10,8 @@ from restai.models.models import ImageModel
 
 def generate(manager, worker, imageModel, options: dict = None, venv_python: str = None):
     sharedmem = manager.dict()
-    temp_file = None
     if hasattr(imageModel, 'image') and imageModel.image:
-        # Save image to temp file
-        temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-        try:
-            temp_file.write(imageModel.image)
-            temp_file.close()
-            sharedmem["input_image_path"] = temp_file.name
-        except Exception as e:
-            if temp_file:
-                os.unlink(temp_file.name)
-            raise e
+        sharedmem["input_image"] = imageModel.image
 
     sharedmem["prompt"] = imageModel.prompt
     sharedmem["options"] = options
@@ -49,13 +38,17 @@ def generate(manager, worker, imageModel, options: dict = None, venv_python: str
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             env["PYTHONPATH"] = project_root
             
-            subprocess.run([
+            result = subprocess.run([
                 venv_python,
                 os.path.join(os.path.dirname(__file__), "worker_entry.py"),
                 worker_module,
                 sharedmem.get("prompt", ""),
                 sharedmem_file.name
-            ], check=True, env=env)
+            ], capture_output=True, text=True, env=env)
+            if result.returncode != 0:
+                import logging
+                logging.error(f"Image worker {worker_module} failed (exit {result.returncode}):\n{result.stderr}")
+                raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout, result.stderr)
 
         # Load sharedmem back
         with open(sharedmem_file.name, "rb") as f:
@@ -66,11 +59,6 @@ def generate(manager, worker, imageModel, options: dict = None, venv_python: str
 
         return sharedmem_result["image"]
     finally:
-        if temp_file:
-            try:
-                os.unlink(temp_file.name)
-            except:
-                pass
         try:
             os.unlink(sharedmem_file.name)
         except:

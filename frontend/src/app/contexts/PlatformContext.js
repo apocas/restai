@@ -4,11 +4,13 @@ export const PlatformContext = createContext({
   platformCapabilities: {
     gpu: true,
     sso: [],
+    sso_provider_names: {},
     proxy: null,
     app_name: "RESTai",
     hide_branding: false,
     proxy_url: "",
-    currency: "EUR"
+    currency: "EUR",
+    auth_disable_local: false
   },
   isLoading: true,
   refreshCapabilities: () => {}
@@ -20,11 +22,13 @@ export default function PlatformProvider({ children }) {
   const [platformCapabilities, setPlatformCapabilities] = useState({
     gpu: true,
     sso: [],
+    sso_provider_names: {},
     proxy: null,
     app_name: "RESTai",
     hide_branding: false,
     proxy_url: "",
-    currency: "EUR"
+    currency: "EUR",
+    auth_disable_local: false
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -38,11 +42,13 @@ export default function PlatformProvider({ children }) {
         setPlatformCapabilities({
           gpu: data.gpu || false,
           sso: data.sso || [],
+          sso_provider_names: data.sso_provider_names || {},
           proxy: data.proxy || null,
           app_name: data.app_name || "RESTai",
           hide_branding: data.hide_branding || false,
           proxy_url: data.proxy_url || "",
-          currency: data.currency || "USD"
+          currency: data.currency || "USD",
+          auth_disable_local: data.auth_disable_local || false
         });
       } else {
         console.error("Failed to fetch platform capabilities");

@@ -4,7 +4,8 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPBasic
 import jwt
-from restai.config import RESTAI_AUTH_SECRET, RESTAI_AUTH_DISABLE_LOCAL
+from restai import config
+from restai.config import RESTAI_AUTH_SECRET
 from restai.constants import ERROR_MESSAGES
 from restai.database import get_db_wrapper, verify_password, DBWrapper
 from restai.models.databasemodels import ProjectDatabase
@@ -67,7 +68,7 @@ def get_current_username(
                 credentials = {"username": username, "password": password}
 
                 if (
-                    RESTAI_AUTH_DISABLE_LOCAL
+                    config.RESTAI_AUTH_DISABLE_LOCAL
                     or not credentials
                     or ("username" not in credentials or "password" not in credentials)
                 ):

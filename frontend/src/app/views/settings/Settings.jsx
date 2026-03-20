@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
 import {
   Grid, styled, Box, Card, Divider, TextField, Button,
-  Switch, FormControlLabel, Typography, Select, MenuItem, InputLabel, FormControl
+  Switch, FormControlLabel, Typography, Select, MenuItem, InputLabel, FormControl,
+  Collapse, IconButton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Chip, LinearProgress
 } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import { toast } from "react-toastify";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 import api from "app/utils/api";
-import { Settings as SettingsIcon, Storage } from "@mui/icons-material";
+import { Settings as SettingsIcon, Storage, Security, ExpandMore, ExpandLess, Memory } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
 
 const Container = styled("div")(({ theme }) => ({
@@ -44,9 +46,53 @@ export default function SettingsPage() {
     redis_host: "",
     redis_port: "6379",
     redis_password: "",
-    redis_database: "0"
+    redis_database: "0",
+    // Auth
+    auth_disable_local: false,
+    sso_auto_create_user: false,
+    sso_allowed_domains: "*",
+    // Google
+    sso_google_client_id: "",
+    sso_google_client_secret: "",
+    sso_google_redirect_uri: "",
+    sso_google_scope: "openid email profile",
+    // Microsoft
+    sso_microsoft_client_id: "",
+    sso_microsoft_client_secret: "",
+    sso_microsoft_tenant_id: "",
+    sso_microsoft_redirect_uri: "",
+    sso_microsoft_scope: "openid email profile",
+    // GitHub
+    sso_github_client_id: "",
+    sso_github_client_secret: "",
+    sso_github_redirect_uri: "",
+    sso_github_scope: "user:email",
+    // OIDC
+    sso_oidc_client_id: "",
+    sso_oidc_client_secret: "",
+    sso_oidc_provider_url: "",
+    sso_oidc_redirect_uri: "",
+    sso_oidc_scopes: "openid email profile",
+    sso_oidc_provider_name: "SSO",
+    sso_oidc_email_claim: "email",
+    // GPU
+    gpu_enabled: false,
   });
   const [saving, setSaving] = useState(false);
+  const [gpuInfo, setGpuInfo] = useState([]);
+  const [gpuLoading, setGpuLoading] = useState(false);
+
+  // Collapsible state for SSO sections
+  const [expanded, setExpanded] = useState({
+    google: false,
+    microsoft: false,
+    github: false,
+    oidc: false,
+  });
+
+  const toggleExpanded = (section) => () => {
+    setExpanded((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const fetchSettings = () => {
     api.get("/settings", auth.user.token)
@@ -54,9 +100,18 @@ export default function SettingsPage() {
       .catch(() => {});
   };
 
+  const fetchGpuInfo = () => {
+    setGpuLoading(true);
+    api.get("/settings/gpu-info", auth.user.token)
+      .then((data) => setGpuInfo(data || []))
+      .catch(() => setGpuInfo([]))
+      .finally(() => setGpuLoading(false));
+  };
+
   useEffect(() => {
     document.title = "RESTai - Settings";
     fetchSettings();
+    fetchGpuInfo();
   }, []);
 
   const handleChange = (field) => (e) => {
@@ -80,6 +135,16 @@ export default function SettingsPage() {
       .catch(() => {})
       .finally(() => setSaving(false));
   };
+
+  const CollapsibleCardHeader = ({ icon: Icon, title, section }) => (
+    <FlexBox sx={{ cursor: "pointer" }} onClick={toggleExpanded(section)}>
+      <Icon sx={{ ml: 2 }} />
+      <H4 sx={{ p: 2, flex: 1 }}>{title}</H4>
+      <IconButton size="small" sx={{ mr: 2 }}>
+        {expanded[section] ? <ExpandLess /> : <ExpandMore />}
+      </IconButton>
+    </FlexBox>
+  );
 
   return (
     <Container>
@@ -274,6 +339,364 @@ export default function SettingsPage() {
                     <Typography variant="caption" color="text.secondary">
                       Configure Redis for persistent chat history. Leave host empty to use in-memory storage.
                     </Typography>
+                  </Grid>
+                </Grid>
+              </Box>
+            </Card>
+          </Grid>
+
+          {/* Authentication */}
+          <Grid item xs={12}>
+            <Card elevation={3}>
+              <FlexBox>
+                <Security sx={{ ml: 2 }} />
+                <H4 sx={{ p: 2 }}>Authentication</H4>
+              </FlexBox>
+              <Divider />
+              <Box sx={{ p: 3 }}>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={4}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={form.auth_disable_local}
+                          onChange={handleChange("auth_disable_local")}
+                        />
+                      }
+                      label="Disable Local Auth"
+                    />
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      When enabled, only SSO login is allowed
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={form.sso_auto_create_user}
+                          onChange={handleChange("sso_auto_create_user")}
+                        />
+                      }
+                      label="Auto Create Users"
+                    />
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Automatically create user accounts on first SSO login
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Allowed Domains"
+                      value={form.sso_allowed_domains}
+                      onChange={handleChange("sso_allowed_domains")}
+                      helperText="Comma-separated email domains, or * for all"
+                    />
+                  </Grid>
+                </Grid>
+              </Box>
+            </Card>
+          </Grid>
+
+          {/* SSO — Google */}
+          <Grid item xs={12}>
+            <Card elevation={3}>
+              <CollapsibleCardHeader icon={Security} title="SSO — Google" section="google" />
+              <Divider />
+              <Collapse in={expanded.google}>
+                <Box sx={{ p: 3 }}>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Client ID"
+                        value={form.sso_google_client_id}
+                        onChange={handleChange("sso_google_client_id")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Client Secret"
+                        type="password"
+                        value={form.sso_google_client_secret}
+                        onChange={handleChange("sso_google_client_secret")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Redirect URI"
+                        value={form.sso_google_redirect_uri}
+                        onChange={handleChange("sso_google_redirect_uri")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Scope"
+                        value={form.sso_google_scope}
+                        onChange={handleChange("sso_google_scope")}
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
+              </Collapse>
+            </Card>
+          </Grid>
+
+          {/* SSO — Microsoft */}
+          <Grid item xs={12}>
+            <Card elevation={3}>
+              <CollapsibleCardHeader icon={Security} title="SSO — Microsoft" section="microsoft" />
+              <Divider />
+              <Collapse in={expanded.microsoft}>
+                <Box sx={{ p: 3 }}>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Client ID"
+                        value={form.sso_microsoft_client_id}
+                        onChange={handleChange("sso_microsoft_client_id")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Client Secret"
+                        type="password"
+                        value={form.sso_microsoft_client_secret}
+                        onChange={handleChange("sso_microsoft_client_secret")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Tenant ID"
+                        value={form.sso_microsoft_tenant_id}
+                        onChange={handleChange("sso_microsoft_tenant_id")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Redirect URI"
+                        value={form.sso_microsoft_redirect_uri}
+                        onChange={handleChange("sso_microsoft_redirect_uri")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Scope"
+                        value={form.sso_microsoft_scope}
+                        onChange={handleChange("sso_microsoft_scope")}
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
+              </Collapse>
+            </Card>
+          </Grid>
+
+          {/* SSO — GitHub */}
+          <Grid item xs={12}>
+            <Card elevation={3}>
+              <CollapsibleCardHeader icon={Security} title="SSO — GitHub" section="github" />
+              <Divider />
+              <Collapse in={expanded.github}>
+                <Box sx={{ p: 3 }}>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Client ID"
+                        value={form.sso_github_client_id}
+                        onChange={handleChange("sso_github_client_id")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Client Secret"
+                        type="password"
+                        value={form.sso_github_client_secret}
+                        onChange={handleChange("sso_github_client_secret")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Redirect URI"
+                        value={form.sso_github_redirect_uri}
+                        onChange={handleChange("sso_github_redirect_uri")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Scope"
+                        value={form.sso_github_scope}
+                        onChange={handleChange("sso_github_scope")}
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
+              </Collapse>
+            </Card>
+          </Grid>
+
+          {/* SSO — Generic OIDC */}
+          <Grid item xs={12}>
+            <Card elevation={3}>
+              <CollapsibleCardHeader icon={Security} title="SSO — Generic OIDC" section="oidc" />
+              <Divider />
+              <Collapse in={expanded.oidc}>
+                <Box sx={{ p: 3 }}>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Client ID"
+                        value={form.sso_oidc_client_id}
+                        onChange={handleChange("sso_oidc_client_id")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Client Secret"
+                        type="password"
+                        value={form.sso_oidc_client_secret}
+                        onChange={handleChange("sso_oidc_client_secret")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Provider URL"
+                        value={form.sso_oidc_provider_url}
+                        onChange={handleChange("sso_oidc_provider_url")}
+                        helperText="OpenID Connect discovery URL"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Redirect URI"
+                        value={form.sso_oidc_redirect_uri}
+                        onChange={handleChange("sso_oidc_redirect_uri")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Scopes"
+                        value={form.sso_oidc_scopes}
+                        onChange={handleChange("sso_oidc_scopes")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Provider Name"
+                        value={form.sso_oidc_provider_name}
+                        onChange={handleChange("sso_oidc_provider_name")}
+                        helperText="Display name on login button"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Email Claim"
+                        value={form.sso_oidc_email_claim}
+                        onChange={handleChange("sso_oidc_email_claim")}
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
+              </Collapse>
+            </Card>
+          </Grid>
+
+          {/* GPU */}
+          <Grid item xs={12}>
+            <Card elevation={3}>
+              <FlexBox>
+                <Memory sx={{ ml: 2 }} />
+                <H4 sx={{ p: 2 }}>GPU</H4>
+              </FlexBox>
+              <Divider />
+              <Box sx={{ p: 3 }}>
+                <Grid container spacing={3}>
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={form.gpu_enabled}
+                          onChange={handleChange("gpu_enabled")}
+                        />
+                      }
+                      label="GPU Enabled"
+                    />
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Changes to GPU settings require application restart to take effect.
+                    </Typography>
+                  </Grid>
+
+                  {/* Detected GPUs */}
+                  <Grid item xs={12}>
+                    {gpuLoading && <LinearProgress sx={{ mb: 2 }} />}
+                    {!gpuLoading && gpuInfo.length === 0 && (
+                      <Typography variant="body2" color="text.secondary">
+                        No GPUs detected.
+                      </Typography>
+                    )}
+                    {!gpuLoading && gpuInfo.length > 0 && (
+                      <>
+                        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                          Detected GPUs
+                          {gpuInfo[0].driver_version && (
+                            <Chip label={`Driver ${gpuInfo[0].driver_version}`} size="small" sx={{ ml: 1 }} />
+                          )}
+                          {gpuInfo[0].cuda_version && (
+                            <Chip label={`CUDA ${gpuInfo[0].cuda_version}`} size="small" sx={{ ml: 1 }} />
+                          )}
+                        </Typography>
+                        <TableContainer>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>#</TableCell>
+                                <TableCell>Name</TableCell>
+                                <TableCell>Memory (Total)</TableCell>
+                                <TableCell>Memory (Used)</TableCell>
+                                <TableCell>Memory (Free)</TableCell>
+                                <TableCell>Temp</TableCell>
+                                <TableCell>Utilization</TableCell>
+                                <TableCell>Power</TableCell>
+                                <TableCell>PCI Bus</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {gpuInfo.map((gpu) => (
+                                <TableRow key={gpu.index}>
+                                  <TableCell>{gpu.index}</TableCell>
+                                  <TableCell><strong>{gpu.name}</strong></TableCell>
+                                  <TableCell>{gpu.memory_total}</TableCell>
+                                  <TableCell>{gpu.memory_used}</TableCell>
+                                  <TableCell>{gpu.memory_free}</TableCell>
+                                  <TableCell>{gpu.temperature}</TableCell>
+                                  <TableCell>{gpu.utilization}</TableCell>
+                                  <TableCell>{gpu.power_draw} / {gpu.power_limit}</TableCell>
+                                  <TableCell><Typography variant="caption">{gpu.pci_bus_id}</Typography></TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </>
+                    )}
                   </Grid>
                 </Grid>
               </Box>

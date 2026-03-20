@@ -127,6 +127,16 @@ Local and remote image generators loaded dynamically. Supports Stable Diffusion,
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/rmbg2.png?raw=true" width="22%" alt="RMBG2"/>
 </div>
 
+### GPU Auto-Detection & Management
+
+RESTai automatically detects NVIDIA GPUs at startup and displays detailed hardware information in the admin settings — model name, VRAM, temperature, utilization, power draw, driver and CUDA versions. GPU support is auto-enabled when hardware is detected, or can be toggled manually.
+
+`make install` also detects GPUs automatically and installs GPU dependencies when available.
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/gpus.png?raw=true" width="750" alt="RESTai GPU Detection"/>
+</div>
+
 ### Direct Access (OpenAI-Compatible)
 
 Use LLMs, image generators, and audio transcription directly via OpenAI-compatible API endpoints — no project required. Team-level permissions control which models each user can access, and all usage counts toward team budgets.
@@ -317,7 +327,7 @@ Direct interaction with the GPU layer — ideal for small deployments.
 |----------|-------------|---------|
 | `RESTAI_DEFAULT_PASSWORD` | Admin user password | `admin` |
 | `RESTAI_DEV` | Enable dev mode with hot reload | `false` |
-| `RESTAI_GPU` | Enable GPU features (image gen) | `false` |
+| `RESTAI_GPU` | Enable GPU features (image gen) | auto-detected |
 | `OPENAI_API_KEY` | OpenAI API key | — |
 | `ANTHROPIC_API_KEY` | Anthropic API key | — |
 | `POSTGRES_HOST` | Use PostgreSQL instead of SQLite | — |

@@ -1,11 +1,22 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from restai.auth import get_current_username_admin
+from restai.config import detect_gpu_info
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.models import SettingsResponse, SettingsUpdate
-from restai.settings import get_all_settings, mask_key, update_setting
+from restai.settings import get_all_settings, mask_key, update_setting, reinit_oauth, _SECRET_KEYS
 
 router = APIRouter()
+
+
+@router.get("/settings/gpu-info")
+async def get_gpu_info(
+    user=Depends(get_current_username_admin),
+) -> List[dict]:
+    """Get detected GPU hardware information (admin only)."""
+    return detect_gpu_info()
 
 
 @router.get("/settings", response_model=SettingsResponse)
@@ -44,13 +55,8 @@ async def patch_settings(
         updates.pop("proxy_team_id", None)
 
     for key, value in updates.items():
-        # Skip proxy_key if it's masked or empty
-        if key == "proxy_key":
-            if not value or value.startswith("****"):
-                continue
-
-        # Skip redis_password if it's masked or empty
-        if key == "redis_password":
+        # Skip secret fields if masked or empty
+        if key in _SECRET_KEYS:
             if not value or value.startswith("****"):
                 continue
 
@@ -64,5 +70,9 @@ async def patch_settings(
     redis_fields = {"redis_host", "redis_port", "redis_password", "redis_database"}
     if redis_fields & updates.keys():
         request.app.state.brain.reinit_chat_store()
+
+    sso_fields = {k for k in updates.keys() if k.startswith("sso_") or k == "auth_disable_local"}
+    if sso_fields:
+        reinit_oauth(request.app)
 
     return get_all_settings(db_wrapper)

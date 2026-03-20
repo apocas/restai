@@ -148,14 +148,23 @@ async def lifespan(fs_app: FastAPI):
             sso_list = list(config.OAUTH_PROVIDERS)
         else:
             sso_list = []
+        sso_provider_names = {}
+        for provider in sso_list:
+            if provider == "oidc":
+                sso_provider_names[provider] = config.OAUTH_PROVIDER_NAME or "SSO"
+            else:
+                sso_provider_names[provider] = provider.capitalize()
+
         return {
             "sso": sso_list,
+            "sso_provider_names": sso_provider_names,
             "proxy": bool(config.PROXY_URL),
             "gpu": config.RESTAI_GPU,
             "app_name": config.RESTAI_NAME,
             "hide_branding": config.HIDE_BRANDING,
             "proxy_url": config.PROXY_URL or "",
             "currency": config.CURRENCY or "EUR",
+            "auth_disable_local": config.RESTAI_AUTH_DISABLE_LOCAL,
         }
 
     @fs_app.get("/info", tags=["Health"])
@@ -346,15 +355,16 @@ All endpoints require authentication via one of:
 )
 
 oauth_manager = OAuthManager(app, db_wrapper=get_db_wrapper())
+app.state.oauth_manager = oauth_manager
 
-if len(OAUTH_PROVIDERS) > 0:
-    app.add_middleware(
-        SessionMiddleware,
-        secret_key=SSO_SECRET_KEY,
-        session_cookie="oui-session",
-        same_site=SESSION_COOKIE_SAME_SITE,
-        https_only=SESSION_COOKIE_SECURE,
-    )
+# Always add SessionMiddleware so SSO can be enabled at runtime via settings
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SSO_SECRET_KEY,
+    session_cookie="oui-session",
+    same_site=SESSION_COOKIE_SAME_SITE,
+    https_only=SESSION_COOKIE_SECURE,
+)
 
 
 @app.get("/oauth/{provider}/login", tags=["Auth"])

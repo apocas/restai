@@ -24,6 +24,10 @@ install:
 	uv sync --no-group gpu
 	make database
 	make frontend
+	@if command -v nvidia-smi > /dev/null 2>&1 && nvidia-smi > /dev/null 2>&1; then \
+		echo "GPU detected, running installgpu..."; \
+		$(MAKE) installgpu; \
+	fi
 
 .PHONY: installgpu
 installgpu:

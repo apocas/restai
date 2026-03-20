@@ -54,7 +54,7 @@ RESTAI_URL = os.environ.get("RESTAI_URL")
 
 RESTAI_PORT = os.environ.get("RESTAI_PORT") or 9000
 RESTAI_AUTH_SECRET = os.environ.get("RESTAI_AUTH_SECRET")
-RESTAI_AUTH_DISABLE_LOCAL = os.environ.get("RESTAI_AUTH_DISABLE_LOCAL")
+RESTAI_AUTH_DISABLE_LOCAL = os.environ.get("RESTAI_AUTH_DISABLE_LOCAL", "").lower() in ("true", "1")
 RESTAI_DEV = (
     True if os.environ.get("RESTAI_DEV", "").lower() in ("true", "1") else False
 )
@@ -119,9 +119,94 @@ WEAVIATE_API_KEY = os.environ.get("WEAVIATE_API_KEY")
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 PINECONE_INDEX = os.environ.get("PINECONE_INDEX")
 
-RESTAI_GPU = (
-    True if os.environ.get("RESTAI_GPU", "").lower() in ("true", "1") else False
-)
+def detect_gpu():
+    """Auto-detect GPU availability via nvidia-smi."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["nvidia-smi"], capture_output=True, timeout=5
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
+def detect_gpu_info():
+    """Query detailed GPU information via nvidia-smi.
+
+    Returns a list of dicts with keys: index, name, brand, driver_version,
+    memory_total, memory_used, memory_free, temperature, utilization,
+    power_draw, power_limit, cuda_version, pci_bus_id.
+    Returns an empty list if nvidia-smi is unavailable.
+    """
+    import subprocess
+
+    # First get CUDA version from nvidia-smi header
+    cuda_version = ""
+    try:
+        header = subprocess.run(
+            ["nvidia-smi"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if header.returncode == 0:
+            for line in header.stdout.splitlines():
+                if "CUDA Version" in line:
+                    parts = line.split("CUDA Version:")
+                    if len(parts) > 1:
+                        cuda_version = parts[1].strip().rstrip("|").strip()
+                    break
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return []
+
+    fields = [
+        "index", "name", "driver_version",
+        "memory.total", "memory.used", "memory.free",
+        "temperature.gpu", "utilization.gpu", "power.draw", "power.limit",
+        "pci.bus_id",
+    ]
+    try:
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                f"--query-gpu={','.join(fields)}",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode != 0:
+            return []
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return []
+
+    gpus = []
+    for line in result.stdout.strip().splitlines():
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) < len(fields):
+            continue
+        gpu = {
+            "index": int(parts[0]),
+            "name": parts[1],
+            "driver_version": parts[2],
+            "memory_total": f"{parts[3]} MiB",
+            "memory_used": f"{parts[4]} MiB",
+            "memory_free": f"{parts[5]} MiB",
+            "temperature": f"{parts[6]} °C" if parts[6] not in ("[N/A]", "") else "N/A",
+            "utilization": f"{parts[7]} %" if parts[7] not in ("[N/A]", "") else "N/A",
+            "power_draw": f"{parts[8]} W" if parts[8] not in ("[N/A]", "") else "N/A",
+            "power_limit": f"{parts[9]} W" if parts[9] not in ("[N/A]", "") else "N/A",
+            "pci_bus_id": parts[10],
+            "cuda_version": cuda_version,
+        }
+        gpus.append(gpu)
+    return gpus
+
+_gpu_env = os.environ.get("RESTAI_GPU", "").lower()
+if _gpu_env in ("true", "1"):
+    RESTAI_GPU = True
+elif _gpu_env in ("false", "0"):
+    RESTAI_GPU = False
+else:
+    RESTAI_GPU = detect_gpu()
 RESTAI_DEFAULT_DEVICE = os.environ.get("RESTAI_DEFAULT_DEVICE")
 
 EMBEDDINGS_PATH = os.environ.get("EMBEDDINGS_PATH")
@@ -190,82 +275,86 @@ SSO_SECRET_KEY = os.environ.get("SSO_SECRET_KEY", os.environ.get("SECRET_KEY"))
 
 
 def load_oauth_providers():
-    OAUTH_PROVIDERS.clear()
-    if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
+    """Build OAUTH_PROVIDERS from current module-level attributes."""
+    # Import ourselves so we always read the latest attribute values
+    import restai.config as _cfg
 
-        def google_oauth_register(client):
+    OAUTH_PROVIDERS.clear()
+    if _cfg.GOOGLE_CLIENT_ID and _cfg.GOOGLE_CLIENT_SECRET:
+
+        def google_oauth_register(client, _c=_cfg):
             client.register(
                 name="google",
-                client_id=GOOGLE_CLIENT_ID,
-                client_secret=GOOGLE_CLIENT_SECRET,
+                client_id=_c.GOOGLE_CLIENT_ID,
+                client_secret=_c.GOOGLE_CLIENT_SECRET,
                 server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-                client_kwargs={"scope": GOOGLE_OAUTH_SCOPE},
-                redirect_uri=GOOGLE_REDIRECT_URI,
+                client_kwargs={"scope": _c.GOOGLE_OAUTH_SCOPE},
+                redirect_uri=_c.GOOGLE_REDIRECT_URI,
             )
 
         OAUTH_PROVIDERS["google"] = {
-            "redirect_uri": GOOGLE_REDIRECT_URI,
+            "redirect_uri": _cfg.GOOGLE_REDIRECT_URI,
             "register": google_oauth_register,
         }
 
-    if MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET and MICROSOFT_CLIENT_TENANT_ID:
+    if _cfg.MICROSOFT_CLIENT_ID and _cfg.MICROSOFT_CLIENT_SECRET and _cfg.MICROSOFT_CLIENT_TENANT_ID:
 
-        def microsoft_oauth_register(client):
+        def microsoft_oauth_register(client, _c=_cfg):
             client.register(
                 name="microsoft",
-                client_id=MICROSOFT_CLIENT_ID,
-                client_secret=MICROSOFT_CLIENT_SECRET,
-                server_metadata_url=f"https://login.microsoftonline.com/{MICROSOFT_CLIENT_TENANT_ID}/v2.0/.well-known/openid-configuration",
+                client_id=_c.MICROSOFT_CLIENT_ID,
+                client_secret=_c.MICROSOFT_CLIENT_SECRET,
+                server_metadata_url=f"https://login.microsoftonline.com/{_c.MICROSOFT_CLIENT_TENANT_ID}/v2.0/.well-known/openid-configuration",
                 client_kwargs={
-                    "scope": MICROSOFT_OAUTH_SCOPE,
+                    "scope": _c.MICROSOFT_OAUTH_SCOPE,
                 },
-                redirect_uri=MICROSOFT_REDIRECT_URI,
+                redirect_uri=_c.MICROSOFT_REDIRECT_URI,
             )
 
         OAUTH_PROVIDERS["microsoft"] = {
-            "redirect_uri": MICROSOFT_REDIRECT_URI,
+            "redirect_uri": _cfg.MICROSOFT_REDIRECT_URI,
             "picture_url": "https://graph.microsoft.com/v1.0/me/photo/$value",
             "register": microsoft_oauth_register,
         }
 
-    if GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET:
+    if _cfg.GITHUB_CLIENT_ID and _cfg.GITHUB_CLIENT_SECRET:
 
-        def github_oauth_register(client):
+        def github_oauth_register(client, _c=_cfg):
             client.register(
                 name="github",
-                client_id=GITHUB_CLIENT_ID,
-                client_secret=GITHUB_CLIENT_SECRET,
+                client_id=_c.GITHUB_CLIENT_ID,
+                client_secret=_c.GITHUB_CLIENT_SECRET,
                 access_token_url="https://github.com/login/oauth/access_token",
                 authorize_url="https://github.com/login/oauth/authorize",
                 api_base_url="https://api.github.com",
                 userinfo_endpoint="https://api.github.com/user",
-                client_kwargs={"scope": GITHUB_CLIENT_SCOPE},
-                redirect_uri=GITHUB_CLIENT_REDIRECT_URI,
+                client_kwargs={"scope": _c.GITHUB_CLIENT_SCOPE},
+                redirect_uri=_c.GITHUB_CLIENT_REDIRECT_URI,
             )
 
         OAUTH_PROVIDERS["github"] = {
-            "redirect_uri": GITHUB_CLIENT_REDIRECT_URI,
+            "redirect_uri": _cfg.GITHUB_CLIENT_REDIRECT_URI,
             "register": github_oauth_register,
             "sub_claim": "id",
         }
 
-    if OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OPENID_PROVIDER_URL:
+    if _cfg.OAUTH_CLIENT_ID and _cfg.OAUTH_CLIENT_SECRET and _cfg.OPENID_PROVIDER_URL:
 
-        def oidc_oauth_register(client):
+        def oidc_oauth_register(client, _c=_cfg):
             client.register(
                 name="oidc",
-                client_id=OAUTH_CLIENT_ID,
-                client_secret=OAUTH_CLIENT_SECRET,
-                server_metadata_url=OPENID_PROVIDER_URL,
+                client_id=_c.OAUTH_CLIENT_ID,
+                client_secret=_c.OAUTH_CLIENT_SECRET,
+                server_metadata_url=_c.OPENID_PROVIDER_URL,
                 client_kwargs={
-                    "scope": OAUTH_SCOPES,
+                    "scope": _c.OAUTH_SCOPES,
                 },
-                redirect_uri=OPENID_REDIRECT_URI,
+                redirect_uri=_c.OPENID_REDIRECT_URI,
             )
 
         OAUTH_PROVIDERS["oidc"] = {
-            "name": OAUTH_PROVIDER_NAME,
-            "redirect_uri": OPENID_REDIRECT_URI,
+            "name": _cfg.OAUTH_PROVIDER_NAME,
+            "redirect_uri": _cfg.OPENID_REDIRECT_URI,
             "register": oidc_oauth_register,
         }
 
