@@ -32,9 +32,9 @@ class Guard:
         answer: str = resp.message.content.strip()
 
         match answer:
-            case "BAD":
+            case "BAD" | "NOK" | "NO" | "FALSE" | "DENY":
                 return True
-            case "GOOD":
+            case "GOOD" | "OK" | "YES" | "TRUE" | "ALLOW":
                 return False
             case _:
                 return True
