@@ -13,7 +13,6 @@ from restai.project import Project
 from transformers import pipeline
 from llama_index.core.tools import FunctionTool
 from restai import config
-from restai.config import REDIS_HOST, REDIS_PORT
 from llama_index.storage.chat_store.redis import RedisChatStore
 from llama_index.core.storage.chat_store import SimpleChatStore
 from llama_index.core.storage.chat_store.base import BaseChatStore
@@ -40,10 +39,14 @@ class Brain:
             self.audio_generators: list[FunctionTool] = tools.load_audio_generators()
 
         self.chat_store: BaseChatStore
-        if REDIS_HOST is not None:
-            self.chat_store = RedisChatStore(
-                redis_url=f"redis://{REDIS_HOST}:{REDIS_PORT}"
-            )
+        self.reinit_chat_store()
+
+    def reinit_chat_store(self):
+        if config.REDIS_HOST:
+            auth = f":{config.REDIS_PASSWORD}@" if config.REDIS_PASSWORD else ""
+            db = f"/{config.REDIS_DATABASE}" if config.REDIS_DATABASE and config.REDIS_DATABASE != "0" else ""
+            redis_url = f"redis://{auth}{config.REDIS_HOST}:{config.REDIS_PORT or '6379'}{db}"
+            self.chat_store = RedisChatStore(redis_url=redis_url)
         else:
             self.chat_store = SimpleChatStore()
 

@@ -782,6 +782,10 @@ class SettingsResponse(BaseModel):
     agent_max_iterations: int = Field(description="Maximum iterations for agent project execution")
     max_audio_upload_size: int = Field(description="Maximum audio upload file size in bytes")
     currency: str = Field(default="EUR", description="Currency code for cost display (e.g. 'EUR', 'USD')")
+    redis_host: Optional[str] = Field(default="", description="Redis host for chat history persistence")
+    redis_port: Optional[str] = Field(default="6379", description="Redis port")
+    redis_password: Optional[str] = Field(default="", description="Redis password (masked)")
+    redis_database: Optional[str] = Field(default="0", description="Redis database number")
 
 
 class SettingsUpdate(BaseModel):
@@ -795,6 +799,10 @@ class SettingsUpdate(BaseModel):
     agent_max_iterations: Optional[int] = Field(default=None, description="Maximum iterations for agent project execution")
     max_audio_upload_size: Optional[int] = Field(default=None, description="Maximum audio upload file size in bytes")
     currency: Optional[str] = Field(default=None, description="Currency code for cost display (e.g. 'EUR', 'USD')")
+    redis_host: Optional[str] = Field(default=None, description="Redis host for chat history persistence")
+    redis_port: Optional[str] = Field(default=None, description="Redis port")
+    redis_password: Optional[str] = Field(default=None, description="Redis password")
+    redis_database: Optional[str] = Field(default=None, description="Redis database number")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "app_name": "My AI Platform",

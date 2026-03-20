@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from restai.auth import get_current_username_admin
 from restai.database import DBWrapper, get_db_wrapper
@@ -20,6 +20,7 @@ async def get_settings(
 @router.patch("/settings", response_model=SettingsResponse)
 async def patch_settings(
     body: SettingsUpdate,
+    request: Request,
     user=Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -48,11 +49,20 @@ async def patch_settings(
             if not value or value.startswith("****"):
                 continue
 
+        # Skip redis_password if it's masked or empty
+        if key == "redis_password":
+            if not value or value.startswith("****"):
+                continue
+
         if isinstance(value, bool):
             update_setting(db_wrapper, key, "true" if value else "false")
         elif isinstance(value, int):
             update_setting(db_wrapper, key, str(value))
         else:
             update_setting(db_wrapper, key, value)
+
+    redis_fields = {"redis_host", "redis_port", "redis_password", "redis_database"}
+    if redis_fields & updates.keys():
+        request.app.state.brain.reinit_chat_store()
 
     return get_all_settings(db_wrapper)

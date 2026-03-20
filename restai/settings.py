@@ -14,6 +14,10 @@ SETTINGS_DEFAULTS = {
     "agent_max_iterations": ("AGENT_MAX_ITERATIONS", "20"),
     "max_audio_upload_size": ("MAX_AUDIO_UPLOAD_SIZE", "10"),
     "currency": ("CURRENCY", "EUR"),
+    "redis_host": ("REDIS_HOST", ""),
+    "redis_port": ("REDIS_PORT", "6379"),
+    "redis_password": ("REDIS_PASSWORD", ""),
+    "redis_database": ("REDIS_DATABASE", "0"),
 }
 
 # Which config attrs map to which setting keys
@@ -26,6 +30,10 @@ _CONFIG_ATTR_MAP = {
     "agent_max_iterations": "AGENT_MAX_ITERATIONS",
     "max_audio_upload_size": "MAX_AUDIO_UPLOAD_SIZE",
     "currency": "CURRENCY",
+    "redis_host": "REDIS_HOST",
+    "redis_port": "REDIS_PORT",
+    "redis_password": "REDIS_PASSWORD",
+    "redis_database": "REDIS_DATABASE",
 }
 
 _BOOL_KEYS = {"hide_branding", "proxy_enabled"}
@@ -105,4 +113,8 @@ def get_all_settings(db_wrapper) -> dict:
         "agent_max_iterations": int(rows.get("agent_max_iterations", "20")),
         "max_audio_upload_size": int(rows.get("max_audio_upload_size", "10")),
         "currency": rows.get("currency", "EUR"),
+        "redis_host": rows.get("redis_host", ""),
+        "redis_port": rows.get("redis_port", "6379"),
+        "redis_password": mask_key(rows.get("redis_password", "")),
+        "redis_database": rows.get("redis_database", "0"),
     }

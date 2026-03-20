@@ -99,6 +99,8 @@ HF_TOKEN = os.environ.get("HF_TOKEN")
 
 REDIS_HOST = os.environ.get("REDIS_HOST")
 REDIS_PORT = os.environ.get("REDIS_PORT")
+REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD")
+REDIS_DATABASE = os.environ.get("REDIS_DATABASE")
 
 CHROMADB_HOST = os.environ.get("CHROMADB_HOST")
 CHROMADB_PORT = os.environ.get("CHROMADB_PORT")

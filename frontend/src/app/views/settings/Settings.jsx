@@ -8,7 +8,7 @@ import Breadcrumb from "app/components/Breadcrumb";
 import { toast } from "react-toastify";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 import api from "app/utils/api";
-import { Settings as SettingsIcon } from "@mui/icons-material";
+import { Settings as SettingsIcon, Storage } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
 
 const Container = styled("div")(({ theme }) => ({
@@ -40,7 +40,11 @@ export default function SettingsPage() {
     proxy_team_id: "",
     agent_max_iterations: 20,
     max_audio_upload_size: 10,
-    currency: "EUR"
+    currency: "EUR",
+    redis_host: "",
+    redis_port: "6379",
+    redis_password: "",
+    redis_database: "0"
   });
   const [saving, setSaving] = useState(false);
 
@@ -216,6 +220,60 @@ export default function SettingsPage() {
                       value={form.max_audio_upload_size}
                       onChange={handleChange("max_audio_upload_size")}
                     />
+                  </Grid>
+                </Grid>
+              </Box>
+            </Card>
+          </Grid>
+
+          {/* Chat History (Redis) */}
+          <Grid item xs={12}>
+            <Card elevation={3}>
+              <FlexBox>
+                <Storage sx={{ ml: 2 }} />
+                <H4 sx={{ p: 2 }}>Chat History (Redis)</H4>
+              </FlexBox>
+              <Divider />
+              <Box sx={{ p: 3 }}>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Redis Host"
+                      placeholder="Leave empty for in-memory"
+                      value={form.redis_host}
+                      onChange={handleChange("redis_host")}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Redis Port"
+                      value={form.redis_port}
+                      onChange={handleChange("redis_port")}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Redis Password"
+                      type="password"
+                      value={form.redis_password}
+                      onChange={handleChange("redis_password")}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Redis Database"
+                      value={form.redis_database}
+                      onChange={handleChange("redis_database")}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="caption" color="text.secondary">
+                      Configure Redis for persistent chat history. Leave host empty to use in-memory storage.
+                    </Typography>
                   </Grid>
                 </Grid>
               </Box>
