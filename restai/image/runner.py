@@ -37,7 +37,12 @@ def generate(manager, worker, imageModel, options: dict = None, venv_python: str
             # Project root is 3 levels up from this file (restai/restai/image/runner.py)
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             env["PYTHONPATH"] = project_root
-            
+
+            # Set CUDA_VISIBLE_DEVICES from settings if configured
+            from restai import config
+            if config.GPU_WORKER_DEVICES:
+                env["CUDA_VISIBLE_DEVICES"] = config.GPU_WORKER_DEVICES
+
             result = subprocess.run([
                 venv_python,
                 os.path.join(os.path.dirname(__file__), "worker_entry.py"),

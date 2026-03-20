@@ -816,6 +816,7 @@ class SettingsResponse(BaseModel):
     sso_oidc_email_claim: Optional[str] = Field(default="email", description="OIDC email claim field")
     # GPU
     gpu_enabled: bool = Field(default=False, description="Whether GPU features are enabled")
+    gpu_worker_devices: Optional[str] = Field(default="", description="Comma-separated GPU indices for worker processes (e.g. '0,1')")
 
 
 class SettingsUpdate(BaseModel):
@@ -863,6 +864,7 @@ class SettingsUpdate(BaseModel):
     sso_oidc_email_claim: Optional[str] = Field(default=None, description="OIDC email claim field")
     # GPU
     gpu_enabled: Optional[bool] = Field(default=None, description="Whether GPU features are enabled")
+    gpu_worker_devices: Optional[str] = Field(default=None, description="Comma-separated GPU indices for worker processes (e.g. '0,1')")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "app_name": "My AI Platform",

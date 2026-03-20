@@ -59,7 +59,12 @@ def generate(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             )
             env["PYTHONPATH"] = project_root
-            
+
+            # Set CUDA_VISIBLE_DEVICES from settings if configured
+            from restai import config
+            if config.GPU_WORKER_DEVICES:
+                env["CUDA_VISIBLE_DEVICES"] = config.GPU_WORKER_DEVICES
+
             if hasattr(module, "get_environment_variables"):
                 env_vars = module.get_environment_variables()
                 if isinstance(env_vars, dict):

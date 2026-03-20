@@ -3,7 +3,7 @@ import {
   Grid, styled, Box, Card, Divider, TextField, Button,
   Switch, FormControlLabel, Typography, Select, MenuItem, InputLabel, FormControl,
   Collapse, IconButton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Chip, LinearProgress
+  Chip, LinearProgress, Checkbox, FormGroup
 } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
@@ -77,6 +77,7 @@ export default function SettingsPage() {
     sso_oidc_email_claim: "email",
     // GPU
     gpu_enabled: false,
+    gpu_worker_devices: "",
   });
   const [saving, setSaving] = useState(false);
   const [gpuInfo, setGpuInfo] = useState([]);
@@ -667,6 +668,7 @@ export default function SettingsPage() {
                           <Table size="small">
                             <TableHead>
                               <TableRow>
+                                <TableCell padding="checkbox">Workers</TableCell>
                                 <TableCell>#</TableCell>
                                 <TableCell>Name</TableCell>
                                 <TableCell>Memory (Total)</TableCell>
@@ -679,22 +681,57 @@ export default function SettingsPage() {
                               </TableRow>
                             </TableHead>
                             <TableBody>
-                              {gpuInfo.map((gpu) => (
-                                <TableRow key={gpu.index}>
-                                  <TableCell>{gpu.index}</TableCell>
-                                  <TableCell><strong>{gpu.name}</strong></TableCell>
-                                  <TableCell>{gpu.memory_total}</TableCell>
-                                  <TableCell>{gpu.memory_used}</TableCell>
-                                  <TableCell>{gpu.memory_free}</TableCell>
-                                  <TableCell>{gpu.temperature}</TableCell>
-                                  <TableCell>{gpu.utilization}</TableCell>
-                                  <TableCell>{gpu.power_draw} / {gpu.power_limit}</TableCell>
-                                  <TableCell><Typography variant="caption">{gpu.pci_bus_id}</Typography></TableCell>
-                                </TableRow>
-                              ))}
+                              {gpuInfo.map((gpu) => {
+                                const selectedDevices = (form.gpu_worker_devices || "").split(",").filter(Boolean);
+                                const gpuIdx = String(gpu.index);
+                                const isSelected = selectedDevices.length === 0 || selectedDevices.includes(gpuIdx);
+                                const handleToggleDevice = () => {
+                                  let next;
+                                  if (selectedDevices.length === 0) {
+                                    // Currently "all" — toggling one off means select all others
+                                    next = gpuInfo.map((g) => String(g.index)).filter((i) => i !== gpuIdx);
+                                  } else if (isSelected) {
+                                    next = selectedDevices.filter((i) => i !== gpuIdx);
+                                  } else {
+                                    next = [...selectedDevices, gpuIdx].sort();
+                                  }
+                                  // If all are selected or none remain, store empty string (meaning "all")
+                                  const allIndices = gpuInfo.map((g) => String(g.index)).sort().join(",");
+                                  const nextStr = next.sort().join(",");
+                                  setForm((prev) => ({
+                                    ...prev,
+                                    gpu_worker_devices: nextStr === allIndices ? "" : nextStr,
+                                  }));
+                                };
+                                return (
+                                  <TableRow key={gpu.index}>
+                                    <TableCell padding="checkbox">
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onChange={handleToggleDevice}
+                                        size="small"
+                                      />
+                                    </TableCell>
+                                    <TableCell>{gpu.index}</TableCell>
+                                    <TableCell><strong>{gpu.name}</strong></TableCell>
+                                    <TableCell>{gpu.memory_total}</TableCell>
+                                    <TableCell>{gpu.memory_used}</TableCell>
+                                    <TableCell>{gpu.memory_free}</TableCell>
+                                    <TableCell>{gpu.temperature}</TableCell>
+                                    <TableCell>{gpu.utilization}</TableCell>
+                                    <TableCell>{gpu.power_draw} / {gpu.power_limit}</TableCell>
+                                    <TableCell><Typography variant="caption">{gpu.pci_bus_id}</Typography></TableCell>
+                                  </TableRow>
+                                );
+                              })}
                             </TableBody>
                           </Table>
                         </TableContainer>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+                          {form.gpu_worker_devices
+                            ? `Workers will use GPU(s): ${form.gpu_worker_devices}`
+                            : "Workers will use all available GPUs"}
+                        </Typography>
                       </>
                     )}
                   </Grid>

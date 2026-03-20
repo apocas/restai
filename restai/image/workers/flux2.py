@@ -1,6 +1,5 @@
 import os
 
-# os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
 
 def get_python_executable():
     current_file_path = os.path.abspath(__file__)

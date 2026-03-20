@@ -48,6 +48,7 @@ SETTINGS_DEFAULTS = {
     "sso_oidc_email_claim": ("OAUTH_EMAIL_CLAIM", "email"),
     # GPU
     "gpu_enabled": (None, None),  # default derived at seed time
+    "gpu_worker_devices": ("GPU_WORKER_DEVICES", ""),
 }
 
 # Which config attrs map to which setting keys
@@ -94,6 +95,7 @@ _CONFIG_ATTR_MAP = {
     "sso_oidc_email_claim": "OAUTH_EMAIL_CLAIM",
     # GPU
     "gpu_enabled": "RESTAI_GPU",
+    "gpu_worker_devices": "GPU_WORKER_DEVICES",
 }
 
 _BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "gpu_enabled"}
@@ -220,6 +222,7 @@ def get_all_settings(db_wrapper) -> dict:
         "sso_oidc_email_claim": rows.get("sso_oidc_email_claim", "email"),
         # GPU
         "gpu_enabled": _to_bool(rows.get("gpu_enabled", "false")),
+        "gpu_worker_devices": rows.get("gpu_worker_devices", ""),
     }
 
 

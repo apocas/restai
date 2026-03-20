@@ -208,6 +208,7 @@ elif _gpu_env in ("false", "0"):
 else:
     RESTAI_GPU = detect_gpu()
 RESTAI_DEFAULT_DEVICE = os.environ.get("RESTAI_DEFAULT_DEVICE")
+GPU_WORKER_DEVICES = os.environ.get("GPU_WORKER_DEVICES", "")
 
 EMBEDDINGS_PATH = os.environ.get("EMBEDDINGS_PATH")
 
