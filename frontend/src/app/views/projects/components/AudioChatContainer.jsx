@@ -365,19 +365,25 @@ export default function ImageChatContainer({
               </Tooltip>
             </Box>
           )}
-          <AudioRecorder
-            onRecordingComplete={record_complete}
-            audioTrackConstraints={{
-              noiseSuppression: true,
-              echoCancellation: true,
-            }}
-            onNotAllowedOrFound={(err) => console.table(err)}
-            downloadOnSavePress={false}
-            downloadFileExtension="webm"
-            mediaRecorderOptions={{
-              audioBitsPerSecond: 128000,
-            }}
-          />
+          {navigator.mediaDevices ? (
+            <AudioRecorder
+              onRecordingComplete={record_complete}
+              audioTrackConstraints={{
+                noiseSuppression: true,
+                echoCancellation: true,
+              }}
+              onNotAllowedOrFound={(err) => console.table(err)}
+              downloadOnSavePress={false}
+              downloadFileExtension="webm"
+              mediaRecorderOptions={{
+                audioBitsPerSecond: 128000,
+              }}
+            />
+          ) : (
+            <Tooltip title="Microphone requires HTTPS">
+              <MusicNote sx={{ fontSize: '3.5rem', color: '#bbb', cursor: 'default' }} />
+            </Tooltip>
+          )}
           <Fragment>
             <label htmlFor="upload-single-file">
               <Fab
