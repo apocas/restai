@@ -6,9 +6,14 @@ import {
   TableCell,
   TableRow,
 } from "@mui/material";
+import { Box, styled } from "@mui/material";
 import ViewInArIcon from "@mui/icons-material/ViewInAr";
-import { FlexBox } from "app/components/FlexBox";
 import { H4 } from "app/components/Typography";
+
+const FlexBox = styled(Box)({
+  display: "flex",
+  alignItems: "center"
+});
 
 export default function ProjectBlock({ project }) {
   const workspace = project.options?.blockly_workspace;

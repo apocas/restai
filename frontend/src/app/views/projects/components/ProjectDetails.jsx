@@ -45,9 +45,11 @@ export default function ProjectDetails({ project, projects, info }) {
           <ProjectInfo project={project} projects={projects} />
         </Grid>
 
-        <Grid item lg={8} md={6} xs={12}>
-          <ProjectAI project={project} projects={projects} />
-        </Grid>
+        {project.type !== "block" && (
+          <Grid item lg={8} md={6} xs={12}>
+            <ProjectAI project={project} projects={projects} />
+          </Grid>
+        )}
 
         <Grid item lg={4} md={6} xs={12}>
           <ProjectSecurity project={project} projects={projects} info={info} />

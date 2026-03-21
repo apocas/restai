@@ -50,7 +50,7 @@ def worker(prompt, sharedmem):
     kwargs = {
         "prompt": prompt,
         "generator": torch.Generator(device=device).manual_seed(0),
-        "num_inference_steps": 20,
+        "num_inference_steps": 15,
         "guidance_scale": 4,
     }
 
