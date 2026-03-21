@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD033 -->
 
 <h1 align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai-logo.png?raw=true" alt="RESTai Logo" width="120"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai-logo.png" alt="RESTai Logo" width="120"/>
   <br/>RESTai
 </h1>
 
@@ -22,7 +22,7 @@
 </p>
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/home.png?raw=true" width="800" alt="RESTai Dashboard"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/home.png" width="800" alt="RESTai Dashboard"/>
 </div>
 
 ---
@@ -61,7 +61,7 @@ docker compose --env-file .env up --build
 Track token usage, costs, and project activity from a centralized dashboard. Daily charts, top projects, and LLM distribution at a glance.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/home.png?raw=true" width="750" alt="RESTai Dashboard"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/home.png" width="750" alt="RESTai Dashboard"/>
 </div>
 
 ### Projects & Chat Playground
@@ -69,11 +69,11 @@ Track token usage, costs, and project activity from a centralized dashboard. Dai
 Create and manage AI projects. Each project has its own LLM, system prompt, tools, and configuration. Test instantly in the built-in chat playground.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/projects.png?raw=true" width="750" alt="RESTai Projects"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/projects.png" width="750" alt="RESTai Projects"/>
 </div>
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/playground.png?raw=true" width="750" alt="RESTai Playground"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/playground.png" width="750" alt="RESTai Playground"/>
 </div>
 
 ### RAG (Retrieval-Augmented Generation)
@@ -81,7 +81,7 @@ Create and manage AI projects. Each project has its own LLM, system prompt, tool
 Upload documents and query them with LLM-powered retrieval. Supports multiple vector stores, reranking (ColBERT / LLM-based), sandboxed mode to reduce hallucination, and evaluation via [deepeval](https://github.com/confident-ai/deepeval).
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/rag.png?raw=true" width="750" alt="RESTai RAG"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/rag.png" width="750" alt="RESTai RAG"/>
 </div>
 
 ### RAGSQL (Natural Language to SQL)
@@ -89,7 +89,7 @@ Upload documents and query them with LLM-powered retrieval. Supports multiple ve
 Connect a MySQL or PostgreSQL database — RESTai crawls the schema and translates natural language questions into SQL queries automatically.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/ragsql.jpg?raw=true" width="750" alt="RESTai RAGSQL"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/ragsql.jpg" width="750" alt="RESTai RAGSQL"/>
 </div>
 
 ### Agents + MCP
@@ -97,8 +97,8 @@ Connect a MySQL or PostgreSQL database — RESTai crawls the schema and translat
 Zero-shot ReAct agents with built-in tools and [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server support for extensible tool access. Connect any MCP-compatible server via HTTP/SSE or stdio.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent1.png?raw=true" width="40%" alt="RESTai Agent"/>
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent2.png?raw=true" width="40%" alt="RESTai Agent Tools"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent1.png" width="40%" alt="RESTai Agent"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent2.png" width="40%" alt="RESTai Agent Tools"/>
 </div>
 
 ### Inference (Multimodal)
@@ -106,7 +106,7 @@ Zero-shot ReAct agents with built-in tools and [MCP (Model Context Protocol)](ht
 Direct LLM chat and completion. Supports sending images alongside text using any vision-capable model (LLaVA, Gemini, GPT-4o, etc.).
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/inference.png?raw=true" width="750" alt="RESTai Inference"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/inference.png" width="750" alt="RESTai Inference"/>
 </div>
 
 ### Router
@@ -114,7 +114,7 @@ Direct LLM chat and completion. Supports sending images alongside text using any
 Routes queries to the most suitable project automatically. Similar to a zero-shot ReAct strategy, but each route is a project scored by relevance.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/router.png?raw=true" width="750" alt="RESTai Router"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/router.png" width="750" alt="RESTai Router"/>
 </div>
 
 ### Block (Visual Logic Builder)
@@ -124,7 +124,7 @@ Build processing logic visually using a Blockly-based IDE — no LLM required. D
 **Supported blocks:** text operations, math, logic, variables, loops, and custom RESTai blocks (Get Input, Set Output, Call Project, Log).
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/block.png?raw=true" width="750" alt="RESTai Block IDE"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/block.png" width="750" alt="RESTai Block IDE"/>
 </div>
 
 ### Image Generation
@@ -132,9 +132,9 @@ Build processing logic visually using a Blockly-based IDE — no LLM required. D
 Local and remote image generators loaded dynamically. Supports Stable Diffusion, Flux, DALL-E, RMBG2, and more.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/flux1.png?raw=true" width="45%" alt="Flux1"/>
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/vision_sd.png?raw=true" width="22%" alt="Stable Diffusion"/>
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/rmbg2.png?raw=true" width="22%" alt="RMBG2"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/flux1.png" width="45%" alt="Flux1"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/vision_sd.png" width="22%" alt="Stable Diffusion"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/rmbg2.png" width="22%" alt="RMBG2"/>
 </div>
 
 ### GPU Auto-Detection & Management
@@ -144,7 +144,7 @@ RESTai automatically detects NVIDIA GPUs at startup and displays detailed hardwa
 `make install` also detects GPUs automatically and installs GPU dependencies when available.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/gpus.png?raw=true" width="750" alt="RESTai GPU Detection"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/gpus.png" width="750" alt="RESTai GPU Detection"/>
 </div>
 
 ### Direct Access (OpenAI-Compatible)
@@ -169,7 +169,7 @@ response = client.chat.completions.create(
 ```
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/directaccess.png?raw=true" width="750" alt="RESTai Direct Access"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/directaccess.png" width="750" alt="RESTai Direct Access"/>
 </div>
 
 ### Teams & Multi-tenancy
@@ -177,7 +177,7 @@ response = client.chat.completions.create(
 Each team has its own users, admins, projects, and LLM/embedding access controls — including image and audio generator permissions. Users can belong to multiple teams.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/teams.png?raw=true" width="750" alt="RESTai Teams"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/teams.png" width="750" alt="RESTai Teams"/>
 </div>
 
 ### Telegram Integration
@@ -189,7 +189,7 @@ Connect any project to Telegram via [BotFather](https://t.me/BotFather). Message
 White-label the UI, configure currency for cost tracking, set agent iteration limits, manage LLM proxy, and more.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/settings.png?raw=true" width="750" alt="RESTai Settings"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/settings.png" width="750" alt="RESTai Settings"/>
 </div>
 
 ---
@@ -212,7 +212,7 @@ Any LLM provider supported by LlamaIndex. Each model has a configurable context 
 | OpenAI-Compatible | `OpenAILike` | chat |
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/llms.png?raw=true" width="750" alt="RESTai LLMs"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/llms.png" width="750" alt="RESTai LLMs"/>
 </div>
 
 ---
@@ -318,7 +318,7 @@ See `chart/restai/` for full Helm values and configuration options.
 No state stored in the RESTai service — ideal for horizontal scaling.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai_stateless.png?raw=true" width="750" alt="RESTai Stateless Architecture"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai_stateless.png" width="750" alt="RESTai Stateless Architecture"/>
 </div>
 
 ### Stateful (Development)
@@ -326,7 +326,7 @@ No state stored in the RESTai service — ideal for horizontal scaling.
 Direct interaction with the GPU layer — ideal for small deployments.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai_stateful.png?raw=true" width="750" alt="RESTai Stateful Architecture"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/restai_stateful.png" width="750" alt="RESTai Stateful Architecture"/>
 </div>
 
 ---
