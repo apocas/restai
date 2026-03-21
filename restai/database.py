@@ -378,10 +378,11 @@ class DBWrapper:
         if team is None:
             return None
             
-        # Validate that the team has access to the specified LLM
-        llm_db = self.get_llm_by_name(llm)
-        if llm_db is None or llm_db not in team.llms:
-            return None
+        # Validate that the team has access to the specified LLM (block projects don't need one)
+        if llm:
+            llm_db = self.get_llm_by_name(llm)
+            if llm_db is None or llm_db not in team.llms:
+                return None
             
         # If embeddings are specified, validate that the team has access to it
         if embeddings:

@@ -9,6 +9,7 @@ import RAGBrowser from "./RAGBrowser";
 import RAGRetrieval from "./RAGRetrieval";
 import ProjectAgent from "./ProjectAgent";
 import RouterDetails from "./RouterDetails";
+import ProjectBlock from "./ProjectBlock";
 import ProjectSecurity from "./ProjectSecurity";
 import { useState, useEffect } from "react";
 import useAuth from "app/hooks/useAuth";
@@ -78,6 +79,11 @@ export default function ProjectDetails({ project, projects, info }) {
         {project.type === "router" && (
           <Grid item lg={8} md={6} xs={12}>
             <RouterDetails project={project} projects={projects} />
+          </Grid>
+        )}
+        {project.type === "block" && (
+          <Grid item lg={4} md={6} xs={12}>
+            <ProjectBlock project={project} />
           </Grid>
         )}
 

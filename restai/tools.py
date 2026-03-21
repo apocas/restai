@@ -237,7 +237,14 @@ def get_logger(name: str, level=logging.INFO):
 
 
 def log_inference(project: Project, user: User, output, db: DBWrapper):
-    llm = LLMModel.model_validate(db.get_llm_by_name(project.props.llm))
+    input_cost = 0.0
+    output_cost = 0.0
+    if project.props.llm:
+        llm_db = db.get_llm_by_name(project.props.llm)
+        if llm_db is not None:
+            llm = LLMModel.model_validate(llm_db)
+            input_cost = (output["tokens"]["input"] * llm.input_cost) / 1000000
+            output_cost = (output["tokens"]["output"] * llm.output_cost) / 1000000
 
     output_db_entry = OutputDatabase(
         user_id=user.id,
@@ -248,8 +255,8 @@ def log_inference(project: Project, user: User, output, db: DBWrapper):
         project_id=project.props.id,
         input_tokens=output["tokens"]["input"],
         output_tokens=output["tokens"]["output"],
-        input_cost=(output["tokens"]["input"] * llm.input_cost) / 1000000,
-        output_cost=(output["tokens"]["output"] * llm.output_cost) / 1000000,
+        input_cost=input_cost,
+        output_cost=output_cost,
     )
 
     if "id" in output:

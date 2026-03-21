@@ -17,7 +17,7 @@ import { H4, Small } from "app/components/Typography";
 import { FlexBetween, FlexBox } from "app/components/FlexBox";
 import { Edit } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { SportsEsports, Delete, Code, Article } from "@mui/icons-material";
+import { SportsEsports, Delete, Code, Article, ViewInAr } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import sha256 from 'crypto-js/sha256';
 import BAvatar from "boring-avatars";
@@ -120,6 +120,11 @@ export default function ProjectInfo({ project, projects }) {
         <Button variant="outlined" onClick={() => { navigate("/project/" + project.id + "/edit") }} startIcon={<Edit fontSize="small" />}>
           Edit
         </Button>
+        {project.type === "block" && (
+          <Button variant="outlined" onClick={() => { navigate("/project/" + project.id + "/ide") }} startIcon={<ViewInAr fontSize="small" />}>
+            IDE
+          </Button>
+        )}
         <Button variant="outlined" color="error" onClick={handleDeleteClick} startIcon={<Delete fontSize="small" />}>
           Delete
         </Button>

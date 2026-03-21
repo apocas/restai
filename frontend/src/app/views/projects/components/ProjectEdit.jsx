@@ -449,7 +449,7 @@ export default function ProjectEdit({ project, projects, info }) {
               <Divider sx={{ mb: 1 }} />
             </Grid>
 
-            {state.llm !== undefined && (
+            {state.llm !== undefined && state.type !== "block" && (
               <Grid item sm={6} xs={12}>
                 <TextField
                   fullWidth
@@ -483,7 +483,7 @@ export default function ProjectEdit({ project, projects, info }) {
               </Grid>
             )}
 
-            {(state.type === "rag" || state.type === "inference" || state.type === "ragsql" || state.type === "agent") && (
+            {(state.type === "rag" || state.type === "inference" || state.type === "ragsql" || state.type === "agent") && state.type !== "block" && (
               <Grid item sm={6} xs={12}>
                 <TextField
                   fullWidth

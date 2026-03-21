@@ -6,6 +6,7 @@ from fastapi import BackgroundTasks
 from restai.database import DBWrapper
 from restai.project import Project
 from restai.projects.agent import Agent
+from restai.projects.block import Block
 from restai.projects.inference import Inference
 from restai.projects.rag import RAG
 from restai.projects.ragsql import RAGSql
@@ -107,6 +108,8 @@ async def chat_main(
                 chat_input.image = resolve_image(chat_input.image)
         case "agent":
             proj_logic = Agent(brain)
+        case "block":
+            proj_logic = Block(brain)
         case _:
             raise HTTPException(status_code=400, detail="Invalid project type")
 
@@ -160,6 +163,10 @@ async def question_main(
             )
         case "agent":
             return await question_agent(
+                brain, project, q_input, user, db, background_tasks
+            )
+        case "block":
+            return await question_block(
                 brain, project, q_input, user, db, background_tasks
             )
         case _:
@@ -359,6 +366,34 @@ async def question_query_sql(
         background_tasks.add_task(log_inference, project, user, output, db)
 
         return output
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+async def question_block(
+    brain: Brain,
+    project: Project,
+    q_input: QuestionModel,
+    user: User,
+    db: DBWrapper,
+    background_tasks: BackgroundTasks,
+):
+    try:
+        proj_logic = Block(brain)
+
+        if project.props.type != "block":
+            raise HTTPException(
+                status_code=400, detail="Only available for BLOCK projects."
+            )
+
+        output_generator = proj_logic.question(project, q_input, user, db)
+        async for line in output_generator:
+            background_tasks.add_task(log_inference, project, user, line, db)
+            return line
+
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

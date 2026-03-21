@@ -373,6 +373,7 @@ async def route_create_project(
         "router",
         "ragsql",
         "agent",
+        "block",
     ]:
         raise HTTPException(status_code=404, detail="Invalid project type")
 
@@ -403,17 +404,19 @@ async def route_create_project(
                 detail="Demo mode, not allowed to create this type of projects.",
             )
 
-    # Validate LLM exists
-    llm_model = request.app.state.brain.get_llm(projectModel.llm, db_wrapper)
-    if llm_model is None:
-        raise HTTPException(status_code=404, detail="LLM not found")
+    # Block projects don't require an LLM
+    if projectModel.type != "block":
+        # Validate LLM exists
+        llm_model = request.app.state.brain.get_llm(projectModel.llm, db_wrapper)
+        if llm_model is None:
+            raise HTTPException(status_code=404, detail="LLM not found")
 
-    # Validate team has access to the LLM
-    if llm_model.props.name not in [llm.name for llm in team.llms]:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Team does not have access to LLM '{projectModel.llm}'",
-        )
+        # Validate team has access to the LLM
+        if llm_model.props.name not in [llm.name for llm in team.llms]:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Team does not have access to LLM '{projectModel.llm}'",
+            )
 
     # Validate embeddings for RAG projects
     if projectModel.type == "rag":
@@ -448,7 +451,7 @@ async def route_create_project(
     ):
         raise HTTPException(status_code=403, detail="Project already exists")
 
-    if user.is_private and llm_model.props.privacy != "private":
+    if projectModel.type != "block" and user.is_private and llm_model.props.privacy != "private":
         raise HTTPException(
             status_code=403, detail="User not allowed to use public models"
         )

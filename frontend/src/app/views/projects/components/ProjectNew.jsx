@@ -22,7 +22,7 @@ import BAvatar from "boring-avatars";
 const Form = styled("form")(() => ({ padding: "16px" }));
 
 export default function ProjectNew({ projects, info }) {
-  const typeList = ["rag", "inference", "agent", "ragsql", "router"];
+  const typeList = ["rag", "inference", "agent", "ragsql", "router", "block"];
   var vectorstoreList = info.vectorstores || ["chroma"];
   const auth = useAuth();
   const navigate = useNavigate();
@@ -90,8 +90,11 @@ export default function ProjectNew({ projects, info }) {
 
     var opts = {
       "name": state.projectname,
-      "llm": state.projectllm,
       "type": state.projecttype
+    }
+
+    if (state.projecttype !== "block") {
+      opts.llm = state.projectllm;
     }
 
     if (state.projecttype === "rag") {
@@ -195,7 +198,7 @@ export default function ProjectNew({ projects, info }) {
                 </>
               )}
 
-              {selectedTeam && state.projecttype && (
+              {selectedTeam && state.projecttype && state.projecttype !== "block" && (
                 <>
                   <Grid item md={2} sm={4} xs={12}>
                     LLM

@@ -292,6 +292,7 @@ class ProjectOptions(BaseModel):
     connection: Union[str, None] = Field(default=None, description="Database connection string for RAG-SQL projects")
     mcp_servers: Union[list[MCPServer], None] = Field(default=None, description="List of MCP server configurations for agent projects")
     telegram_token: Union[str, None] = Field(default=None, description="Telegram bot token for Telegram integration")
+    blockly_workspace: Union[dict, None] = Field(default=None, description="Blockly workspace JSON for block projects")
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -300,8 +301,8 @@ class ProjectBaseModel(BaseModel):
     id: int = Field(description="Unique project identifier")
     name: str = Field(description="URL-friendly project name (used in API paths)")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model used for this project")
-    llm: str = Field(description="Name of the LLM used for this project")
-    type: str = Field(description="Project type: 'rag', 'inference', 'agent', 'vision', 'router', or 'ragsql'")
+    llm: Union[str, None] = Field(default=None, description="Name of the LLM used for this project")
+    type: str = Field(description="Project type: 'rag', 'inference', 'agent', 'vision', 'router', 'ragsql', or 'block'")
     system: Union[str, None] = Field(default=None, description="System prompt for the LLM")
     censorship: Union[str, None] = Field(default=None, description="Censorship message returned when the guard rejects a query")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")
@@ -339,8 +340,8 @@ class ProjectModelCreate(BaseModel):
     """Create a new AI project."""
     name: str = Field(description="URL-friendly project name (must be unique)")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model (required for RAG projects)")
-    llm: str = Field(description="Name of the LLM to use")
-    type: str = Field(description="Project type: 'rag', 'inference', 'agent', 'vision', 'router', or 'ragsql'")
+    llm: Union[str, None] = Field(default=None, description="Name of the LLM to use (not required for block projects)")
+    type: str = Field(description="Project type: 'rag', 'inference', 'agent', 'vision', 'router', 'ragsql', or 'block'")
     human_name: Union[str, None] = Field(default=None, description="Human-readable display name")
     human_description: Union[str, None] = Field(default=None, description="Human-readable project description")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")
