@@ -338,7 +338,7 @@ app = FastAPI(
     title=config.RESTAI_NAME,
     description="""RESTai is an AIaaS (AI as a Service) platform. Create AI projects and consume them via REST API.
 
-Supports multiple project types: **RAG**, **Inference**, **Agent**, **Vision**, and **Block**.
+Supports multiple project types: **RAG**, **Inference**, **Agent**, and **Block**.
 
 ## Authentication
 
