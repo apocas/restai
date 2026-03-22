@@ -217,7 +217,6 @@ class RAG(ProjectBase):
 
                 output["answer"] = response.response
                 output["sources"] = [response.metadata['sql_query']]
-                output["type"] = "questionsql"
                 output["tokens"] = {
                     "input": tokens_from_string(output["question"]),
                     "output": tokens_from_string(output["answer"])
