@@ -125,6 +125,8 @@ export default function ProjectEdit({ project, projects, info }) {
       opts.options.k = parseInt(state.options.k) || 4
       opts.options.cache = state.options.cache
       opts.options.cache_threshold = parseFloat(state.options.cache_threshold) || 0
+      opts.options.connection = state.options.connection || null
+      opts.options.tables = state.options.tables || null
 
       if (opts.censorship.trim() === "") {
         delete opts.options.censorship;
@@ -234,6 +236,9 @@ export default function ProjectEdit({ project, projects, info }) {
     }
     else if (event.target.name === "telegram_token") {
       setState({ ...state, options: { ...state.options, telegram_token: event.target.value } });
+    }
+    else if (event.target.name === "connection" || event.target.name === "tables") {
+      setState({ ...state, options: { ...state.options, [event.target.name]: event.target.value } });
     }
     else {
       setState({ ...state, [event.target.name]: (event.target.type === "checkbox" ? event.target.checked : event.target.value) });
@@ -770,6 +775,41 @@ export default function ProjectEdit({ project, projects, info }) {
                     }
                   />
                 </Grid>
+                <Grid item sm={12} xs={12}>
+                  <Divider sx={{ mb: 1 }} />
+                </Grid>
+                <Grid item sm={12} xs={12}>
+                  <Typography variant="subtitle1" gutterBottom>Natural Language to SQL</Typography>
+                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+                    Connect a database to translate natural language questions into SQL queries automatically.
+                  </Typography>
+                </Grid>
+                <Grid item sm={6} xs={12}>
+                  <TextField
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    name="connection"
+                    label="Database Connection String"
+                    variant="outlined"
+                    onChange={handleChange}
+                    value={state.options?.connection ?? ''}
+                    placeholder="mysql://user:pass@host/db or postgresql://user:pass@host/db"
+                    helperText="MySQL or PostgreSQL connection string"
+                  />
+                </Grid>
+                <Grid item sm={6} xs={12}>
+                  <TextField
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    name="tables"
+                    label="Allowed Tables"
+                    variant="outlined"
+                    onChange={handleChange}
+                    value={state.options?.tables ?? ''}
+                    placeholder="users, orders, products"
+                    helperText="Comma-separated list of tables to allow (leave empty for all)"
+                  />
+                </Grid>
               </Fragment>
             )}
 
@@ -812,7 +852,7 @@ export default function ProjectEdit({ project, projects, info }) {
               <Button type="submit" variant="contained">
                 Save Changes
               </Button>
-              <Button variant="outlined" sx={{ ml: 2 }} onClick={() => { navigate("/project/" + project.name) }}>
+              <Button variant="outlined" sx={{ ml: 2 }} onClick={() => { navigate("/project/" + project.id) }}>
                 Cancel
               </Button>
             </Grid>
