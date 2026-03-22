@@ -1,4 +1,4 @@
-from typing import Optional, AsyncGenerator, Any, Dict
+from typing import AsyncGenerator, Any, Dict
 
 from starlette.responses import StreamingResponse
 from requests import Response
@@ -10,7 +10,6 @@ from restai.projects.block import Block
 from restai.projects.inference import Inference
 from restai.projects.rag import RAG
 from restai.projects.ragsql import RAGSql
-from restai.projects.router import Router
 from restai.models.models import QuestionModel, User, ChatModel
 from restai.brain import Brain
 import requests
@@ -100,8 +99,6 @@ async def chat_main(
     match project.props.type:
         case "rag":
             proj_logic = RAG(brain)
-        case "router":
-            proj_logic = Router(brain)
         case "inference":
             proj_logic = Inference(brain)
             if chat_input.image:
@@ -155,10 +152,6 @@ async def question_main(
             )
         case "ragsql":
             return await question_query_sql(
-                request, brain, project, q_input, user, db, background_tasks
-            )
-        case "router":
-            return await question_router(
                 request, brain, project, q_input, user, db, background_tasks
             )
         case "agent":
@@ -231,40 +224,6 @@ async def process_cache(project: Project, q_input: QuestionModel):
             return output
 
     return None
-
-
-async def question_router(
-    request: Request,
-    brain: Brain,
-    project: Project,
-    q_input: QuestionModel,
-    user: User,
-    db: DBWrapper,
-    background_tasks: BackgroundTasks,
-):
-    try:
-        projLogic = Router(brain)
-
-        if project.props.type != "router":
-            raise HTTPException(
-                status_code=400, detail="Only available for ROUTER projects."
-            )
-
-        proj_dest_name: str = projLogic.question(project, q_input, user, db)
-        proj_dest: Optional[Project] = brain.find_project(proj_dest_name, db)
-
-        if proj_dest is None:
-            raise HTTPException(status_code=404, detail="No destination project found.")
-        else:
-            return await question_main(
-                request, brain, proj_dest, q_input, user, db, background_tasks
-            )
-
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        logging.exception(e)
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def question_inference(

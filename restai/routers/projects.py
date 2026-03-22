@@ -172,9 +172,6 @@ async def route_get_project(
                 final_output["system"] = output["system"] or ""
             case "ragsql":
                 final_output["system"] = output["system"] or ""
-            case "router":
-                final_output["entrances"] = output["entrances"]
-
         if llm_model:
             final_output["llm_type"] = llm_model.props.type
             final_output["llm_privacy"] = llm_model.props.privacy
@@ -370,7 +367,6 @@ async def route_create_project(
     if projectModel.type not in [
         "rag",
         "inference",
-        "router",
         "ragsql",
         "agent",
         "block",
