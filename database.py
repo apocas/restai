@@ -19,7 +19,6 @@ from restai.models.databasemodels import (
     Base,
     LLMDatabase,
     ProjectDatabase,
-    RouterEntrancesDatabase,
     SettingDatabase,
     UserDatabase,
     EmbeddingDatabase,
@@ -153,12 +152,6 @@ else:
                 llm="llama31_8b",
                 creator=db_user.id
             )
-            demo_project3 = ProjectDatabase(
-                name="router1",
-                type="router",
-                llm="llama31_8b",
-                creator=db_user.id
-            )
             demo_project4 = ProjectDatabase(
                 name="rag1",
                 type="rag",
@@ -175,19 +168,12 @@ else:
             )
             dbi.add(demo_project1)
             dbi.add(demo_project2)
-            dbi.add(demo_project3)
             dbi.add(demo_project4)
             dbi.add(demo_project5)
             dbi.commit()
-            
-            demo_project3.entrances.append(RouterEntrancesDatabase(
-                name="choice1", description="The question is about the meaning of life.", destination="demo1", project_id=demo_project3.id))
-            demo_project3.entrances.append(RouterEntrancesDatabase(
-                name="choice2", description="The question is about anything.", destination="demo2", project_id=demo_project3.id))
-            
+
             demo_project1.users.append(db_user)
             demo_project2.users.append(db_user)
-            demo_project3.users.append(db_user)
             demo_project4.users.append(db_user)
             demo_project5.users.append(db_user)
             
@@ -219,7 +205,6 @@ else:
             # Associate the projects with the team
             demo_team.projects.append(demo_project1)
             demo_team.projects.append(demo_project2)
-            demo_team.projects.append(demo_project3)
             demo_team.projects.append(demo_project4)
             demo_team.projects.append(demo_project5)
             

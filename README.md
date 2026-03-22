@@ -45,7 +45,7 @@ docker compose --env-file .env up --build
 
 ## Why RESTai?
 
-- **Multi-project AI platform** — RAG, Agents, Routers, SQL-to-NL, Block (visual logic), and Inference in one place
+- **Multi-project AI platform** — RAG, Agents, SQL-to-NL, Block (visual logic), and Inference in one place
 - **Full Web UI included** — React dashboard with analytics, not just an API
 - **Any LLM** — OpenAI, Anthropic, Ollama, Gemini, Groq, LiteLLM, vLLM, Azure, and more
 - **Feature complete** — Teams, RBAC, OAuth/LDAP, token tracking, Kubernetes-native
@@ -107,14 +107,6 @@ Direct LLM chat and completion. Supports sending images alongside text using any
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/inference.png" width="750" alt="RESTai Inference"/>
-</div>
-
-### Router
-
-Routes queries to the most suitable project automatically. Similar to a zero-shot ReAct strategy, but each route is a project scored by relevance.
-
-<div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/router.png" width="750" alt="RESTai Router"/>
 </div>
 
 ### Block (Visual Logic Builder)

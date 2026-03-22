@@ -7,7 +7,6 @@ from restai.models.databasemodels import (
     EmbeddingDatabase,
     OutputDatabase,
     ProjectDatabase,
-    RouterEntrancesDatabase,
     SettingDatabase,
     UserDatabase,
     TeamDatabase,
@@ -534,19 +533,6 @@ class DBWrapper:
             and proj_db.default_prompt != projectModel.default_prompt
         ):
             proj_db.default_prompt = projectModel.default_prompt
-            changed = True
-
-        if projectModel.entrances is not None:
-            proj_db.entrances = []
-            for entrance in projectModel.entrances:
-                proj_db.entrances.append(
-                    RouterEntrancesDatabase(
-                        name=entrance.name,
-                        description=entrance.description,
-                        destination=entrance.destination,
-                        project_id=proj_db.id,
-                    )
-                )
             changed = True
 
         if hasattr(projectModel, "options") and projectModel.options is not None:

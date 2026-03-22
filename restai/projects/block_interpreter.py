@@ -243,6 +243,8 @@ class BlockInterpreter:
             return self.input_text
         if btype == "restai_call_project":
             return await self._eval_call_project(block)
+        if btype == "restai_classifier":
+            return await self._eval_classifier(block)
 
         return None
 
@@ -425,4 +427,29 @@ class BlockInterpreter:
             return str(result)
         except Exception as e:
             logger.exception("Call Project '%s' failed: %s", project_name, e)
+            return ""
+
+    async def _eval_classifier(self, block: dict) -> str:
+        text = await self._eval_input(block, "TEXT")
+        labels_raw = await self._eval_input(block, "LABELS")
+        if not text or not labels_raw:
+            return ""
+
+        labels = [l.strip() for l in str(labels_raw).split(",") if l.strip()]
+        if not labels:
+            return ""
+
+        try:
+            from restai.models.models import ClassifierModel
+
+            classifier_input = ClassifierModel(sequence=str(text), labels=labels)
+            result = self.brain.classify(classifier_input)
+
+            if isinstance(result, dict) and result.get("labels"):
+                return result["labels"][0]
+            if hasattr(result, "labels") and result.labels:
+                return result.labels[0]
+            return str(result)
+        except Exception as e:
+            logger.exception("Classifier block failed: %s", e)
             return ""

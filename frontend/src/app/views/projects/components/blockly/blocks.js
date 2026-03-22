@@ -65,6 +65,23 @@ export function registerCustomBlocks() {
     },
   };
 
+  // --- restai_classifier ---
+  Blockly.Blocks["restai_classifier"] = {
+    init: function () {
+      this.appendValueInput("TEXT")
+        .setCheck("String")
+        .appendField("Classify");
+      this.appendValueInput("LABELS")
+        .setCheck("String")
+        .appendField("Labels (comma-separated)");
+      this.setOutput(true, "String");
+      this.setColour(210);
+      this.setTooltip(
+        "Classifies text using the /tools/classifier endpoint. Provide comma-separated labels. Returns the top matching label."
+      );
+    },
+  };
+
   // --- text_contains ---
   Blockly.Blocks["text_contains"] = {
     init: function () {

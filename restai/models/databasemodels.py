@@ -88,7 +88,6 @@ class ProjectDatabase(Base):
     options = Column(Text, default="{}")
     team_id = Column(Integer, ForeignKey("teams.id"))
     users = relationship('UserDatabase', secondary=users_projects, back_populates='projects', lazy="select")
-    entrances = relationship("RouterEntrancesDatabase", back_populates="project", lazy="select")
     team = relationship('TeamDatabase', back_populates='projects')
 
 class UserDatabase(Base):
@@ -142,18 +141,6 @@ class OutputDatabase(Base):
     
     chat_id = Column(String(255))
     
-class RouterEntrancesDatabase(Base):
-    __tablename__ = "routerentrances"
-
-    id = Column(Integer, primary_key=True, index=True)
-    destination = Column(String(255), index=True)
-    name = Column(String(255), index=True)
-    description = Column(Text)
-    project_id = Column(Integer, ForeignKey("projects.id"))
-    
-    project = relationship("ProjectDatabase", back_populates="entrances")
-
-
 class LLMDatabase(Base):
     __tablename__ = "llms"
 

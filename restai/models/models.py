@@ -107,20 +107,6 @@ class ChatModel(InteractionModel):
     })
 
 
-class EntranceModel(BaseModel):
-    """Router project entrance configuration."""
-    destination: str = Field(description="Target project name to route to")
-    name: str = Field(description="Display name for this entrance")
-    description: str = Field(description="Description used by the router to decide when to select this entrance")
-    model_config = ConfigDict(from_attributes=True)
-
-
-class RouterModel(BaseModel):
-    """Router project reference."""
-    name: str = Field(description="Name of the router project")
-    model_config = ConfigDict(from_attributes=True)
-
-
 class LLMModel(BaseModel):
     """LLM provider configuration."""
     name: str = Field(description="Unique name identifier for the LLM")
@@ -302,14 +288,13 @@ class ProjectBaseModel(BaseModel):
     name: str = Field(description="URL-friendly project name (used in API paths)")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model used for this project")
     llm: Union[str, None] = Field(default=None, description="Name of the LLM used for this project")
-    type: str = Field(description="Project type: 'rag', 'inference', 'agent', 'vision', 'router', 'ragsql', or 'block'")
+    type: str = Field(description="Project type: 'rag', 'inference', 'agent', 'vision', 'ragsql', or 'block'")
     system: Union[str, None] = Field(default=None, description="System prompt for the LLM")
     censorship: Union[str, None] = Field(default=None, description="Censorship message returned when the guard rejects a query")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")
     guard: Union[str, None] = Field(default=None, description="Name of the LLM used as a content guard")
     human_name: Union[str, None] = Field(default=None, description="Human-readable display name for the project")
     human_description: Union[str, None] = Field(default=None, description="Human-readable description of the project")
-    entrances: Union[list[EntranceModel], None] = Field(default=None, description="Router entrance configurations (router projects only)")
     public: bool = Field(default=False, description="Whether the project is publicly accessible without authentication")
     creator: Union[int, None] = Field(default=None, description="User ID of the project creator")
     default_prompt: Union[str, None] = Field(default=None, description="Default prompt template for the project")
@@ -341,7 +326,7 @@ class ProjectModelCreate(BaseModel):
     name: str = Field(description="URL-friendly project name (must be unique)")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model (required for RAG projects)")
     llm: Union[str, None] = Field(default=None, description="Name of the LLM to use (not required for block projects)")
-    type: str = Field(description="Project type: 'rag', 'inference', 'agent', 'vision', 'router', 'ragsql', or 'block'")
+    type: str = Field(description="Project type: 'rag', 'inference', 'agent', 'vision', 'ragsql', or 'block'")
     human_name: Union[str, None] = Field(default=None, description="Human-readable display name")
     human_description: Union[str, None] = Field(default=None, description="Human-readable project description")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")
@@ -512,7 +497,6 @@ class ProjectModelUpdate(BaseModel):
     connection: Union[str, None] = Field(default=None, description="Database connection string for RAG-SQL projects")
     tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables")
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking")
-    entrances: Union[list[EntranceModel], None] = Field(default=None, description="Router entrance configurations")
     colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking")
     cache: Union[bool, None] = Field(default=None, description="Enable response caching")
     cache_threshold: Union[float, None] = Field(default=None, description="Similarity threshold for cache hits")

@@ -9,6 +9,7 @@ export const toolbox = {
         { kind: "block", type: "restai_get_input" },
         { kind: "block", type: "restai_set_output" },
         { kind: "block", type: "restai_call_project" },
+        { kind: "block", type: "restai_classifier" },
         { kind: "block", type: "restai_log" },
       ],
     },
