@@ -22,7 +22,7 @@ import BAvatar from "boring-avatars";
 const Form = styled("form")(() => ({ padding: "16px" }));
 
 export default function ProjectNew({ projects, info }) {
-  const typeList = ["rag", "inference", "agent", "ragsql", "block"];
+  const typeList = ["rag", "inference", "agent", "block"];
   var vectorstoreList = info.vectorstores || ["chroma"];
   const auth = useAuth();
   const navigate = useNavigate();

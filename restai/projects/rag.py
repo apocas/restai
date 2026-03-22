@@ -1,6 +1,8 @@
 import json
 from typing import Optional
 
+from fastapi import HTTPException
+
 from llama_index.core.response_synthesizers import get_response_synthesizer
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.query_engine import RetrieverQueryEngine
@@ -18,6 +20,9 @@ from restai.models.models import QuestionModel, ChatModel, User
 from restai.project import Project
 from restai.tools import tokens_from_string
 from restai.projects.base import ProjectBase
+from llama_index.core.utilities.sql_wrapper import SQLDatabase
+from llama_index.core.indices.struct_store.sql_query import NLSQLTableQueryEngine
+from sqlalchemy import create_engine
 
 
 class RAG(ProjectBase):
@@ -178,6 +183,48 @@ class RAG(ProjectBase):
                 yield output
 
         model = self.brain.get_llm(project.props.llm, db)
+
+        # SQL query path: when a database connection is configured, use NL-to-SQL
+        if project.props.options.connection:
+            if questionModel.stream:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Streaming is not supported for SQL queries."
+                )
+
+            engine = create_engine(project.props.options.connection)
+            try:
+                sql_database = SQLDatabase(engine)
+
+                tables = None
+                if hasattr(questionModel, 'tables') and questionModel.tables is not None:
+                    tables = questionModel.tables
+                elif project.props.options.tables:
+                    tables = [table.strip() for table in project.props.options.tables.split(',')]
+
+                sysTemplate = (
+                    questionModel.system or project.props.system or self.brain.defaultSystem
+                )
+                question = sysTemplate + "\n Question: " + questionModel.question
+
+                query_engine = NLSQLTableQueryEngine(
+                    llm=model.llm,
+                    sql_database=sql_database,
+                    tables=tables,
+                )
+
+                response = query_engine.query(question)
+
+                output["answer"] = response.response
+                output["sources"] = [response.metadata['sql_query']]
+                output["tokens"] = {
+                    "input": tokens_from_string(output["question"]),
+                    "output": tokens_from_string(output["answer"])
+                }
+                yield output
+                return
+            finally:
+                engine.dispose()
 
         sysTemplate = (
             questionModel.system or project.props.system or self.brain.defaultSystem

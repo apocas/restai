@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What is RestAI
 
-AIaaS (AI as a Service) platform — create AI projects and consume them via REST API. Supports multiple project types: RAG, inference, agent, vision, router, and RAG-SQL.
+AIaaS (AI as a Service) platform — create AI projects and consume them via REST API. Supports multiple project types: RAG (with optional natural language to SQL), inference, agent, vision, and router.
 
 ## Commands
 
@@ -42,12 +42,11 @@ Package manager is `uv`. Dependencies exclude GPU group by default (`--no-group 
 ### Project types (`restai/projects/`)
 
 All inherit from `ProjectBase` (in `base.py`) which defines `chat()` and `question()`:
-- `rag.py` — Retrieval-Augmented Generation (vectorstore + embeddings + reranking)
+- `rag.py` — Retrieval-Augmented Generation (vectorstore + embeddings + reranking + optional natural language to SQL)
 - `inference.py` — Direct LLM chat/completion
 - `agent.py` — ReAct agent with tools (built-in + MCP)
 - `vision.py` — Multi-modal image-to-text
 - `router.py` — Routes queries to other projects via classifier
-- `ragsql.py` — Natural language to SQL
 
 ### Routers (`restai/routers/`)
 

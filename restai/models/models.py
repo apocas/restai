@@ -75,7 +75,7 @@ class QuestionModel(InteractionModel):
     system: Union[str, None] = Field(default=None, description="System prompt override for this question")
     colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking of retrieved documents")
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking of retrieved documents")
-    tables: Union[list[str], None] = Field(default=None, description="Restrict RAG-SQL to specific database tables")
+    tables: Union[list[str], None] = Field(default=None, description="Restrict SQL queries to specific database tables (for RAG projects with a database connection)")
     negative: Union[str, None] = Field(default=None, description="Negative prompt to steer the response away from certain content")
     image: Union[str, None] = Field(default=None, description="Base64-encoded image for vision models")
     lite: bool = Field(default=False, description="Return a lightweight response without full source details")
@@ -270,12 +270,12 @@ class ProjectOptions(BaseModel):
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking of retrieved documents")
     cache: Union[bool, None] = Field(default=None, description="Enable response caching")
     cache_threshold: Union[float, None] = Field(default=None, description="Similarity threshold for cache hits (0.0 to 1.0)")
-    tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables for RAG-SQL")
+    tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables for natural language to SQL queries")
     tools: Union[str, None] = Field(default=None, description="Comma-separated list of enabled tool names")
     score: float = Field(default=0.0, description="Minimum similarity score threshold for retrieved documents")
     k: int = Field(default=4, description="Number of documents to retrieve from the knowledge base")
     max_iterations: int = Field(default=config.AGENT_MAX_ITERATIONS, description="Maximum iterations for agent project execution")
-    connection: Union[str, None] = Field(default=None, description="Database connection string for RAG-SQL projects")
+    connection: Union[str, None] = Field(default=None, description="Database connection string for natural language to SQL queries")
     mcp_servers: Union[list[MCPServer], None] = Field(default=None, description="List of MCP server configurations for agent projects")
     telegram_token: Union[str, None] = Field(default=None, description="Telegram bot token for Telegram integration")
     blockly_workspace: Union[dict, None] = Field(default=None, description="Blockly workspace JSON for block projects")
@@ -288,7 +288,7 @@ class ProjectBaseModel(BaseModel):
     name: str = Field(description="URL-friendly project name (used in API paths)")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model used for this project")
     llm: Union[str, None] = Field(default=None, description="Name of the LLM used for this project")
-    type: str = Field(description="Project type: 'rag', 'inference', 'agent', 'vision', 'ragsql', or 'block'")
+    type: str = Field(description="Project type: 'rag', 'inference', 'agent', or 'block'")
     system: Union[str, None] = Field(default=None, description="System prompt for the LLM")
     censorship: Union[str, None] = Field(default=None, description="Censorship message returned when the guard rejects a query")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")
@@ -326,7 +326,7 @@ class ProjectModelCreate(BaseModel):
     name: str = Field(description="URL-friendly project name (must be unique)")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model (required for RAG projects)")
     llm: Union[str, None] = Field(default=None, description="Name of the LLM to use (not required for block projects)")
-    type: str = Field(description="Project type: 'rag', 'inference', 'agent', 'vision', 'ragsql', or 'block'")
+    type: str = Field(description="Project type: 'rag', 'inference', 'agent', or 'block'")
     human_name: Union[str, None] = Field(default=None, description="Human-readable display name")
     human_description: Union[str, None] = Field(default=None, description="Human-readable project description")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")
@@ -494,7 +494,7 @@ class ProjectModelUpdate(BaseModel):
     censorship: Union[str, None] = Field(default=None, description="Censorship message returned when the guard rejects a query")
     score: Union[float, None] = Field(default=None, description="Minimum similarity score threshold")
     k: Union[int, None] = Field(default=None, description="Number of documents to retrieve")
-    connection: Union[str, None] = Field(default=None, description="Database connection string for RAG-SQL projects")
+    connection: Union[str, None] = Field(default=None, description="Database connection string for natural language to SQL queries")
     tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables")
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking")
     colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking")
@@ -541,11 +541,6 @@ class QuestionResponse(InferenceResponse):
     """Response from a RAG question with sources."""
     sources: Union[list[SourceModel], Union[list[str], None]] = Field(default=None, description="Source documents used to generate the answer")
     image: Union[str, None] = Field(default=None, description="Base64-encoded image in the response (vision projects)")
-
-
-class RagSqlResponse(InferenceResponse):
-    """Response from a RAG-SQL query."""
-    sources: list[str] = Field(description="SQL queries generated and executed")
 
 
 class ChatResponse(QuestionResponse):

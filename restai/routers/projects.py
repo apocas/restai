@@ -170,8 +170,6 @@ async def route_get_project(
                 final_output["system"] = output["system"] or ""
             case "agent":
                 final_output["system"] = output["system"] or ""
-            case "ragsql":
-                final_output["system"] = output["system"] or ""
         if llm_model:
             final_output["llm_type"] = llm_model.props.type
             final_output["llm_privacy"] = llm_model.props.privacy
@@ -367,7 +365,6 @@ async def route_create_project(
     if projectModel.type not in [
         "rag",
         "inference",
-        "ragsql",
         "agent",
         "block",
     ]:
@@ -394,7 +391,7 @@ async def route_create_project(
         )
 
     if config.RESTAI_DEMO == True and not user.is_admin:
-        if projectModel.type == "ragsql" or projectModel.type == "agent":
+        if projectModel.type == "agent":
             raise HTTPException(
                 status_code=403,
                 detail="Demo mode, not allowed to create this type of projects.",

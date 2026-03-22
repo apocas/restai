@@ -96,14 +96,9 @@ export default function ProjectEdit({ project, projects, info }) {
       opts.users = state.selectedUsers.map(user => user.username);
     }
 
-    if (project.type === "rag" || project.type === "inference" || project.type === "ragsql" || project.type === "agent") {
+    if (project.type === "rag" || project.type === "inference" || project.type === "agent") {
       opts.system = state.system
     }
-
-    //if (project.type === "ragsql") {
-    //  opts.connection = connectionForm.current.value
-    //  opts.tables = tablesForm.current.value
-    //}
 
     if (project.type === "agent") {
       opts.options.tools = state.options.tools
@@ -483,7 +478,7 @@ export default function ProjectEdit({ project, projects, info }) {
               </Grid>
             )}
 
-            {(state.type === "rag" || state.type === "inference" || state.type === "ragsql" || state.type === "agent") && state.type !== "block" && (
+            {(state.type === "rag" || state.type === "inference" || state.type === "agent") && state.type !== "block" && (
               <Grid item sm={6} xs={12}>
                 <TextField
                   fullWidth

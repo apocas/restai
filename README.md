@@ -45,7 +45,7 @@ docker compose --env-file .env up --build
 
 ## Why RESTai?
 
-- **Multi-project AI platform** — RAG, Agents, SQL-to-NL, Block (visual logic), and Inference in one place
+- **Multi-project AI platform** — RAG (with optional SQL-to-NL), Agents, Block (visual logic), and Inference in one place
 - **Full Web UI included** — React dashboard with analytics, not just an API
 - **Any LLM** — OpenAI, Anthropic, Ollama, Gemini, Groq, LiteLLM, vLLM, Azure, and more
 - **Feature complete** — Teams, RBAC, OAuth/LDAP, token tracking, Kubernetes-native
@@ -78,18 +78,10 @@ Create and manage AI projects. Each project has its own LLM, system prompt, tool
 
 ### RAG (Retrieval-Augmented Generation)
 
-Upload documents and query them with LLM-powered retrieval. Supports multiple vector stores, reranking (ColBERT / LLM-based), sandboxed mode to reduce hallucination, and evaluation via [deepeval](https://github.com/confident-ai/deepeval).
+Upload documents and query them with LLM-powered retrieval. Supports multiple vector stores, reranking (ColBERT / LLM-based), sandboxed mode to reduce hallucination, and evaluation via [deepeval](https://github.com/confident-ai/deepeval). Optionally connect a MySQL or PostgreSQL database to translate natural language questions into SQL queries automatically.
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/rag.png" width="750" alt="RESTai RAG"/>
-</div>
-
-### RAGSQL (Natural Language to SQL)
-
-Connect a MySQL or PostgreSQL database — RESTai crawls the schema and translates natural language questions into SQL queries automatically.
-
-<div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/ragsql.jpg" width="750" alt="RESTai RAGSQL"/>
 </div>
 
 ### Agents + MCP
