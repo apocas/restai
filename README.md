@@ -25,8 +25,6 @@
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/home.png" width="800" alt="RESTai Dashboard"/>
 </div>
 
-> **Note:** This project started as 100% human-written code. Nowadays, only a small percentage of the codebase is human-developed — the majority is AI-generated.
-
 ---
 
 ## Quick Start
@@ -361,6 +359,8 @@ make dev        # Run dev server
 pytest tests    # Run tests
 make code       # Format with black
 ```
+
+> **Note:** This project started as 100% human-written code. Nowadays, only a small percentage of the codebase is human-developed — the majority is AI-generated.
 
 ---
 
