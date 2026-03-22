@@ -44,6 +44,7 @@ const TeamEdit = Loadable(lazy(() => import("app/views/teams/TeamEdit")));
 const DirectAccess = Loadable(lazy(() => import("app/views/direct/DirectAccess")));
 const OllamaModels = Loadable(lazy(() => import("app/views/llms/ollama/OllamaModels")));
 const Settings = Loadable(lazy(() => import("app/views/settings/Settings")));
+const GpuInfo = Loadable(lazy(() => import("app/views/settings/GpuInfo")));
 
 const routes = [
   {
@@ -225,6 +226,11 @@ const routes = [
       {
         path: "/settings",
         element: <Settings />,
+        auth: authRoles.admin
+      },
+      {
+        path: "/gpu",
+        element: <GpuInfo />,
         auth: authRoles.admin
       }
     ]

@@ -360,6 +360,8 @@ pytest tests    # Run tests
 make code       # Format with black
 ```
 
+> **Note:** This project started as 100% human-written code. Nowadays, only a small percentage of the codebase is human-developed — the majority is AI-generated.
+
 ---
 
 ## License

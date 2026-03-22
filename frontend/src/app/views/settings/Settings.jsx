@@ -2,15 +2,14 @@ import { useState, useEffect } from "react";
 import {
   Grid, styled, Box, Card, Divider, TextField, Button,
   Switch, FormControlLabel, Typography, Select, MenuItem, InputLabel, FormControl,
-  Collapse, IconButton, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Chip, LinearProgress, Checkbox, FormGroup
+  Collapse, IconButton
 } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import { toast } from "react-toastify";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 import api from "app/utils/api";
-import { Settings as SettingsIcon, Storage, Security, ExpandMore, ExpandLess, Memory } from "@mui/icons-material";
+import { Settings as SettingsIcon, Storage, Security, ExpandMore, ExpandLess } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
 
 const Container = styled("div")(({ theme }) => ({
@@ -75,13 +74,8 @@ export default function SettingsPage() {
     sso_oidc_scopes: "openid email profile",
     sso_oidc_provider_name: "SSO",
     sso_oidc_email_claim: "email",
-    // GPU
-    gpu_enabled: false,
-    gpu_worker_devices: "",
   });
   const [saving, setSaving] = useState(false);
-  const [gpuInfo, setGpuInfo] = useState([]);
-  const [gpuLoading, setGpuLoading] = useState(false);
 
   // Collapsible state for SSO sections
   const [expanded, setExpanded] = useState({
@@ -101,18 +95,9 @@ export default function SettingsPage() {
       .catch(() => {});
   };
 
-  const fetchGpuInfo = () => {
-    setGpuLoading(true);
-    api.get("/settings/gpu-info", auth.user.token)
-      .then((data) => setGpuInfo(data || []))
-      .catch(() => setGpuInfo([]))
-      .finally(() => setGpuLoading(false));
-  };
-
   useEffect(() => {
     document.title = "RESTai - Settings";
     fetchSettings();
-    fetchGpuInfo();
   }, []);
 
   const handleChange = (field) => (e) => {
@@ -617,126 +602,6 @@ export default function SettingsPage() {
                   </Grid>
                 </Box>
               </Collapse>
-            </Card>
-          </Grid>
-
-          {/* GPU */}
-          <Grid item xs={12}>
-            <Card elevation={3}>
-              <FlexBox>
-                <Memory sx={{ ml: 2 }} />
-                <H4 sx={{ p: 2 }}>GPU</H4>
-              </FlexBox>
-              <Divider />
-              <Box sx={{ p: 3 }}>
-                <Grid container spacing={3}>
-                  <Grid item xs={12}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={form.gpu_enabled}
-                          onChange={handleChange("gpu_enabled")}
-                        />
-                      }
-                      label="GPU Enabled"
-                    />
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      Changes to GPU settings require application restart to take effect.
-                    </Typography>
-                  </Grid>
-
-                  {/* Detected GPUs */}
-                  <Grid item xs={12}>
-                    {gpuLoading && <LinearProgress sx={{ mb: 2 }} />}
-                    {!gpuLoading && gpuInfo.length === 0 && (
-                      <Typography variant="body2" color="text.secondary">
-                        No GPUs detected.
-                      </Typography>
-                    )}
-                    {!gpuLoading && gpuInfo.length > 0 && (
-                      <>
-                        <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                          Detected GPUs
-                          {gpuInfo[0].driver_version && (
-                            <Chip label={`Driver ${gpuInfo[0].driver_version}`} size="small" sx={{ ml: 1 }} />
-                          )}
-                          {gpuInfo[0].cuda_version && (
-                            <Chip label={`CUDA ${gpuInfo[0].cuda_version}`} size="small" sx={{ ml: 1 }} />
-                          )}
-                        </Typography>
-                        <TableContainer>
-                          <Table size="small">
-                            <TableHead>
-                              <TableRow>
-                                <TableCell padding="checkbox">Workers</TableCell>
-                                <TableCell>#</TableCell>
-                                <TableCell>Name</TableCell>
-                                <TableCell>Memory (Total)</TableCell>
-                                <TableCell>Memory (Used)</TableCell>
-                                <TableCell>Memory (Free)</TableCell>
-                                <TableCell>Temp</TableCell>
-                                <TableCell>Utilization</TableCell>
-                                <TableCell>Power</TableCell>
-                                <TableCell>PCI Bus</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {gpuInfo.map((gpu) => {
-                                const selectedDevices = (form.gpu_worker_devices || "").split(",").filter(Boolean);
-                                const gpuIdx = String(gpu.index);
-                                const isSelected = selectedDevices.length === 0 || selectedDevices.includes(gpuIdx);
-                                const handleToggleDevice = () => {
-                                  let next;
-                                  if (selectedDevices.length === 0) {
-                                    // Currently "all" — toggling one off means select all others
-                                    next = gpuInfo.map((g) => String(g.index)).filter((i) => i !== gpuIdx);
-                                  } else if (isSelected) {
-                                    next = selectedDevices.filter((i) => i !== gpuIdx);
-                                  } else {
-                                    next = [...selectedDevices, gpuIdx].sort();
-                                  }
-                                  // If all are selected or none remain, store empty string (meaning "all")
-                                  const allIndices = gpuInfo.map((g) => String(g.index)).sort().join(",");
-                                  const nextStr = next.sort().join(",");
-                                  setForm((prev) => ({
-                                    ...prev,
-                                    gpu_worker_devices: nextStr === allIndices ? "" : nextStr,
-                                  }));
-                                };
-                                return (
-                                  <TableRow key={gpu.index}>
-                                    <TableCell padding="checkbox">
-                                      <Checkbox
-                                        checked={isSelected}
-                                        onChange={handleToggleDevice}
-                                        size="small"
-                                      />
-                                    </TableCell>
-                                    <TableCell>{gpu.index}</TableCell>
-                                    <TableCell><strong>{gpu.name}</strong></TableCell>
-                                    <TableCell>{gpu.memory_total}</TableCell>
-                                    <TableCell>{gpu.memory_used}</TableCell>
-                                    <TableCell>{gpu.memory_free}</TableCell>
-                                    <TableCell>{gpu.temperature}</TableCell>
-                                    <TableCell>{gpu.utilization}</TableCell>
-                                    <TableCell>{gpu.power_draw} / {gpu.power_limit}</TableCell>
-                                    <TableCell><Typography variant="caption">{gpu.pci_bus_id}</Typography></TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </TableContainer>
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
-                          {form.gpu_worker_devices
-                            ? `Workers will use GPU(s): ${form.gpu_worker_devices}`
-                            : "Workers will use all available GPUs"}
-                        </Typography>
-                      </>
-                    )}
-                  </Grid>
-                </Grid>
-              </Box>
             </Card>
           </Grid>
 

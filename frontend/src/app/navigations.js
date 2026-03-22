@@ -80,6 +80,13 @@ export const defaultNavigations = [
     icon: "api",
     path: "/direct",
   },
+  {
+    name: "Generators",
+    icon: "memory",
+    children: [
+      { name: "GPU", iconText: "GP", path: "/gpu", auth: authRoles.admin },
+    ]
+  },
   { label: "Docs", type: "label" },
   {
     name: "Swagger",
@@ -89,37 +96,26 @@ export const defaultNavigations = [
   }
 ];
 
-// Dynamic items based on GPU capability
-export const gpuDependentItems = {
-  imageGen: {
-    name: "Image Gen",
-    icon: "image",
-    path: "/image",
-  },
-  audioGen: {
-    name: "Audio Gen",
-    icon: "speaker",
-    path: "/audio",
-  },
-};
-
 // Pure function to build navigation structure based on gpu capability
 // This doesn't use any hooks
 export const buildNavigations = (hasGpu, hasProxy) => {
-  const navigations = [...defaultNavigations];
+  const navigations = [...defaultNavigations.map(item => {
+    // Deep clone the Generators item so we can modify its children
+    if (item.name === "Generators") {
+      return { ...item, children: [...item.children] };
+    }
+    return item;
+  })];
 
-  // Insert GPU-dependent items before the Docs label
-  const docsLabelIndex = navigations.findIndex(item => item.label === "Docs");
-  const insertPosition = docsLabelIndex !== -1 ? docsLabelIndex : navigations.length;
-
-  // Only show Image Gen if GPU is available
+  // Add Image Gen and Audio Gen to Generators when GPU is available
   if (hasGpu) {
-    navigations.splice(insertPosition, 0, gpuDependentItems.imageGen);
-  }
-
-  // Only show Audio Gen if GPU is available
-  if (hasGpu) {
-    navigations.splice(insertPosition + (hasGpu ? 1 : 0), 0, gpuDependentItems.audioGen);
+    const generators = navigations.find(item => item.name === "Generators");
+    if (generators) {
+      generators.children.push(
+        { name: "Image Gen", iconText: "IG", path: "/image" },
+        { name: "Audio Gen", iconText: "AG", path: "/audio" }
+      );
+    }
   }
 
   // Show AI Proxy after Tools when proxy is enabled
