@@ -9,7 +9,6 @@ from restai.projects.agent import Agent
 from restai.projects.block import Block
 from restai.projects.inference import Inference
 from restai.projects.rag import RAG
-from restai.projects.ragsql import RAGSql
 from restai.models.models import QuestionModel, User, ChatModel
 from restai.brain import Brain
 import requests
@@ -149,10 +148,6 @@ async def question_main(
         case "inference":
             return await question_inference(
                 brain, project, q_input, user, db, background_tasks
-            )
-        case "ragsql":
-            return await question_query_sql(
-                request, brain, project, q_input, user, db, background_tasks
             )
         case "agent":
             return await question_agent(
@@ -296,35 +291,6 @@ async def question_agent(
                 background_tasks.add_task(log_inference, project, user, line, db)
                 return line
 
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        logging.exception(e)
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-async def question_query_sql(
-    _: Request,
-    brain: Brain,
-    project: Project,
-    q_input: QuestionModel,
-    user: User,
-    db: DBWrapper,
-    background_tasks: BackgroundTasks,
-):
-    try:
-        projLogic: RAGSql = RAGSql(brain)
-
-        if project.props.type != "ragsql":
-            raise HTTPException(
-                status_code=400, detail="Only available for RAGSQL projects."
-            )
-
-        output = projLogic.question(project, q_input, user, db)
-
-        background_tasks.add_task(log_inference, project, user, output, db)
-
-        return output
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

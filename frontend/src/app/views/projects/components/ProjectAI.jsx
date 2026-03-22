@@ -34,7 +34,7 @@ export default function ProjectAI({ project, projects }) {
               <TableCell sx={{ pl: 2 }}>LLM</TableCell>
               <TableCell colSpan={4}>{project.llm}</TableCell>
             </TableRow>
-            {(project.type === "rag" || project.type === "inference" || project.type === "ragsql" || project.type === "agent") && (
+            {(project.type === "rag" || project.type === "inference" || project.type === "agent") && (
             <TableRow>
               <TableCell sx={{ pl: 2 }}>System Message</TableCell>
               <TableCell colSpan={4}>{project.system}</TableCell>
