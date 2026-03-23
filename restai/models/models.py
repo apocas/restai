@@ -1,9 +1,24 @@
+import re
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Any, Dict, List, Optional, Union, Iterable
 import json
 from datetime import datetime
 
 from restai import config
+
+_SAFE_NAME_RE = re.compile(r'^[a-zA-Z0-9._-]+$')
+
+
+def validate_safe_name(v: str, field_label: str = "Name") -> str:
+    """Reject names containing characters unsafe for use in URL paths."""
+    if not v or not v.strip():
+        raise ValueError(f"{field_label} cannot be empty")
+    if not _SAFE_NAME_RE.match(v):
+        raise ValueError(
+            f"{field_label} can only contain letters, numbers, hyphens, underscores, and dots"
+        )
+    return v
 
 
 class URLIngestModel(BaseModel):
@@ -133,6 +148,11 @@ class LLMModel(BaseModel):
         }
     })
 
+    @field_validator('name')
+    @classmethod
+    def name_must_be_safe(cls, v):
+        return validate_safe_name(v, "LLM name")
+
     @field_validator('options', mode='before')
     @classmethod
     def parse_options(cls, v):
@@ -153,6 +173,12 @@ class EmbeddingModel(BaseModel):
     description: Union[str, None] = Field(default=None, description="Human-readable description of the embedding model")
     dimension: int = Field(default=1536, description="Output embedding dimension size")
     teams: list["TeamModel"] = Field(default=[], description="Teams that have access to this embedding model")
+
+    @field_validator('name')
+    @classmethod
+    def name_must_be_safe(cls, v):
+        return validate_safe_name(v, "Embedding name")
+
     model_config = ConfigDict(from_attributes=True, json_schema_extra={
         "example": {
             "name": "text-embedding-3-small",
@@ -331,6 +357,12 @@ class ProjectModelCreate(BaseModel):
     human_description: Union[str, None] = Field(default=None, description="Human-readable project description")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")
     team_id: int = Field(description="ID of the team that will own this project")
+
+    @field_validator('name')
+    @classmethod
+    def name_must_be_safe(cls, v):
+        return validate_safe_name(v, "Project name")
+
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "name": "my-rag-project",
@@ -441,6 +473,11 @@ class UserBase(BaseModel):
     """Base user model."""
     username: str = Field(description="Unique username")
 
+    @field_validator('username')
+    @classmethod
+    def username_must_be_safe(cls, v):
+        return validate_safe_name(v, "Username")
+
 
 class UserLogin(BaseModel):
     """Login credentials."""
@@ -490,6 +527,13 @@ class ProjectModelUpdate(BaseModel):
     name: Union[str, None] = Field(default=None, description="New project name")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model")
     llm: Union[str, None] = Field(default=None, description="Name of the LLM to use")
+
+    @field_validator('name')
+    @classmethod
+    def name_must_be_safe(cls, v):
+        if v is not None:
+            return validate_safe_name(v, "Project name")
+        return v
     system: Union[str, None] = Field(default=None, description="System prompt for the LLM")
     censorship: Union[str, None] = Field(default=None, description="Censorship message returned when the guard rejects a query")
     score: Union[float, None] = Field(default=None, description="Minimum similarity score threshold")
@@ -673,6 +717,12 @@ class TeamModelCreate(BaseModel):
     image_generators: list[str] = Field(default=[], description="Image generator names to make accessible to this team")
     audio_generators: list[str] = Field(default=[], description="Audio generator names to make accessible to this team")
     creator_id: Union[int, None] = Field(default=None, description="User ID of the team creator (set automatically)")
+
+    @field_validator('name')
+    @classmethod
+    def name_must_be_safe(cls, v):
+        return validate_safe_name(v, "Team name")
+
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "name": "engineering",
@@ -695,6 +745,13 @@ class TeamModelUpdate(BaseModel):
     admins: list[str] = Field(default=None, description="Updated list of admin usernames (replaces existing)")
     projects: list[str] = Field(default=None, description="Updated list of project names (replaces existing)")
     llms: list[str] = Field(default=None, description="Updated list of LLM names (replaces existing)")
+
+    @field_validator('name')
+    @classmethod
+    def name_must_be_safe(cls, v):
+        if v is not None:
+            return validate_safe_name(v, "Team name")
+        return v
     embeddings: list[str] = Field(default=None, description="Updated list of embedding model names (replaces existing)")
     image_generators: list[str] = Field(default=None, description="Updated list of image generator names (replaces existing)")
     audio_generators: list[str] = Field(default=None, description="Updated list of audio generator names (replaces existing)")
