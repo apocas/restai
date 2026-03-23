@@ -98,6 +98,7 @@ export default function GpuInfo() {
                         <Switch
                           checked={gpuEnabled}
                           onChange={(e) => setGpuEnabled(e.target.checked)}
+                          disabled={!gpuLoading && gpuInfo.length === 0}
                         />
                       }
                       label="GPU Enabled"
