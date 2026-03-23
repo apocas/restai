@@ -7,11 +7,13 @@ import {
   Card,
   Divider,
   Grid,
+  ListItemText,
   MenuItem,
   styled,
   Tab,
   Tabs,
-  TextField
+  TextField,
+  Typography
 } from "@mui/material";
 
 import { H4 } from "app/components/Typography";
@@ -22,7 +24,13 @@ import BAvatar from "boring-avatars";
 const Form = styled("form")(() => ({ padding: "16px" }));
 
 export default function ProjectNew({ projects, info }) {
-  const typeList = ["rag", "inference", "agent", "block"];
+  const typeList = ["inference", "rag", "agent", "block"];
+  const typeDescriptions = {
+    inference: "Direct LLM interaction for chat, completion, and multimodal tasks. The most common project type.",
+    rag: "Retrieval-Augmented Generation. Interact with your own knowledge base fed by uploaded documents.",
+    agent: "LLM agent with access to tools (MCP servers or built-in) for autonomous task execution.",
+    block: "Visual logic builder. Chain multiple projects and implement custom logic using a graphical block-based IDE. No LLM required.",
+  };
   var vectorstoreList = info.vectorstores || ["chroma"];
   const auth = useAuth();
   const navigate = useNavigate();
@@ -187,10 +195,14 @@ export default function ProjectNew({ projects, info }) {
                       variant="outlined"
                       onChange={handleChange}
                       fullWidth
+                      helperText={state.projecttype ? typeDescriptions[state.projecttype] : "Select the project type"}
                     >
                       {typeList.map((item) => (
                         <MenuItem value={item} key={item}>
-                          {item}
+                          <ListItemText
+                            primary={item}
+                            secondary={typeDescriptions[item]}
+                          />
                         </MenuItem>
                       ))}
                     </TextField>
