@@ -17,10 +17,6 @@
   <img src="https://img.shields.io/badge/kubernetes-ready-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes"/>
 </p>
 
-<p align="center">
-  <b>Demo:</b> <a href="https://ai.ince.pt">https://ai.ince.pt</a> &nbsp;—&nbsp; Username: <code>demo</code> &nbsp; Password: <code>demo</code>
-</p>
-
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/home.png" width="800" alt="RESTai Dashboard"/>
 </div>
