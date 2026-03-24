@@ -25,7 +25,7 @@ router = APIRouter()
 
 @router.get("/statistics/top-projects")
 async def get_top_projects_by_tokens(
-    limit: int = Query(10, description="Maximum number of projects to return"),
+    limit: int = Query(10, ge=1, le=1000, description="Maximum number of projects to return"),
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -146,7 +146,7 @@ async def get_statistics_summary(
 
 @router.get("/statistics/daily-tokens")
 async def get_daily_tokens(
-    days: int = Query(30, description="Number of days to look back"),
+    days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -195,7 +195,7 @@ async def get_daily_tokens(
 
 @router.get("/statistics/top-llms")
 async def get_top_llms(
-    limit: int = Query(10, description="Maximum number of LLMs to return"),
+    limit: int = Query(10, ge=1, le=1000, description="Maximum number of LLMs to return"),
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):

@@ -1,13 +1,25 @@
+import os
 import re
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Any, Dict, List, Optional, Union, Iterable
+from typing import Any, Dict, List, Literal, Optional, Union, Iterable
 import json
 from datetime import datetime
 
 from restai import config
 
-_SAFE_NAME_RE = re.compile(r'^[a-zA-Z0-9._-]+$')
+_SAFE_NAME_RE = re.compile(r'^[a-zA-Z0-9._:-]+$')
+
+VALID_LLM_CLASSES = {
+    "Ollama", "OllamaMultiModal", "OllamaMultiModal2", "OpenAI", "OpenAILike",
+    "Grok", "Groq", "Anthropic", "LiteLLM", "vLLM", "GeminiMultiModal",
+    "Gemini", "AzureOpenAI",
+}
+
+VALID_EMBEDDING_CLASSES = {
+    "LangChain", "LangChain.Openai", "LangChain.HuggingFace",
+    "OllamaEmbeddings", "Ollama",
+}
 
 
 def validate_safe_name(v: str, field_label: str = "Name") -> str:
@@ -16,16 +28,30 @@ def validate_safe_name(v: str, field_label: str = "Name") -> str:
         raise ValueError(f"{field_label} cannot be empty")
     if not _SAFE_NAME_RE.match(v):
         raise ValueError(
-            f"{field_label} can only contain letters, numbers, hyphens, underscores, and dots"
+            f"{field_label} can only contain letters, numbers, hyphens, underscores, dots, and colons"
         )
     return v
 
 
+def sanitize_filename(filename: str) -> str:
+    """Strip path components and dangerous characters from uploaded filenames."""
+    name = os.path.basename(filename)
+    name = name.replace('\x00', '')
+    return name if name.strip() else 'unnamed_file'
+
+
 class URLIngestModel(BaseModel):
     """Ingest a web page into a RAG project's knowledge base."""
-    url: str = Field(description="URL of the web page to ingest")
-    splitter: str = Field(default="sentence", description="Text splitting strategy (e.g. 'sentence', 'token')")
-    chunks: int = Field(default=512, description="Maximum chunk size in characters or tokens")
+    url: str = Field(max_length=2000, description="URL of the web page to ingest")
+    splitter: Literal["sentence", "token"] = Field(default="sentence", description="Text splitting strategy: 'sentence' or 'token'")
+    chunks: int = Field(default=512, ge=32, le=8192, description="Maximum chunk size in characters or tokens")
+
+    @field_validator('url')
+    @classmethod
+    def url_must_be_http(cls, v):
+        if not v.startswith(('http://', 'https://')):
+            raise ValueError("URL must start with http:// or https://")
+        return v
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "url": "https://example.com/docs/getting-started",
@@ -38,9 +64,9 @@ class URLIngestModel(BaseModel):
 class TextIngestModel(BaseModel):
     """Ingest raw text into a RAG project's knowledge base."""
     text: str = Field(description="Raw text content to ingest")
-    source: str = Field(description="Source identifier for the ingested text")
-    splitter: str = Field(default="sentence", description="Text splitting strategy (e.g. 'sentence', 'token')")
-    chunks: int = Field(default=512, description="Maximum chunk size in characters or tokens")
+    source: str = Field(max_length=500, description="Source identifier for the ingested text")
+    splitter: Literal["sentence", "token"] = Field(default="sentence", description="Text splitting strategy: 'sentence' or 'token'")
+    chunks: int = Field(default=512, ge=32, le=8192, description="Maximum chunk size in characters or tokens")
     keywords: Union[list[str], None] = Field(default=None, description="Optional keywords to associate with the ingested text")
     model_config = ConfigDict(json_schema_extra={
         "example": {
@@ -58,7 +84,7 @@ class FindModel(BaseModel):
     source: Union[str, None] = Field(default=None, description="Filter results by source identifier")
     text: Union[str, None] = Field(default=None, description="Text query for similarity search")
     score: Union[float, None] = Field(default=0.0, description="Minimum similarity score threshold (0.0 to 1.0)")
-    k: Union[int, None] = Field(default=None, description="Maximum number of results to return")
+    k: Union[int, None] = Field(default=None, ge=1, le=100, description="Maximum number of results to return")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "text": "How do I configure embeddings?",
@@ -70,13 +96,13 @@ class FindModel(BaseModel):
 
 class InteractionModel(BaseModel):
     """Base model for chat and question interactions."""
-    question: str = Field(description="The user's question or prompt")
+    question: str = Field(max_length=100000, description="The user's question or prompt")
     stream: Union[bool, None] = Field(default=None, description="Enable streaming response (server-sent events)")
 
 
 class ImageModel(BaseModel):
     """Image generation request."""
-    prompt: str = Field(description="Text prompt describing the image to generate")
+    prompt: str = Field(max_length=10000, description="Text prompt describing the image to generate")
     image: Union[str, None] = Field(default=None, description="Base64-encoded input image for image-to-image generation")
     model_config = ConfigDict(json_schema_extra={
         "example": {
@@ -127,12 +153,12 @@ class LLMModel(BaseModel):
     name: str = Field(description="Unique name identifier for the LLM")
     class_name: str = Field(description="LLM implementation class (e.g. 'ollama', 'openai', 'anthropic', 'litellm')")
     options: Dict[str, Any] = Field(description="Provider-specific configuration options (model name, API keys, etc.)")
-    privacy: str = Field(description="Privacy level: 'public' (cloud-hosted) or 'private' (self-hosted)")
-    description: Union[str, None] = Field(default=None, description="Human-readable description of the LLM")
-    type: str = Field(description="LLM type: 'chat', 'completion', 'vision', or 'qa'")
-    input_cost: float = Field(default=0.0, description="Cost per 1K input tokens in configured currency")
-    output_cost: float = Field(default=0.0, description="Cost per 1K output tokens in configured currency")
-    context_window: Union[int, None] = Field(default=4096, description="Maximum context window size in tokens")
+    privacy: Literal["public", "private"] = Field(description="Privacy level: 'public' (cloud-hosted) or 'private' (self-hosted)")
+    description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable description of the LLM")
+    type: Literal["chat", "completion", "vision", "qa"] = Field(description="LLM type: 'chat', 'completion', 'vision', or 'qa'")
+    input_cost: float = Field(default=0.0, ge=0, description="Cost per 1K input tokens in configured currency")
+    output_cost: float = Field(default=0.0, ge=0, description="Cost per 1K output tokens in configured currency")
+    context_window: Union[int, None] = Field(default=4096, ge=1, le=10000000, description="Maximum context window size in tokens")
     teams: list["TeamModel"] = Field(default=[], description="Teams that have access to this LLM")
     model_config = ConfigDict(from_attributes=True, json_schema_extra={
         "example": {
@@ -153,6 +179,13 @@ class LLMModel(BaseModel):
     def name_must_be_safe(cls, v):
         return validate_safe_name(v, "LLM name")
 
+    @field_validator('class_name')
+    @classmethod
+    def class_name_must_be_valid(cls, v):
+        if v not in VALID_LLM_CLASSES:
+            raise ValueError(f"Invalid LLM class: '{v}'. Must be one of: {', '.join(sorted(VALID_LLM_CLASSES))}")
+        return v
+
     @field_validator('options', mode='before')
     @classmethod
     def parse_options(cls, v):
@@ -169,15 +202,22 @@ class EmbeddingModel(BaseModel):
     name: str = Field(description="Unique name identifier for the embedding model")
     class_name: str = Field(description="Embedding implementation class (e.g. 'ollama', 'openai')")
     options: str = Field(description="JSON string of provider-specific configuration options")
-    privacy: str = Field(description="Privacy level: 'public' (cloud-hosted) or 'private' (self-hosted)")
-    description: Union[str, None] = Field(default=None, description="Human-readable description of the embedding model")
-    dimension: int = Field(default=1536, description="Output embedding dimension size")
+    privacy: Literal["public", "private"] = Field(description="Privacy level: 'public' (cloud-hosted) or 'private' (self-hosted)")
+    description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable description of the embedding model")
+    dimension: int = Field(default=1536, ge=1, le=65536, description="Output embedding dimension size")
     teams: list["TeamModel"] = Field(default=[], description="Teams that have access to this embedding model")
 
     @field_validator('name')
     @classmethod
     def name_must_be_safe(cls, v):
         return validate_safe_name(v, "Embedding name")
+
+    @field_validator('class_name')
+    @classmethod
+    def class_name_must_be_valid(cls, v):
+        if v not in VALID_EMBEDDING_CLASSES:
+            raise ValueError(f"Invalid embedding class: '{v}'. Must be one of: {', '.join(sorted(VALID_EMBEDDING_CLASSES))}")
+        return v
 
     model_config = ConfigDict(from_attributes=True, json_schema_extra={
         "example": {
@@ -199,14 +239,21 @@ class Tool(BaseModel):
 
 class LLMUpdate(BaseModel):
     """Update an existing LLM configuration."""
-    class_name: str = Field(default=None, description="LLM implementation class name")
+    class_name: Union[str, None] = Field(default=None, description="LLM implementation class name")
     options: Union[str, Dict[str, Any], None] = Field(default=None, description="Provider-specific configuration options")
-    privacy: str = Field(default=None, description="Privacy level: 'public' or 'private'")
-    description: str = Field(default=None, description="Human-readable description of the LLM")
-    type: str = Field(default=None, description="LLM type: 'chat', 'completion', 'vision', or 'qa'")
-    input_cost: float = Field(default=None, description="Cost per 1K input tokens")
-    output_cost: float = Field(default=None, description="Cost per 1K output tokens")
-    context_window: int = Field(default=None, description="Maximum context window size in tokens")
+    privacy: Optional[Literal["public", "private"]] = Field(default=None, description="Privacy level: 'public' or 'private'")
+    description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable description of the LLM")
+    type: Optional[Literal["chat", "completion", "vision", "qa"]] = Field(default=None, description="LLM type: 'chat', 'completion', 'vision', or 'qa'")
+    input_cost: Union[float, None] = Field(default=None, ge=0, description="Cost per 1K input tokens")
+    output_cost: Union[float, None] = Field(default=None, ge=0, description="Cost per 1K output tokens")
+    context_window: Union[int, None] = Field(default=None, ge=1, le=10000000, description="Maximum context window size in tokens")
+
+    @field_validator('class_name')
+    @classmethod
+    def class_name_must_be_valid(cls, v):
+        if v is not None and v not in VALID_LLM_CLASSES:
+            raise ValueError(f"Invalid LLM class: '{v}'. Must be one of: {', '.join(sorted(VALID_LLM_CLASSES))}")
+        return v
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "options": "{\"model\": \"openai/gpt-4o-mini\"}",
@@ -227,11 +274,18 @@ class LLMUpdate(BaseModel):
 
 class EmbeddingUpdate(BaseModel):
     """Update an existing embedding model configuration."""
-    class_name: str = Field(default=None, description="Embedding implementation class name")
+    class_name: Union[str, None] = Field(default=None, description="Embedding implementation class name")
     options: Union[str, Dict[str, Any], None] = Field(default=None, description="Provider-specific configuration options")
-    privacy: str = Field(default=None, description="Privacy level: 'public' or 'private'")
-    description: str = Field(default=None, description="Human-readable description of the embedding model")
-    dimension: int = Field(default=None, description="Output embedding dimension size")
+    privacy: Optional[Literal["public", "private"]] = Field(default=None, description="Privacy level: 'public' or 'private'")
+    description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable description of the embedding model")
+    dimension: Union[int, None] = Field(default=None, ge=1, le=65536, description="Output embedding dimension size")
+
+    @field_validator('class_name')
+    @classmethod
+    def class_name_must_be_valid(cls, v):
+        if v is not None and v not in VALID_EMBEDDING_CLASSES:
+            raise ValueError(f"Invalid embedding class: '{v}'. Must be one of: {', '.join(sorted(VALID_EMBEDDING_CLASSES))}")
+        return v
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "options": "{\"model\": \"text-embedding-3-large\"}",
@@ -299,9 +353,9 @@ class ProjectOptions(BaseModel):
     tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables for natural language to SQL queries")
     tools: Union[str, None] = Field(default=None, description="Comma-separated list of enabled tool names")
     score: float = Field(default=0.0, description="Minimum similarity score threshold for retrieved documents")
-    k: int = Field(default=4, description="Number of documents to retrieve from the knowledge base")
-    max_iterations: int = Field(default=config.AGENT_MAX_ITERATIONS, description="Maximum iterations for agent project execution")
-    connection: Union[str, None] = Field(default=None, description="Database connection string for natural language to SQL queries")
+    k: int = Field(default=4, ge=0, le=100, description="Number of documents to retrieve from the knowledge base")
+    max_iterations: int = Field(default=config.AGENT_MAX_ITERATIONS, ge=1, le=100, description="Maximum iterations for agent project execution")
+    connection: Union[str, None] = Field(default=None, max_length=2000, description="Database connection string for natural language to SQL queries")
     mcp_servers: Union[list[MCPServer], None] = Field(default=None, description="List of MCP server configurations for agent projects")
     telegram_token: Union[str, None] = Field(default=None, description="Telegram bot token for Telegram integration")
     blockly_workspace: Union[dict, None] = Field(default=None, description="Blockly workspace JSON for block projects")
@@ -352,9 +406,9 @@ class ProjectModelCreate(BaseModel):
     name: str = Field(description="URL-friendly project name (must be unique)")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model (required for RAG projects)")
     llm: Union[str, None] = Field(default=None, description="Name of the LLM to use (not required for block projects)")
-    type: str = Field(description="Project type: 'rag', 'inference', 'agent', or 'block'")
-    human_name: Union[str, None] = Field(default=None, description="Human-readable display name")
-    human_description: Union[str, None] = Field(default=None, description="Human-readable project description")
+    type: Literal["rag", "inference", "agent", "block"] = Field(description="Project type: 'rag', 'inference', 'agent', or 'block'")
+    human_name: Union[str, None] = Field(default=None, max_length=200, description="Human-readable display name")
+    human_description: Union[str, None] = Field(default=None, max_length=2000, description="Human-readable project description")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")
     team_id: int = Field(description="ID of the team that will own this project")
 
@@ -527,6 +581,23 @@ class ProjectModelUpdate(BaseModel):
     name: Union[str, None] = Field(default=None, description="New project name")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model")
     llm: Union[str, None] = Field(default=None, description="Name of the LLM to use")
+    system: Union[str, None] = Field(default=None, max_length=50000, description="System prompt for the LLM")
+    censorship: Union[str, None] = Field(default=None, max_length=5000, description="Censorship message returned when the guard rejects a query")
+    score: Union[float, None] = Field(default=None, description="Minimum similarity score threshold")
+    k: Union[int, None] = Field(default=None, description="Number of documents to retrieve")
+    connection: Union[str, None] = Field(default=None, max_length=2000, description="Database connection string for natural language to SQL queries")
+    tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables")
+    llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking")
+    colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking")
+    cache: Union[bool, None] = Field(default=None, description="Enable response caching")
+    cache_threshold: Union[float, None] = Field(default=None, description="Similarity threshold for cache hits")
+    guard: Union[str, None] = Field(default=None, description="Name of the LLM used as a content guard")
+    human_name: Union[str, None] = Field(default=None, max_length=200, description="Human-readable display name")
+    human_description: Union[str, None] = Field(default=None, max_length=2000, description="Human-readable project description")
+    tools: Union[str, None] = Field(default=None, description="Comma-separated list of enabled tool names")
+    users: list[str] = Field(default=None, description="List of usernames to assign to this project")
+    public: Union[bool, None] = Field(default=None, description="Whether the project is publicly accessible")
+    default_prompt: Union[str, None] = Field(default=None, max_length=50000, description="Default prompt template")
 
     @field_validator('name')
     @classmethod
@@ -534,23 +605,6 @@ class ProjectModelUpdate(BaseModel):
         if v is not None:
             return validate_safe_name(v, "Project name")
         return v
-    system: Union[str, None] = Field(default=None, description="System prompt for the LLM")
-    censorship: Union[str, None] = Field(default=None, description="Censorship message returned when the guard rejects a query")
-    score: Union[float, None] = Field(default=None, description="Minimum similarity score threshold")
-    k: Union[int, None] = Field(default=None, description="Number of documents to retrieve")
-    connection: Union[str, None] = Field(default=None, description="Database connection string for natural language to SQL queries")
-    tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables")
-    llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking")
-    colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking")
-    cache: Union[bool, None] = Field(default=None, description="Enable response caching")
-    cache_threshold: Union[float, None] = Field(default=None, description="Similarity threshold for cache hits")
-    guard: Union[str, None] = Field(default=None, description="Name of the LLM used as a content guard")
-    human_name: Union[str, None] = Field(default=None, description="Human-readable display name")
-    human_description: Union[str, None] = Field(default=None, description="Human-readable project description")
-    tools: Union[str, None] = Field(default=None, description="Comma-separated list of enabled tool names")
-    users: list[str] = Field(default=None, description="List of usernames to assign to this project")
-    public: Union[bool, None] = Field(default=None, description="Whether the project is publicly accessible")
-    default_prompt: Union[str, None] = Field(default=None, description="Default prompt template")
     options: Union[ProjectOptions, None] = Field(default=None, description="Project configuration options to update")
     team_id: Union[int, None] = Field(default=None, description="ID of the team that owns this project")
     model_config = ConfigDict(json_schema_extra={
@@ -707,7 +761,7 @@ class TeamResponse(BaseModel):
 class TeamModelCreate(BaseModel):
     """Create a new team."""
     name: str = Field(description="Team name (must be unique)")
-    description: Union[str, None] = Field(default=None, description="Human-readable team description")
+    description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable team description")
     budget: float = Field(default=-1.0, description="Team budget cap (-1 means unlimited)")
     users: list[str] = Field(default=[], description="Usernames to add as team members")
     admins: list[str] = Field(default=[], description="Usernames to add as team administrators")
@@ -739,7 +793,7 @@ class TeamModelCreate(BaseModel):
 class TeamModelUpdate(BaseModel):
     """Update team properties."""
     name: Union[str, None] = Field(default=None, description="New team name")
-    description: Union[str, None] = Field(default=None, description="Updated team description")
+    description: Union[str, None] = Field(default=None, max_length=1000, description="Updated team description")
     budget: Union[float, None] = Field(default=None, description="Team budget cap (-1 means unlimited)")
     users: list[str] = Field(default=None, description="Updated list of member usernames (replaces existing)")
     admins: list[str] = Field(default=None, description="Updated list of admin usernames (replaces existing)")

@@ -452,8 +452,8 @@ async def remove_embedding_from_team(
 @router.get("/teams/{team_id}/transactions")
 async def get_team_transactions(
     team_id: int = Path(description="Team ID"),
-    start: int = Query(0, description="Pagination start offset"),
-    end: int = Query(100, description="Pagination end offset"),
+    start: int = Query(0, ge=0, le=100000, description="Pagination start offset"),
+    end: int = Query(100, ge=1, le=100000, description="Pagination end offset"),
     user: User = Depends(get_current_username_team_member),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):

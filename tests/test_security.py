@@ -923,7 +923,7 @@ def test_create_project_empty_name_fails():
             json={"name": "", "llm": llmA_name, "type": "inference", "team_id": teamA_id},
             auth=USER_A,
         )
-        assert r.status_code == 400, f"Expected 400, got {r.status_code}"
+        assert r.status_code in (400, 422), f"Expected 400 or 422, got {r.status_code}"
 
 
 def test_create_project_whitespace_name_fails():
@@ -933,7 +933,7 @@ def test_create_project_whitespace_name_fails():
             json={"name": "   ", "llm": llmA_name, "type": "inference", "team_id": teamA_id},
             auth=USER_A,
         )
-        assert r.status_code == 400, f"Expected 400, got {r.status_code}"
+        assert r.status_code in (400, 422), f"Expected 400 or 422, got {r.status_code}"
 
 
 def test_project_name_sanitization():

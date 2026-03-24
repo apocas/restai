@@ -62,6 +62,10 @@ async def route_generate_transcript(
             detail=f"File too large. Maximum size allowed is {config.MAX_AUDIO_UPLOAD_SIZE} MB.",
         )
 
+    # Sanitize filename
+    from restai.models.models import sanitize_filename
+    file.filename = sanitize_filename(file.filename)
+
     # Save the uploaded file to a temporary file
     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[-1]) as temp_in:
         temp_in.write(contents)
@@ -153,6 +157,8 @@ async def openai_compatible_transcription(
             status_code=413,
             detail=f"File too large. Maximum size allowed is {config.MAX_AUDIO_UPLOAD_SIZE} MB.",
         )
+
+    file.filename = sanitize_filename(file.filename)
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[-1]) as temp_in:
         temp_in.write(contents)

@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+import traceback
 import uuid
 from unidecode import unidecode
 from fastapi import Depends, HTTPException, Path, Request

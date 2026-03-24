@@ -77,8 +77,8 @@ def get_project(projectID: int, db_wrapper: DBWrapper, brain: Brain):
 async def route_get_projects(
     _: Request,
     v_filter: str = Query("own", alias="filter", description="Filter mode: 'own' for user's projects, 'public' for public projects"),
-    start: int = Query(0, description="Pagination start offset"),
-    end: int = Query(50, description="Pagination end offset"),
+    start: int = Query(0, ge=0, le=100000, description="Pagination start offset"),
+    end: int = Query(50, ge=1, le=100000, description="Pagination end offset"),
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -361,14 +361,6 @@ async def route_create_project(
 
     if projectModel.human_name is None:
         projectModel.human_name = projectModel.name
-
-    if projectModel.type not in [
-        "rag",
-        "inference",
-        "agent",
-        "block",
-    ]:
-        raise HTTPException(status_code=404, detail="Invalid project type")
 
     if projectModel.name.strip() == "":
         raise HTTPException(status_code=400, detail="Invalid project name")
@@ -736,13 +728,16 @@ async def ingest_file(
     projectID: int = PathParam(description="Project ID"),
     file: UploadFile = ...,
     options: str = Form("{}"),
-    chunks: int = Form(256),
+    chunks: int = Form(256, ge=32, le=8192),
     splitter: str = Form("sentence"),
     classic: bool = Form(False),
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Upload and ingest a file into the knowledge base."""
+    if splitter not in ("sentence", "token"):
+        raise HTTPException(status_code=422, detail="splitter must be 'sentence' or 'token'")
+
     project = get_project(projectID, db_wrapper, request.app.state.brain)
 
     if project.props.type != "rag":
@@ -750,6 +745,8 @@ async def ingest_file(
 
     opts = json.loads(options)
 
+    from restai.models.models import sanitize_filename
+    file.filename = sanitize_filename(file.filename)
     ext = os.path.splitext(file.filename)[1].lower()
 
     temp = tempfile.NamedTemporaryFile(delete=False)
@@ -940,8 +937,8 @@ async def question_query_endpoint(
 @router.get("/projects/{projectID}/logs", tags=["Statistics"])
 async def get_token_consumption(
     projectID: int = PathParam(description="Project ID"),
-    start: int = Query(0, description="Pagination start offset"),
-    end: int = Query(10, description="Pagination end offset"),
+    start: int = Query(0, ge=0, le=100000, description="Pagination start offset"),
+    end: int = Query(10, ge=1, le=100000, description="Pagination end offset"),
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -970,8 +967,8 @@ async def get_token_consumption(
 @router.get("/projects/{projectID}/tokens/daily", tags=["Statistics"])
 async def get_monthly_token_consumption(
     projectID: int = PathParam(description="Project ID"),
-    year: int = Query(None, description="Year for the report (defaults to current year)"),
-    month: int = Query(None, description="Month for the report (defaults to current month)"),
+    year: int = Query(None, ge=2000, le=2100, description="Year for the report (defaults to current year)"),
+    month: int = Query(None, ge=1, le=12, description="Month for the report (defaults to current month)"),
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):

@@ -106,3 +106,97 @@ def test_valid_names_accepted():
         # Clean up created users
         for name in VALID_NAMES:
             client.delete(f"/users/{name}", auth=("admin", RESTAI_DEFAULT_PASSWORD))
+
+
+def test_llm_invalid_privacy():
+    with TestClient(app) as client:
+        response = client.post(
+            "/llms",
+            json={
+                "name": "test-llm",
+                "class_name": "OpenAI",
+                "options": {"model": "test"},
+                "privacy": "secret",
+                "type": "chat",
+            },
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert response.status_code == 422, f"Expected 422 for invalid privacy, got {response.status_code}"
+
+
+def test_llm_invalid_type():
+    with TestClient(app) as client:
+        response = client.post(
+            "/llms",
+            json={
+                "name": "test-llm",
+                "class_name": "OpenAI",
+                "options": {"model": "test"},
+                "privacy": "public",
+                "type": "magic",
+            },
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert response.status_code == 422, f"Expected 422 for invalid type, got {response.status_code}"
+
+
+def test_llm_invalid_class_name():
+    with TestClient(app) as client:
+        response = client.post(
+            "/llms",
+            json={
+                "name": "test-llm",
+                "class_name": "FakeProvider",
+                "options": {"model": "test"},
+                "privacy": "public",
+                "type": "chat",
+            },
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert response.status_code == 422, f"Expected 422 for invalid class_name, got {response.status_code}"
+
+
+def test_embedding_invalid_class_name():
+    with TestClient(app) as client:
+        response = client.post(
+            "/embeddings",
+            json={
+                "name": "test-emb",
+                "class_name": "FakeEmbedding",
+                "options": "{}",
+                "privacy": "public",
+            },
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert response.status_code == 422, f"Expected 422 for invalid embedding class_name, got {response.status_code}"
+
+
+def test_project_invalid_type():
+    with TestClient(app) as client:
+        response = client.post(
+            "/projects",
+            json={"name": "test-proj", "type": "magic", "llm": "fake", "team_id": 1},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert response.status_code == 422, f"Expected 422 for invalid project type, got {response.status_code}"
+
+
+def test_llm_valid_enums_accepted():
+    """Ensure valid enum values don't trigger validation errors."""
+    with TestClient(app) as client:
+        response = client.post(
+            "/llms",
+            json={
+                "name": "test-valid-llm",
+                "class_name": "OpenAI",
+                "options": {"model": "gpt-test", "api_key": "sk-fake"},
+                "privacy": "public",
+                "type": "chat",
+            },
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        # Should not be 422 — may succeed (201) or fail for other reasons
+        assert response.status_code != 422, f"Valid LLM enums were incorrectly rejected"
+        # Clean up if created
+        if response.status_code == 201:
+            client.delete("/llms/test-valid-llm", auth=("admin", RESTAI_DEFAULT_PASSWORD))
