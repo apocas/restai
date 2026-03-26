@@ -874,7 +874,7 @@ async def chat_query(
 ):
     """Send a chat message to a project with conversation history."""
     try:
-        if not q_input.question:
+        if not q_input.question and not q_input.image:
             raise HTTPException(status_code=400, detail="Missing question")
 
         project = get_project(projectID, db_wrapper, request.app.state.brain)
@@ -906,7 +906,7 @@ async def question_query_endpoint(
 ):
     """Send a one-shot question to a project."""
     try:
-        if not q_input.question:
+        if not q_input.question and not q_input.image:
             raise HTTPException(status_code=400, detail="Question missing")
 
         project = get_project(projectID, db_wrapper, request.app.state.brain)

@@ -42,6 +42,7 @@ class Block(ProjectBase):
             brain=self.brain,
             user=user,
             db=db,
+            image=question_model.image,
         )
         result = await interpreter.execute()
 

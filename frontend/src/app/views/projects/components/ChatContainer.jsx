@@ -241,7 +241,7 @@ export default function ChatContainer({
   const sendMessageOnEnter = (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
       let tempMessage = message.trim();
-      if (tempMessage !== "") handleMessageSend(tempMessage);
+      if (tempMessage !== "" || image) handleMessageSend(tempMessage);
       setMessage("");
     }
   };
@@ -435,7 +435,7 @@ export default function ChatContainer({
               onClick={() => handleClickImage(image)}
             />
           )}
-          {project.type === "inference" && (
+          {(project.type === "inference" || project.type === "block") && (
             <Fragment>
               <label htmlFor="upload-single-file">
                 <Fab
@@ -449,7 +449,7 @@ export default function ChatContainer({
           )}
           <Fab
             onClick={() => {
-              if (message.trim() !== "") handleMessageSend(message);
+              if (message.trim() !== "" || image) handleMessageSend(message.trim());
               setMessage("");
             }}
             color="primary"

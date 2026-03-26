@@ -314,6 +314,9 @@ async def question_block(
                 status_code=400, detail="Only available for BLOCK projects."
             )
 
+        if q_input.image:
+            q_input.image = resolve_image(q_input.image)
+
         output_generator = proj_logic.question(project, q_input, user, db)
         async for line in output_generator:
             background_tasks.add_task(log_inference, project, user, line, db)

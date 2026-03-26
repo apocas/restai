@@ -11,9 +11,10 @@ MAX_ITERATIONS = 10000
 class BlockInterpreter:
     """Walks a Blockly workspace JSON tree and interprets each block in Python."""
 
-    def __init__(self, workspace_json: dict, input_text: str, brain, user, db):
+    def __init__(self, workspace_json: dict, input_text: str, brain, user, db, image=None):
         self.workspace = workspace_json
         self.input_text = input_text
+        self.image = image
         self.output_text = ""
         self.variables: dict[str, Any] = {}
         self.brain = brain
@@ -405,7 +406,7 @@ class BlockInterpreter:
         from restai.helper import question_main
         from fastapi import BackgroundTasks, Request
 
-        q = QuestionModel(question=str(text) if text else "")
+        q = QuestionModel(question=str(text) if text else "", image=self.image)
         background_tasks = BackgroundTasks()
 
         # Create a minimal request-like object
