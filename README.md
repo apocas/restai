@@ -44,7 +44,7 @@ docker compose --env-file .env up --build
 - **Multi-project AI platform** — RAG (with optional SQL-to-NL), Agents, Block (visual logic), and Inference in one place
 - **Full Web UI included** — React dashboard with analytics, not just an API
 - **Any LLM** — OpenAI, Anthropic, Ollama, Gemini, Groq, LiteLLM, vLLM, Azure, and more
-- **Feature complete** — Teams, RBAC, OAuth/LDAP, token tracking, Kubernetes-native
+- **Feature complete** — Teams, RBAC, OAuth/LDAP, token tracking, per-project rate limiting, Kubernetes-native
 - **Extensible tools** — MCP (Model Context Protocol) for unlimited agent integrations
 - **Token tracking, cost & latency analytics** — built-in dashboard with daily usage, per-project costs, latency monitoring, and top LLM charts
 
@@ -169,6 +169,10 @@ Each team has its own users, admins, projects, and LLM/embedding access controls
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/teams.png" width="750" alt="RESTai Teams"/>
 </div>
+
+### Rate Limiting
+
+Set per-project request limits to prevent abuse and control costs. Configure the maximum number of requests per minute in the project edit page. Returns HTTP 429 when the limit is exceeded.
 
 ### Telegram Integration
 
