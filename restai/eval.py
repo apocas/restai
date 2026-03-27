@@ -188,6 +188,17 @@ async def run_evaluation(run_id: int, app):
             db.db.commit()
             return
 
+        # Apply prompt version if specified, or record active version
+        if run.prompt_version_id:
+            pv = db.get_prompt_version(run.prompt_version_id)
+            if pv and pv.project_id == run.project_id:
+                project.props.system = pv.system_prompt
+        else:
+            active_pv = db.get_active_prompt_version(run.project_id)
+            if active_pv:
+                run.prompt_version_id = active_pv.id
+                db.db.commit()
+
         # Get eval LLM — use the project's own LLM
         eval_llm = None
         if project.props.llm:

@@ -304,7 +304,12 @@ export default function ProjectEvals({ project }) {
                     onClick={() => fetchRunDetail(r.id)}
                     sx={{ cursor: "pointer" }}
                   >
-                    <TableCell sx={{ pl: 2 }}>#{r.id}</TableCell>
+                    <TableCell sx={{ pl: 2 }}>
+                      #{r.id}
+                      {r.prompt_version_id && (
+                        <Chip label={`v${r.prompt_version_id}`} size="small" variant="outlined" sx={{ ml: 0.5 }} />
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Chip label={r.status} color={STATUS_COLORS[r.status] || "default"} size="small" />
                     </TableCell>

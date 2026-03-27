@@ -298,6 +298,7 @@ async def start_eval_run(
     run = EvalRunDatabase(
         dataset_id=body.dataset_id,
         project_id=projectID,
+        prompt_version_id=body.prompt_version_id,
         status="pending",
         metrics=json.dumps(body.metrics),
         created_at=now,

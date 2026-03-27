@@ -71,7 +71,7 @@ async def lifespan(fs_app: FastAPI):
     ensure_settings_table(db_engine)
 
     # Auto-create new association tables for generators, eval tables, and migrate output table
-    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase
+    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase
     from sqlalchemy import inspect as sa_inspect, Column, Integer, ForeignKey, text
     TeamImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     TeamAudioGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
@@ -79,6 +79,7 @@ async def lifespan(fs_app: FastAPI):
     EvalTestCaseDatabase.__table__.create(db_engine, checkfirst=True)
     EvalRunDatabase.__table__.create(db_engine, checkfirst=True)
     EvalResultDatabase.__table__.create(db_engine, checkfirst=True)
+    PromptVersionDatabase.__table__.create(db_engine, checkfirst=True)
     inspector = sa_inspect(db_engine)
     if "output" in inspector.get_table_names():
         output_cols = {c["name"] for c in inspector.get_columns("output")}

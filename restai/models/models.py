@@ -1122,6 +1122,19 @@ class EvalDatasetDetailResponse(EvalDatasetResponse):
     test_cases: list[EvalTestCaseResponse] = []
 
 
+class PromptVersionResponse(BaseModel):
+    """A saved version of a project's system prompt."""
+    id: int
+    project_id: int
+    version: int
+    system_prompt: str
+    description: Optional[str] = None
+    created_by: Optional[int] = None
+    created_at: Optional[datetime] = None
+    is_active: bool = False
+    model_config = ConfigDict(from_attributes=True)
+
+
 class EvalRunCreate(BaseModel):
     """Start an evaluation run."""
     dataset_id: int = Field(description="ID of the dataset to evaluate")
@@ -1129,6 +1142,7 @@ class EvalRunCreate(BaseModel):
         default=["answer_relevancy"],
         description="Metrics to evaluate: answer_relevancy, faithfulness, correctness"
     )
+    prompt_version_id: Optional[int] = Field(default=None, description="Prompt version to evaluate (default: current active)")
 
 
 class EvalResultResponse(BaseModel):
@@ -1149,6 +1163,7 @@ class EvalRunResponse(BaseModel):
     id: int
     dataset_id: int
     project_id: int
+    prompt_version_id: Optional[int] = None
     status: str
     metrics: list[str] = []
     summary: Optional[dict] = None

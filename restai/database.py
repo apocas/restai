@@ -498,6 +498,8 @@ class DBWrapper:
         if projectModel.system is not None and proj_db.system != projectModel.system:
             proj_db.system = projectModel.system
             changed = True
+            # Auto-create prompt version
+            self._create_prompt_version(proj_db.id, projectModel.system, user_id=getattr(projectModel, '_user_id', None))
 
         if (
             projectModel.censorship is not None
@@ -816,6 +818,58 @@ class DBWrapper:
             self.db.delete(item)
             self.db.commit()
         return True
+
+
+    def _create_prompt_version(self, project_id: int, system_prompt: str, user_id: int = None):
+        """Create a new prompt version record, marking it as active."""
+        from restai.models.databasemodels import PromptVersionDatabase
+
+        # Deactivate current active version
+        self.db.query(PromptVersionDatabase).filter(
+            PromptVersionDatabase.project_id == project_id,
+            PromptVersionDatabase.is_active == True,
+        ).update({"is_active": False})
+
+        # Get next version number
+        max_version = (
+            self.db.query(func.max(PromptVersionDatabase.version))
+            .filter(PromptVersionDatabase.project_id == project_id)
+            .scalar()
+        ) or 0
+
+        version = PromptVersionDatabase(
+            project_id=project_id,
+            version=max_version + 1,
+            system_prompt=system_prompt or "",
+            created_by=user_id,
+            created_at=datetime.now(timezone.utc),
+            is_active=True,
+        )
+        self.db.add(version)
+
+    def get_prompt_versions(self, project_id: int):
+        """Get all prompt versions for a project, newest first."""
+        from restai.models.databasemodels import PromptVersionDatabase
+        return (
+            self.db.query(PromptVersionDatabase)
+            .filter(PromptVersionDatabase.project_id == project_id)
+            .order_by(PromptVersionDatabase.version.desc())
+            .all()
+        )
+
+    def get_prompt_version(self, version_id: int):
+        """Get a specific prompt version by ID."""
+        from restai.models.databasemodels import PromptVersionDatabase
+        return self.db.query(PromptVersionDatabase).filter(PromptVersionDatabase.id == version_id).first()
+
+    def get_active_prompt_version(self, project_id: int):
+        """Get the active prompt version for a project."""
+        from restai.models.databasemodels import PromptVersionDatabase
+        return (
+            self.db.query(PromptVersionDatabase)
+            .filter(PromptVersionDatabase.project_id == project_id, PromptVersionDatabase.is_active == True)
+            .first()
+        )
 
 
 def get_db_wrapper() -> DBWrapper:

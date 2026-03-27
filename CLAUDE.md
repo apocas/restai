@@ -49,7 +49,7 @@ All inherit from `ProjectBase` (in `base.py`) which defines `chat()` and `questi
 
 ### Routers (`restai/routers/`)
 
-`/projects`, `/users`, `/teams`, `/llms`, `/embeddings`, `/tools`, `/proxy`, `/direct`, `/statistics`, `/settings`, `/auth`, plus GPU-only `/image` and `/audio`.
+`/projects`, `/users`, `/teams`, `/llms`, `/embeddings`, `/tools`, `/proxy`, `/direct`, `/statistics`, `/settings`, `/auth`, `/evals` (evaluation framework), plus GPU-only `/image` and `/audio`.
 
 ### Models (`restai/models/`)
 
@@ -88,6 +88,30 @@ Optional internal MCP server that exposes user projects as MCP tools. Built with
 
 Two tools: `list_projects` (returns accessible projects as JSON) and `query_project` (sends a question to a project, returns the answer). Authentication via Bearer API key on every request. Users can only access their assigned projects; admins access all. Settings follow the GPU toggle pattern (`config.py` → `settings.py` → `main.py` conditional mount).
 
+### Evaluation Framework (`restai/eval.py`, `restai/routers/evals.py`)
+
+Built-in evaluation system for measuring AI project quality. Users create test datasets (question + optional expected answer), run evaluations with selectable metrics, and track scores over time. Endpoints under `/projects/{id}/evals/...`.
+
+Three metrics via DeepEval: `answer_relevancy` (all project types), `faithfulness` (RAG — checks answers are grounded in retrieved context), `correctness` (compares against expected answer). Eval runs execute in the background via `BackgroundTasks`, calling each project's `question()` method directly (skips logging/budget).
+
+Database tables: `eval_datasets`, `eval_test_cases`, `eval_runs`, `eval_results` (one row per metric per test case). Frontend at `/project/:id/evals` with dataset management, run execution, results table, and score trend chart.
+
+### Prompt Versioning (`prompt_versions` table)
+
+Every system prompt change is automatically versioned. When `edit_project` in `database.py` detects a prompt change, it creates a `PromptVersionDatabase` record with version number, text, user, and timestamp.
+
+Endpoints: `GET /projects/{id}/prompts` (list versions), `GET /projects/{id}/prompts/{versionId}` (get version), `POST /projects/{id}/prompts/{versionId}/activate` (restore old version). Eval runs link to prompt versions via `prompt_version_id` on `EvalRunDatabase` for A/B comparison.
+
+Frontend: collapsible "Version History" panel in the project edit page, version chips on eval runs.
+
+### Rate Limiting (`restai/budget.py`)
+
+Per-project request rate limiting. Configured via `rate_limit` field in `ProjectOptions` (requests per minute, `None` = unlimited). Enforced by `check_rate_limit()` in `budget.py`, called alongside `check_budget()` in `helper.py` before every inference. Returns HTTP 429 when exceeded. Counts recent requests from `OutputDatabase` (indexed by `project_id` and `date`).
+
+### Latency Tracking
+
+Every inference logs `latency_ms` in `OutputDatabase`. Timing starts at the router endpoint (`chat_query`/`question_query_endpoint`) and is passed through `helper.py` to `log_inference`. The `/projects/{id}/tokens/daily` endpoint includes `avg_latency_ms` per day. Frontend shows a latency chart and average latency stat card in `ProjectTokens.jsx`.
+
 ### Vector stores (`restai/vectordb/`)
 
 ChromaDB (default) or Redis. Configured per-project. Reranking support: ColBERT and LLM-based.
@@ -108,6 +132,8 @@ Tests use `FastAPI.TestClient` with Basic auth: `auth=("admin", RESTAI_DEFAULT_P
 - `tests/test_input_validation.py` — Name validation, enum validation, valid value acceptance
 - `tests/test_security.py` — RBAC, cross-team access, empty/whitespace name rejection
 - `tests/test_users.py`, `tests/test_teams.py`, `tests/test_llms.py`, `tests/test_embeddings.py` — CRUD tests
+- `tests/test_mcp.py` — MCP server auth (Bearer only), access control, tool registration
+- `tests/test_rate_limit.py` — Rate limiting enforcement, disable/enable, HTTP 429
 
 Note: `tests/test_projects.py` may fail if no LLMs are configured in the test environment (pre-existing issue).
 

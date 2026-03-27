@@ -130,6 +130,14 @@ Built-in evaluation system to measure and track AI project quality over time. Cr
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/eval.png" width="750" alt="RESTai Evaluation"/>
 </div>
 
+### Prompt Versioning
+
+Every system prompt change is automatically versioned. Browse the full history, compare versions, and restore any previous prompt with one click. Eval runs are linked to prompt versions, enabling A/B comparison — see exactly how a prompt change affected quality scores.
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/prompts.png" width="750" alt="RESTai Prompt Versioning"/>
+</div>
+
 ### Image Generation
 
 Local and remote image generators loaded dynamically. Supports Stable Diffusion, Flux, DALL-E, RMBG2, and more.

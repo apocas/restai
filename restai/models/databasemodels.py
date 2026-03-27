@@ -170,12 +170,26 @@ class EvalTestCaseDatabase(Base):
     dataset = relationship("EvalDatasetDatabase", back_populates="test_cases")
 
 
+class PromptVersionDatabase(Base):
+    __tablename__ = "prompt_versions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    version = Column(Integer, nullable=False)
+    system_prompt = Column(Text, nullable=False)
+    description = Column(String(500), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime)
+    is_active = Column(Boolean, default=False)
+
+
 class EvalRunDatabase(Base):
     __tablename__ = "eval_runs"
 
     id = Column(Integer, primary_key=True, index=True)
     dataset_id = Column(Integer, ForeignKey("eval_datasets.id"), nullable=False)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    prompt_version_id = Column(Integer, ForeignKey("prompt_versions.id"), nullable=True)
     status = Column(String(50), default="pending")
     metrics = Column(Text)
     summary = Column(Text, nullable=True)

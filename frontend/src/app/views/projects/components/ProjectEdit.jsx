@@ -15,6 +15,8 @@ export default function ProjectEdit({ project, projects, info }) {
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [mcpServers, setMcpServers] = useState([]);
+  const [promptVersions, setPromptVersions] = useState([]);
+  const [showVersions, setShowVersions] = useState(false);
   const navigate = useNavigate();
 
   const handleAddMcpServer = () => {
@@ -271,6 +273,13 @@ export default function ProjectEdit({ project, projects, info }) {
     fetchTools();
     fetchUsers();
     fetchTeams();
+
+    // Fetch prompt versions
+    if (project.id && project.type !== "block") {
+      api.get("/projects/" + project.id + "/prompts", auth.user.token, { silent: true })
+        .then((versions) => setPromptVersions(versions || []))
+        .catch(() => {});
+    }
 
     // Initialize MCP servers from project options
     if (project.type === "agent" && project.options?.mcp_servers) {
@@ -544,6 +553,60 @@ export default function ProjectEdit({ project, projects, info }) {
                     minRows={3}
                     maxRows={12}
                   />
+                  {promptVersions.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{ cursor: "pointer", display: "flex", alignItems: "center" }}
+                        onClick={() => setShowVersions(!showVersions)}
+                      >
+                        Version History ({promptVersions.length})
+                        {showVersions ? " ▲" : " ▼"}
+                      </Typography>
+                      {showVersions && (
+                        <Box sx={{ mt: 1, maxHeight: 300, overflow: "auto", border: "1px solid #e0e0e0", borderRadius: 1 }}>
+                          {promptVersions.map((v) => (
+                            <Box
+                              key={v.id}
+                              sx={{
+                                p: 1,
+                                borderBottom: "1px solid #f0f0f0",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                backgroundColor: v.is_active ? "#f0f7ff" : "transparent",
+                              }}
+                            >
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="body2">
+                                  <strong>v{v.version}</strong>
+                                  {v.is_active && <span style={{ color: "#1976d2", marginLeft: 8 }}>(active)</span>}
+                                  <span style={{ color: "#999", marginLeft: 8 }}>
+                                    {v.created_at ? new Date(v.created_at).toLocaleString() : ""}
+                                  </span>
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                                  {v.system_prompt ? v.system_prompt.substring(0, 100) + (v.system_prompt.length > 100 ? "..." : "") : "(empty)"}
+                                </Typography>
+                              </Box>
+                              {!v.is_active && (
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{ ml: 1, minWidth: 70 }}
+                                  onClick={() => {
+                                    setState({ ...state, system: v.system_prompt });
+                                  }}
+                                >
+                                  Restore
+                                </Button>
+                              )}
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
+                    </Box>
+                  )}
                 </Grid>
               </Fragment>
             )}

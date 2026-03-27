@@ -316,6 +316,9 @@ async def route_edit_project(
         if new_telegram_token and new_telegram_token.startswith("****"):
             projectModelUpdate.options.telegram_token = existing_opts.get("telegram_token")
 
+    # Attach user ID for prompt version tracking
+    projectModelUpdate._user_id = user.id
+
     try:
         if db_wrapper.edit_project(projectID, projectModelUpdate):
             # Start/stop Telegram poller based on token changes
@@ -940,6 +943,58 @@ async def question_query_endpoint(
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/projects/{projectID}/prompts", tags=["Projects"])
+async def list_prompt_versions(
+    projectID: int = PathParam(description="Project ID"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """List all prompt versions for a project."""
+    from restai.models.models import PromptVersionResponse
+    versions = db_wrapper.get_prompt_versions(projectID)
+    return [PromptVersionResponse.model_validate(v) for v in versions]
+
+
+@router.get("/projects/{projectID}/prompts/{versionID}", tags=["Projects"])
+async def get_prompt_version(
+    projectID: int = PathParam(description="Project ID"),
+    versionID: int = PathParam(description="Prompt version ID"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get a specific prompt version."""
+    from restai.models.models import PromptVersionResponse
+    version = db_wrapper.get_prompt_version(versionID)
+    if version is None or version.project_id != projectID:
+        raise HTTPException(status_code=404, detail="Prompt version not found")
+    return PromptVersionResponse.model_validate(version)
+
+
+@router.post("/projects/{projectID}/prompts/{versionID}/activate", tags=["Projects"])
+async def activate_prompt_version(
+    request: Request,
+    projectID: int = PathParam(description="Project ID"),
+    versionID: int = PathParam(description="Prompt version ID to activate"),
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Restore a previous prompt version as the active system prompt."""
+    version = db_wrapper.get_prompt_version(versionID)
+    if version is None or version.project_id != projectID:
+        raise HTTPException(status_code=404, detail="Prompt version not found")
+
+    project = db_wrapper.get_project_by_id(projectID)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    from restai.models.models import ProjectModelUpdate
+    update = ProjectModelUpdate(system=version.system_prompt)
+    update._user_id = user.id
+    db_wrapper.edit_project(projectID, update)
+
+    return {"project": projectID, "activated_version": version.version}
 
 
 @router.get("/projects/{projectID}/logs", tags=["Statistics"])
