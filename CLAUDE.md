@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What is RestAI
 
-AIaaS (AI as a Service) platform — create AI projects and consume them via REST API. Supports multiple project types: RAG (with optional natural language to SQL), inference, agent, vision, and router.
+AIaaS (AI as a Service) platform — create AI projects and consume them via REST API. Supports multiple project types: RAG (with optional natural language to SQL), inference, agent, and block (visual logic builder).
 
 ## Commands
 
@@ -43,18 +43,17 @@ Package manager is `uv`. Dependencies exclude GPU group by default (`--no-group 
 
 All inherit from `ProjectBase` (in `base.py`) which defines `chat()` and `question()`:
 - `rag.py` — Retrieval-Augmented Generation (vectorstore + embeddings + reranking + optional natural language to SQL)
-- `inference.py` — Direct LLM chat/completion
+- `inference.py` — Direct LLM chat/completion (supports multimodal image input)
 - `agent.py` — ReAct agent with tools (built-in + MCP)
-- `vision.py` — Multi-modal image-to-text
-- `router.py` — Routes queries to other projects via classifier
+- `block.py` — Visual logic builder using Blockly. No LLM required. Interprets workspace JSON server-side via `block_interpreter.py`. Supports image passthrough to sub-projects via "Call Project" block.
 
 ### Routers (`restai/routers/`)
 
-`/projects`, `/users`, `/teams`, `/llms`, `/embeddings`, `/tools`, `/proxy`, `/statistics`, `/auth`, plus GPU-only `/image` and `/audio`.
+`/projects`, `/users`, `/teams`, `/llms`, `/embeddings`, `/tools`, `/proxy`, `/direct`, `/statistics`, `/settings`, `/auth`, plus GPU-only `/image` and `/audio`.
 
 ### Models (`restai/models/`)
 
-- `models.py` — Pydantic schemas for API request/response
+- `models.py` — Pydantic schemas for API request/response. Includes input validation: `validate_safe_name` for URL-safe identifiers (regex `^[a-zA-Z0-9._:-]+$`), `Literal` types for enum fields (`privacy`, `type`, `class_name`), `max_length` on string fields, `ge`/`le` bounds on integers, and `sanitize_filename` for uploads.
 - `databasemodels.py` — SQLAlchemy ORM models
 
 Key relationships: Users ↔ Projects (many-to-many), Users ↔ Teams (members + admins), Teams → Projects/LLMs/Embeddings.
@@ -71,19 +70,40 @@ Three methods checked in order: JWT cookie (`restai_token`), Bearer API key, Bas
 
 ### LLM integration
 
-`restai/tools.py` maps LLM class names to implementations: Ollama, OpenAI, Anthropic, Groq, LiteLLM, vLLM, Gemini, Azure OpenAI, etc. All go through LlamaIndex abstractions.
+`restai/tools.py` maps LLM class names to implementations. Valid LLM classes: Ollama, OllamaMultiModal, OllamaMultiModal2, OpenAI, OpenAILike, Grok, Groq, Anthropic, LiteLLM, vLLM, GeminiMultiModal, Gemini, AzureOpenAI. Valid embedding classes: LangChain, LangChain.Openai, LangChain.HuggingFace, OllamaEmbeddings, Ollama. All go through LlamaIndex abstractions. These sets are defined as `VALID_LLM_CLASSES` and `VALID_EMBEDDING_CLASSES` in `models.py` and enforced via Pydantic validators.
 
 ### Frontend (`frontend/`)
 
-React 18 + MUI v5 + Redux Toolkit. CRA-based build. Routes in `frontend/src/app/routes.js` (lazy-loaded). Auth context in `frontend/src/app/contexts/JWTAuthContext.js`. API URL configured via `REACT_APP_RESTAI_API_URL` (defaults to `http://127.0.0.1:9000`).
+React 18 + MUI v5 + Redux Toolkit + Blockly (for block projects). CRA-based build. Routes in `frontend/src/app/routes.js` (lazy-loaded). Auth context in `frontend/src/app/contexts/JWTAuthContext.js`. API URL configured via `REACT_APP_RESTAI_API_URL` (defaults to `http://127.0.0.1:9000`).
+
+Key frontend pages for block projects:
+- `frontend/src/app/views/projects/IDE.jsx` — Standalone Blockly IDE page (`/project/:id/ide`)
+- `frontend/src/app/views/projects/components/BlocklyEditor.jsx` — Blockly workspace React component
+- `frontend/src/app/views/projects/components/blockly/blocks.js` — Custom block definitions (Get Input, Set Output, Call Project, Classifier, Log)
+- `frontend/src/app/views/projects/components/blockly/toolbox.js` — Toolbox category configuration
 
 ### Vector stores (`restai/vectordb/`)
 
 ChromaDB (default) or Redis. Configured per-project. Reranking support: ColBERT and LLM-based.
 
+## Input Validation
+
+Names used in URL paths (project names, usernames, team names, LLM names, embedding names) are validated with `validate_safe_name` — only `[a-zA-Z0-9._:-]` allowed. This is enforced at the Pydantic model level for create models and at the router level for LLM/embedding creation (since `LLMModel`/`EmbeddingModel` are dual-use input/output models).
+
+Enum fields use `Literal` types: `privacy` ("public"/"private"), LLM `type` ("chat"/"completion"/"vision"/"qa"), project `type` ("rag"/"inference"/"agent"/"block"), `splitter` ("sentence"/"token").
+
+Integer Query/Form params have `ge`/`le` bounds (pagination, chunks, limits, days).
+
+File uploads are sanitized via `sanitize_filename` (strips path components and null bytes).
+
 ## Testing
 
-Tests use `FastAPI.TestClient` with Basic auth: `auth=("admin", RESTAI_DEFAULT_PASSWORD)`. No conftest.py — fixtures are inline. Tests create real resources (projects, users) against a live app instance.
+Tests use `FastAPI.TestClient` with Basic auth: `auth=("admin", RESTAI_DEFAULT_PASSWORD)`. No conftest.py — fixtures are inline. Tests create real resources (projects, users) against a live app instance. Key test files:
+- `tests/test_input_validation.py` — Name validation, enum validation, valid value acceptance
+- `tests/test_security.py` — RBAC, cross-team access, empty/whitespace name rejection
+- `tests/test_users.py`, `tests/test_teams.py`, `tests/test_llms.py`, `tests/test_embeddings.py` — CRUD tests
+
+Note: `tests/test_projects.py` may fail if no LLMs are configured in the test environment (pre-existing issue).
 
 ## Key env vars
 
