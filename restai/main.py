@@ -70,11 +70,15 @@ async def lifespan(fs_app: FastAPI):
     from restai.database import engine as db_engine
     ensure_settings_table(db_engine)
 
-    # Auto-create new association tables for generators and migrate output table
-    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase
+    # Auto-create new association tables for generators, eval tables, and migrate output table
+    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase
     from sqlalchemy import inspect as sa_inspect, Column, Integer, ForeignKey, text
     TeamImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     TeamAudioGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
+    EvalDatasetDatabase.__table__.create(db_engine, checkfirst=True)
+    EvalTestCaseDatabase.__table__.create(db_engine, checkfirst=True)
+    EvalRunDatabase.__table__.create(db_engine, checkfirst=True)
+    EvalResultDatabase.__table__.create(db_engine, checkfirst=True)
     inspector = sa_inspect(db_engine)
     if "output" in inspector.get_table_names():
         output_cols = {c["name"] for c in inspector.get_columns("output")}
@@ -241,6 +245,9 @@ async def lifespan(fs_app: FastAPI):
     fs_app.include_router(teams.router, tags=["Teams"])
     fs_app.include_router(settings.router, tags=["Settings"])
     fs_app.include_router(direct.router, tags=["Direct Access"])
+
+    from restai.routers import evals
+    fs_app.include_router(evals.router)
 
     if config.RESTAI_GPU == True:
         fs_app.include_router(image.router, tags=["Image"])

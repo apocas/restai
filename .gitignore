@@ -184,3 +184,4 @@ lab.py
 .aider*
 
 .venvs
+.deepeval/.deepeval_telemetry.txt

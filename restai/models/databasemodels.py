@@ -142,6 +142,69 @@ class OutputDatabase(Base):
 
     chat_id = Column(String(255))
 
+
+class EvalDatasetDatabase(Base):
+    __tablename__ = "eval_datasets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255))
+    description = Column(Text, nullable=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+    test_cases = relationship("EvalTestCaseDatabase", back_populates="dataset", cascade="all, delete-orphan")
+    runs = relationship("EvalRunDatabase", back_populates="dataset", cascade="all, delete-orphan")
+
+
+class EvalTestCaseDatabase(Base):
+    __tablename__ = "eval_test_cases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dataset_id = Column(Integer, ForeignKey("eval_datasets.id"), nullable=False)
+    question = Column(Text, nullable=False)
+    expected_answer = Column(Text, nullable=True)
+    context = Column(Text, nullable=True)
+    created_at = Column(DateTime)
+
+    dataset = relationship("EvalDatasetDatabase", back_populates="test_cases")
+
+
+class EvalRunDatabase(Base):
+    __tablename__ = "eval_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dataset_id = Column(Integer, ForeignKey("eval_datasets.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    status = Column(String(50), default="pending")
+    metrics = Column(Text)
+    summary = Column(Text, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime)
+    error = Column(Text, nullable=True)
+
+    dataset = relationship("EvalDatasetDatabase", back_populates="runs")
+    results = relationship("EvalResultDatabase", back_populates="run", cascade="all, delete-orphan")
+
+
+class EvalResultDatabase(Base):
+    __tablename__ = "eval_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    run_id = Column(Integer, ForeignKey("eval_runs.id"), nullable=False)
+    test_case_id = Column(Integer, ForeignKey("eval_test_cases.id"), nullable=False)
+    actual_answer = Column(Text, nullable=True)
+    retrieval_context = Column(Text, nullable=True)
+    metric_name = Column(String(255))
+    score = Column(Float)
+    reason = Column(Text, nullable=True)
+    passed = Column(Boolean, default=False)
+    latency_ms = Column(Integer, nullable=True)
+
+    run = relationship("EvalRunDatabase", back_populates="results")
+
+
 class LLMDatabase(Base):
     __tablename__ = "llms"
 

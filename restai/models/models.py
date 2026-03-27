@@ -1060,3 +1060,125 @@ class OpenAIEmbeddingResponse(BaseModel):
     data: list[OpenAIEmbeddingData] = Field(description="Embedding results")
     model: str = Field(description="Model used")
     usage: OpenAIEmbeddingUsage = Field(description="Token usage statistics")
+
+
+# ── Evaluation Framework ─────────────────────────────────────────────────
+
+
+class EvalTestCaseCreate(BaseModel):
+    """Create a test case for an evaluation dataset."""
+    question: str = Field(max_length=100000, description="Test question to ask the project")
+    expected_answer: Optional[str] = Field(default=None, max_length=100000, description="Expected ground truth answer")
+    context: Optional[list[str]] = Field(default=None, description="Reference context passages for faithfulness evaluation")
+
+
+class EvalTestCaseResponse(BaseModel):
+    """A test case in an evaluation dataset."""
+    id: int
+    question: str
+    expected_answer: Optional[str] = None
+    context: Optional[list[str]] = None
+    created_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('context', mode='before')
+    @classmethod
+    def parse_context(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return None
+        return v
+
+
+class EvalDatasetCreate(BaseModel):
+    """Create an evaluation dataset for a project."""
+    name: str = Field(max_length=255, description="Dataset name")
+    description: Optional[str] = Field(default=None, max_length=2000, description="Dataset description")
+    test_cases: Optional[list[EvalTestCaseCreate]] = Field(default=None, description="Initial test cases to add")
+
+
+class EvalDatasetUpdate(BaseModel):
+    """Update an evaluation dataset."""
+    name: Optional[str] = Field(default=None, max_length=255)
+    description: Optional[str] = Field(default=None, max_length=2000)
+
+
+class EvalDatasetResponse(BaseModel):
+    """An evaluation dataset summary."""
+    id: int
+    name: str
+    description: Optional[str] = None
+    project_id: int
+    test_case_count: int = 0
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EvalDatasetDetailResponse(EvalDatasetResponse):
+    """An evaluation dataset with all test cases."""
+    test_cases: list[EvalTestCaseResponse] = []
+
+
+class EvalRunCreate(BaseModel):
+    """Start an evaluation run."""
+    dataset_id: int = Field(description="ID of the dataset to evaluate")
+    metrics: list[str] = Field(
+        default=["answer_relevancy"],
+        description="Metrics to evaluate: answer_relevancy, faithfulness, correctness"
+    )
+
+
+class EvalResultResponse(BaseModel):
+    """A single evaluation result for one test case and one metric."""
+    id: int
+    test_case_id: int
+    actual_answer: Optional[str] = None
+    metric_name: str
+    score: Optional[float] = None
+    reason: Optional[str] = None
+    passed: bool = False
+    latency_ms: Optional[int] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EvalRunResponse(BaseModel):
+    """An evaluation run summary."""
+    id: int
+    dataset_id: int
+    project_id: int
+    status: str
+    metrics: list[str] = []
+    summary: Optional[dict] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    error: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('metrics', mode='before')
+    @classmethod
+    def parse_metrics(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return []
+        return v or []
+
+    @field_validator('summary', mode='before')
+    @classmethod
+    def parse_summary(cls, v):
+        if isinstance(v, str) and v:
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return None
+        return v
+
+
+class EvalRunDetailResponse(EvalRunResponse):
+    """An evaluation run with all results."""
+    results: list[EvalResultResponse] = []

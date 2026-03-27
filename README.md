@@ -117,6 +117,19 @@ Enable via `MCP_SERVER=true` environment variable or the admin settings page (re
 - `list_projects` — Discover which AI projects you have access to
 - `query_project` — Send a question (with optional image) to any accessible project
 
+### Evaluation Framework
+
+Built-in evaluation system to measure and track AI project quality over time. Create test datasets with question/expected-answer pairs, run evaluations with multiple metrics, and visualize score trends.
+
+**Metrics** (powered by [DeepEval](https://github.com/confident-ai/deepeval)):
+- **Answer Relevancy** — Is the answer relevant to the question?
+- **Faithfulness** — Is the answer grounded in the retrieved context? (RAG projects)
+- **Correctness** — Does the answer match the expected output?
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/eval.png" width="750" alt="RESTai Evaluation"/>
+</div>
+
 ### Image Generation
 
 Local and remote image generators loaded dynamically. Supports Stable Diffusion, Flux, DALL-E, RMBG2, and more.
