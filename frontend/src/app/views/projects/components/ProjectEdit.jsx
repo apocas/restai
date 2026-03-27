@@ -484,20 +484,50 @@ export default function ProjectEdit({ project, projects, info }) {
             )}
 
             {(state.type === "rag" || state.type === "inference" || state.type === "agent") && state.type !== "block" && (
-              <Grid item sm={6} xs={12}>
-                <TextField
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  name="system"
-                  label="System Message"
-                  variant="outlined"
-                  onChange={handleChange}
-                  value={state.system ?? ''}
-                  multiline={true}
-                />
-              </Grid>
+              <Fragment>
+                <Grid item sm={12} xs={12}>
+                  <Divider sx={{ mb: 1 }} />
+                </Grid>
+                <Grid item sm={12} xs={12}>
+                  <Typography variant="subtitle1" gutterBottom>System Message</Typography>
+                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+                    Defines the AI's behavior and personality. This is prepended to every conversation.
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+                    <Button size="small" variant="outlined" onClick={() => setState({ ...state, system: "You are a helpful assistant. Answer questions clearly and concisely." })}>
+                      General Assistant
+                    </Button>
+                    <Button size="small" variant="outlined" onClick={() => setState({ ...state, system: "Describe the provided image in detail. Include colors, objects, people, text, and any notable features." })}>
+                      Describe Image
+                    </Button>
+                    <Button size="small" variant="outlined" onClick={() => setState({ ...state, system: "Summarize the following text. Keep the summary concise while preserving the key points and main ideas." })}>
+                      Summarize Text
+                    </Button>
+                    <Button size="small" variant="outlined" onClick={() => setState({ ...state, system: "You are a translator. Translate the user's input to English. Preserve the original meaning and tone." })}>
+                      Translate to English
+                    </Button>
+                    <Button size="small" variant="outlined" onClick={() => setState({ ...state, system: "Extract structured data from the user's input. Return the result as valid JSON." })}>
+                      Extract Data (JSON)
+                    </Button>
+                    <Button size="small" variant="outlined" onClick={() => setState({ ...state, system: "You are a code assistant. Help the user write, debug, and explain code. Use markdown code blocks in your responses." })}>
+                      Code Assistant
+                    </Button>
+                  </Box>
+                  <TextField
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    name="system"
+                    label="System Message"
+                    variant="outlined"
+                    onChange={handleChange}
+                    value={state.system ?? ''}
+                    multiline
+                    minRows={3}
+                    maxRows={12}
+                  />
+                </Grid>
+              </Fragment>
             )}
-
 
             <Grid item sm={6} xs={12}>
               <TextField
