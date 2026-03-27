@@ -236,7 +236,7 @@ def get_logger(name: str, level=logging.INFO):
     return logger
 
 
-def log_inference(project: Project, user: User, output, db: DBWrapper):
+def log_inference(project: Project, user: User, output, db: DBWrapper, latency_ms=None):
     input_cost = 0.0
     output_cost = 0.0
     if project.props.llm:
@@ -257,6 +257,7 @@ def log_inference(project: Project, user: User, output, db: DBWrapper):
         output_tokens=output["tokens"]["output"],
         input_cost=input_cost,
         output_cost=output_cost,
+        latency_ms=latency_ms,
     )
 
     if "id" in output:

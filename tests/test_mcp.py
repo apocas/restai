@@ -273,7 +273,10 @@ def test_mcp_server_produces_sse_app():
 def test_mcp_teardown():
     """Clean up resources created for MCP tests."""
     with TestClient(app) as client:
-        client.delete(f"/projects/{project_id}", auth=ADMIN)
-        client.delete(f"/teams/{team_id}", auth=ADMIN)
+        # Delete project before team to avoid orphaned records
+        if project_id:
+            client.delete(f"/projects/{project_id}", auth=ADMIN)
+        if team_id:
+            client.delete(f"/teams/{team_id}", auth=ADMIN)
         client.delete(f"/users/{user_name}", auth=ADMIN)
         client.delete(f"/llms/{llm_name}", auth=ADMIN)

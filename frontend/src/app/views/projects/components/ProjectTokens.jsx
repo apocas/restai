@@ -67,7 +67,7 @@ export default function ProjectTokens({ project, tokens, selectedYear, selectedM
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(selectedYear, selectedMonth - 1, day);
       const dateStr = date.toISOString().split("T")[0];
-      result.push(tokenMap[dateStr] || { date: dateStr, input_tokens: 0, output_tokens: 0, input_cost: 0, output_cost: 0 });
+      result.push(tokenMap[dateStr] || { date: dateStr, input_tokens: 0, output_tokens: 0, input_cost: 0, output_cost: 0, avg_latency_ms: 0 });
     }
     return result;
   }, [tokens, selectedYear, selectedMonth]);
@@ -79,15 +79,18 @@ export default function ProjectTokens({ project, tokens, selectedYear, selectedM
         acc.output_tokens += item.output_tokens || 0;
         acc.input_cost += item.input_cost || 0;
         acc.output_cost += item.output_cost || 0;
+        acc.total_latency += item.avg_latency_ms || 0;
+        if (item.avg_latency_ms > 0) acc.latency_days += 1;
         return acc;
       },
-      { input_tokens: 0, output_tokens: 0, input_cost: 0, output_cost: 0 }
+      { input_tokens: 0, output_tokens: 0, input_cost: 0, output_cost: 0, total_latency: 0, latency_days: 0 }
     );
   }, [filledTokens]);
 
   const daysWithData = filledTokens.filter(d => d.input_tokens > 0 || d.output_tokens > 0).length;
   const avgDailyTokens = daysWithData > 0 ? Math.round((sums.input_tokens + sums.output_tokens) / daysWithData) : 0;
   const avgDailyCost = daysWithData > 0 ? (sums.input_cost + sums.output_cost) / daysWithData : 0;
+  const avgLatency = sums.latency_days > 0 ? Math.round(sums.total_latency / sums.latency_days) : 0;
 
   return (
     <Card elevation={3}>
@@ -130,6 +133,12 @@ export default function ProjectTokens({ project, tokens, selectedYear, selectedM
               <Typography variant="caption" color="text.secondary">Avg Daily Cost</Typography>
             </StatCard>
           </Grid>
+          <Grid item xs={6} sm={3}>
+            <StatCard elevation={1}>
+              <Typography variant="h6">{avgLatency > 1000 ? `${(avgLatency / 1000).toFixed(1)}s` : `${avgLatency}ms`}</Typography>
+              <Typography variant="caption" color="text.secondary">Avg Latency</Typography>
+            </StatCard>
+          </Grid>
         </Grid>
 
         <Typography variant="subtitle2" sx={{ mb: 1 }}>Tokens</Typography>
@@ -153,6 +162,17 @@ export default function ProjectTokens({ project, tokens, selectedYear, selectedM
             <Tooltip formatter={(value) => `${currencySymbol}${value.toFixed(4)}`} />
             <Area type="monotone" dataKey="input_cost" stackId="1" stroke="#922b21" fill="#922b21" fillOpacity={0.4} name="Input Cost" />
             <Area type="monotone" dataKey="output_cost" stackId="1" stroke="#1e8449" fill="#1e8449" fillOpacity={0.4} name="Output Cost" />
+          </AreaChart>
+        </ResponsiveContainer>
+
+        <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Latency</Typography>
+        <ResponsiveContainer width='100%' height={250}>
+          <AreaChart data={filledTokens} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" tickFormatter={(v) => v.slice(8)} />
+            <YAxis tickFormatter={(v) => v > 1000 ? `${(v / 1000).toFixed(1)}s` : `${v}ms`} />
+            <Tooltip formatter={(value) => value > 1000 ? `${(value / 1000).toFixed(1)}s` : `${Math.round(value)}ms`} />
+            <Area type="monotone" dataKey="avg_latency_ms" stroke="#3498db" fill="#3498db" fillOpacity={0.4} name="Avg Latency" />
           </AreaChart>
         </ResponsiveContainer>
       </Box>

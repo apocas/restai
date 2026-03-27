@@ -1,3 +1,4 @@
+import time
 from typing import AsyncGenerator, Any, Dict
 
 from starlette.responses import StreamingResponse
@@ -46,24 +47,12 @@ async def create_streaming_response_with_logging(
     user: User,
     db: DBWrapper,
     background_tasks: BackgroundTasks,
+    start_time: float = None,
 ) -> StreamingResponse:
-    """
-    Creates a streaming response with logging of the final output.
-
-    Args:
-        generator: The generator that yields streaming chunks
-        project: The project
-        user: The user
-        db: The database wrapper
-        background_tasks: Background tasks
-
-    Returns:
-        A StreamingResponse
-    """
 
     async def stream_with_logging():
         final_output = None
-        
+
         async for chunk in generator:
             if isinstance(chunk, str) and chunk.startswith("data: "):
                 try:
@@ -75,7 +64,8 @@ async def create_streaming_response_with_logging(
             yield chunk
 
         if final_output:
-            background_tasks.add_task(log_inference, project, user, final_output, db)
+            latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
+            background_tasks.add_task(log_inference, project, user, final_output, db, latency_ms=latency_ms)
 
     return StreamingResponse(
         stream_with_logging(),
@@ -91,6 +81,7 @@ async def chat_main(
     user: User,
     db: DBWrapper,
     background_tasks: BackgroundTasks,
+    start_time: float = None,
 ):
     check_budget(project, db)
 
@@ -116,12 +107,13 @@ async def chat_main(
             user,
             db,
             background_tasks,
+            start_time=start_time,
         )
     else:
-        # Handle the async generator for non-streaming case
         output_generator = proj_logic.chat(project, chat_input, user, db)
         async for line in output_generator:
-            background_tasks.add_task(log_inference, project, user, line, db)
+            latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
+            background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms)
             return line
 
 
@@ -133,6 +125,7 @@ async def question_main(
     user: User,
     db: DBWrapper,
     background_tasks: BackgroundTasks,
+    start_time: float = None,
 ):
     check_budget(project, db)
 
@@ -140,22 +133,23 @@ async def question_main(
         case "rag":
             cached = await process_cache(project, q_input)
             if cached:
-                background_tasks.add_task(log_inference, project, user, cached, db)
+                latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
+                background_tasks.add_task(log_inference, project, user, cached, db, latency_ms=latency_ms)
                 return cached
             return await question_rag(
-                request, brain, project, q_input, user, db, background_tasks
+                request, brain, project, q_input, user, db, background_tasks, start_time
             )
         case "inference":
             return await question_inference(
-                brain, project, q_input, user, db, background_tasks
+                brain, project, q_input, user, db, background_tasks, start_time
             )
         case "agent":
             return await question_agent(
-                brain, project, q_input, user, db, background_tasks
+                brain, project, q_input, user, db, background_tasks, start_time
             )
         case "block":
             return await question_block(
-                brain, project, q_input, user, db, background_tasks
+                brain, project, q_input, user, db, background_tasks, start_time
             )
         case _:
             raise HTTPException(status_code=400, detail="Invalid project type")
@@ -169,6 +163,7 @@ async def question_rag(
     user: User,
     db: DBWrapper,
     background_tasks: BackgroundTasks,
+    start_time: float = None,
 ):
     try:
         proj_logic = RAG(brain)
@@ -185,11 +180,13 @@ async def question_rag(
                 user,
                 db,
                 background_tasks,
+                start_time=start_time,
             )
         else:
             output_generator = proj_logic.question(project, q_input, user, db)
             async for line in output_generator:
-                background_tasks.add_task(log_inference, project, user, line, db)
+                latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
+                background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms)
                 return line
     except Exception as e:
         if isinstance(e, HTTPException):
@@ -228,6 +225,7 @@ async def question_inference(
     user: User,
     db: DBWrapper,
     background_tasks: BackgroundTasks,
+    start_time: float = None,
 ):
     try:
         proj_logic: Inference = Inference(brain)
@@ -247,11 +245,13 @@ async def question_inference(
                 user,
                 db,
                 background_tasks,
+                start_time=start_time,
             )
         else:
             output_generator = proj_logic.question(project, q_input, user, db)
             async for line in output_generator:
-                background_tasks.add_task(log_inference, project, user, line, db)
+                latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
+                background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms)
                 return line
 
     except Exception as e:
@@ -268,6 +268,7 @@ async def question_agent(
     user: User,
     db: DBWrapper,
     background_tasks: BackgroundTasks,
+    start_time: float = None,
 ):
     try:
         projLogic: Agent = Agent(brain)
@@ -284,11 +285,13 @@ async def question_agent(
                 user,
                 db,
                 background_tasks,
+                start_time=start_time,
             )
         else:
             output_generator = projLogic.question(project, q_input, user, db)
             async for line in output_generator:
-                background_tasks.add_task(log_inference, project, user, line, db)
+                latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
+                background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms)
                 return line
 
     except Exception as e:
@@ -305,6 +308,7 @@ async def question_block(
     user: User,
     db: DBWrapper,
     background_tasks: BackgroundTasks,
+    start_time: float = None,
 ):
     try:
         proj_logic = Block(brain)
@@ -319,7 +323,8 @@ async def question_block(
 
         output_generator = proj_logic.question(project, q_input, user, db)
         async for line in output_generator:
-            background_tasks.add_task(log_inference, project, user, line, db)
+            latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
+            background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms)
             return line
 
     except Exception as e:

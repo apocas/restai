@@ -46,7 +46,7 @@ docker compose --env-file .env up --build
 - **Any LLM** — OpenAI, Anthropic, Ollama, Gemini, Groq, LiteLLM, vLLM, Azure, and more
 - **Feature complete** — Teams, RBAC, OAuth/LDAP, token tracking, Kubernetes-native
 - **Extensible tools** — MCP (Model Context Protocol) for unlimited agent integrations
-- **Token tracking & cost analytics** — built-in dashboard with daily usage, per-project costs, and top LLM charts
+- **Token tracking, cost & latency analytics** — built-in dashboard with daily usage, per-project costs, latency monitoring, and top LLM charts
 
 ---
 
@@ -54,7 +54,7 @@ docker compose --env-file .env up --build
 
 ### Dashboard & Analytics
 
-Track token usage, costs, and project activity from a centralized dashboard. Daily charts, top projects, and LLM distribution at a glance.
+Track token usage, costs, latency, and project activity from a centralized dashboard. Daily charts for tokens, costs, and response latency per project — identify performance regressions at a glance.
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/home.png" width="750" alt="RESTai Dashboard"/>

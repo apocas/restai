@@ -138,9 +138,10 @@ class OutputDatabase(Base):
     output_cost = Column(Float)
     
     date = Column(DateTime, index=True)
-    
+    latency_ms = Column(Integer, nullable=True)
+
     chat_id = Column(String(255))
-    
+
 class LLMDatabase(Base):
     __tablename__ = "llms"
 

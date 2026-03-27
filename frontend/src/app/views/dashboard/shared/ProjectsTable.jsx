@@ -78,7 +78,7 @@ export default function ProjectsTable({ projects = [], title = "Projects" }) {
           },
           customToolbar: CustomToolbar
         }}
-        data={projects.map(project => [project.id, project.name, project.type, project.llm, project.users, project.team.name, project.id])}
+        data={projects.map(project => [project.id, project.name, project.type, project.llm, project.users, project.team ? project.team.name : "", project.id])}
         columns={[{
           name: "ID",
           options: {

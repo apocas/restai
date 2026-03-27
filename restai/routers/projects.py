@@ -874,6 +874,9 @@ async def chat_query(
 ):
     """Send a chat message to a project with conversation history."""
     try:
+        import time as _time
+        start_time = _time.perf_counter()
+
         if not q_input.question and not q_input.image:
             raise HTTPException(status_code=400, detail="Missing question")
 
@@ -887,6 +890,7 @@ async def chat_query(
             user,
             db_wrapper,
             background_tasks,
+            start_time=start_time,
         )
     except Exception as e:
         if isinstance(e, HTTPException):
@@ -906,6 +910,9 @@ async def question_query_endpoint(
 ):
     """Send a one-shot question to a project."""
     try:
+        import time as _time
+        start_time = _time.perf_counter()
+
         if not q_input.question and not q_input.image:
             raise HTTPException(status_code=400, detail="Question missing")
 
@@ -926,6 +933,7 @@ async def question_query_endpoint(
             user,
             db_wrapper,
             background_tasks,
+            start_time=start_time,
         )
     except Exception as e:
         if isinstance(e, HTTPException):
@@ -997,6 +1005,7 @@ async def get_monthly_token_consumption(
                 func.sum(OutputDatabase.output_tokens).label("output_tokens"),
                 func.sum(OutputDatabase.input_cost).label("input_cost"),
                 func.sum(OutputDatabase.output_cost).label("output_cost"),
+                func.avg(OutputDatabase.latency_ms).label("avg_latency_ms"),
             )
             .filter(
                 OutputDatabase.project_id == project.id,
@@ -1015,6 +1024,7 @@ async def get_monthly_token_consumption(
                     "output_tokens": tc.output_tokens,
                     "input_cost": tc.input_cost,
                     "output_cost": tc.output_cost,
+                    "avg_latency_ms": round(tc.avg_latency_ms) if tc.avg_latency_ms else 0,
                 }
                 for tc in token_consumptions
             ]
