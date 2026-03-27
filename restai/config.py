@@ -86,9 +86,7 @@ RESTAI_DEMO = (
     True if os.environ.get("RESTAI_DEMO", "").lower() in ("true", "1") else False
 )
 
-MCP_SERVER = (
-    True if os.environ.get("MCP_SERVER", "").lower() in ("true", "1") else False
-)
+
 
 
 SQLITE_PATH = os.environ.get("SQLITE_PATH")
@@ -209,6 +207,8 @@ else:
     RESTAI_GPU = detect_gpu()
 RESTAI_DEFAULT_DEVICE = os.environ.get("RESTAI_DEFAULT_DEVICE")
 GPU_WORKER_DEVICES = os.environ.get("GPU_WORKER_DEVICES", "")
+
+RESTAI_MCP = os.environ.get("MCP_SERVER", "").lower() in ("true", "1")
 
 EMBEDDINGS_PATH = os.environ.get("EMBEDDINGS_PATH")
 

@@ -165,6 +165,7 @@ async def lifespan(fs_app: FastAPI):
             "proxy_url": config.PROXY_URL or "",
             "currency": config.CURRENCY or "EUR",
             "auth_disable_local": config.RESTAI_AUTH_DISABLE_LOCAL,
+            "mcp": config.RESTAI_MCP,
         }
 
     @fs_app.get("/info", tags=["Health"])
@@ -245,43 +246,11 @@ async def lifespan(fs_app: FastAPI):
         fs_app.include_router(image.router, tags=["Image"])
         fs_app.include_router(audio.router, tags=["Audio"])
 
-    # Initialize MCP server if enabled
-    if config.MCP_SERVER:
-        print("MCP server starting...")
-        from restai.mcp_server import create_mcp_server
-        from restai.auth import get_current_username
-        from restai.database import get_db_wrapper
-        from fastapi import Request, HTTPException, status
-        from restai.models.models import User
-        from fastapi.responses import JSONResponse
-        from starlette.types import ASGIApp, Receive, Scope, Send
-
-        # Create MCP server that exposes projects as tools
-        mcp = create_mcp_server(fs_app, fs_app.state.brain)
-
-        # Custom ASGI middleware for authentication
-        class MCPAuthMiddleware:
-            def __init__(self, app: ASGIApp):
-                self.app = app
-            async def __call__(self, scope: Scope, receive: Receive, send: Send):
-                if scope["type"] == "http":
-                    request = Request(scope, receive=receive)
-                    try:
-                        user = await get_current_username(request, db_wrapper=get_db_wrapper())
-                        scope["state"] = getattr(scope, "state", {})
-                        scope["state"]["user"] = user
-                    except HTTPException:
-                        response = JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Unauthorized"})
-                        await response(scope, receive, send)
-                        return
-                await self.app(scope, receive, send)
-
-        # Get the ASGI app from FastMCP and wrap with authentication middleware
-        mcp_asgi_app = mcp.http_app()
-        mcp_with_auth = MCPAuthMiddleware(mcp_asgi_app)
-
-        # Mount the MCP server endpoints
-        fs_app.mount("/mcp", mcp_with_auth)
+    if config.RESTAI_MCP:
+        from restai.mcp import create_mcp_server
+        mcp_server = create_mcp_server(fs_app)
+        fs_app.mount("/mcp", mcp_server.http_app(transport="sse"))
+        logging.info("MCP server enabled at /mcp/sse")
 
     # Start Telegram pollers for all projects with a token
     import json as _json

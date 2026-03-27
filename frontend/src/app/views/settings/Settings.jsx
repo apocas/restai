@@ -74,6 +74,8 @@ export default function SettingsPage() {
     sso_oidc_scopes: "openid email profile",
     sso_oidc_provider_name: "SSO",
     sso_oidc_email_claim: "email",
+    // MCP
+    mcp_enabled: false,
   });
   const [saving, setSaving] = useState(false);
 
@@ -602,6 +604,35 @@ export default function SettingsPage() {
                   </Grid>
                 </Box>
               </Collapse>
+            </Card>
+          </Grid>
+
+          {/* MCP Server */}
+          <Grid item xs={12}>
+            <Card elevation={3}>
+              <FlexBox>
+                <SettingsIcon sx={{ ml: 2 }} />
+                <H4 sx={{ p: 2 }}>MCP Server</H4>
+              </FlexBox>
+              <Divider />
+              <Box sx={{ p: 3 }}>
+                <Grid container spacing={3}>
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={form.mcp_enabled}
+                          onChange={handleChange("mcp_enabled")}
+                        />
+                      }
+                      label="Enable MCP Server"
+                    />
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Expose projects as MCP tools at /mcp/sse. Clients authenticate with a Bearer API key and can only access their assigned projects. Requires server restart.
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Box>
             </Card>
           </Grid>
 

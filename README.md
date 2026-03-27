@@ -107,6 +107,16 @@ Build processing logic visually using a Blockly-based IDE — no LLM required. D
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/block.png" width="750" alt="RESTai Block IDE"/>
 </div>
 
+### MCP Server
+
+RESTai includes an optional built-in [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that exposes your projects as tools consumable by any MCP client — Claude Desktop, Cursor, or custom agents. Each user authenticates with a Bearer API key and can only access their assigned projects.
+
+Enable via `MCP_SERVER=true` environment variable or the admin settings page (requires restart). Clients connect to `http://your-host:9000/mcp/sse`.
+
+**Available tools:**
+- `list_projects` — Discover which AI projects you have access to
+- `query_project` — Send a question (with optional image) to any accessible project
+
 ### Image Generation
 
 Local and remote image generators loaded dynamically. Supports Stable Diffusion, Flux, DALL-E, RMBG2, and more.
@@ -324,7 +334,7 @@ Direct interaction with the GPU layer — ideal for small deployments.
 | `MYSQL_HOST` | Use MySQL instead of SQLite | — |
 | `REDIS_HOST` / `REDIS_PORT` | Redis for persistent chat history | — |
 | `CHROMADB_HOST` / `CHROMADB_PORT` | Remote ChromaDB for vector storage | — |
-| `MCP_SERVER` | Enable MCP server endpoint | — |
+| `MCP_SERVER` | Enable built-in MCP server at `/mcp/sse` | `false` |
 
 Full configuration in [`restai/config.py`](restai/config.py).
 

@@ -510,6 +510,16 @@ class User(BaseModel):
             return UserOptions(**v)
         return v
 
+    def has_project_access(self, project_id: int) -> bool:
+        """Check if the user can access a specific project."""
+        if self.is_admin:
+            return True
+        return any(p.id == project_id for p in self.projects)
+
+    def get_project_ids(self) -> set[int]:
+        """Return the set of project IDs this user can access."""
+        return {p.id for p in self.projects}
+
 
 class LimitedUser(BaseModel):
     """Limited user info visible to non-admin users."""
@@ -908,6 +918,8 @@ class SettingsResponse(BaseModel):
     # GPU
     gpu_enabled: bool = Field(default=False, description="Whether GPU features are enabled")
     gpu_worker_devices: Optional[str] = Field(default="", description="Comma-separated GPU indices for worker processes (e.g. '0,1')")
+    # MCP
+    mcp_enabled: bool = Field(default=False, description="Whether the internal MCP server is enabled")
 
 
 class SettingsUpdate(BaseModel):
@@ -956,6 +968,8 @@ class SettingsUpdate(BaseModel):
     # GPU
     gpu_enabled: Optional[bool] = Field(default=None, description="Whether GPU features are enabled")
     gpu_worker_devices: Optional[str] = Field(default=None, description="Comma-separated GPU indices for worker processes (e.g. '0,1')")
+    # MCP
+    mcp_enabled: Optional[bool] = Field(default=None, description="Whether the internal MCP server is enabled")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "app_name": "My AI Platform",

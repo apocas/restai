@@ -33,7 +33,7 @@ Package manager is `uv`. Dependencies exclude GPU group by default (`--no-group 
 
 ## Architecture
 
-**Entry point**: `restai/main.py` — FastAPI app with lifespan that initializes `Brain`, registers routers, optionally mounts MCP server and React SPA at `/admin/*`.
+**Entry point**: `restai/main.py` — FastAPI app with lifespan that initializes `Brain`, registers routers, optionally mounts internal MCP server at `/mcp`, and mounts React SPA at `/admin/*`.
 
 **Core orchestration**: `restai/brain.py` — `Brain` class holds LLM/embedding caches, tool registry, chat store (Redis or in-memory), and token counter. Injected via `app.state.brain`.
 
@@ -82,6 +82,12 @@ Key frontend pages for block projects:
 - `frontend/src/app/views/projects/components/blockly/blocks.js` — Custom block definitions (Get Input, Set Output, Call Project, Classifier, Log)
 - `frontend/src/app/views/projects/components/blockly/toolbox.js` — Toolbox category configuration
 
+### MCP Server (`restai/mcp.py`)
+
+Optional internal MCP server that exposes user projects as MCP tools. Built with FastMCP, served over SSE at `/mcp/sse`. Disabled by default — enable via `MCP_SERVER=true` env var or the admin settings page (requires restart).
+
+Two tools: `list_projects` (returns accessible projects as JSON) and `query_project` (sends a question to a project, returns the answer). Authentication via Bearer API key on every request. Users can only access their assigned projects; admins access all. Settings follow the GPU toggle pattern (`config.py` → `settings.py` → `main.py` conditional mount).
+
 ### Vector stores (`restai/vectordb/`)
 
 ChromaDB (default) or Redis. Configured per-project. Reranking support: ColBERT and LLM-based.
@@ -107,4 +113,4 @@ Note: `tests/test_projects.py` may fail if no LLMs are configured in the test en
 
 ## Key env vars
 
-`RESTAI_DEV`, `RESTAI_GPU`, `RESTAI_DEFAULT_PASSWORD`, `RESTAI_URL` (for OAuth redirects), `REDIS_HOST`/`REDIS_PORT`, `CHROMADB_HOST`/`CHROMADB_PORT`, `MCP_SERVER`, `AGENT_MAX_ITERATIONS`, LLM API keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc). Full list in `restai/config.py`.
+`RESTAI_DEV`, `RESTAI_GPU`, `RESTAI_DEFAULT_PASSWORD`, `RESTAI_URL` (for OAuth redirects), `REDIS_HOST`/`REDIS_PORT`, `CHROMADB_HOST`/`CHROMADB_PORT`, `MCP_SERVER` (enable internal MCP server), `AGENT_MAX_ITERATIONS`, LLM API keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc). Full list in `restai/config.py`.

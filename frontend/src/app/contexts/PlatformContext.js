@@ -10,7 +10,8 @@ export const PlatformContext = createContext({
     hide_branding: false,
     proxy_url: "",
     currency: "EUR",
-    auth_disable_local: false
+    auth_disable_local: false,
+    mcp: false
   },
   isLoading: true,
   refreshCapabilities: () => {}
@@ -28,7 +29,8 @@ export default function PlatformProvider({ children }) {
     hide_branding: false,
     proxy_url: "",
     currency: "EUR",
-    auth_disable_local: false
+    auth_disable_local: false,
+    mcp: false
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -48,7 +50,8 @@ export default function PlatformProvider({ children }) {
           hide_branding: data.hide_branding || false,
           proxy_url: data.proxy_url || "",
           currency: data.currency || "USD",
-          auth_disable_local: data.auth_disable_local || false
+          auth_disable_local: data.auth_disable_local || false,
+          mcp: data.mcp || false
         });
       } else {
         console.error("Failed to fetch platform capabilities");

@@ -49,6 +49,8 @@ SETTINGS_DEFAULTS = {
     # GPU
     "gpu_enabled": (None, None),  # default derived at seed time
     "gpu_worker_devices": ("GPU_WORKER_DEVICES", ""),
+    # MCP
+    "mcp_enabled": ("MCP_SERVER", "false"),
 }
 
 # Which config attrs map to which setting keys
@@ -96,9 +98,11 @@ _CONFIG_ATTR_MAP = {
     # GPU
     "gpu_enabled": "RESTAI_GPU",
     "gpu_worker_devices": "GPU_WORKER_DEVICES",
+    # MCP
+    "mcp_enabled": "RESTAI_MCP",
 }
 
-_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "gpu_enabled"}
+_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "gpu_enabled", "mcp_enabled"}
 _INT_KEYS = {"agent_max_iterations", "max_audio_upload_size"}
 
 # Secret keys that should be masked in API responses
@@ -223,6 +227,8 @@ def get_all_settings(db_wrapper) -> dict:
         # GPU
         "gpu_enabled": _to_bool(rows.get("gpu_enabled", "false")),
         "gpu_worker_devices": rows.get("gpu_worker_devices", ""),
+        # MCP
+        "mcp_enabled": _to_bool(rows.get("mcp_enabled", "false")),
     }
 
 

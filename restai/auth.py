@@ -119,13 +119,7 @@ def get_current_username_admin(user: User = Depends(get_current_username)):
 def get_current_username_project(
     projectID: int, user: User = Depends(get_current_username)
 ):
-    found: bool = user.is_admin
-
-    if not found:
-        for project in user.projects:
-            if project.id == projectID:
-                found = True
-    if not found:
+    if not user.has_project_access(projectID):
         raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
     return user
 
@@ -135,24 +129,16 @@ def get_current_username_project_public(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    found = False
-    if not user.is_admin:
-        for project in user.projects:
-            if project.id == projectID:
-                found = True
-                user.level = "own"
-    else:
-        found = True
+    if user.has_project_access(projectID):
         user.level = "own"
+        return user
 
     p: Optional[ProjectDatabase] = db_wrapper.get_project_by_id(projectID)
-    if found == False and (p is not None and p.public):
-        found = True
+    if p is not None and p.public:
         user.level = "public"
+        return user
 
-    if not found:
-        raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
-    return user
+    raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
 
 
 def get_current_username_user(
