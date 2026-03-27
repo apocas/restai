@@ -22,7 +22,7 @@ from restai.config import LOG_LEVEL
 import json
 
 from restai.projects.base import ProjectBase
-from restai.budget import check_budget
+from restai.budget import check_budget, check_rate_limit
 
 logging.basicConfig(level=LOG_LEVEL)
 
@@ -84,6 +84,7 @@ async def chat_main(
     start_time: float = None,
 ):
     check_budget(project, db)
+    check_rate_limit(project, db)
 
     proj_logic: ProjectBase
     match project.props.type:
@@ -128,6 +129,7 @@ async def question_main(
     start_time: float = None,
 ):
     check_budget(project, db)
+    check_rate_limit(project, db)
 
     match project.props.type:
         case "rag":

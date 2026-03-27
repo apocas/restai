@@ -118,6 +118,8 @@ export default function ProjectEdit({ project, projects, info }) {
       opts.options.telegram_token = state.options.telegram_token;
     }
 
+    opts.options.rate_limit = state.options.rate_limit ? parseInt(state.options.rate_limit) : null;
+
     if (project.type === "rag") {
       opts.options.colbert_rerank = state.options.colbert_rerank
       opts.options.llm_rerank = state.options.llm_rerank
@@ -239,6 +241,9 @@ export default function ProjectEdit({ project, projects, info }) {
     }
     else if (event.target.name === "connection" || event.target.name === "tables") {
       setState({ ...state, options: { ...state.options, [event.target.name]: event.target.value } });
+    }
+    else if (event.target.name === "rate_limit") {
+      setState({ ...state, options: { ...state.options, rate_limit: event.target.value ? parseInt(event.target.value) : null } });
     }
     else {
       setState({ ...state, [event.target.name]: (event.target.type === "checkbox" ? event.target.checked : event.target.value) });
@@ -393,10 +398,24 @@ export default function ProjectEdit({ project, projects, info }) {
               />
             </Grid>
 
+            <Grid item sm={6} xs={12}>
+              <TextField
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                name="rate_limit"
+                label="Rate Limit (requests/min)"
+                variant="outlined"
+                type="number"
+                onChange={handleChange}
+                value={state.options?.rate_limit ?? ''}
+                helperText="Maximum requests per minute. Leave empty for unlimited."
+                inputProps={{ min: 1, max: 10000 }}
+              />
+            </Grid>
+
             <Grid item sm={12} xs={12}>
               <Divider sx={{ mb: 1 }} />
             </Grid>
-
 
             <Grid item sm={12} xs={12}>
               <Autocomplete
