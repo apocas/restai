@@ -17,10 +17,9 @@ export default function BlocklyEditor({ project, projects, onSave }) {
 
   // Update the dynamic dropdown whenever projects change
   useEffect(() => {
-    const names = (projects || [])
-      .filter((p) => p.name !== project.name)
-      .map((p) => p.name);
-    setProjectNames(names);
+    const filtered = (projects || []).filter((p) => p.name !== project.name);
+    const names = filtered.map((p) => p.name);
+    setProjectNames(names, filtered);
   }, [projects, project.name]);
 
   useEffect(() => {
@@ -30,10 +29,9 @@ export default function BlocklyEditor({ project, projects, onSave }) {
     if (!projectsLoaded.current) return;
 
     // Set names before registering blocks / loading workspace
-    const names = (projects || [])
-      .filter((p) => p.name !== project.name)
-      .map((p) => p.name);
-    setProjectNames(names);
+    const filtered = (projects || []).filter((p) => p.name !== project.name);
+    const names = filtered.map((p) => p.name);
+    setProjectNames(names, filtered);
 
     // Register custom block definitions (dropdown reads names dynamically)
     registerCustomBlocks();

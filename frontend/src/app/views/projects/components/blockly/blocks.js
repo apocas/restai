@@ -1,11 +1,13 @@
 import * as Blockly from "blockly";
 
-// Module-level store for project names — updated via setProjectNames(),
+// Module-level store for projects — updated via setProjectNames(),
 // read dynamically each time the "Call Project" dropdown opens.
 let _projectNames = [];
+let _projects = [];
 
-export function setProjectNames(names) {
+export function setProjectNames(names, projects) {
   _projectNames = names || [];
+  _projects = projects || [];
 }
 
 function projectDropdownGenerator() {
@@ -48,9 +50,18 @@ export function registerCustomBlocks() {
         .appendField(new Blockly.FieldDropdown(projectDropdownGenerator), "PROJECT_NAME");
       this.setOutput(true, "String");
       this.setColour(210);
-      this.setTooltip(
-        "Calls another RESTai project with text input and returns its answer"
-      );
+      var block = this;
+      this.setTooltip(function () {
+        var name = block.getFieldValue("PROJECT_NAME");
+        var proj = _projects.find(function (p) { return p.name === name; });
+        if (proj && proj.system) {
+          return "System: " + proj.system;
+        }
+        if (proj) {
+          return "Project: " + name + " (no system message)";
+        }
+        return "Calls another RESTai project with text input and returns its answer";
+      });
     },
   };
 
