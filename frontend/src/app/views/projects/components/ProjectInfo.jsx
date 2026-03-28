@@ -17,7 +17,7 @@ import { H4, Small } from "app/components/Typography";
 import { FlexBetween, FlexBox } from "app/components/FlexBox";
 import { Edit } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { SportsEsports, Delete, Code, Article, ViewInAr, Science } from "@mui/icons-material";
+import { SportsEsports, Delete, Code, Article, ViewInAr, Science, ClearAll } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import sha256 from 'crypto-js/sha256';
 import BAvatar from "boring-avatars";
@@ -143,6 +143,22 @@ export default function ProjectInfo({ project, projects }) {
           Logs
         </Button>
       </FlexBetween>
+      {project.options?.cache && (
+        <FlexBetween p={2} pt={0}>
+          <Button
+            variant="outlined"
+            color="warning"
+            startIcon={<ClearAll fontSize="small" />}
+            onClick={() => {
+              api.delete("/projects/" + project.id + "/cache", auth.user.token)
+                .then(() => {})
+                .catch(() => {});
+            }}
+          >
+            Clear Cache
+          </Button>
+        </FlexBetween>
+      )}
     </Card>
   );
 }

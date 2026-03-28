@@ -121,14 +121,14 @@ export default function ProjectEdit({ project, projects, info }) {
     }
 
     opts.options.rate_limit = state.options.rate_limit ? parseInt(state.options.rate_limit) : null;
+    opts.options.cache = state.options.cache
+    opts.options.cache_threshold = parseFloat(state.options.cache_threshold) || 0.85
 
     if (project.type === "rag") {
       opts.options.colbert_rerank = state.options.colbert_rerank
       opts.options.llm_rerank = state.options.llm_rerank
       opts.options.score = parseFloat(state.options.score) || 0.0
       opts.options.k = parseInt(state.options.k) || 4
-      opts.options.cache = state.options.cache
-      opts.options.cache_threshold = parseFloat(state.options.cache_threshold) || 0
       opts.options.connection = state.options.connection || null
       opts.options.tables = state.options.tables || null
 
@@ -833,35 +833,6 @@ export default function ProjectEdit({ project, projects, info }) {
                   />
                 </Grid>
                 <Grid item sm={6} xs={12}>
-                  <Typography id="discrete-slider" gutterBottom>
-                    Cache Threshold
-                  </Typography>
-                  <Slider
-                    name="cache_threshold"
-                    value={(state.options?.cache_threshold ?? 0) * 100}
-                    onChange={handleChange}
-                    aria-labelledby="input-slider"
-                    step={1}
-                    min={0}
-                    max={100}
-                    valueLabelDisplay="auto"
-                    style={{ width: "400px" }}
-                  />
-                </Grid>
-                <Grid item sm={6} xs={12}>
-                  <FormControlLabel
-                    label="Cache"
-                    control={
-                      <Switch
-                        checked={state.options?.cache ?? false}
-                        name="cache"
-                        inputProps={{ "aria-label": "cache checkbox" }}
-                        onChange={handleChange}
-                      />
-                    }
-                  />
-                </Grid>
-                <Grid item sm={6} xs={12}>
                   <FormControlLabel
                     label="LLM Rerank"
                     control={
@@ -924,6 +895,43 @@ export default function ProjectEdit({ project, projects, info }) {
                 </Grid>
               </Fragment>
             )}
+
+            <Fragment>
+              <Grid item sm={12} xs={12}>
+                <Divider sx={{ mb: 1 }} />
+              </Grid>
+              <Grid item sm={6} xs={12}>
+                <FormControlLabel
+                  label="Cache"
+                  control={
+                    <Switch
+                      checked={state.options?.cache ?? false}
+                      name="cache"
+                      inputProps={{ "aria-label": "cache checkbox" }}
+                      onChange={handleChange}
+                    />
+                  }
+                />
+              </Grid>
+              {state.options?.cache && (
+                <Grid item sm={6} xs={12}>
+                  <Typography id="discrete-slider" gutterBottom>
+                    Cache Threshold
+                  </Typography>
+                  <Slider
+                    name="cache_threshold"
+                    value={(state.options?.cache_threshold ?? 0.85) * 100}
+                    onChange={handleChange}
+                    aria-labelledby="input-slider"
+                    step={1}
+                    min={0}
+                    max={100}
+                    valueLabelDisplay="auto"
+                    style={{ width: "400px" }}
+                  />
+                </Grid>
+              )}
+            </Fragment>
 
             {(state.type === "rag" || state.type === "inference" || state.type === "agent") && (
               <Fragment>

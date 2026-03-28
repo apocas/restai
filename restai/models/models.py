@@ -349,7 +349,7 @@ class ProjectOptions(BaseModel):
     colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking of retrieved documents")
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking of retrieved documents")
     cache: Union[bool, None] = Field(default=None, description="Enable response caching")
-    cache_threshold: float = Field(default=0.85, ge=0.0, le=1.0, description="Similarity threshold for cache hits (0.0 to 1.0)")
+    cache_threshold: Union[float, None] = Field(default=0.85, description="Similarity threshold for cache hits (0.0 to 1.0)")
     tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables for natural language to SQL queries")
     tools: Union[str, None] = Field(default=None, description="Comma-separated list of enabled tool names")
     score: float = Field(default=0.0, description="Minimum similarity score threshold for retrieved documents")
