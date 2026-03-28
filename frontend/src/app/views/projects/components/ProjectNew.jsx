@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import {
+  Alert,
   Box,
   Button,
   Card,
+  Chip,
   Divider,
   Grid,
   ListItemText,
@@ -23,7 +25,7 @@ import BAvatar from "boring-avatars";
 
 const Form = styled("form")(() => ({ padding: "16px" }));
 
-export default function ProjectNew({ projects, info }) {
+export default function ProjectNew({ projects, info, template }) {
   const typeList = ["inference", "rag", "agent", "block"];
   const typeDescriptions = {
     inference: "Direct LLM interaction for chat, completion, and multimodal tasks. The most common project type.",
@@ -78,6 +80,9 @@ export default function ProjectNew({ projects, info }) {
 
   useEffect(() => {
     fetchTeams();
+    if (template) {
+      setState(prev => ({ ...prev, projecttype: template.type }));
+    }
   }, []);
 
   const handleTeamChange = (e) => {
@@ -114,8 +119,24 @@ export default function ProjectNew({ projects, info }) {
       opts.team_id = state.team_id;
     }
 
+    if (template && template.human_description) {
+      opts.human_description = template.human_description || template.description;
+    }
+
     api.post("/projects", opts, auth.user.token)
-      .then((response) => {
+      .then(async (response) => {
+        // Apply template settings via PATCH
+        if (template && (template.system || (template.options && Object.keys(template.options).length > 0))) {
+          const patchOpts = {};
+          if (template.system) patchOpts.system = template.system;
+          if (template.options) patchOpts.options = template.options;
+          if (template.description) patchOpts.human_description = template.description;
+          try {
+            await api.patch("/projects/" + response.project, patchOpts, auth.user.token);
+          } catch (e) {
+            // Template settings failed — project is created, user can fix in edit
+          }
+        }
         navigate("/project/" + response.project);
       }).catch(() => {});
   };
@@ -127,9 +148,20 @@ export default function ProjectNew({ projects, info }) {
 
   return (
     <Card elevation={3}>
-      <H4 p={2}>Add a New Project</H4>
+      <H4 p={2}>{template ? `New Project: ${template.name}` : "Add a New Project"}</H4>
 
       <Divider sx={{ mb: 1 }} />
+
+      {template && (
+        <Alert severity="info" sx={{ mx: 2, mt: 1 }}>
+          <strong>{template.name}</strong> — {template.description}
+          {template.system && (
+            <Typography variant="caption" display="block" sx={{ mt: 0.5, fontStyle: "italic" }}>
+              System prompt and settings will be applied automatically after creation.
+            </Typography>
+          )}
+        </Alert>
+      )}
 
       <Grid container spacing={2}>
 
@@ -195,6 +227,8 @@ export default function ProjectNew({ projects, info }) {
                       variant="outlined"
                       onChange={handleChange}
                       fullWidth
+                      disabled={!!template}
+                      value={state.projecttype || ""}
                       helperText={state.projecttype ? typeDescriptions[state.projecttype] : "Select the project type"}
                     >
                       {typeList.map((item) => (

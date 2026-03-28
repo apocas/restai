@@ -18,7 +18,7 @@
 </p>
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/home.png" width="800" alt="RESTai Dashboard"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/templates.png" width="800" alt="RESTai Dashboard"/>
 </div>
 
 ---
