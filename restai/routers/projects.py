@@ -624,6 +624,21 @@ async def get_embedding_by_id(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.delete("/projects/{projectID}/cache", tags=["Projects"])
+async def clear_project_cache(
+    request: Request,
+    projectID: int = PathParam(description="Project ID"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Clear the project's response cache."""
+    project = get_project(projectID, db_wrapper, request.app.state.brain)
+    if project.cache:
+        project.cache.clear()
+        return {"cleared": True, "project": projectID}
+    return {"cleared": False, "detail": "Cache not enabled for this project"}
+
+
 @router.post(
     "/projects/{projectID}/embeddings/ingest/text", response_model=IngestResponse, tags=["Knowledge"]
 )
@@ -659,6 +674,10 @@ async def ingest_text(
             project, documents, ingest.splitter, ingest.chunks
         )
         project.vector.save()
+
+        # Invalidate cache when knowledge base changes
+        if project.cache:
+            project.cache.clear()
 
         return {
             "source": ingest.source,
@@ -714,6 +733,10 @@ async def ingest_url(
             project, documents, ingest.splitter, ingest.chunks
         )
         project.vector.save()
+
+        # Invalidate cache when knowledge base changes
+        if project.cache:
+            project.cache.clear()
 
         return {"source": ingest.url, "documents": len(documents), "chunks": n_chunks}
     except Exception as e:
@@ -798,6 +821,10 @@ async def ingest_file(
 
         project.vector.save()
 
+        # Invalidate cache when knowledge base changes
+        if project.cache:
+            project.cache.clear()
+
         return {
             "source": file.filename,
             "documents": len(documents),
@@ -857,6 +884,10 @@ async def delete_embedding(
             )
 
         ids = project.vector.delete_source(base64.b64decode(source).decode("utf-8"))
+
+        # Invalidate cache when knowledge base changes
+        if project.cache:
+            project.cache.clear()
 
         return {"deleted": len(ids)}
     except Exception as e:

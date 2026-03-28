@@ -261,7 +261,7 @@ export default function ProjectEdit({ project, projects, info }) {
         colbert_rerank: false,
         llm_rerank: false,
         cache: false,
-        cache_threshold: 0,
+        cache_threshold: 0.85,
         score: 0.0,
         k: 4,
         tools: null,

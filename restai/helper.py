@@ -131,30 +131,42 @@ async def question_main(
     check_budget(project, db)
     check_rate_limit(project, db)
 
+    # Check cache for all project types
+    cached = await process_cache(project, q_input)
+    if cached:
+        latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
+        background_tasks.add_task(log_inference, project, user, cached, db, latency_ms=latency_ms)
+        return cached
+
+    result = None
     match project.props.type:
         case "rag":
-            cached = await process_cache(project, q_input)
-            if cached:
-                latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-                background_tasks.add_task(log_inference, project, user, cached, db, latency_ms=latency_ms)
-                return cached
-            return await question_rag(
+            result = await question_rag(
                 request, brain, project, q_input, user, db, background_tasks, start_time
             )
         case "inference":
-            return await question_inference(
+            result = await question_inference(
                 brain, project, q_input, user, db, background_tasks, start_time
             )
         case "agent":
-            return await question_agent(
+            result = await question_agent(
                 brain, project, q_input, user, db, background_tasks, start_time
             )
         case "block":
-            return await question_block(
+            result = await question_block(
                 brain, project, q_input, user, db, background_tasks, start_time
             )
         case _:
             raise HTTPException(status_code=400, detail="Invalid project type")
+
+    # Populate cache with the result
+    if result and project.cache and isinstance(result, dict) and "answer" in result:
+        try:
+            project.cache.add(q_input.question, result["answer"])
+        except Exception:
+            pass
+
+    return result
 
 
 async def question_rag(
