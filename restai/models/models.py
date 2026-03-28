@@ -350,6 +350,14 @@ class ProjectOptions(BaseModel):
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking of retrieved documents")
     cache: Union[bool, None] = Field(default=None, description="Enable response caching")
     cache_threshold: Union[float, None] = Field(default=0.85, description="Similarity threshold for cache hits (0.0 to 1.0)")
+
+    @field_validator('cache_threshold')
+    @classmethod
+    def validate_cache_threshold(cls, v):
+        if v is not None and (v < 0.0 or v > 1.0):
+            raise ValueError("cache_threshold must be between 0.0 and 1.0")
+        return v
+
     tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables for natural language to SQL queries")
     tools: Union[str, None] = Field(default=None, description="Comma-separated list of enabled tool names")
     score: float = Field(default=0.0, description="Minimum similarity score threshold for retrieved documents")
