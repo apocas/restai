@@ -5661,7 +5661,7 @@ wheels = [
 
 [[package]]
 name = "restai"
-version = "5.0.8"
+version = "5.0.11"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
