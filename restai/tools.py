@@ -265,3 +265,21 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
 
     db.db.add(output_db_entry)
     db.db.commit()
+
+
+def log_guard_event(project, guard_project_name, user, phase, action, mode, text_checked, guard_response, db):
+    from restai.models.databasemodels import GuardEventDatabase
+
+    event = GuardEventDatabase(
+        project_id=project.props.id,
+        guard_project=guard_project_name,
+        user_id=user.id if user else None,
+        phase=phase,
+        action=action,
+        mode=mode,
+        text_checked=text_checked if project.props.options.logging else None,
+        guard_response=guard_response,
+        date=datetime.now(timezone.utc),
+    )
+    db.db.add(event)
+    db.db.commit()

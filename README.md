@@ -191,6 +191,15 @@ Each team has its own users, admins, projects, and LLM/embedding access controls
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/teams.png" width="750" alt="RESTai Teams"/>
 </div>
 
+### Guardrails
+
+Protect your AI projects with input and output guards. Guards are regular RestAI projects — define safety rules via system prompts, and they'll evaluate every request and response automatically.
+
+- **Input Guard** — Checks user questions before inference
+- **Output Guard** — Checks LLM responses after inference
+- **Block or Warn mode** — Hard-block unsafe content or flag it while passing through
+- **Analytics dashboard** — Track block rates, view blocked requests, and monitor guard effectiveness over time
+
 ### Rate Limiting
 
 Set per-project request limits to prevent abuse and control costs. Configure the maximum number of requests per minute in the project edit page. Returns HTTP 429 when the limit is exceeded.

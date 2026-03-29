@@ -219,6 +219,21 @@ class EvalResultDatabase(Base):
     run = relationship("EvalRunDatabase", back_populates="results")
 
 
+class GuardEventDatabase(Base):
+    __tablename__ = "guard_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    guard_project = Column(String(255), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    phase = Column(String(10), nullable=False)
+    action = Column(String(10), nullable=False)
+    mode = Column(String(10), nullable=False, default="block")
+    text_checked = Column(Text, nullable=True)
+    guard_response = Column(Text, nullable=True)
+    date = Column(DateTime, nullable=False, index=True)
+
+
 class LLMDatabase(Base):
     __tablename__ = "llms"
 

@@ -17,7 +17,7 @@ import { H4, Small } from "app/components/Typography";
 import { FlexBetween, FlexBox } from "app/components/FlexBox";
 import { Edit } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { SportsEsports, Delete, Code, Article, ViewInAr, Science, ClearAll } from "@mui/icons-material";
+import { SportsEsports, Delete, Code, Article, ViewInAr, Science, ClearAll, Security } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import sha256 from 'crypto-js/sha256';
 import BAvatar from "boring-avatars";
@@ -138,6 +138,9 @@ export default function ProjectInfo({ project, projects }) {
         </Button>
         <Button variant="outlined" onClick={() => { navigate("/project/" + project.id + "/evals") }} startIcon={<Science fontSize="small" />}>
           Evals
+        </Button>
+        <Button variant="outlined" onClick={() => { navigate("/project/" + project.id + "/guards") }} startIcon={<Security fontSize="small" />}>
+          Guards
         </Button>
         <Button variant="outlined" onClick={() => { navigate("/project/" + project.id + "/logs") }} startIcon={<Article fontSize="small" />}>
           Logs

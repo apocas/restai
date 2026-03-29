@@ -121,6 +121,8 @@ export default function ProjectEdit({ project, projects, info }) {
     }
 
     opts.options.rate_limit = state.options.rate_limit ? parseInt(state.options.rate_limit) : null;
+    opts.options.guard_output = state.options.guard_output || null;
+    opts.options.guard_mode = state.options.guard_mode || "block";
     opts.options.cache = state.options.cache
     opts.options.cache_threshold = parseFloat(state.options.cache_threshold) || 0.85
 
@@ -639,8 +641,29 @@ export default function ProjectEdit({ project, projects, info }) {
                     {...params}
                     fullWidth
                     InputLabelProps={{ shrink: true }}
-                    label="Prompt Guard Project"
+                    label="Input Guard"
                     variant="outlined"
+                    helperText="Project that evaluates user input before inference"
+                  />
+                )}
+              />
+            </Grid>
+
+            <Grid item sm={6} xs={12}>
+              <Autocomplete
+                options={projects.filter((p) => p.name !== project.name).map((p) => p.name)}
+                value={state.options?.guard_output || null}
+                onChange={(event, newValue) => {
+                  setState({ ...state, options: { ...state.options, guard_output: newValue || null } });
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    label="Output Guard"
+                    variant="outlined"
+                    helperText="Project that evaluates LLM responses after inference"
                   />
                 )}
               />
@@ -651,11 +674,28 @@ export default function ProjectEdit({ project, projects, info }) {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 name="censorship"
-                label="Censhorship Message"
+                label="Censorship Message"
                 variant="outlined"
                 onChange={handleChange}
                 value={state.censorship ?? ''}
+                helperText="Message returned when a guard blocks a request"
               />
+            </Grid>
+
+            <Grid item sm={6} xs={12}>
+              <TextField
+                select
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                label="Guard Mode"
+                variant="outlined"
+                value={state.options?.guard_mode || "block"}
+                onChange={(e) => setState({ ...state, options: { ...state.options, guard_mode: e.target.value } })}
+                helperText="Block stops the response, Warn flags but passes through"
+              >
+                <MenuItem value="block">Block</MenuItem>
+                <MenuItem value="warn">Warn</MenuItem>
+              </TextField>
             </Grid>
 
             {state.type === "rag" && (

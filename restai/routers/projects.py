@@ -55,7 +55,7 @@ from restai.vectordb.tools import (
 from restai.models.databasemodels import OutputDatabase, ProjectDatabase
 from restai.settings import mask_key
 import datetime
-from sqlalchemy import func
+from sqlalchemy import func, Integer, case
 import calendar
 import tempfile
 import shutil
@@ -1026,6 +1026,134 @@ async def activate_prompt_version(
     db_wrapper.edit_project(projectID, update)
 
     return {"project": projectID, "activated_version": version.version}
+
+
+@router.get("/projects/{projectID}/guards/summary", tags=["Guards"])
+async def get_guard_summary(
+    projectID: int = PathParam(description="Project ID"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get guard event summary statistics for a project."""
+    from restai.models.databasemodels import GuardEventDatabase
+
+    total = db_wrapper.db.query(func.count(GuardEventDatabase.id)).filter(
+        GuardEventDatabase.project_id == projectID
+    ).scalar() or 0
+
+    blocks = db_wrapper.db.query(func.count(GuardEventDatabase.id)).filter(
+        GuardEventDatabase.project_id == projectID,
+        GuardEventDatabase.action == "block",
+    ).scalar() or 0
+
+    warns = db_wrapper.db.query(func.count(GuardEventDatabase.id)).filter(
+        GuardEventDatabase.project_id == projectID,
+        GuardEventDatabase.action == "warn",
+    ).scalar() or 0
+
+    input_blocks = db_wrapper.db.query(func.count(GuardEventDatabase.id)).filter(
+        GuardEventDatabase.project_id == projectID,
+        GuardEventDatabase.action.in_(["block", "warn"]),
+        GuardEventDatabase.phase == "input",
+    ).scalar() or 0
+
+    output_blocks = db_wrapper.db.query(func.count(GuardEventDatabase.id)).filter(
+        GuardEventDatabase.project_id == projectID,
+        GuardEventDatabase.action.in_(["block", "warn"]),
+        GuardEventDatabase.phase == "output",
+    ).scalar() or 0
+
+    return {
+        "total_checks": total,
+        "total_blocks": blocks,
+        "block_rate": round(blocks / total, 4) if total > 0 else 0,
+        "input_blocks": input_blocks,
+        "output_blocks": output_blocks,
+        "warn_count": warns,
+    }
+
+
+@router.get("/projects/{projectID}/guards/daily", tags=["Guards"])
+async def get_guard_daily(
+    projectID: int = PathParam(description="Project ID"),
+    year: int = Query(None, ge=2000, le=2100, description="Year"),
+    month: int = Query(None, ge=1, le=12, description="Month"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get daily guard event counts for charting."""
+    import datetime as dt
+    import calendar
+    from restai.models.databasemodels import GuardEventDatabase
+
+    now = dt.datetime.now(dt.timezone.utc)
+    if year is None:
+        year = now.year
+    if month is None:
+        month = now.month
+
+    start_date = dt.datetime(year, month, 1, tzinfo=dt.timezone.utc)
+    last_day = calendar.monthrange(year, month)[1]
+    end_date = dt.datetime(year, month, last_day, 23, 59, 59, tzinfo=dt.timezone.utc)
+
+    rows = (
+        db_wrapper.db.query(
+            func.date(GuardEventDatabase.date).label("date"),
+            func.count(GuardEventDatabase.id).label("checks"),
+            func.sum(case((GuardEventDatabase.action == "block", 1), else_=0)).label("blocks"),
+            func.sum(case((GuardEventDatabase.action == "warn", 1), else_=0)).label("warns"),
+        )
+        .filter(
+            GuardEventDatabase.project_id == projectID,
+            GuardEventDatabase.date >= start_date,
+            GuardEventDatabase.date <= end_date,
+        )
+        .group_by(func.date(GuardEventDatabase.date))
+        .all()
+    )
+
+    return {
+        "events": [
+            {
+                "date": r.date,
+                "checks": r.checks,
+                "blocks": r.blocks or 0,
+                "warns": r.warns or 0,
+            }
+            for r in rows
+        ]
+    }
+
+
+@router.get("/projects/{projectID}/guards/events", tags=["Guards"])
+async def get_guard_events(
+    projectID: int = PathParam(description="Project ID"),
+    start: int = Query(0, ge=0, le=100000, description="Pagination start"),
+    end: int = Query(20, ge=1, le=100000, description="Pagination end"),
+    phase: str = Query(None, description="Filter by phase: input/output"),
+    action: str = Query(None, description="Filter by action: block/pass/warn"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get paginated guard events for a project."""
+    from restai.models.databasemodels import GuardEventDatabase
+    from restai.models.models import GuardEventResponse
+
+    query = db_wrapper.db.query(GuardEventDatabase).filter(
+        GuardEventDatabase.project_id == projectID
+    )
+    if phase:
+        query = query.filter(GuardEventDatabase.phase == phase)
+    if action:
+        query = query.filter(GuardEventDatabase.action == action)
+
+    total = query.count()
+    events = query.order_by(GuardEventDatabase.date.desc()).offset(start).limit(end - start).all()
+
+    return {
+        "events": [GuardEventResponse.model_validate(e) for e in events],
+        "total": total,
+    }
 
 
 @router.get("/projects/{projectID}/logs", tags=["Statistics"])

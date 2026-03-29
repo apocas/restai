@@ -368,6 +368,8 @@ class ProjectOptions(BaseModel):
     telegram_token: Union[str, None] = Field(default=None, description="Telegram bot token for Telegram integration")
     blockly_workspace: Union[dict, None] = Field(default=None, description="Blockly workspace JSON for block projects")
     rate_limit: Union[int, None] = Field(default=None, ge=1, le=10000, description="Maximum requests per minute (None = unlimited)")
+    guard_output: Union[str, None] = Field(default=None, description="Name of the guard project for output checking")
+    guard_mode: Union[str, None] = Field(default="block", description="Guard behavior: 'block' or 'warn'")
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -1205,3 +1207,20 @@ class EvalRunResponse(BaseModel):
 class EvalRunDetailResponse(EvalRunResponse):
     """An evaluation run with all results."""
     results: list[EvalResultResponse] = []
+
+
+# ── Guard Analytics ──────────────────────────────────────────────────────
+
+
+class GuardEventResponse(BaseModel):
+    """A single guard event."""
+    id: int
+    phase: str
+    action: str
+    mode: str
+    text_checked: Optional[str] = None
+    guard_response: Optional[str] = None
+    guard_project: str
+    date: Optional[datetime] = None
+    user_id: Optional[int] = None
+    model_config = ConfigDict(from_attributes=True)
