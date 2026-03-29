@@ -10,6 +10,7 @@ uv pip install transformers \
   bitsandbytes \
   torch \
   torchvision \
+  python-dotenv \
   "diffusers @ git+https://github.com/huggingface/diffusers.git"
 
 echo "[INFO] $ENV_NAME installed."

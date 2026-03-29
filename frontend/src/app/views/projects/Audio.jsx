@@ -1,7 +1,5 @@
-import { styled, Box, Card } from "@mui/material";
+import { styled, Box } from "@mui/material";
 import Breadcrumb from "app/components/Breadcrumb";
-import { MatxSidenavContent } from "app/components/MatxSidenav";
-import { MatxSidenavContainer } from "app/components/MatxSidenav";
 import AudioChatContainer from "./components/AudioChatContainer";
 import useAuth from "app/hooks/useAuth";
 import { useState, useEffect } from "react";
@@ -13,38 +11,31 @@ const Container = styled("div")(({ theme }) => ({
   "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
 }));
 
+const ContentBox = styled("div")(({ theme }) => ({
+  margin: "30px",
+  [theme.breakpoints.down("sm")]: { margin: "16px" }
+}));
 
 export default function Audio() {
   const auth = useAuth();
   const [generators, setGenerators] = useState([]);
 
-  const fetchGenerators = () => {
-    return api.get("/audio", auth.user.token)
-      .then((d) => {
-        setGenerators(d.generators)
-      })
-      .catch(() => {});
-  }
-
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + ' - Audio Generation';
-    fetchGenerators();
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Audio Transcription";
+    api.get("/audio", auth.user.token)
+      .then((d) => setGenerators(d.generators))
+      .catch(() => {});
   }, []);
 
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Audio", path: "/audio"}]} />
+        <Breadcrumb routeSegments={[{ name: "Audio", path: "/audio" }]} />
       </Box>
 
-      <Card elevation={6}>
-        <MatxSidenavContainer>
-          <MatxSidenavContent>
-            <AudioChatContainer generators={generators}/>
-          </MatxSidenavContent>
-        </MatxSidenavContainer>
-      </Card>
+      <ContentBox>
+        <AudioChatContainer generators={generators} />
+      </ContentBox>
     </Container>
-
   );
 }

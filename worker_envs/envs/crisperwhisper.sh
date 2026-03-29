@@ -7,6 +7,7 @@ source $ENV_NAME/bin/activate
 
 uv pip install transformers==4.44.2 \
   torch==2.4.0 \
-  accelerate==0.33.0
+  accelerate==0.33.0 \
+  python-dotenv
 
 echo "[INFO] $ENV_NAME installed."

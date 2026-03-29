@@ -1,7 +1,5 @@
-import { styled, Box, Card } from "@mui/material";
+import { styled, Box } from "@mui/material";
 import Breadcrumb from "app/components/Breadcrumb";
-import { MatxSidenavContent } from "app/components/MatxSidenav";
-import { MatxSidenavContainer } from "app/components/MatxSidenav";
 import ImageChatContainer from "./components/ImageChatContainer";
 import useAuth from "app/hooks/useAuth";
 import { useState, useEffect } from "react";
@@ -13,38 +11,31 @@ const Container = styled("div")(({ theme }) => ({
   "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
 }));
 
+const ContentBox = styled("div")(({ theme }) => ({
+  margin: "30px",
+  [theme.breakpoints.down("sm")]: { margin: "16px" }
+}));
 
 export default function Image() {
   const auth = useAuth();
   const [generators, setGenerators] = useState([]);
 
-  const fetchGenerators = () => {
-    return api.get("/image", auth.user.token)
-      .then((d) => {
-        setGenerators(d.generators)
-      })
-      .catch(() => {});
-  }
-
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + ' - Image Generation';
-    fetchGenerators();
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Image Generation";
+    api.get("/image", auth.user.token)
+      .then((d) => setGenerators(d.generators))
+      .catch(() => {});
   }, []);
 
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Image", path: "/image"}]} />
+        <Breadcrumb routeSegments={[{ name: "Image", path: "/image" }]} />
       </Box>
 
-      <Card elevation={6}>
-        <MatxSidenavContainer>
-          <MatxSidenavContent>
-            <ImageChatContainer generators={generators}/>
-          </MatxSidenavContent>
-        </MatxSidenavContainer>
-      </Card>
+      <ContentBox>
+        <ImageChatContainer generators={generators} />
+      </ContentBox>
     </Container>
-
   );
 }

@@ -1,11 +1,11 @@
 #!/bin/bash
 
-ENV_NAME=".venvs/.venv-granite-speech"
+ENV_NAME=".venvs/.venv-whisper"
 
 uv venv $ENV_NAME
 source $ENV_NAME/bin/activate
 
-uv pip install "transformers>=4.52.4" \
+uv pip install "transformers" \
   torch \
   torchaudio \
   peft \

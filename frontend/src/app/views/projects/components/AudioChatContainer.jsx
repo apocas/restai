@@ -1,411 +1,282 @@
-import { Box, Divider, Fab, IconButton, MenuItem, styled, TextField, CircularProgress, Tooltip } from "@mui/material";
-import { Delete, MoreVert, Send, CloudUpload, MusicNote } from "@mui/icons-material";
-import { Fragment, useState } from "react";
-import Scrollbar from "react-perfect-scrollbar";
-import shortid from "shortid";
-import ReactJson from '@microlink/react-json-view';
-
-import MatxMenu from "app/components/MatxMenu";
-import ChatAvatar from "app/components/ChatAvatar";
-import { Paragraph, Span } from "app/components/Typography";
-import { FlexAlignCenter, FlexBetween } from "app/components/FlexBox";
-import ImageEmptyMessage from "./ImageEmptyMessage";
+import { useState, useRef, useEffect } from "react";
+import {
+  Accordion, AccordionDetails, AccordionSummary, Box, Card, Chip, Divider,
+  Fab, MenuItem, TextField, Tooltip, Typography, styled,
+} from "@mui/material";
+import { Send, CloudUpload, DeleteSweep, Mic, ExpandMore } from "@mui/icons-material";
+import { toast } from "react-toastify";
+import { AudioRecorder } from "react-audio-voice-recorder";
+import ReactJson from "@microlink/react-json-view";
 import useAuth from "app/hooks/useAuth";
-import { useEffect } from "react";
-import sha256 from 'crypto-js/sha256';
-import CustomizedDialogMessage from "./CustomizedDialogMessage";
-import { toast } from 'react-toastify';
 import api from "app/utils/api";
-import { AudioRecorder } from 'react-audio-voice-recorder';
 
 const HiddenInput = styled("input")({ display: "none" });
 
-const ChatRoot = styled(Box)(() => ({
-  height: 800,
-  display: "flex",
-  position: "relative",
-  flexDirection: "column",
-  background: "rgba(0, 0, 0, 0.05)"
-}));
-
-const LeftContent = styled(FlexBetween)(({ theme }) => ({
-  padding: "4px",
-  background: theme.palette.primary.main
-}));
-
-const UserName = styled("h5")(() => ({
+const PromptBubble = styled(Box)(({ theme }) => ({
+  backgroundColor: theme.palette.primary.main,
   color: "#fff",
-  fontSize: "18px",
-  fontWeight: "500",
-  whiteSpace: "pre",
-  marginLeft: "16px"
+  padding: "10px 16px",
+  borderRadius: "16px 16px 4px 16px",
+  maxWidth: "80%",
+  marginLeft: "auto",
+  wordBreak: "break-word",
+  whiteSpace: "pre-wrap",
 }));
 
-const UserStatus = styled("div")(({ theme, human }) => ({
-  padding: "8px 16px",
-  marginBottom: "8px",
-  borderRadius: "4px",
-  color: human === true && "#fff",
-  background: human === true ? theme.palette.primary.main : theme.palette.background.paper
+const ResultBubble = styled(Box)(({ theme }) => ({
+  backgroundColor: theme.palette.mode === "dark" ? "#2d2d2d" : "#f5f5f5",
+  padding: "10px 16px",
+  borderRadius: "16px 16px 16px 4px",
+  maxWidth: "80%",
+  wordBreak: "break-word",
 }));
 
-const StyledItem = styled(MenuItem)(() => ({
-  display: "flex",
-  alignItems: "center",
-  "& .icon": { marginRight: "16px" }
-}));
+function AudioMessage({ message }) {
+  return (
+    <Box sx={{ mb: 2 }}>
+      {/* Prompt */}
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+        <PromptBubble>
+          {message.prompt && (
+            <Typography variant="body2">{message.prompt}</Typography>
+          )}
+          {message._generator && (
+            <Chip label={message._generator} size="small" sx={{ mt: 0.5, backgroundColor: "rgba(255,255,255,0.2)", color: "#fff" }} />
+          )}
+          {message._audioFile && (
+            <Box sx={{ mt: 1 }}>
+              <audio src={URL.createObjectURL(message._audioFile)} controls style={{ maxWidth: "100%" }} />
+            </Box>
+          )}
+        </PromptBubble>
+      </Box>
 
-const ScrollBox = styled(Scrollbar)(() => ({
-  flexGrow: 1,
-  position: "relative"
-}));
+      {/* Result */}
+      <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
+        <ResultBubble>
+          {message.answer ? (
+            <>
+              {/* Main transcription text */}
+              {message.answer.text && (
+                <Typography variant="body2" sx={{ mb: 1, whiteSpace: "pre-wrap" }}>
+                  {message.answer.text}
+                </Typography>
+              )}
+              {/* Full response details — collapsible read-only JSON */}
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1, mb: 0.5 }}>Output</Typography>
+              <ReactJson
+                src={message.answer}
+                name={false}
+                collapsed={2}
+                enableClipboard
+                displayDataTypes={false}
+                displayObjectSize={false}
+                style={{ fontSize: "0.85em", borderRadius: 4, padding: 8 }}
+              />
+            </>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+              Transcribing...
+            </Typography>
+          )}
+        </ResultBubble>
+      </Box>
+    </Box>
+  );
+}
 
-const Message = styled("div")(() => ({
-  display: "flex",
-  alignItems: "flex-start",
-  padding: "12px 16px"
-}));
-
-const MessageBox = styled(FlexAlignCenter)(() => ({
-  flexGrow: 1,
-  height: "100%",
-  flexDirection: "column"
-}));
-
-export default function ImageChatContainer({
-  generators,
-  opponentUser = {
-    name: "AI Musician",
-    avatar: "/admin/assets/images/musician.jpg"
-  }
-}) {
+export default function AudioChatContainer({ generators }) {
   const auth = useAuth();
-
   const [messages, setMessages] = useState([]);
-  const [message, setMessage] = useState("");
-  const [canSubmit, setCanSubmit] = useState(true);
-  const [scroll, setScroll] = useState();
-  const [selectedMessage, setSelectedMessage] = useState(null);
-  const [file, setFile] = useState(null);
-  const [state, setState] = useState({});
-  const [expandedChunks, setExpandedChunks] = useState(null);
+  const [inputText, setInputText] = useState("");
+  const [audioFile, setAudioFile] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [generator, setGenerator] = useState("");
   const [language, setLanguage] = useState("");
+  const scrollRef = useRef(null);
 
-  const handleMessageSend = (message) => {
-    handler(message);
-  }
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
-  const record_complete = (blob) => {
-    setFile(blob);
-  }
-
-  const handler = (prompt) => {
-    if (state.generator === undefined) {
+  const handleSend = async () => {
+    if (!audioFile) {
+      toast.error("Please record or upload an audio file");
+      return;
+    }
+    if (!generator) {
       toast.error("Please select a generator");
       return;
     }
 
-    var body = {
-      "prompt": prompt
-    };
+    const prompt = inputText.trim();
+    setIsLoading(true);
+    setInputText("");
 
-    if (canSubmit) {
-      setCanSubmit(false);
+    const msg = { prompt: prompt || "(audio)", _generator: generator, _audioFile: audioFile, answer: null };
+    setMessages(prev => [...prev, msg]);
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("prompt", prompt);
-      formData.append("language", language);
+    const formData = new FormData();
+    formData.append("file", audioFile);
+    formData.append("prompt", prompt);
+    formData.append("language", language);
 
-      setMessages([...messages, { id: body.id, prompt: prompt + " (" + state.generator + ")", input_audio: file, answer: null, sources: [] }]);
-      api.post("/audio/" + state.generator + "/transcript", formData, auth.user.token)
-        .then((response) => {
-          if (!response.prompt) {
-            response.prompt = prompt + " (" + state.generator + ")";
-          }
-          if (file !== null) {
-            response.input_audio = file;
-          }
-          setMessages([...messages, response]);
-          setCanSubmit(true);
-        }).catch(() => {
-          setMessages([...messages, { id: null, prompt: prompt, answer: "Error, something went wrong with my transistors.", sources: [] }]);
-          setCanSubmit(true);
-        });
-    }
-  }
-
-  const handleClickMessage = (message) => {
-    setSelectedMessage(message);
-  }
-
-  const handleMessageInfoClose = () => {
-    setSelectedMessage(null);
-  }
-
-  const sendMessageOnEnter = (event) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      let tempMessage = message.trim();
-      if (tempMessage !== "" || file !== null) handleMessageSend(tempMessage);
-      setMessage("");
+    try {
+      const response = await api.post(`/audio/${generator}/transcript`, formData, auth.user.token);
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = {
+          ...updated[updated.length - 1],
+          answer: response,
+          prompt: prompt || "(audio)",
+        };
+        return updated;
+      });
+    } catch (e) {
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = {
+          ...updated[updated.length - 1],
+          answer: { text: "Error: transcription failed." },
+        };
+        return updated;
+      });
+    } finally {
+      setIsLoading(false);
+      setAudioFile(null);
     }
   };
 
-  const handleFileSelect = async (event) => {
-    if (event.target.files.length === 1) {
-      let file = event.target.files[0];
-      setFile(file);
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
-  const handleChange = (event) => {
-    if (event && event.persist) event.persist();
-    setState({ ...state, [event.target.name]: event.target.value });
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) setAudioFile(file);
+    e.target.value = "";
   };
 
-  useEffect(() => {
-    if (scroll) {
-      scroll.scrollTop = Number.MAX_SAFE_INTEGER
-    }
-  }, [messages]);
+  const handleRecordingComplete = (blob) => {
+    setAudioFile(blob);
+  };
+
+  const handleClear = () => {
+    setMessages([]);
+    setAudioFile(null);
+  };
 
   return (
-    <ChatRoot>
-      <CustomizedDialogMessage message={selectedMessage} onclose={handleMessageInfoClose} />
-
-      <LeftContent>
-        <Box display="flex" alignItems="center" pl={2}>
-          <Fragment>
-            <ChatAvatar src={opponentUser.avatar} />
-            <UserName>
-              <TextField
-                select
-                size="small"
-                name="generator"
-                label="Generator"
-                variant="outlined"
-                onChange={handleChange}
-                sx={{
-                  minWidth: 188,
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    border: "2px solid white"
-                  },
-                  "& .MuiOutlinedInput-root": {
-                    "&.Mui-focused fieldset": {
-                      border: "2px solid white"
-                    }
-                  },
-                  "& .MuiInputLabel-root": {
-                    color: "white"
-                  },
-                  "& .MuiSelect-select": {
-                    color: "white"
-                  },
-                  "& .MuiSelect-icon": {
-                    color: "white"
-                  }
-                }}
-              >
-                {generators.map((item, ind) => (
-                  <MenuItem value={item} key={item}>
-                    {item}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                size="small"
-                name="language"
-                label="Language"
-                variant="outlined"
-                value={language}
-                onChange={e => setLanguage(e.target.value)}
-                sx={{
-                  minWidth: 120,
-                  marginLeft: 2,
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    border: "2px solid white"
-                  },
-                  "& .MuiOutlinedInput-root": {
-                    "&.Mui-focused fieldset": {
-                      border: "2px solid white"
-                    }
-                  },
-                  "& .MuiInputLabel-root": {
-                    color: "white"
-                  },
-                  "& .MuiInputBase-input": {
-                    color: "white"
-                  }
-                }}
-              />
-            </UserName>
-          </Fragment>
+    <Card elevation={3} sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* Header */}
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1, flexWrap: "wrap", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Mic />
+          <Typography variant="subtitle1" fontWeight="bold">Audio Transcription</Typography>
         </Box>
-
-
-        <Box>
-          <MatxMenu
-            menuButton={
-              <IconButton size="large" sx={{ verticalAlign: "baseline !important" }}>
-                <MoreVert sx={{ color: "#fff" }} />
-              </IconButton>
-            }>
-
-            <StyledItem>
-              <Delete className="icon" /> Clear Chat
-            </StyledItem>
-          </MatxMenu>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <TextField
+            select size="small" label="Generator"
+            value={generator}
+            onChange={(e) => setGenerator(e.target.value)}
+            sx={{ minWidth: 180 }}
+          >
+            {generators.map((g) => (
+              <MenuItem key={g} value={g}>{g}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            size="small" label="Language"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            sx={{ width: 120 }}
+            placeholder="en"
+          />
         </Box>
-      </LeftContent>
-
-      <ScrollBox id="chat-message-list" containerRef={setScroll}>
-        {messages.length === 0 && (
-          <MessageBox>
-            <ImageEmptyMessage image={"/admin/assets/images/music.jpg"} />
-            <p>Write or send something...</p>
-            <p>(This isn't a chat/agent, there is no memory/conversation)</p>
-          </MessageBox>
-        )}
-
-        {messages.map((message, index) => (
-          <Fragment>
-            <Message key={shortid.generate()}>
-              <ChatAvatar src={"https://www.gravatar.com/avatar/" + sha256(auth.user.username)} />
-
-              <Box ml={2}>
-                <Paragraph m={0} mb={1} color="text.secondary">
-                  {"Me"}
-                </Paragraph>
-
-                <UserStatus human={true} >
-                  <Span sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{message.prompt}</Span>
-                  {
-                    message.input_audio &&
-                    <>
-                      {message.input_audio.name || "Microphone"}
-
-                      <Box>
-                        <audio
-                          src={URL.createObjectURL(message.input_audio)}
-                          controls
-                        />
-                      </Box>
-                    </>
-                  }
-                </UserStatus>
-              </Box>
-            </Message>
-
-            <Message key={shortid.generate()}>
-              <ChatAvatar src={opponentUser.avatar} />
-
-              <Box ml={2}>
-                <Paragraph m={0} mb={1} color="text.secondary">
-                  {opponentUser.name}
-                </Paragraph>
-
-                <UserStatus human={false} >
-                  <Span sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", cursor: 'pointer' }} value={message} onClick={() => handleClickMessage(message)}>{!message.answer ? <CircularProgress size="1rem" /> : message.answer.text}</Span>
-                  {/* Render answer.chunks or answer.segments as JSON if present */}
-                  {message.answer && (Array.isArray(message.answer.chunks)) && (
-                    <Box mt={2}>
-                      <ReactJson
-                        src={message.answer.chunks || message.answer.segments}
-                        name={Array.isArray(message.answer.chunks) ? 'chunks' : 'segments'}
-                        collapsed={1}
-                        enableClipboard={true}
-                        displayDataTypes={false}
-                        style={{ fontSize: '0.9em', background: '#f5f5f5', borderRadius: 8, padding: 8 }}
-                      />
-                      {message.answer.word_chunks && (
-                        <Box mt={2}>
-                          <ReactJson
-                            src={message.answer.word_chunks}
-                            name="word_chunks"
-                            collapsed={1}
-                            enableClipboard={true}
-                            displayDataTypes={false}
-                            style={{ fontSize: '0.9em', background: '#f5f5f5', borderRadius: 8, padding: 8 }}
-                          />
-                        </Box>
-                      )}
-                    </Box>
-                  )}
-                </UserStatus>
-              </Box>
-            </Message>
-          </Fragment>
-        ))}
-      </ScrollBox>
+      </Box>
 
       <Divider />
 
-      <Box px={2} py={1} display="flex" alignItems="center">
-        <TextField
-          rows={1}
-          fullWidth
-          value={message}
-          multiline={true}
-          variant="outlined"
-          onKeyUp={sendMessageOnEnter}
-          label="Type your prompt here..."
-          onChange={(e) => setMessage(e.target.value)}
-          sx={{ marginRight: 2 }}
-        />
-
-        <div style={{ display: "flex" }}>
-          {file !== null && (
-            <Box
-              sx={{
-                height: 56,
-              }}
-            >
-              <Tooltip title={"Audio loaded. " + (file.name || "Microphone")}>
-                <MusicNote sx={{ fontSize: '3.5rem', color: '#4CAF50' }} />
-              </Tooltip>
+      {/* Messages */}
+      <Box sx={{ flex: 1, overflow: "auto", minHeight: 400 }} ref={scrollRef}>
+        <Box sx={{ p: 2 }}>
+          {messages.length === 0 && (
+            <Box sx={{ textAlign: "center", mt: 8, color: "text.secondary" }}>
+              <Mic sx={{ fontSize: 48, mb: 1, opacity: 0.3 }} />
+              <Typography variant="body2">
+                Record audio with the microphone or upload an audio file, then hit send.
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Optionally set a language code (e.g. "en", "pt") for better accuracy.
+              </Typography>
             </Box>
           )}
-          {navigator.mediaDevices ? (
-            <AudioRecorder
-              onRecordingComplete={record_complete}
-              audioTrackConstraints={{
-                noiseSuppression: true,
-                echoCancellation: true,
-              }}
-              onNotAllowedOrFound={(err) => console.table(err)}
-              downloadOnSavePress={false}
-              downloadFileExtension="webm"
-              mediaRecorderOptions={{
-                audioBitsPerSecond: 128000,
-              }}
-            />
-          ) : (
-            <Tooltip title="Microphone requires HTTPS">
-              <MusicNote sx={{ fontSize: '3.5rem', color: '#bbb', cursor: 'default' }} />
-            </Tooltip>
-          )}
-          <Fragment>
-            <label htmlFor="upload-single-file">
-              <Fab
-                color="primary"
-                sx={{ ml: 2 }} component="span">
-                <CloudUpload />
-              </Fab>
-            </label>
-            <HiddenInput onChange={handleFileSelect} id="upload-single-file" type="file" />
-          </Fragment>
-          <Fab
-            onClick={() => {
-              if (message.trim() !== "" || file !== null) handleMessageSend(message);
-              setMessage("");
-            }}
-            color="primary"
-            sx={{ ml: 2 }}>
-            <Send />
-          </Fab>
-        </div>
+          {messages.map((msg, i) => (
+            <AudioMessage key={i} message={msg} />
+          ))}
+        </Box>
       </Box>
 
-    </ChatRoot>
+      {/* Audio preview */}
+      {audioFile && (
+        <Box sx={{ px: 2, pb: 1 }}>
+          <Chip
+            label={audioFile.name || "Recording ready"}
+            onDelete={() => setAudioFile(null)}
+            size="small"
+            color="primary"
+            variant="outlined"
+          />
+        </Box>
+      )}
+
+      {/* Input */}
+      <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, p: 2, borderTop: 1, borderColor: "divider" }}>
+        <TextField
+          fullWidth size="small"
+          placeholder="Optional prompt or context..."
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          multiline maxRows={3}
+          disabled={isLoading}
+        />
+        {navigator.mediaDevices ? (
+          <AudioRecorder
+            onRecordingComplete={handleRecordingComplete}
+            audioTrackConstraints={{ noiseSuppression: true, echoCancellation: true }}
+            onNotAllowedOrFound={(err) => console.warn(err)}
+            downloadOnSavePress={false}
+            downloadFileExtension="webm"
+            mediaRecorderOptions={{ audioBitsPerSecond: 128000 }}
+          />
+        ) : (
+          <Tooltip title="Microphone requires HTTPS">
+            <Fab color="default" size="small" disabled>
+              <Mic fontSize="small" />
+            </Fab>
+          </Tooltip>
+        )}
+        <label htmlFor="audio-upload">
+          <Fab color="default" size="small" component="span">
+            <CloudUpload fontSize="small" />
+          </Fab>
+        </label>
+        <HiddenInput onChange={handleFileSelect} id="audio-upload" type="file" accept="audio/*" />
+        <Tooltip title="Clear">
+          <Fab color="default" size="small" onClick={handleClear}>
+            <DeleteSweep fontSize="small" />
+          </Fab>
+        </Tooltip>
+        <Fab color="primary" size="small" onClick={handleSend} disabled={isLoading || !audioFile}>
+          <Send fontSize="small" />
+        </Fab>
+      </Box>
+    </Card>
   );
 }

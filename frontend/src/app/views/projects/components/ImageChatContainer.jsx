@@ -1,364 +1,247 @@
-import { Box, Divider, Fab, IconButton, MenuItem, styled, TextField, CircularProgress } from "@mui/material";
-import { Delete, MoreVert, Send, CloudUpload } from "@mui/icons-material";
-import { Fragment, useState } from "react";
-import Scrollbar from "react-perfect-scrollbar";
-import shortid from "shortid";
-import ModalImage from "react-modal-image";
-
-
-import MatxMenu from "app/components/MatxMenu";
-import ChatAvatar from "app/components/ChatAvatar";
-import { Paragraph, Span } from "app/components/Typography";
-import { FlexAlignCenter, FlexBetween } from "app/components/FlexBox";
-import ImageEmptyMessage from "./ImageEmptyMessage";
+import { useState, useRef, useEffect } from "react";
+import {
+  Box, Card, Chip, Divider, Fab, MenuItem, TextField, Tooltip, Typography, styled,
+} from "@mui/material";
+import { Send, CloudUpload, DeleteSweep, Brush } from "@mui/icons-material";
+import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
-import { useEffect } from "react";
-import sha256 from 'crypto-js/sha256';
-import CustomizedDialogMessage from "./CustomizedDialogMessage";
-import CustomizedDialogImage from "./CustomizedDialogImage";
-import { toast } from 'react-toastify';
 import api from "app/utils/api";
 
 const HiddenInput = styled("input")({ display: "none" });
 
-const ChatRoot = styled(Box)(() => ({
-  height: 800,
-  display: "flex",
-  position: "relative",
-  flexDirection: "column",
-  background: "rgba(0, 0, 0, 0.05)"
-}));
-
-const LeftContent = styled(FlexBetween)(({ theme }) => ({
-  padding: "4px",
-  background: theme.palette.primary.main
-}));
-
-const UserName = styled("h5")(() => ({
+const PromptBubble = styled(Box)(({ theme }) => ({
+  backgroundColor: theme.palette.primary.main,
   color: "#fff",
-  fontSize: "18px",
-  fontWeight: "500",
-  whiteSpace: "pre",
-  marginLeft: "16px"
+  padding: "10px 16px",
+  borderRadius: "16px 16px 4px 16px",
+  maxWidth: "80%",
+  marginLeft: "auto",
+  wordBreak: "break-word",
+  whiteSpace: "pre-wrap",
 }));
 
-const UserStatus = styled("div")(({ theme, human }) => ({
-  padding: "8px 16px",
-  marginBottom: "8px",
-  borderRadius: "4px",
-  color: human === true && "#fff",
-  background: human === true ? theme.palette.primary.main : theme.palette.background.paper
+const ResultBubble = styled(Box)(({ theme }) => ({
+  backgroundColor: theme.palette.mode === "dark" ? "#2d2d2d" : "#f5f5f5",
+  padding: "10px 16px",
+  borderRadius: "16px 16px 16px 4px",
+  maxWidth: "80%",
+  wordBreak: "break-word",
 }));
 
-const StyledItem = styled(MenuItem)(() => ({
-  display: "flex",
-  alignItems: "center",
-  "& .icon": { marginRight: "16px" }
-}));
+function ImageMessage({ message }) {
+  return (
+    <Box sx={{ mb: 2 }}>
+      {/* Prompt */}
+      {message.prompt && (
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
+          <PromptBubble>
+            {message._inputImage && (
+              <Box
+                component="img"
+                src={message._inputImage}
+                sx={{ maxWidth: "100%", maxHeight: 200, borderRadius: 1, mb: 1, display: "block" }}
+              />
+            )}
+            <Typography variant="body2">{message.prompt}</Typography>
+            {message._generator && (
+              <Chip label={message._generator} size="small" sx={{ mt: 0.5, backgroundColor: "rgba(255,255,255,0.2)", color: "#fff" }} />
+            )}
+          </PromptBubble>
+        </Box>
+      )}
 
-const ScrollBox = styled(Scrollbar)(() => ({
-  flexGrow: 1,
-  position: "relative"
-}));
+      {/* Result */}
+      <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
+        <ResultBubble>
+          {message.image ? (
+            <Box
+              component="img"
+              src={`data:image/png;base64,${message.image}`}
+              sx={{ maxWidth: "100%", maxHeight: 500, borderRadius: 1, display: "block", cursor: "pointer" }}
+              onClick={() => {
+                const w = window.open();
+                w.document.write(`<img src="data:image/png;base64,${message.image}" />`);
+              }}
+            />
+          ) : message.answer ? (
+            <Typography variant="body2" color="error">{message.answer}</Typography>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+              Generating...
+            </Typography>
+          )}
+        </ResultBubble>
+      </Box>
+    </Box>
+  );
+}
 
-const Message = styled("div")(() => ({
-  display: "flex",
-  alignItems: "flex-start",
-  padding: "12px 16px"
-}));
-
-const MessageBox = styled(FlexAlignCenter)(() => ({
-  flexGrow: 1,
-  height: "100%",
-  flexDirection: "column"
-}));
-
-export default function ImageChatContainer({
-  generators,
-  opponentUser = {
-    name: "A.I. Painter",
-    avatar: "/admin/assets/images/painter.jpg"
-  }
-}) {
+export default function ImageChatContainer({ generators }) {
   const auth = useAuth();
-
   const [messages, setMessages] = useState([]);
-  const [message, setMessage] = useState("");
-  const [canSubmit, setCanSubmit] = useState(true);
-  const [scroll, setScroll] = useState();
-  const [selectedMessage, setSelectedMessage] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [inputText, setInputText] = useState("");
   const [image, setImage] = useState(null);
-  const [state, setState] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [generator, setGenerator] = useState("");
+  const scrollRef = useRef(null);
 
-  const handleMessageSend = (message) => {
-    handler(message);
-  }
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
-  const handler = (prompt) => {
-    if(state.generator === undefined) {
+  const handleSend = async () => {
+    const text = inputText.trim();
+    if (!text && !image) return;
+    if (!generator) {
       toast.error("Please select a generator");
       return;
     }
 
-    var body = {
-      "prompt": prompt
-    };
+    setIsLoading(true);
+    setInputText("");
 
-    if (image && image.includes("base64,")) {
-      body.image = image.split(",")[1];
-    } else if (image) {
-      body.image = image;
+    const msg = { prompt: text, _generator: generator, _inputImage: image, image: null, answer: null };
+    setMessages(prev => [...prev, msg]);
+
+    const body = { prompt: text };
+    if (image) {
+      body.image = image.includes("base64,") ? image.split(",")[1] : image;
     }
 
-
-    if (canSubmit) {
-      setCanSubmit(false);
-      setMessages([...messages, { id: body.id, prompt: prompt + " (" + state.generator + ")", input_image: image, answer: null, sources: [] }]);
-      api.post("/image/" + state.generator + "/generate", body, auth.user.token)
-        .then((response) => {
-          if (!response.prompt) {
-            response.prompt = prompt + " (" + state.generator + ")";
-          }
-          if(image !== null) {
-            response.input_image = image;
-          }
-          setMessages([...messages, response]);
-          setCanSubmit(true);
-        }).catch(() => {
-          setMessages([...messages, { id: null, prompt: prompt, answer: "Error, something went wrong with my transistors.", sources: [] }]);
-          setCanSubmit(true);
-        });
-    }
-  }
-
-  const handleClickMessage = (message) => {
-    setSelectedMessage(message);
-  }
-
-  const handleClickImage = (image) => {
-    setSelectedImage(image);
-  }
-
-  const handleMessageInfoClose = () => {
-    setSelectedMessage(null);
-  }
-
-  const handleImageInfoClose = () => {
-    setSelectedImage(null);
-  }
-
-  const sendMessageOnEnter = (event) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      let tempMessage = message.trim();
-      if (tempMessage !== "" || image !== null) handleMessageSend(tempMessage);
-      setMessage("");
+    try {
+      const response = await api.post(`/image/${generator}/generate`, body, auth.user.token);
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = {
+          ...updated[updated.length - 1],
+          ...response,
+          prompt: response.prompt || text,
+        };
+        return updated;
+      });
+    } catch (e) {
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = {
+          ...updated[updated.length - 1],
+          answer: "Error: generation failed.",
+        };
+        return updated;
+      });
+    } finally {
+      setIsLoading(false);
+      setImage(null);
     }
   };
 
-  const convertToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const fileReader = new FileReader();
-      fileReader.readAsDataURL(file);
-      fileReader.onload = () => {
-        resolve(fileReader.result);
-      };
-      fileReader.onerror = (error) => {
-        reject(error);
-      };
-    });
-  };
-
-  const handleFileSelect = async (event) => {
-    if (event.target.files.length === 1) {
-      let file = event.target.files[0];
-      const base64 = await convertToBase64(file);
-      setImage(base64);
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
   };
 
-  const handleChange = (event) => {
-    if (event && event.persist) event.persist();
-    setState({ ...state, [event.target.name]: event.target.value });
+  const handleFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setImage(reader.result);
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
-  useEffect(() => {
-    if (scroll) {
-      scroll.scrollTop = Number.MAX_SAFE_INTEGER
-    }
-  }, [messages]);
+  const handleClear = () => {
+    setMessages([]);
+    setImage(null);
+  };
 
   return (
-    <ChatRoot>
-      <CustomizedDialogMessage message={selectedMessage} onclose={handleMessageInfoClose} />
-      <CustomizedDialogImage image={selectedImage} onclose={handleImageInfoClose} />
-
-      <LeftContent>
-        <Box display="flex" alignItems="center" pl={2}>
-          <Fragment>
-            <ChatAvatar src={opponentUser.avatar} />
-            <UserName>
-              <TextField
-                select
-                size="small"
-                name="generator"
-                label="Generator"
-                variant="outlined"
-                onChange={handleChange}
-                //sx={{ minWidth: 188}}
-                sx={{
-                  minWidth: 188,
-                  "& .MuiOutlinedInput-notchedOutline": {
-                    border: "2px solid white"
-                  },
-                  "& .MuiOutlinedInput-root": {
-                    "&.Mui-focused fieldset": {
-                      border: "2px solid white"
-                    }
-                  },
-                  "& .MuiInputLabel-root": {
-                    color: "white"
-                  },
-                  "& .MuiSelect-select": {
-                    color: "white"
-                  },
-                  "& .MuiSelect-icon": {
-                    color: "white"
-                  }
-                }}
-              >
-                {generators.map((item, ind) => (
-                  <MenuItem value={item} key={item}>
-                    {item}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </UserName>
-          </Fragment>
+    <Card elevation={3} sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* Header */}
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Brush />
+          <Typography variant="subtitle1" fontWeight="bold">Image Generation</Typography>
         </Box>
-
-
-        <Box>
-          <MatxMenu
-            menuButton={
-              <IconButton size="large" sx={{ verticalAlign: "baseline !important" }}>
-                <MoreVert sx={{ color: "#fff" }} />
-              </IconButton>
-            }>
-
-            <StyledItem>
-              <Delete className="icon" /> Clear Chat
-            </StyledItem>
-          </MatxMenu>
-        </Box>
-      </LeftContent>
-
-      <ScrollBox id="chat-message-list" containerRef={setScroll}>
-        {messages.length === 0 && (
-          <MessageBox>
-            <ImageEmptyMessage />
-            <p>Write or send something...</p>
-            <p>(This isn't a chat/agent, there is no memory/conversation)</p>
-          </MessageBox>
-        )}
-
-        {messages.map((message, index) => (
-          <Fragment>
-            <Message key={shortid.generate()}>
-              <ChatAvatar src={"https://www.gravatar.com/avatar/" + sha256(auth.user.username)} />
-
-              <Box ml={2}>
-                <Paragraph m={0} mb={1} color="text.secondary">
-                  {"Me"}
-                </Paragraph>
-
-                <UserStatus human={true} >
-                  <Span sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{message.prompt}</Span>
-                  {message.input_image && (
-                    <ModalImage
-                      small={message.input_image}
-                      large={message.input_image}
-                      alt="Input image"
-                      maxHeight="200px"
-                    />
-                  )}
-                </UserStatus>
-              </Box>
-            </Message>
-
-            <Message key={shortid.generate()}>
-              <ChatAvatar src={opponentUser.avatar} />
-
-              <Box ml={2}>
-                <Paragraph m={0} mb={1} color="text.secondary">
-                  {opponentUser.name}
-                </Paragraph>
-
-                <UserStatus human={false} >
-                  <Span sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word", cursor: 'pointer' }} value={message} onClick={() => handleClickMessage(message)}>{!message.image ? <CircularProgress size="1rem" /> : message.prompt}</Span>
-                  {message.image && (
-                    <ModalImage
-                      small={`data:image/png;base64,${message.image}`}
-                      large={`data:image/png;base64,${message.image}`}
-                      alt="Output image"
-                      maxHeight="200px"
-                    />
-                  )}
-                </UserStatus>
-              </Box>
-            </Message>
-          </Fragment>
-        ))}
-      </ScrollBox>
+        <TextField
+          select
+          size="small"
+          label="Generator"
+          value={generator}
+          onChange={(e) => setGenerator(e.target.value)}
+          sx={{ minWidth: 200 }}
+        >
+          {generators.map((g) => (
+            <MenuItem key={g} value={g}>{g}</MenuItem>
+          ))}
+        </TextField>
+      </Box>
 
       <Divider />
 
-      <Box px={2} py={1} display="flex" alignItems="center">
-        <TextField
-          rows={1}
-          fullWidth
-          value={message}
-          multiline={true}
-          variant="outlined"
-          onKeyUp={sendMessageOnEnter}
-          label="Type your prompt here..."
-          onChange={(e) => setMessage(e.target.value)}
-        />
-
-        <div style={{ display: "flex" }}>
-          {image !== null && (
-            <Box
-              component="img"
-              sx={{
-                height: 56,
-              }}
-              alt="Image preview"
-              src={image}
-              onClick={() => handleClickImage(image)}
-            />
+      {/* Messages */}
+      <Box sx={{ flex: 1, overflow: "auto", minHeight: 400 }} ref={scrollRef}>
+        <Box sx={{ p: 2 }}>
+          {messages.length === 0 && (
+            <Box sx={{ textAlign: "center", mt: 8, color: "text.secondary" }}>
+              <Brush sx={{ fontSize: 48, mb: 1, opacity: 0.3 }} />
+              <Typography variant="body2">
+                Select a generator and describe the image you want to create.
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                You can also upload a reference image for image-to-image generation.
+              </Typography>
+            </Box>
           )}
-          <Fragment>
-            <label htmlFor="upload-single-file">
-              <Fab
-                color="primary"
-                sx={{ ml: 2 }} component="span">
-                <CloudUpload />
-              </Fab>
-            </label>
-            <HiddenInput onChange={handleFileSelect} id="upload-single-file" type="file" />
-          </Fragment>
-          <Fab
-            onClick={() => {
-              if (message.trim() !== "" || image !== null) handleMessageSend(message);
-              setMessage("");
-            }}
-            color="primary"
-            sx={{ ml: 2 }}>
-            <Send />
-          </Fab>
-        </div>
+          {messages.map((msg, i) => (
+            <ImageMessage key={i} message={msg} />
+          ))}
+        </Box>
       </Box>
 
-    </ChatRoot>
+      {/* Image preview */}
+      {image && (
+        <Box sx={{ px: 2, pb: 1 }}>
+          <Chip
+            label="Reference image attached"
+            onDelete={() => setImage(null)}
+            size="small"
+            color="primary"
+            variant="outlined"
+          />
+        </Box>
+      )}
+
+      {/* Input */}
+      <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, p: 2, borderTop: 1, borderColor: "divider" }}>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Describe the image..."
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          multiline
+          maxRows={4}
+          disabled={isLoading}
+        />
+        <label htmlFor="image-gen-upload">
+          <Fab color="default" size="small" component="span">
+            <CloudUpload fontSize="small" />
+          </Fab>
+        </label>
+        <HiddenInput onChange={handleFileSelect} id="image-gen-upload" type="file" accept="image/*" />
+        <Tooltip title="Clear">
+          <Fab color="default" size="small" onClick={handleClear}>
+            <DeleteSweep fontSize="small" />
+          </Fab>
+        </Tooltip>
+        <Fab color="primary" size="small" onClick={handleSend} disabled={isLoading}>
+          <Send fontSize="small" />
+        </Fab>
+      </Box>
+    </Card>
   );
 }

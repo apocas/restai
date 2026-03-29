@@ -14,6 +14,7 @@ uv pip install transformers==4.46.3 \
   torch==2.5.1 \
   torchvision==0.20.1 \
   kornia==0.7.4 \
-  timm==1.0.12
+  timm==1.0.12 \
+  python-dotenv
 
 echo "[INFO] $ENV_NAME installed."
