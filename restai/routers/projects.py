@@ -1156,6 +1156,109 @@ async def get_guard_events(
     }
 
 
+@router.get("/projects/{projectID}/analytics/conversations", tags=["Statistics"])
+async def get_conversation_analytics(
+    projectID: int = PathParam(description="Project ID"),
+    year: int = Query(None, ge=2000, le=2100, description="Year"),
+    month: int = Query(None, ge=1, le=12, description="Month"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get conversation analytics for a project."""
+    import datetime as dt
+    import calendar
+    from restai.models.databasemodels import UserDatabase
+
+    now = dt.datetime.now(dt.timezone.utc)
+    if year is None:
+        year = now.year
+    if month is None:
+        month = now.month
+
+    start_date = dt.datetime(year, month, 1, tzinfo=dt.timezone.utc)
+    last_day = calendar.monthrange(year, month)[1]
+    end_date = dt.datetime(year, month, last_day, 23, 59, 59, tzinfo=dt.timezone.utc)
+
+    base_filter = [
+        OutputDatabase.project_id == projectID,
+        OutputDatabase.date >= start_date,
+        OutputDatabase.date <= end_date,
+    ]
+
+    # Summary
+    total_messages = db_wrapper.db.query(func.count(OutputDatabase.id)).filter(*base_filter).scalar() or 0
+    total_conversations = db_wrapper.db.query(func.count(func.distinct(OutputDatabase.chat_id))).filter(
+        *base_filter, OutputDatabase.chat_id.isnot(None)
+    ).scalar() or 0
+    avg_latency = db_wrapper.db.query(func.avg(OutputDatabase.latency_ms)).filter(*base_filter).scalar()
+    total_tokens = db_wrapper.db.query(
+        func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens)
+    ).filter(*base_filter).scalar() or 0
+    total_cost = db_wrapper.db.query(
+        func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost)
+    ).filter(*base_filter).scalar() or 0
+
+    summary = {
+        "total_conversations": total_conversations,
+        "total_messages": total_messages,
+        "avg_messages_per_conversation": round(total_messages / total_conversations, 1) if total_conversations > 0 else 0,
+        "avg_latency_ms": round(avg_latency) if avg_latency else 0,
+        "total_tokens": total_tokens,
+        "total_cost": round(total_cost, 4),
+    }
+
+    # Daily
+    daily_rows = (
+        db_wrapper.db.query(
+            func.date(OutputDatabase.date).label("date"),
+            func.count(func.distinct(OutputDatabase.chat_id)).label("conversations"),
+            func.count(OutputDatabase.id).label("messages"),
+        )
+        .filter(*base_filter)
+        .group_by(func.date(OutputDatabase.date))
+        .order_by(func.date(OutputDatabase.date))
+        .all()
+    )
+    daily = [{"date": r.date, "conversations": r.conversations, "messages": r.messages} for r in daily_rows]
+
+    # Hourly distribution
+    hourly_rows = (
+        db_wrapper.db.query(
+            func.extract("hour", OutputDatabase.date).label("hour"),
+            func.count(OutputDatabase.id).label("messages"),
+        )
+        .filter(*base_filter)
+        .group_by(func.extract("hour", OutputDatabase.date))
+        .order_by(func.extract("hour", OutputDatabase.date))
+        .all()
+    )
+    hourly_map = {int(r.hour): r.messages for r in hourly_rows}
+    hourly = [{"hour": h, "messages": hourly_map.get(h, 0)} for h in range(24)]
+
+    # Top users
+    top_user_rows = (
+        db_wrapper.db.query(
+            OutputDatabase.user_id,
+            UserDatabase.username,
+            func.count(OutputDatabase.id).label("messages"),
+        )
+        .join(UserDatabase, OutputDatabase.user_id == UserDatabase.id)
+        .filter(*base_filter)
+        .group_by(OutputDatabase.user_id, UserDatabase.username)
+        .order_by(func.count(OutputDatabase.id).desc())
+        .limit(10)
+        .all()
+    )
+    top_users = [{"user_id": r.user_id, "username": r.username, "messages": r.messages} for r in top_user_rows]
+
+    return {
+        "summary": summary,
+        "daily": daily,
+        "hourly": hourly,
+        "top_users": top_users,
+    }
+
+
 @router.get("/projects/{projectID}/logs", tags=["Statistics"])
 async def get_token_consumption(
     projectID: int = PathParam(description="Project ID"),

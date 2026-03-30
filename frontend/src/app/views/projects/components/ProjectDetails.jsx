@@ -10,6 +10,7 @@ import RAGRetrieval from "./RAGRetrieval";
 import ProjectAgent from "./ProjectAgent";
 import ProjectBlock from "./ProjectBlock";
 import ProjectSecurity from "./ProjectSecurity";
+import ProjectAnalytics from "./ProjectAnalytics";
 import { useState, useEffect } from "react";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
@@ -82,6 +83,10 @@ export default function ProjectDetails({ project, projects, info }) {
             <ProjectBlock project={project} />
           </Grid>
         )}
+
+        <Grid item lg={12} md={12} xs={12}>
+          <ProjectAnalytics project={project} />
+        </Grid>
 
         <Grid item lg={12} md={12} xs={12}>
           <ProjectTokens

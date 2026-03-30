@@ -126,21 +126,21 @@ class OutputDatabase(Base):
     question = Column(Text)
     answer = Column(Text)
     
-    project_id = Column(Integer, ForeignKey('projects.id'), nullable=True)
+    project_id = Column(Integer, ForeignKey('projects.id'), nullable=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id'))
     team_id = Column(Integer, ForeignKey('teams.id'), nullable=True)
 
     llm = Column(String(255))
-    
+
     input_tokens = Column(Integer)
     output_tokens = Column(Integer)
     input_cost = Column(Float)
     output_cost = Column(Float)
-    
+
     date = Column(DateTime, index=True)
     latency_ms = Column(Integer, nullable=True)
 
-    chat_id = Column(String(255))
+    chat_id = Column(String(255), index=True)
 
 
 class EvalDatasetDatabase(Base):
