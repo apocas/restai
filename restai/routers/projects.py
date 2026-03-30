@@ -90,6 +90,10 @@ async def route_get_projects(
     elif not user.is_admin:
         query = query.filter(ProjectDatabase.id.in_(user.get_project_ids()))
 
+    # Filter by API key scope if set
+    if user.api_key_allowed_projects is not None:
+        query = query.filter(ProjectDatabase.id.in_(user.api_key_allowed_projects))
+
     projects = query.offset(start).limit(end - start).all()
 
     # Process the projects to simplify team objects

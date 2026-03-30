@@ -33,12 +33,22 @@ def _authenticate():
 
     token = auth_header[7:]  # Strip "Bearer "
     db_wrapper = get_db_wrapper()
-    user_db = db_wrapper.get_user_by_apikey(token)
+    user_db, api_key_row = db_wrapper.get_user_by_apikey(token)
     if user_db is None:
         db_wrapper.db.close()
         raise PermissionError("Invalid API key")
 
     user = User.model_validate(user_db)
+
+    if api_key_row is not None:
+        if api_key_row.allowed_projects:
+            try:
+                import json
+                user.api_key_allowed_projects = json.loads(api_key_row.allowed_projects)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        user.api_key_read_only = api_key_row.read_only or False
+
     return user, db_wrapper
 
 

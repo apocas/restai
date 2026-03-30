@@ -116,6 +116,8 @@ class ApiKeyDatabase(Base):
     key_prefix = Column(String(12), nullable=False)
     description = Column(String(255), default="")
     created_at = Column(DateTime, nullable=False)
+    allowed_projects = Column(Text, nullable=True)
+    read_only = Column(Boolean, nullable=False, default=False)
 
     user = relationship('UserDatabase', back_populates='api_keys')
 

@@ -172,7 +172,8 @@ class DBWrapper:
         )
         return llm
 
-    def get_user_by_apikey(self, apikey: str) -> Optional[UserDatabase]:
+    def get_user_by_apikey(self, apikey: str):
+        """Returns (UserDatabase, ApiKeyDatabase) or (UserDatabase, None) for legacy, or (None, None)."""
         key_hash = hash_api_key(apikey)
         api_key_row = (
             self.db.query(ApiKeyDatabase)
@@ -180,15 +181,15 @@ class DBWrapper:
             .first()
         )
         if api_key_row is not None:
-            return api_key_row.user
+            return api_key_row.user, api_key_row
         # Fallback: check legacy api_key column for migration period
         for user in self.db.query(UserDatabase).filter(UserDatabase.api_key.isnot(None)):
             try:
                 if decrypt_api_key(user.api_key) == apikey:
-                    return user
+                    return user, None
             except Exception:
                 continue
-        return None
+        return None, None
 
     def get_user_by_username(self, username: str) -> Optional[UserDatabase]:
         user: Optional[UserDatabase] = (
@@ -198,7 +199,7 @@ class DBWrapper:
         )
         return user
 
-    def create_api_key(self, user_id: int, encrypted_key: str, key_hash: str, key_prefix: str, description: str) -> ApiKeyDatabase:
+    def create_api_key(self, user_id: int, encrypted_key: str, key_hash: str, key_prefix: str, description: str, allowed_projects: str = None, read_only: bool = False) -> ApiKeyDatabase:
         api_key = ApiKeyDatabase(
             user_id=user_id,
             encrypted_key=encrypted_key,
@@ -206,6 +207,8 @@ class DBWrapper:
             key_prefix=key_prefix,
             description=description,
             created_at=datetime.now(timezone.utc),
+            allowed_projects=allowed_projects,
+            read_only=read_only,
         )
         self.db.add(api_key)
         self.db.commit()

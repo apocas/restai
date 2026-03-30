@@ -185,12 +185,19 @@ async def route_create_user_apikey(
         key_hash = hash_api_key(plaintext)
         key_prefix = plaintext[:8]
 
+        allowed_projects_json = None
+        if body.allowed_projects is not None:
+            import json
+            allowed_projects_json = json.dumps(body.allowed_projects)
+
         api_key_row = db_wrapper.create_api_key(
             user_id=user.id,
             encrypted_key=encrypted,
             key_hash=key_hash,
             key_prefix=key_prefix,
             description=body.description,
+            allowed_projects=allowed_projects_json,
+            read_only=body.read_only,
         )
         return ApiKeyCreatedResponse(
             id=api_key_row.id,
@@ -198,6 +205,8 @@ async def route_create_user_apikey(
             key_prefix=key_prefix,
             description=api_key_row.description,
             created_at=api_key_row.created_at,
+            allowed_projects=body.allowed_projects,
+            read_only=body.read_only,
         )
     except Exception as e:
         if isinstance(e, HTTPException):

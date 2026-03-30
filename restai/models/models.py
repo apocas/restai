@@ -470,9 +470,13 @@ class UserOptions(BaseModel):
 class ApiKeyCreate(BaseModel):
     """Create a new API key."""
     description: str = Field(default="", description="Human-readable description of the API key's purpose")
+    allowed_projects: Union[list[int], None] = Field(default=None, description="List of project IDs this key can access. Null means all projects.")
+    read_only: bool = Field(default=False, description="If true, the key can only query but not modify projects.")
     model_config = ConfigDict(json_schema_extra={
         "example": {
-            "description": "CI/CD pipeline key"
+            "description": "CI/CD pipeline key",
+            "allowed_projects": [1, 2],
+            "read_only": True
         }
     })
 
@@ -483,7 +487,19 @@ class ApiKeyResponse(BaseModel):
     key_prefix: str = Field(description="First characters of the key for identification (e.g. 'sk-abc...')")
     description: str = Field(description="Human-readable description of the API key")
     created_at: datetime = Field(description="Timestamp when the API key was created")
+    allowed_projects: Union[list[int], None] = Field(default=None, description="Project IDs this key can access, null means all")
+    read_only: bool = Field(default=False, description="Whether this key is read-only")
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('allowed_projects', mode='before')
+    @classmethod
+    def parse_allowed_projects(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return None
+        return v
 
 
 class ApiKeyCreatedResponse(BaseModel):
@@ -493,6 +509,8 @@ class ApiKeyCreatedResponse(BaseModel):
     key_prefix: str = Field(description="First characters of the key for identification")
     description: str = Field(description="Human-readable description of the API key")
     created_at: datetime = Field(description="Timestamp when the API key was created")
+    allowed_projects: Union[list[int], None] = Field(default=None, description="Project IDs this key can access")
+    read_only: bool = Field(default=False, description="Whether this key is read-only")
 
 
 class User(BaseModel):
@@ -507,6 +525,9 @@ class User(BaseModel):
     options: Union[str, UserOptions] = Field(default=UserOptions(), description="User configuration options")
     teams: list["TeamModel"] = Field(default=[], description="Teams the user is a member of")
     admin_teams: list["TeamModel"] = Field(default=[], description="Teams the user is an admin of")
+    # API key scope — set during auth, excluded from serialization
+    api_key_allowed_projects: Union[list[int], None] = Field(default=None, exclude=True)
+    api_key_read_only: bool = Field(default=False, exclude=True)
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator('options', mode='before')
@@ -530,6 +551,21 @@ class User(BaseModel):
     def get_project_ids(self) -> set[int]:
         """Return the set of project IDs this user can access."""
         return {p.id for p in self.projects}
+
+    def has_api_key_project_access(self, project_id: int) -> bool:
+        """Check if the API key scope allows access to a specific project."""
+        if self.is_admin:
+            return True
+        if self.api_key_allowed_projects is None:
+            return True
+        return project_id in self.api_key_allowed_projects
+
+    @property
+    def is_read_only(self) -> bool:
+        """Check if the current auth context is read-only (via API key scope)."""
+        if self.is_admin:
+            return False
+        return self.api_key_read_only
 
 
 class LimitedUser(BaseModel):

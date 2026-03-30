@@ -1,10 +1,14 @@
 import { useState, useEffect } from "react";
 import {
+  Autocomplete,
   Box,
   Card,
   Button,
+  Chip,
   Divider,
+  FormControlLabel,
   IconButton,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -33,6 +37,9 @@ export default function ApiKeys({ user }) {
   const [keys, setKeys] = useState([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [description, setDescription] = useState("");
+  const [selectedProjects, setSelectedProjects] = useState([]);
+  const [readOnly, setReadOnly] = useState(false);
+  const [availableProjects, setAvailableProjects] = useState([]);
   const [newKey, setNewKey] = useState(null);
 
   const fetchKeys = () => {
@@ -41,16 +48,31 @@ export default function ApiKeys({ user }) {
       .catch(() => {});
   };
 
+  const fetchProjects = () => {
+    api.get("/projects", auth.user.token)
+      .then((data) => setAvailableProjects(data.projects || []))
+      .catch(() => {});
+  };
+
   useEffect(() => {
-    if (user.username) fetchKeys();
+    if (user.username) {
+      fetchKeys();
+      fetchProjects();
+    }
   }, [user.username]);
 
   const handleCreate = () => {
-    api.post("/users/" + user.username + "/apikeys", { description }, auth.user.token)
+    const body = { description, read_only: readOnly };
+    if (selectedProjects.length > 0) {
+      body.allowed_projects = selectedProjects.map(p => p.id);
+    }
+    api.post("/users/" + user.username + "/apikeys", body, auth.user.token)
       .then((data) => {
         setNewKey(data.api_key);
         setCreateOpen(false);
         setDescription("");
+        setSelectedProjects([]);
+        setReadOnly(false);
         fetchKeys();
       })
       .catch(() => {});
@@ -59,9 +81,7 @@ export default function ApiKeys({ user }) {
   const handleDelete = (keyId) => {
     if (!window.confirm("Are you sure you want to delete this API key?")) return;
     api.delete("/users/" + user.username + "/apikeys/" + keyId, auth.user.token)
-      .then(() => {
-        fetchKeys();
-      })
+      .then(() => fetchKeys())
       .catch(() => {});
   };
 
@@ -88,6 +108,7 @@ export default function ApiKeys({ user }) {
               <TableRow>
                 <TableCell>Description</TableCell>
                 <TableCell>Key Prefix</TableCell>
+                <TableCell>Scope</TableCell>
                 <TableCell>Created</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
@@ -95,7 +116,7 @@ export default function ApiKeys({ user }) {
             <TableBody>
               {keys.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} align="center">
+                  <TableCell colSpan={5} align="center">
                     No API keys yet
                   </TableCell>
                 </TableRow>
@@ -104,6 +125,16 @@ export default function ApiKeys({ user }) {
                   <TableRow key={k.id}>
                     <TableCell>{k.description || "-"}</TableCell>
                     <TableCell><code>{k.key_prefix}...</code></TableCell>
+                    <TableCell>
+                      {k.read_only && (
+                        <Chip label="Read-only" size="small" color="warning" variant="outlined" sx={{ mr: 0.5 }} />
+                      )}
+                      {k.allowed_projects ? (
+                        <Chip label={`${k.allowed_projects.length} project(s)`} size="small" variant="outlined" />
+                      ) : (
+                        <Chip label="All projects" size="small" variant="outlined" />
+                      )}
+                    </TableCell>
                     <TableCell>{new Date(k.created_at).toLocaleDateString()}</TableCell>
                     <TableCell align="right">
                       <Tooltip title="Delete">
@@ -131,6 +162,27 @@ export default function ApiKeys({ user }) {
             fullWidth
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+          />
+          <Autocomplete
+            multiple
+            options={availableProjects}
+            getOptionLabel={(option) => option.name || `Project ${option.id}`}
+            value={selectedProjects}
+            onChange={(e, newVal) => setSelectedProjects(newVal)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                margin="dense"
+                label="Restrict to projects (optional)"
+                helperText="Leave empty for access to all your projects"
+              />
+            )}
+            sx={{ mt: 1 }}
+          />
+          <FormControlLabel
+            control={<Switch checked={readOnly} onChange={(e) => setReadOnly(e.target.checked)} />}
+            label="Read-only (can query but not modify projects)"
+            sx={{ mt: 1 }}
           />
         </DialogContent>
         <DialogActions>

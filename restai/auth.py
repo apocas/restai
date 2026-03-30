@@ -1,4 +1,5 @@
 import base64
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import Depends, HTTPException, Request
@@ -48,12 +49,23 @@ def get_current_username(
         temp_bearer_token = auth_header.split(" ")[1]
 
         if "Bearer" in auth_header:
-            user = db_wrapper.get_user_by_apikey(temp_bearer_token)
+            user_db, api_key_row = db_wrapper.get_user_by_apikey(temp_bearer_token)
 
-            if user is None:
+            if user_db is None:
                 raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
 
-            return User.model_validate(user)
+            user = User.model_validate(user_db)
+
+            # Attach API key scope metadata
+            if api_key_row is not None:
+                if api_key_row.allowed_projects:
+                    try:
+                        user.api_key_allowed_projects = json.loads(api_key_row.allowed_projects)
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                user.api_key_read_only = api_key_row.read_only or False
+
+            return user
         elif "Basic" in auth_header:
             try:
                 try:
@@ -121,7 +133,15 @@ def get_current_username_project(
 ):
     if not user.has_project_access(projectID):
         raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
+    if not user.has_api_key_project_access(projectID):
+        raise HTTPException(status_code=403, detail="API key does not have access to this project")
     return user
+
+
+def check_not_read_only(user: User):
+    """Raise 403 if the user's API key is read-only."""
+    if user.is_read_only:
+        raise HTTPException(status_code=403, detail="This API key is read-only and cannot perform write operations")
 
 
 def get_current_username_project_public(
@@ -130,11 +150,15 @@ def get_current_username_project_public(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     if user.has_project_access(projectID):
+        if not user.has_api_key_project_access(projectID):
+            raise HTTPException(status_code=403, detail="API key does not have access to this project")
         user.level = "own"
         return user
 
     p: Optional[ProjectDatabase] = db_wrapper.get_project_by_id(projectID)
     if p is not None and p.public:
+        if not user.has_api_key_project_access(projectID):
+            raise HTTPException(status_code=403, detail="API key does not have access to this project")
         user.level = "public"
         return user
 
