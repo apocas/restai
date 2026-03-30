@@ -200,6 +200,12 @@ Protect your AI projects with input and output guards. Guards are regular RestAI
 - **Block or Warn mode** — Hard-block unsafe content or flag it while passing through
 - **Analytics dashboard** — Track block rates, view blocked requests, and monitor guard effectiveness over time
 
+### Response Cache
+
+Enable per-project response caching to speed up repeated or similar questions. Uses ChromaDB vector similarity to match incoming questions against cached answers — if a question is similar enough (above the configurable threshold), the cached answer is returned instantly without calling the LLM.
+
+Works across all project types. Cache is automatically invalidated when the knowledge base changes (document ingestion or deletion). Configurable similarity threshold (default 0.85). Clear cache anytime via the project details page or API.
+
 ### Rate Limiting
 
 Set per-project request limits to prevent abuse and control costs. Configure the maximum number of requests per minute in the project edit page. Returns HTTP 429 when the limit is exceeded.
