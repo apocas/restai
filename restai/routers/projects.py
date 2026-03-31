@@ -1160,6 +1160,66 @@ async def get_guard_events(
     }
 
 
+@router.get("/projects/{projectID}/analytics/sources", tags=["Statistics"])
+async def get_source_analytics(
+    request: Request,
+    projectID: int = PathParam(description="Project ID"),
+    days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get per-source retrieval analytics for a RAG project."""
+    import datetime as dt
+    from restai.models.databasemodels import RetrievalEventDatabase
+
+    project = get_project(projectID, db_wrapper, request.app.state.brain)
+    if project.props.type != "rag":
+        raise HTTPException(status_code=400, detail="Source analytics only available for RAG projects")
+
+    since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)
+
+    # Per-source stats
+    rows = (
+        db_wrapper.db.query(
+            RetrievalEventDatabase.source,
+            func.count(RetrievalEventDatabase.id).label("retrievals"),
+            func.avg(RetrievalEventDatabase.score).label("avg_score"),
+        )
+        .filter(
+            RetrievalEventDatabase.project_id == projectID,
+            RetrievalEventDatabase.date >= since,
+        )
+        .group_by(RetrievalEventDatabase.source)
+        .order_by(func.count(RetrievalEventDatabase.id).desc())
+        .all()
+    )
+
+    sources = [
+        {
+            "source": r.source,
+            "retrievals": r.retrievals,
+            "avg_score": round(r.avg_score, 3) if r.avg_score else 0,
+        }
+        for r in rows
+    ]
+
+    # Find never-retrieved documents
+    retrieved_sources = {r.source for r in rows}
+    all_sources = set()
+    if project.vector:
+        try:
+            all_sources = set(project.vector.list())
+        except Exception:
+            pass
+
+    never_retrieved = sorted(all_sources - retrieved_sources)
+
+    return {
+        "sources": sources,
+        "never_retrieved": never_retrieved,
+    }
+
+
 @router.get("/projects/{projectID}/analytics/conversations", tags=["Statistics"])
 async def get_conversation_analytics(
     projectID: int = PathParam(description="Project ID"),

@@ -221,6 +221,16 @@ class EvalResultDatabase(Base):
     run = relationship("EvalRunDatabase", back_populates="results")
 
 
+class RetrievalEventDatabase(Base):
+    __tablename__ = "retrieval_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    source = Column(String(500), nullable=False, index=True)
+    score = Column(Float, nullable=True)
+    date = Column(DateTime, nullable=False, index=True)
+
+
 class GuardEventDatabase(Base):
     __tablename__ = "guard_events"
 

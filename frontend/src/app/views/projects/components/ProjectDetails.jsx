@@ -11,6 +11,7 @@ import ProjectAgent from "./ProjectAgent";
 import ProjectBlock from "./ProjectBlock";
 import ProjectSecurity from "./ProjectSecurity";
 import ProjectAnalytics from "./ProjectAnalytics";
+import ProjectSourceAnalytics from "./ProjectSourceAnalytics";
 import { useState, useEffect } from "react";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
@@ -70,6 +71,9 @@ export default function ProjectDetails({ project, projects, info }) {
             )}
             <Grid item lg={12} md={12} xs={12}>
               <RAGRetrieval project={project} />
+            </Grid>
+            <Grid item lg={12} md={12} xs={12}>
+              <ProjectSourceAnalytics project={project} />
             </Grid>
           </>
         )}

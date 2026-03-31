@@ -267,6 +267,24 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
     db.db.commit()
 
 
+def log_retrieval_events(project, sources, db):
+    """Log retrieval events for RAG source analytics."""
+    from restai.models.databasemodels import RetrievalEventDatabase
+
+    now = datetime.now(timezone.utc)
+    for src in sources:
+        source_name = src.get("source", "") if isinstance(src, dict) else str(src)
+        score = src.get("score") if isinstance(src, dict) else None
+        if source_name:
+            db.db.add(RetrievalEventDatabase(
+                project_id=project.props.id,
+                source=source_name,
+                score=score,
+                date=now,
+            ))
+    db.db.commit()
+
+
 def log_guard_event(project, guard_project_name, user, phase, action, mode, text_checked, guard_response, db):
     from restai.models.databasemodels import GuardEventDatabase
 

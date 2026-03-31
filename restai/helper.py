@@ -166,6 +166,11 @@ async def question_main(
         except Exception:
             pass
 
+    # Log retrieval events for RAG source analytics
+    if result and isinstance(result, dict) and result.get("sources") and project.props.type == "rag":
+        from restai.tools import log_retrieval_events
+        background_tasks.add_task(log_retrieval_events, project, result["sources"], db)
+
     return result
 
 
