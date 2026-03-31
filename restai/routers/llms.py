@@ -16,7 +16,7 @@ logging.basicConfig(level=config.LOG_LEVEL)
 
 router = APIRouter()
 
-def mask_api_key(options: Optional[str]) -> Optional[str]:
+def mask_api_key(options: Optional[dict]) -> Optional[dict]:
     if options is None:
         return options
     try:
@@ -77,7 +77,7 @@ async def api_create_llm(
 ):
     """Register a new LLM provider (admin only)."""
     try:
-        llm: LLMDatabase = db_wrapper.create_llm(
+        llm_db: LLMDatabase = db_wrapper.create_llm(
             llmc.name,
             llmc.class_name,
             json.dumps(llmc.options),
@@ -88,6 +88,8 @@ async def api_create_llm(
             llmc.input_cost,
             llmc.output_cost,
         )
+        llm = LLMModel.model_validate(llm_db)
+        llm.options = mask_api_key(llm.options)
         return llm
     except Exception as e:
         logging.error(e)
