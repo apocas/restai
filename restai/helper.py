@@ -1,5 +1,8 @@
 import time
+import socket
+import ipaddress
 from typing import AsyncGenerator, Any, Dict
+from urllib.parse import urlparse
 
 from starlette.responses import StreamingResponse
 from requests import Response
@@ -25,19 +28,68 @@ from restai.projects.base import ProjectBase
 from restai.budget import check_budget, check_rate_limit
 
 logging.basicConfig(level=LOG_LEVEL)
+logger = logging.getLogger(__name__)
+
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+_BLOCKED_NETWORKS = [
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+]
+
+_URL_PATTERN = re.compile(
+    r"https?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(),]|%[0-9a-fA-F][0-9a-fA-F])+"
+)
+
+
+def _is_private_ip(hostname: str) -> bool:
+    """Resolve hostname and check if any resolved IP falls within blocked networks."""
+    try:
+        addrinfos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        raise ValueError(f"Cannot resolve hostname: {hostname}")
+
+    for addrinfo in addrinfos:
+        ip = ipaddress.ip_address(addrinfo[4][0])
+        for network in _BLOCKED_NETWORKS:
+            if ip in network:
+                return True
+    return False
 
 
 def resolve_image(image: str) -> str:
     """If image is a URL, fetch it and return base64-encoded data. Otherwise return as-is."""
-    url_pattern = re.compile(
-        r"https?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(),]|%[0-9a-fA-F][0-9a-fA-F])+"
-    )
-    if re.match(url_pattern, image):
-        response = requests.get(image)
+    if re.match(_URL_PATTERN, image):
+        parsed = urlparse(image)
+        hostname = parsed.hostname
+        if not hostname:
+            raise ValueError("URL has no valid hostname.")
+
+        if _is_private_ip(hostname):
+            logger.warning("Blocked SSRF attempt to internal address: %s", hostname)
+            raise ValueError(f"Access to internal/private addresses is not allowed: {hostname}")
+
+        response = requests.get(image, timeout=10, stream=True)
         response.raise_for_status()
-        if response.content is None:
+
+        chunks = []
+        downloaded = 0
+        for chunk in response.iter_content(chunk_size=8192):
+            downloaded += len(chunk)
+            if downloaded > MAX_IMAGE_SIZE:
+                response.close()
+                raise ValueError(f"Image exceeds maximum allowed size of {MAX_IMAGE_SIZE} bytes.")
+            chunks.append(chunk)
+
+        content = b"".join(chunks)
+        if not content:
             raise ValueError("Content is null.")
-        return base64.b64encode(response.content).decode("utf-8")
+        return base64.b64encode(content).decode("utf-8")
     return image
 
 
