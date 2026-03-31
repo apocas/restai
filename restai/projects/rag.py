@@ -293,9 +293,7 @@ class RAG(ProjectBase):
                     fallback_model = self.brain.get_llm(fallback_name, db)
                     if fallback_model:
                         logging.warning("Primary LLM failed in RAG query, using fallback '%s': %s", fallback_name, primary_error)
-                        from llama_index.core.response_synthesizers import get_response_synthesizer
                         fallback_synthesizer = get_response_synthesizer(llm=fallback_model.llm)
-                        from llama_index.core.query_engine import RetrieverQueryEngine
                         fallback_engine = RetrieverQueryEngine(
                             retriever=retriever,
                             response_synthesizer=fallback_synthesizer,

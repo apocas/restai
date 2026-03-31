@@ -83,13 +83,29 @@ class SeleniumWebReader(BaseReader):
             if self.headless:
                 chrome_options.add_argument("--headless")
                 chrome_options.add_argument("--no-sandbox")
-            if self.binary_location is not None:
-                chrome_options.binary_location = self.binary_location
-            if self.executable_path is None:
+                chrome_options.add_argument("--disable-dev-shm-usage")
+                chrome_options.add_argument("--disable-gpu")
+
+            binary = self.binary_location
+            exec_path = self.executable_path
+
+            # Auto-detect snap Chromium if no explicit paths provided
+            if binary is None and exec_path is None:
+                import shutil
+                import os
+                if shutil.which("chromium-browser") and not shutil.which("google-chrome"):
+                    binary = shutil.which("chromium-browser")
+                    snap_driver = "/snap/chromium/current/usr/lib/chromium-browser/chromedriver"
+                    if os.path.exists(snap_driver):
+                        exec_path = snap_driver
+
+            if binary is not None:
+                chrome_options.binary_location = binary
+            if exec_path is None:
                 return Chrome(options=chrome_options)
             return Chrome(
                 options=chrome_options,
-                service=Service(executable_path=self.executable_path),
+                service=Service(executable_path=exec_path),
             )
         elif self.browser.lower() == "firefox":
             from selenium.webdriver import Firefox
