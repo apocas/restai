@@ -22,6 +22,7 @@ import { ContentCopy } from "@mui/icons-material";
 import ApiKeys from "./components/ApiKeys";
 import Password from "./components/Password";
 import Projects from "./components/Projects";
+import UserActivity from "./components/UserActivity";
 import DeleteAccount from "./components/DeleteAccount";
 import BasicInformation from "./components/BasicInformation";
 import api from "app/utils/api";
@@ -29,6 +30,7 @@ import InfoIcon from '@mui/icons-material/Info';
 import KeyIcon from '@mui/icons-material/Key';
 import HttpsIcon from '@mui/icons-material/Https';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
+import TimelineIcon from '@mui/icons-material/Timeline';
 
 const StyledButton = styled(Button)(({ theme }) => ({
   borderRadius: 0,
@@ -164,7 +166,8 @@ export default function UserInfo() {
           {active === tabList[1].name && <Password user={user} />}
           {active === tabList[2].name && <Projects user={user} projects={projects} />}
           {active === tabList[3].name && <ApiKeys user={user} />}
-          {active === tabList[4].name && <DeleteAccount user={user} />}
+          {active === tabList[4].name && user.id && <UserActivity user={user} />}
+          {active === tabList[5].name && <DeleteAccount user={user} />}
         </Grid>
       </Grid>
     </Box>
@@ -177,6 +180,7 @@ const tabList = [
   { id: 2, name: "Password", Icon: HttpsIcon },
   { id: 3, name: "Projects", Icon: ContentCopy },
   { id: 12, name: "API Keys", Icon: KeyIcon },
+  { id: 14, name: "Activity", Icon: TimelineIcon },
   { id: 13, name: "Delete account", Icon: DeleteForeverIcon }
 ];
 

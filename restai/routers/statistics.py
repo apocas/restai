@@ -236,3 +236,122 @@ async def get_top_llms(
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/statistics/users", tags=["Statistics"])
+async def get_top_users(
+    limit: int = Query(10, ge=1, le=100, description="Max users to return"),
+    user: User = Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get users ranked by token consumption (admin only)."""
+    rows = (
+        db_wrapper.db.query(
+            OutputDatabase.user_id,
+            UserDatabase.username,
+            func.count(OutputDatabase.id).label("requests"),
+            func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens).label("total_tokens"),
+            func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost).label("total_cost"),
+        )
+        .join(UserDatabase, OutputDatabase.user_id == UserDatabase.id)
+        .group_by(OutputDatabase.user_id, UserDatabase.username)
+        .order_by(func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens).desc())
+        .limit(limit)
+        .all()
+    )
+    return {
+        "users": [
+            {
+                "user_id": r.user_id,
+                "username": r.username,
+                "requests": r.requests,
+                "total_tokens": r.total_tokens or 0,
+                "total_cost": round(r.total_cost or 0, 4),
+            }
+            for r in rows
+        ]
+    }
+
+
+@router.get("/statistics/users/{userID}", tags=["Statistics"])
+async def get_user_activity(
+    userID: int,
+    days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get detailed activity for a specific user."""
+    if not user.is_admin and user.id != userID:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    base_filter = [OutputDatabase.user_id == userID, OutputDatabase.date >= since]
+
+    total_requests = db_wrapper.db.query(func.count(OutputDatabase.id)).filter(*base_filter).scalar() or 0
+    total_tokens = db_wrapper.db.query(
+        func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens)
+    ).filter(*base_filter).scalar() or 0
+    total_cost = db_wrapper.db.query(
+        func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost)
+    ).filter(*base_filter).scalar() or 0
+    avg_latency = db_wrapper.db.query(func.avg(OutputDatabase.latency_ms)).filter(*base_filter).scalar()
+    total_conversations = db_wrapper.db.query(
+        func.count(func.distinct(OutputDatabase.chat_id))
+    ).filter(*base_filter, OutputDatabase.chat_id.isnot(None)).scalar() or 0
+
+    # Daily
+    daily_rows = (
+        db_wrapper.db.query(
+            func.date(OutputDatabase.date).label("date"),
+            func.count(OutputDatabase.id).label("requests"),
+            func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens).label("tokens"),
+        )
+        .filter(*base_filter)
+        .group_by(func.date(OutputDatabase.date))
+        .order_by(func.date(OutputDatabase.date))
+        .all()
+    )
+
+    # Top projects
+    project_rows = (
+        db_wrapper.db.query(
+            OutputDatabase.project_id,
+            ProjectDatabase.name,
+            func.count(OutputDatabase.id).label("requests"),
+            func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens).label("tokens"),
+        )
+        .join(ProjectDatabase, OutputDatabase.project_id == ProjectDatabase.id)
+        .filter(*base_filter)
+        .group_by(OutputDatabase.project_id, ProjectDatabase.name)
+        .order_by(func.count(OutputDatabase.id).desc())
+        .limit(10)
+        .all()
+    )
+
+    # Hourly
+    hourly_rows = (
+        db_wrapper.db.query(
+            func.extract("hour", OutputDatabase.date).label("hour"),
+            func.count(OutputDatabase.id).label("requests"),
+        )
+        .filter(*base_filter)
+        .group_by(func.extract("hour", OutputDatabase.date))
+        .all()
+    )
+    hourly_map = {int(r.hour): r.requests for r in hourly_rows}
+
+    return {
+        "summary": {
+            "total_requests": total_requests,
+            "total_tokens": total_tokens,
+            "total_cost": round(total_cost, 4),
+            "avg_latency_ms": round(avg_latency) if avg_latency else 0,
+            "total_conversations": total_conversations,
+        },
+        "daily": [{"date": r.date, "requests": r.requests, "tokens": r.tokens or 0} for r in daily_rows],
+        "top_projects": [
+            {"project_id": r.project_id, "project_name": r.name, "requests": r.requests, "tokens": r.tokens or 0}
+            for r in project_rows
+        ],
+        "hourly": [{"hour": h, "requests": hourly_map.get(h, 0)} for h in range(24)],
+    }
