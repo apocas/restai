@@ -1,4 +1,5 @@
 import json
+import traceback
 from typing import Optional
 
 from fastapi import APIRouter
@@ -16,6 +17,21 @@ logging.basicConfig(level=config.LOG_LEVEL)
 router = APIRouter()
 
 
+def mask_embedding_options(options: Optional[str]) -> Optional[str]:
+    """Mask api_key in a JSON options string."""
+    if options is None:
+        return options
+    try:
+        parsed = json.loads(options)
+        if "api_key" in parsed:
+            parsed["api_key"] = "********"
+            return json.dumps(parsed)
+        return options
+    except Exception as e:
+        logging.exception(e)
+        return options
+
+
 @router.get("/embeddings/{embedding_name}", response_model=EmbeddingModel)
 async def api_get_embedding(embedding_name: str = Path(description="Embedding model name"),
                       _: User = Depends(get_current_username),
@@ -23,12 +39,8 @@ async def api_get_embedding(embedding_name: str = Path(description="Embedding mo
     """Get embedding model configuration by name."""
     try:
         llm = EmbeddingModel.model_validate(db_wrapper.get_embedding_by_name(embedding_name))
-        if llm.options is not None:
-            options = json.loads(llm.options)
-            if 'api_key' in options:
-                options["api_key"] = "********"
-                llm.options = json.dumps(options)
-            return llm
+        llm.options = mask_embedding_options(llm.options)
+        return llm
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
@@ -53,11 +65,7 @@ async def api_get_embeddings(
 
     embeddings: list[Optional[EmbeddingModel]] = [EmbeddingModel.model_validate(embedding) for embedding in all_embeddings]
     for embedding in embeddings:
-        if embedding.options is not None:
-            options = json.loads(embedding.options)
-            if 'api_key' in options:
-                options["api_key"] = "********"
-                embedding.options = json.dumps(options)
+        embedding.options = mask_embedding_options(embedding.options)
 
     return embeddings
 
@@ -68,7 +76,9 @@ async def api_create_embeddings(embeddingc: EmbeddingModel,
                          db_wrapper: DBWrapper = Depends(get_db_wrapper)):
     """Register a new embedding model provider (admin only)."""
     try:
-        embedding: EmbeddingDatabase = db_wrapper.create_embedding(embeddingc.name, embeddingc.class_name, embeddingc.options, embeddingc.privacy, embeddingc.description, embeddingc.dimension)
+        embedding_db: EmbeddingDatabase = db_wrapper.create_embedding(embeddingc.name, embeddingc.class_name, embeddingc.options, embeddingc.privacy, embeddingc.description, embeddingc.dimension)
+        embedding = EmbeddingModel.model_validate(embedding_db)
+        embedding.options = mask_embedding_options(embedding.options)
         return embedding
     except Exception as e:
         logging.error(e)
