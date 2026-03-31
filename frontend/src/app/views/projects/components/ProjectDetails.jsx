@@ -1,7 +1,6 @@
 import { Fade, Grid } from "@mui/material";
 
 import ProjectInfo from "./ProjectInfo";
-import ProjectAI from "./ProjectAI";
 import ProjectTokens from "./ProjectTokens";
 import ProjectRAG from "./ProjectRAG";
 import RAGUpload from "./RAGUpload";
@@ -9,7 +8,6 @@ import RAGBrowser from "./RAGBrowser";
 import RAGRetrieval from "./RAGRetrieval";
 import ProjectAgent from "./ProjectAgent";
 import ProjectBlock from "./ProjectBlock";
-import ProjectSecurity from "./ProjectSecurity";
 import ProjectAnalytics from "./ProjectAnalytics";
 import ProjectSourceAnalytics from "./ProjectSourceAnalytics";
 import { useState, useEffect } from "react";
@@ -42,20 +40,12 @@ export default function ProjectDetails({ project, projects, info }) {
   return (
     <Fade in timeout={300}>
       <Grid container spacing={3}>
-        <Grid item lg={4} md={6} xs={12}>
-          <ProjectInfo project={project} projects={projects} />
+        {/* Hero section — full width */}
+        <Grid item xs={12}>
+          <ProjectInfo project={project} projects={projects} info={info} />
         </Grid>
 
-        {project.type !== "block" && (
-          <Grid item lg={8} md={6} xs={12}>
-            <ProjectAI project={project} projects={projects} />
-          </Grid>
-        )}
-
-        <Grid item lg={4} md={6} xs={12}>
-          <ProjectSecurity project={project} projects={projects} info={info} />
-        </Grid>
-
+        {/* Type-specific cards */}
         {project.type === "rag" && (
           <>
             <Grid item lg={4} md={6} xs={12}>
@@ -88,10 +78,12 @@ export default function ProjectDetails({ project, projects, info }) {
           </Grid>
         )}
 
+        {/* Analytics */}
         <Grid item lg={12} md={12} xs={12}>
           <ProjectAnalytics project={project} />
         </Grid>
 
+        {/* Token usage */}
         <Grid item lg={12} md={12} xs={12}>
           <ProjectTokens
             project={project}

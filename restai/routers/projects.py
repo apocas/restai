@@ -112,11 +112,12 @@ async def route_get_projects(
                 "name": project_dict["team"]["name"],
             }
 
-        # Mask telegram token in list
+        # Mask sensitive tokens in list
         if isinstance(project_dict.get("options"), dict):
-            token = project_dict["options"].get("telegram_token")
-            if token:
-                project_dict["options"]["telegram_token"] = mask_key(token)
+            for key in ("telegram_token", "slack_bot_token", "slack_app_token"):
+                val = project_dict["options"].get(key)
+                if val:
+                    project_dict["options"][key] = mask_key(val)
 
         serialized_projects.append(project_dict)
 
@@ -320,11 +321,12 @@ async def route_get_project(
             final_output["llm_type"] = llm_model.props.type
             final_output["llm_privacy"] = llm_model.props.privacy
 
-        # Mask telegram token
+        # Mask sensitive tokens
         if isinstance(final_output.get("options"), dict):
-            token = final_output["options"].get("telegram_token")
-            if token:
-                final_output["options"]["telegram_token"] = mask_key(token)
+            for key in ("telegram_token", "slack_bot_token", "slack_app_token"):
+                val = final_output["options"].get(key)
+                if val:
+                    final_output["options"][key] = mask_key(val)
 
         del project
 
@@ -351,6 +353,11 @@ async def route_delete_project(
         if proj.props.options and proj.props.options.telegram_token:
             from restai.telegram import stop_poller
             stop_poller(projectID)
+
+        # Stop Slack bot if running
+        if proj.props.options and proj.props.options.slack_bot_token:
+            from restai.slack_bot import stop_slack_bot
+            stop_slack_bot(projectID)
 
         proj.delete()
 
@@ -455,12 +462,18 @@ async def route_edit_project(
                 status_code=403, detail="User not allowed to use public models"
             )
 
-    # Handle masked Telegram token — preserve existing value
+    # Handle masked tokens — preserve existing values
     if projectModelUpdate.options:
         existing_opts = json.loads(project.options) if project.options else {}
         new_telegram_token = projectModelUpdate.options.telegram_token
         if new_telegram_token and new_telegram_token.startswith("****"):
             projectModelUpdate.options.telegram_token = existing_opts.get("telegram_token")
+        new_slack_bot = projectModelUpdate.options.slack_bot_token
+        if new_slack_bot and new_slack_bot.startswith("****"):
+            projectModelUpdate.options.slack_bot_token = existing_opts.get("slack_bot_token")
+        new_slack_app = projectModelUpdate.options.slack_app_token
+        if new_slack_app and new_slack_app.startswith("****"):
+            projectModelUpdate.options.slack_app_token = existing_opts.get("slack_app_token")
 
     # Attach user ID for prompt version tracking
     projectModelUpdate._user_id = user.id
@@ -486,6 +499,18 @@ async def route_edit_project(
                         )
                 else:
                     stop_poller(projectID)
+
+                # Start/stop Slack bot based on token changes
+                from restai.slack_bot import start_slack_bot, stop_slack_bot
+                slack_bot_token = saved_opts.get("slack_bot_token")
+                slack_app_token = saved_opts.get("slack_app_token")
+                if slack_bot_token and slack_app_token:
+                    try:
+                        start_slack_bot(projectID, slack_bot_token, slack_app_token, request.app)
+                    except Exception as e:
+                        logging.warning(f"Failed to start Slack bot for project {projectID}: {e}")
+                else:
+                    stop_slack_bot(projectID)
 
             return {"project": projectID}
         else:

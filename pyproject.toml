@@ -90,6 +90,7 @@ dependencies = [
     "llama-index-node-parser-docling>=0.4.2",
     "tomli>=2.4.0",
     "llama-index-readers-docling>=0.4.2",
+    "slack-bolt>=1.18,<2",
 ]
 
 [dependency-groups]

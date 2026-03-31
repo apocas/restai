@@ -210,9 +210,12 @@ Works across all project types. Cache is automatically invalidated when the know
 
 Set per-project request limits to prevent abuse and control costs. Configure the maximum number of requests per minute in the project edit page. Returns HTTP 429 when the limit is exceeded.
 
-### Telegram Integration
+### Telegram & Slack Integration
 
-Connect any project to Telegram via [BotFather](https://t.me/BotFather). Messages are processed through the project's chat pipeline and responses are sent back automatically.
+Connect any project to **Telegram** or **Slack** — messages are processed through the project's chat pipeline and responses are sent back automatically. No public URL required.
+
+- **Telegram** — Paste your [BotFather](https://t.me/BotFather) token in the project settings
+- **Slack** — Create a Slack app at [api.slack.com](https://api.slack.com), enable Socket Mode, and paste the Bot Token (xoxb-...) and App Token (xapp-...) in the project settings
 
 ### Settings & Configuration
 

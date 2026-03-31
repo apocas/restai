@@ -120,6 +120,13 @@ export default function ProjectEdit({ project, projects, info }) {
       opts.options.telegram_token = state.options.telegram_token;
     }
 
+    if (state.options.slack_bot_token !== undefined) {
+      opts.options.slack_bot_token = state.options.slack_bot_token;
+    }
+    if (state.options.slack_app_token !== undefined) {
+      opts.options.slack_app_token = state.options.slack_app_token;
+    }
+
     opts.options.rate_limit = state.options.rate_limit ? parseInt(state.options.rate_limit) : null;
     opts.options.guard_output = state.options.guard_output || null;
     opts.options.guard_mode = state.options.guard_mode || "block";
@@ -1019,6 +1026,32 @@ export default function ProjectEdit({ project, projects, info }) {
                     onChange={handleChange}
                     value={state.options?.telegram_token ?? ''}
                     helperText="Paste the token from @BotFather to connect this project to Telegram"
+                  />
+                </Grid>
+                <Grid item sm={6} xs={12}>
+                  <TextField
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    name="slack_bot_token"
+                    label="Slack Bot Token"
+                    type="password"
+                    variant="outlined"
+                    onChange={(e) => setState({ ...state, options: { ...state.options, slack_bot_token: e.target.value } })}
+                    value={state.options?.slack_bot_token ?? ''}
+                    helperText="Bot token (xoxb-...) from your Slack app"
+                  />
+                </Grid>
+                <Grid item sm={6} xs={12}>
+                  <TextField
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    name="slack_app_token"
+                    label="Slack App Token"
+                    type="password"
+                    variant="outlined"
+                    onChange={(e) => setState({ ...state, options: { ...state.options, slack_app_token: e.target.value } })}
+                    value={state.options?.slack_app_token ?? ''}
+                    helperText="App token (xapp-...) for Socket Mode — create at api.slack.com"
                   />
                 </Grid>
               </Fragment>

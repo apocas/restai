@@ -298,12 +298,25 @@ async def lifespan(fs_app: FastAPI):
                 start_poller(proj.id, token, fs_app)
             except Exception as e:
                 logging.warning(f"Failed to start Telegram poller for project {proj.id}: {e}")
+
+        # Start Slack bots
+        slack_bot_token = opts.get("slack_bot_token")
+        slack_app_token = opts.get("slack_app_token")
+        if slack_bot_token and slack_app_token:
+            try:
+                from restai.slack_bot import start_slack_bot
+                start_slack_bot(proj.id, slack_bot_token, slack_app_token, fs_app)
+            except Exception as e:
+                logging.warning(f"Failed to start Slack bot for project {proj.id}: {e}")
+
     tg_db_wrapper.db.close()
 
     yield
 
-    # Shutdown: stop all Telegram pollers
+    # Shutdown: stop all Telegram pollers and Slack bots
     stop_all_pollers()
+    from restai.slack_bot import stop_all_slack_bots
+    stop_all_slack_bots()
 
 
 logging.basicConfig(level=config.LOG_LEVEL)
