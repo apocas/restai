@@ -41,6 +41,7 @@ export default function SettingsPage() {
     proxy_team_id: "",
     agent_max_iterations: 20,
     max_audio_upload_size: 10,
+    data_retention_days: 0,
     currency: "EUR",
     redis_host: "",
     redis_port: "6379",
@@ -113,6 +114,7 @@ export default function SettingsPage() {
     // Convert numeric fields
     body.agent_max_iterations = parseInt(body.agent_max_iterations, 10) || 20;
     body.max_audio_upload_size = parseInt(body.max_audio_upload_size, 10) || 10;
+    body.data_retention_days = parseInt(body.data_retention_days, 10) || 0;
 
     api.patch("/settings", body, auth.user.token)
       .then((data) => {
@@ -272,6 +274,17 @@ export default function SettingsPage() {
                       inputProps={{ min: 1 }}
                       value={form.max_audio_upload_size}
                       onChange={handleChange("max_audio_upload_size")}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Data Retention (days)"
+                      type="number"
+                      inputProps={{ min: 0 }}
+                      value={form.data_retention_days}
+                      onChange={handleChange("data_retention_days")}
+                      helperText="Auto-delete inference logs, guard events, and audit entries older than this. 0 = keep forever. Applied on restart."
                     />
                   </Grid>
                 </Grid>

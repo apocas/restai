@@ -210,6 +210,8 @@ GPU_WORKER_DEVICES = os.environ.get("GPU_WORKER_DEVICES", "")
 
 RESTAI_MCP = os.environ.get("MCP_SERVER", "").lower() in ("true", "1")
 
+DATA_RETENTION_DAYS = 0
+
 EMBEDDINGS_PATH = os.environ.get("EMBEDDINGS_PATH")
 
 # Database connection pool settings

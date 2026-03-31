@@ -93,6 +93,10 @@ async def lifespan(fs_app: FastAPI):
     seed_defaults(settings_db_wrapper)
     load_settings(settings_db_wrapper)
 
+    # Run data retention cleanup on startup
+    from restai.retention import run_retention_cleanup
+    run_retention_cleanup(settings_db_wrapper)
+
     if not RESTAI_URL:
       logging.warning("RESTAI_URL env var missing. OAUTH auth schemes may not work properly.")
 

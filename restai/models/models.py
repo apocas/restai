@@ -968,6 +968,8 @@ class SettingsResponse(BaseModel):
     gpu_worker_devices: Optional[str] = Field(default="", description="Comma-separated GPU indices for worker processes (e.g. '0,1')")
     # MCP
     mcp_enabled: bool = Field(default=False, description="Whether the internal MCP server is enabled")
+    # Retention
+    data_retention_days: int = Field(default=0, description="Auto-delete data older than this many days (0 = keep forever)")
 
 
 class SettingsUpdate(BaseModel):
@@ -1018,6 +1020,8 @@ class SettingsUpdate(BaseModel):
     gpu_worker_devices: Optional[str] = Field(default=None, description="Comma-separated GPU indices for worker processes (e.g. '0,1')")
     # MCP
     mcp_enabled: Optional[bool] = Field(default=None, description="Whether the internal MCP server is enabled")
+    # Retention
+    data_retention_days: Optional[int] = Field(default=None, ge=0, description="Auto-delete data older than this many days (0 = keep forever)")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "app_name": "My AI Platform",
