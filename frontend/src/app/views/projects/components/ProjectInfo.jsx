@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Card,
   Table,
@@ -10,14 +11,19 @@ import {
   Button,
   Tooltip,
   Avatar,
-  Box
+  Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
 } from "@mui/material";
 
 import { H4, Small } from "app/components/Typography";
 import { FlexBetween, FlexBox } from "app/components/FlexBox";
 import { Edit } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { SportsEsports, Delete, Code, Article, ViewInAr, Science, ClearAll, Security } from "@mui/icons-material";
+import { SportsEsports, Delete, Code, Article, ViewInAr, Science, ClearAll, Security, ContentCopy } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import sha256 from 'crypto-js/sha256';
 import BAvatar from "boring-avatars";
@@ -36,7 +42,19 @@ const StyledAvatar = styled(Avatar)(() => ({
 export default function ProjectInfo({ project, projects }) {
   const navigate = useNavigate();
   const auth = useAuth();
+  const [cloneOpen, setCloneOpen] = useState(false);
+  const [cloneName, setCloneName] = useState("");
 
+  const handleClone = () => {
+    if (!cloneName.trim()) return;
+    api.post("/projects/" + project.id + "/clone", { name: cloneName.trim() }, auth.user.token)
+      .then((response) => {
+        setCloneOpen(false);
+        setCloneName("");
+        navigate("/project/" + response.project);
+      })
+      .catch(() => {});
+  };
 
   const handleDeleteClick = () => {
     if (window.confirm("Are you sure you to delete the project " + project.name + "?")) {
@@ -125,6 +143,9 @@ export default function ProjectInfo({ project, projects }) {
             IDE
           </Button>
         )}
+        <Button variant="outlined" onClick={() => { setCloneName(project.name + "-copy"); setCloneOpen(true); }} startIcon={<ContentCopy fontSize="small" />}>
+          Clone
+        </Button>
         <Button variant="outlined" color="error" onClick={handleDeleteClick} startIcon={<Delete fontSize="small" />}>
           Delete
         </Button>
@@ -162,6 +183,24 @@ export default function ProjectInfo({ project, projects }) {
           </Button>
         </FlexBetween>
       )}
+
+      {/* Clone dialog */}
+      <Dialog open={cloneOpen} onClose={() => setCloneOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Clone Project</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus fullWidth margin="dense"
+            label="New project name"
+            value={cloneName}
+            onChange={(e) => setCloneName(e.target.value)}
+            helperText="Settings, eval datasets, and prompt versions will be cloned. Logs and documents will not."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCloneOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleClone} disabled={!cloneName.trim()}>Clone</Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 }

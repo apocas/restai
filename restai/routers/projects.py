@@ -628,6 +628,117 @@ async def get_embedding_by_id(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.post("/projects/{projectID}/clone", status_code=201, tags=["Projects"])
+async def clone_project(
+    request: Request,
+    projectID: int = PathParam(description="Project ID to clone"),
+    body: dict = ...,
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Clone a project with all its settings, eval datasets, and prompt versions."""
+    from restai.models.databasemodels import EvalDatasetDatabase, EvalTestCaseDatabase, PromptVersionDatabase
+    from datetime import datetime as dt
+    from datetime import timezone as tz
+
+    new_name = body.get("name", "").strip()
+    if not new_name:
+        raise HTTPException(status_code=400, detail="Name is required")
+
+    # Load source project
+    source = db_wrapper.get_project_by_id(projectID)
+    if source is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Check name uniqueness
+    existing = db_wrapper.get_project_by_name(new_name)
+    if existing:
+        raise HTTPException(status_code=409, detail="A project with this name already exists")
+
+    # Create the new project
+    new_project = db_wrapper.create_project(
+        name=new_name,
+        embeddings=source.embeddings,
+        llm=source.llm,
+        vectorstore=source.vectorstore,
+        human_name=(source.human_name or source.name) + " (copy)",
+        human_description=source.human_description,
+        project_type=source.type,
+        creator=user.id,
+        team_id=source.team_id,
+    )
+    if new_project is None:
+        raise HTTPException(status_code=400, detail="Failed to clone project")
+
+    # Copy settings that create_project doesn't handle
+    new_project.system = source.system
+    new_project.censorship = source.censorship
+    new_project.guard = source.guard
+    new_project.default_prompt = source.default_prompt
+    new_project.public = source.public
+    new_project.options = source.options
+
+    # Assign to current user
+    user_db = db_wrapper.get_user_by_id(user.id)
+    if user_db and new_project not in user_db.projects:
+        user_db.projects.append(new_project)
+
+    db_wrapper.db.commit()
+
+    # Clone prompt versions
+    source_versions = (
+        db_wrapper.db.query(PromptVersionDatabase)
+        .filter(PromptVersionDatabase.project_id == projectID)
+        .order_by(PromptVersionDatabase.version)
+        .all()
+    )
+    for v in source_versions:
+        db_wrapper.db.add(PromptVersionDatabase(
+            project_id=new_project.id,
+            version=v.version,
+            system_prompt=v.system_prompt,
+            description=v.description,
+            created_by=user.id,
+            created_at=dt.now(tz.utc),
+            is_active=v.is_active,
+        ))
+
+    # Clone eval datasets with test cases
+    source_datasets = (
+        db_wrapper.db.query(EvalDatasetDatabase)
+        .filter(EvalDatasetDatabase.project_id == projectID)
+        .all()
+    )
+    for ds in source_datasets:
+        new_ds = EvalDatasetDatabase(
+            name=ds.name,
+            description=ds.description,
+            project_id=new_project.id,
+            created_at=dt.now(tz.utc),
+            updated_at=dt.now(tz.utc),
+        )
+        db_wrapper.db.add(new_ds)
+        db_wrapper.db.flush()  # Get new_ds.id
+
+        source_cases = (
+            db_wrapper.db.query(EvalTestCaseDatabase)
+            .filter(EvalTestCaseDatabase.dataset_id == ds.id)
+            .all()
+        )
+        for tc in source_cases:
+            db_wrapper.db.add(EvalTestCaseDatabase(
+                dataset_id=new_ds.id,
+                question=tc.question,
+                expected_answer=tc.expected_answer,
+                context=tc.context,
+                created_at=dt.now(tz.utc),
+            ))
+
+    db_wrapper.db.commit()
+
+    return {"project": new_project.id}
+
+
 @router.delete("/projects/{projectID}/cache", tags=["Projects"])
 async def clear_project_cache(
     request: Request,
