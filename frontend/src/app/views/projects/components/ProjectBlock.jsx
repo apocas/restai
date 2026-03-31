@@ -1,19 +1,22 @@
-import {
-  Card,
-  Divider,
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-} from "@mui/material";
-import { Box, styled } from "@mui/material";
+import { Card, Chip, Grid, Typography, styled } from "@mui/material";
 import ViewInArIcon from "@mui/icons-material/ViewInAr";
-import { H4 } from "app/components/Typography";
 
-const FlexBox = styled(Box)({
+const SectionTitle = styled(Typography)(({ theme }) => ({
+  fontWeight: 600,
+  fontSize: "0.9rem",
   display: "flex",
-  alignItems: "center"
-});
+  alignItems: "center",
+  gap: theme.spacing(0.5),
+  color: theme.palette.text.secondary,
+  marginBottom: theme.spacing(1),
+}));
+
+const DetailItem = ({ label, children }) => (
+  <Grid item xs={6} sm={4}>
+    <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>
+    {children}
+  </Grid>
+);
 
 export default function ProjectBlock({ project }) {
   const workspace = project.options?.blockly_workspace;
@@ -22,28 +25,20 @@ export default function ProjectBlock({ project }) {
   const hasWorkspace = !!workspace;
 
   return (
-    <Card elevation={3}>
-      <FlexBox>
-        <ViewInArIcon sx={{ ml: 2 }} />
-        <H4 sx={{ p: 2 }}>Block Configuration</H4>
-      </FlexBox>
-      <Divider />
-      <Table>
-        <TableBody>
-          <TableRow>
-            <TableCell sx={{ pl: 2 }}>Status</TableCell>
-            <TableCell>{hasWorkspace ? "Configured" : "Not configured"}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell sx={{ pl: 2 }}>Top-level Blocks</TableCell>
-            <TableCell>{blockCount}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell sx={{ pl: 2 }}>Variables</TableCell>
-            <TableCell>{variableCount}</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+    <Card elevation={1} sx={{ p: 2.5 }}>
+      <SectionTitle><ViewInArIcon fontSize="small" /> Block Configuration</SectionTitle>
+      <Grid container spacing={2}>
+        <DetailItem label="Status">
+          <Chip label={hasWorkspace ? "Configured" : "Not configured"} size="small"
+            color={hasWorkspace ? "success" : "default"} variant="outlined" />
+        </DetailItem>
+        <DetailItem label="Top-level Blocks">
+          <Typography variant="body2">{blockCount}</Typography>
+        </DetailItem>
+        <DetailItem label="Variables">
+          <Typography variant="body2">{variableCount}</Typography>
+        </DetailItem>
+      </Grid>
     </Card>
   );
 }

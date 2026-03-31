@@ -1,176 +1,121 @@
 import { SmartToy } from "@mui/icons-material";
 import {
-  Card,
-  Table,
-  styled,
-  Divider,
-  TableRow,
-  TableBody,
-  TableCell,
-  Box,
-  Autocomplete,
-  TextField,
-  Typography,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  CircularProgress
+  Card, Chip, Grid, Typography, styled, Box,
+  Accordion, AccordionSummary, AccordionDetails, CircularProgress,
 } from "@mui/material";
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useState, useEffect } from "react";
-import { H4 } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 
-const FlexBox = styled(Box)({
+const SectionTitle = styled(Typography)(({ theme }) => ({
+  fontWeight: 600,
+  fontSize: "0.9rem",
   display: "flex",
-  alignItems: "center"
-});
+  alignItems: "center",
+  gap: theme.spacing(0.5),
+  color: theme.palette.text.secondary,
+  marginBottom: theme.spacing(1),
+}));
 
-const ServerTools = styled(Box)({
-  marginBottom: "16px"
-});
-
-export default function ProjectAgent({ project, projects }) {
+export default function ProjectAgent({ project }) {
   const auth = useAuth();
-  const [tools, setTools] = useState([]);
   const [mcpTools, setMcpTools] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const fetchTools = () => {
-    return api.get("/tools/agent", auth.user.token)
-      .then((d) => {
-        setTools(d)
-      }).catch(() => {});
-  }
-
   const fetchMcpTools = () => {
     if (!project || !project.id) return;
-
     setLoading(true);
     return api.get(`/projects/${project.id}/tools`, auth.user.token)
-      .then((data) => {
-        setMcpTools(data.mcp_servers || {});
-      })
+      .then((data) => setMcpTools(data.mcp_servers || {}))
       .catch(() => {})
-      .finally(() => {
-        setLoading(false);
-      });
-  }
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    fetchTools();
     if (project && project.options && project.options.mcp_servers && project.options.mcp_servers.length > 0) {
       fetchMcpTools();
     }
   }, [project]);
 
-  return (
-    <Card elevation={3}>
-      <FlexBox>
-        <SmartToy sx={{ ml: 2 }} />
-        <H4 sx={{ p: 2 }}>
-          Agent
-        </H4>
-      </FlexBox>
-      <Divider />
+  const toolsList = (project.options?.tools || "").split(",").filter(Boolean);
 
-      <Table>
-        <TableBody>
-          <TableRow>
-            <TableCell sx={{ pl: 2 }}>Tools</TableCell>
-            <TableCell>
-              <Autocomplete
-                multiple
-                disabled
-                id="tags-standard"
-                options={(project.options.tools || "").split(",")}
-                getOptionLabel={(option) => option}
-                defaultValue={(project.options.tools || "").split(",")}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    fullWidth
-                    variant="standard"
-                    label=""
-                    placeholder=""
-                  />
-                )}
-              />
-            </TableCell>
-          </TableRow>
-          
-          {project.options && project.options.mcp_servers && project.options.mcp_servers.length > 0 && (
-            <TableRow>
-              <TableCell sx={{ pl: 2 }}>MCP Servers</TableCell>
-              <TableCell>
-                {loading ? (
-                  <Box display="flex" justifyContent="center" my={2}>
-                    <CircularProgress size={24} />
-                  </Box>
-                ) : (
-                  project.options.mcp_servers.map((server, index) => (
-                    <Accordion key={index} sx={{ mb: 1 }}>
-                      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                        <Typography>{server.host}</Typography>
-                      </AccordionSummary>
-                      <AccordionDetails>
-                        <ServerTools>
-                          <Typography variant="subtitle2" color="textSecondary">Configured Tools:</Typography>
-                          {server.tools ? (
-                            <Autocomplete
-                              multiple
-                              disabled
-                              options={server.tools.split(",")}
-                              getOptionLabel={(option) => option}
-                              defaultValue={server.tools.split(",")}
-                              renderInput={(params) => (
-                                <TextField
-                                  {...params}
-                                  fullWidth
-                                  size="small"
-                                  variant="outlined"
-                                  sx={{ mt: 1 }}
-                                />
-                              )}
-                            />
-                          ) : (
-                            <Typography variant="body2">All tools available from server</Typography>
-                          )}
-                        </ServerTools>
-                        
-                        {mcpTools[server.host] && mcpTools[server.host].tools && (
-                          <ServerTools>
-                            <Typography variant="subtitle2" color="textSecondary">Available Tools:</Typography>
-                            <Box mt={1}>
-                              {mcpTools[server.host].tools.map((tool, toolIndex) => (
-                                <Accordion key={toolIndex} sx={{ mb: 1 }}>
-                                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                    <Typography>{tool.name}</Typography>
-                                  </AccordionSummary>
-                                  <AccordionDetails>
-                                    <Typography variant="body2">{tool.description}</Typography>
-                                  </AccordionDetails>
-                                </Accordion>
-                              ))}
-                            </Box>
-                          </ServerTools>
-                        )}
-                        
-                        {mcpTools[server.host] && mcpTools[server.host].error && (
-                          <Typography color="error">
-                            {mcpTools[server.host].message || "Error connecting to server"}
-                          </Typography>
-                        )}
-                      </AccordionDetails>
-                    </Accordion>
-                  ))
-                )}
-              </TableCell>
-            </TableRow>
+  return (
+    <Card elevation={1} sx={{ p: 2.5 }}>
+      <SectionTitle><SmartToy fontSize="small" /> Agent</SectionTitle>
+
+      {/* Tools */}
+      {toolsList.length > 0 && (
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="caption" color="text.secondary" display="block" gutterBottom>Tools</Typography>
+          <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+            {toolsList.map((t) => (
+              <Chip key={t.trim()} label={t.trim()} size="small" variant="outlined" />
+            ))}
+          </Box>
+        </Box>
+      )}
+
+      {/* MCP Servers */}
+      {project.options?.mcp_servers && project.options.mcp_servers.length > 0 && (
+        <Box>
+          <Typography variant="caption" color="text.secondary" display="block" gutterBottom>MCP Servers</Typography>
+          {loading ? (
+            <Box display="flex" justifyContent="center" my={2}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : (
+            project.options.mcp_servers.map((server, index) => (
+              <Accordion key={index} variant="outlined" disableGutters sx={{ mb: 1, "&:before": { display: "none" } }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography variant="body2">{server.host}</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  {server.tools && (
+                    <Box sx={{ mb: 1.5 }}>
+                      <Typography variant="caption" color="text.secondary" display="block" gutterBottom>Configured Tools</Typography>
+                      <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                        {server.tools.split(",").filter(Boolean).map((t) => (
+                          <Chip key={t.trim()} label={t.trim()} size="small" variant="outlined" />
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+                  {!server.tools && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>All tools available from server</Typography>
+                  )}
+
+                  {mcpTools[server.host] && mcpTools[server.host].tools && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" display="block" gutterBottom>Available Tools</Typography>
+                      {mcpTools[server.host].tools.map((tool, toolIndex) => (
+                        <Accordion key={toolIndex} variant="outlined" disableGutters sx={{ mb: 0.5, "&:before": { display: "none" } }}>
+                          <AccordionSummary expandIcon={<ExpandMoreIcon fontSize="small" />} sx={{ minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}>
+                            <Typography variant="body2">{tool.name}</Typography>
+                          </AccordionSummary>
+                          <AccordionDetails sx={{ pt: 0 }}>
+                            <Typography variant="caption" color="text.secondary">{tool.description}</Typography>
+                          </AccordionDetails>
+                        </Accordion>
+                      ))}
+                    </Box>
+                  )}
+
+                  {mcpTools[server.host] && mcpTools[server.host].error && (
+                    <Typography variant="body2" color="error">
+                      {mcpTools[server.host].message || "Error connecting to server"}
+                    </Typography>
+                  )}
+                </AccordionDetails>
+              </Accordion>
+            ))
           )}
-        </TableBody>
-      </Table>
+        </Box>
+      )}
+
+      {toolsList.length === 0 && (!project.options?.mcp_servers || project.options.mcp_servers.length === 0) && (
+        <Typography variant="body2" color="text.secondary">No tools configured</Typography>
+      )}
     </Card>
   );
 }

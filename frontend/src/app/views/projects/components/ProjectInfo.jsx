@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import {
-  Avatar, Box, Button, Card, Chip, Divider, Dialog, DialogTitle, DialogContent,
+  Accordion, AccordionDetails, AccordionSummary, Avatar, Box, Button, Card, Chip,
+  CircularProgress, Divider, Dialog, DialogTitle, DialogContent,
   DialogActions, Grid, IconButton, Stack, TextField, Tooltip, Typography, styled,
 } from "@mui/material";
 import {
   Edit, Delete, Code, Article, SportsEsports, ViewInAr, Science, Security,
   ContentCopy, ClearAll, Speed, Shield, Cached, Groups, Psychology,
-  Settings, Storage, Build, Chat, Notifications,
+  Settings, Storage, Build, Chat, Notifications, ExpandMore,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
@@ -64,6 +65,8 @@ export default function ProjectInfo({ project, projects, info }) {
   const [cloneOpen, setCloneOpen] = useState(false);
   const [cloneName, setCloneName] = useState("");
   const [health, setHealth] = useState(null);
+  const [mcpTools, setMcpTools] = useState({});
+  const [mcpLoading, setMcpLoading] = useState(false);
 
   useEffect(() => {
     if (project.id) {
@@ -73,6 +76,14 @@ export default function ProjectInfo({ project, projects, info }) {
           if (h) setHealth(h);
         })
         .catch(() => {});
+
+      if (project.type === "agent" && project.options?.mcp_servers?.length > 0) {
+        setMcpLoading(true);
+        api.get(`/projects/${project.id}/tools`, auth.user.token)
+          .then((data) => setMcpTools(data.mcp_servers || {}))
+          .catch(() => {})
+          .finally(() => setMcpLoading(false));
+      }
     }
   }, [project.id]);
 
@@ -359,6 +370,9 @@ export default function ProjectInfo({ project, projects, info }) {
                 <Box>
                   <SectionTitle><Storage fontSize="small" /> RAG Settings</SectionTitle>
                   <Grid container spacing={2}>
+                    <DetailItem label="Documents">
+                      <Typography variant="body2" fontWeight="bold">{project.chunks ?? 0}</Typography>
+                    </DetailItem>
                     {project.embeddings && (
                       <DetailItem label="Embeddings">
                         <Typography variant="body2" fontFamily="monospace">{project.embeddings}</Typography>
@@ -383,6 +397,15 @@ export default function ProjectInfo({ project, projects, info }) {
                       <Chip label={project.options?.llm_rerank ? "Enabled" : "Disabled"} size="small"
                         color={project.options?.llm_rerank ? "success" : "default"} variant="outlined" />
                     </DetailItem>
+                    <DetailItem label="Cache">
+                      <Chip label={project.options?.cache ? "Enabled" : "Disabled"} size="small"
+                        color={project.options?.cache ? "success" : "default"} variant="outlined" />
+                    </DetailItem>
+                    {project.options?.cache && (
+                      <DetailItem label="Cache Threshold">
+                        <Typography variant="body2">{project.options.cache_threshold ?? 0.85}</Typography>
+                      </DetailItem>
+                    )}
                     {project.options?.connection && (
                       <DetailItem label="SQL Connection">
                         <Chip label="Configured" size="small" color="info" variant="outlined" />
@@ -415,9 +438,56 @@ export default function ProjectInfo({ project, projects, info }) {
                       <Typography variant="body2">{project.options?.max_iterations ?? 10}</Typography>
                     </DetailItem>
                     {project.options?.mcp_servers && project.options.mcp_servers.length > 0 && (
-                      <DetailItem label="MCP Servers">
-                        <Typography variant="body2">{project.options.mcp_servers.length} configured</Typography>
-                      </DetailItem>
+                      <Grid item xs={12}>
+                        <Typography variant="caption" color="text.secondary" display="block" gutterBottom>MCP Servers</Typography>
+                        {mcpLoading ? (
+                          <Box display="flex" justifyContent="center" my={2}>
+                            <CircularProgress size={24} />
+                          </Box>
+                        ) : (
+                          project.options.mcp_servers.map((server, index) => (
+                            <Accordion key={index} variant="outlined" disableGutters sx={{ mb: 1, "&:before": { display: "none" } }}>
+                              <AccordionSummary expandIcon={<ExpandMore />}>
+                                <Typography variant="body2">{server.host}</Typography>
+                              </AccordionSummary>
+                              <AccordionDetails>
+                                {server.tools ? (
+                                  <Box sx={{ mb: 1.5 }}>
+                                    <Typography variant="caption" color="text.secondary" display="block" gutterBottom>Configured Tools</Typography>
+                                    <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                                      {server.tools.split(",").filter(Boolean).map((t) => (
+                                        <Chip key={t.trim()} label={t.trim()} size="small" variant="outlined" />
+                                      ))}
+                                    </Box>
+                                  </Box>
+                                ) : (
+                                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>All tools available from server</Typography>
+                                )}
+                                {mcpTools[server.host]?.tools && (
+                                  <Box>
+                                    <Typography variant="caption" color="text.secondary" display="block" gutterBottom>Available Tools</Typography>
+                                    {mcpTools[server.host].tools.map((tool, i) => (
+                                      <Accordion key={i} variant="outlined" disableGutters sx={{ mb: 0.5, "&:before": { display: "none" } }}>
+                                        <AccordionSummary expandIcon={<ExpandMore fontSize="small" />} sx={{ minHeight: 36, "& .MuiAccordionSummary-content": { my: 0.5 } }}>
+                                          <Typography variant="body2">{tool.name}</Typography>
+                                        </AccordionSummary>
+                                        <AccordionDetails sx={{ pt: 0 }}>
+                                          <Typography variant="caption" color="text.secondary">{tool.description}</Typography>
+                                        </AccordionDetails>
+                                      </Accordion>
+                                    ))}
+                                  </Box>
+                                )}
+                                {mcpTools[server.host]?.error && (
+                                  <Typography variant="body2" color="error">
+                                    {mcpTools[server.host].message || "Error connecting to server"}
+                                  </Typography>
+                                )}
+                              </AccordionDetails>
+                            </Accordion>
+                          ))
+                        )}
+                      </Grid>
                     )}
                     {project.options?.function_agent && (
                       <DetailItem label="Agent Mode">

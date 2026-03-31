@@ -1,21 +1,26 @@
 import { useEffect, useState } from "react";
-import { Card, Divider, Grid, MenuItem, styled, TextField, Tabs, Tab } from "@mui/material";
+import {
+  Card, Divider, Grid, MenuItem, styled, TextField, Tabs, Tab, Typography, Box,
+} from "@mui/material";
 import Publish from "@mui/icons-material/Publish";
 import { useDropzone } from "react-dropzone";
-import { toast } from 'react-toastify';
-import { H4 } from "app/components/Typography";
+import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
-import { FlexAlignCenter, FlexBox } from "app/components/FlexBox";
+import { FlexAlignCenter } from "app/components/FlexBox";
 import { FileUpload } from "@mui/icons-material";
 import { convertHexToRGB } from "app/utils/utils";
 import { LoadingButton } from "@mui/lab";
-import { use } from "react";
 
-const Form = styled("form")({
-  paddingLeft: "16px",
-  paddingRight: "16px"
-});
+const SectionTitle = styled(Typography)(({ theme }) => ({
+  fontWeight: 600,
+  fontSize: "0.9rem",
+  display: "flex",
+  alignItems: "center",
+  gap: theme.spacing(0.5),
+  color: theme.palette.text.secondary,
+  marginBottom: theme.spacing(1.5),
+}));
 
 const DropZone = styled(FlexAlignCenter)(({ isDragActive, theme }) => ({
   height: 160,
@@ -26,29 +31,27 @@ const DropZone = styled(FlexAlignCenter)(({ isDragActive, theme }) => ({
   transition: "all 350ms ease-in-out",
   border: `2px dashed rgba(${convertHexToRGB(theme.palette.text.primary)}, 0.3)`,
   "&:hover": {
-    background: `rgb(${convertHexToRGB(theme.palette.text.primary)}, 0.2) !important`
+    background: `rgb(${convertHexToRGB(theme.palette.text.primary)}, 0.2) !important`,
   },
-  background: isDragActive ? "rgb(0, 0, 0, 0.15)" : "rgb(0, 0, 0, 0.01)"
+  background: isDragActive ? "rgb(0, 0, 0, 0.15)" : "rgb(0, 0, 0, 0.01)",
 }));
 
 export default function RAGUpload({ project }) {
   const auth = useAuth();
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [state, setState] = useState({ "chunksize": "512", "splitter": "token" });
+  const [state, setState] = useState({ chunksize: "512", splitter: "token" });
   const { getRootProps, getInputProps, acceptedFiles } = useDropzone({
-    "maxFiles": 1,
-    "multiple": false
+    maxFiles: 1,
+    multiple: false,
   });
   const [tabIndex, setTabIndex] = useState(0);
   const [tabIndex2, setTabIndex2] = useState(0);
   const handleTabChange = (e, value) => setTabIndex(value);
   const handleTabChange2 = (e, value) => setTabIndex2(value);
 
-
   const handleSubmit = async (event) => {
     event.preventDefault();
-
     setLoading(true);
 
     if (tabIndex === 0) {
@@ -71,10 +74,10 @@ export default function RAGUpload({ project }) {
       }
     } else if (tabIndex === 1) {
       var body = {
-        "url": state.url,
-        "splitter": state.splitter,
-        "chunks": state.chunksize
-      }
+        url: state.url,
+        splitter: state.splitter,
+        chunks: state.chunksize,
+      };
 
       try {
         await api.post("/projects/" + project.id + "/embeddings/ingest/url", body, auth.user.token);
@@ -103,118 +106,88 @@ export default function RAGUpload({ project }) {
   }, [tabIndex]);
 
   return (
-    <Card elevation={3}>
-      <FlexBox>
-        <FileUpload sx={{ ml: 2, mt: 2 }} />
-        <H4 sx={{ p: 2 }}>
-          Ingest data
-        </H4>
-      </FlexBox>
+    <Card elevation={1} sx={{ p: 2.5 }}>
+      <SectionTitle><FileUpload fontSize="small" /> Ingest Data</SectionTitle>
 
-      <Divider />
+      <form onSubmit={handleSubmit}>
+        <Tabs
+          value={tabIndex2}
+          onChange={handleTabChange2}
+          indicatorColor="primary"
+          textColor="primary"
+          sx={{ mb: 2 }}
+        >
+          {["Docling", "Classic"].map((item, ind) => (
+            <Tab key={ind} value={ind} label={item} sx={{ textTransform: "capitalize" }} />
+          ))}
+        </Tabs>
 
-      <Form onSubmit={handleSubmit}>
-        <Grid container spacing={3} sx={{ mt: 0 }}>
-          <Grid item sm={12} xs={12}>
-            <Tabs
-              value={tabIndex2}
-              onChange={handleTabChange2}
-              indicatorColor="primary"
-              textColor="primary">
-              {["Docling", "Classic"].map((item, ind) => (
-                <Tab key={ind} value={ind} label={item} sx={{ textTransform: "capitalize" }} />
-              ))}
-            </Tabs>
-
-            <Divider sx={{ mb: "24px" }} />
-
-            {tabIndex2 === 1 && <>
+        {tabIndex2 === 1 && (
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={6}>
               <TextField
-                fullWidth
-                select
-                name="splitter"
-                label="Splitter"
-                variant="outlined"
-                onChange={handleChange}
-                value={state.splitter}
-                defaultValue={state.splitter}
-                sx={{ mb: 2 }}
+                fullWidth select size="small"
+                name="splitter" label="Splitter" variant="outlined"
+                onChange={handleChange} value={state.splitter}
               >
-                {["token", "sentence"].map((item, ind) => (
-                  <MenuItem value={item} key={item}>
-                    {item}
-                  </MenuItem>
+                {["token", "sentence"].map((item) => (
+                  <MenuItem value={item} key={item}>{item}</MenuItem>
                 ))}
               </TextField>
+            </Grid>
+            <Grid item xs={6}>
               <TextField
-                fullWidth
-                select
-                name="chunksize"
-                label="Chunk Size"
-                variant="outlined"
-                onChange={handleChange}
-                value={state.chunksize}
-                defaultValue={state.chunksize}
-                sx={{ mb: 2 }}
+                fullWidth select size="small"
+                name="chunksize" label="Chunk Size" variant="outlined"
+                onChange={handleChange} value={state.chunksize}
               >
-                {["126", "256", "512", "1024", "2048"].map((item, ind) => (
-                  <MenuItem value={item} key={item}>
-                    {item}
-                  </MenuItem>
+                {["126", "256", "512", "1024", "2048"].map((item) => (
+                  <MenuItem value={item} key={item}>{item}</MenuItem>
                 ))}
               </TextField>
-            </>}
-
-            <Tabs
-              value={tabIndex}
-              onChange={handleTabChange}
-              indicatorColor="primary"
-              textColor="primary">
-              {["File", "URL"].map((item, ind) => (
-                <Tab key={ind} value={ind} label={item} sx={{ textTransform: "capitalize" }} />
-              ))}
-            </Tabs>
-
-            <Divider sx={{ mb: "24px" }} />
-
-            {tabIndex === 0 &&
-              <DropZone {...getRootProps()}>
-                <input {...getInputProps()} />
-                <FlexBox alignItems="center" flexDirection="column">
-                  <Publish sx={{ color: "text.secondary", fontSize: "48px" }} />
-                  {files.length ? (
-                    <span>{files[0].name}</span>
-                  ) : (
-                    <span>Drop file</span>
-                  )}
-                </FlexBox>
-              </DropZone>
-            }
-
-            {tabIndex === 1 && <>
-              <TextField
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                name="url"
-                label="URL"
-                variant="outlined"
-                onChange={handleChange}
-                value={state.url}
-                sx={{ mb: "24px" }}
-              /></>}
+            </Grid>
           </Grid>
-        </Grid>
+        )}
+
+        <Tabs
+          value={tabIndex}
+          onChange={handleTabChange}
+          indicatorColor="primary"
+          textColor="primary"
+          sx={{ mb: 2 }}
+        >
+          {["File", "URL"].map((item, ind) => (
+            <Tab key={ind} value={ind} label={item} sx={{ textTransform: "capitalize" }} />
+          ))}
+        </Tabs>
+
+        {tabIndex === 0 && (
+          <DropZone {...getRootProps()}>
+            <input {...getInputProps()} />
+            <Box display="flex" alignItems="center" flexDirection="column">
+              <Publish sx={{ color: "text.secondary", fontSize: "48px" }} />
+              {files.length ? <span>{files[0].name}</span> : <span>Drop file</span>}
+            </Box>
+          </DropZone>
+        )}
+
+        {tabIndex === 1 && (
+          <TextField
+            fullWidth size="small"
+            InputLabelProps={{ shrink: true }}
+            name="url" label="URL" variant="outlined"
+            onChange={handleChange} value={state.url}
+            sx={{ mb: 2 }}
+          />
+        )}
 
         <LoadingButton
-          type="submit"
-          color="primary"
-          loading={loading}
-          variant="contained"
-          sx={{ mb: 2, px: 6 }}>
+          type="submit" color="primary" loading={loading}
+          variant="contained" sx={{ px: 6 }}
+        >
           Ingest
         </LoadingButton>
-      </Form>
+      </form>
     </Card>
   );
 }
-

@@ -1,92 +1,61 @@
 import { Article } from "@mui/icons-material";
-import {
-  Card,
-  Table,
-  styled,
-  Divider,
-  TableRow,
-  TableBody,
-  TableCell,
-  Switch,
-  Box
-} from "@mui/material";
+import { Card, Chip, Grid, Typography, styled, Box } from "@mui/material";
 
-import { H4 } from "app/components/Typography";
-
-const FlexBox = styled(Box)({
+const SectionTitle = styled(Typography)(({ theme }) => ({
+  fontWeight: 600,
+  fontSize: "0.9rem",
   display: "flex",
-  alignItems: "center"
-});
+  alignItems: "center",
+  gap: theme.spacing(0.5),
+  color: theme.palette.text.secondary,
+  marginBottom: theme.spacing(1),
+}));
 
-export default function ProjectRAG({ project, projects }) {
+const DetailItem = ({ label, children }) => (
+  <Grid item xs={6} sm={6} md={4}>
+    <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>
+    {children}
+  </Grid>
+);
+
+export default function ProjectRAG({ project }) {
   return (
-    <Card elevation={3}>
-      <FlexBox>
-        <Article sx={{ ml: 2 }} />
-        <H4 sx={{ p: 2 }}>
-          RAG
-        </H4>
-      </FlexBox>
-      <Divider />
-
-      <Table>
-        <TableBody>
-          <TableRow>
-            <TableCell sx={{ pl: 2 }}>Documents</TableCell>
-            <TableCell>{project.chunks}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell sx={{ pl: 2 }}>Vectorstore</TableCell>
-            <TableCell>{project.vectorstore}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell sx={{ pl: 2 }}>Embeddings</TableCell>
-            <TableCell>{project.embeddings}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell sx={{ pl: 2 }}>K</TableCell>
-            <TableCell>{project.options.k}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell sx={{ pl: 2 }}>Cutoff</TableCell>
-            <TableCell>{project.options.score}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell sx={{ pl: 2 }}>Colbert Rerank</TableCell>
-            <TableCell>
-              <Switch
-                disabled
-                checked={project.options.colbert_rerank}
-                inputProps={{ "aria-label": "secondary checkbox" }}
-              />
-            </TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell sx={{ pl: 2 }}>LLM Rerank</TableCell>
-            <TableCell>
-              <Switch
-                disabled
-                checked={project.options.llm_rerank}
-                inputProps={{ "aria-label": "secondary checkbox" }}
-              />
-            </TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell sx={{ pl: 2 }}>Cache Threshold</TableCell>
-            <TableCell>{project.options.cache_threshold}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell sx={{ pl: 2 }}>Cache</TableCell>
-            <TableCell>
-              <Switch
-                disabled
-                checked={project.options.cache}
-                inputProps={{ "aria-label": "secondary checkbox" }}
-              />
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+    <Card elevation={1} sx={{ p: 2.5 }}>
+      <SectionTitle><Article fontSize="small" /> RAG</SectionTitle>
+      <Grid container spacing={2}>
+        <DetailItem label="Documents">
+          <Typography variant="body2" fontWeight="bold">{project.chunks}</Typography>
+        </DetailItem>
+        <DetailItem label="Vectorstore">
+          <Chip label={project.vectorstore} size="small" variant="outlined" />
+        </DetailItem>
+        <DetailItem label="Embeddings">
+          <Typography variant="body2" fontFamily="monospace" sx={{ wordBreak: "break-word" }}>{project.embeddings}</Typography>
+        </DetailItem>
+        <DetailItem label="K">
+          <Typography variant="body2">{project.options?.k}</Typography>
+        </DetailItem>
+        <DetailItem label="Cutoff">
+          <Typography variant="body2">{project.options?.score}</Typography>
+        </DetailItem>
+        <DetailItem label="ColBERT Rerank">
+          <Chip label={project.options?.colbert_rerank ? "Enabled" : "Disabled"} size="small"
+            color={project.options?.colbert_rerank ? "success" : "default"} variant="outlined" />
+        </DetailItem>
+        <DetailItem label="LLM Rerank">
+          <Chip label={project.options?.llm_rerank ? "Enabled" : "Disabled"} size="small"
+            color={project.options?.llm_rerank ? "success" : "default"} variant="outlined" />
+        </DetailItem>
+        <DetailItem label="Cache">
+          <Chip label={project.options?.cache ? "Enabled" : "Disabled"} size="small"
+            color={project.options?.cache ? "success" : "default"} variant="outlined" />
+        </DetailItem>
+        {project.options?.cache && (
+          <DetailItem label="Cache Threshold">
+            <Typography variant="body2">{project.options?.cache_threshold ?? 0.85}</Typography>
+          </DetailItem>
+        )}
+      </Grid>
     </Card>
   );
 }

@@ -2,11 +2,9 @@ import { Fade, Grid } from "@mui/material";
 
 import ProjectInfo from "./ProjectInfo";
 import ProjectTokens from "./ProjectTokens";
-import ProjectRAG from "./ProjectRAG";
 import RAGUpload from "./RAGUpload";
 import RAGBrowser from "./RAGBrowser";
 import RAGRetrieval from "./RAGRetrieval";
-import ProjectAgent from "./ProjectAgent";
 import ProjectBlock from "./ProjectBlock";
 import ProjectAnalytics from "./ProjectAnalytics";
 import ProjectSourceAnalytics from "./ProjectSourceAnalytics";
@@ -49,9 +47,6 @@ export default function ProjectDetails({ project, projects, info }) {
         {project.type === "rag" && (
           <>
             <Grid item lg={4} md={6} xs={12}>
-              <ProjectRAG project={project} projects={projects} />
-            </Grid>
-            <Grid item lg={4} md={6} xs={12}>
               <RAGUpload project={project} />
             </Grid>
             {project.chunks < 30000 && (
@@ -66,11 +61,6 @@ export default function ProjectDetails({ project, projects, info }) {
               <ProjectSourceAnalytics project={project} />
             </Grid>
           </>
-        )}
-        {project.type === "agent" && (
-          <Grid item lg={4} md={6} xs={12}>
-            <ProjectAgent project={project} projects={projects} />
-          </Grid>
         )}
         {project.type === "block" && (
           <Grid item lg={4} md={6} xs={12}>
