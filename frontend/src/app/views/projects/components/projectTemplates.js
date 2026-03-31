@@ -99,6 +99,17 @@ export const PROJECT_TEMPLATES = [
     options: {},
   },
   {
+    id: "pii-guard",
+    name: "PII Detection Guard",
+    description: "Detects personally identifiable information (emails, phone numbers, SSNs, addresses) and responds with DENY. Use as an input or output guard on other projects.",
+    icon: "Shield",
+    type: "inference",
+    category: "security",
+    color: "#d32f2f",
+    system: "You are a PII (Personally Identifiable Information) detection system. Analyze the provided text and determine if it contains any PII such as:\n- Email addresses\n- Phone numbers\n- Social Security Numbers (SSN)\n- Credit card numbers\n- Physical addresses\n- Full names combined with identifying information\n- Passport or ID numbers\n- Date of birth\n- Bank account numbers\n\nIf PII is detected, respond with exactly: DENY\nIf no PII is found, respond with exactly: ALLOW\n\nDo not explain your reasoning. Only respond with DENY or ALLOW.",
+    options: {},
+  },
+  {
     id: "logic-pipeline",
     name: "Logic Pipeline",
     description: "Build custom processing logic visually with the block-based IDE. No LLM required.",
@@ -122,4 +133,5 @@ export const TEMPLATE_CATEGORIES = [
   { id: "development", label: "Development" },
   { id: "data", label: "Data" },
   { id: "automation", label: "Automation" },
+  { id: "security", label: "Security" },
 ];

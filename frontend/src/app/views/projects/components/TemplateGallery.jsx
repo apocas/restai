@@ -10,13 +10,14 @@ import {
 import {
   SmartToy, Description, ImageSearch, Summarize, Code,
   SupportAgent, DataObject, Translate, TravelExplore, AccountTree,
-  AddCircleOutline,
+  Shield, AddCircleOutline,
 } from "@mui/icons-material";
 import { PROJECT_TEMPLATES, TEMPLATE_CATEGORIES } from "./projectTemplates";
 
 const ICONS = {
   SmartToy, Description, ImageSearch, Summarize, Code,
   SupportAgent, DataObject, Translate, TravelExplore, AccountTree,
+  Shield,
 };
 
 const TYPE_COLORS = {
