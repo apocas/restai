@@ -60,6 +60,7 @@ import calendar
 import tempfile
 import shutil
 
+_SENSITIVE_OPTION_KEYS = ("telegram_token", "slack_bot_token", "slack_app_token", "connection")
 
 logging.basicConfig(level=config.LOG_LEVEL)
 
@@ -114,7 +115,7 @@ async def route_get_projects(
 
         # Mask sensitive tokens in list
         if isinstance(project_dict.get("options"), dict):
-            for key in ("telegram_token", "slack_bot_token", "slack_app_token"):
+            for key in _SENSITIVE_OPTION_KEYS:
                 val = project_dict["options"].get(key)
                 if val:
                     project_dict["options"][key] = mask_key(val)
@@ -323,7 +324,7 @@ async def route_get_project(
 
         # Mask sensitive tokens
         if isinstance(final_output.get("options"), dict):
-            for key in ("telegram_token", "slack_bot_token", "slack_app_token"):
+            for key in _SENSITIVE_OPTION_KEYS:
                 val = final_output["options"].get(key)
                 if val:
                     final_output["options"][key] = mask_key(val)
@@ -465,15 +466,10 @@ async def route_edit_project(
     # Handle masked tokens — preserve existing values
     if projectModelUpdate.options:
         existing_opts = json.loads(project.options) if project.options else {}
-        new_telegram_token = projectModelUpdate.options.telegram_token
-        if new_telegram_token and new_telegram_token.startswith("****"):
-            projectModelUpdate.options.telegram_token = existing_opts.get("telegram_token")
-        new_slack_bot = projectModelUpdate.options.slack_bot_token
-        if new_slack_bot and new_slack_bot.startswith("****"):
-            projectModelUpdate.options.slack_bot_token = existing_opts.get("slack_bot_token")
-        new_slack_app = projectModelUpdate.options.slack_app_token
-        if new_slack_app and new_slack_app.startswith("****"):
-            projectModelUpdate.options.slack_app_token = existing_opts.get("slack_app_token")
+        for key in _SENSITIVE_OPTION_KEYS:
+            val = getattr(projectModelUpdate.options, key, None)
+            if val and val.startswith("****"):
+                setattr(projectModelUpdate.options, key, existing_opts.get(key))
 
     # Attach user ID for prompt version tracking
     projectModelUpdate._user_id = user.id
