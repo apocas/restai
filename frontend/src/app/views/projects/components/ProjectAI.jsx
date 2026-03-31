@@ -34,6 +34,12 @@ export default function ProjectAI({ project, projects }) {
               <TableCell sx={{ pl: 2 }}>LLM</TableCell>
               <TableCell colSpan={4}>{project.llm}</TableCell>
             </TableRow>
+            {project.options?.fallback_llm && (
+            <TableRow>
+              <TableCell sx={{ pl: 2 }}>Fallback LLM</TableCell>
+              <TableCell colSpan={4}>{project.options.fallback_llm}</TableCell>
+            </TableRow>
+            )}
             {(project.type === "rag" || project.type === "inference" || project.type === "agent") && (
             <TableRow>
               <TableCell sx={{ pl: 2 }}>System Message</TableCell>

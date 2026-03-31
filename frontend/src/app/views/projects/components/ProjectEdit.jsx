@@ -123,6 +123,7 @@ export default function ProjectEdit({ project, projects, info }) {
     opts.options.rate_limit = state.options.rate_limit ? parseInt(state.options.rate_limit) : null;
     opts.options.guard_output = state.options.guard_output || null;
     opts.options.guard_mode = state.options.guard_mode || "block";
+    opts.options.fallback_llm = state.options.fallback_llm || null;
     opts.options.cache = state.options.cache
     opts.options.cache_threshold = parseFloat(state.options.cache_threshold) || 0.85
 
@@ -504,6 +505,35 @@ export default function ProjectEdit({ project, projects, info }) {
                       // Filter by both team access and project type
                       return teamLLMNames.includes(item.name);
                     })
+                    .map((item) => (
+                      <MenuItem value={item.name} key={item.name}>
+                        {item.name}
+                      </MenuItem>
+                    ))}
+                </TextField>
+              </Grid>
+            )}
+
+            {state.type !== "block" && (
+              <Grid item sm={6} xs={12}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Fallback LLM"
+                  variant="outlined"
+                  value={state.options?.fallback_llm ?? ''}
+                  onChange={(e) => setState({ ...state, options: { ...state.options, fallback_llm: e.target.value || null } })}
+                  helperText="Used automatically if the primary LLM fails"
+                >
+                  <MenuItem value="">None</MenuItem>
+                  {info.llms
+                    .filter(item => {
+                      if (!state.team) return true;
+                      const teamLLMs = state.team.llms || [];
+                      const teamLLMNames = teamLLMs.map(llm => typeof llm === 'string' ? llm : llm.name);
+                      return teamLLMNames.includes(item.name);
+                    })
+                    .filter(item => item.name !== state.llm)
                     .map((item) => (
                       <MenuItem value={item.name} key={item.name}>
                         {item.name}

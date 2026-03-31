@@ -101,7 +101,22 @@ class Inference(ProjectBase):
                 yield "data: " + json.dumps(output) + "\n"
                 yield "event: close\n\n"
             else:
-                resp = llm_model.llm.chat(messages)
+                try:
+                    resp = llm_model.llm.chat(messages)
+                except Exception as primary_error:
+                    fallback_name = project.props.options.fallback_llm if project.props.options else None
+                    if fallback_name:
+                        fallback_model = self.brain.get_llm(fallback_name, db)
+                        if fallback_model:
+                            logging.warning("Primary LLM failed, using fallback '%s': %s", fallback_name, primary_error)
+                            if sysTemplate:
+                                fallback_model.llm.system_prompt = sysTemplate
+                            resp = fallback_model.llm.chat(messages)
+                        else:
+                            raise primary_error
+                    else:
+                        raise primary_error
+
                 if resp.message and resp.message.content:
                     output["answer"] = resp.message.content.strip()
                 else:
@@ -188,7 +203,22 @@ class Inference(ProjectBase):
                 yield "data: " + json.dumps(output) + "\n"
                 yield "event: close\n\n"
             else:
-                resp = model.llm.chat(messages)
+                try:
+                    resp = model.llm.chat(messages)
+                except Exception as primary_error:
+                    fallback_name = project.props.options.fallback_llm if project.props.options else None
+                    if fallback_name:
+                        fallback_model = self.brain.get_llm(fallback_name, db)
+                        if fallback_model:
+                            logging.warning("Primary LLM failed, using fallback '%s': %s", fallback_name, primary_error)
+                            if sysTemplate:
+                                fallback_model.llm.system_prompt = sysTemplate
+                            resp = fallback_model.llm.chat(messages)
+                        else:
+                            raise primary_error
+                    else:
+                        raise primary_error
+
                 output["answer"] = resp.message.content.strip()
 
                 self.brain.post_processing_reasoning(output)

@@ -370,6 +370,7 @@ class ProjectOptions(BaseModel):
     rate_limit: Union[int, None] = Field(default=None, ge=1, le=10000, description="Maximum requests per minute (None = unlimited)")
     guard_output: Union[str, None] = Field(default=None, description="Name of the guard project for output checking")
     guard_mode: Union[str, None] = Field(default="block", description="Guard behavior: 'block' or 'warn'")
+    fallback_llm: Union[str, None] = Field(default=None, description="Fallback LLM to use if primary fails")
     model_config = ConfigDict(from_attributes=True)
 
 
