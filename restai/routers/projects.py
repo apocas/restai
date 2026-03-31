@@ -1042,6 +1042,15 @@ async def ingest_file(
     if splitter not in ("sentence", "token"):
         raise HTTPException(status_code=422, detail="splitter must be 'sentence' or 'token'")
 
+    contents = await file.read()
+    if len(contents) > config.MAX_UPLOAD_SIZE:
+        max_mb = config.MAX_UPLOAD_SIZE // (1024 * 1024)
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is {max_mb} MB",
+        )
+    await file.seek(0)
+
     project = get_project(projectID, db_wrapper, request.app.state.brain)
 
     if project.props.type != "rag":

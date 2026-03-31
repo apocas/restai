@@ -223,6 +223,8 @@ AGENT_MAX_ITERATIONS = int(os.environ.get("AGENT_MAX_ITERATIONS") or 20)
 
 MAX_AUDIO_UPLOAD_SIZE = int(os.environ.get("MAX_AUDIO_UPLOAD_SIZE") or 10)
 
+MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE_MB") or 100) * 1024 * 1024  # Default 100MB
+
 ENABLE_LDAP = os.environ.get("ENABLE_LDAP")
 LDAP_SERVER_HOST = os.environ.get("LDAP_SERVER_HOST")
 LDAP_SERVER_PORT = os.environ.get("LDAP_SERVER_PORT")
