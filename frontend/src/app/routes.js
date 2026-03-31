@@ -48,6 +48,7 @@ const OllamaModels = Loadable(lazy(() => import("app/views/llms/ollama/OllamaMod
 const Settings = Loadable(lazy(() => import("app/views/settings/Settings")));
 const GpuInfo = Loadable(lazy(() => import("app/views/settings/GpuInfo")));
 const AuditLog = Loadable(lazy(() => import("app/views/audit/AuditLog")));
+const InvitationsPage = Loadable(lazy(() => import("app/views/invitations/Invitations")));
 
 const routes = [
   {
@@ -84,7 +85,7 @@ const routes = [
       {
         path: "/llms",
         element: <LLMs />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/llms/new",
@@ -99,7 +100,7 @@ const routes = [
       {
         path: "/llm/:id",
         element: <LLMsInfo />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/llm/:id/edit",
@@ -109,7 +110,7 @@ const routes = [
       {
         path: "/embeddings",
         element: <Embeddings />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/embeddings/new",
@@ -119,7 +120,7 @@ const routes = [
       {
         path: "/embedding/:id",
         element: <EmbeddingsInfo />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/embedding/:id/edit",
@@ -250,6 +251,11 @@ const routes = [
         path: "/audit",
         element: <AuditLog />,
         auth: authRoles.admin
+      },
+      {
+        path: "/invitations",
+        element: <InvitationsPage />,
+        auth: authRoles.user
       }
     ]
   },

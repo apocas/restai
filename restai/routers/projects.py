@@ -128,6 +128,148 @@ async def route_get_projects(
     }
 
 
+@router.get("/projects/health", tags=["Projects"])
+async def get_projects_health(
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get health scores for all accessible projects."""
+    import datetime as dt
+    import json as _json
+    from restai.models.databasemodels import GuardEventDatabase, EvalRunDatabase
+
+    # Get accessible project IDs
+    if user.is_admin:
+        project_ids = [p.id for p in db_wrapper.db.query(ProjectDatabase.id).all()]
+    else:
+        project_ids = list(user.get_project_ids())
+
+    if user.api_key_allowed_projects is not None:
+        project_ids = [pid for pid in project_ids if pid in user.api_key_allowed_projects]
+
+    if not project_ids:
+        return []
+
+    seven_days_ago = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)
+    thirty_days_ago = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=30)
+
+    # Bulk query 1: activity + latency (last 7 days)
+    activity_rows = (
+        db_wrapper.db.query(
+            OutputDatabase.project_id,
+            func.count(OutputDatabase.id).label("requests"),
+            func.avg(OutputDatabase.latency_ms).label("avg_latency"),
+        )
+        .filter(OutputDatabase.project_id.in_(project_ids), OutputDatabase.date >= seven_days_ago)
+        .group_by(OutputDatabase.project_id)
+        .all()
+    )
+    activity = {r.project_id: {"requests": r.requests, "avg_latency": r.avg_latency} for r in activity_rows}
+
+    # Bulk query 2: guard block rate (last 30 days)
+    guard_rows = (
+        db_wrapper.db.query(
+            GuardEventDatabase.project_id,
+            func.count(GuardEventDatabase.id).label("total"),
+            func.sum(case((GuardEventDatabase.action == "block", 1), else_=0)).label("blocks"),
+        )
+        .filter(GuardEventDatabase.project_id.in_(project_ids), GuardEventDatabase.date >= thirty_days_ago)
+        .group_by(GuardEventDatabase.project_id)
+        .all()
+    )
+    guards = {r.project_id: {"total": r.total, "blocks": r.blocks or 0} for r in guard_rows}
+
+    # Bulk query 3: latest eval scores
+    # Get the most recent completed run per project
+    from sqlalchemy import desc
+    eval_rows = (
+        db_wrapper.db.query(EvalRunDatabase.project_id, EvalRunDatabase.summary)
+        .filter(
+            EvalRunDatabase.project_id.in_(project_ids),
+            EvalRunDatabase.status == "completed",
+            EvalRunDatabase.summary.isnot(None),
+        )
+        .order_by(EvalRunDatabase.completed_at.desc())
+        .all()
+    )
+    evals = {}
+    for r in eval_rows:
+        if r.project_id not in evals and r.summary:
+            try:
+                summary = _json.loads(r.summary) if isinstance(r.summary, str) else r.summary
+                scores = [v for v in summary.values() if isinstance(v, (int, float))]
+                evals[r.project_id] = sum(scores) / len(scores) if scores else None
+            except Exception:
+                pass
+
+    # Compute health scores
+    results = []
+    for pid in project_ids:
+        act = activity.get(pid, {})
+        grd = guards.get(pid, {})
+        eval_score = evals.get(pid)
+
+        requests_7d = act.get("requests", 0)
+        avg_latency = act.get("avg_latency")
+        guard_total = grd.get("total", 0)
+        guard_blocks = grd.get("blocks", 0)
+        block_rate = guard_blocks / guard_total if guard_total > 0 else None
+
+        # Latency score (30%)
+        if avg_latency is not None:
+            if avg_latency < 500:
+                latency_score = 1.0
+            elif avg_latency < 2000:
+                latency_score = 0.5
+            else:
+                latency_score = 0.0
+        else:
+            latency_score = 0.5
+
+        # Activity score (30%)
+        if requests_7d > 10:
+            activity_score = 1.0
+        elif requests_7d > 0:
+            activity_score = 0.5
+        else:
+            activity_score = 0.0
+
+        # Guard score (20%)
+        if block_rate is not None:
+            if block_rate < 0.05:
+                guard_score = 1.0
+            elif block_rate < 0.15:
+                guard_score = 0.5
+            else:
+                guard_score = 0.0
+        else:
+            guard_score = 0.5
+
+        # Eval score (20%)
+        if eval_score is not None:
+            if eval_score > 0.8:
+                eval_component = 1.0
+            elif eval_score > 0.5:
+                eval_component = 0.5
+            else:
+                eval_component = 0.0
+        else:
+            eval_component = 0.5
+
+        health = round((latency_score * 30 + activity_score * 30 + guard_score * 20 + eval_component * 20))
+
+        results.append({
+            "project_id": pid,
+            "health": health,
+            "requests_7d": requests_7d,
+            "avg_latency": round(avg_latency) if avg_latency else None,
+            "guard_block_rate": round(block_rate, 3) if block_rate is not None else None,
+            "eval_score": round(eval_score, 2) if eval_score is not None else None,
+        })
+
+    return results
+
+
 @router.get("/projects/{projectID}", tags=["Projects"])
 async def route_get_project(
     request: Request,

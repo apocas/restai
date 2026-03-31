@@ -5,14 +5,15 @@ import { MatxLoading } from "app/components";
 const initialState = {
   user: null,
   isInitialized: false,
-  isAuthenticated: false
+  isAuthenticated: false,
+  isImpersonating: false,
 };
 
 const reducer = (state, action) => {
   switch (action.type) {
     case "INIT": {
-      const { isAuthenticated, user } = action.payload;
-      return { ...state, isAuthenticated, isInitialized: true, user };
+      const { isAuthenticated, user, isImpersonating } = action.payload;
+      return { ...state, isAuthenticated, isInitialized: true, user, isImpersonating: isImpersonating || false };
     }
 
     case "LOGIN": {
@@ -20,7 +21,7 @@ const reducer = (state, action) => {
     }
 
     case "LOGOUT": {
-      return { ...state, isAuthenticated: false, user: null };
+      return { ...state, isAuthenticated: false, user: null, isImpersonating: false };
     }
 
     default:
@@ -31,36 +32,30 @@ const reducer = (state, action) => {
 const AuthContext = createContext({
   ...initialState,
   method: "JWT",
-  login: () => { },
-  checkAuth: () => { },
-  logout: () => { }
+  login: () => {},
+  checkAuth: () => {},
+  logout: () => {},
+  impersonate: () => {},
+  exitImpersonation: () => {},
 });
 
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const login = async (email, password) => {
-    let basicAuth = "";
-    if (email && password) {
-      basicAuth = btoa(`${email}:${password}`);
-    }
+  const apiUrl = process.env.REACT_APP_RESTAI_API_URL || "";
 
+  const login = async (email, password) => {
     try {
       const response = await axios.post(
-        `${process.env.REACT_APP_RESTAI_API_URL || ""}/auth/login`,
+        `${apiUrl}/auth/login`,
         {},
-        {
-          auth: {
-            username: email,
-            password: password
-          }
-        }
+        { auth: { username: email, password: password } }
       );
 
       const user = response.data;
       user.role = user.is_admin ? "ADMIN" : "USER";
 
-      dispatch({ type: "INIT", payload: { isAuthenticated: true, user } });
+      dispatch({ type: "INIT", payload: { isAuthenticated: true, user, isImpersonating: false } });
     } catch (err) {
       const detail = err.response?.data?.detail || "Login failed. Check your credentials.";
       throw new Error(detail);
@@ -69,15 +64,10 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await axios.get(
-        `${process.env.REACT_APP_RESTAI_API_URL || ""}/auth/whoami`,
-        { withCredentials: true }
-      );
-
+      const response = await axios.get(`${apiUrl}/auth/whoami`, { withCredentials: true });
       const user = response.data;
       user.role = user.is_admin ? "ADMIN" : "USER";
-
-      dispatch({ type: "INIT", payload: { isAuthenticated: true, user } });
+      dispatch({ type: "INIT", payload: { isAuthenticated: true, user, isImpersonating: user.impersonating || false } });
     } catch (err) {
       dispatch({ type: "LOGOUT" });
     }
@@ -85,31 +75,38 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem("user");
-    axios
-      .post(
-        `${process.env.REACT_APP_RESTAI_API_URL || ""}/auth/logout`,
-        {},
-        { withCredentials: true }
-      )
-      .catch(console.error);
+    axios.post(`${apiUrl}/auth/logout`, {}, { withCredentials: true }).catch(console.error);
     dispatch({ type: "LOGOUT" });
+  };
+
+  const impersonate = async (username) => {
+    try {
+      await axios.post(`${apiUrl}/auth/impersonate/${username}`, {}, { withCredentials: true });
+      await checkAuth();
+    } catch (err) {
+      console.error("Impersonation failed:", err);
+    }
+  };
+
+  const exitImpersonation = async () => {
+    try {
+      await axios.post(`${apiUrl}/auth/exit-impersonation`, {}, { withCredentials: true });
+      await checkAuth();
+    } catch (err) {
+      console.error("Exit impersonation failed:", err);
+    }
   };
 
   useEffect(() => {
     (async () => {
       try {
-        const response = await axios.get(
-          `${process.env.REACT_APP_RESTAI_API_URL || ""}/auth/whoami`,
-          { withCredentials: true }
-        );
-
+        const response = await axios.get(`${apiUrl}/auth/whoami`, { withCredentials: true });
         const user = response.data;
         user.role = user.is_admin ? "ADMIN" : "USER";
-
-        dispatch({ type: "INIT", payload: { isAuthenticated: true, user } });
+        dispatch({ type: "INIT", payload: { isAuthenticated: true, user, isImpersonating: user.impersonating || false } });
       } catch (err) {
         console.error(err);
-        dispatch({ type: "INIT", payload: { isAuthenticated: false, user: null } });
+        dispatch({ type: "INIT", payload: { isAuthenticated: false, user: null, isImpersonating: false } });
       }
     })();
   }, []);
@@ -117,7 +114,7 @@ export const AuthProvider = ({ children }) => {
   if (!state.isInitialized) return <MatxLoading />;
 
   return (
-    <AuthContext.Provider value={{ ...state, method: "JWT", login, checkAuth, logout }}>
+    <AuthContext.Provider value={{ ...state, method: "JWT", login, checkAuth, logout, impersonate, exitImpersonation }}>
       {children}
     </AuthContext.Provider>
   );

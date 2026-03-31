@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
+  Chip,
   Table,
   styled,
   Divider,
@@ -44,6 +45,18 @@ export default function ProjectInfo({ project, projects }) {
   const auth = useAuth();
   const [cloneOpen, setCloneOpen] = useState(false);
   const [cloneName, setCloneName] = useState("");
+  const [health, setHealth] = useState(null);
+
+  useEffect(() => {
+    if (project.id) {
+      api.get("/projects/health", auth.user.token, { silent: true })
+        .then((data) => {
+          const h = (data || []).find((x) => x.project_id === project.id);
+          if (h) setHealth(h);
+        })
+        .catch(() => {});
+    }
+  }, [project.id]);
 
   const handleClone = () => {
     if (!cloneName.trim()) return;
@@ -72,6 +85,27 @@ export default function ProjectInfo({ project, projects }) {
 
         <H4 sx={{ mt: "16px", mb: "8px" }}>{project.name}</H4>
         <Small color="text.secondary">{project.type}</Small>
+        {health && (
+          <Tooltip
+            title={
+              <Box>
+                <div><strong>Health: {health.health}/100</strong></div>
+                <div>Requests (7d): {health.requests_7d || 0}</div>
+                <div>Avg Latency: {health.avg_latency ? health.avg_latency + "ms" : "N/A"}</div>
+                <div>Guard Block Rate: {health.guard_block_rate !== null ? (health.guard_block_rate * 100).toFixed(1) + "%" : "N/A"}</div>
+                <div>Eval Score: {health.eval_score !== null ? (health.eval_score * 100).toFixed(0) + "%" : "N/A"}</div>
+              </Box>
+            }
+            placement="bottom"
+          >
+            <Chip
+              label={`Health: ${health.health}`}
+              size="small"
+              color={health.health >= 70 ? "success" : health.health >= 40 ? "warning" : "error"}
+              sx={{ mt: 1, fontWeight: "bold", cursor: "default" }}
+            />
+          </Tooltip>
+        )}
       </ContentBox>
 
       <Divider />

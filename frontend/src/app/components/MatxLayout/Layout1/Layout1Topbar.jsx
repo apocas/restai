@@ -1,6 +1,7 @@
-import { memo } from "react";
+import { memo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
+  Badge,
   Box,
   styled,
   Avatar,
@@ -13,6 +14,7 @@ import {
 
 import useAuth from "app/hooks/useAuth";
 import useSettings from "app/hooks/useSettings";
+import api from "app/utils/api";
 
 import { Span } from "app/components/Typography";
 import { MatxMenu } from "app/components";
@@ -24,6 +26,7 @@ import sha256 from 'crypto-js/sha256';
 
 import {
   Home,
+  Mail,
   Menu,
   Person,
   PowerSettingsNew
@@ -82,6 +85,15 @@ const Layout1Topbar = () => {
   const { settings, updateSettings } = useSettings();
   const { logout, user } = useAuth();
   const isMdScreen = useMediaQuery(theme.breakpoints.down("md"));
+  const [inviteCount, setInviteCount] = useState(0);
+
+  useEffect(() => {
+    if (user?.token || user?.username) {
+      api.get("/invitations/count", user.token, { silent: true })
+        .then((data) => setInviteCount(data.count || 0))
+        .catch(() => {});
+    }
+  }, [user?.username]);
 
   const updateSidebarMode = (sidebarSettings) => {
     updateSettings({ layout1Settings: { leftSidebar: { ...sidebarSettings } } });
@@ -116,7 +128,9 @@ const Layout1Topbar = () => {
                     Hi <strong>{user.username}</strong>
                   </Span>
                 </Hidden>
-                <Avatar src={"https://www.gravatar.com/avatar/" + sha256(user.username)} sx={{ cursor: "pointer" }} />
+                <Badge badgeContent={inviteCount} color="error" overlap="circular">
+                  <Avatar src={"https://www.gravatar.com/avatar/" + sha256(user.username)} sx={{ cursor: "pointer" }} />
+                </Badge>
               </UserMenu>
             }>
             <StyledItem>
@@ -130,6 +144,15 @@ const Layout1Topbar = () => {
               <Link to={"/user/" + user.username}>
                 <Person />
                 <Span>Profile</Span>
+              </Link>
+            </StyledItem>
+
+            <StyledItem>
+              <Link to="/invitations">
+                <Badge badgeContent={inviteCount} color="error" sx={{ mr: 0.5 }}>
+                  <Mail />
+                </Badge>
+                <Span>Invites</Span>
               </Link>
             </StyledItem>
 

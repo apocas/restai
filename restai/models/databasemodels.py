@@ -221,6 +221,19 @@ class EvalResultDatabase(Base):
     run = relationship("EvalRunDatabase", back_populates="results")
 
 
+class TeamInvitationDatabase(Base):
+    __tablename__ = "team_invitations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False, index=True)
+    username = Column(String(255), nullable=False, index=True)
+    invited_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    status = Column(String(20), nullable=False, default="pending")
+    created_at = Column(DateTime, nullable=False)
+
+    team = relationship("TeamDatabase")
+
+
 class AuditLogDatabase(Base):
     __tablename__ = "audit_log"
 

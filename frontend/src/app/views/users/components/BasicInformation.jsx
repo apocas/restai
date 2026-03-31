@@ -16,7 +16,7 @@ import sha256 from 'crypto-js/sha256';
 import FormControlLabel from "@mui/material/FormControlLabel";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { People, AccountTree, Key } from "@mui/icons-material";
+import { People, AccountTree, Key, PersonOutline } from "@mui/icons-material";
 import api from "app/utils/api";
 
 const ContentWrapper = styled(Box)(({ theme }) => ({
@@ -111,6 +111,22 @@ export default function BasicInformation({ user }) {
               </FlexBox>
 
             </FlexBetween>
+
+            {auth.user.is_admin && user.username !== auth.user.username && (
+              <Box mt={2} textAlign="center">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  startIcon={<PersonOutline />}
+                  onClick={() => {
+                    auth.impersonate(user.username);
+                  }}
+                >
+                  Impersonate
+                </Button>
+              </Box>
+            )}
 
           </Box>
         </ContentWrapper>

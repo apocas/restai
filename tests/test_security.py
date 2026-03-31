@@ -652,13 +652,15 @@ def test_tools_agent_requires_auth():
 
 
 def test_any_user_can_list_all_llms():
-    """Documents that any authenticated user can see all LLMs (information disclosure)."""
+    """Users can only see LLMs accessible via their teams."""
     with TestClient(app) as client:
         r = client.get("/llms", auth=USER_A)
         assert r.status_code == 200
         llm_names = [llm["name"] for llm in r.json()]
+        # User A belongs to team A which has llmA — should see it
         assert llmA_name in llm_names
-        assert llmB_name in llm_names
+        # User A does NOT belong to team B — should NOT see llmB
+        assert llmB_name not in llm_names
 
 
 def test_any_user_can_get_specific_llm():
@@ -668,13 +670,15 @@ def test_any_user_can_get_specific_llm():
 
 
 def test_any_user_can_list_all_embeddings():
-    """Documents that any authenticated user can see all embeddings."""
+    """Users can only see embeddings accessible via their teams."""
     with TestClient(app) as client:
         r = client.get("/embeddings", auth=USER_A)
         assert r.status_code == 200
         emb_names = [e["name"] for e in r.json()]
+        # User A belongs to team A which has embA — should see it
         assert embA_name in emb_names
-        assert embB_name in emb_names
+        # User A does NOT belong to team B — should NOT see embB
+        assert embB_name not in emb_names
 
 
 def test_any_user_can_get_specific_embedding():

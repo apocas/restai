@@ -72,8 +72,20 @@ export default function TeamEdit() {
   const [audioGenerators, setAudioGenerators] = useState([]);
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [inviteUsername, setInviteUsername] = useState("");
+
+  const handleInvite = () => {
+    if (!inviteUsername.trim()) return;
+    api.post(`/teams/${id}/invitations`, { username: inviteUsername.trim() }, auth.user.token)
+      .then((data) => {
+        toast.success(data.message || "Invitation sent");
+        setInviteUsername("");
+      })
+      .catch(() => {});
+  };
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const auth = useAuth();
+  const user = auth.user;
 
   const fetchTeam = async () => {
     if (isNewTeam) {
@@ -329,6 +341,30 @@ export default function TeamEdit() {
                 <Typography variant="caption" color="textSecondary">
                   Team admins can manage team settings and members
                 </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <Typography variant="h6" gutterBottom>Invite User</Typography>
+                <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 1 }}>
+                  Send an invitation to a user by username. They will be able to accept or decline.
+                </Typography>
+                <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+                  <TextField
+                    size="small"
+                    label="Username"
+                    value={inviteUsername}
+                    onChange={(e) => setInviteUsername(e.target.value)}
+                    sx={{ width: 250 }}
+                  />
+                  <Button
+                    variant="contained"
+                    onClick={handleInvite}
+                    disabled={!inviteUsername.trim()}
+                  >
+                    Send Invite
+                  </Button>
+                </Box>
               </Grid>
             </Grid>
           </TabPanel>

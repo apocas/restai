@@ -39,17 +39,26 @@ async def api_get_embedding(embedding_name: str = Path(description="Embedding mo
 
 @router.get("/embeddings", response_model=list[EmbeddingModel])
 async def api_get_embeddings(
-        _: User = Depends(get_current_username),
+        user: User = Depends(get_current_username),
         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    """List all registered embedding models."""
-    embeddings: list[Optional[EmbeddingModel]] = [EmbeddingModel.model_validate(embedding) for embedding in db_wrapper.get_embeddings()]
+    """List registered embedding models. Non-admin users only see embeddings accessible via their teams."""
+    all_embeddings = db_wrapper.get_embeddings()
+
+    if not user.is_admin:
+        allowed_names = set()
+        for team in user.teams:
+            for emb in (team.embeddings if hasattr(team, 'embeddings') and team.embeddings else []):
+                allowed_names.add(emb.name if hasattr(emb, 'name') else emb)
+        all_embeddings = [e for e in all_embeddings if e.name in allowed_names]
+
+    embeddings: list[Optional[EmbeddingModel]] = [EmbeddingModel.model_validate(embedding) for embedding in all_embeddings]
     for embedding in embeddings:
         if embedding.options is not None:
             options = json.loads(embedding.options)
             if 'api_key' in options:
                 options["api_key"] = "********"
                 embedding.options = json.dumps(options)
-    
+
     return embeddings
 
 

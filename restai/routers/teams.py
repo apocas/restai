@@ -11,7 +11,7 @@ from restai.models.models import (
     User
 )
 from sqlalchemy import or_
-from restai.models.databasemodels import TeamDatabase, OutputDatabase, ProjectDatabase, UserDatabase
+from restai.models.databasemodels import TeamDatabase, OutputDatabase, ProjectDatabase, UserDatabase, TeamInvitationDatabase
 from restai.database import get_db_wrapper, DBWrapper
 from restai.auth import (
     get_current_username,
@@ -454,9 +454,10 @@ async def get_team_transactions(
     team_id: int = Path(description="Team ID"),
     start: int = Query(0, ge=0, le=100000, description="Pagination start offset"),
     end: int = Query(100, ge=1, le=100000, description="Pagination end offset"),
-    user: User = Depends(get_current_username_team_member),
+    user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
+
     """Get budget transactions (inference logs) for all projects in a team."""
     try:
         team = db_wrapper.get_team_by_id(team_id)
@@ -606,3 +607,149 @@ async def remove_audio_generator_from_team(
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ── Team Invitations ─────────────────────────────────────────────────────
+
+
+@router.post("/teams/{team_id}/invitations", tags=["Teams"])
+async def send_team_invitation(
+    team_id: int = Path(description="Team ID"),
+    body: dict = ...,
+    user: User = Depends(get_current_username_team_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Invite a user to join a team. Does not disclose whether the user exists."""
+    username = body.get("username", "").strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="Username is required")
+
+    # Always return the same message regardless of whether user exists
+    target = db_wrapper.get_user_by_username(username)
+    if target is not None:
+        team = db_wrapper.get_team_by_id(team_id)
+        if team is not None:
+            # Check not already a member
+            already_member = any(u.id == target.id for u in team.users)
+            if not already_member:
+                # Check no pending invite exists
+                existing = (
+                    db_wrapper.db.query(TeamInvitationDatabase)
+                    .filter(
+                        TeamInvitationDatabase.team_id == team_id,
+                        TeamInvitationDatabase.username == username,
+                        TeamInvitationDatabase.status == "pending",
+                    )
+                    .first()
+                )
+                if existing is None:
+                    invite = TeamInvitationDatabase(
+                        team_id=team_id,
+                        username=username,
+                        invited_by=user.id,
+                        status="pending",
+                        created_at=datetime.now(timezone.utc),
+                    )
+                    db_wrapper.db.add(invite)
+                    db_wrapper.db.commit()
+
+    return {"message": "If the user exists, they will receive the invitation."}
+
+
+@router.get("/invitations", tags=["Teams"])
+async def get_my_invitations(
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get pending team invitations for the current user."""
+    invites = (
+        db_wrapper.db.query(TeamInvitationDatabase)
+        .filter(
+            TeamInvitationDatabase.username == user.username,
+            TeamInvitationDatabase.status == "pending",
+        )
+        .order_by(TeamInvitationDatabase.created_at.desc())
+        .all()
+    )
+    result = []
+    for inv in invites:
+        team = db_wrapper.get_team_by_id(inv.team_id)
+        inviter = db_wrapper.get_user_by_id(inv.invited_by) if inv.invited_by else None
+        result.append({
+            "id": inv.id,
+            "team_id": inv.team_id,
+            "team_name": team.name if team else "Unknown",
+            "invited_by": inviter.username if inviter else "Unknown",
+            "created_at": inv.created_at.isoformat() if inv.created_at else None,
+        })
+    return result
+
+
+@router.get("/invitations/count", tags=["Teams"])
+async def get_invitation_count(
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get the count of pending invitations for the current user."""
+    from sqlalchemy import func
+    count = (
+        db_wrapper.db.query(func.count(TeamInvitationDatabase.id))
+        .filter(
+            TeamInvitationDatabase.username == user.username,
+            TeamInvitationDatabase.status == "pending",
+        )
+        .scalar()
+    ) or 0
+    return {"count": count}
+
+
+@router.post("/invitations/{invitation_id}/accept", tags=["Teams"])
+async def accept_invitation(
+    invitation_id: int = Path(description="Invitation ID"),
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Accept a team invitation."""
+    invite = (
+        db_wrapper.db.query(TeamInvitationDatabase)
+        .filter(TeamInvitationDatabase.id == invitation_id)
+        .first()
+    )
+    if invite is None or invite.username != user.username:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    if invite.status != "pending":
+        raise HTTPException(status_code=400, detail="Invitation is no longer pending")
+
+    # Add user to team
+    team = db_wrapper.get_team_by_id(invite.team_id)
+    user_db = db_wrapper.get_user_by_username(user.username)
+    if team and user_db and user_db not in team.users:
+        team.users.append(user_db)
+
+    invite.status = "accepted"
+    db_wrapper.db.commit()
+
+    return {"message": f"Joined team '{team.name if team else ''}'"}
+
+
+@router.post("/invitations/{invitation_id}/decline", tags=["Teams"])
+async def decline_invitation(
+    invitation_id: int = Path(description="Invitation ID"),
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Decline a team invitation."""
+    invite = (
+        db_wrapper.db.query(TeamInvitationDatabase)
+        .filter(TeamInvitationDatabase.id == invitation_id)
+        .first()
+    )
+    if invite is None or invite.username != user.username:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    if invite.status != "pending":
+        raise HTTPException(status_code=400, detail="Invitation is no longer pending")
+
+    invite.status = "declined"
+    db_wrapper.db.commit()
+
+    return {"message": "Invitation declined"}

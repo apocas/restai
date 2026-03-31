@@ -47,12 +47,22 @@ async def api_get_llm(
 
 @router.get("/llms", response_model=list[LLMModel])
 async def api_get_llms(
-    _: User = Depends(get_current_username),
+    user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """List all registered LLMs."""
+    """List registered LLMs. Non-admin users only see LLMs accessible via their teams."""
+    all_llms = db_wrapper.get_llms()
+
+    if not user.is_admin:
+        # Get LLM names accessible via user's teams
+        allowed_names = set()
+        for team in user.teams:
+            for llm in (team.llms if hasattr(team, 'llms') and team.llms else []):
+                allowed_names.add(llm.name if hasattr(llm, 'name') else llm)
+        all_llms = [llm for llm in all_llms if llm.name in allowed_names]
+
     llms: list[Optional[LLMModel]] = [
-        LLMModel.model_validate(llm) for llm in db_wrapper.get_llms()
+        LLMModel.model_validate(llm) for llm in all_llms
     ]
     for llm in llms:
         llm.options = mask_api_key(llm.options)

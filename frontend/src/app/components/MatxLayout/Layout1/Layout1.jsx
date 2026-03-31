@@ -1,9 +1,10 @@
 import { useEffect, useRef, memo } from "react";
-import { ThemeProvider, useMediaQuery, Box, styled, useTheme } from "@mui/material";
+import { ThemeProvider, useMediaQuery, Box, Button, styled, useTheme } from "@mui/material";
 import Scrollbar from "react-perfect-scrollbar";
 import { Outlet } from "react-router-dom";
 
 import useSettings from "app/hooks/useSettings";
+import useAuth from "app/hooks/useAuth";
 
 import Layout1Topbar from "./Layout1Topbar";
 import Layout1Sidenav from "./Layout1Sidenav";
@@ -49,8 +50,22 @@ const LayoutContainer = styled(Box)(({ width, open }) => ({
   marginRight: open ? 50 : 0
 }));
 
+const ImpersonationBanner = styled(Box)({
+  backgroundColor: "#ff9800",
+  color: "#fff",
+  padding: "6px 16px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  fontSize: "0.875rem",
+  fontWeight: 500,
+  zIndex: 9999,
+});
+
 const Layout1 = () => {
   const { settings, updateSettings } = useSettings();
+  const { user, isImpersonating, exitImpersonation } = useAuth();
   const { layout1Settings } = settings;
   const topbarTheme = settings.themes[layout1Settings.topbar.theme];
   const {
@@ -96,6 +111,20 @@ const Layout1 = () => {
       )}
 
       <LayoutContainer width={sidenavWidth} >
+        {isImpersonating && (
+          <ImpersonationBanner>
+            Impersonating: {user?.username}
+            <Button
+              size="small"
+              variant="contained"
+              color="inherit"
+              sx={{ ml: 1, color: "#ff9800", backgroundColor: "#fff", fontWeight: "bold", "&:hover": { backgroundColor: "#f5f5f5" } }}
+              onClick={exitImpersonation}
+            >
+              Exit
+            </Button>
+          </ImpersonationBanner>
+        )}
         {layout1Settings.topbar.show && layout1Settings.topbar.fixed && (
           <ThemeProvider theme={topbarTheme}>
             <Layout1Topbar fixed={true} className="elevation-z8" />

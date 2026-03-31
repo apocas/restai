@@ -47,18 +47,22 @@ export default function LLMsTable({ llms = [], title = "LLMs" }) {
     }
   };
 
+  const isAdmin = auth.user?.is_admin;
+
   // Custom toolbar for the top right
   const CustomToolbar = () => (
-    <Tooltip title="Create New LLM">
-      <StyledButton
-        variant="contained"
-        color="primary"
-        onClick={() => navigate("/llms/new")}
-        sx={{ ml: 2 }}
-      >
-        New LLM
-      </StyledButton>
-    </Tooltip>
+    isAdmin ? (
+      <Tooltip title="Create New LLM">
+        <StyledButton
+          variant="contained"
+          color="primary"
+          onClick={() => navigate("/llms/new")}
+          sx={{ ml: 2 }}
+        >
+          New LLM
+        </StyledButton>
+      </Tooltip>
+    ) : null
   );
 
   return (
@@ -125,7 +129,7 @@ export default function LLMsTable({ llms = [], title = "LLMs" }) {
               )
             }
           },
-          {
+          ...(isAdmin ? [{
             name: "Actions",
             options: {
               customBodyRender: (llm) => (
@@ -143,7 +147,7 @@ export default function LLMsTable({ llms = [], title = "LLMs" }) {
                 </Box>
               )
             }
-          }
+          }] : [])
         ]}
       />
     </Card>

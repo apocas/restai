@@ -37,12 +37,9 @@ const StyledButton = styled(Button)(({ theme }) => ({
 export default function ProjectsTable({ projects = [], title = "Projects" }) {
   const { palette } = useTheme();
   const bgError = palette.error.main;
-  const bgPrimary = palette.primary.main;
   const bgSecondary = palette.secondary.main;
-
   const navigate = useNavigate();
 
-  // Custom toolbar for the top right
   const CustomToolbar = () => (
     <Tooltip title="Create New Project">
       <StyledButton
@@ -82,7 +79,7 @@ export default function ProjectsTable({ projects = [], title = "Projects" }) {
         columns={[{
           name: "ID",
           options: {
-            customBodyRender: (value, tableMeta, updateValue) => (
+            customBodyRender: (value) => (
               <Box display="flex" alignItems="center" gap={4}>
                 {value}
               </Box>
@@ -91,7 +88,7 @@ export default function ProjectsTable({ projects = [], title = "Projects" }) {
         }, {
           name: "Name",
           options: {
-            customBodyRender: (value, tableMeta, updateValue) => (
+            customBodyRender: (value, tableMeta) => (
               <Box display="flex" alignItems="center" gap={4}>
                 <StyledButton onClick={() => { navigate("/project/" + tableMeta.rowData[0]) }} color="primary">{value}</StyledButton>
               </Box>
@@ -100,7 +97,7 @@ export default function ProjectsTable({ projects = [], title = "Projects" }) {
         }, {
           name: "Type",
           options: {
-            customBodyRender: (value, tableMeta, updateValue) => (
+            customBodyRender: (value) => (
               <div>{value === "rag" ? (
                 <Small bgcolor={bgSecondary}>{value}</Small>
               ) : value === "inference" ? (
@@ -115,7 +112,7 @@ export default function ProjectsTable({ projects = [], title = "Projects" }) {
         }, "LLM", {
           name: "Users",
           options: {
-            customBodyRender: (value, tableMeta, updateValue) => (
+            customBodyRender: (value) => (
               <div>
                 <Box display="flex" alignItems="center" gap={1}>
                   {value.slice(0, 2).map((user, index) => (
@@ -140,7 +137,7 @@ export default function ProjectsTable({ projects = [], title = "Projects" }) {
         {
           name: "Team",
           options: {
-            customBodyRender: (value, tableMeta, updateValue) => (
+            customBodyRender: (value) => (
               <div>
                 <Box display="flex" alignItems="center" gap={1}>
                   {value}
@@ -152,7 +149,7 @@ export default function ProjectsTable({ projects = [], title = "Projects" }) {
         {
           name: "Actions",
           options: {
-            customBodyRender: (value, tableMeta, updateValue) => (
+            customBodyRender: (value) => (
               <div>
                 <Tooltip title="Playground" placement="top">
                   <IconButton onClick={() => { navigate("/project/" + value + "/playground") }}>
@@ -164,6 +161,6 @@ export default function ProjectsTable({ projects = [], title = "Projects" }) {
           }
         }]}
       />
-    </Card >
+    </Card>
   );
 }

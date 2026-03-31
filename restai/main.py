@@ -71,7 +71,7 @@ async def lifespan(fs_app: FastAPI):
     ensure_settings_table(db_engine)
 
     # Auto-create new association tables for generators, eval tables, and migrate output table
-    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase
+    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase, TeamInvitationDatabase
     from sqlalchemy import inspect as sa_inspect, Column, Integer, ForeignKey, text
     TeamImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     TeamAudioGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
@@ -83,6 +83,7 @@ async def lifespan(fs_app: FastAPI):
     GuardEventDatabase.__table__.create(db_engine, checkfirst=True)
     RetrievalEventDatabase.__table__.create(db_engine, checkfirst=True)
     AuditLogDatabase.__table__.create(db_engine, checkfirst=True)
+    TeamInvitationDatabase.__table__.create(db_engine, checkfirst=True)
     inspector = sa_inspect(db_engine)
     if "output" in inspector.get_table_names():
         output_cols = {c["name"] for c in inspector.get_columns("output")}
@@ -182,7 +183,7 @@ async def lifespan(fs_app: FastAPI):
 
     @fs_app.get("/info", tags=["Health"])
     async def get_info(
-        _: User = Depends(get_current_username),
+        user: User = Depends(get_current_username),
         db_wrapper: DBWrapper = Depends(get_db_wrapper),
     ):
         """Get platform information including available LLMs, embeddings, and loaders."""
@@ -196,8 +197,22 @@ async def lifespan(fs_app: FastAPI):
             "vectorstores": get_available_vectorstores(),
         }
 
+        # Filter LLMs and embeddings by team access for non-admin users
+        allowed_llm_names = None
+        allowed_emb_names = None
+        if not user.is_admin:
+            allowed_llm_names = set()
+            allowed_emb_names = set()
+            for team in user.teams:
+                for llm in (team.llms if hasattr(team, 'llms') and team.llms else []):
+                    allowed_llm_names.add(llm.name if hasattr(llm, 'name') else llm)
+                for emb in (team.embeddings if hasattr(team, 'embeddings') and team.embeddings else []):
+                    allowed_emb_names.add(emb.name if hasattr(emb, 'name') else emb)
+
         db_llms = db_wrapper.get_llms()
         for llm in db_llms:
+            if allowed_llm_names is not None and llm.name not in allowed_llm_names:
+                continue
             output["llms"].append(
                 {
                     "name": llm.name,
@@ -209,6 +224,8 @@ async def lifespan(fs_app: FastAPI):
 
         db_embeddings = db_wrapper.get_embeddings()
         for embedding in db_embeddings:
+            if allowed_emb_names is not None and embedding.name not in allowed_emb_names:
+                continue
             output["embeddings"].append(
                 {
                     "name": embedding.name,

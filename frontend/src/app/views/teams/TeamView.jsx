@@ -323,7 +323,9 @@ export default function TeamView() {
             <Tab label="Users" icon={<Group />} iconPosition="start" />
             <Tab label="Projects" icon={<Code />} iconPosition="start" />
             <Tab label="Models" icon={<Psychology />} iconPosition="start" />
-            <Tab label="Transactions" icon={<Receipt />} iconPosition="start" />
+            {isTeamAdmin && (
+              <Tab label="Transactions" icon={<Receipt />} iconPosition="start" />
+            )}
           </Tabs>
         </Box>
         
