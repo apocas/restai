@@ -5,12 +5,6 @@ import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 export const defaultNavigations = [
   { name: "Home", path: "/home", icon: "dashboard" },
   {
-    name: "Settings",
-    icon: "settings",
-    path: "/settings",
-    auth: authRoles.admin,
-  },
-  {
     name: "Library",
     icon: "library_books",
     path: "/projects/library",
@@ -86,6 +80,19 @@ export const defaultNavigations = [
     children: [
       { name: "GPU", iconText: "GP", path: "/gpu", auth: authRoles.admin },
     ]
+  },
+  { label: "Admin", type: "label" },
+  {
+    name: "Settings",
+    icon: "settings",
+    path: "/settings",
+    auth: authRoles.admin,
+  },
+  {
+    name: "Audit Log",
+    icon: "history",
+    path: "/audit",
+    auth: authRoles.admin,
   },
   { label: "Docs", type: "label" },
   {

@@ -221,6 +221,18 @@ class EvalResultDatabase(Base):
     run = relationship("EvalRunDatabase", back_populates="results")
 
 
+class AuditLogDatabase(Base):
+    __tablename__ = "audit_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=True)
+    username = Column(String(255), nullable=True)
+    action = Column(String(10), nullable=False)
+    resource = Column(String(500), nullable=False)
+    status_code = Column(Integer, nullable=False)
+    date = Column(DateTime, nullable=False, index=True)
+
+
 class RetrievalEventDatabase(Base):
     __tablename__ = "retrieval_events"
 

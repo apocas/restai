@@ -47,6 +47,7 @@ const DirectAccess = Loadable(lazy(() => import("app/views/direct/DirectAccess")
 const OllamaModels = Loadable(lazy(() => import("app/views/llms/ollama/OllamaModels")));
 const Settings = Loadable(lazy(() => import("app/views/settings/Settings")));
 const GpuInfo = Loadable(lazy(() => import("app/views/settings/GpuInfo")));
+const AuditLog = Loadable(lazy(() => import("app/views/audit/AuditLog")));
 
 const routes = [
   {
@@ -243,6 +244,11 @@ const routes = [
       {
         path: "/gpu",
         element: <GpuInfo />,
+        auth: authRoles.admin
+      },
+      {
+        path: "/audit",
+        element: <AuditLog />,
         auth: authRoles.admin
       }
     ]

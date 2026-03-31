@@ -71,7 +71,7 @@ async def lifespan(fs_app: FastAPI):
     ensure_settings_table(db_engine)
 
     # Auto-create new association tables for generators, eval tables, and migrate output table
-    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase
+    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase
     from sqlalchemy import inspect as sa_inspect, Column, Integer, ForeignKey, text
     TeamImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     TeamAudioGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
@@ -82,6 +82,7 @@ async def lifespan(fs_app: FastAPI):
     PromptVersionDatabase.__table__.create(db_engine, checkfirst=True)
     GuardEventDatabase.__table__.create(db_engine, checkfirst=True)
     RetrievalEventDatabase.__table__.create(db_engine, checkfirst=True)
+    AuditLogDatabase.__table__.create(db_engine, checkfirst=True)
     inspector = sa_inspect(db_engine)
     if "output" in inspector.get_table_names():
         output_cols = {c["name"] for c in inspector.get_columns("output")}
@@ -344,6 +345,10 @@ app.add_middleware(
     same_site=SESSION_COOKIE_SAME_SITE,
     https_only=SESSION_COOKIE_SECURE,
 )
+
+# Audit log middleware — records all mutation requests
+from restai.audit import AuditMiddleware
+app.add_middleware(AuditMiddleware)
 
 
 @app.get("/oauth/{provider}/login", tags=["Auth"])

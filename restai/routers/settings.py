@@ -76,3 +76,41 @@ async def patch_settings(
         reinit_oauth(request.app)
 
     return get_all_settings(db_wrapper)
+
+
+@router.get("/audit", tags=["Settings"])
+async def get_audit_log(
+    start: int = 0,
+    end: int = 50,
+    username: str = None,
+    action: str = None,
+    _=Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get paginated audit log entries (admin only)."""
+    from restai.models.databasemodels import AuditLogDatabase
+
+    query = db_wrapper.db.query(AuditLogDatabase)
+
+    if username:
+        query = query.filter(AuditLogDatabase.username == username)
+    if action:
+        query = query.filter(AuditLogDatabase.action == action)
+
+    total = query.count()
+    entries = query.order_by(AuditLogDatabase.date.desc()).offset(start).limit(end - start).all()
+
+    return {
+        "entries": [
+            {
+                "id": e.id,
+                "username": e.username,
+                "action": e.action,
+                "resource": e.resource,
+                "status_code": e.status_code,
+                "date": e.date.isoformat() if e.date else None,
+            }
+            for e in entries
+        ],
+        "total": total,
+    }
