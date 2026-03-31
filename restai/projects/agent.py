@@ -11,7 +11,6 @@ from llama_index.core.agent.workflow.workflow_events import (
 from restai import config
 from restai.chat import Chat
 from restai.database import DBWrapper
-from restai.guard import Guard
 from restai.models.models import ChatModel, QuestionModel, User
 from restai.project import Project
 from restai.projects.base import ProjectBase
@@ -77,16 +76,9 @@ class Agent(ProjectBase):
             "id": chat.chat_id,
         }
 
-        if project.props.guard:
-            guard = Guard(project.props.guard, self.brain, db)
-            if guard.verify(chatModel.question):
-                output["answer"] = (
-                    project.props.censorship or self.brain.defaultCensorship
-                )
-                output["guard"] = True
-                self.brain.post_processing_counting(output)
-                yield output
-                return
+        if self.check_input_guard(project, chatModel.question, user, db, output):
+            yield output
+            return
 
         tools_u = await self.prepare_tools(project)
 
@@ -185,16 +177,9 @@ class Agent(ProjectBase):
             "project": project.props.name,
         }
 
-        if project.props.guard:
-            guard = Guard(project.props.guard, self.brain, db)
-            if guard.verify(questionModel.question):
-                output["answer"] = (
-                    project.props.censorship or self.brain.defaultCensorship
-                )
-                output["guard"] = True
-                self.brain.post_processing_counting(output)
-                yield output
-                return
+        if self.check_input_guard(project, questionModel.question, user, db, output):
+            yield output
+            return
 
         model = self.brain.get_llm(project.props.llm, db)
 

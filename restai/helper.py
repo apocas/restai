@@ -290,7 +290,7 @@ async def question_agent(
     start_time: float = None,
 ):
     try:
-        projLogic: Agent = Agent(brain)
+        proj_logic: Agent = Agent(brain)
 
         if project.props.type != "agent":
             raise HTTPException(
@@ -299,7 +299,7 @@ async def question_agent(
 
         if q_input.stream:
             return await create_streaming_response_with_logging(
-                projLogic.question(project, q_input, user, db),
+                proj_logic.question(project, q_input, user, db),
                 project,
                 user,
                 db,
@@ -307,7 +307,7 @@ async def question_agent(
                 start_time=start_time,
             )
         else:
-            output_generator = projLogic.question(project, q_input, user, db)
+            output_generator = proj_logic.question(project, q_input, user, db)
             async for line in output_generator:
                 latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
                 background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms)

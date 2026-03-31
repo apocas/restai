@@ -17,3 +17,37 @@ class ProjectBase(ABC):
     @abstractmethod
     async def question(self, project: Project, question_model: QuestionModel, user: User, db: DBWrapper):
         raise HTTPException(status_code=400, detail="Question mode not available for this project type.")
+
+    def check_input_guard(self, project: Project, question_text: str, user: User, db: DBWrapper, output: dict) -> bool:
+        """Check input guard. Returns True if the request should be blocked (in block mode).
+
+        Modifies output dict in-place (sets answer, guard flag).
+        Logs guard events via background-compatible function.
+        """
+        if not project.props.guard:
+            return False
+
+        from restai.guard import Guard
+        from restai.tools import log_guard_event
+
+        guard = Guard(project.props.guard, self.brain, db)
+        result = guard.verify(question_text, phase="input")
+        if not result:
+            return False
+
+        guard_mode = project.props.options.guard_mode or "block"
+        action = "block" if result.blocked else "pass"
+        if result.blocked and guard_mode == "warn":
+            action = "warn"
+
+        log_guard_event(project, project.props.guard, user, "input", action, guard_mode, question_text, result.raw_response, db)
+
+        if result.blocked and guard_mode == "block":
+            output["answer"] = project.props.censorship or self.brain.defaultCensorship
+            output["guard"] = True
+            self.brain.post_processing_counting(output)
+            return True
+        elif result.blocked:
+            output["guard"] = True
+
+        return False

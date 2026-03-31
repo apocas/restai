@@ -38,24 +38,9 @@ class Inference(ProjectBase):
             "id": chat.chat_id,
         }
 
-        if project.props.guard:
-            guard = Guard(project.props.guard, self.brain, db)
-            result = guard.verify(chat_model.question, phase="input")
-            if result:
-                guard_mode = project.props.options.guard_mode or "block"
-                from restai.tools import log_guard_event
-                action = "block" if result.blocked else "pass"
-                if result.blocked and guard_mode == "warn":
-                    action = "warn"
-                log_guard_event(project, project.props.guard, user, "input", action, guard_mode, chat_model.question, result.raw_response, db)
-                if result.blocked and guard_mode == "block":
-                    output["answer"] = project.props.censorship or self.brain.defaultCensorship
-                    output["guard"] = True
-                    self.brain.post_processing_counting(output)
-                    yield output
-                    return
-                elif result.blocked:
-                    output["guard"] = True
+        if self.check_input_guard(project, chat_model.question, user, db, output):
+            yield output
+            return
 
         sysTemplate = project.props.system or self.brain.defaultSystem
 
@@ -152,24 +137,9 @@ class Inference(ProjectBase):
             "project": project.props.name,
         }
 
-        if project.props.guard:
-            guard = Guard(project.props.guard, self.brain, db)
-            result = guard.verify(question_model.question, phase="input")
-            if result:
-                guard_mode = project.props.options.guard_mode or "block"
-                from restai.tools import log_guard_event
-                action = "block" if result.blocked else "pass"
-                if result.blocked and guard_mode == "warn":
-                    action = "warn"
-                log_guard_event(project, project.props.guard, user, "input", action, guard_mode, question_model.question, result.raw_response, db)
-                if result.blocked and guard_mode == "block":
-                    output["answer"] = project.props.censorship or self.brain.defaultCensorship
-                    output["guard"] = True
-                    self.brain.post_processing_counting(output)
-                    yield output
-                    return
-                elif result.blocked:
-                    output["guard"] = True
+        if self.check_input_guard(project, question_model.question, user, db, output):
+            yield output
+            return
 
         model = self.brain.get_llm(project.props.llm, db)
 

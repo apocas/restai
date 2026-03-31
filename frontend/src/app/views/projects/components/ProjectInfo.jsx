@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import {
   Avatar, Box, Button, Card, Chip, Divider, Dialog, DialogTitle, DialogContent,
-  DialogActions, Grid, IconButton, TextField, Tooltip, Typography, styled,
+  DialogActions, Grid, IconButton, Stack, TextField, Tooltip, Typography, styled,
 } from "@mui/material";
 import {
   Edit, Delete, Code, Article, SportsEsports, ViewInAr, Science, Security,
   ContentCopy, ClearAll, Speed, Shield, Cached, Groups, Psychology,
+  Settings, Storage, Build, Chat, Notifications,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
@@ -32,6 +33,23 @@ const MetaItem = styled(Box)(({ theme }) => ({
   color: theme.palette.text.secondary,
   fontSize: "0.85rem",
 }));
+
+const SectionTitle = styled(Typography)(({ theme }) => ({
+  fontWeight: 600,
+  fontSize: "0.9rem",
+  display: "flex",
+  alignItems: "center",
+  gap: theme.spacing(0.5),
+  color: theme.palette.text.secondary,
+  marginBottom: theme.spacing(1),
+}));
+
+const DetailItem = ({ label, children }) => (
+  <Grid item xs={12} sm={6} md={4}>
+    <Typography variant="caption" color="text.secondary" display="block">{label}</Typography>
+    {children}
+  </Grid>
+);
 
 const TYPE_COLORS = {
   inference: "primary",
@@ -247,6 +265,190 @@ export default function ProjectInfo({ project, projects, info }) {
           </Tooltip>
         </ActionBar>
       </HeroCard>
+
+      {/* Project Details */}
+      {(() => {
+        const showConfig = project.type !== "block";
+        const showSecurity = true;
+        const showRag = project.type === "rag";
+        const showAgent = project.type === "agent";
+        const showIntegrations = !!(project.options?.telegram_token || project.options?.slack_bot_token);
+        if (!(showConfig || showSecurity || showRag || showAgent || showIntegrations)) return null;
+        return (
+          <Card elevation={1} sx={{ p: 2.5, mb: 2 }}>
+            <Stack divider={<Divider />} spacing={2}>
+              {showConfig && (
+                <Box>
+                  <SectionTitle><Settings fontSize="small" /> Configuration</SectionTitle>
+                  <Grid container spacing={2}>
+                    <DetailItem label="Logging">
+                      <Chip label={project.options?.logging !== false ? "Enabled" : "Disabled"} size="small"
+                        color={project.options?.logging !== false ? "success" : "default"} variant="outlined" />
+                    </DetailItem>
+                    {project.options?.fallback_llm && (
+                      <DetailItem label="Fallback LLM">
+                        <Typography variant="body2" fontFamily="monospace">{project.options.fallback_llm}</Typography>
+                      </DetailItem>
+                    )}
+                    {project.options?.cache && (
+                      <DetailItem label="Cache Threshold">
+                        <Typography variant="body2">{project.options.cache_threshold ?? 0.85}</Typography>
+                      </DetailItem>
+                    )}
+                    {project.options?.rate_limit && (
+                      <DetailItem label="Rate Limit">
+                        <Typography variant="body2">{project.options.rate_limit} req/min</Typography>
+                      </DetailItem>
+                    )}
+                    {project.default_prompt && (
+                      <Grid item xs={12}>
+                        <Typography variant="caption" color="text.secondary" display="block">Default Prompt</Typography>
+                        <Typography variant="body2" sx={{
+                          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                          overflow: "hidden", fontStyle: "italic", color: "text.secondary", mt: 0.5,
+                        }}>
+                          {project.default_prompt}
+                        </Typography>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Box>
+              )}
+
+              {showSecurity && (
+                <Box>
+                  <SectionTitle><Shield fontSize="small" /> Security</SectionTitle>
+                  <Grid container spacing={2}>
+                    <DetailItem label="Input Guard">
+                      {project.guard ? (
+                        <Chip label={project.guard} size="small" color="warning" variant="outlined" />
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">Disabled</Typography>
+                      )}
+                    </DetailItem>
+                    <DetailItem label="Output Guard">
+                      {project.options?.guard_output ? (
+                        <Chip label={project.options.guard_output} size="small" color="warning" variant="outlined" />
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">Disabled</Typography>
+                      )}
+                    </DetailItem>
+                    {project.options?.guard_mode && (project.guard || project.options?.guard_output) && (
+                      <DetailItem label="Guard Mode">
+                        <Chip label={project.options.guard_mode === "warn" ? "Warn" : "Block"} size="small"
+                          color={project.options.guard_mode === "warn" ? "warning" : "error"} variant="outlined" />
+                      </DetailItem>
+                    )}
+                    {project.censorship && (
+                      <Grid item xs={12} sm={8}>
+                        <Typography variant="caption" color="text.secondary" display="block">Censorship Message</Typography>
+                        <Typography variant="body2" sx={{
+                          display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical",
+                          overflow: "hidden", fontStyle: "italic", bgcolor: "action.hover",
+                          p: 1, borderRadius: 1, mt: 0.5,
+                        }}>
+                          {project.censorship}
+                        </Typography>
+                      </Grid>
+                    )}
+                  </Grid>
+                </Box>
+              )}
+
+              {showRag && (
+                <Box>
+                  <SectionTitle><Storage fontSize="small" /> RAG Settings</SectionTitle>
+                  <Grid container spacing={2}>
+                    {project.embeddings && (
+                      <DetailItem label="Embeddings">
+                        <Typography variant="body2" fontFamily="monospace">{project.embeddings}</Typography>
+                      </DetailItem>
+                    )}
+                    {project.vectorstore && (
+                      <DetailItem label="Vector Store">
+                        <Chip label={project.vectorstore} size="small" variant="outlined" />
+                      </DetailItem>
+                    )}
+                    <DetailItem label="Top-K Documents">
+                      <Typography variant="body2">{project.options?.k ?? 4}</Typography>
+                    </DetailItem>
+                    <DetailItem label="Score Cutoff">
+                      <Typography variant="body2">{project.options?.score ?? 0.0}</Typography>
+                    </DetailItem>
+                    <DetailItem label="ColBERT Rerank">
+                      <Chip label={project.options?.colbert_rerank ? "Enabled" : "Disabled"} size="small"
+                        color={project.options?.colbert_rerank ? "success" : "default"} variant="outlined" />
+                    </DetailItem>
+                    <DetailItem label="LLM Rerank">
+                      <Chip label={project.options?.llm_rerank ? "Enabled" : "Disabled"} size="small"
+                        color={project.options?.llm_rerank ? "success" : "default"} variant="outlined" />
+                    </DetailItem>
+                    {project.options?.connection && (
+                      <DetailItem label="SQL Connection">
+                        <Chip label="Configured" size="small" color="info" variant="outlined" />
+                      </DetailItem>
+                    )}
+                    {project.options?.tables && (
+                      <DetailItem label="SQL Tables">
+                        <Typography variant="body2" fontFamily="monospace">{project.options.tables}</Typography>
+                      </DetailItem>
+                    )}
+                  </Grid>
+                </Box>
+              )}
+
+              {showAgent && (
+                <Box>
+                  <SectionTitle><Build fontSize="small" /> Agent Settings</SectionTitle>
+                  <Grid container spacing={2}>
+                    {project.options?.tools && (
+                      <Grid item xs={12}>
+                        <Typography variant="caption" color="text.secondary" display="block">Tools</Typography>
+                        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mt: 0.5 }}>
+                          {project.options.tools.split(",").filter(Boolean).map((t) => (
+                            <Chip key={t.trim()} label={t.trim()} size="small" variant="outlined" />
+                          ))}
+                        </Box>
+                      </Grid>
+                    )}
+                    <DetailItem label="Max Iterations">
+                      <Typography variant="body2">{project.options?.max_iterations ?? 10}</Typography>
+                    </DetailItem>
+                    {project.options?.mcp_servers && project.options.mcp_servers.length > 0 && (
+                      <DetailItem label="MCP Servers">
+                        <Typography variant="body2">{project.options.mcp_servers.length} configured</Typography>
+                      </DetailItem>
+                    )}
+                    {project.options?.function_agent && (
+                      <DetailItem label="Agent Mode">
+                        <Chip label="Function Agent" size="small" color="info" variant="outlined" />
+                      </DetailItem>
+                    )}
+                  </Grid>
+                </Box>
+              )}
+
+              {showIntegrations && (
+                <Box>
+                  <SectionTitle><Chat fontSize="small" /> Integrations</SectionTitle>
+                  <Grid container spacing={2}>
+                    {project.options?.telegram_token && (
+                      <DetailItem label="Telegram">
+                        <Chip label="Connected" size="small" color="success" variant="outlined" />
+                      </DetailItem>
+                    )}
+                    {project.options?.slack_bot_token && (
+                      <DetailItem label="Slack">
+                        <Chip label="Connected" size="small" color="success" variant="outlined" />
+                      </DetailItem>
+                    )}
+                  </Grid>
+                </Box>
+              )}
+            </Stack>
+          </Card>
+        );
+      })()}
 
       {/* Clone dialog */}
       <Dialog open={cloneOpen} onClose={() => setCloneOpen(false)} maxWidth="sm" fullWidth>
