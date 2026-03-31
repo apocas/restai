@@ -1,10 +1,12 @@
 from datetime import timedelta
 import logging
 
+import jwt
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response
 from fastapi.responses import RedirectResponse
 from restai import config
 from restai.auth import create_access_token, get_current_username, get_current_username_admin
+from restai.config import RESTAI_AUTH_SECRET
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.models import User
 
@@ -95,11 +97,26 @@ async def impersonate_user(
 async def exit_impersonation(
     request: Request,
     response: Response,
+    _: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Exit impersonation and restore the admin session."""
     admin_token = request.cookies.get("restai_token_admin")
     if not admin_token:
         raise HTTPException(status_code=400, detail="Not currently impersonating")
+
+    # Validate the admin token is a valid JWT
+    try:
+        data = jwt.decode(admin_token, RESTAI_AUTH_SECRET, algorithms=["HS512"])
+    except jwt.PyJWTError:
+        response.delete_cookie(key="restai_token_admin")
+        raise HTTPException(status_code=400, detail="Invalid admin token")
+
+    # Verify the token belongs to an admin user
+    admin_user = db_wrapper.get_user_by_username(data.get("username", ""))
+    if admin_user is None or not admin_user.is_admin:
+        response.delete_cookie(key="restai_token_admin")
+        raise HTTPException(status_code=400, detail="Invalid admin token")
 
     # Restore admin token
     response.set_cookie(
