@@ -163,6 +163,9 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
                     >
                       <MenuItem value="url">Web URL</MenuItem>
                       <MenuItem value="s3">Amazon S3</MenuItem>
+                      <MenuItem value="confluence">Confluence</MenuItem>
+                      <MenuItem value="sharepoint">SharePoint</MenuItem>
+                      <MenuItem value="gdrive">Google Drive</MenuItem>
                     </TextField>
                   </Grid>
                   <Grid item xs={12} sm={4}>
@@ -246,6 +249,109 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
                             updated[idx] = { ...updated[idx], s3_secret_key: e.target.value };
                             setState({ ...state, options: { ...state.options, sync_sources: updated } });
                           }} />
+                      </Grid>
+                    </>
+                  )}
+                  {src.type === "confluence" && (
+                    <>
+                      <Grid item xs={12} sm={6}>
+                        <TextField fullWidth size="small" label="Base URL" value={src.confluence_base_url || ""}
+                          onChange={(e) => {
+                            const updated = [...state.options.sync_sources];
+                            updated[idx] = { ...updated[idx], confluence_base_url: e.target.value };
+                            setState({ ...state, options: { ...state.options, sync_sources: updated } });
+                          }} placeholder="https://yoursite.atlassian.net" />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField fullWidth size="small" label="Space Key" value={src.confluence_space_key || ""}
+                          onChange={(e) => {
+                            const updated = [...state.options.sync_sources];
+                            updated[idx] = { ...updated[idx], confluence_space_key: e.target.value };
+                            setState({ ...state, options: { ...state.options, sync_sources: updated } });
+                          }} placeholder="ENG" />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField fullWidth size="small" label="Email" value={src.confluence_email || ""}
+                          onChange={(e) => {
+                            const updated = [...state.options.sync_sources];
+                            updated[idx] = { ...updated[idx], confluence_email: e.target.value };
+                            setState({ ...state, options: { ...state.options, sync_sources: updated } });
+                          }} placeholder="user@company.com" />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField fullWidth size="small" label="API Token" type="password" value={src.confluence_api_token || ""}
+                          onChange={(e) => {
+                            const updated = [...state.options.sync_sources];
+                            updated[idx] = { ...updated[idx], confluence_api_token: e.target.value };
+                            setState({ ...state, options: { ...state.options, sync_sources: updated } });
+                          }} />
+                      </Grid>
+                    </>
+                  )}
+                  {src.type === "sharepoint" && (
+                    <>
+                      <Grid item xs={12} sm={4}>
+                        <TextField fullWidth size="small" label="Tenant ID" value={src.sharepoint_tenant_id || ""}
+                          onChange={(e) => {
+                            const updated = [...state.options.sync_sources];
+                            updated[idx] = { ...updated[idx], sharepoint_tenant_id: e.target.value };
+                            setState({ ...state, options: { ...state.options, sync_sources: updated } });
+                          }} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <TextField fullWidth size="small" label="Client ID" value={src.sharepoint_client_id || ""}
+                          onChange={(e) => {
+                            const updated = [...state.options.sync_sources];
+                            updated[idx] = { ...updated[idx], sharepoint_client_id: e.target.value };
+                            setState({ ...state, options: { ...state.options, sync_sources: updated } });
+                          }} />
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <TextField fullWidth size="small" label="Client Secret" type="password" value={src.sharepoint_client_secret || ""}
+                          onChange={(e) => {
+                            const updated = [...state.options.sync_sources];
+                            updated[idx] = { ...updated[idx], sharepoint_client_secret: e.target.value };
+                            setState({ ...state, options: { ...state.options, sync_sources: updated } });
+                          }} />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField fullWidth size="small" label="Site Name" value={src.sharepoint_site_name || ""}
+                          onChange={(e) => {
+                            const updated = [...state.options.sync_sources];
+                            updated[idx] = { ...updated[idx], sharepoint_site_name: e.target.value };
+                            setState({ ...state, options: { ...state.options, sync_sources: updated } });
+                          }} placeholder="MySite" helperText="From yourorg.sharepoint.com/sites/MySite" />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField fullWidth size="small" label="Folder Path (optional)" value={src.sharepoint_folder || ""}
+                          onChange={(e) => {
+                            const updated = [...state.options.sync_sources];
+                            updated[idx] = { ...updated[idx], sharepoint_folder: e.target.value };
+                            setState({ ...state, options: { ...state.options, sync_sources: updated } });
+                          }} placeholder="General/Docs" helperText="Leave empty for all files in the document library" />
+                      </Grid>
+                    </>
+                  )}
+                  {src.type === "gdrive" && (
+                    <>
+                      <Grid item xs={12} sm={6}>
+                        <TextField fullWidth size="small" label="Folder ID" value={src.gdrive_folder_id || ""}
+                          onChange={(e) => {
+                            const updated = [...state.options.sync_sources];
+                            updated[idx] = { ...updated[idx], gdrive_folder_id: e.target.value };
+                            setState({ ...state, options: { ...state.options, sync_sources: updated } });
+                          }} placeholder="1AbC_dEfGhIjKlMnOpQrStUv"
+                          helperText="From the folder URL: drive.google.com/drive/folders/{ID}" />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField fullWidth size="small" label="Service Account JSON" multiline rows={3}
+                          value={src.gdrive_service_account_json || ""}
+                          onChange={(e) => {
+                            const updated = [...state.options.sync_sources];
+                            updated[idx] = { ...updated[idx], gdrive_service_account_json: e.target.value };
+                            setState({ ...state, options: { ...state.options, sync_sources: updated } });
+                          }} placeholder='{"type": "service_account", ...}'
+                          helperText="Paste the full JSON key from Google Cloud Console. Share the Drive folder with the service account email." />
                       </Grid>
                     </>
                   )}

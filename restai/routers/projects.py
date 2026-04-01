@@ -63,13 +63,13 @@ import shutil
 _SENSITIVE_OPTION_KEYS = ("telegram_token", "slack_bot_token", "slack_app_token", "connection")
 
 def _mask_sync_sources(options: dict):
-    """Mask S3 credentials inside sync_sources list."""
+    """Mask sensitive credentials inside sync_sources list."""
     sources = options.get("sync_sources")
     if not sources or not isinstance(sources, list):
         return
     for src in sources:
         if isinstance(src, dict):
-            for key in ("s3_access_key", "s3_secret_key"):
+            for key in ("s3_access_key", "s3_secret_key", "confluence_api_token", "sharepoint_client_secret", "gdrive_service_account_json"):
                 val = src.get(key)
                 if val:
                     src[key] = mask_key(val)
@@ -484,11 +484,11 @@ async def route_edit_project(
             val = getattr(projectModelUpdate.options, key, None)
             if val and val.startswith("****"):
                 setattr(projectModelUpdate.options, key, existing_opts.get(key))
-        # Restore masked S3 credentials in sync sources
+        # Restore masked credentials in sync sources
         if projectModelUpdate.options.sync_sources and existing_opts.get("sync_sources"):
             existing_sources = {s.get("name"): s for s in existing_opts["sync_sources"] if isinstance(s, dict)}
             for src in projectModelUpdate.options.sync_sources:
-                for key in ("s3_access_key", "s3_secret_key"):
+                for key in ("s3_access_key", "s3_secret_key", "confluence_api_token", "sharepoint_client_secret", "gdrive_service_account_json"):
                     val = getattr(src, key, None)
                     if val and val.startswith("****"):
                         existing_src = existing_sources.get(src.name, {})

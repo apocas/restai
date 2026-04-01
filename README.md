@@ -249,14 +249,16 @@ Automatically keep your RAG knowledge base up-to-date by syncing from external s
 **Supported sources:**
 - **Web URLs** — Periodically re-scrape web pages and update the knowledge base
 - **Amazon S3** — Sync documents from S3 buckets with optional prefix filtering (supports all file types: PDF, DOCX, CSV, etc.)
+- **Confluence** — Sync all pages from a Confluence Cloud space (HTML stripped to plain text, paginated)
+- **SharePoint / Microsoft 365** — Sync files from a SharePoint Online document library via Microsoft Graph API (OAuth2 client credentials, optional folder filter)
+- **Google Drive** — Sync files from a Drive folder via service account (supports native Google Docs/Sheets/Slides export + binary files)
 
 **Features:**
 - Configurable sync intervals (15 minutes to 24 hours)
 - Multiple sources per project with independent settings (splitter, chunk size)
 - Manual "Sync Now" trigger via UI or API (`POST /projects/{id}/sync/trigger`)
 - Last sync timestamp tracking
-- S3 credentials masked in API responses
-- Extensible architecture for adding Google Drive, SharePoint, and other sources
+- All credentials masked in API responses (S3 keys, Confluence tokens, SharePoint secrets, Drive service account JSON)
 
 ### Telegram & Slack Integration
 

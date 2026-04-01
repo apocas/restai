@@ -345,7 +345,7 @@ class MCPProbeRequest(BaseModel):
 
 class SyncSource(BaseModel):
     """External source configuration for knowledge base auto-sync."""
-    type: Literal["url", "s3"] = Field(description="Source type: 'url' or 's3'")
+    type: Literal["url", "s3", "confluence", "sharepoint", "gdrive"] = Field(description="Source type: 'url', 's3', 'confluence', 'sharepoint', or 'gdrive'")
     name: str = Field(max_length=200, description="User-friendly label for this source")
     # URL source
     url: Union[str, None] = Field(default=None, max_length=2000, description="Web URL to sync")
@@ -355,6 +355,20 @@ class SyncSource(BaseModel):
     s3_region: Union[str, None] = Field(default=None, max_length=50, description="AWS region")
     s3_access_key: Union[str, None] = Field(default=None, max_length=200, description="AWS access key ID")
     s3_secret_key: Union[str, None] = Field(default=None, max_length=200, description="AWS secret access key")
+    # Confluence source
+    confluence_base_url: Union[str, None] = Field(default=None, max_length=2000, description="Confluence Cloud base URL (e.g. https://yoursite.atlassian.net)")
+    confluence_space_key: Union[str, None] = Field(default=None, max_length=50, description="Confluence space key")
+    confluence_email: Union[str, None] = Field(default=None, max_length=255, description="Confluence API user email")
+    confluence_api_token: Union[str, None] = Field(default=None, max_length=1000, description="Confluence API token")
+    # SharePoint / Microsoft 365 source
+    sharepoint_tenant_id: Union[str, None] = Field(default=None, max_length=100, description="Azure AD tenant ID")
+    sharepoint_client_id: Union[str, None] = Field(default=None, max_length=100, description="Azure AD app client ID")
+    sharepoint_client_secret: Union[str, None] = Field(default=None, max_length=500, description="Azure AD app client secret")
+    sharepoint_site_name: Union[str, None] = Field(default=None, max_length=200, description="SharePoint site name (e.g. 'MySite' from yourorg.sharepoint.com/sites/MySite)")
+    sharepoint_folder: Union[str, None] = Field(default=None, max_length=500, description="Folder path filter within the document library (e.g. 'General/Docs')")
+    # Google Drive source
+    gdrive_folder_id: Union[str, None] = Field(default=None, max_length=200, description="Google Drive folder ID to sync")
+    gdrive_service_account_json: Union[str, None] = Field(default=None, max_length=10000, description="Google service account JSON key (paste full JSON)")
     # Ingestion options
     splitter: Literal["sentence", "token"] = Field(default="sentence", description="Text splitting strategy")
     chunks: int = Field(default=512, ge=32, le=8192, description="Chunk size")
