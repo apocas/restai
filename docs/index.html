@@ -373,21 +373,49 @@ footer a{color:var(--text2)}
   <div class="container" style="text-align:center">
     <span class="section-badge reveal">Quick Start</span>
     <h2 class="section-title reveal">Up and running in 30 seconds</h2>
-    <div class="quickstart reveal">
-      <pre><span class="comment"># Clone and install</span>
-git clone https://github.com/apocas/restai && cd restai
-make install
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.5rem;text-align:left;margin-bottom:2rem" class="reveal">
+      <div class="quickstart">
+        <div style="font-weight:600;margin-bottom:.8rem;color:var(--accent3);font-size:.9rem">Install from PyPI</div>
+        <pre><span class="comment"># Install</span>
+pip install restai-core
+
+<span class="comment"># Setup database</span>
+restai init
+restai migrate
+
+<span class="comment"># Start server</span>
+restai serve
+
+<span class="comment"># Open http://localhost:9000/admin</span>
+<span class="comment"># Login: admin / admin</span></pre>
+      </div>
+
+      <div class="quickstart">
+        <div style="font-weight:600;margin-bottom:.8rem;color:var(--accent3);font-size:.9rem">From Source (Development)</div>
+        <pre><span class="comment"># Clone and install</span>
+git clone https://github.com/apocas/restai
+cd restai && make install
 
 <span class="comment"># Start dev server</span>
 make dev
 
-<span class="comment"># Open http://localhost:9000/admin (admin / admin)</span></pre>
+<span class="comment"># Open http://localhost:9000/admin</span>
+<span class="comment"># Login: admin / admin</span></pre>
+      </div>
     </div>
-    <p class="reveal" style="margin-top:2rem;color:var(--text2)">
-      Or use Docker: <code style="background:var(--bg2);padding:.3rem .6rem;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.85rem">docker compose --env-file .env up --build</code>
+
+    <p class="reveal" style="color:var(--text2)">
+      With env file: <code style="background:var(--bg2);padding:.3rem .6rem;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.85rem">restai serve -e .env -p 8080 -w 4</code>
+      &nbsp;&middot;&nbsp;
+      Docker: <code style="background:var(--bg2);padding:.3rem .6rem;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.85rem">docker compose --env-file .env up --build</code>
     </p>
-    <div class="reveal" style="margin-top:2rem">
-      <a href="https://github.com/apocas/restai" class="btn btn-primary" target="_blank">
+
+    <div class="reveal" style="margin-top:2rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+      <a href="https://pypi.org/project/restai-core/" class="btn btn-primary" target="_blank">
+        PyPI Package
+      </a>
+      <a href="https://github.com/apocas/restai" class="btn btn-outline" target="_blank">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
         View on GitHub
       </a>
@@ -399,6 +427,7 @@ make dev
 <footer>
   <p>RESTai is open-source under the <a href="https://github.com/apocas/restai/blob/master/LICENSE" target="_blank">Apache 2.0 License</a></p>
   <div class="footer-badges">
+    <a href="https://pypi.org/project/restai-core/" target="_blank"><img src="https://img.shields.io/pypi/v/restai-core?color=blue&label=PyPI" alt="PyPI"></a>
     <img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python">
     <img src="https://img.shields.io/badge/license-Apache%202.0-green.svg" alt="License">
     <img src="https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker">

@@ -25,13 +25,32 @@
 
 ## Quick Start
 
+### Install from PyPI
+
+```bash
+pip install restai-core
+restai init      # Create database + admin user
+restai migrate   # Run migrations
+restai serve     # → http://localhost:9000/admin (admin / admin)
+```
+
+Use an env file for configuration:
+
+```bash
+restai serve -e .env -p 8080 -w 4
+```
+
+Available on [PyPI](https://pypi.org/project/restai-core/) — includes the pre-built React frontend, no Node.js required.
+
+### Run from source (development)
+
 ```bash
 git clone https://github.com/apocas/restai && cd restai
 make install
 make dev  # → http://localhost:9000/admin (admin / admin)
 ```
 
-**Or with Docker:**
+### Docker
 
 ```bash
 docker compose --env-file .env up --build
@@ -39,6 +58,13 @@ docker compose --env-file .env up --build
 
 ## Updating
 
+**PyPI:**
+```bash
+pip install --upgrade restai-core
+restai migrate -e .env
+```
+
+**From source:**
 ```bash
 make update
 ```
