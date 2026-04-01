@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RESTai — AI as a Service Platform</title>
+<meta name="description" content="Create AI projects and consume them via a simple REST API. RAG, Agents, Visual Logic, Inference — all in one platform with a full Web UI.">
+<meta property="og:title" content="RESTai — AI as a Service Platform">
+<meta property="og:description" content="Multi-project AI platform with RAG, Agents, MCP, Visual Logic Builder, and more. Full Web UI included.">
+<meta property="og:image" content="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/templates.png">
+<link rel="icon" href="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/restai-logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a1a;--bg2:#111128;--bg3:#1a1a3e;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+  --accent1:#6366f1;--accent2:#8b5cf6;--accent3:#06b6d4;
+  --glow:rgba(99,102,241,0.15);
+  --radius:16px;--radius-sm:10px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden}
+a{color:var(--accent3);text-decoration:none;transition:color .2s}
+a:hover{color:var(--accent1)}
+img{max-width:100%;height:auto;display:block}
+
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;backdrop-filter:blur(20px);background:rgba(10,10,26,.8);border-bottom:1px solid rgba(99,102,241,.1);transition:box-shadow .3s}
+nav.scrolled{box-shadow:0 4px 30px rgba(0,0,0,.4)}
+.nav-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:64px}
+.nav-brand{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.2rem;color:#fff}
+.nav-brand img{width:32px;height:32px}
+.nav-links{display:flex;gap:1.5rem;align-items:center}
+.nav-links a{color:var(--text2);font-size:.9rem;font-weight:500;transition:color .2s}
+.nav-links a:hover{color:#fff}
+.nav-cta{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff!important;padding:.45rem 1.2rem;border-radius:8px;font-weight:600;font-size:.85rem}
+.nav-cta:hover{opacity:.9;color:#fff}
+@media(max-width:768px){.nav-links{display:none}}
+
+/* Hero */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:8rem 2rem 4rem;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 20%,rgba(99,102,241,.15),transparent 70%),radial-gradient(ellipse 60% 50% at 80% 80%,rgba(6,182,212,.08),transparent);pointer-events:none}
+.hero-glow{position:absolute;width:600px;height:600px;border-radius:50%;filter:blur(120px);opacity:.12;animation:float 8s ease-in-out infinite}
+.hero-glow.g1{background:var(--accent1);top:-200px;left:-100px}
+.hero-glow.g2{background:var(--accent3);bottom:-200px;right:-100px;animation-delay:4s}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(30px)}}
+.hero-logo{width:100px;height:100px;margin-bottom:1.5rem;position:relative;z-index:1}
+.hero h1{font-size:clamp(2.5rem,6vw,4.5rem);font-weight:900;letter-spacing:-.03em;background:linear-gradient(135deg,#fff 30%,var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;position:relative;z-index:1}
+.hero .tagline{font-size:clamp(1rem,2.5vw,1.4rem);color:var(--text2);max-width:700px;margin:1rem auto 2rem;position:relative;z-index:1;font-weight:300}
+.hero-btns{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;position:relative;z-index:1}
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.8rem 2rem;border-radius:12px;font-weight:600;font-size:1rem;transition:all .3s;border:none;cursor:pointer}
+.btn-primary{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;box-shadow:0 4px 20px rgba(99,102,241,.3)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(99,102,241,.4);color:#fff}
+.btn-outline{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.2)}
+.btn-outline:hover{border-color:var(--accent1);background:rgba(99,102,241,.1);color:#fff}
+.hero-screenshot{margin-top:3rem;position:relative;z-index:1;max-width:1000px;border-radius:var(--radius);overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 40px var(--glow)}
+.hero-screenshot img{border-radius:var(--radius)}
+
+/* Section */
+section{padding:6rem 2rem}
+.container{max-width:1200px;margin:0 auto}
+.section-badge{display:inline-block;padding:.3rem 1rem;border-radius:20px;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;background:rgba(99,102,241,.12);color:var(--accent1);border:1px solid rgba(99,102,241,.2);margin-bottom:1rem}
+.section-title{font-size:clamp(2rem,4vw,3rem);font-weight:800;margin-bottom:1rem;letter-spacing:-.02em}
+.section-sub{font-size:1.1rem;color:var(--text2);max-width:700px;margin-bottom:3rem}
+
+/* Why cards */
+.why-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.5rem}
+.why-card{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);padding:2rem;transition:all .3s}
+.why-card:hover{border-color:rgba(99,102,241,.3);transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.why-card .icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:1rem}
+.why-card h3{font-size:1.15rem;margin-bottom:.5rem;font-weight:700}
+.why-card p{color:var(--text2);font-size:.95rem;line-height:1.6}
+
+/* Feature sections */
+.feature{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;padding:4rem 0}
+.feature.reverse{direction:rtl}.feature.reverse>*{direction:ltr}
+.feature-text .section-badge{margin-bottom:.75rem}
+.feature-text h2{font-size:1.8rem;font-weight:800;margin-bottom:1rem}
+.feature-text p{color:var(--text2);margin-bottom:1rem;font-size:1rem;line-height:1.7}
+.feature-text ul{list-style:none;margin-bottom:1rem}
+.feature-text li{position:relative;padding-left:1.5rem;margin-bottom:.5rem;color:var(--text2);font-size:.95rem}
+.feature-text li::before{content:'';position:absolute;left:0;top:.55em;width:8px;height:8px;border-radius:50%;background:var(--accent1)}
+.feature-img{border-radius:var(--radius);overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.4),0 0 20px var(--glow);transition:transform .3s}
+.feature-img:hover{transform:scale(1.02)}
+.feature-img img{border-radius:var(--radius)}
+@media(max-width:900px){
+  .feature{grid-template-columns:1fr;gap:2rem}
+  .feature.reverse{direction:ltr}
+}
+
+/* LLM grid */
+.llm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem}
+.llm-card{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius-sm);padding:1.2rem;text-align:center;transition:all .3s}
+.llm-card:hover{border-color:rgba(99,102,241,.3);transform:translateY(-2px)}
+.llm-card .name{font-weight:700;font-size:1rem;margin-bottom:.2rem}
+.llm-card .type{color:var(--text3);font-size:.8rem}
+
+/* Quick start */
+.quickstart{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);padding:2.5rem;max-width:700px;margin:0 auto}
+.quickstart pre{background:var(--bg);border-radius:var(--radius-sm);padding:1.5rem;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:.9rem;line-height:1.8;color:var(--accent3)}
+.quickstart .comment{color:var(--text3)}
+
+/* Footer */
+footer{border-top:1px solid rgba(255,255,255,.06);padding:3rem 2rem;text-align:center;color:var(--text3);font-size:.9rem}
+footer a{color:var(--text2)}
+.footer-badges{display:flex;gap:.5rem;justify-content:center;margin-top:1rem;flex-wrap:wrap}
+
+/* Animations */
+.reveal{opacity:0;transform:translateY(40px);transition:opacity .7s ease,transform .7s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* Dual image */
+.feature-img-dual{display:grid;grid-template-columns:1fr;gap:1rem}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav id="navbar">
+  <div class="nav-inner">
+    <a href="#" class="nav-brand">
+      <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/restai-logo.png" alt="RESTai">
+      RESTai
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#llms">LLMs</a>
+      <a href="#quickstart">Get Started</a>
+      <a href="https://github.com/apocas/restai" class="nav-cta" target="_blank">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-glow g1"></div>
+  <div class="hero-glow g2"></div>
+  <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/restai-logo.png" alt="RESTai" class="hero-logo">
+  <h1>RESTai</h1>
+  <p class="tagline">AIaaS (AI as a Service) — Create AI projects and consume them via a simple REST API. RAG, Agents, Visual Logic, Inference — all in one platform.</p>
+  <div class="hero-btns">
+    <a href="https://github.com/apocas/restai" class="btn btn-primary" target="_blank">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+      Get Started
+    </a>
+    <a href="#features" class="btn btn-outline">Explore Features</a>
+  </div>
+  <div class="hero-screenshot reveal">
+    <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/templates.png" alt="RESTai Dashboard">
+  </div>
+</section>
+
+<!-- Why RESTai -->
+<section id="why">
+  <div class="container">
+    <div class="reveal" style="text-align:center;margin-bottom:3rem">
+      <span class="section-badge">Why RESTai?</span>
+      <h2 class="section-title">Everything you need to deploy AI</h2>
+      <p class="section-sub" style="margin:1rem auto 0">A complete AI platform — not just another wrapper. Full Web UI, analytics, security, and enterprise features out of the box.</p>
+    </div>
+    <div class="why-grid">
+      <div class="why-card reveal">
+        <div class="icon" style="background:rgba(99,102,241,.15);color:var(--accent1)">&#9881;</div>
+        <h3>Multi-Project Platform</h3>
+        <p>RAG with SQL-to-NL and auto-sync, Agents with MCP tools, Block visual logic, and direct Inference — all project types in one platform.</p>
+      </div>
+      <div class="why-card reveal">
+        <div class="icon" style="background:rgba(6,182,212,.15);color:var(--accent3)">&#128200;</div>
+        <h3>Full Web UI + Analytics</h3>
+        <p>React dashboard with token tracking, cost analytics, latency monitoring, and per-project usage charts. Not just an API.</p>
+      </div>
+      <div class="why-card reveal">
+        <div class="icon" style="background:rgba(139,92,246,.15);color:var(--accent2)">&#129302;</div>
+        <h3>Any LLM Provider</h3>
+        <p>OpenAI, Anthropic, Ollama, Gemini, Groq, LiteLLM, vLLM, Azure, and any OpenAI-compatible endpoint.</p>
+      </div>
+      <div class="why-card reveal">
+        <div class="icon" style="background:rgba(34,197,94,.15);color:#22c55e">&#128274;</div>
+        <h3>Enterprise Security</h3>
+        <p>Teams, RBAC, OAuth/LDAP/OIDC, TOTP 2FA, input/output guardrails, audit logging, and per-project rate limiting.</p>
+      </div>
+      <div class="why-card reveal">
+        <div class="icon" style="background:rgba(251,146,60,.15);color:#fb923c">&#128268;</div>
+        <h3>Extensible Tools (MCP)</h3>
+        <p>Model Context Protocol support for unlimited agent integrations. Connect any MCP server via HTTP/SSE or stdio.</p>
+      </div>
+      <div class="why-card reveal">
+        <div class="icon" style="background:rgba(236,72,153,.15);color:#ec4899">&#127912;</div>
+        <h3>White-Label Branding</h3>
+        <p>Custom logos, colors, and app names per team. Built-in knowledge sync from S3, Confluence, SharePoint, and Google Drive.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+  <div class="container">
+
+    <!-- Dashboard -->
+    <div class="feature reveal">
+      <div class="feature-text">
+        <span class="section-badge">Analytics</span>
+        <h2>Dashboard & Analytics</h2>
+        <p>Track token usage, costs, latency, and project activity from a centralized dashboard. Daily charts for tokens, costs, and response latency per project — identify performance regressions at a glance.</p>
+      </div>
+      <div class="feature-img">
+        <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/home.png" alt="RESTai Dashboard">
+      </div>
+    </div>
+
+    <!-- RAG -->
+    <div class="feature reverse reveal">
+      <div class="feature-text">
+        <span class="section-badge">Knowledge</span>
+        <h2>RAG — Retrieval-Augmented Generation</h2>
+        <p>Upload documents and query them with LLM-powered retrieval. Multiple vector stores, ColBERT and LLM-based reranking, and natural language to SQL.</p>
+        <ul>
+          <li>ChromaDB, PGVector, Weaviate, Pinecone</li>
+          <li>Auto-sync from S3, Confluence, SharePoint, Google Drive</li>
+          <li>Smart chunking analytics with recommendations</li>
+          <li>Built-in evaluation framework with DeepEval</li>
+        </ul>
+      </div>
+      <div class="feature-img-dual">
+        <div class="feature-img"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/rag.png" alt="RESTai RAG"></div>
+        <div class="feature-img"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/analytics.png" alt="RESTai Analytics"></div>
+      </div>
+    </div>
+
+    <!-- Agents -->
+    <div class="feature reveal">
+      <div class="feature-text">
+        <span class="section-badge">Agents</span>
+        <h2>Agents + MCP</h2>
+        <p>Zero-shot ReAct agents with built-in tools and MCP (Model Context Protocol) server support. Connect any MCP-compatible server via HTTP/SSE or stdio for unlimited tool access.</p>
+      </div>
+      <div class="feature-img">
+        <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/agent.png" alt="RESTai Agent">
+      </div>
+    </div>
+
+    <!-- Playground -->
+    <div class="feature reverse reveal">
+      <div class="feature-text">
+        <span class="section-badge">Playground</span>
+        <h2>Projects & Chat Playground</h2>
+        <p>Create and manage AI projects with their own LLM, system prompt, tools, and configuration. Test instantly in the built-in chat playground with streaming responses and multimodal support.</p>
+      </div>
+      <div class="feature-img">
+        <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/playground.png" alt="RESTai Playground">
+      </div>
+    </div>
+
+    <!-- Block -->
+    <div class="feature reveal">
+      <div class="feature-text">
+        <span class="section-badge">Visual Logic</span>
+        <h2>Block — Visual Logic Builder</h2>
+        <p>Build processing logic visually using a Blockly-based IDE — no LLM required. Drag-and-drop blocks to define how input is transformed into output. Use the "Call Project" block to compose AI pipelines.</p>
+      </div>
+      <div class="feature-img">
+        <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/block.png" alt="RESTai Block IDE">
+      </div>
+    </div>
+
+    <!-- Eval -->
+    <div class="feature reverse reveal">
+      <div class="feature-text">
+        <span class="section-badge">Quality</span>
+        <h2>Evaluation Framework</h2>
+        <p>Built-in evaluation system to measure and track AI project quality over time. Create test datasets, run evaluations with multiple metrics, and visualize score trends.</p>
+        <ul>
+          <li>Answer Relevancy — is the answer relevant?</li>
+          <li>Faithfulness — is it grounded in context? (RAG)</li>
+          <li>Correctness — does it match expected output?</li>
+        </ul>
+      </div>
+      <div class="feature-img">
+        <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/eval.png" alt="RESTai Evaluation">
+      </div>
+    </div>
+
+    <!-- Prompts -->
+    <div class="feature reveal">
+      <div class="feature-text">
+        <span class="section-badge">Versioning</span>
+        <h2>Prompt Versioning</h2>
+        <p>Every system prompt change is automatically versioned. Browse history, compare versions, and restore any previous prompt. Eval runs link to prompt versions for A/B comparison.</p>
+      </div>
+      <div class="feature-img">
+        <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/prompts.png" alt="RESTai Prompt Versioning">
+      </div>
+    </div>
+
+    <!-- Image Gen -->
+    <div class="feature reverse reveal">
+      <div class="feature-text">
+        <span class="section-badge">GPU</span>
+        <h2>Image Generation</h2>
+        <p>Local and remote image generators loaded dynamically. Supports Stable Diffusion, Flux, DALL-E, RMBG2, and more. Auto-detects NVIDIA GPUs with detailed hardware monitoring.</p>
+      </div>
+      <div class="feature-img">
+        <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/image.png" alt="RESTai Image Generation">
+      </div>
+    </div>
+
+    <!-- Teams & Branding -->
+    <div class="feature reveal">
+      <div class="feature-text">
+        <span class="section-badge">Enterprise</span>
+        <h2>Teams, Branding & Security</h2>
+        <p>Multi-tenant with teams, RBAC, custom branding per team (white-labeling), TOTP 2FA, input/output guardrails, and a full audit log.</p>
+        <ul>
+          <li>Custom logos, colors, and app names per team</li>
+          <li>OAuth, LDAP, OIDC single sign-on</li>
+          <li>TOTP 2FA with admin enforcement</li>
+          <li>Full audit trail for all mutations</li>
+        </ul>
+      </div>
+      <div class="feature-img-dual">
+        <div class="feature-img"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/branding.png" alt="RESTai Branding"></div>
+        <div class="feature-img"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/audit.png" alt="RESTai Audit"></div>
+      </div>
+    </div>
+
+    <!-- Knowledge Sync -->
+    <div class="feature reverse reveal">
+      <div class="feature-text">
+        <span class="section-badge">Auto-Sync</span>
+        <h2>Knowledge Base Sync</h2>
+        <p>Automatically keep your RAG knowledge base up-to-date by syncing from external sources on a schedule. Configure per project with independent settings.</p>
+        <ul>
+          <li>Web URLs — re-scrape pages automatically</li>
+          <li>Amazon S3 — sync documents from buckets</li>
+          <li>Confluence — sync space pages</li>
+          <li>SharePoint — sync via Microsoft Graph</li>
+          <li>Google Drive — sync via service account</li>
+        </ul>
+      </div>
+      <div class="feature-img">
+        <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/teams.png" alt="RESTai Teams">
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- LLMs -->
+<section id="llms" style="background:var(--bg2)">
+  <div class="container" style="text-align:center">
+    <span class="section-badge reveal">Providers</span>
+    <h2 class="section-title reveal">Any LLM Provider</h2>
+    <p class="section-sub reveal" style="margin:1rem auto 3rem">Any LLM supported by LlamaIndex. Configurable context windows with automatic chat memory management.</p>
+    <div class="llm-grid reveal">
+      <div class="llm-card"><div class="name">Ollama</div><div class="type">chat / vision</div></div>
+      <div class="llm-card"><div class="name">OpenAI</div><div class="type">chat</div></div>
+      <div class="llm-card"><div class="name">Anthropic</div><div class="type">chat</div></div>
+      <div class="llm-card"><div class="name">Google Gemini</div><div class="type">chat / vision</div></div>
+      <div class="llm-card"><div class="name">Groq</div><div class="type">chat</div></div>
+      <div class="llm-card"><div class="name">Grok (xAI)</div><div class="type">chat</div></div>
+      <div class="llm-card"><div class="name">LiteLLM</div><div class="type">chat</div></div>
+      <div class="llm-card"><div class="name">vLLM</div><div class="type">chat</div></div>
+      <div class="llm-card"><div class="name">Azure OpenAI</div><div class="type">chat</div></div>
+      <div class="llm-card"><div class="name">OpenAI-Compatible</div><div class="type">chat</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Quick Start -->
+<section id="quickstart">
+  <div class="container" style="text-align:center">
+    <span class="section-badge reveal">Quick Start</span>
+    <h2 class="section-title reveal">Up and running in 30 seconds</h2>
+    <div class="quickstart reveal">
+      <pre><span class="comment"># Clone and install</span>
+git clone https://github.com/apocas/restai && cd restai
+make install
+
+<span class="comment"># Start dev server</span>
+make dev
+
+<span class="comment"># Open http://localhost:9000/admin (admin / admin)</span></pre>
+    </div>
+    <p class="reveal" style="margin-top:2rem;color:var(--text2)">
+      Or use Docker: <code style="background:var(--bg2);padding:.3rem .6rem;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.85rem">docker compose --env-file .env up --build</code>
+    </p>
+    <div class="reveal" style="margin-top:2rem">
+      <a href="https://github.com/apocas/restai" class="btn btn-primary" target="_blank">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <p>RESTai is open-source under the <a href="https://github.com/apocas/restai/blob/master/LICENSE" target="_blank">Apache 2.0 License</a></p>
+  <div class="footer-badges">
+    <img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python">
+    <img src="https://img.shields.io/badge/license-Apache%202.0-green.svg" alt="License">
+    <img src="https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker">
+    <img src="https://img.shields.io/badge/kubernetes-ready-326CE5?logo=kubernetes&logoColor=white" alt="K8s">
+  </div>
+</footer>
+
+<script>
+// Sticky nav shadow
+const nav = document.getElementById('navbar');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 10);
+});
+
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
