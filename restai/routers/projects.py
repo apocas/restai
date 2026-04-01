@@ -1503,6 +1503,207 @@ async def get_source_analytics(
     }
 
 
+def _nearest_chunk_size(token_count: int) -> int:
+    """Snap a token count to the nearest standard chunk size."""
+    standard_sizes = [64, 128, 256, 512, 1024, 2048]
+    return min(standard_sizes, key=lambda s: abs(s - token_count))
+
+
+@router.get("/projects/{projectID}/analytics/chunking", tags=["Statistics"])
+async def get_chunking_analytics(
+    request: Request,
+    projectID: int = PathParam(description="Project ID"),
+    days: int = Query(30, ge=1, le=365, description="Number of days to look back"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Analyze chunk size distributions and retrieval patterns to recommend optimal chunk sizes."""
+    import datetime as dt
+    from restai.models.databasemodels import RetrievalEventDatabase
+    from restai.tools import tokens_from_string
+
+    project = get_project(projectID, db_wrapper, request.app.state.brain)
+    if project.props.type != "rag":
+        raise HTTPException(status_code=400, detail="Chunking analytics only available for RAG projects")
+
+    MAX_CHUNKS = 50000
+    truncated = False
+
+    # Part A: Vectorstore chunk size distribution
+    all_chunks = []
+    if project.vector:
+        try:
+            all_chunks = project.vector.list_all_chunks(limit=MAX_CHUNKS)
+            if len(all_chunks) >= MAX_CHUNKS:
+                truncated = True
+        except Exception:
+            pass
+
+    chunk_token_lengths = []
+    for chunk in all_chunks:
+        text = chunk.get("text", "")
+        if text:
+            try:
+                tl = tokens_from_string(text)
+            except Exception:
+                tl = len(text) // 4
+            chunk_token_lengths.append(tl)
+
+    buckets = [0, 64, 128, 256, 512, 1024, 2048]
+    bucket_labels = []
+    bucket_counts = []
+    for i in range(len(buckets) - 1):
+        low, high = buckets[i], buckets[i + 1]
+        label = f"{low}-{high}"
+        count = sum(1 for tl in chunk_token_lengths if low <= tl < high)
+        bucket_labels.append(label)
+        bucket_counts.append(count)
+    overflow = sum(1 for tl in chunk_token_lengths if tl >= buckets[-1])
+    if overflow or not bucket_labels:
+        bucket_labels.append(f"{buckets[-1]}+")
+        bucket_counts.append(overflow)
+
+    total_chunks_count = len(chunk_token_lengths)
+    avg_chunk_tokens = round(sum(chunk_token_lengths) / max(total_chunks_count, 1))
+    sorted_lengths = sorted(chunk_token_lengths)
+    median_chunk_tokens = sorted_lengths[total_chunks_count // 2] if sorted_lengths else 0
+
+    # Part B: Retrieval event analysis
+    since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)
+
+    retrieval_rows = (
+        db_wrapper.db.query(
+            RetrievalEventDatabase.chunk_id,
+            RetrievalEventDatabase.chunk_token_length,
+            RetrievalEventDatabase.score,
+        )
+        .filter(
+            RetrievalEventDatabase.project_id == projectID,
+            RetrievalEventDatabase.date >= since,
+        )
+        .all()
+    )
+
+    retrieved_chunk_ids = set()
+    retrieved_token_lengths = []
+    retrieved_scores = []
+    for row in retrieval_rows:
+        if row.chunk_id:
+            retrieved_chunk_ids.add(row.chunk_id)
+        if row.chunk_token_length:
+            retrieved_token_lengths.append(row.chunk_token_length)
+        if row.score is not None:
+            retrieved_scores.append(row.score)
+
+    ret_bucket_counts = []
+    for i in range(len(buckets) - 1):
+        low, high = buckets[i], buckets[i + 1]
+        count = sum(1 for tl in retrieved_token_lengths if low <= tl < high)
+        ret_bucket_counts.append(count)
+    ret_bucket_counts.append(sum(1 for tl in retrieved_token_lengths if tl >= buckets[-1]))
+
+    avg_retrieved_tokens = round(sum(retrieved_token_lengths) / max(len(retrieved_token_lengths), 1)) if retrieved_token_lengths else None
+    avg_score = round(sum(retrieved_scores) / max(len(retrieved_scores), 1), 3) if retrieved_scores else None
+
+    score_by_bucket = []
+    for i in range(len(buckets) - 1):
+        low, high = buckets[i], buckets[i + 1]
+        scores_in_bucket = [
+            row.score for row in retrieval_rows
+            if row.chunk_token_length and low <= row.chunk_token_length < high and row.score is not None
+        ]
+        score_by_bucket.append({
+            "bucket": f"{low}-{high}",
+            "avg_score": round(sum(scores_in_bucket) / len(scores_in_bucket), 3) if scores_in_bucket else None,
+            "count": len(scores_in_bucket),
+        })
+
+    all_chunk_ids = {c["id"] for c in all_chunks}
+    never_retrieved_chunks = len(all_chunk_ids - retrieved_chunk_ids) if all_chunk_ids else 0
+    retrieval_rate = round(len(retrieved_chunk_ids) / max(len(all_chunk_ids), 1), 3) if all_chunk_ids else 0
+
+    # Part C: Recommendations
+    recommendations = []
+
+    if avg_retrieved_tokens and avg_chunk_tokens:
+        ratio = avg_retrieved_tokens / avg_chunk_tokens
+        if ratio < 0.7:
+            suggested = _nearest_chunk_size(avg_retrieved_tokens)
+            recommendations.append({
+                "type": "reduce_chunk_size",
+                "severity": "high" if ratio < 0.5 else "medium",
+                "message": (
+                    f"Your average chunk is {avg_chunk_tokens} tokens, but retrieved chunks "
+                    f"average {avg_retrieved_tokens} tokens. Consider using {suggested}-token chunks "
+                    f"for better precision."
+                ),
+                "suggested_chunk_size": suggested,
+            })
+        elif ratio > 1.3:
+            suggested = _nearest_chunk_size(avg_retrieved_tokens)
+            recommendations.append({
+                "type": "increase_chunk_size",
+                "severity": "medium",
+                "message": (
+                    f"Retrieved chunks average {avg_retrieved_tokens} tokens, larger than your "
+                    f"typical chunk of {avg_chunk_tokens} tokens. Consider increasing to "
+                    f"{suggested} tokens for more context per retrieval."
+                ),
+                "suggested_chunk_size": suggested,
+            })
+
+    if retrieval_rate < 0.3 and total_chunks_count > 10:
+        recommendations.append({
+            "type": "low_retrieval_rate",
+            "severity": "medium",
+            "message": (
+                f"Only {round(retrieval_rate * 100)}% of chunks have been retrieved in the last "
+                f"{days} days. Many chunks may be redundant or poorly sized."
+            ),
+        })
+
+    best_bucket = max(
+        (b for b in score_by_bucket if b["avg_score"] is not None and b["count"] >= 3),
+        key=lambda b: b["avg_score"],
+        default=None,
+    )
+    if best_bucket:
+        recommendations.append({
+            "type": "best_scoring_range",
+            "severity": "info",
+            "message": (
+                f"Chunks in the {best_bucket['bucket']} token range have the highest average "
+                f"retrieval score ({best_bucket['avg_score']}). Consider targeting this range."
+            ),
+        })
+
+    return {
+        "total_chunks": total_chunks_count,
+        "truncated": truncated,
+        "avg_chunk_tokens": avg_chunk_tokens,
+        "median_chunk_tokens": median_chunk_tokens,
+        "size_distribution": {
+            "buckets": bucket_labels,
+            "counts": bucket_counts,
+        },
+        "retrieval_analysis": {
+            "total_retrievals": len(retrieval_rows),
+            "unique_chunks_retrieved": len(retrieved_chunk_ids),
+            "retrieval_rate": retrieval_rate,
+            "never_retrieved_chunks": never_retrieved_chunks,
+            "avg_retrieved_tokens": avg_retrieved_tokens,
+            "avg_score": avg_score,
+            "size_distribution": {
+                "buckets": bucket_labels,
+                "counts": ret_bucket_counts,
+            },
+            "score_by_size": score_by_bucket,
+        },
+        "recommendations": recommendations,
+        "days": days,
+    }
+
+
 @router.get("/projects/{projectID}/analytics/conversations", tags=["Statistics"])
 async def get_conversation_analytics(
     projectID: int = PathParam(description="Project ID"),

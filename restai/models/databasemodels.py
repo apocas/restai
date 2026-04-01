@@ -253,6 +253,9 @@ class RetrievalEventDatabase(Base):
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
     source = Column(String(500), nullable=False, index=True)
     score = Column(Float, nullable=True)
+    chunk_id = Column(String(255), nullable=True, index=True)
+    chunk_token_length = Column(Integer, nullable=True)
+    chunk_text_length = Column(Integer, nullable=True)
     date = Column(DateTime, nullable=False, index=True)
 
 

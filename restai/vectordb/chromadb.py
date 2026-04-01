@@ -130,3 +130,15 @@ class ChromaDBVector(VectorBase):
     def reset(self, brain):
         self.db.delete_collection(name=self.project.props.name)
         self.index = self._vector_init(brain)
+
+    def list_all_chunks(self, limit=50000):
+        output = []
+        collection = self.db.get_or_create_collection(self.project.props.name)
+        docs = collection.get(include=["metadatas", "documents"])
+        for i, doc_id in enumerate(docs["ids"][:limit]):
+            output.append({
+                "id": doc_id,
+                "source": docs["metadatas"][i].get("source", "") if docs["metadatas"] else "",
+                "text": docs["documents"][i] if docs["documents"] else "",
+            })
+        return output

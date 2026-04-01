@@ -162,3 +162,21 @@ class PineconeDB(VectorBase):
     def reset(self, brain: Brain):
         self.delete()
         self.index = self._vector_init(brain)
+
+    def list_all_chunks(self, limit=50000):
+        output = []
+        try:
+            for ids_batch in self.pinecone_index.list(namespace=self.namespace):
+                fetched = self.pinecone_index.fetch(ids=ids_batch, namespace=self.namespace)
+                for vid, vec in fetched.vectors.items():
+                    meta = vec.metadata or {}
+                    output.append({
+                        "id": vid,
+                        "source": meta.get("source", ""),
+                        "text": meta.get("text", ""),
+                    })
+                    if len(output) >= limit:
+                        return output
+        except Exception:
+            pass
+        return output

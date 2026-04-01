@@ -275,11 +275,25 @@ def log_retrieval_events(project, sources, db):
     for src in sources:
         source_name = src.get("source", "") if isinstance(src, dict) else str(src)
         score = src.get("score") if isinstance(src, dict) else None
+        chunk_id = src.get("id") if isinstance(src, dict) else None
+        chunk_text = src.get("text", "") if isinstance(src, dict) else ""
+
+        chunk_text_length = len(chunk_text) if chunk_text else None
+        chunk_token_length = None
+        if chunk_text:
+            try:
+                chunk_token_length = tokens_from_string(chunk_text)
+            except Exception:
+                pass
+
         if source_name:
             db.db.add(RetrievalEventDatabase(
                 project_id=project.props.id,
                 source=source_name,
                 score=score,
+                chunk_id=chunk_id,
+                chunk_token_length=chunk_token_length,
+                chunk_text_length=chunk_text_length,
                 date=now,
             ))
     db.db.commit()

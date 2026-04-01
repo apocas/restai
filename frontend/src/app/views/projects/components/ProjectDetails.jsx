@@ -8,6 +8,7 @@ import RAGRetrieval from "./RAGRetrieval";
 import ProjectBlock from "./ProjectBlock";
 import ProjectAnalytics from "./ProjectAnalytics";
 import ProjectSourceAnalytics from "./ProjectSourceAnalytics";
+import ProjectChunkingAnalytics from "./ProjectChunkingAnalytics";
 import { useState, useEffect } from "react";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
@@ -59,6 +60,9 @@ export default function ProjectDetails({ project, projects, info }) {
             </Grid>
             <Grid item lg={12} md={12} xs={12}>
               <ProjectSourceAnalytics project={project} />
+            </Grid>
+            <Grid item lg={12} md={12} xs={12}>
+              <ProjectChunkingAnalytics project={project} />
             </Grid>
           </>
         )}

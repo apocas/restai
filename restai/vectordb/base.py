@@ -50,3 +50,8 @@ class VectorBase(ABC):
     @abstractmethod
     def reset(self, brain):
         pass
+
+    def list_all_chunks(self, limit=50000):
+        """Return all chunks with id, source, and text for analytics.
+        Returns list of {"id": str, "source": str, "text": str}"""
+        return []

@@ -180,3 +180,19 @@ class WeaviateDB(VectorBase):
     def reset(self, brain: Brain):
         self.delete()
         self.index = self._vector_init(brain)
+
+    def list_all_chunks(self, limit=50000):
+        output = []
+        try:
+            collection = self._get_collection()
+            for obj in collection.iterator(return_properties=["source", "text"]):
+                output.append({
+                    "id": str(obj.uuid),
+                    "source": obj.properties.get("source", ""),
+                    "text": obj.properties.get("text", ""),
+                })
+                if len(output) >= limit:
+                    break
+        except Exception:
+            pass
+        return output

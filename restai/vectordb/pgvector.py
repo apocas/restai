@@ -220,3 +220,19 @@ class PGVectorDB(VectorBase):
     def reset(self, brain: Brain):
         self.delete()
         self.index = self._vector_init(brain)
+
+    def list_all_chunks(self, limit=50000):
+        output = []
+        engine = self._get_engine()
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    f"SELECT node_id, metadata_->>'source' AS source, text "
+                    f'FROM public."{self.table_name}" '
+                    f"LIMIT {int(limit)}"
+                )
+            )
+            for row in rows:
+                output.append({"id": row[0], "source": row[1] or "", "text": row[2] or ""})
+        engine.dispose()
+        return output
