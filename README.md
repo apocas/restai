@@ -243,6 +243,14 @@ Enable per-project response caching to speed up repeated or similar questions. U
 
 Works across all project types. Cache is automatically invalidated when the knowledge base changes (document ingestion or deletion). Configurable similarity threshold (default 0.85). Clear cache anytime via the project details page or API.
 
+### Audit Log
+
+Every mutation (create, update, delete) across the platform is automatically logged — who did what, when, and which resource was affected. Admins can review the full audit trail from the admin dashboard.
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/audit.png" width="750" alt="RESTai Audit Log"/>
+</div>
+
 ### Rate Limiting
 
 Set per-project request limits to prevent abuse and control costs. Configure the maximum number of requests per minute in the project edit page. Returns HTTP 429 when the limit is exceeded.
