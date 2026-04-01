@@ -344,6 +344,24 @@ footer a{color:var(--text2)}
       </div>
     </div>
 
+    <!-- Direct Access -->
+    <div class="feature reveal">
+      <div class="feature-text">
+        <span class="section-badge">OpenAI-Compatible</span>
+        <h2>Direct Access API</h2>
+        <p>Use LLMs, image generators, and audio transcription directly via OpenAI-compatible endpoints — no project required. Team-level permissions control access, and all usage counts toward budgets.</p>
+        <ul>
+          <li><code>POST /v1/chat/completions</code> — Chat with any LLM (streaming supported)</li>
+          <li><code>POST /v1/images/generations</code> — Generate images via DALL-E, Flux, SD, etc.</li>
+          <li><code>POST /v1/audio/transcriptions</code> — Transcribe audio files</li>
+        </ul>
+        <p style="margin-top:1rem;color:var(--text2);font-size:.9rem">Works with any OpenAI-compatible SDK — just point <code>base_url</code> to your RESTai instance.</p>
+      </div>
+      <div class="feature-img">
+        <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/directaccess.png" alt="RESTai Direct Access">
+      </div>
+    </div>
+
   </div>
 </section>
 
