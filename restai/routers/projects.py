@@ -62,6 +62,18 @@ import shutil
 
 _SENSITIVE_OPTION_KEYS = ("telegram_token", "slack_bot_token", "slack_app_token", "connection")
 
+def _mask_sync_sources(options: dict):
+    """Mask S3 credentials inside sync_sources list."""
+    sources = options.get("sync_sources")
+    if not sources or not isinstance(sources, list):
+        return
+    for src in sources:
+        if isinstance(src, dict):
+            for key in ("s3_access_key", "s3_secret_key"):
+                val = src.get(key)
+                if val:
+                    src[key] = mask_key(val)
+
 logging.basicConfig(level=config.LOG_LEVEL)
 
 router = APIRouter()
@@ -119,6 +131,7 @@ async def route_get_projects(
                 val = project_dict["options"].get(key)
                 if val:
                     project_dict["options"][key] = mask_key(val)
+            _mask_sync_sources(project_dict["options"])
 
         serialized_projects.append(project_dict)
 
@@ -328,6 +341,7 @@ async def route_get_project(
                 val = final_output["options"].get(key)
                 if val:
                     final_output["options"][key] = mask_key(val)
+            _mask_sync_sources(final_output["options"])
 
         del project
 
@@ -470,6 +484,15 @@ async def route_edit_project(
             val = getattr(projectModelUpdate.options, key, None)
             if val and val.startswith("****"):
                 setattr(projectModelUpdate.options, key, existing_opts.get(key))
+        # Restore masked S3 credentials in sync sources
+        if projectModelUpdate.options.sync_sources and existing_opts.get("sync_sources"):
+            existing_sources = {s.get("name"): s for s in existing_opts["sync_sources"] if isinstance(s, dict)}
+            for src in projectModelUpdate.options.sync_sources:
+                for key in ("s3_access_key", "s3_secret_key"):
+                    val = getattr(src, key, None)
+                    if val and val.startswith("****"):
+                        existing_src = existing_sources.get(src.name, {})
+                        setattr(src, key, existing_src.get(key))
 
     # Attach user ID for prompt version tracking
     projectModelUpdate._user_id = user.id
@@ -507,6 +530,15 @@ async def route_edit_project(
                         logging.warning(f"Failed to start Slack bot for project {projectID}: {e}")
                 else:
                     stop_slack_bot(projectID)
+
+                # Start/stop sync worker based on sync config changes
+                from restai.sync import start_sync, stop_sync
+                sync_enabled = saved_opts.get("sync_enabled")
+                sync_sources = saved_opts.get("sync_sources")
+                if sync_enabled and sync_sources:
+                    start_sync(projectID, request.app)
+                else:
+                    stop_sync(projectID)
 
             return {"project": projectID}
         else:
@@ -1701,6 +1733,45 @@ async def get_chunking_analytics(
         },
         "recommendations": recommendations,
         "days": days,
+    }
+
+
+@router.post("/projects/{projectID}/sync/trigger", tags=["Knowledge"])
+async def trigger_sync(
+    request: Request,
+    projectID: int = PathParam(description="Project ID"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Manually trigger a knowledge base sync now."""
+    project = get_project(projectID, db_wrapper, request.app.state.brain)
+    if project.props.type != "rag":
+        raise HTTPException(status_code=400, detail="Sync only available for RAG projects")
+    opts = project.props.options
+    if not opts or not opts.sync_sources:
+        raise HTTPException(status_code=400, detail="No sync sources configured")
+
+    from restai.sync import run_sync_now
+    run_sync_now(projectID, request.app)
+    return {"message": "Sync triggered"}
+
+
+@router.get("/projects/{projectID}/sync/status", tags=["Knowledge"])
+async def get_sync_status(
+    request: Request,
+    projectID: int = PathParam(description="Project ID"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get sync status for a project."""
+    project = get_project(projectID, db_wrapper, request.app.state.brain)
+    opts = project.props.options
+    from restai.sync import is_sync_running
+    return {
+        "enabled": bool(opts.sync_enabled) if opts else False,
+        "running": is_sync_running(projectID),
+        "last_sync": opts.last_sync if opts else None,
+        "sources": len(opts.sync_sources) if opts and opts.sync_sources else 0,
     }
 
 

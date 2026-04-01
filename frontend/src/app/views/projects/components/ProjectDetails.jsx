@@ -1,94 +1,46 @@
+import { useState } from "react";
 import { Fade, Grid } from "@mui/material";
+import { Info, Storage, Shield, BarChart } from "@mui/icons-material";
 
 import ProjectInfo from "./ProjectInfo";
-import ProjectTokens from "./ProjectTokens";
-import RAGUpload from "./RAGUpload";
-import RAGBrowser from "./RAGBrowser";
-import RAGRetrieval from "./RAGRetrieval";
-import ProjectBlock from "./ProjectBlock";
-import ProjectAnalytics from "./ProjectAnalytics";
-import ProjectSourceAnalytics from "./ProjectSourceAnalytics";
-import ProjectChunkingAnalytics from "./ProjectChunkingAnalytics";
-import { useState, useEffect } from "react";
-import useAuth from "app/hooks/useAuth";
-import api from "app/utils/api";
+import ProjectTabNav from "./ProjectTabNav";
+import ProjectInfoGeneral from "./ProjectInfoGeneral";
+import ProjectInfoKnowledge from "./ProjectInfoKnowledge";
+import ProjectInfoSecurity from "./ProjectInfoSecurity";
+import ProjectInfoAnalytics from "./ProjectInfoAnalytics";
+
+const ALL_TABS = [
+  { name: "General", Icon: Info },
+  { name: "Knowledge", Icon: Storage, ragOnly: true },
+  { name: "Security", Icon: Shield },
+  { name: "Analytics", Icon: BarChart },
+];
 
 export default function ProjectDetails({ project, projects, info }) {
-  const auth = useAuth();
-  const [tokens, setTokens] = useState({ "tokens": [] });
+  const [active, setActive] = useState("General");
 
-  const now = new Date();
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
-
-  const fetchTokens = (year, month) => {
-    const params = new URLSearchParams({ year, month });
-    return api.get("/projects/" + project.id + "/tokens/daily?" + params.toString(), auth.user.token, { silent: true })
-      .then((d) => setTokens(d.tokens))
-      .catch((err) => {
-        console.log(err.toString());
-      });
-  }
-
-  useEffect(() => {
-    if (project.name) {
-      fetchTokens(selectedYear, selectedMonth);
-    }
-  }, [project, selectedYear, selectedMonth]);
+  const tabs = ALL_TABS.filter((t) => !t.ragOnly || project.type === "rag");
 
   return (
     <Fade in timeout={300}>
-      <Grid container spacing={3}>
-        {/* Hero section — full width */}
-        <Grid item xs={12}>
-          <ProjectInfo project={project} projects={projects} info={info} />
-        </Grid>
+      <div>
+        {/* Hero header — always visible */}
+        <ProjectInfo project={project} projects={projects} info={info} />
 
-        {/* Type-specific cards */}
-        {project.type === "rag" && (
-          <>
-            <Grid item lg={4} md={6} xs={12}>
-              <RAGUpload project={project} />
-            </Grid>
-            {project.chunks < 30000 && (
-              <Grid item lg={12} md={12} xs={12}>
-                <RAGBrowser project={project} />
-              </Grid>
-            )}
-            <Grid item lg={12} md={12} xs={12}>
-              <RAGRetrieval project={project} />
-            </Grid>
-            <Grid item lg={12} md={12} xs={12}>
-              <ProjectSourceAnalytics project={project} />
-            </Grid>
-            <Grid item lg={12} md={12} xs={12}>
-              <ProjectChunkingAnalytics project={project} />
-            </Grid>
-          </>
-        )}
-        {project.type === "block" && (
-          <Grid item lg={4} md={6} xs={12}>
-            <ProjectBlock project={project} />
+        {/* Tabbed content */}
+        <Grid container spacing={3}>
+          <Grid item md={2} xs={12}>
+            <ProjectTabNav tabs={tabs} active={active} setActive={setActive} />
           </Grid>
-        )}
 
-        {/* Analytics */}
-        <Grid item lg={12} md={12} xs={12}>
-          <ProjectAnalytics project={project} />
+          <Grid item md={10} xs={12}>
+            {active === "General" && <ProjectInfoGeneral project={project} info={info} />}
+            {active === "Knowledge" && <ProjectInfoKnowledge project={project} />}
+            {active === "Security" && <ProjectInfoSecurity project={project} />}
+            {active === "Analytics" && <ProjectInfoAnalytics project={project} />}
+          </Grid>
         </Grid>
-
-        {/* Token usage */}
-        <Grid item lg={12} md={12} xs={12}>
-          <ProjectTokens
-            project={project}
-            tokens={tokens}
-            selectedYear={selectedYear}
-            selectedMonth={selectedMonth}
-            setSelectedYear={setSelectedYear}
-            setSelectedMonth={setSelectedMonth}
-          />
-        </Grid>
-      </Grid>
+      </div>
     </Fade>
   );
 }

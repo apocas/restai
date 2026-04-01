@@ -310,14 +310,25 @@ async def lifespan(fs_app: FastAPI):
             except Exception as e:
                 logging.warning(f"Failed to start Slack bot for project {proj.id}: {e}")
 
+    # Start sync workers for projects with sync enabled
+    from restai.sync import start_sync, stop_all_syncs
+    for proj in all_projects:
+        opts = _json.loads(proj.options) if proj.options else {}
+        if opts.get("sync_enabled") and opts.get("sync_sources"):
+            try:
+                start_sync(proj.id, fs_app)
+            except Exception as e:
+                logging.warning(f"Failed to start sync worker for project {proj.id}: {e}")
+
     tg_db_wrapper.db.close()
 
     yield
 
-    # Shutdown: stop all Telegram pollers and Slack bots
+    # Shutdown: stop all Telegram pollers, Slack bots, and sync workers
     stop_all_pollers()
     from restai.slack_bot import stop_all_slack_bots
     stop_all_slack_bots()
+    stop_all_syncs()
 
 
 logging.basicConfig(level=config.LOG_LEVEL)

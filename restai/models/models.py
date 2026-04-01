@@ -343,6 +343,24 @@ class MCPProbeRequest(BaseModel):
     })
 
 
+class SyncSource(BaseModel):
+    """External source configuration for knowledge base auto-sync."""
+    type: Literal["url", "s3"] = Field(description="Source type: 'url' or 's3'")
+    name: str = Field(max_length=200, description="User-friendly label for this source")
+    # URL source
+    url: Union[str, None] = Field(default=None, max_length=2000, description="Web URL to sync")
+    # S3 source
+    s3_bucket: Union[str, None] = Field(default=None, max_length=200, description="S3 bucket name")
+    s3_prefix: Union[str, None] = Field(default=None, max_length=500, description="S3 key prefix filter")
+    s3_region: Union[str, None] = Field(default=None, max_length=50, description="AWS region")
+    s3_access_key: Union[str, None] = Field(default=None, max_length=200, description="AWS access key ID")
+    s3_secret_key: Union[str, None] = Field(default=None, max_length=200, description="AWS secret access key")
+    # Ingestion options
+    splitter: Literal["sentence", "token"] = Field(default="sentence", description="Text splitting strategy")
+    chunks: int = Field(default=512, ge=32, le=8192, description="Chunk size")
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ProjectOptions(BaseModel):
     """Project-level configuration options."""
     logging: bool = Field(default=True, description="Enable inference logging for this project")
@@ -373,6 +391,10 @@ class ProjectOptions(BaseModel):
     guard_output: Union[str, None] = Field(default=None, description="Name of the guard project for output checking")
     guard_mode: Union[str, None] = Field(default="block", description="Guard behavior: 'block' or 'warn'")
     fallback_llm: Union[str, None] = Field(default=None, description="Fallback LLM to use if primary fails")
+    sync_sources: Union[list[SyncSource], None] = Field(default=None, description="External sources for knowledge base auto-sync")
+    sync_interval: Union[int, None] = Field(default=None, ge=5, le=10080, description="Sync interval in minutes")
+    sync_enabled: Union[bool, None] = Field(default=None, description="Enable automatic knowledge base sync")
+    last_sync: Union[str, None] = Field(default=None, description="Timestamp of last successful sync")
     model_config = ConfigDict(from_attributes=True)
 
 

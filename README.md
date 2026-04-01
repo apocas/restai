@@ -49,7 +49,7 @@ Fetches the latest release tag from GitHub, installs dependencies, runs database
 
 ## Why RESTai?
 
-- **Multi-project AI platform** — RAG (with optional SQL-to-NL), Agents, Block (visual logic), and Inference in one place
+- **Multi-project AI platform** — RAG (with optional SQL-to-NL and auto-sync from URLs/S3), Agents, Block (visual logic), and Inference in one place
 - **Full Web UI included** — React dashboard with analytics, not just an API
 - **Any LLM** — OpenAI, Anthropic, Ollama, Gemini, Groq, LiteLLM, vLLM, Azure, and more
 - **Feature complete** — Teams, RBAC, OAuth/LDAP, TOTP 2FA, token tracking, per-project rate limiting, white-label branding, Kubernetes-native
@@ -241,6 +241,22 @@ Works across all project types. Cache is automatically invalidated when the know
 ### Rate Limiting
 
 Set per-project request limits to prevent abuse and control costs. Configure the maximum number of requests per minute in the project edit page. Returns HTTP 429 when the limit is exceeded.
+
+### Knowledge Base Sync
+
+Automatically keep your RAG knowledge base up-to-date by syncing from external sources on a schedule. Configure per project — each project manages its own sources and sync interval.
+
+**Supported sources:**
+- **Web URLs** — Periodically re-scrape web pages and update the knowledge base
+- **Amazon S3** — Sync documents from S3 buckets with optional prefix filtering (supports all file types: PDF, DOCX, CSV, etc.)
+
+**Features:**
+- Configurable sync intervals (15 minutes to 24 hours)
+- Multiple sources per project with independent settings (splitter, chunk size)
+- Manual "Sync Now" trigger via UI or API (`POST /projects/{id}/sync/trigger`)
+- Last sync timestamp tracking
+- S3 credentials masked in API responses
+- Extensible architecture for adding Google Drive, SharePoint, and other sources
 
 ### Telegram & Slack Integration
 
