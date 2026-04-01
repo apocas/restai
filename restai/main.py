@@ -31,6 +31,12 @@ from restai.utils.version import get_version_from_pyproject
 PROJECT_ROOT = Path(__file__).parent.parent
 FRONTEND_BUILD_DIR = PROJECT_ROOT / "frontend" / "build"
 
+# When installed from PyPI, frontend may be bundled inside the package
+if not FRONTEND_BUILD_DIR.exists():
+    _pkg_frontend = Path(__file__).parent.parent / "frontend" / "build"
+    if _pkg_frontend.exists():
+        FRONTEND_BUILD_DIR = _pkg_frontend
+
 @asynccontextmanager
 async def lifespan(fs_app: FastAPI):
     print(
