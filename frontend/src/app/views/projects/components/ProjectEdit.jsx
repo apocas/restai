@@ -1,5 +1,5 @@
 import { Box, Button, Card, Grid, styled } from "@mui/material";
-import { Info, Storage, Shield, Extension } from "@mui/icons-material";
+import { Info, Storage, Shield, Extension, Build } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
 import { useState, useEffect } from "react";
 import useAuth from "app/hooks/useAuth";
@@ -11,10 +11,12 @@ import ProjectEditGeneral from "./ProjectEditGeneral";
 import ProjectEditKnowledge from "./ProjectEditKnowledge";
 import ProjectEditSecurity from "./ProjectEditSecurity";
 import ProjectEditIntegrations from "./ProjectEditIntegrations";
+import ProjectEditTools from "./ProjectEditTools";
 
 const ALL_TABS = [
   { name: "General", Icon: Info },
   { name: "Knowledge", Icon: Storage, ragOnly: true },
+  { name: "Tools", Icon: Build, agentOnly: true },
   { name: "Security", Icon: Shield },
   { name: "Integrations", Icon: Extension },
 ];
@@ -31,7 +33,11 @@ export default function ProjectEdit({ project, projects, info }) {
   const [active, setActive] = useState("General");
   const navigate = useNavigate();
 
-  const tabs = ALL_TABS.filter((t) => !t.ragOnly || project.type === "rag");
+  const tabs = ALL_TABS.filter((t) => {
+    if (t.ragOnly && project.type !== "rag") return false;
+    if (t.agentOnly && project.type !== "agent") return false;
+    return true;
+  });
 
   // --- MCP Server Handlers ---
   const handleAddMcpServer = () => {
@@ -304,6 +310,18 @@ export default function ProjectEdit({ project, projects, info }) {
                 project={project} auth={auth}
               />
             )}
+            {active === "Tools" && (
+              <ProjectEditTools
+                state={state} setState={setState} handleChange={handleChange}
+                project={project} mcpServers={mcpServers} setMcpServers={setMcpServers}
+                tools={tools} handleAddMcpServer={handleAddMcpServer}
+                handleRemoveMcpServer={handleRemoveMcpServer}
+                handleMcpServerFieldChange={handleMcpServerFieldChange}
+                handleProbeMcpServer={handleProbeMcpServer}
+                handleMcpToolsChange={handleMcpToolsChange}
+                isStdioServer={isStdioServer}
+              />
+            )}
             {active === "Security" && (
               <ProjectEditSecurity
                 state={state} setState={setState} handleChange={handleChange}
@@ -313,13 +331,6 @@ export default function ProjectEdit({ project, projects, info }) {
             {active === "Integrations" && (
               <ProjectEditIntegrations
                 state={state} setState={setState} handleChange={handleChange}
-                project={project} mcpServers={mcpServers} setMcpServers={setMcpServers}
-                tools={tools} handleAddMcpServer={handleAddMcpServer}
-                handleRemoveMcpServer={handleRemoveMcpServer}
-                handleMcpServerFieldChange={handleMcpServerFieldChange}
-                handleProbeMcpServer={handleProbeMcpServer}
-                handleMcpToolsChange={handleMcpToolsChange}
-                isStdioServer={isStdioServer}
               />
             )}
           </Card>
