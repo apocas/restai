@@ -119,7 +119,7 @@ Upload documents and query them with LLM-powered retrieval. Supports multiple ve
 Zero-shot ReAct agents with built-in tools and [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server support for extensible tool access. Connect any MCP-compatible server via HTTP/SSE or stdio.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent.png" width="40%" alt="RESTai Agent"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent.png" width="750" alt="RESTai Agent"/>
 </div>
 
 ### Inference (Multimodal)
