@@ -9,6 +9,7 @@ import {
   TextField,
   Autocomplete,
   Divider,
+  InputAdornment,
   Tabs,
   Tab
 } from "@mui/material";
@@ -16,7 +17,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
 import { Breadcrumb } from "app/components";
 import { toast } from 'react-toastify';
-import { Group, Code, Psychology } from "@mui/icons-material";
+import { Group, Code, Psychology, Palette } from "@mui/icons-material";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
@@ -62,7 +63,8 @@ export default function TeamEdit() {
     llms: [],
     embeddings: [],
     image_generators: [],
-    audio_generators: []
+    audio_generators: [],
+    branding: { primary_color: "", secondary_color: "", logo_url: "", welcome_message: "", app_name: "" },
   });
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -105,7 +107,8 @@ export default function TeamEdit() {
         llms: data.llms || [],
         embeddings: data.embeddings || [],
         image_generators: (data.image_generators || []).map(g => ({ name: g })),
-        audio_generators: (data.audio_generators || []).map(g => ({ name: g }))
+        audio_generators: (data.audio_generators || []).map(g => ({ name: g })),
+        branding: data.branding || { primary_color: "", secondary_color: "", logo_url: "", welcome_message: "", app_name: "" },
       });
 
       setLoading(false);
@@ -195,7 +198,8 @@ export default function TeamEdit() {
         llms: team.llms.map(l => l.name),
         embeddings: team.embeddings.map(e => e.name),
         image_generators: team.image_generators.map(g => g.name),
-        audio_generators: team.audio_generators.map(g => g.name)
+        audio_generators: team.audio_generators.map(g => g.name),
+        branding: team.branding,
       };
 
       const endpoint = isNewTeam ? '/teams' : `/teams/${id}`;
@@ -289,6 +293,7 @@ export default function TeamEdit() {
               <Tab label="Users" icon={<Group />} iconPosition="start" />
               <Tab label="Projects" icon={<Code />} iconPosition="start" />
               <Tab label="Models" icon={<Psychology />} iconPosition="start" />
+              <Tab label="Branding" icon={<Palette />} iconPosition="start" />
             </Tabs>
           </Box>
           
@@ -502,6 +507,114 @@ export default function TeamEdit() {
                   </Typography>
                 )}
               </Grid>
+            </Grid>
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={3}>
+            <Typography variant="h6" gutterBottom>White-Label Branding</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Customize the platform appearance for team members. Leave fields empty to use platform defaults.
+            </Typography>
+            <Grid container spacing={3}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="App Name"
+                  value={team.branding?.app_name || ""}
+                  onChange={(e) => setTeam({ ...team, branding: { ...team.branding, app_name: e.target.value } })}
+                  variant="outlined"
+                  helperText="Overrides the platform name in the sidebar"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Logo URL"
+                  value={team.branding?.logo_url || ""}
+                  onChange={(e) => setTeam({ ...team, branding: { ...team.branding, logo_url: e.target.value } })}
+                  variant="outlined"
+                  helperText="URL or data:image/... URI for the sidebar logo"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Primary Color"
+                  value={team.branding?.primary_color || ""}
+                  onChange={(e) => setTeam({ ...team, branding: { ...team.branding, primary_color: e.target.value } })}
+                  variant="outlined"
+                  placeholder="#1976d2"
+                  helperText="Hex color for header and primary elements"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <input
+                          type="color"
+                          value={team.branding?.primary_color || "#1976d2"}
+                          onChange={(e) => setTeam({ ...team, branding: { ...team.branding, primary_color: e.target.value } })}
+                          style={{ width: 32, height: 32, padding: 0, border: "none", cursor: "pointer", background: "none" }}
+                        />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Secondary Color"
+                  value={team.branding?.secondary_color || ""}
+                  onChange={(e) => setTeam({ ...team, branding: { ...team.branding, secondary_color: e.target.value } })}
+                  variant="outlined"
+                  placeholder="#ff9800"
+                  helperText="Hex color for accents and secondary elements"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <input
+                          type="color"
+                          value={team.branding?.secondary_color || "#ff9800"}
+                          onChange={(e) => setTeam({ ...team, branding: { ...team.branding, secondary_color: e.target.value } })}
+                          style={{ width: 32, height: 32, padding: 0, border: "none", cursor: "pointer", background: "none" }}
+                        />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  label="Welcome Message"
+                  value={team.branding?.welcome_message || ""}
+                  onChange={(e) => setTeam({ ...team, branding: { ...team.branding, welcome_message: e.target.value } })}
+                  variant="outlined"
+                  helperText="Displayed on the landing page for team members"
+                />
+              </Grid>
+
+              {/* Live preview */}
+              {(team.branding?.logo_url || team.branding?.primary_color || team.branding?.app_name) && (
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Preview</Typography>
+                  <Box sx={{
+                    display: "flex", alignItems: "center", gap: 1.5, p: 2,
+                    bgcolor: team.branding?.primary_color || "primary.main",
+                    borderRadius: 1, color: "#fff",
+                  }}>
+                    {team.branding?.logo_url ? (
+                      <img width="30" height="30" src={team.branding.logo_url} alt="logo" style={{ objectFit: "contain" }} />
+                    ) : (
+                      <img width="30" height="30" src="/admin/assets/images/restai-logo.png" alt="logo" />
+                    )}
+                    <Typography variant="h6" sx={{ color: "#fff" }}>
+                      {team.branding?.app_name || team.name || "RESTai"}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
             </Grid>
           </TabPanel>
 

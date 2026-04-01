@@ -53,6 +53,8 @@ SETTINGS_DEFAULTS = {
     "mcp_enabled": ("MCP_SERVER", "false"),
     # Retention
     "data_retention_days": (None, "0"),
+    # 2FA
+    "enforce_2fa": (None, "false"),
 }
 
 # Which config attrs map to which setting keys
@@ -104,9 +106,11 @@ _CONFIG_ATTR_MAP = {
     "mcp_enabled": "RESTAI_MCP",
     # Retention
     "data_retention_days": "DATA_RETENTION_DAYS",
+    # 2FA
+    "enforce_2fa": "ENFORCE_2FA",
 }
 
-_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "gpu_enabled", "mcp_enabled"}
+_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "gpu_enabled", "mcp_enabled", "enforce_2fa"}
 _INT_KEYS = {"agent_max_iterations", "max_audio_upload_size", "data_retention_days"}
 
 # Secret keys that should be masked in API responses

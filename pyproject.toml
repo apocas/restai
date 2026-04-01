@@ -34,6 +34,7 @@ dependencies = [
     "exceptiongroup>=1.3.0,<2",
     "wheel>=0.46.3,<0.47",
     "pyjwt>=2.12.0,<3",
+    "pyotp>=2.9.0,<3",
     "langchain-community>=0.3.31,<0.4",
     "langchain-openai>=0.3.35,<0.4",
     "pypdf>=6.1.3,<7",

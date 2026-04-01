@@ -600,6 +600,11 @@ class DBWrapper:
             team.budget = team_update.budget
             changed = True
 
+        if team_update.branding is not None:
+            import json
+            team.branding = json.dumps(team_update.branding.model_dump())
+            changed = True
+
         if changed:
             team.updated_at = datetime.now(timezone.utc)
             self.db.commit()

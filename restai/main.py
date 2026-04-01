@@ -179,6 +179,7 @@ async def lifespan(fs_app: FastAPI):
             "currency": config.CURRENCY or "EUR",
             "auth_disable_local": config.RESTAI_AUTH_DISABLE_LOCAL,
             "mcp": config.RESTAI_MCP,
+            "enforce_2fa": getattr(config, "ENFORCE_2FA", False),
         }
 
     @fs_app.get("/info", tags=["Health"])

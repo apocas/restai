@@ -33,6 +33,7 @@ const AuthContext = createContext({
   ...initialState,
   method: "JWT",
   login: () => {},
+  verifyTotp: () => {},
   checkAuth: () => {},
   logout: () => {},
   impersonate: () => {},
@@ -52,12 +53,35 @@ export const AuthProvider = ({ children }) => {
         { auth: { username: email, password: password } }
       );
 
-      const user = response.data;
+      const data = response.data;
+
+      // 2FA required — return token for TOTP verification
+      if (data.requires_totp) {
+        return { requires_totp: true, totp_token: data.totp_token };
+      }
+
+      // Normal login — fetch user profile
+      const whoami = await axios.get(`${apiUrl}/auth/whoami`, { withCredentials: true });
+      const user = whoami.data;
       user.role = user.is_admin ? "ADMIN" : "USER";
 
       dispatch({ type: "INIT", payload: { isAuthenticated: true, user, isImpersonating: false } });
+      return { requires_totp: false };
     } catch (err) {
       const detail = err.response?.data?.detail || "Login failed. Check your credentials.";
+      throw new Error(detail);
+    }
+  };
+
+  const verifyTotp = async (token, code) => {
+    try {
+      await axios.post(`${apiUrl}/auth/verify-totp`, { token, code }, { withCredentials: true });
+      const whoami = await axios.get(`${apiUrl}/auth/whoami`, { withCredentials: true });
+      const user = whoami.data;
+      user.role = user.is_admin ? "ADMIN" : "USER";
+      dispatch({ type: "INIT", payload: { isAuthenticated: true, user, isImpersonating: false } });
+    } catch (err) {
+      const detail = err.response?.data?.detail || "Invalid code.";
       throw new Error(detail);
     }
   };
@@ -114,7 +138,7 @@ export const AuthProvider = ({ children }) => {
   if (!state.isInitialized) return <MatxLoading />;
 
   return (
-    <AuthContext.Provider value={{ ...state, method: "JWT", login, checkAuth, logout, impersonate, exitImpersonation }}>
+    <AuthContext.Provider value={{ ...state, method: "JWT", login, verifyTotp, checkAuth, logout, impersonate, exitImpersonation }}>
       {children}
     </AuthContext.Provider>
   );

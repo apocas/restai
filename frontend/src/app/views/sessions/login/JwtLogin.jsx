@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, Checkbox, Grid, TextField, Box, styled, Button } from "@mui/material";
+import { Card, Checkbox, Grid, TextField, Box, styled, Button, Typography } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
 import GitHubIcon from '@mui/icons-material/GitHub';
 import GoogleIcon from '@mui/icons-material/Google';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
+import LockIcon from '@mui/icons-material/Lock';
 import useAuth from "app/hooks/useAuth";
 import { Paragraph, Span } from "app/components/Typography";
 import { toast } from 'react-toastify';
@@ -63,27 +64,50 @@ export default function JwtLogin() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState({});
+  const [totpToken, setTotpToken] = useState(null);
+  const [totpCode, setTotpCode] = useState("");
+  const [useRecovery, setUseRecovery] = useState(false);
   const { platformCapabilities } = usePlatformCapabilities();
   const ssoProviders = platformCapabilities?.sso || [];
   const ssoProviderNames = platformCapabilities?.sso_provider_names || {};
   const authDisableLocal = platformCapabilities?.auth_disable_local || false;
 
-  const { login } = useAuth();
+  const { login, verifyTotp } = useAuth();
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (type === null) {
       setType("password");
+      return;
     }
 
     if (type === "password") {
+      setLoading(true);
       try {
-        await login(state.email, state.password);
-        window.location.href = "/admin";
+        const result = await login(state.email, state.password);
+        if (result && result.requires_totp) {
+          setTotpToken(result.totp_token);
+          setType("totp");
+          setLoading(false);
+        } else {
+          window.location.href = "/admin";
+        }
       } catch (e) {
         toast.error(e.message);
         setLoading(false);
       }
+    }
+  };
+
+  const handleTotpSubmit = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    try {
+      await verifyTotp(totpToken, totpCode);
+      window.location.href = "/admin";
+    } catch (e) {
+      toast.error(e.message);
+      setLoading(false);
     }
   };
 
@@ -114,67 +138,121 @@ export default function JwtLogin() {
                 </StyledSpan>
               </Grid>
               <Grid item sm={12} xs={12}>
-                {!authDisableLocal && (
-                  <form onSubmit={handleSubmit}>
+                {/* TOTP verification step */}
+                {type === "totp" ? (
+                  <form onSubmit={handleTotpSubmit}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                      <LockIcon color="primary" />
+                      <Typography variant="subtitle1">Two-Factor Authentication</Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      {useRecovery
+                        ? "Enter one of your recovery codes."
+                        : "Enter the 6-digit code from your authenticator app."}
+                    </Typography>
                     <TextField
                       fullWidth
                       size="small"
-                      type="text"
-                      name="email"
-                      label="Username/Email"
+                      autoFocus
+                      label={useRecovery ? "Recovery Code" : "Authentication Code"}
+                      value={totpCode}
+                      onChange={(e) => setTotpCode(e.target.value)}
                       variant="outlined"
-                      onChange={handleChange}
-                      sx={{ mb: 3 }}
-                    />
-
-                    {type === "password" && (<TextField
-                      fullWidth
-                      size="small"
-                      name="password"
-                      type="password"
-                      label="Password"
-                      variant="outlined"
-                      onChange={handleChange}
+                      placeholder={useRecovery ? "abcd1234" : "123456"}
+                      inputProps={{ maxLength: useRecovery ? 20 : 6, autoComplete: "one-time-code" }}
                       sx={{ mb: 1.5 }}
-                    />)}
-
-                    <FlexBox justifyContent="space-between">
-                      <FlexBox gap={1}>
-                        <Checkbox
-                          size="small"
-                          name="remember"
-                          onChange={handleChange}
-                          checked={state.remember}
-                          sx={{ padding: 0 }}
-                        />
-
-                        <Paragraph>Remember Me</Paragraph>
-                      </FlexBox>
-                    </FlexBox>
-
+                    />
+                    <Button
+                      size="small"
+                      onClick={() => { setUseRecovery(!useRecovery); setTotpCode(""); }}
+                      sx={{ mb: 1, textTransform: "none" }}
+                    >
+                      {useRecovery ? "Use authenticator code" : "Use a recovery code"}
+                    </Button>
                     <LoadingButton
                       type="submit"
                       color="primary"
                       loading={loading}
                       variant="contained"
-                      sx={{ my: 2 }}>
-                      Login
+                      fullWidth
+                      sx={{ my: 1 }}
+                    >
+                      Verify
                     </LoadingButton>
+                    <Button
+                      size="small"
+                      fullWidth
+                      onClick={() => { setType(null); setTotpToken(null); setTotpCode(""); setLoading(false); }}
+                      sx={{ textTransform: "none" }}
+                    >
+                      Back to login
+                    </Button>
                   </form>
-                )}
+                ) : (
+                  <>
+                    {/* Normal login form */}
+                    {!authDisableLocal && (
+                      <form onSubmit={handleSubmit}>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          type="text"
+                          name="email"
+                          label="Username/Email"
+                          variant="outlined"
+                          onChange={handleChange}
+                          sx={{ mb: 3 }}
+                        />
 
-                {ssoProviders.map((provider) => (
-                  <Button
-                    key={provider}
-                    onClick={handleSSOLogin(provider)}
-                    type="button"
-                    color="primary"
-                    variant="contained"
-                    sx={{ my: 1, mr: 1 }}>
-                    Login with {ssoProviderNames[provider] || provider.charAt(0).toUpperCase() + provider.slice(1)}
-                    {SSO_ICON_MAP[provider] || <VpnKeyIcon sx={{ ml: 1 }} />}
-                  </Button>
-                ))}
+                        {type === "password" && (<TextField
+                          fullWidth
+                          size="small"
+                          name="password"
+                          type="password"
+                          label="Password"
+                          variant="outlined"
+                          onChange={handleChange}
+                          sx={{ mb: 1.5 }}
+                        />)}
+
+                        <FlexBox justifyContent="space-between">
+                          <FlexBox gap={1}>
+                            <Checkbox
+                              size="small"
+                              name="remember"
+                              onChange={handleChange}
+                              checked={state.remember}
+                              sx={{ padding: 0 }}
+                            />
+                            <Paragraph>Remember Me</Paragraph>
+                          </FlexBox>
+                        </FlexBox>
+
+                        <LoadingButton
+                          type="submit"
+                          color="primary"
+                          loading={loading}
+                          variant="contained"
+                          sx={{ my: 2 }}>
+                          Login
+                        </LoadingButton>
+                      </form>
+                    )}
+
+                    {ssoProviders.map((provider) => (
+                      <Button
+                        key={provider}
+                        onClick={handleSSOLogin(provider)}
+                        type="button"
+                        color="primary"
+                        variant="contained"
+                        sx={{ my: 1, mr: 1 }}>
+                        Login with {ssoProviderNames[provider] || provider.charAt(0).toUpperCase() + provider.slice(1)}
+                        {SSO_ICON_MAP[provider] || <VpnKeyIcon sx={{ ml: 1 }} />}
+                      </Button>
+                    ))}
+                  </>
+                )}
               </Grid>
             </ContentBox>
           </Grid>

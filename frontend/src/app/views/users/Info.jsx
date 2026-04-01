@@ -24,6 +24,7 @@ import Password from "./components/Password";
 import Projects from "./components/Projects";
 import UserActivity from "./components/UserActivity";
 import DeleteAccount from "./components/DeleteAccount";
+import TwoFactorAuth from "./components/TwoFactorAuth";
 import BasicInformation from "./components/BasicInformation";
 import api from "app/utils/api";
 import InfoIcon from '@mui/icons-material/Info';
@@ -31,6 +32,7 @@ import KeyIcon from '@mui/icons-material/Key';
 import HttpsIcon from '@mui/icons-material/Https';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import TimelineIcon from '@mui/icons-material/Timeline';
+import SecurityIcon from '@mui/icons-material/Security';
 
 const StyledButton = styled(Button)(({ theme }) => ({
   borderRadius: 0,
@@ -164,10 +166,11 @@ export default function UserInfo() {
         <Grid item md={9} xs={12}>
           {active === tabList[0].name && <BasicInformation user={user} />}
           {active === tabList[1].name && <Password user={user} />}
-          {active === tabList[2].name && <Projects user={user} projects={projects} />}
-          {active === tabList[3].name && <ApiKeys user={user} />}
-          {active === tabList[4].name && user.id && <UserActivity user={user} />}
-          {active === tabList[5].name && <DeleteAccount user={user} />}
+          {active === tabList[2].name && <TwoFactorAuth user={user} />}
+          {active === tabList[3].name && <Projects user={user} projects={projects} />}
+          {active === tabList[4].name && <ApiKeys user={user} />}
+          {active === tabList[5].name && user.id && <UserActivity user={user} />}
+          {active === tabList[6].name && <DeleteAccount user={user} />}
         </Grid>
       </Grid>
     </Box>
@@ -178,6 +181,7 @@ export default function UserInfo() {
 const tabList = [
   { id: 1, name: "Basic Information", Icon: InfoIcon },
   { id: 2, name: "Password", Icon: HttpsIcon },
+  { id: 15, name: "Two-Factor Auth", Icon: SecurityIcon },
   { id: 3, name: "Projects", Icon: ContentCopy },
   { id: 12, name: "API Keys", Icon: KeyIcon },
   { id: 14, name: "Activity", Icon: TimelineIcon },

@@ -467,7 +467,28 @@ class ProjectInfo(ProjectModel):
 
 class UserOptions(BaseModel):
     """User-level configuration options."""
+    preferred_team_id: Union[int, None] = Field(default=None, description="ID of the team whose branding to use")
     model_config = ConfigDict(from_attributes=True)
+
+
+class TOTPSetupResponse(BaseModel):
+    """TOTP setup response with secret and recovery codes (shown once)."""
+    secret: str = Field(description="Base32 TOTP secret for manual entry")
+    provisioning_uri: str = Field(description="otpauth:// URI for QR code generation")
+    recovery_codes: list[str] = Field(description="One-time recovery codes (store securely)")
+
+class TOTPVerifyRequest(BaseModel):
+    """Verify TOTP code to complete login."""
+    token: str = Field(description="Temporary JWT token from login step")
+    code: str = Field(max_length=20, description="6-digit TOTP code or recovery code")
+
+class TOTPEnableRequest(BaseModel):
+    """Confirm TOTP setup with a valid code."""
+    code: str = Field(max_length=6, description="6-digit TOTP code from authenticator app")
+
+class TOTPDisableRequest(BaseModel):
+    """Disable TOTP (requires password confirmation)."""
+    password: str = Field(description="Current password for confirmation")
 
 
 class ApiKeyCreate(BaseModel):
@@ -779,6 +800,16 @@ class TeamProject(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TeamBranding(BaseModel):
+    """Team branding configuration for white-labeling."""
+    primary_color: Union[str, None] = Field(default=None, max_length=20, description="Primary color hex code (e.g. '#1976d2')")
+    secondary_color: Union[str, None] = Field(default=None, max_length=20, description="Secondary color hex code (e.g. '#ff9800')")
+    logo_url: Union[str, None] = Field(default=None, max_length=5000, description="Logo URL or data:image/... URI")
+    welcome_message: Union[str, None] = Field(default=None, max_length=1000, description="Welcome message shown on landing")
+    app_name: Union[str, None] = Field(default=None, max_length=100, description="Custom app name (overrides platform default)")
+    model_config = ConfigDict(from_attributes=True)
+
+
 class TeamModel(BaseModel):
     """Full team details with members, admins, and resources."""
     id: int = Field(description="Unique team identifier")
@@ -795,7 +826,21 @@ class TeamModel(BaseModel):
     embeddings: list[TeamEmbedding] = Field(default=[], description="Embedding models accessible to this team")
     image_generators: list[str] = Field(default=[], description="Image generator names accessible to this team")
     audio_generators: list[str] = Field(default=[], description="Audio generator names accessible to this team")
+    branding: Union[TeamBranding, None] = Field(default=None, description="Team branding configuration for white-labeling")
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('branding', mode='before')
+    @classmethod
+    def parse_branding(cls, v):
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if not parsed:
+                    return None
+                return TeamBranding(**parsed)
+            except (json.JSONDecodeError, Exception):
+                return None
+        return v
 
     @field_validator('image_generators', mode='before')
     @classmethod
@@ -867,6 +912,7 @@ class TeamModelUpdate(BaseModel):
             return validate_safe_name(v, "Team name")
         return v
     embeddings: list[str] = Field(default=None, description="Updated list of embedding model names (replaces existing)")
+    branding: Union[TeamBranding, None] = Field(default=None, description="Team branding configuration")
     image_generators: list[str] = Field(default=None, description="Updated list of image generator names (replaces existing)")
     audio_generators: list[str] = Field(default=None, description="Updated list of audio generator names (replaces existing)")
     model_config = ConfigDict(json_schema_extra={
@@ -972,6 +1018,8 @@ class SettingsResponse(BaseModel):
     mcp_enabled: bool = Field(default=False, description="Whether the internal MCP server is enabled")
     # Retention
     data_retention_days: int = Field(default=0, description="Auto-delete data older than this many days (0 = keep forever)")
+    # 2FA
+    enforce_2fa: bool = Field(default=False, description="Whether TOTP 2FA is enforced for all local users")
 
 
 class SettingsUpdate(BaseModel):
@@ -1024,6 +1072,8 @@ class SettingsUpdate(BaseModel):
     mcp_enabled: Optional[bool] = Field(default=None, description="Whether the internal MCP server is enabled")
     # Retention
     data_retention_days: Optional[int] = Field(default=None, ge=0, description="Auto-delete data older than this many days (0 = keep forever)")
+    # 2FA
+    enforce_2fa: Optional[bool] = Field(default=None, description="Whether TOTP 2FA is enforced for all local users")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "app_name": "My AI Platform",

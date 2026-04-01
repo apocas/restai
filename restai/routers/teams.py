@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from restai.models.models import (
+    TeamBranding,
     TeamModel,
     TeamModelCreate,
     TeamModelUpdate,
@@ -22,6 +23,24 @@ from restai.auth import (
 from restai.constants import ERROR_MESSAGES
 
 router = APIRouter()
+
+
+@router.get("/teams/{team_id}/branding", response_model=TeamBranding)
+async def get_team_branding(
+    team_id: int = Path(description="Team ID"),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get team branding configuration (public, no auth required)."""
+    import json
+    team = db_wrapper.get_team_by_id(team_id)
+    if team is None:
+        raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+    try:
+        branding_data = json.loads(team.branding) if team.branding else {}
+        return TeamBranding(**branding_data)
+    except Exception:
+        return TeamBranding()
+
 
 @router.get("/teams", response_model=TeamsResponse)
 async def get_teams(

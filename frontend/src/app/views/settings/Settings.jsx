@@ -77,6 +77,8 @@ export default function SettingsPage() {
     sso_oidc_email_claim: "email",
     // MCP
     mcp_enabled: false,
+    // 2FA
+    enforce_2fa: false,
   });
   const [saving, setSaving] = useState(false);
 
@@ -392,6 +394,20 @@ export default function SettingsPage() {
                       onChange={handleChange("sso_allowed_domains")}
                       helperText="Comma-separated email domains, or * for all"
                     />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={form.enforce_2fa}
+                          onChange={handleChange("enforce_2fa")}
+                        />
+                      }
+                      label="Enforce 2FA"
+                    />
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Require TOTP two-factor authentication for all local users
+                    </Typography>
                   </Grid>
                 </Grid>
               </Box>

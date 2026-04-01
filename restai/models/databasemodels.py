@@ -58,6 +58,7 @@ class TeamDatabase(Base):
     updated_at = Column(DateTime)
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     budget = Column(Float, default=-1.0)
+    branding = Column(Text, default="{}")
 
     # Many-to-many relationships
     users = relationship('UserDatabase', secondary=teams_users, back_populates='teams')
@@ -100,6 +101,9 @@ class UserDatabase(Base):
     is_private = Column(Boolean, default=False)
     api_key = Column(String(4096))  # Legacy column, kept for existing DBs
     options = Column(Text, default="{}")
+    totp_secret = Column(String(500), nullable=True)
+    totp_enabled = Column(Boolean, default=False)
+    totp_recovery_codes = Column(Text, nullable=True)
     projects = relationship('ProjectDatabase', secondary=users_projects, back_populates='users')
     teams = relationship('TeamDatabase', secondary=teams_users, back_populates='users')
     admin_teams = relationship('TeamDatabase', secondary=teams_admins, back_populates='admins')

@@ -43,6 +43,30 @@ envs:
 migrate:
 	uv run --no-group gpu migrate.py upgrade
 
+.PHONY: update
+update:
+	@echo "Fetching latest release from GitHub..."
+	@LATEST=$$(git ls-remote --tags --sort=-v:refname origin 'refs/tags/v*' 2>/dev/null | head -1 | sed 's/.*refs\/tags\///'); \
+	if [ -z "$$LATEST" ]; then \
+		echo "No release tags found. Pulling latest from current branch..."; \
+		git pull; \
+	else \
+		echo "Latest release: $$LATEST"; \
+		git fetch --tags; \
+		git checkout "$$LATEST"; \
+	fi
+	@echo "Installing dependencies..."
+	uv sync --no-group gpu
+	@echo "Running database migrations..."
+	$(MAKE) migrate
+	@echo "Building frontend..."
+	$(MAKE) frontend
+	@if command -v nvidia-smi > /dev/null 2>&1 && nvidia-smi > /dev/null 2>&1; then \
+		echo "GPU detected, syncing GPU deps..."; \
+		$(MAKE) installgpu; \
+	fi
+	@echo "Update complete."
+
 .PHONY: docs
 docs:
 	uv run --no-group gpu docs.py

@@ -37,6 +37,14 @@ make dev  # → http://localhost:9000/admin (admin / admin)
 docker compose --env-file .env up --build
 ```
 
+## Updating
+
+```bash
+make update
+```
+
+Fetches the latest release tag from GitHub, installs dependencies, runs database migrations, and rebuilds the frontend. Auto-detects GPU for GPU-specific deps.
+
 ---
 
 ## Why RESTai?
@@ -44,7 +52,7 @@ docker compose --env-file .env up --build
 - **Multi-project AI platform** — RAG (with optional SQL-to-NL), Agents, Block (visual logic), and Inference in one place
 - **Full Web UI included** — React dashboard with analytics, not just an API
 - **Any LLM** — OpenAI, Anthropic, Ollama, Gemini, Groq, LiteLLM, vLLM, Azure, and more
-- **Feature complete** — Teams, RBAC, OAuth/LDAP, token tracking, per-project rate limiting, Kubernetes-native
+- **Feature complete** — Teams, RBAC, OAuth/LDAP, TOTP 2FA, token tracking, per-project rate limiting, white-label branding, Kubernetes-native
 - **Extensible tools** — MCP (Model Context Protocol) for unlimited agent integrations
 - **Token tracking, cost & latency analytics** — built-in dashboard with daily usage, per-project costs, latency monitoring, and top LLM charts
 
@@ -185,11 +193,35 @@ response = client.chat.completions.create(
 
 ### Teams & Multi-tenancy
 
-Each team has its own users, admins, projects, and LLM/embedding access controls — including image and audio generator permissions. Users can belong to multiple teams.
+Each team has its own users, admins, projects, and LLM/embedding access controls — including image and audio generator permissions. Users can belong to multiple teams, each with optional custom branding.
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/teams.png" width="750" alt="RESTai Teams"/>
 </div>
+
+### Custom Branding (White-Labeling)
+
+Each team can customize the platform appearance for its members — ideal for white-labeling or multi-tenant deployments where different teams need distinct identities.
+
+**Configurable per team:**
+- **App Name** — Override the platform name in the sidebar and header
+- **Logo** — Custom logo via URL or data URI (replaces the default logo)
+- **Primary & Secondary Colors** — Full MUI theme color override with live color picker
+- **Welcome Message** — Custom landing text for team members
+
+**Multi-team users:** When a user belongs to multiple branded teams, a team switcher appears in the sidebar letting them choose which branding to apply. The preference is persisted in user settings.
+
+**API:** `GET /teams/{id}/branding` returns team branding without authentication (useful for custom login pages). Update branding via `PATCH /teams/{id}` with a `branding` object.
+
+### Two-Factor Authentication (TOTP)
+
+Secure local user accounts with TOTP-based two-factor authentication, compatible with Google Authenticator, Authy, and other authenticator apps.
+
+- **User self-service** — Enable/disable 2FA from the user profile page with QR code setup and one-time recovery codes
+- **Admin enforcement** — Platform admins can enforce 2FA for all local users via the settings page (users cannot disable when enforced)
+- **Recovery codes** — 8 single-use codes generated during setup for account recovery if the authenticator is lost
+- **Local auth only** — 2FA applies to username/password login; SSO and API key authentication are unaffected
+- **Encrypted secrets** — TOTP secrets are encrypted at rest using Fernet; recovery codes are stored as SHA-256 hashes
 
 ### Guardrails
 

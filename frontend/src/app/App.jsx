@@ -6,6 +6,7 @@ import { MatxTheme } from "./components";
 import { AuthProvider } from "./contexts/JWTAuthContext";
 import SettingsProvider from "./contexts/SettingsContext";
 import PlatformProvider from "./contexts/PlatformContext";
+import { TeamBrandingProvider } from "./contexts/TeamBrandingContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 import routes from "./routes";
@@ -18,10 +19,12 @@ export default function App() {
       <PlatformProvider>
         <SettingsProvider>
           <AuthProvider>
-            <MatxTheme>
-              <CssBaseline />
-              {content}
-            </MatxTheme>
+            <TeamBrandingProvider>
+              <MatxTheme>
+                <CssBaseline />
+                {content}
+              </MatxTheme>
+            </TeamBrandingProvider>
           </AuthProvider>
         </SettingsProvider>
       </PlatformProvider>

@@ -13,6 +13,9 @@ from restai.models.models import (
     ApiKeyCreate,
     ApiKeyCreatedResponse,
     ApiKeyResponse,
+    TOTPSetupResponse,
+    TOTPEnableRequest,
+    TOTPDisableRequest,
     User,
     UserCreate,
     UserLogin,
@@ -30,7 +33,7 @@ from restai.auth import (
 from ssl import CERT_REQUIRED, PROTOCOL_TLS
 from ldap3 import Server, Connection, NONE, Tls
 from ldap3.utils.conv import escape_filter_chars
-from restai.utils.crypto import encrypt_api_key, hash_api_key
+from restai.utils.crypto import encrypt_api_key, hash_api_key, encrypt_totp_secret, decrypt_totp_secret, generate_recovery_codes, hash_recovery_code
 
 router = APIRouter()
 
@@ -391,3 +394,115 @@ async def route_delete_user(
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# --- TOTP 2FA Endpoints ---
+
+@router.get("/users/{username}/totp/status")
+async def totp_status(
+    username: str = Path(description="Username"),
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Check if 2FA is enabled for a user."""
+    if not user.is_admin and user.username != username:
+        raise HTTPException(status_code=403, detail="Access denied")
+    user_db = db_wrapper.get_user_by_username(username)
+    if user_db is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "enabled": bool(user_db.totp_enabled),
+        "enforced": bool(getattr(config, "ENFORCE_2FA", False)),
+    }
+
+
+@router.post("/users/{username}/totp/setup", response_model=TOTPSetupResponse)
+async def totp_setup(
+    username: str = Path(description="Username"),
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Generate a new TOTP secret and recovery codes. Does NOT enable 2FA yet — call /enable with a valid code to activate."""
+    import pyotp
+    import json
+
+    if not user.is_admin and user.username != username:
+        raise HTTPException(status_code=403, detail="Access denied")
+    user_db = db_wrapper.get_user_by_username(username)
+    if user_db is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Generate secret and recovery codes
+    secret = pyotp.random_base32()
+    app_name = getattr(config, "RESTAI_NAME", "RESTai") or "RESTai"
+    provisioning_uri = pyotp.TOTP(secret).provisioning_uri(username, issuer_name=app_name)
+    recovery_codes = generate_recovery_codes()
+
+    # Store encrypted secret and hashed recovery codes (but don't enable yet)
+    user_db.totp_secret = encrypt_totp_secret(secret)
+    user_db.totp_recovery_codes = json.dumps([hash_recovery_code(c) for c in recovery_codes])
+    db_wrapper.db.commit()
+
+    return TOTPSetupResponse(
+        secret=secret,
+        provisioning_uri=provisioning_uri,
+        recovery_codes=recovery_codes,
+    )
+
+
+@router.post("/users/{username}/totp/enable")
+async def totp_enable(
+    body: TOTPEnableRequest,
+    username: str = Path(description="Username"),
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Activate 2FA by confirming a valid TOTP code from the authenticator app."""
+    import pyotp
+
+    if not user.is_admin and user.username != username:
+        raise HTTPException(status_code=403, detail="Access denied")
+    user_db = db_wrapper.get_user_by_username(username)
+    if user_db is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user_db.totp_secret:
+        raise HTTPException(status_code=400, detail="Run /totp/setup first")
+
+    secret = decrypt_totp_secret(user_db.totp_secret)
+    totp = pyotp.TOTP(secret)
+    if not totp.verify(body.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="Invalid TOTP code")
+
+    user_db.totp_enabled = True
+    db_wrapper.db.commit()
+    return {"message": "2FA enabled successfully."}
+
+
+@router.post("/users/{username}/totp/disable")
+async def totp_disable(
+    body: TOTPDisableRequest,
+    username: str = Path(description="Username"),
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Disable 2FA. Requires password confirmation. Blocked if admin enforces 2FA."""
+    from restai.database import verify_password
+
+    if not user.is_admin and user.username != username:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if getattr(config, "ENFORCE_2FA", False):
+        raise HTTPException(status_code=403, detail="2FA is enforced by the administrator and cannot be disabled")
+
+    user_db = db_wrapper.get_user_by_username(username)
+    if user_db is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not verify_password(body.password, user_db.hashed_password):
+        raise HTTPException(status_code=403, detail="Invalid password")
+
+    user_db.totp_enabled = False
+    user_db.totp_secret = None
+    user_db.totp_recovery_codes = None
+    db_wrapper.db.commit()
+    return {"message": "2FA disabled successfully."}
