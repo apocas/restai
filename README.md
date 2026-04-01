@@ -76,10 +76,6 @@ Create and manage AI projects. Each project has its own LLM, system prompt, tool
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/projects.png" width="750" alt="RESTai Projects"/>
 </div>
 
-<div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/playground.png" width="750" alt="RESTai Playground"/>
-</div>
-
 ### RAG (Retrieval-Augmented Generation)
 
 Upload documents and query them with LLM-powered retrieval. Supports multiple vector stores, reranking (ColBERT / LLM-based), sandboxed mode to reduce hallucination, and evaluation via [deepeval](https://github.com/confident-ai/deepeval). Optionally connect a MySQL or PostgreSQL database to translate natural language questions into SQL queries automatically.
@@ -88,13 +84,16 @@ Upload documents and query them with LLM-powered retrieval. Supports multiple ve
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/rag.png" width="750" alt="RESTai RAG"/>
 </div>
 
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/analytics.png" width="750" alt="RESTai RAG Analytics"/>
+</div>
+
 ### Agents + MCP
 
 Zero-shot ReAct agents with built-in tools and [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server support for extensible tool access. Connect any MCP-compatible server via HTTP/SSE or stdio.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent1.png" width="40%" alt="RESTai Agent"/>
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent2.png" width="40%" alt="RESTai Agent Tools"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent.png" width="40%" alt="RESTai Agent"/>
 </div>
 
 ### Inference (Multimodal)
@@ -102,7 +101,7 @@ Zero-shot ReAct agents with built-in tools and [MCP (Model Context Protocol)](ht
 Direct LLM chat and completion. Supports sending images alongside text using any vision-capable model (LLaVA, Gemini, GPT-4o, etc.).
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/inference.png" width="750" alt="RESTai Inference"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/playground.png" width="750" alt="RESTai Inference"/>
 </div>
 
 ### Block (Visual Logic Builder)
@@ -151,9 +150,7 @@ Every system prompt change is automatically versioned. Browse the full history, 
 Local and remote image generators loaded dynamically. Supports Stable Diffusion, Flux, DALL-E, RMBG2, and more.
 
 <div align="center">
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/flux1.png" width="45%" alt="Flux1"/>
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/vision_sd.png" width="22%" alt="Stable Diffusion"/>
-  <img src="https://github.com/apocas/restai/blob/master/readme/assets/rmbg2.png" width="22%" alt="RMBG2"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/image.png" width="45%" alt="Flux1"/>
 </div>
 
 ### GPU Auto-Detection & Management
@@ -213,6 +210,10 @@ Each team can customize the platform appearance for its members — ideal for wh
 
 **API:** `GET /teams/{id}/branding` returns team branding without authentication (useful for custom login pages). Update branding via `PATCH /teams/{id}` with a `branding` object.
 
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/branding.png" width="750" alt="RESTai Branding"/>
+</div>
+
 ### Two-Factor Authentication (TOTP)
 
 Secure local user accounts with TOTP-based two-factor authentication, compatible with Google Authenticator, Authy, and other authenticator apps.
@@ -222,6 +223,10 @@ Secure local user accounts with TOTP-based two-factor authentication, compatible
 - **Recovery codes** — 8 single-use codes generated during setup for account recovery if the authenticator is lost
 - **Local auth only** — 2FA applies to username/password login; SSO and API key authentication are unaffected
 - **Encrypted secrets** — TOTP secrets are encrypted at rest using Fernet; recovery codes are stored as SHA-256 hashes
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/branding.png" width="750" alt="RESTai Branding"/>
+</div>
 
 ### Guardrails
 
@@ -296,6 +301,10 @@ Any LLM provider supported by LlamaIndex. Each model has a configurable context 
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/llms.png" width="750" alt="RESTai LLMs"/>
+</div>
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/ollama.png" width="750" alt="RESTai Ollama"/>
 </div>
 
 ---
