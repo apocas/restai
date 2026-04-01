@@ -155,7 +155,7 @@ export default function ProjectEdit({ project, projects, info }) {
       opts.options.connection = state.options.connection || null;
       opts.options.tables = state.options.tables || null;
       opts.options.sync_enabled = state.options.sync_enabled || false;
-      opts.options.sync_interval = state.options.sync_interval ? parseInt(state.options.sync_interval) : null;
+      opts.options.sync_interval = parseInt(state.options.sync_interval) || 60;
       opts.options.sync_sources = state.options.sync_sources || null;
 
       if (opts.censorship && opts.censorship.trim() === "") {

@@ -406,7 +406,7 @@ class ProjectOptions(BaseModel):
     guard_mode: Union[str, None] = Field(default="block", description="Guard behavior: 'block' or 'warn'")
     fallback_llm: Union[str, None] = Field(default=None, description="Fallback LLM to use if primary fails")
     sync_sources: Union[list[SyncSource], None] = Field(default=None, description="External sources for knowledge base auto-sync")
-    sync_interval: Union[int, None] = Field(default=None, ge=5, le=10080, description="Sync interval in minutes")
+    sync_interval: Union[int, None] = Field(default=60, ge=5, le=10080, description="Sync interval in minutes")
     sync_enabled: Union[bool, None] = Field(default=None, description="Enable automatic knowledge base sync")
     last_sync: Union[str, None] = Field(default=None, description="Timestamp of last successful sync")
     model_config = ConfigDict(from_attributes=True)

@@ -1,4 +1,6 @@
 from pathlib import Path
+import warnings
+warnings.filterwarnings("ignore", message=".*Accessing the 'model_fields' attribute on the instance is deprecated.*")
 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, FileResponse

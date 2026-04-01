@@ -103,11 +103,11 @@ export default function ProjectInfoKnowledge({ project }) {
                   label={`Active (${project.options.sync_sources.length} source${
                     project.options.sync_sources.length > 1 ? "s" : ""
                   }, every ${
-                    project.options.sync_interval >= 1440
-                      ? `${Math.round(project.options.sync_interval / 1440)}d`
-                      : project.options.sync_interval >= 60
-                      ? `${Math.round(project.options.sync_interval / 60)}h`
-                      : `${project.options.sync_interval}m`
+                    (project.options.sync_interval || 60) >= 1440
+                      ? `${Math.round((project.options.sync_interval || 60) / 1440)}d`
+                      : (project.options.sync_interval || 60) >= 60
+                      ? `${Math.round((project.options.sync_interval || 60) / 60)}h`
+                      : `${project.options.sync_interval || 60}m`
                   })`}
                   size="small"
                   color="success"
