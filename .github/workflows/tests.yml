@@ -17,6 +17,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Create frontend build placeholder
+        run: mkdir -p frontend/build && echo '<!doctype html>' > frontend/build/index.html
+
       - name: Install dependencies
         run: uv sync --no-group gpu
 
