@@ -22,6 +22,8 @@ jobs:
           node-version: "20"
 
       - name: Build frontend
+        env:
+          CI: false
         run: |
           cd frontend
           npm ci
