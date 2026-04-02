@@ -92,7 +92,8 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         } else if (accumulated) {
           setMessages(prev => {
             const updated = [...prev];
-            updated[updated.length - 1] = { question: questionText, answer: accumulated, sources: [] };
+            const prevId = updated.length > 1 ? updated[updated.length - 2]?.id : undefined;
+            updated[updated.length - 1] = { question: questionText, answer: accumulated, sources: [], id: prevId };
             return updated;
           });
         }
@@ -104,7 +105,8 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         setStreamingText("");
         setMessages(prev => {
           const updated = [...prev];
-          updated[updated.length - 1] = { question: questionText, answer: "Error: streaming failed.", sources: [] };
+          const prevId = updated.length > 1 ? updated[updated.length - 2]?.id : undefined;
+          updated[updated.length - 1] = { question: questionText, answer: "Error: streaming failed.", sources: [], id: prevId };
           return updated;
         });
         setIsLoading(false);
@@ -165,10 +167,12 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     } catch (e) {
       setMessages(prev => {
         const updated = [...prev];
+        const prevId = updated.length > 1 ? updated[updated.length - 2]?.id : undefined;
         updated[updated.length - 1] = {
           question: questionText,
           answer: "Error: request failed.",
           sources: [],
+          id: prevId,
         };
         return updated;
       });
