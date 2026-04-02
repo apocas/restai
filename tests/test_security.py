@@ -33,6 +33,10 @@ teamA_id = None
 teamB_id = None
 projectA_id = None
 projectB_id = None
+llmA_id = None
+llmB_id = None
+embA_id = None
+embB_id = None
 projectA_name = f"sec_proja_{suffix}"
 projectB_name = f"sec_projb_{suffix}"
 
@@ -47,7 +51,7 @@ USER_C = (userC_name, "passC123")
 
 def test_security_setup():
     """Create users, teams, LLMs, embeddings, and projects for security tests."""
-    global teamA_id, teamB_id, projectA_id, projectB_id
+    global teamA_id, teamB_id, projectA_id, projectB_id, llmA_id, llmB_id, embA_id, embB_id
 
     with TestClient(app) as client:
         # Create users (including userC with no team)
@@ -77,6 +81,10 @@ def test_security_setup():
                 auth=ADMIN,
             )
             assert r.status_code == 201, f"Failed to create LLM {name}: {r.text}"
+            if name == llmA_name:
+                llmA_id = r.json()["id"]
+            else:
+                llmB_id = r.json()["id"]
 
         # Create embeddings
         for name in [embA_name, embB_name]:
@@ -92,6 +100,10 @@ def test_security_setup():
                 auth=ADMIN,
             )
             assert r.status_code == 201, f"Failed to create embedding {name}: {r.text}"
+            if name == embA_name:
+                embA_id = r.json()["id"]
+            else:
+                embB_id = r.json()["id"]
 
         # Create teamA with userA as member, llmA, embA
         r = client.post(
@@ -665,7 +677,7 @@ def test_any_user_can_list_all_llms():
 
 def test_any_user_can_get_specific_llm():
     with TestClient(app) as client:
-        r = client.get(f"/llms/{llmB_name}", auth=USER_A)
+        r = client.get(f"/llms/{llmB_id}", auth=USER_A)
         assert r.status_code == 200
 
 
@@ -683,14 +695,14 @@ def test_any_user_can_list_all_embeddings():
 
 def test_any_user_can_get_specific_embedding():
     with TestClient(app) as client:
-        r = client.get(f"/embeddings/{embB_name}", auth=USER_A)
+        r = client.get(f"/embeddings/{embB_id}", auth=USER_A)
         assert r.status_code == 200
 
 
 def test_llm_api_keys_are_masked():
     """API keys in LLM options should be masked when returned."""
     with TestClient(app) as client:
-        r = client.get(f"/llms/{llmA_name}", auth=ADMIN)
+        r = client.get(f"/llms/{llmA_id}", auth=ADMIN)
         assert r.status_code == 200
         data = r.json()
         if isinstance(data.get("options"), dict):

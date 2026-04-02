@@ -9,10 +9,13 @@ team_name = "test_team_" + str(random.randint(0, 1000000))
 test_user1 = "test_team_user1_" + str(random.randint(0, 1000000))
 test_user2 = "test_team_user2_" + str(random.randint(0, 1000000))
 test_llm_name = "test_team_llm_" + str(random.randint(0, 1000000))
+test_llm_id = None
 test_embedding_name = "test_team_emb_" + str(random.randint(0, 1000000))
+test_embedding_id = None
 
 
 def test_setup_dependencies():
+    global test_llm_id, test_embedding_id
     with TestClient(app) as client:
         # Create two test users
         for username in (test_user1, test_user2):
@@ -41,6 +44,7 @@ def test_setup_dependencies():
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 201
+        test_llm_id = response.json()["id"]
 
         # Create test embedding
         response = client.post(
@@ -55,6 +59,7 @@ def test_setup_dependencies():
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 201
+        test_embedding_id = response.json()["id"]
 
 
 def test_create_team():
@@ -199,7 +204,7 @@ def test_get_team_as_non_member():
 def test_add_llm_to_team():
     with TestClient(app) as client:
         response = client.post(
-            f"/teams/{team_id}/llms/{test_llm_name}",
+            f"/teams/{team_id}/llms/{test_llm_id}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 200
@@ -209,7 +214,7 @@ def test_add_llm_to_team():
 def test_add_embedding_to_team():
     with TestClient(app) as client:
         response = client.post(
-            f"/teams/{team_id}/embeddings/{test_embedding_name}",
+            f"/teams/{team_id}/embeddings/{test_embedding_id}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 200
@@ -219,7 +224,7 @@ def test_add_embedding_to_team():
 def test_remove_embedding_from_team():
     with TestClient(app) as client:
         response = client.delete(
-            f"/teams/{team_id}/embeddings/{test_embedding_name}",
+            f"/teams/{team_id}/embeddings/{test_embedding_id}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 200
@@ -229,7 +234,7 @@ def test_remove_embedding_from_team():
 def test_remove_llm_from_team():
     with TestClient(app) as client:
         response = client.delete(
-            f"/teams/{team_id}/llms/{test_llm_name}",
+            f"/teams/{team_id}/llms/{test_llm_id}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 200
@@ -284,14 +289,14 @@ def test_cleanup_dependencies():
 
         # Delete test LLM
         response = client.delete(
-            f"/llms/{test_llm_name}",
+            f"/llms/{test_llm_id}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 200
 
         # Delete test embedding
         response = client.delete(
-            f"/embeddings/{test_embedding_name}",
+            f"/embeddings/{test_embedding_id}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 200
