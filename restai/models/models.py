@@ -150,6 +150,7 @@ class ChatModel(InteractionModel):
 
 class LLMModel(BaseModel):
     """LLM provider configuration."""
+    id: Union[int, None] = Field(default=None, description="Unique LLM identifier")
     name: str = Field(description="Unique name identifier for the LLM")
     class_name: str = Field(description="LLM implementation class (e.g. 'ollama', 'openai', 'anthropic', 'litellm')")
     options: Dict[str, Any] = Field(description="Provider-specific configuration options (model name, API keys, etc.)")
@@ -199,6 +200,7 @@ class LLMModel(BaseModel):
 
 class EmbeddingModel(BaseModel):
     """Embedding model provider configuration."""
+    id: Union[int, None] = Field(default=None, description="Unique embedding model identifier")
     name: str = Field(description="Unique name identifier for the embedding model")
     class_name: str = Field(description="Embedding implementation class (e.g. 'ollama', 'openai')")
     options: str = Field(description="JSON string of provider-specific configuration options")
@@ -916,11 +918,13 @@ class TeamModelCreate(BaseModel):
     @field_validator('name')
     @classmethod
     def name_must_be_safe(cls, v):
-        return validate_safe_name(v, "Team name")
+        if not v or not v.strip():
+            raise ValueError("Team name cannot be empty")
+        return v
 
     model_config = ConfigDict(json_schema_extra={
         "example": {
-            "name": "engineering",
+            "name": "Engineering Team",
             "description": "Engineering team",
             "users": ["alice", "bob"],
             "admins": ["alice"],
@@ -944,8 +948,8 @@ class TeamModelUpdate(BaseModel):
     @field_validator('name')
     @classmethod
     def name_must_be_safe(cls, v):
-        if v is not None:
-            return validate_safe_name(v, "Team name")
+        if v is not None and not v.strip():
+            raise ValueError("Team name cannot be empty")
         return v
     embeddings: list[str] = Field(default=None, description="Updated list of embedding model names (replaces existing)")
     branding: Union[TeamBranding, None] = Field(default=None, description="Team branding configuration")

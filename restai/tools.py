@@ -192,7 +192,7 @@ def load_tools() -> list[FunctionTool]:
     for importer, modname, _ in pkgutil.iter_modules(path=[directory + "/llms/tools"]):
         module = __import__(f"restai.llms.tools.{modname}", fromlist="dummy")
         for name, obj in inspect.getmembers(module):
-            if inspect.isfunction(obj):
+            if inspect.isfunction(obj) and not name.startswith("_"):
                 tools.append(FunctionTool.from_defaults(fn=obj))
 
     print(f"Loading userland tools...")

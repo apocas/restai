@@ -29,7 +29,7 @@ export default function LLMInfo({ llm, projects }) {
 
   const handleDeleteClick = () => {
     if (window.confirm("Are you sure you to delete the llm " + llm.name + "?")) {
-      api.delete("/llms/" + llm.name, auth.user.token)
+      api.delete("/llms/" + llm.id, auth.user.token)
         .then(() => {
           navigate("/llms");
         }).catch(() => {});
@@ -92,7 +92,7 @@ export default function LLMInfo({ llm, projects }) {
       <FlexBetween p={2}>
         {auth.user.is_admin === true &&
           <>
-            <Button variant="outlined" onClick={() => { navigate("/llm/" + llm.name + "/edit") }} startIcon={<Edit fontSize="small" />}>
+            <Button variant="outlined" onClick={() => { navigate("/llm/" + llm.id + "/edit") }} startIcon={<Edit fontSize="small" />}>
               Edit
             </Button>
             <Button variant="outlined" color="error" onClick={handleDeleteClick} startIcon={<Delete fontSize="small" />}>

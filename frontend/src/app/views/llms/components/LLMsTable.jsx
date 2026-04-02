@@ -39,7 +39,7 @@ export default function LLMsTable({ llms = [], title = "LLMs" }) {
 
   const handleDeleteClick = (llm) => {
     if (window.confirm(`Are you sure you want to delete '${llm.name}'?`)) {
-      api.delete("/llms/" + llm.name, auth.user.token)
+      api.delete("/llms/" + llm.id, auth.user.token)
         .then(() => {
           toast.success(`Successfully deleted ${llm.name}`);
           window.location.reload();
@@ -92,9 +92,12 @@ export default function LLMsTable({ llms = [], title = "LLMs" }) {
           {
             name: "Name",
             options: {
-              customBodyRender: (value, tableMeta) => (
-                <StyledButton onClick={() => navigate("/llm/" + value)} color="primary">{value}</StyledButton>
-              )
+              customBodyRender: (value, tableMeta) => {
+                const llm = tableMeta.rowData[4];
+                return (
+                  <StyledButton onClick={() => navigate("/llm/" + llm.id)} color="primary">{value}</StyledButton>
+                );
+              }
             }
           },
           {
@@ -135,7 +138,7 @@ export default function LLMsTable({ llms = [], title = "LLMs" }) {
               customBodyRender: (llm) => (
                 <Box display="flex" alignItems="center" gap={1}>
                   <Tooltip title="Edit">
-                    <StyledButton onClick={() => navigate("/llm/" + llm.name + "/edit")} color="secondary" variant="outlined" sx={{ minWidth: 0, p: 1 }}>
+                    <StyledButton onClick={() => navigate("/llm/" + llm.id + "/edit")} color="secondary" variant="outlined" sx={{ minWidth: 0, p: 1 }}>
                       <Edit fontSize="small" />
                     </StyledButton>
                   </Tooltip>

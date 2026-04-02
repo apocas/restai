@@ -1,46 +1,20 @@
-import { useState } from "react";
 import {
   Box,
   Card,
-  Table,
   styled,
-  TableRow,
-  useTheme,
-  TableBody,
-  TableCell,
-  TableHead,
   Button,
-  TablePagination
+  Tooltip,
+  useTheme
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import MUIDataTable from "mui-datatables";
+import { Edit, Delete } from "@mui/icons-material";
+import useAuth from "app/hooks/useAuth";
+import { toast } from 'react-toastify';
+import api from "app/utils/api";
 
-
-const CardHeader = styled(Box)(() => ({
-  display: "flex",
-  paddingLeft: "24px",
-  paddingRight: "24px",
-  marginBottom: "12px",
-  alignItems: "center",
-  justifyContent: "space-between"
-}));
-
-const Title = styled("span")(() => ({
-  fontSize: "1rem",
-  fontWeight: "500",
-  textTransform: "capitalize"
-}));
-
-const ProductTable = styled(Table)(() => ({
-  minWidth: 400,
-  whiteSpace: "pre",
-  "& small": {
-    width: 50,
-    height: 15,
-    borderRadius: 500,
-    boxShadow: "0 0 2px 0 rgba(0, 0, 0, 0.12), 0 2px 2px 0 rgba(0, 0, 0, 0.24)"
-  },
-  "& td": { borderBottom: "none" },
-  "& td:first-of-type": { paddingLeft: "16px !important" }
+const StyledButton = styled(Button)(({ theme }) => ({
+  margin: theme.spacing(1)
 }));
 
 const Small = styled("small")(({ bgcolor }) => ({
@@ -54,91 +28,116 @@ const Small = styled("small")(({ bgcolor }) => ({
   boxShadow: "0 0 2px 0 rgba(0, 0, 0, 0.12), 0 2px 2px 0 rgba(0, 0, 0, 0.24)"
 }));
 
-const StyledButton = styled(Button)(({ theme }) => ({
-  margin: theme.spacing(1)
-}));
-
-
 export default function EmbeddingsTable({ embeddings = [], title = "Embeddings" }) {
+  const auth = useAuth();
   const { palette } = useTheme();
-
   const navigate = useNavigate();
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
 
-  const handleChangePage = (_, newPage) => {
-    setPage(newPage);
+  const handleDeleteClick = (embedding) => {
+    if (window.confirm(`Are you sure you want to delete '${embedding.name}'?`)) {
+      api.delete("/embeddings/" + embedding.id, auth.user.token)
+        .then(() => {
+          toast.success(`Successfully deleted ${embedding.name}`);
+          window.location.reload();
+        }).catch(() => {});
+    }
   };
 
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(+event.target.value);
-    setPage(0);
-  };
+  const isAdmin = auth.user?.is_admin;
+
+  const CustomToolbar = () => (
+    isAdmin ? (
+      <Tooltip title="Create New Embedding">
+        <StyledButton
+          variant="contained"
+          color="primary"
+          onClick={() => navigate("/embeddings/new")}
+          sx={{ ml: 2 }}
+        >
+          New Embedding
+        </StyledButton>
+      </Tooltip>
+    ) : null
+  );
 
   return (
     <Card elevation={3} sx={{ pt: "20px", mb: 3 }}>
-      <CardHeader>
-        <Title>{title}</Title>
-      </CardHeader>
-
-      <Box overflow="auto">
-        <ProductTable>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ px: 3 }} colSpan={2}>
-                Name
-              </TableCell>
-
-              <TableCell sx={{ px: 0 }}>
-                Class
-              </TableCell>
-
-              <TableCell sx={{ px: 0 }}>
-                Privacy
-              </TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {embeddings.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((embedding, index) => (
-              <TableRow key={index} hover>
-                <TableCell align="left" sx={{ px: 0, textTransform: "capitalize" }} colSpan={2}>
-                  <Box display="flex" alignItems="center" gap={4}>
-                    <StyledButton onClick={() => { navigate("/embedding/" + embedding.name) }} color="primary">{embedding.name}</StyledButton>
-                  </Box>
-                </TableCell>
-
-                <TableCell align="left" sx={{ px: 0, textTransform: "capitalize" }}>
-                  {embedding.class_name}
-                </TableCell>
-
-                <TableCell align="left" sx={{ px: 0, textTransform: "capitalize" }}>
-                  {embedding.privacy === "private" ? (
-                    <Small bgcolor={palette.success.main}>{embedding.privacy}</Small>
-                  ) : (
-                    <Small bgcolor={palette.error.main}>{embedding.privacy}</Small>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </ProductTable>
-
-        {embeddings && embeddings.length > 25 && (
-          <TablePagination
-            sx={{ px: 2 }}
-            page={page}
-            component="div"
-            rowsPerPage={rowsPerPage}
-            count={embeddings.length}
-            onPageChange={handleChangePage}
-            rowsPerPageOptions={[25, 50, 100]}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            nextIconButtonProps={{ "aria-label": "Next Page" }}
-            backIconButtonProps={{ "aria-label": "Previous Page" }}
-          />
-        )}
-      </Box >
-    </Card >
+      <MUIDataTable
+        title={title}
+        options={{
+          print: false,
+          selectableRows: "none",
+          download: false,
+          filter: true,
+          viewColumns: false,
+          rowsPerPage: 10,
+          rowsPerPageOptions: [10, 15, 100],
+          elevation: 0,
+          textLabels: {
+            body: {
+              noMatch: "No embeddings found",
+              toolTip: "Sort",
+              columnHeaderTooltip: column => `Sort for ${column.label}`
+            },
+          },
+          customToolbar: CustomToolbar
+        }}
+        data={embeddings.map(emb => [emb.name, emb.class_name, emb.privacy, emb.dimension, emb])}
+        columns={[
+          {
+            name: "Name",
+            options: {
+              customBodyRender: (value, tableMeta) => {
+                const emb = tableMeta.rowData[4];
+                return (
+                  <StyledButton onClick={() => navigate("/embedding/" + emb.id)} color="primary">{value}</StyledButton>
+                );
+              }
+            }
+          },
+          {
+            name: "Class",
+            options: {}
+          },
+          {
+            name: "Privacy",
+            options: {
+              customBodyRender: (value) => (
+                value === "private" ? (
+                  <Small bgcolor={palette.success.main}>{value}</Small>
+                ) : (
+                  <Small bgcolor={palette.error.main}>{value}</Small>
+                )
+              )
+            }
+          },
+          {
+            name: "Dimension",
+            options: {}
+          },
+          ...(isAdmin ? [{
+            name: "Actions",
+            options: {
+              filter: false,
+              sort: false,
+              customBodyRender: (emb) => (
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Tooltip title="Edit">
+                    <StyledButton onClick={() => navigate("/embedding/" + emb.id + "/edit")} color="secondary" variant="outlined" sx={{ minWidth: 0, p: 1 }}>
+                      <Edit fontSize="small" />
+                    </StyledButton>
+                  </Tooltip>
+                  <Tooltip title="Delete">
+                    <StyledButton onClick={() => handleDeleteClick(emb)} color="error" variant="outlined" sx={{ minWidth: 0, p: 1 }}>
+                      <Delete fontSize="small" />
+                    </StyledButton>
+                  </Tooltip>
+                </Box>
+              )
+            }
+          }] : [])
+        ]}
+      />
+    </Card>
   );
 }

@@ -126,7 +126,7 @@ export default function NewInteractive() {
         dimension: Number(formState.dimension),
       }, auth.user.token);
 
-      navigate("/embedding/" + data.name);
+      navigate("/embedding/" + data.id);
     } catch (err) {
       // error auto-toasted
     }

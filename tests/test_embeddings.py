@@ -6,6 +6,7 @@ from restai.main import app
 
 test_embedding_name = "test_embedding_" + str(random.randint(0, 1000000))
 test_user = "test_emb_user_" + str(random.randint(0, 1000000))
+test_embedding_id = None
 
 
 def test_get_embeddings():
@@ -16,6 +17,7 @@ def test_get_embeddings():
 
 
 def test_create_embedding():
+    global test_embedding_id
     with TestClient(app) as client:
         response = client.post(
             "/embeddings",
@@ -31,6 +33,7 @@ def test_create_embedding():
         assert response.status_code == 201
         data = response.json()
         assert data["name"] == test_embedding_name
+        test_embedding_id = data["id"]
 
 
 def test_create_embedding_non_admin():
@@ -70,7 +73,7 @@ def test_create_embedding_non_admin():
 def test_get_embedding():
     with TestClient(app) as client:
         response = client.get(
-            f"/embeddings/{test_embedding_name}",
+            f"/embeddings/{test_embedding_id}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 200
@@ -83,7 +86,7 @@ def test_get_embedding():
 def test_update_embedding():
     with TestClient(app) as client:
         response = client.patch(
-            f"/embeddings/{test_embedding_name}",
+            f"/embeddings/{test_embedding_id}",
             json={"description": "Updated test embedding", "dimension": 512},
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
@@ -91,7 +94,7 @@ def test_update_embedding():
 
         # Verify update
         response = client.get(
-            f"/embeddings/{test_embedding_name}",
+            f"/embeddings/{test_embedding_id}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 200
@@ -103,7 +106,7 @@ def test_update_embedding():
 def test_delete_embedding():
     with TestClient(app) as client:
         response = client.delete(
-            f"/embeddings/{test_embedding_name}",
+            f"/embeddings/{test_embedding_id}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 200
@@ -112,7 +115,7 @@ def test_delete_embedding():
 def test_delete_embedding_not_found():
     with TestClient(app) as client:
         response = client.delete(
-            "/embeddings/nonexistent_embedding_xyz",
+            "/embeddings/999999",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
-        assert response.status_code in (404, 500)
+        assert response.status_code == 404

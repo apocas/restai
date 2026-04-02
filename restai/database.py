@@ -164,6 +164,9 @@ class DBWrapper:
         )
         return llm
 
+    def get_llm_by_id(self, id: int) -> Optional[LLMDatabase]:
+        return self.db.query(LLMDatabase).filter(LLMDatabase.id == id).first()
+
     def get_embedding_by_name(self, name: str) -> Optional[EmbeddingDatabase]:
         llm: Optional[EmbeddingDatabase] = (
             self.db.query(EmbeddingDatabase)
@@ -171,6 +174,9 @@ class DBWrapper:
             .first()
         )
         return llm
+
+    def get_embedding_by_id(self, id: int) -> Optional[EmbeddingDatabase]:
+        return self.db.query(EmbeddingDatabase).filter(EmbeddingDatabase.id == id).first()
 
     def get_user_by_apikey(self, apikey: str):
         """Returns (UserDatabase, ApiKeyDatabase) or (UserDatabase, None) for legacy, or (None, None)."""
@@ -689,8 +695,15 @@ class DBWrapper:
         return self.db.query(SettingDatabase).filter(SettingDatabase.key == key).first()
 
     def upsert_setting(self, key: str, value: str) -> None:
-        self.db.merge(SettingDatabase(key=key, value=value))
-        self.db.commit()
+        existing = self.db.query(SettingDatabase).filter(SettingDatabase.key == key).first()
+        if existing:
+            existing.value = value
+        else:
+            self.db.add(SettingDatabase(key=key, value=value))
+        try:
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
 
     def get_team_spending(self, team_id: int) -> float:
         now = datetime.now(timezone.utc)

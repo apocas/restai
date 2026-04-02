@@ -32,27 +32,32 @@ def mask_embedding_options(options: Optional[str]) -> Optional[str]:
         return options
 
 
-@router.get("/embeddings/{embedding_name}", response_model=EmbeddingModel)
-async def api_get_embedding(embedding_name: str = Path(description="Embedding model name"),
-                      _: User = Depends(get_current_username),
-                      db_wrapper: DBWrapper = Depends(get_db_wrapper)):
-    """Get embedding model configuration by name."""
+@router.get("/embeddings/{embedding_id}", response_model=EmbeddingModel)
+async def api_get_embedding(
+    embedding_id: int = Path(description="Embedding model ID"),
+    _: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get embedding model configuration by ID."""
     try:
-        llm = EmbeddingModel.model_validate(db_wrapper.get_embedding_by_name(embedding_name))
-        llm.options = mask_embedding_options(llm.options)
-        return llm
+        emb_db = db_wrapper.get_embedding_by_id(embedding_id)
+        if emb_db is None:
+            raise HTTPException(status_code=404, detail="Embedding not found")
+        emb = EmbeddingModel.model_validate(emb_db)
+        emb.options = mask_embedding_options(emb.options)
+        return emb
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
         logging.exception(e)
-        raise HTTPException(
-            status_code=404, detail="Embedding not found")
+        raise HTTPException(status_code=404, detail="Embedding not found")
 
 
 @router.get("/embeddings", response_model=list[EmbeddingModel])
 async def api_get_embeddings(
-        user: User = Depends(get_current_username),
-        db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     """List registered embedding models. Non-admin users only see embeddings accessible via their teams."""
     all_embeddings = db_wrapper.get_embeddings()
 
@@ -71,11 +76,15 @@ async def api_get_embeddings(
 
 
 @router.post("/embeddings", status_code=201)
-async def api_create_embeddings(embeddingc: EmbeddingModel,
-                         _: User = Depends(get_current_username_admin),
-                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+async def api_create_embeddings(
+    embeddingc: EmbeddingModel,
+    _: User = Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     """Register a new embedding model provider (admin only)."""
     try:
+        if db_wrapper.get_embedding_by_name(embeddingc.name):
+            raise HTTPException(status_code=409, detail=f"Embedding '{embeddingc.name}' already exists")
         embedding_db: EmbeddingDatabase = db_wrapper.create_embedding(embeddingc.name, embeddingc.class_name, embeddingc.options, embeddingc.privacy, embeddingc.description, embeddingc.dimension)
         embedding = EmbeddingModel.model_validate(embedding_db)
         embedding.options = mask_embedding_options(embedding.options)
@@ -83,60 +92,59 @@ async def api_create_embeddings(embeddingc: EmbeddingModel,
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
-        raise HTTPException(
-            status_code=500,
-            detail='Failed to create Embedding ' + embeddingc.name)
+        raise HTTPException(status_code=500, detail='Failed to create Embedding ' + embeddingc.name)
 
 
-@router.patch("/embeddings/{embedding_name}")
-async def api_edit_embedding(request: Request,
-                           embedding_name: str = Path(description="Embedding model name"),
-                           embeddingUpdate: EmbeddingUpdate = ...,
-                           _: User = Depends(get_current_username_admin),
-                           db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+@router.patch("/embeddings/{embedding_id}")
+async def api_edit_embedding(
+    request: Request,
+    embedding_id: int = Path(description="Embedding model ID"),
+    embeddingUpdate: EmbeddingUpdate = ...,
+    _: User = Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     """Update embedding model configuration (admin only)."""
     try:
-        embedding: Optional[EmbeddingDatabase] = db_wrapper.get_embedding_by_name(embedding_name)
+        embedding: Optional[EmbeddingDatabase] = db_wrapper.get_embedding_by_id(embedding_id)
         if embedding is None:
             raise HTTPException(status_code=404, detail="Embedding not found")
         if db_wrapper.update_embedding(embedding, embeddingUpdate):
-            return {"embedding": embedding_name}
+            return {"embedding": embedding.name}
         else:
-            raise HTTPException(
-                status_code=404, detail='Embedding not found')
+            raise HTTPException(status_code=404, detail='Embedding not found')
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.delete("/embeddings/{embedding_name}")
-async def api_delete_embedding(embedding_name: str = Path(description="Embedding model name"),
-                         _: User = Depends(get_current_username_admin),
-                         db_wrapper: DBWrapper = Depends(get_db_wrapper)):
+@router.delete("/embeddings/{embedding_id}")
+async def api_delete_embedding(
+    embedding_id: int = Path(description="Embedding model ID"),
+    _: User = Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
     """Delete an embedding model provider (admin only)."""
     try:
-        embedding: Optional[EmbeddingDatabase] = db_wrapper.get_embedding_by_name(embedding_name)
+        embedding: Optional[EmbeddingDatabase] = db_wrapper.get_embedding_by_id(embedding_id)
         if embedding is None:
             raise HTTPException(status_code=404, detail="Embedding not found")
 
         projects_using = db_wrapper.db.query(ProjectDatabase).filter(
-            ProjectDatabase.embeddings == embedding_name
+            ProjectDatabase.embeddings == embedding.name
         ).all()
         if projects_using:
             names = [p.name for p in projects_using]
             raise HTTPException(
                 status_code=409,
-                detail=f"Cannot delete embedding '{embedding_name}': used by projects: {', '.join(names)}"
+                detail=f"Cannot delete embedding '{embedding.name}': used by projects: {', '.join(names)}"
             )
 
         db_wrapper.delete_embedding(embedding)
-        return {"deleted": embedding_name}
+        return {"deleted": embedding.name}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
         logging.exception(e)
-        raise HTTPException(
-            status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error")

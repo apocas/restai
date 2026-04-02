@@ -21,32 +21,30 @@ def test_setup():
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
 
-        # Create a team and add user
+        # Create a test LLM
+        llm_name = f"comments_llm_{random.randint(0,999999)}"
+        client.post(
+            "/llms",
+            json={"name": llm_name, "class_name": "OpenAI", "options": {"model": "gpt-test", "api_key": "sk-fake"}, "privacy": "public", "type": "chat"},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+
+        # Create a team and add user + LLM
+        team_name = f"comments_team_{random.randint(0,999999)}"
         resp = client.post(
             "/teams",
-            json={"name": f"comments_team_{random.randint(0,999999)}", "users": [test_username], "admins": []},
+            json={"name": team_name, "users": [test_username], "admins": [], "llms": [llm_name]},
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         team_id = resp.json()["id"]
 
-        # Get an available LLM
-        llms = client.get("/llms", auth=("admin", RESTAI_DEFAULT_PASSWORD)).json()
-        llm_name = llms[0]["name"] if llms else None
-
-        # Assign LLM to team if available
-        if llm_name:
-            client.patch(
-                f"/teams/{team_id}",
-                json={"llms": [llm_name]},
-                auth=("admin", RESTAI_DEFAULT_PASSWORD),
-            )
-
         # Create project
         proj_name = f"comments_proj_{random.randint(0,999999)}"
-        body = {"name": proj_name, "type": "inference", "team_id": team_id}
-        if llm_name:
-            body["llm"] = llm_name
-        resp = client.post("/projects", json=body, auth=("admin", RESTAI_DEFAULT_PASSWORD))
+        resp = client.post(
+            "/projects",
+            json={"name": proj_name, "type": "inference", "llm": llm_name, "team_id": team_id},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
         assert resp.status_code == 201
         test_project_id = resp.json()["project"]
 

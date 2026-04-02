@@ -87,11 +87,12 @@ export default function TeamTable({ teams, onView, onEdit, onDelete, isAdmin }) 
           {
             name: "Name",
             options: {
-              customBodyRender: (value, tableMeta) => (
-                <Box display="flex" alignItems="center" gap={1}>
-                  {value}
-                </Box>
-              )
+              customBodyRender: (value, tableMeta) => {
+                const team = tableMeta.rowData[5];
+                return (
+                  <StyledButton onClick={() => navigate("/team/" + team.id)} color="primary">{value}</StyledButton>
+                );
+              }
             }
           },
           {

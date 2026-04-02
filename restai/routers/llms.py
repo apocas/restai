@@ -27,15 +27,19 @@ def mask_api_key(options: Optional[dict]) -> Optional[dict]:
         logging.exception(e)
         return options
 
-@router.get("/llms/{llm_name}", response_model=LLMModel)
+
+@router.get("/llms/{llm_id}", response_model=LLMModel)
 async def api_get_llm(
-    llm_name: str = Path(description="LLM name"),
+    llm_id: int = Path(description="LLM ID"),
     _: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Get LLM configuration by name."""
+    """Get LLM configuration by ID."""
     try:
-        llm = LLMModel.model_validate(db_wrapper.get_llm_by_name(llm_name))
+        llm_db = db_wrapper.get_llm_by_id(llm_id)
+        if llm_db is None:
+            raise HTTPException(status_code=404, detail="LLM not found")
+        llm = LLMModel.model_validate(llm_db)
         llm.options = mask_api_key(llm.options)
         return llm
     except Exception as e:
@@ -77,6 +81,8 @@ async def api_create_llm(
 ):
     """Register a new LLM provider (admin only)."""
     try:
+        if db_wrapper.get_llm_by_name(llmc.name):
+            raise HTTPException(status_code=409, detail=f"LLM '{llmc.name}' already exists")
         llm_db: LLMDatabase = db_wrapper.create_llm(
             llmc.name,
             llmc.class_name,
@@ -97,22 +103,22 @@ async def api_create_llm(
         raise HTTPException(status_code=500, detail="Failed to create LLM " + llmc.name)
 
 
-@router.patch("/llms/{llm_name}")
+@router.patch("/llms/{llm_id}")
 async def api_edit_llm(
     request: Request,
-    llm_name: str = Path(description="LLM name"),
+    llm_id: int = Path(description="LLM ID"),
     llmUpdate: LLMUpdate = ...,
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Update LLM configuration (admin only)."""
     try:
-        llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_name(llm_name)
+        llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_id(llm_id)
         if llm is None:
             raise HTTPException(status_code=404, detail="LLM not found")
         if db_wrapper.update_llm(llm, llmUpdate):
-            request.app.state.brain.load_llm(llm_name, db_wrapper)
-            return {"llm": llm_name}
+            request.app.state.brain.load_llm(llm.name, db_wrapper)
+            return {"llm": llm.name}
         else:
             raise HTTPException(status_code=404, detail="LLM not found")
     except Exception as e:
@@ -122,30 +128,30 @@ async def api_edit_llm(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.delete("/llms/{llm_name}")
+@router.delete("/llms/{llm_id}")
 async def api_delete_llm(
-    llm_name: str = Path(description="LLM name"),
+    llm_id: int = Path(description="LLM ID"),
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Delete an LLM provider (admin only)."""
     try:
-        llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_name(llm_name)
+        llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_id(llm_id)
         if llm is None:
             raise HTTPException(status_code=404, detail="LLM not found")
 
         projects_using = db_wrapper.db.query(ProjectDatabase).filter(
-            (ProjectDatabase.llm == llm_name) | (ProjectDatabase.guard == llm_name)
+            (ProjectDatabase.llm == llm.name) | (ProjectDatabase.guard == llm.name)
         ).all()
         if projects_using:
             names = [p.name for p in projects_using]
             raise HTTPException(
                 status_code=409,
-                detail=f"Cannot delete LLM '{llm_name}': used by projects: {', '.join(names)}"
+                detail=f"Cannot delete LLM '{llm.name}': used by projects: {', '.join(names)}"
             )
 
         db_wrapper.delete_llm(llm)
-        return {"deleted": llm_name}
+        return {"deleted": llm.name}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

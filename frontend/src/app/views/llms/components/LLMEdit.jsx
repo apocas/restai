@@ -45,9 +45,9 @@ export default function LLMEdit({ llm }) {
       update.context_window = parseInt(state.context_window);
     }
 
-    api.patch("/llms/" + llm.name, update, auth.user.token)
+    api.patch("/llms/" + llm.id, update, auth.user.token)
       .then(() => {
-        window.location.href = "/admin/llm/" + llm.name;
+        window.location.href = "/admin/llm/" + llm.id;
       }).catch(() => {});
   }
 

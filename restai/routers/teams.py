@@ -356,112 +356,92 @@ async def remove_project_from_team(
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.post("/teams/{team_id}/llms/{llm_name}")
+@router.post("/teams/{team_id}/llms/{llm_id}")
 async def add_llm_to_team(
     team_id: int = Path(description="Team ID"),
-    llm_name: str = Path(description="LLM name"),
+    llm_id: int = Path(description="LLM ID"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Add an LLM to a team.
-    
-    Only team admins and platform admins can add LLMs to a team.
-    """
+    """Add an LLM to a team."""
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
             raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
-            
-        llm = db_wrapper.get_llm_by_name(llm_name)
+        llm = db_wrapper.get_llm_by_id(llm_id)
         if llm is None:
             raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
-            
         db_wrapper.add_llm_to_team(team, llm)
-        return {"added_llm": llm_name, "team": team.name}
+        return {"added_llm": llm.name, "team": team.name}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.delete("/teams/{team_id}/llms/{llm_name}")
+@router.delete("/teams/{team_id}/llms/{llm_id}")
 async def remove_llm_from_team(
     team_id: int = Path(description="Team ID"),
-    llm_name: str = Path(description="LLM name"),
+    llm_id: int = Path(description="LLM ID"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Remove an LLM from a team.
-    
-    Only team admins and platform admins can remove LLMs from a team.
-    """
+    """Remove an LLM from a team."""
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
             raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
-            
-        llm = db_wrapper.get_llm_by_name(llm_name)
+        llm = db_wrapper.get_llm_by_id(llm_id)
         if llm is None:
             raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
-            
         db_wrapper.remove_llm_from_team(team, llm)
-        return {"removed_llm": llm_name, "team": team.name}
+        return {"removed_llm": llm.name, "team": team.name}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.post("/teams/{team_id}/embeddings/{embedding_name}")
+@router.post("/teams/{team_id}/embeddings/{embedding_id}")
 async def add_embedding_to_team(
     team_id: int = Path(description="Team ID"),
-    embedding_name: str = Path(description="Embedding model name"),
+    embedding_id: int = Path(description="Embedding model ID"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Add an embedding to a team.
-    
-    Only team admins and platform admins can add embeddings to a team.
-    """
+    """Add an embedding to a team."""
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
             raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
-            
-        embedding = db_wrapper.get_embedding_by_name(embedding_name)
+        embedding = db_wrapper.get_embedding_by_id(embedding_id)
         if embedding is None:
             raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
-            
         db_wrapper.add_embedding_to_team(team, embedding)
-        return {"added_embedding": embedding_name, "team": team.name}
+        return {"added_embedding": embedding.name, "team": team.name}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.delete("/teams/{team_id}/embeddings/{embedding_name}")
+@router.delete("/teams/{team_id}/embeddings/{embedding_id}")
 async def remove_embedding_from_team(
     team_id: int = Path(description="Team ID"),
-    embedding_name: str = Path(description="Embedding model name"),
+    embedding_id: int = Path(description="Embedding model ID"),
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Remove an embedding from a team.
-    
-    Only team admins and platform admins can remove embeddings from a team.
-    """
+    """Remove an embedding from a team."""
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
             raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
-            
-        embedding = db_wrapper.get_embedding_by_name(embedding_name)
+        embedding = db_wrapper.get_embedding_by_id(embedding_id)
         if embedding is None:
             raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
-            
         db_wrapper.remove_embedding_from_team(team, embedding)
-        return {"removed_embedding": embedding_name, "team": team.name}
+        return {"removed_embedding": embedding.name, "team": team.name}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

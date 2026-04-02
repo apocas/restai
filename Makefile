@@ -1,6 +1,9 @@
+-include .env
+export
+
 .PHONY: start
 start:
-	uv run --no-group gpu uvicorn restai.main:app --port 9000 --workers 4
+	uv run --no-group gpu uvicorn restai.main:app --host $${RESTAI_HOST:-127.0.0.1} --port $${RESTAI_PORT:-9000} --workers $${RESTAI_WORKERS:-4}
 
 .PHONY: database
 database:
@@ -13,7 +16,7 @@ frontend:
 
 .PHONY: dev
 dev:
-	RESTAI_DEV=true uvicorn restai.main:app --reload --port 9000
+	RESTAI_DEV=true uvicorn restai.main:app --reload --host $${RESTAI_HOST:-127.0.0.1} --port $${RESTAI_PORT:-9000}
 
 .PHONY: build
 build:
@@ -21,6 +24,7 @@ build:
 
 .PHONY: install
 install:
+	mkdir -p frontend/build
 	uv sync --no-group gpu
 	make database
 	make frontend

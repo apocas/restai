@@ -3,7 +3,7 @@ import {
   Box, Button, Card, Chip, Grid, IconButton, InputAdornment,
   MenuItem, TextField, Tooltip, Typography, styled,
 } from "@mui/material";
-import { ContentCopy, Code, Refresh } from "@mui/icons-material";
+import { ContentCopy, Code, Refresh, Warning } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { toast } from "react-toastify";
@@ -57,6 +57,21 @@ export default function ProjectWidget({ project }) {
       .catch(() => {});
   }, [auth.user?.username]);
 
+  // Validate selected API key
+  const selectedKeyObj = apiKeys.find((k) => k.key_prefix === selectedKey) || null;
+  const keyErrors = [];
+  if (selectedKeyObj) {
+    if (!selectedKeyObj.read_only) {
+      keyErrors.push("Key must be read-only. Edit the key or create a new read-only key.");
+    }
+    if (!selectedKeyObj.allowed_projects || !Array.isArray(selectedKeyObj.allowed_projects)) {
+      keyErrors.push("Key must be scoped to this project only. It currently has access to all projects.");
+    } else if (selectedKeyObj.allowed_projects.length !== 1 || selectedKeyObj.allowed_projects[0] !== project.id) {
+      keyErrors.push(`Key must be scoped to only this project (ID ${project.id}). It currently has access to other projects.`);
+    }
+  }
+  const keyValid = selectedKey && keyErrors.length === 0;
+
   const serverUrl = process.env.REACT_APP_RESTAI_API_URL || window.location.origin;
 
   const embedCode = `<script
@@ -105,12 +120,19 @@ export default function ProjectWidget({ project }) {
                 fullWidth select size="small" label="API Key"
                 value={selectedKey}
                 onChange={(e) => setSelectedKey(e.target.value)}
-                helperText="Use a read-only, project-scoped key for security"
+                error={selectedKey !== "" && keyErrors.length > 0}
+                helperText={
+                  selectedKey && keyErrors.length > 0
+                    ? keyErrors[0]
+                    : "Must be a read-only key scoped to this project only"
+                }
               >
                 <MenuItem value="">Select an API key...</MenuItem>
                 {apiKeys.map((k) => (
                   <MenuItem key={k.id} value={k.key_prefix}>
-                    {k.description || k.key_prefix} {k.read_only ? "(read-only)" : ""}
+                    {k.description || k.key_prefix}
+                    {k.read_only ? " (read-only)" : " (read-write)"}
+                    {k.allowed_projects && k.allowed_projects.length === 1 && k.allowed_projects[0] === project.id ? " (this project)" : ""}
                   </MenuItem>
                 ))}
               </TextField>
@@ -178,10 +200,12 @@ export default function ProjectWidget({ project }) {
         <Card elevation={1} sx={{ p: 2.5, mt: 2 }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
             <SectionTitle sx={{ mb: 0 }}>Embed Code</SectionTitle>
-            <Tooltip title="Copy to clipboard">
-              <IconButton size="small" onClick={copyCode}>
-                <ContentCopy fontSize="small" />
-              </IconButton>
+            <Tooltip title={keyValid ? "Copy to clipboard" : "Fix API key issues first"}>
+              <span>
+                <IconButton size="small" onClick={copyCode} disabled={!keyValid}>
+                  <ContentCopy fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
           </Box>
           <CodeBlock>{embedCode}</CodeBlock>
@@ -202,12 +226,24 @@ export default function ProjectWidget({ project }) {
               </IconButton>
             </Tooltip>
           </Box>
-          {!selectedKey ? (
+          {!keyValid ? (
             <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
-              <Typography variant="body2">Select an API key above to preview the widget.</Typography>
-              <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                Create a read-only API key in your user profile if you don't have one.
-              </Typography>
+              {selectedKey && keyErrors.length > 0 ? (
+                <>
+                  <Warning color="error" sx={{ fontSize: 40, mb: 1 }} />
+                  <Typography variant="body2" color="error.main">API key does not meet widget requirements:</Typography>
+                  {keyErrors.map((err, i) => (
+                    <Typography key={i} variant="caption" display="block" color="error.main" sx={{ mt: 0.5 }}>{err}</Typography>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <Typography variant="body2">Select a valid API key to preview the widget.</Typography>
+                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                    Create a read-only, project-scoped API key in your user profile.
+                  </Typography>
+                </>
+              )}
             </Box>
           ) : (
             <Box sx={{ borderRadius: 2, overflow: "hidden", border: "1px solid #eee", height: 480 }}>

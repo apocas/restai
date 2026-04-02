@@ -171,28 +171,28 @@ export default function TeamView() {
     }
   };
 
-  const handleRemoveLLM = async (llmName) => {
-    if (!window.confirm(`Are you sure you want to remove ${llmName} from this team?`)) {
+  const handleRemoveLLM = async (llm) => {
+    if (!window.confirm(`Are you sure you want to remove ${llm.name} from this team?`)) {
       return;
     }
 
     try {
-      await api.delete(`/teams/${id}/llms/${llmName}`, user.token);
-      toast.success(`${llmName} removed from team`);
+      await api.delete(`/teams/${id}/llms/${llm.id}`, user.token);
+      toast.success(`${llm.name} removed from team`);
       fetchTeam();
     } catch (error) {
       // errors auto-toasted
     }
   };
 
-  const handleRemoveEmbedding = async (embeddingName) => {
-    if (!window.confirm(`Are you sure you want to remove ${embeddingName} from this team?`)) {
+  const handleRemoveEmbedding = async (embedding) => {
+    if (!window.confirm(`Are you sure you want to remove ${embedding.name} from this team?`)) {
       return;
     }
 
     try {
-      await api.delete(`/teams/${id}/embeddings/${embeddingName}`, user.token);
-      toast.success(`${embeddingName} removed from team`);
+      await api.delete(`/teams/${id}/embeddings/${embedding.id}`, user.token);
+      toast.success(`${embedding.name} removed from team`);
       fetchTeam();
     } catch (error) {
       // errors auto-toasted
@@ -447,7 +447,7 @@ export default function TeamView() {
                       <ListItem secondaryAction={
                         isTeamAdmin && (
                           <Tooltip title="Remove LLM">
-                            <IconButton edge="end" onClick={() => handleRemoveLLM(llm.name)}>
+                            <IconButton edge="end" onClick={() => handleRemoveLLM(llm)}>
                               <Delete />
                             </IconButton>
                           </Tooltip>
@@ -478,7 +478,7 @@ export default function TeamView() {
                       <ListItem secondaryAction={
                         isTeamAdmin && (
                           <Tooltip title="Remove Embedding">
-                            <IconButton edge="end" onClick={() => handleRemoveEmbedding(embedding.name)}>
+                            <IconButton edge="end" onClick={() => handleRemoveEmbedding(embedding)}>
                               <Delete />
                             </IconButton>
                           </Tooltip>

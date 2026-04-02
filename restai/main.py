@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi import FastAPI, Request, Depends, status, Response
+from fastapi import FastAPI, HTTPException, Request, Depends, status, Response
 from fastapi import Path as PathParam
 import logging
 import sys
@@ -224,6 +224,7 @@ async def lifespan(fs_app: FastAPI):
                 continue
             output["llms"].append(
                 {
+                    "id": llm.id,
                     "name": llm.name,
                     "privacy": llm.privacy,
                     "description": llm.description,
@@ -237,6 +238,7 @@ async def lifespan(fs_app: FastAPI):
                 continue
             output["embeddings"].append(
                 {
+                    "id": embedding.id,
                     "name": embedding.name,
                     "privacy": embedding.privacy,
                     "description": embedding.description,
@@ -428,13 +430,28 @@ async def oauth_callback(provider: str = PathParam(description="OAuth provider n
 
     
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    response = JSONResponse(content={"detail": exc.detail}, status_code=exc.status_code)
+    if exc.status_code == 401:
+        response.delete_cookie(key="restai_token")
+    return response
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     exc_str = f"{exc}".replace("\n", " ").replace("   ", " ")
     logging.error(f"{request}: {exc_str}")
-    content = {"detail": exc_str}
+    # Extract clean user-facing messages from validation errors
+    messages = []
+    for err in exc.errors():
+        msg = err.get("msg", "")
+        if msg.startswith("Value error, "):
+            msg = msg[len("Value error, "):]
+        messages.append(msg)
+    detail = "; ".join(messages) if messages else exc_str
     return JSONResponse(
-        content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
+        content={"detail": detail}, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
     )
 
 

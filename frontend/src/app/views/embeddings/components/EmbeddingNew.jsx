@@ -33,7 +33,7 @@ export default function EmbeddingNew({ projects, info }) {
       "description": state.description
     }, auth.user.token)
       .then((response) => {
-        navigate("/embedding/" + response.name);
+        navigate("/embedding/" + response.id);
       }).catch(() => {});
 
   };

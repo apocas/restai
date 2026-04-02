@@ -130,7 +130,7 @@ export default function NewInteractive() {
         context_window: parseInt(formState.context_window) || 4096,
       }, auth.user.token);
 
-      navigate("/llm/" + data.name);
+      navigate("/llm/" + data.id);
     } catch (err) {
       // error auto-toasted
     }

@@ -14,13 +14,7 @@ def duckduckgo(
             region (Optional[str]): The region to be used for the search in [country-language] convention, ex us-en, uk-en, ru-ru, etc...
             max_results (Optional[int]): The maximum number of results to be returned.
         """
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
 
-        params = {
-            "keywords": query,
-            "region": region,
-            "max_results": max_results,
-        }
-
-        with DDGS() as ddg:
-            return list(ddg.text(**params))
+        ddg = DDGS()
+        return list(ddg.text(query, region=region, max_results=max_results))

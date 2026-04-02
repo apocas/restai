@@ -34,9 +34,9 @@ export default function EmbeddingEdit({ embedding }) {
       update.dimension = state.dimension;
     }
 
-    api.patch("/embeddings/" + embedding.name, update, auth.user.token)
+    api.patch("/embeddings/" + embedding.id, update, auth.user.token)
       .then(() => {
-        window.location.href = "/admin/embedding/" + embedding.name;
+        window.location.href = "/admin/embedding/" + embedding.id;
       }).catch(() => {});
   }
 

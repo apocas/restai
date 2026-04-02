@@ -29,7 +29,7 @@ export default function EmbeddingInfo({ embedding, projects }) {
 
   const handleDeleteClick = () => {
     if (window.confirm("Are you sure you to delete the embedding " + embedding.name + "?")) {
-      api.delete("/embeddings/" + embedding.name, auth.user.token)
+      api.delete("/embeddings/" + embedding.id, auth.user.token)
         .then(() => {
           navigate("/embeddings");
         }).catch(() => {});
@@ -80,7 +80,7 @@ export default function EmbeddingInfo({ embedding, projects }) {
       <FlexBetween p={2}>
         {auth.user.is_admin === true &&
           <>
-            <Button variant="outlined" onClick={() => { navigate("/embedding/" + embedding.name + "/edit") }} startIcon={<Edit fontSize="small" />}>
+            <Button variant="outlined" onClick={() => { navigate("/embedding/" + embedding.id + "/edit") }} startIcon={<Edit fontSize="small" />}>
               Edit
             </Button>
             <Button variant="outlined" color="error" onClick={handleDeleteClick} startIcon={<Delete fontSize="small" />}>

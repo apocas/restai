@@ -1,8 +1,8 @@
 from restai.loaders.url import SeleniumWebReader
 
 
-def crawler(
-        url: str
+def crawler_selenium(
+    url: str
 ) -> str:
     """
     Retrieve a web page content. Useful to get content from a specific URL.

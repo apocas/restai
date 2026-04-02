@@ -6,6 +6,7 @@ from restai.main import app
 
 test_llm_name = "test_llm_" + str(random.randint(0, 1000000))
 test_user = "test_llm_user_" + str(random.randint(0, 1000000))
+test_llm_id = None
 
 
 def test_get_llms():
@@ -16,6 +17,7 @@ def test_get_llms():
 
 
 def test_create_llm():
+    global test_llm_id
     with TestClient(app) as client:
         response = client.post(
             "/llms",
@@ -31,6 +33,7 @@ def test_create_llm():
         assert response.status_code == 201
         data = response.json()
         assert data["name"] == test_llm_name
+        test_llm_id = data["id"]
 
 
 def test_create_llm_non_admin():
@@ -70,7 +73,7 @@ def test_create_llm_non_admin():
 def test_get_llm():
     with TestClient(app) as client:
         response = client.get(
-            f"/llms/{test_llm_name}",
+            f"/llms/{test_llm_id}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 200
@@ -89,7 +92,7 @@ def test_get_llm():
 def test_update_llm():
     with TestClient(app) as client:
         response = client.patch(
-            f"/llms/{test_llm_name}",
+            f"/llms/{test_llm_id}",
             json={"description": "Updated test LLM"},
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
@@ -97,7 +100,7 @@ def test_update_llm():
 
         # Verify update
         response = client.get(
-            f"/llms/{test_llm_name}",
+            f"/llms/{test_llm_id}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 200
@@ -107,7 +110,7 @@ def test_update_llm():
 def test_delete_llm():
     with TestClient(app) as client:
         response = client.delete(
-            f"/llms/{test_llm_name}",
+            f"/llms/{test_llm_id}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 200
@@ -116,7 +119,7 @@ def test_delete_llm():
 def test_delete_llm_not_found():
     with TestClient(app) as client:
         response = client.delete(
-            "/llms/nonexistent_llm_xyz",
+            "/llms/999999",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 404

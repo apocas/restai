@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 
-def crawler2(
+def crawler_classic(
     url: str
 ) -> str:
     """

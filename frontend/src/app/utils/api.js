@@ -21,7 +21,20 @@ async function request(path, options = {}, token = null) {
   const response = await fetch(url + path, { ...options, headers });
   if (!response.ok) {
     let detail = response.statusText;
-    try { const data = await response.json(); detail = data.detail || detail; } catch {}
+    try {
+      const data = await response.json();
+      let d = data.detail || detail;
+      // Extract clean message from validation errors
+      if (typeof d === "string" && d.includes("'msg':")) {
+        const match = d.match(/'msg':\s*'([^']+)'/);
+        if (match) d = match[1];
+      }
+      // Handle array of validation errors
+      if (Array.isArray(d)) {
+        d = d.map(e => e.msg || e.message || JSON.stringify(e)).join("; ");
+      }
+      detail = d;
+    } catch {}
     if (!options.silent) toast.error(detail);
     throw new ApiError(response.status, detail);
   }
