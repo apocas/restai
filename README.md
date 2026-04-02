@@ -299,6 +299,29 @@ Automatically keep your RAG knowledge base up-to-date by syncing from external s
 - Last sync timestamp tracking
 - All credentials masked in API responses (S3 keys, Confluence tokens, SharePoint secrets, Drive service account JSON)
 
+### Embeddable Chat Widget
+
+Add an AI chat bubble to any website with a single `<script>` tag — no frontend development needed. The widget connects to a RestAI project, streams responses in real-time, and maintains conversation context.
+
+```html
+<script
+  src="https://your-restai.com/widget/chat.js"
+  data-project-id="7"
+  data-api-key="sk-abc123..."
+  data-title="Support Bot"
+  data-primary-color="#6366f1"
+  data-welcome-message="Hi! How can I help?"
+></script>
+```
+
+**Customizable:** title, subtitle, colors, avatar, position (left/right), and welcome message — all via `data-*` attributes. Configure and preview live from the Widget tab in the project page before deploying.
+
+**Secure:** Requires a read-only, project-scoped API key (visible in page source by design — same model as Stripe publishable keys). Shadow DOM isolates styles from the host page.
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/widget.png" width="750" alt="RESTai Chat Widget"/>
+</div>
+
 ### Telegram & Slack Integration
 
 Connect any project to **Telegram** or **Slack** — messages are processed through the project's chat pipeline and responses are sent back automatically. No public URL required.

@@ -268,6 +268,16 @@ async def lifespan(fs_app: FastAPI):
         print(e)
         print("Admin frontend not available.")
 
+    # Widget JS endpoint
+    WIDGET_DIR = Path(__file__).parent / "widget"
+    if WIDGET_DIR.exists():
+        @fs_app.get("/widget/chat.js")
+        async def serve_widget_js():
+            widget_file = WIDGET_DIR / "chat.js"
+            if widget_file.exists():
+                return FileResponse(str(widget_file), media_type="application/javascript")
+            return JSONResponse(status_code=404, content={"detail": "Widget not found"})
+
     fs_app.include_router(llms.router, tags=["LLMs"])
     fs_app.include_router(embeddings.router, tags=["Embeddings"])
     fs_app.include_router(projects.router)
@@ -438,10 +448,12 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 if config.RESTAI_DEV == True:
     print("Running in development mode!")
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["http://localhost:3000"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+
+# CORS — required for embeddable widget (cross-origin chat API calls)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
+)
