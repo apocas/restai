@@ -110,29 +110,26 @@ class RAG(ProjectBase):
                 output["sources"].append(source)
 
             if chatModel.stream:
+                parts = []
                 if hasattr(response, "response_gen"):
-                    parts = []
                     for text in response.response_gen:
                         parts.append(text)
                         yield "data: " + json.dumps({"text": text}) + "\n\n"
 
-                    output["answer"] = "".join(parts)
-
-                    self.brain.post_processing_reasoning(output)
-                    self.brain.post_processing_counting(output)
-
-                    yield "data: " + json.dumps(output) + "\n"
-                    yield "event: close\n\n"
-                else:
+                answer = "".join(parts).strip()
+                if not answer or len(output["sources"]) == 0:
                     censorship = project.props.censorship or self.brain.defaultCensorship
                     output["answer"] = censorship
-                    yield "data: " + json.dumps({"text": censorship}) + "\n\n"
+                    if not parts:
+                        yield "data: " + json.dumps({"text": censorship}) + "\n\n"
+                else:
+                    output["answer"] = answer
 
-                    self.brain.post_processing_reasoning(output)
-                    self.brain.post_processing_counting(output)
+                self.brain.post_processing_reasoning(output)
+                self.brain.post_processing_counting(output)
 
-                    yield "data: " + json.dumps(output) + "\n"
-                    yield "event: close\n\n"
+                yield "data: " + json.dumps(output) + "\n"
+                yield "event: close\n\n"
             else:
                 if len(response.source_nodes) == 0:
                     output["answer"] = (
@@ -327,32 +324,26 @@ class RAG(ProjectBase):
                 output["evaluation"] = {"reason": metric.reason, "score": metric.score}
 
             if questionModel.stream:
+                parts = []
                 if hasattr(response, "response_gen"):
-                    failed = True
-                    answer = ""
                     for text in response.response_gen:
-                        failed = False
-                        answer += text
+                        parts.append(text)
                         yield "data: " + json.dumps({"text": text}) + "\n\n"
-                    if failed:
-                        yield "data: " + response.response_txt + "\n\n"
-                    output["answer"] = answer
 
-                    self.brain.post_processing_reasoning(output)
-                    self.brain.post_processing_counting(output)
-
-                    yield "data: " + json.dumps(output) + "\n"
-                    yield "event: close\n\n"
-                else:
+                answer = "".join(parts).strip()
+                if not answer or len(response.source_nodes) == 0:
                     censorship = project.props.censorship or self.brain.defaultCensorship
                     output["answer"] = censorship
-                    yield "data: " + json.dumps({"text": censorship}) + "\n\n"
+                    if not parts:
+                        yield "data: " + json.dumps({"text": censorship}) + "\n\n"
+                else:
+                    output["answer"] = answer
 
-                    self.brain.post_processing_reasoning(output)
-                    self.brain.post_processing_counting(output)
+                self.brain.post_processing_reasoning(output)
+                self.brain.post_processing_counting(output)
 
-                    yield "data: " + json.dumps(output) + "\n"
-                    yield "event: close\n\n"
+                yield "data: " + json.dumps(output) + "\n"
+                yield "event: close\n\n"
             else:
                 if len(response.source_nodes) == 0:
                     output["answer"] = (
