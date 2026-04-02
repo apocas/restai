@@ -72,7 +72,6 @@ async def lifespan(fs_app: FastAPI):
     from modules.loaders import LOADERS
 
     fs_app.state.manager = get_manager()
-    fs_app.state.brain = Brain()
 
     from restai.settings import ensure_settings_table, seed_defaults, load_settings
     from restai.database import engine as db_engine
@@ -101,6 +100,8 @@ async def lifespan(fs_app: FastAPI):
     settings_db_wrapper = get_db_wrapper()
     seed_defaults(settings_db_wrapper)
     load_settings(settings_db_wrapper)
+
+    fs_app.state.brain = Brain()
 
     # Run data retention cleanup on startup
     from restai.retention import run_retention_cleanup

@@ -3,7 +3,7 @@ export
 
 .PHONY: start
 start:
-	uv run --no-group gpu uvicorn restai.main:app --host $${RESTAI_HOST:-127.0.0.1} --port $${RESTAI_PORT:-9000} --workers $${RESTAI_WORKERS:-4}
+	uv run --no-group gpu uvicorn restai.main:app --host $${RESTAI_HOST:-127.0.0.1} --port $${RESTAI_PORT:-9000} --workers $${RESTAI_WORKERS:-2}
 
 .PHONY: database
 database:
