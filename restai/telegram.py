@@ -43,7 +43,8 @@ def send_typing_action(token: str, chat_id: int):
         pass
 
 
-def get_updates(token: str, offset: int = 0, timeout: int = 30) -> list[dict]:
+def get_updates(token: str, offset: int = 0, timeout: int = 30):
+    """Returns list of updates on success, None on error."""
     try:
         resp = requests.get(
             f"{TELEGRAM_API_BASE.format(token=token)}/getUpdates",
@@ -54,11 +55,12 @@ def get_updates(token: str, offset: int = 0, timeout: int = 30) -> list[dict]:
         data = resp.json()
         if data.get("ok"):
             return data.get("result", [])
+        return None
     except requests.exceptions.Timeout:
-        pass
+        return []  # timeout is normal for long-polling
     except Exception as e:
         logging.warning(f"Telegram getUpdates error: {e}")
-    return []
+        return None
 
 
 class TelegramPoller:
@@ -88,8 +90,21 @@ class TelegramPoller:
 
     def _poll_loop(self):
         offset = 0
+        consecutive_errors = 0
+        backoff = 1
         while not self._stop_event.is_set():
             updates = get_updates(self.token, offset=offset, timeout=30)
+            if updates is None:
+                # Error occurred
+                consecutive_errors += 1
+                if consecutive_errors >= 10:
+                    logging.error(f"Telegram poller for project {self.project_id}: too many consecutive errors, stopping")
+                    break
+                backoff = min(backoff * 2, 300)  # max 5 min
+                self._stop_event.wait(backoff)
+                continue
+            consecutive_errors = 0
+            backoff = 1
             for update in updates:
                 offset = update["update_id"] + 1
                 self._handle_update(update)
