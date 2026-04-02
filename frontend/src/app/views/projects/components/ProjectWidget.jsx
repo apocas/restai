@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  Box, Button, Card, Chip, Grid, IconButton, InputAdornment,
-  MenuItem, TextField, Tooltip, Typography, styled,
+  Box, Button, Card, Grid, IconButton, InputAdornment,
+  MenuItem, TextField, Tooltip, Typography, styled, CircularProgress,
 } from "@mui/material";
-import { ContentCopy, Code, Refresh, Warning } from "@mui/icons-material";
+import { ContentCopy, Code, Refresh } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { toast } from "react-toastify";
@@ -34,7 +34,6 @@ const CodeBlock = styled(Box)(({ theme }) => ({
 
 export default function ProjectWidget({ project }) {
   const auth = useAuth();
-  const previewRef = useRef(null);
 
   const [config, setConfig] = useState({
     title: "AI Assistant",
@@ -46,57 +45,78 @@ export default function ProjectWidget({ project }) {
     avatarUrl: "",
   });
 
-  const [apiKeys, setApiKeys] = useState([]);
-  const [selectedKey, setSelectedKey] = useState("");
+  const [widgetKey, setWidgetKey] = useState(null); // full API key string
+  const [loading, setLoading] = useState(true);
   const [previewKey, setPreviewKey] = useState(0);
 
   useEffect(() => {
-    if (!auth.user?.username) return;
-    api.get(`/users/${auth.user.username}/apikeys`, auth.user.token)
-      .then(setApiKeys)
-      .catch(() => {});
-  }, [auth.user?.username]);
+    if (!auth.user?.username || !project.id) return;
 
-  // Validate selected API key
-  const selectedKeyObj = apiKeys.find((k) => k.key_prefix === selectedKey) || null;
-  const keyErrors = [];
-  if (selectedKeyObj) {
-    if (!selectedKeyObj.read_only) {
-      keyErrors.push("Key must be read-only. Edit the key or create a new read-only key.");
-    }
-    if (!selectedKeyObj.allowed_projects || !Array.isArray(selectedKeyObj.allowed_projects)) {
-      keyErrors.push("Key must be scoped to this project only. It currently has access to all projects.");
-    } else if (selectedKeyObj.allowed_projects.length !== 1 || selectedKeyObj.allowed_projects[0] !== project.id) {
-      keyErrors.push(`Key must be scoped to only this project (ID ${project.id}). It currently has access to other projects.`);
-    }
-  }
-  const keyValid = selectedKey && keyErrors.length === 0;
+    // Check if a widget key already exists for this project
+    api.get(`/users/${auth.user.username}/apikeys`, auth.user.token)
+      .then((keys) => {
+        const existing = keys.find(
+          (k) => k.description === `widget-project-${project.id}` && k.read_only &&
+                 k.allowed_projects && k.allowed_projects.length === 1 && k.allowed_projects[0] === project.id
+        );
+        if (existing) {
+          // Key exists but we don't have the full key — need to create a new one
+          // The full key is only available at creation time
+          setWidgetKey(null);
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [auth.user?.username, project.id]);
+
+  const generateKey = () => {
+    setLoading(true);
+    api.post(
+      `/users/${auth.user.username}/apikeys`,
+      {
+        description: `widget-project-${project.id}`,
+        allowed_projects: [project.id],
+        read_only: true,
+      },
+      auth.user.token,
+    )
+      .then((data) => {
+        setWidgetKey(data.api_key);
+        toast.success("Widget API key created");
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
 
   const serverUrl = process.env.REACT_APP_RESTAI_API_URL || window.location.origin;
 
-  const embedCode = `<script
+  const embedCode = widgetKey
+    ? `<script
   src="${serverUrl}/widget/chat.js"
   data-project-id="${project.id}"
-  data-api-key="${selectedKey || "YOUR_API_KEY"}"
+  data-api-key="${widgetKey}"
   data-title="${config.title}"
   data-subtitle="${config.subtitle}"
   data-primary-color="${config.primaryColor}"
   data-text-color="${config.textColor}"
   data-position="${config.position}"${config.welcomeMessage ? `\n  data-welcome-message="${config.welcomeMessage}"` : ""}${config.avatarUrl ? `\n  data-avatar-url="${config.avatarUrl}"` : ""}
-></script>`;
+></script>`
+    : null;
 
   const copyCode = () => {
-    navigator.clipboard.writeText(embedCode);
-    toast.success("Embed code copied");
+    if (embedCode) {
+      navigator.clipboard.writeText(embedCode);
+      toast.success("Embed code copied");
+    }
   };
 
-  // Build preview HTML
-  const previewHtml = `<!DOCTYPE html>
+  const previewHtml = widgetKey
+    ? `<!DOCTYPE html>
 <html><head><style>body{margin:0;padding:0;height:100%;background:#f5f5f5;font-family:sans-serif;display:flex;align-items:center;justify-content:center;color:#888;font-size:14px}</style></head>
 <body><p>Widget preview</p>
 <script src="${serverUrl}/widget/chat.js"
   data-project-id="${project.id}"
-  data-api-key="${selectedKey || ""}"
+  data-api-key="${widgetKey}"
   data-title="${config.title}"
   data-subtitle="${config.subtitle}"
   data-primary-color="${config.primaryColor}"
@@ -105,7 +125,8 @@ export default function ProjectWidget({ project }) {
   ${config.welcomeMessage ? `data-welcome-message="${config.welcomeMessage}"` : ""}
   ${config.avatarUrl ? `data-avatar-url="${config.avatarUrl}"` : ""}
   data-server="${serverUrl}"
-></script></body></html>`;
+></script></body></html>`
+    : null;
 
   return (
     <Grid container spacing={3}>
@@ -114,30 +135,18 @@ export default function ProjectWidget({ project }) {
         <Card elevation={1} sx={{ p: 2.5 }}>
           <SectionTitle><Code fontSize="small" /> Widget Configuration</SectionTitle>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth select size="small" label="API Key"
-                value={selectedKey}
-                onChange={(e) => setSelectedKey(e.target.value)}
-                error={selectedKey !== "" && keyErrors.length > 0}
-                helperText={
-                  selectedKey && keyErrors.length > 0
-                    ? keyErrors[0]
-                    : "Must be a read-only key scoped to this project only"
-                }
-              >
-                <MenuItem value="">Select an API key...</MenuItem>
-                {apiKeys.map((k) => (
-                  <MenuItem key={k.id} value={k.key_prefix}>
-                    {k.description || k.key_prefix}
-                    {k.read_only ? " (read-only)" : " (read-write)"}
-                    {k.allowed_projects && k.allowed_projects.length === 1 && k.allowed_projects[0] === project.id ? " (this project)" : ""}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
+          {!widgetKey && (
+            <Box sx={{ textAlign: "center", py: 3, mb: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Generate a dedicated read-only API key for this widget. The key will be scoped to this project only.
+              </Typography>
+              <Button variant="contained" onClick={generateKey} disabled={loading}>
+                {loading ? <CircularProgress size={20} /> : "Generate Widget Key"}
+              </Button>
+            </Box>
+          )}
 
+          <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
               <TextField fullWidth size="small" label="Title"
                 value={config.title}
@@ -200,15 +209,21 @@ export default function ProjectWidget({ project }) {
         <Card elevation={1} sx={{ p: 2.5, mt: 2 }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
             <SectionTitle sx={{ mb: 0 }}>Embed Code</SectionTitle>
-            <Tooltip title={keyValid ? "Copy to clipboard" : "Fix API key issues first"}>
+            <Tooltip title="Copy to clipboard">
               <span>
-                <IconButton size="small" onClick={copyCode} disabled={!keyValid}>
+                <IconButton size="small" onClick={copyCode} disabled={!embedCode}>
                   <ContentCopy fontSize="small" />
                 </IconButton>
               </span>
             </Tooltip>
           </Box>
-          <CodeBlock>{embedCode}</CodeBlock>
+          {embedCode ? (
+            <CodeBlock>{embedCode}</CodeBlock>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 2 }}>
+              Generate a widget key above to see the embed code.
+            </Typography>
+          )}
           <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
             Paste this script tag into your website's HTML, before the closing <code>&lt;/body&gt;</code> tag.
           </Typography>
@@ -221,31 +236,12 @@ export default function ProjectWidget({ project }) {
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
             <SectionTitle sx={{ mb: 0 }}>Live Preview</SectionTitle>
             <Tooltip title="Reload preview">
-              <IconButton size="small" onClick={() => setPreviewKey((k) => k + 1)}>
+              <IconButton size="small" onClick={() => setPreviewKey((k) => k + 1)} disabled={!previewHtml}>
                 <Refresh fontSize="small" />
               </IconButton>
             </Tooltip>
           </Box>
-          {!keyValid ? (
-            <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
-              {selectedKey && keyErrors.length > 0 ? (
-                <>
-                  <Warning color="error" sx={{ fontSize: 40, mb: 1 }} />
-                  <Typography variant="body2" color="error.main">API key does not meet widget requirements:</Typography>
-                  {keyErrors.map((err, i) => (
-                    <Typography key={i} variant="caption" display="block" color="error.main" sx={{ mt: 0.5 }}>{err}</Typography>
-                  ))}
-                </>
-              ) : (
-                <>
-                  <Typography variant="body2">Select a valid API key to preview the widget.</Typography>
-                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                    Create a read-only, project-scoped API key in your user profile.
-                  </Typography>
-                </>
-              )}
-            </Box>
-          ) : (
+          {previewHtml ? (
             <Box sx={{ borderRadius: 2, overflow: "hidden", border: "1px solid #eee", height: 480 }}>
               <iframe
                 key={previewKey}
@@ -254,6 +250,10 @@ export default function ProjectWidget({ project }) {
                 style={{ width: "100%", height: "100%", border: "none" }}
                 sandbox="allow-scripts allow-same-origin"
               />
+            </Box>
+          ) : (
+            <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
+              <Typography variant="body2">Generate a widget key to preview the chat widget.</Typography>
             </Box>
           )}
         </Card>

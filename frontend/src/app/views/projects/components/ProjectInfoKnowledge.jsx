@@ -111,7 +111,6 @@ export default function ProjectInfoKnowledge({ project }) {
                 </Typography>
               )}
             </DetailItem>
-            )}
           </Grid>
         </Card>
       </Grid>
