@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  Box, Button, Card, Grid, IconButton, InputAdornment,
+  Box, Button, Card, Grid, IconButton, InputAdornment, Switch, FormControlLabel,
   MenuItem, TextField, Tooltip, Typography, styled, CircularProgress,
 } from "@mui/material";
 import { ContentCopy, Code, Refresh } from "@mui/icons-material";
@@ -43,6 +43,7 @@ export default function ProjectWidget({ project }) {
     position: "right",
     welcomeMessage: "",
     avatarUrl: "",
+    stream: false,
   });
 
   const [widgetKey, setWidgetKey] = useState(null); // full API key string
@@ -99,7 +100,7 @@ export default function ProjectWidget({ project }) {
   data-subtitle="${config.subtitle}"
   data-primary-color="${config.primaryColor}"
   data-text-color="${config.textColor}"
-  data-position="${config.position}"${config.welcomeMessage ? `\n  data-welcome-message="${config.welcomeMessage}"` : ""}${config.avatarUrl ? `\n  data-avatar-url="${config.avatarUrl}"` : ""}
+  data-position="${config.position}"${config.stream ? `\n  data-stream="true"` : ""}${config.welcomeMessage ? `\n  data-welcome-message="${config.welcomeMessage}"` : ""}${config.avatarUrl ? `\n  data-avatar-url="${config.avatarUrl}"` : ""}
 ></script>`
     : null;
 
@@ -122,6 +123,7 @@ export default function ProjectWidget({ project }) {
   data-primary-color="${config.primaryColor}"
   data-text-color="${config.textColor}"
   data-position="${config.position}"
+  ${config.stream ? `data-stream="true"` : ""}
   ${config.welcomeMessage ? `data-welcome-message="${config.welcomeMessage}"` : ""}
   ${config.avatarUrl ? `data-avatar-url="${config.avatarUrl}"` : ""}
   data-server="${serverUrl}"
@@ -184,6 +186,16 @@ export default function ProjectWidget({ project }) {
                 <MenuItem value="right">Bottom Right</MenuItem>
                 <MenuItem value="left">Bottom Left</MenuItem>
               </TextField>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <FormControlLabel
+                control={<Switch checked={config.stream} onChange={(e) => setConfig({ ...config, stream: e.target.checked })} />}
+                label="Enable streaming"
+              />
+              <Typography variant="caption" color="text.secondary" display="block">
+                Show responses token by token as they arrive
+              </Typography>
             </Grid>
 
             <Grid item xs={12}>

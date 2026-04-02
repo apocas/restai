@@ -15,6 +15,7 @@
     position: scriptTag.getAttribute("data-position") || "right",
     welcomeMessage: scriptTag.getAttribute("data-welcome-message") || "",
     avatarUrl: scriptTag.getAttribute("data-avatar-url") || "",
+    stream: scriptTag.getAttribute("data-stream") === "true",
     server: scriptTag.getAttribute("data-server") || scriptTag.src.replace(/\/widget\/chat\.js.*$/, ""),
   };
 
@@ -255,7 +256,7 @@
   }
 
   // --- Render messages ---
-  function renderMessages(streamingText) {
+  function renderMessages(showTyping, streamingText) {
     let html = "";
     for (const msg of messages) {
       const isBot = msg.role === "bot";
@@ -267,7 +268,7 @@
         <div class="restai-msg-content">${isBot ? renderMarkdown(msg.content) : escapeHtml(msg.content)}</div>
       </div>`;
     }
-    if (streamingText !== undefined) {
+    if (showTyping || streamingText) {
       const avatarContent = cfg.avatarUrl ? `<img src="${cfg.avatarUrl}" alt="">` : ICON_BOT.replace('viewBox', 'style="width:14px;height:14px;fill:' + cfg.textColor + '" viewBox');
       html += `<div class="restai-msg bot">
         <div class="restai-msg-avatar">${avatarContent}</div>
@@ -294,21 +295,24 @@
     messages.push({ role: "user", content: text });
     inputEl.value = "";
     inputEl.style.height = "auto";
-    renderMessages("");
+    renderMessages(true);
     isStreaming = true;
     sendBtn.disabled = true;
 
     try {
-      const body = { question: text, stream: true };
+      const body = { question: text };
       if (chatId) body.id = chatId;
+      if (cfg.stream) body.stream = true;
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${cfg.apiKey}`,
+      };
+      if (cfg.stream) headers["Accept"] = "text/event-stream";
 
       const resp = await fetch(`${cfg.server}/projects/${cfg.projectId}/chat`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${cfg.apiKey}`,
-          "Accept": "text/event-stream",
-        },
+        headers,
         body: JSON.stringify(body),
       });
 
@@ -319,36 +323,37 @@
         return;
       }
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulated = "";
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop(); // keep incomplete line
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.answer !== undefined && data.type !== undefined) {
-                // Final output
-                chatId = data.id || chatId;
-              } else if (data.text !== undefined) {
-                accumulated += data.text;
-                renderMessages(accumulated);
-              }
-            } catch (e) { /* skip non-JSON */ }
+      if (cfg.stream) {
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulated = "";
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop();
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.answer !== undefined && data.type !== undefined) {
+                  chatId = data.id || chatId;
+                } else if (data.text !== undefined) {
+                  accumulated += data.text;
+                  renderMessages(false, accumulated);
+                }
+              } catch (e) {}
+            }
           }
         }
+        messages.push({ role: "bot", content: accumulated || "No response." });
+      } else {
+        const data = await resp.json();
+        chatId = data.id || chatId;
+        messages.push({ role: "bot", content: data.answer || "No response." });
       }
-
-      messages.push({ role: "bot", content: accumulated || "No response." });
       renderMessages();
 
     } catch (err) {
