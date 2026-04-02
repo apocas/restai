@@ -744,7 +744,13 @@ async def find_embedding(
                 similarity_top_k=k,
             )
 
-            nodes = retriever.retrieve(embedding.text)
+            try:
+                nodes = retriever.retrieve(embedding.text)
+            except Exception as retrieval_err:
+                if "Nothing found on disk" in str(retrieval_err) or "hnsw" in str(retrieval_err).lower():
+                    # ChromaDB index not ready — likely being rebuilt after sync
+                    raise HTTPException(status_code=503, detail="Vector index is being rebuilt. Please try again in a moment.")
+                raise
 
             postprocessor = SimilarityPostprocessor(similarity_cutoff=threshold)
             nodes = postprocessor.postprocess_nodes(nodes)

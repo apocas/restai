@@ -4,15 +4,26 @@ import chromadb
 import uuid
 
 from restai.vectordb.tools import find_embeddings_path
+from restai.config import CHROMADB_HOST, CHROMADB_PORT
+
+# Reuse PersistentClient per cache path within the same worker process.
+_cache_client_cache = {}
+
+
+def _get_cache_client(path):
+    if CHROMADB_HOST:
+        return chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT)
+    if path not in _cache_client_cache:
+        _cache_client_cache[path] = chromadb.PersistentClient(path=path)
+    return _cache_client_cache[path]
 
 
 class Cache:
 
     def __init__(self, project):
         self.project = project
-        self.client = chromadb.PersistentClient(
-            path=find_embeddings_path(self.project.props.name + "_cache")
-        )
+        cache_path = find_embeddings_path(self.project.props.name + "_cache")
+        self.client = _get_cache_client(cache_path)
         self.collection = self.client.get_or_create_collection(
             name=self.project.props.name + "_cache"
         )
@@ -62,7 +73,8 @@ class Cache:
 
     def delete(self):
         try:
-            embeddingsPath = find_embeddings_path(self.project.props.name + "_cache")
-            shutil.rmtree(embeddingsPath, ignore_errors=True)
+            cache_path = find_embeddings_path(self.project.props.name + "_cache")
+            shutil.rmtree(cache_path, ignore_errors=True)
+            _cache_client_cache.pop(cache_path, None)
         except BaseException:
             pass
