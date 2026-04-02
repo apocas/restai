@@ -117,27 +117,6 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
         />
       </Grid>
       {state.options?.sync_enabled && (
-        <Grid item sm={6} xs={12}>
-          <TextField
-            fullWidth select size="small"
-            label="Sync Interval"
-            value={state.options?.sync_interval ?? 60}
-            onChange={(e) => setState({ ...state, options: { ...state.options, sync_interval: parseInt(e.target.value) } })}
-          >
-            {[
-              { value: 15, label: "Every 15 minutes" },
-              { value: 30, label: "Every 30 minutes" },
-              { value: 60, label: "Every hour" },
-              { value: 360, label: "Every 6 hours" },
-              { value: 720, label: "Every 12 hours" },
-              { value: 1440, label: "Every 24 hours" },
-            ].map((opt) => (
-              <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-            ))}
-          </TextField>
-        </Grid>
-      )}
-      {state.options?.sync_enabled && (
         <>
           {(state.options?.sync_sources || []).map((src, idx) => (
             <Grid item xs={12} key={idx}>
@@ -192,6 +171,28 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
                     >
                       <MenuItem value="sentence">Sentence</MenuItem>
                       <MenuItem value="token">Token</MenuItem>
+                    </TextField>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth select size="small" label="Sync Interval"
+                      value={src.sync_interval || 60}
+                      onChange={(e) => {
+                        const updated = [...state.options.sync_sources];
+                        updated[idx] = { ...updated[idx], sync_interval: parseInt(e.target.value) };
+                        setState({ ...state, options: { ...state.options, sync_sources: updated } });
+                      }}
+                    >
+                      {[
+                        { value: 15, label: "Every 15 min" },
+                        { value: 30, label: "Every 30 min" },
+                        { value: 60, label: "Every hour" },
+                        { value: 360, label: "Every 6 hours" },
+                        { value: 720, label: "Every 12 hours" },
+                        { value: 1440, label: "Every 24 hours" },
+                      ].map((opt) => (
+                        <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                      ))}
                     </TextField>
                   </Grid>
                   {src.type === "url" && (

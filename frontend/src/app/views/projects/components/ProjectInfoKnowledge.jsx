@@ -100,15 +100,7 @@ export default function ProjectInfoKnowledge({ project }) {
             <DetailItem label="Auto-Sync">
               {project.options?.sync_enabled && project.options?.sync_sources?.length > 0 ? (
                 <Chip
-                  label={`Active (${project.options.sync_sources.length} source${
-                    project.options.sync_sources.length > 1 ? "s" : ""
-                  }, every ${
-                    (project.options.sync_interval || 60) >= 1440
-                      ? `${Math.round((project.options.sync_interval || 60) / 1440)}d`
-                      : (project.options.sync_interval || 60) >= 60
-                      ? `${Math.round((project.options.sync_interval || 60) / 60)}h`
-                      : `${project.options.sync_interval || 60}m`
-                  })`}
+                  label={`Active (${project.options.sync_sources.length} source${project.options.sync_sources.length > 1 ? "s" : ""})`}
                   size="small"
                   color="success"
                   variant="outlined"
@@ -119,12 +111,6 @@ export default function ProjectInfoKnowledge({ project }) {
                 </Typography>
               )}
             </DetailItem>
-            {project.options?.last_sync && (
-              <DetailItem label="Last Sync">
-                <Typography variant="body2">
-                  {new Date(project.options.last_sync).toLocaleString()}
-                </Typography>
-              </DetailItem>
             )}
           </Grid>
         </Card>

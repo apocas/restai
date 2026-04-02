@@ -103,7 +103,7 @@ class RAG(ProjectBase):
                 source = {"score": node.score, "id": node.node_id, "text": node.text}
 
                 if "source" in node.metadata:
-                    source["source"] = node.metadata["source"]
+                    source["source"] = node.metadata.get("source", "unknown")
                 if "keywords" in node.metadata:
                     source["keywords"] = node.metadata["keywords"]
 
@@ -309,7 +309,7 @@ class RAG(ProjectBase):
                 for node in response.source_nodes:
                     output["sources"].append(
                         {
-                            "source": node.metadata["source"],
+                            "source": node.metadata.get("source", "unknown"),
                             "keywords": node.metadata["keywords"],
                             "score": node.score,
                             "id": node.node_id,

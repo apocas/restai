@@ -46,12 +46,8 @@ class SyncWorker:
             except Exception as e:
                 logger.error(f"Sync error for project {self.project_id}: {e}")
 
-            # Get current interval from DB (may have changed)
-            interval = self._get_interval()
-            if interval is None:
-                break
-            # Sleep in small increments so stop_event is responsive
-            for _ in range(interval * 60):
+            # Check every 60 seconds — _sync_once handles interval enforcement
+            for _ in range(60):
                 if self._stop_event.is_set():
                     return
                 self._stop_event.wait(1)
@@ -69,6 +65,19 @@ class SyncWorker:
         except Exception:
             return 60
 
+    def _update_source_last_sync(self, db, source_index):
+        """Update last_sync for a specific source in the DB."""
+        from restai.models.databasemodels import ProjectDatabase
+        proj_db = db.db.query(ProjectDatabase).filter(ProjectDatabase.id == self.project_id).first()
+        if proj_db:
+            current_opts = json.loads(proj_db.options) if proj_db.options else {}
+            src_list = current_opts.get("sync_sources", [])
+            if source_index < len(src_list):
+                src_list[source_index]["last_sync"] = datetime.now(timezone.utc).isoformat()
+                current_opts["sync_sources"] = src_list
+                proj_db.options = json.dumps(current_opts)
+                db.db.commit()
+
     def _sync_once(self):
         db = get_db_wrapper()
         try:
@@ -81,23 +90,30 @@ class SyncWorker:
             if not sources:
                 return
 
-            logger.info(f"Syncing project {self.project_id}: {len(sources)} sources")
-            for source in sources:
+            now = datetime.now(timezone.utc)
+            for i, source in enumerate(sources):
+                interval_minutes = source.sync_interval or 60
+                if source.last_sync:
+                    try:
+                        last = datetime.fromisoformat(source.last_sync)
+                        if last.tzinfo is None:
+                            last = last.replace(tzinfo=timezone.utc)
+                        elapsed = (now - last).total_seconds() / 60
+                        if elapsed < interval_minutes:
+                            continue
+                    except (ValueError, TypeError):
+                        pass
+
+                # Mark as synced NOW before starting — prevents other workers from picking it up
+                self._update_source_last_sync(db, i)
+
                 try:
+                    logger.info(f"Syncing source '{source.name}' for project {self.project_id}")
                     _sync_source(project, source, db)
+                    # Update again with actual completion time
+                    self._update_source_last_sync(db, i)
                 except Exception as e:
                     logger.error(f"Failed to sync source '{source.name}' for project {self.project_id}: {e}")
-
-            # Update last_sync timestamp
-            from restai.models.databasemodels import ProjectDatabase
-            proj_db = db.db.query(ProjectDatabase).filter(ProjectDatabase.id == self.project_id).first()
-            if proj_db:
-                current_opts = json.loads(proj_db.options) if proj_db.options else {}
-                current_opts["last_sync"] = datetime.now(timezone.utc).isoformat()
-                proj_db.options = json.dumps(current_opts)
-                db.db.commit()
-
-            logger.info(f"Sync completed for project {self.project_id}")
         finally:
             db.db.close()
 
@@ -613,8 +629,10 @@ def is_sync_running(project_id: int) -> bool:
 
 
 def run_sync_now(project_id: int, app):
-    """Run a one-off sync in a background thread (for manual trigger)."""
+    """Run a one-off sync in a background thread (for manual trigger). Ignores intervals — syncs all sources immediately."""
     def _run():
+        from restai.models.databasemodels import ProjectDatabase
+
         db = get_db_wrapper()
         try:
             project = app.state.brain.find_project(project_id, db)
@@ -624,20 +642,22 @@ def run_sync_now(project_id: int, app):
             sources = opts.sync_sources if opts else None
             if not sources:
                 return
-            for source in sources:
+            for i, source in enumerate(sources):
                 try:
+                    logger.info(f"Manual sync source '{source.name}' for project {project_id}")
                     _sync_source(project, source, db)
+                    # Update last_sync per source
+                    proj_db = db.db.query(ProjectDatabase).filter(ProjectDatabase.id == project_id).first()
+                    if proj_db:
+                        current_opts = json.loads(proj_db.options) if proj_db.options else {}
+                        src_list = current_opts.get("sync_sources", [])
+                        if i < len(src_list):
+                            src_list[i]["last_sync"] = datetime.now(timezone.utc).isoformat()
+                            current_opts["sync_sources"] = src_list
+                            proj_db.options = json.dumps(current_opts)
+                            db.db.commit()
                 except Exception as e:
                     logger.error(f"Manual sync failed for source '{source.name}': {e}")
-
-            # Update last_sync
-            from restai.models.databasemodels import ProjectDatabase
-            proj_db = db.db.query(ProjectDatabase).filter(ProjectDatabase.id == project_id).first()
-            if proj_db:
-                current_opts = json.loads(proj_db.options) if proj_db.options else {}
-                current_opts["last_sync"] = datetime.now(timezone.utc).isoformat()
-                proj_db.options = json.dumps(current_opts)
-                db.db.commit()
         finally:
             db.db.close()
 

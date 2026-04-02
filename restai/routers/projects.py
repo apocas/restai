@@ -758,7 +758,7 @@ async def find_embedding(
             for node in nodes:
                 output.append(
                     {
-                        "source": node.metadata["source"],
+                        "source": node.metadata.get("source", "unknown"),
                         "score": node.score,
                         "id": node.node_id,
                     }
@@ -1045,6 +1045,8 @@ async def ingest_url(
         loader = SeleniumWebReader()
 
         documents = loader.load_data(urls=[ingest.url])
+        for doc in documents:
+            doc.metadata["source"] = ingest.url
         documents = extract_keywords_for_metadata(documents)
 
         n_chunks = index_documents_classic(
