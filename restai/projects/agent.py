@@ -77,7 +77,12 @@ class Agent(ProjectBase):
         }
 
         if self.check_input_guard(project, chatModel.question, user, db, output):
-            yield output
+            if chatModel.stream:
+                yield "data: " + json.dumps({"text": output.get("answer", "")}) + "\n\n"
+                yield "data: " + json.dumps(output) + "\n"
+                yield "event: close\n\n"
+            else:
+                yield output
             return
 
         tools_u = await self.prepare_tools(project)
@@ -178,7 +183,12 @@ class Agent(ProjectBase):
         }
 
         if self.check_input_guard(project, questionModel.question, user, db, output):
-            yield output
+            if questionModel.stream:
+                yield "data: " + json.dumps({"text": output.get("answer", "")}) + "\n\n"
+                yield "data: " + json.dumps(output) + "\n"
+                yield "event: close\n\n"
+            else:
+                yield output
             return
 
         model = self.brain.get_llm(project.props.llm, db)
@@ -224,4 +234,11 @@ class Agent(ProjectBase):
                 raise e
 
         self.brain.post_processing_counting(output)
-        yield output
+
+        if questionModel.stream:
+            if output.get("answer"):
+                yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
+            yield "data: " + json.dumps(output) + "\n"
+            yield "event: close\n\n"
+        else:
+            yield output
