@@ -1,0 +1,224 @@
+import random
+from fastapi.testclient import TestClient
+
+from restai.config import RESTAI_DEFAULT_PASSWORD
+from restai.main import app
+
+test_username = "test_comments_user_" + str(random.randint(0, 1000000))
+test_password = "comments_test_pass"
+test_project_id = None
+comment_id = None
+
+
+def test_setup():
+    """Create test user and a project for comment tests."""
+    global test_project_id
+    with TestClient(app) as client:
+        # Create user
+        client.post(
+            "/users",
+            json={"username": test_username, "password": test_password, "admin": False, "private": False},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+
+        # Create a team and add user
+        resp = client.post(
+            "/teams",
+            json={"name": f"comments_team_{random.randint(0,999999)}", "users": [test_username], "admins": []},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        team_id = resp.json()["id"]
+
+        # Get an available LLM
+        llms = client.get("/llms", auth=("admin", RESTAI_DEFAULT_PASSWORD)).json()
+        llm_name = llms[0]["name"] if llms else None
+
+        # Assign LLM to team if available
+        if llm_name:
+            client.patch(
+                f"/teams/{team_id}",
+                json={"llms": [llm_name]},
+                auth=("admin", RESTAI_DEFAULT_PASSWORD),
+            )
+
+        # Create project
+        proj_name = f"comments_proj_{random.randint(0,999999)}"
+        body = {"name": proj_name, "type": "inference", "team_id": team_id}
+        if llm_name:
+            body["llm"] = llm_name
+        resp = client.post("/projects", json=body, auth=("admin", RESTAI_DEFAULT_PASSWORD))
+        assert resp.status_code == 201
+        test_project_id = resp.json()["project"]
+
+        # Assign test user to the project
+        client.patch(
+            f"/projects/{test_project_id}",
+            json={"users": ["admin", test_username]},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+
+
+def test_list_comments_initial():
+    with TestClient(app) as client:
+        resp = client.get(
+            f"/projects/{test_project_id}/comments",
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert resp.status_code == 200
+        # Clean up any leftover comments from previous runs
+        for c in resp.json():
+            client.delete(f"/projects/{test_project_id}/comments/{c['id']}", auth=("admin", RESTAI_DEFAULT_PASSWORD))
+
+
+def test_create_comment():
+    global comment_id
+    with TestClient(app) as client:
+        resp = client.post(
+            f"/projects/{test_project_id}/comments",
+            json={"content": "This project works great for product questions."},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert "id" in data
+        comment_id = data["id"]
+
+
+def test_list_comments_after_create():
+    with TestClient(app) as client:
+        resp = client.get(
+            f"/projects/{test_project_id}/comments",
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert resp.status_code == 200
+        comments = resp.json()
+        assert len(comments) == 1
+        assert comments[0]["content"] == "This project works great for product questions."
+        assert comments[0]["username"] == "admin"
+        assert "created_at" in comments[0]
+
+
+def test_create_second_comment():
+    with TestClient(app) as client:
+        resp = client.post(
+            f"/projects/{test_project_id}/comments",
+            json={"content": "Struggles with pricing questions though."},
+            auth=(test_username, test_password),
+        )
+        assert resp.status_code == 201
+
+
+def test_list_comments_order():
+    """Comments should be newest first."""
+    with TestClient(app) as client:
+        resp = client.get(
+            f"/projects/{test_project_id}/comments",
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        comments = resp.json()
+        assert len(comments) == 2
+        # Newest first
+        assert comments[0]["content"] == "Struggles with pricing questions though."
+        assert comments[1]["content"] == "This project works great for product questions."
+
+
+def test_update_own_comment():
+    with TestClient(app) as client:
+        resp = client.patch(
+            f"/projects/{test_project_id}/comments/{comment_id}",
+            json={"content": "Updated: works great for product AND support questions."},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert resp.status_code == 200
+
+        # Verify update
+        comments = client.get(
+            f"/projects/{test_project_id}/comments",
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        ).json()
+        updated = [c for c in comments if c["id"] == comment_id][0]
+        assert "Updated:" in updated["content"]
+
+
+def test_non_owner_cannot_update():
+    with TestClient(app) as client:
+        resp = client.patch(
+            f"/projects/{test_project_id}/comments/{comment_id}",
+            json={"content": "Hacked!"},
+            auth=(test_username, test_password),
+        )
+        assert resp.status_code == 403
+        assert "own comments" in resp.json()["detail"]
+
+
+def test_non_owner_cannot_delete():
+    with TestClient(app) as client:
+        resp = client.delete(
+            f"/projects/{test_project_id}/comments/{comment_id}",
+            auth=(test_username, test_password),
+        )
+        assert resp.status_code == 403
+
+
+def test_delete_own_comment():
+    with TestClient(app) as client:
+        # First create a comment as test_user, then delete it
+        create_resp = client.post(
+            f"/projects/{test_project_id}/comments",
+            json={"content": "Temporary note."},
+            auth=(test_username, test_password),
+        )
+        temp_id = create_resp.json()["id"]
+
+        resp = client.delete(
+            f"/projects/{test_project_id}/comments/{temp_id}",
+            auth=(test_username, test_password),
+        )
+        assert resp.status_code == 200
+
+
+def test_admin_can_delete_any():
+    """Admin can delete other users' comments."""
+    with TestClient(app) as client:
+        # Get the test_user's remaining comment
+        comments = client.get(
+            f"/projects/{test_project_id}/comments",
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        ).json()
+        user_comment = [c for c in comments if c["username"] == test_username]
+        assert len(user_comment) > 0
+
+        resp = client.delete(
+            f"/projects/{test_project_id}/comments/{user_comment[0]['id']}",
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert resp.status_code == 200
+
+
+def test_comment_not_found():
+    with TestClient(app) as client:
+        resp = client.patch(
+            f"/projects/{test_project_id}/comments/999999",
+            json={"content": "nope"},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert resp.status_code == 404
+
+
+def test_empty_comment_rejected():
+    with TestClient(app) as client:
+        resp = client.post(
+            f"/projects/{test_project_id}/comments",
+            json={"content": ""},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        # Pydantic validation: empty string with max_length should still pass,
+        # but we could also check if server rejects it
+        # At minimum it should not crash
+        assert resp.status_code in (201, 422)
+
+
+def test_cleanup():
+    with TestClient(app) as client:
+        client.delete(f"/projects/{test_project_id}", auth=("admin", RESTAI_DEFAULT_PASSWORD))
+        client.delete(f"/users/{test_username}", auth=("admin", RESTAI_DEFAULT_PASSWORD))

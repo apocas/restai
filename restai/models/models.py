@@ -1120,6 +1120,24 @@ class SettingsUpdate(BaseModel):
     })
 
 
+class ProjectCommentCreate(BaseModel):
+    """Create a comment on a project."""
+    content: str = Field(max_length=5000, description="Comment text")
+
+class ProjectCommentUpdate(BaseModel):
+    """Update a comment."""
+    content: str = Field(max_length=5000, description="Updated comment text")
+
+class ProjectCommentResponse(BaseModel):
+    """Project comment with user info."""
+    id: int = Field(description="Comment ID")
+    project_id: int = Field(description="Project ID")
+    username: str = Field(description="Author username")
+    content: str = Field(description="Comment text")
+    created_at: datetime = Field(description="When the comment was created")
+    updated_at: datetime = Field(description="When the comment was last edited")
+
+
 class DeleteResponse(BaseModel):
     """Confirmation of resource deletion."""
     deleted: str = Field(description="Identifier of the deleted resource")

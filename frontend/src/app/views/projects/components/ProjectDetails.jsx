@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Fade, Grid } from "@mui/material";
-import { Info, Storage, Shield, BarChart } from "@mui/icons-material";
+import { Info, Storage, Shield, BarChart, ChatBubble } from "@mui/icons-material";
 
 import ProjectInfo from "./ProjectInfo";
 import ProjectTabNav from "./ProjectTabNav";
@@ -8,12 +8,14 @@ import ProjectInfoGeneral from "./ProjectInfoGeneral";
 import ProjectInfoKnowledge from "./ProjectInfoKnowledge";
 import ProjectInfoSecurity from "./ProjectInfoSecurity";
 import ProjectInfoAnalytics from "./ProjectInfoAnalytics";
+import ProjectComments from "./ProjectComments";
 
 const ALL_TABS = [
   { name: "General", Icon: Info },
   { name: "Knowledge", Icon: Storage, ragOnly: true },
   { name: "Security", Icon: Shield },
   { name: "Analytics", Icon: BarChart },
+  { name: "Comments", Icon: ChatBubble },
 ];
 
 export default function ProjectDetails({ project, projects, info }) {
@@ -38,6 +40,7 @@ export default function ProjectDetails({ project, projects, info }) {
             {active === "Knowledge" && <ProjectInfoKnowledge project={project} />}
             {active === "Security" && <ProjectInfoSecurity project={project} />}
             {active === "Analytics" && <ProjectInfoAnalytics project={project} />}
+            {active === "Comments" && <ProjectComments project={project} />}
           </Grid>
         </Grid>
       </div>

@@ -278,6 +278,19 @@ class GuardEventDatabase(Base):
     date = Column(DateTime, nullable=False, index=True)
 
 
+class ProjectCommentDatabase(Base):
+    __tablename__ = "project_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, nullable=False, index=True)
+    updated_at = Column(DateTime, nullable=False)
+
+    user = relationship('UserDatabase')
+
+
 class LLMDatabase(Base):
     __tablename__ = "llms"
 
