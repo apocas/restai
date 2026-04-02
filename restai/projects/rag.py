@@ -124,8 +124,9 @@ class RAG(ProjectBase):
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
                 else:
-                    output["answer"] = self.brain.defaultCensorship
-                    yield "data: " + json.dumps({"text": "text"}) + "\n\n"
+                    censorship = project.props.censorship or self.brain.defaultCensorship
+                    output["answer"] = censorship
+                    yield "data: " + json.dumps({"text": censorship}) + "\n\n"
 
                     self.brain.post_processing_reasoning(output)
                     self.brain.post_processing_counting(output)
@@ -343,14 +344,13 @@ class RAG(ProjectBase):
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
                 else:
-                    output["answer"] = self.brain.defaultCensorship
-                    yield "data: " + json.dumps(
-                        {"text": self.brain.defaultCensorship}
-                    ) + "\n\n"
-                    
+                    censorship = project.props.censorship or self.brain.defaultCensorship
+                    output["answer"] = censorship
+                    yield "data: " + json.dumps({"text": censorship}) + "\n\n"
+
                     self.brain.post_processing_reasoning(output)
                     self.brain.post_processing_counting(output)
-                    
+
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
             else:
