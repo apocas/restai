@@ -378,7 +378,7 @@ Any LLM provider supported by LlamaIndex. Each model has a configurable context 
 
 ## API
 
-All endpoints are documented via [Swagger](https://apocas.github.io/restai/swagger/) and [API reference](https://apocas.github.io/restai/api.html).
+All endpoints are documented via [Swagger](https://restai.cloud/swagger/).
 
 **Create a project:**
 
