@@ -23,10 +23,9 @@ import re
 
 
 class Brain:
-    def __init__(self):
+    def __init__(self, lightweight=False):
         self.defaultCensorship: str = "I'm sorry, I don't know the answer to that."
         self.defaultSystem: str = ""
-        self.tools: list[FunctionTool] = tools.load_tools()
 
         self.tokenizer = tiktoken.get_encoding("cl100k_base").encode
         self.token_counter = TokenCountingHandler(tokenizer=self.tokenizer)
@@ -34,12 +33,15 @@ class Brain:
 
         self.embeddings_cache = {}
 
-        if config.RESTAI_GPU == True:
-            self.generators: list[FunctionTool] = tools.load_generators()
-            self.audio_generators: list[FunctionTool] = tools.load_audio_generators()
+        if not lightweight:
+            self.tools: list[FunctionTool] = tools.load_tools()
 
-        self.chat_store: BaseChatStore
-        self.reinit_chat_store()
+            if config.RESTAI_GPU == True:
+                self.generators: list[FunctionTool] = tools.load_generators()
+                self.audio_generators: list[FunctionTool] = tools.load_audio_generators()
+
+            self.chat_store: BaseChatStore
+            self.reinit_chat_store()
 
     def reinit_chat_store(self):
         if config.REDIS_HOST:

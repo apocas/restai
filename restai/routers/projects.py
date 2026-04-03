@@ -501,47 +501,6 @@ async def route_edit_project(
 
     try:
         if db_wrapper.edit_project(projectID, projectModelUpdate):
-            # Start/stop Telegram poller based on token changes
-            if projectModelUpdate.options:
-                from restai.telegram import start_poller, stop_poller, validate_token
-
-                saved_opts = json.loads(
-                    db_wrapper.get_project_by_id(projectID).options or "{}"
-                )
-                saved_token = saved_opts.get("telegram_token")
-
-                if saved_token:
-                    try:
-                        validate_token(saved_token)
-                        start_poller(projectID, saved_token, request.app)
-                    except Exception as e:
-                        logging.warning(
-                            f"Failed to start Telegram poller for project {projectID}: {e}"
-                        )
-                else:
-                    stop_poller(projectID)
-
-                # Start/stop Slack bot based on token changes
-                from restai.slack_bot import start_slack_bot, stop_slack_bot
-                slack_bot_token = saved_opts.get("slack_bot_token")
-                slack_app_token = saved_opts.get("slack_app_token")
-                if slack_bot_token and slack_app_token:
-                    try:
-                        start_slack_bot(projectID, slack_bot_token, slack_app_token, request.app)
-                    except Exception as e:
-                        logging.warning(f"Failed to start Slack bot for project {projectID}: {e}")
-                else:
-                    stop_slack_bot(projectID)
-
-                # Start/stop sync worker based on sync config changes
-                from restai.sync import start_sync, stop_sync
-                sync_enabled = saved_opts.get("sync_enabled")
-                sync_sources = saved_opts.get("sync_sources")
-                if sync_enabled and sync_sources:
-                    start_sync(projectID, request.app)
-                else:
-                    stop_sync(projectID)
-
             return {"project": projectID}
         else:
             raise HTTPException(status_code=404, detail="Project not found")
@@ -1762,7 +1721,7 @@ async def trigger_sync(
         raise HTTPException(status_code=400, detail="No sync sources configured")
 
     from restai.sync import run_sync_now
-    run_sync_now(projectID, request.app)
+    run_sync_now(projectID, request.app.state.brain)
     return {"message": "Sync triggered"}
 
 
@@ -1776,11 +1735,8 @@ async def get_sync_status(
     """Get sync status for a project."""
     project = get_project(projectID, db_wrapper, request.app.state.brain)
     opts = project.props.options
-    from restai.sync import is_sync_running
     return {
         "enabled": bool(opts.sync_enabled) if opts else False,
-        "running": is_sync_running(projectID),
-        "last_sync": opts.last_sync if opts else None,
         "sources": len(opts.sync_sources) if opts and opts.sync_sources else 0,
     }
 

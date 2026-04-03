@@ -47,6 +47,18 @@ envs:
 migrate:
 	uv run --no-group gpu migrate.py upgrade
 
+.PHONY: sync
+sync:
+	uv run --no-group gpu python scripts/sync.py
+
+.PHONY: telegram
+telegram:
+	uv run --no-group gpu python scripts/telegram.py
+
+.PHONY: slack
+slack:
+	uv run --no-group gpu python scripts/slack.py
+
 .PHONY: update
 update:
 	@echo "Fetching latest release from GitHub..."

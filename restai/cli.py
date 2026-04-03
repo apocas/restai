@@ -106,6 +106,25 @@ def cmd_init(args):
     print("Database initialized.")
 
 
+def _run_script(args, script_path):
+    """Run a standalone script."""
+    _load_env(args.env_file)
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("script", script_path)
+    if spec is None:
+        # Try relative to package
+        package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        script_path = os.path.join(package_root, script_path)
+        spec = importlib.util.spec_from_file_location("script", script_path)
+    if spec is None:
+        print(f"Error: script not found: {script_path}", file=sys.stderr)
+        sys.exit(1)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    if hasattr(mod, "main"):
+        mod.main()
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="restai",
@@ -130,6 +149,18 @@ def main():
     # init
     init_parser = subparsers.add_parser("init", help="Initialize database schema and admin user")
     init_parser.set_defaults(func=cmd_init)
+
+    # sync
+    sync_parser = subparsers.add_parser("sync", help="Run knowledge base sync (cron-friendly)")
+    sync_parser.set_defaults(func=lambda args: _run_script(args, "scripts/sync.py"))
+
+    # telegram
+    telegram_parser = subparsers.add_parser("telegram", help="Poll Telegram for updates (cron-friendly)")
+    telegram_parser.set_defaults(func=lambda args: _run_script(args, "scripts/telegram.py"))
+
+    # slack
+    slack_parser = subparsers.add_parser("slack", help="Start Slack bot daemon (long-running)")
+    slack_parser.set_defaults(func=lambda args: _run_script(args, "scripts/slack.py"))
 
     args = parser.parse_args()
     if not args.command:

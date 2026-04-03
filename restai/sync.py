@@ -1,4 +1,4 @@
-"""Knowledge Base Sync — background workers that periodically re-ingest external sources."""
+"""Knowledge Base Sync — source-specific sync functions used by the cron script and manual trigger."""
 
 import json
 import logging
@@ -11,117 +11,9 @@ from restai.database import get_db_wrapper
 
 logger = logging.getLogger(__name__)
 
-_workers: dict[int, "SyncWorker"] = {}
-_workers_lock = threading.Lock()
-
-
-class SyncWorker:
-    """Background thread that periodically syncs external sources into a RAG project."""
-
-    def __init__(self, project_id: int, app):
-        self.project_id = project_id
-        self.app = app
-        self._stop_event = threading.Event()
-        self._thread = None
-
-    def start(self):
-        self._thread = threading.Thread(
-            target=self._run_loop,
-            name=f"sync-worker-{self.project_id}",
-            daemon=True,
-        )
-        self._thread.start()
-        logger.info(f"Sync worker started for project {self.project_id}")
-
-    def stop(self):
-        self._stop_event.set()
-        if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=5)
-        logger.info(f"Sync worker stopped for project {self.project_id}")
-
-    def _run_loop(self):
-        while not self._stop_event.is_set():
-            try:
-                self._sync_once()
-            except Exception as e:
-                logger.error(f"Sync error for project {self.project_id}: {e}")
-
-            # Check every 60 seconds — _sync_once handles interval enforcement
-            for _ in range(60):
-                if self._stop_event.is_set():
-                    return
-                self._stop_event.wait(1)
-
-    def _get_interval(self):
-        try:
-            db = get_db_wrapper()
-            from restai.models.databasemodels import ProjectDatabase
-            proj = db.db.query(ProjectDatabase).filter(ProjectDatabase.id == self.project_id).first()
-            if not proj:
-                return None
-            opts = json.loads(proj.options) if proj.options else {}
-            db.db.close()
-            return opts.get("sync_interval") or 60
-        except Exception:
-            return 60
-
-    def _update_source_last_sync(self, db, source_index):
-        """Update last_sync for a specific source in the DB."""
-        from restai.models.databasemodels import ProjectDatabase
-        proj_db = db.db.query(ProjectDatabase).filter(ProjectDatabase.id == self.project_id).first()
-        if proj_db:
-            current_opts = json.loads(proj_db.options) if proj_db.options else {}
-            src_list = current_opts.get("sync_sources", [])
-            if source_index < len(src_list):
-                src_list[source_index]["last_sync"] = datetime.now(timezone.utc).isoformat()
-                current_opts["sync_sources"] = src_list
-                proj_db.options = json.dumps(current_opts)
-                db.db.commit()
-
-    def _sync_once(self):
-        db = get_db_wrapper()
-        try:
-            project = self.app.state.brain.find_project(self.project_id, db)
-            if not project or project.props.type != "rag":
-                return
-
-            opts = project.props.options
-            sources = opts.sync_sources if opts else None
-            if not sources:
-                return
-
-            now = datetime.now(timezone.utc)
-            for i, source in enumerate(sources):
-                interval_minutes = source.sync_interval or 60
-                if source.last_sync:
-                    try:
-                        last = datetime.fromisoformat(source.last_sync)
-                        if last.tzinfo is None:
-                            last = last.replace(tzinfo=timezone.utc)
-                        elapsed = (now - last).total_seconds() / 60
-                        if elapsed < interval_minutes:
-                            continue
-                    except (ValueError, TypeError):
-                        pass
-
-                # Mark as synced NOW before starting — prevents other workers from picking it up
-                self._update_source_last_sync(db, i)
-
-                try:
-                    logger.info(f"Syncing source '{source.name}' for project {self.project_id}")
-                    _sync_source(project, source, db)
-                    # Update again with actual completion time
-                    self._update_source_last_sync(db, i)
-                except Exception as e:
-                    logger.error(f"Failed to sync source '{source.name}' for project {self.project_id}: {e}")
-        finally:
-            db.db.close()
-
 
 def _sync_source(project, source, db):
     """Sync a single SyncSource into the project's knowledge base."""
-    from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
-
     if source.type == "url":
         _sync_url(project, source, db)
     elif source.type == "s3":
@@ -147,11 +39,9 @@ def _sync_url(project, source, db):
     documents = loader.load_data(urls=[source.url])
     documents = extract_keywords_for_metadata(documents)
 
-    # Set source metadata
     for doc in documents:
         doc.metadata["source"] = source.name
 
-    # Delete old and re-ingest
     if project.vector:
         try:
             deleted = project.vector.delete_source(source.name)
@@ -184,7 +74,6 @@ def _sync_s3(project, source, db):
 
     s3 = boto3.client("s3", **client_kwargs)
 
-    # List objects
     list_kwargs = {"Bucket": source.s3_bucket}
     if source.s3_prefix:
         list_kwargs["Prefix"] = source.s3_prefix
@@ -195,7 +84,7 @@ def _sync_s3(project, source, db):
         for obj in page.get("Contents", []):
             key = obj["Key"]
             if key.endswith("/"):
-                continue  # skip directories
+                continue
 
             ext = os.path.splitext(key)[1].lower()
             loader_cls = find_file_loader(ext)
@@ -203,7 +92,6 @@ def _sync_s3(project, source, db):
                 logger.debug(f"Skipping unsupported file type: {key}")
                 continue
 
-            # Download to temp file
             with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
                 s3.download_fileobj(source.s3_bucket, key, tmp)
                 tmp_path = tmp.name
@@ -214,6 +102,7 @@ def _sync_s3(project, source, db):
                 doc_source = f"{source.name}/{os.path.basename(key)}"
                 for doc in docs:
                     doc.metadata["source"] = doc_source
+                from restai.vectordb.tools import extract_keywords_for_metadata
                 docs = extract_keywords_for_metadata(docs)
                 all_documents.extend(docs)
             finally:
@@ -223,17 +112,16 @@ def _sync_s3(project, source, db):
         logger.info(f"S3 source '{source.name}': no documents found")
         return
 
-    # Delete old source docs and re-ingest
     if project.vector:
         try:
-            # Delete all docs whose source starts with this sync source name
             existing_sources = project.vector.list()
             for src in existing_sources:
                 if src == source.name or src.startswith(f"{source.name}/"):
                     project.vector.delete_source(src)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to delete old S3 chunks for '{source.name}': {e}")
 
+    from restai.vectordb.tools import index_documents_classic
     n_chunks = index_documents_classic(project, all_documents, source.splitter, source.chunks)
     project.vector.save()
     logger.info(f"S3 source '{source.name}' synced: {len(all_documents)} documents, {n_chunks} chunks")
@@ -258,7 +146,6 @@ def _sync_confluence(project, source, db):
     auth = (email, api_token)
     headers = {"Accept": "application/json"}
 
-    # Fetch all pages in the space using v2 API with pagination
     all_documents = []
     url = f"{base_url}/wiki/api/v2/spaces/{space_key}/pages"
     params = {"limit": 50, "body-format": "storage"}
@@ -275,7 +162,6 @@ def _sync_confluence(project, source, db):
             if not body_html:
                 continue
 
-            # Strip HTML tags for plain text
             from html.parser import HTMLParser
             from io import StringIO
 
@@ -301,11 +187,10 @@ def _sync_confluence(project, source, db):
                 metadata={"source": doc_source, "title": title, "url": f"{base_url}/wiki/spaces/{space_key}/pages/{page.get('id', '')}"},
             ))
 
-        # Handle pagination
         next_link = data.get("_links", {}).get("next")
         if next_link:
             url = f"{base_url}{next_link}" if next_link.startswith("/") else next_link
-            params = None  # params are embedded in the next URL
+            params = None
         else:
             url = None
 
@@ -315,7 +200,6 @@ def _sync_confluence(project, source, db):
 
     all_documents = extract_keywords_for_metadata(all_documents)
 
-    # Delete old and re-ingest
     if project.vector:
         try:
             existing_sources = project.vector.list()
@@ -333,7 +217,6 @@ def _sync_confluence(project, source, db):
 def _sync_sharepoint(project, source, db):
     """Sync files from a SharePoint Online document library via Microsoft Graph API."""
     import requests as req
-    from llama_index.core.schema import Document
     from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
     from modules.loaders import find_file_loader
 
@@ -348,7 +231,6 @@ def _sync_sharepoint(project, source, db):
 
     logger.info(f"Syncing SharePoint source '{source.name}': site={site_name}")
 
-    # Acquire OAuth2 token via client credentials flow
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
     token_resp = req.post(token_url, data={
         "grant_type": "client_credentials",
@@ -362,7 +244,6 @@ def _sync_sharepoint(project, source, db):
     headers = {"Authorization": f"Bearer {access_token}"}
     graph = "https://graph.microsoft.com/v1.0"
 
-    # Resolve site ID from site name
     site_resp = req.get(f"{graph}/sites?search={site_name}", headers=headers, timeout=15)
     site_resp.raise_for_status()
     sites = site_resp.json().get("value", [])
@@ -370,12 +251,10 @@ def _sync_sharepoint(project, source, db):
         raise ValueError(f"SharePoint site '{site_name}' not found")
     site_id = sites[0]["id"]
 
-    # Get the default drive (document library)
     drive_resp = req.get(f"{graph}/sites/{site_id}/drive", headers=headers, timeout=15)
     drive_resp.raise_for_status()
     drive_id = drive_resp.json()["id"]
 
-    # List files — optionally filtered to a folder
     if folder_path:
         folder_path = folder_path.strip("/")
         list_url = f"{graph}/drives/{drive_id}/root:/{folder_path}:/children"
@@ -391,7 +270,6 @@ def _sync_sharepoint(project, source, db):
         data = resp.json()
 
         for item in data.get("value", []):
-            # Skip folders
             if "folder" in item:
                 continue
 
@@ -402,7 +280,6 @@ def _sync_sharepoint(project, source, db):
                 logger.debug(f"Skipping unsupported file type: {name}")
                 continue
 
-            # Download file content
             download_url = item.get("@microsoft.graph.downloadUrl")
             if not download_url:
                 continue
@@ -425,14 +302,12 @@ def _sync_sharepoint(project, source, db):
             finally:
                 os.unlink(tmp_path)
 
-        # Pagination
         url = data.get("@odata.nextLink")
 
     if not all_documents:
         logger.info(f"SharePoint source '{source.name}': no documents found")
         return
 
-    # Delete old and re-ingest
     if project.vector:
         try:
             existing_sources = project.vector.list()
@@ -462,11 +337,9 @@ def _sync_gdrive(project, source, db):
 
     logger.info(f"Syncing Google Drive source '{source.name}': folder={folder_id}")
 
-    # Parse service account JSON and get access token via JWT
     import json as _json
     import time as _time
     import jwt as _jwt
-    import hashlib
 
     sa = _json.loads(sa_json)
     now = int(_time.time())
@@ -488,7 +361,6 @@ def _sync_gdrive(project, source, db):
 
     headers = {"Authorization": f"Bearer {access_token}"}
 
-    # List files in folder (non-trashed, not folders)
     all_documents = []
     page_token = None
     query = f"'{folder_id}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'"
@@ -511,7 +383,6 @@ def _sync_gdrive(project, source, db):
             mime = item["mimeType"]
             file_id = item["id"]
 
-            # Handle Google Docs/Sheets/Slides by exporting
             export_mime = None
             export_ext = None
             if mime == "application/vnd.google-apps.document":
@@ -530,7 +401,6 @@ def _sync_gdrive(project, source, db):
                     continue
                 export_ext = ext
 
-            # Download or export
             if export_mime:
                 dl_resp = req.get(
                     f"https://www.googleapis.com/drive/v3/files/{file_id}/export",
@@ -543,7 +413,6 @@ def _sync_gdrive(project, source, db):
                 )
             dl_resp.raise_for_status()
 
-            # For exported text, create Document directly
             if export_mime and export_mime.startswith("text/"):
                 text = dl_resp.text.strip()
                 if text:
@@ -554,7 +423,6 @@ def _sync_gdrive(project, source, db):
                     ))
                 continue
 
-            # For binary files, use file loaders
             loader_cls = find_file_loader(export_ext)
             if not loader_cls:
                 continue
@@ -583,7 +451,6 @@ def _sync_gdrive(project, source, db):
 
     all_documents = extract_keywords_for_metadata(all_documents)
 
-    # Delete old and re-ingest
     if project.vector:
         try:
             existing_sources = project.vector.list()
@@ -598,44 +465,16 @@ def _sync_gdrive(project, source, db):
     logger.info(f"Google Drive source '{source.name}' synced: {len(all_documents)} files, {n_chunks} chunks")
 
 
-# --- Global registry ---
+# --- Manual trigger (used by the "Sync Now" button in the frontend) ---
 
-def start_sync(project_id: int, app):
-    with _workers_lock:
-        if project_id in _workers:
-            _workers[project_id].stop()
-        worker = SyncWorker(project_id, app)
-        _workers[project_id] = worker
-        worker.start()
-
-
-def stop_sync(project_id: int):
-    with _workers_lock:
-        worker = _workers.pop(project_id, None)
-        if worker:
-            worker.stop()
-
-
-def stop_all_syncs():
-    with _workers_lock:
-        for worker in _workers.values():
-            worker.stop()
-        _workers.clear()
-
-
-def is_sync_running(project_id: int) -> bool:
-    with _workers_lock:
-        return project_id in _workers
-
-
-def run_sync_now(project_id: int, app):
-    """Run a one-off sync in a background thread (for manual trigger). Ignores intervals — syncs all sources immediately."""
+def run_sync_now(project_id: int, brain):
+    """Run a one-off sync in a background thread. Ignores intervals — syncs all sources immediately."""
     def _run():
         from restai.models.databasemodels import ProjectDatabase
 
         db = get_db_wrapper()
         try:
-            project = app.state.brain.find_project(project_id, db)
+            project = brain.find_project(project_id, db)
             if not project or project.props.type != "rag":
                 return
             opts = project.props.options
@@ -646,7 +485,6 @@ def run_sync_now(project_id: int, app):
                 try:
                     logger.info(f"Manual sync source '{source.name}' for project {project_id}")
                     _sync_source(project, source, db)
-                    # Update last_sync per source
                     proj_db = db.db.query(ProjectDatabase).filter(ProjectDatabase.id == project_id).first()
                     if proj_db:
                         current_opts = json.loads(proj_db.options) if proj_db.options else {}

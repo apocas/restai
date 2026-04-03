@@ -310,50 +310,7 @@ async def lifespan(fs_app: FastAPI):
         fs_app.mount("/mcp", mcp_server.http_app(transport="sse"))
         logging.info("MCP server enabled at /mcp/sse")
 
-    # Start Telegram pollers for all projects with a token
-    import json as _json
-    from restai.telegram import start_poller, stop_all_pollers
-
-    tg_db_wrapper = get_db_wrapper()
-    all_projects = tg_db_wrapper.db.query(ProjectDatabase).all()
-    for proj in all_projects:
-        opts = _json.loads(proj.options) if proj.options else {}
-        token = opts.get("telegram_token")
-        if token:
-            try:
-                start_poller(proj.id, token, fs_app)
-            except Exception as e:
-                logging.warning(f"Failed to start Telegram poller for project {proj.id}: {e}")
-
-        # Start Slack bots
-        slack_bot_token = opts.get("slack_bot_token")
-        slack_app_token = opts.get("slack_app_token")
-        if slack_bot_token and slack_app_token:
-            try:
-                from restai.slack_bot import start_slack_bot
-                start_slack_bot(proj.id, slack_bot_token, slack_app_token, fs_app)
-            except Exception as e:
-                logging.warning(f"Failed to start Slack bot for project {proj.id}: {e}")
-
-    # Start sync workers for projects with sync enabled
-    from restai.sync import start_sync, stop_all_syncs
-    for proj in all_projects:
-        opts = _json.loads(proj.options) if proj.options else {}
-        if opts.get("sync_enabled") and opts.get("sync_sources"):
-            try:
-                start_sync(proj.id, fs_app)
-            except Exception as e:
-                logging.warning(f"Failed to start sync worker for project {proj.id}: {e}")
-
-    tg_db_wrapper.db.close()
-
     yield
-
-    # Shutdown: stop all Telegram pollers, Slack bots, and sync workers
-    stop_all_pollers()
-    from restai.slack_bot import stop_all_slack_bots
-    stop_all_slack_bots()
-    stop_all_syncs()
 
 
 logging.basicConfig(level=config.LOG_LEVEL)

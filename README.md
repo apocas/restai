@@ -329,6 +329,27 @@ Connect any project to **Telegram** or **Slack** — messages are processed thro
 - **Telegram** — Paste your [BotFather](https://t.me/BotFather) token in the project settings
 - **Slack** — Create a Slack app at [api.slack.com](https://api.slack.com), enable Socket Mode, and paste the Bot Token (xoxb-...) and App Token (xapp-...) in the project settings
 
+### Background Services (Cron)
+
+Telegram polling, Slack bots, and knowledge base sync run as **standalone scripts** — not inside the web server. This avoids duplicate processing with multiple workers and gives you full control over scheduling via cron or systemd.
+
+| Service | Command | Scheduling |
+|---------|---------|------------|
+| **Knowledge Sync** | `make sync` or `restai sync` | Cron (e.g. every 5 min) — checks per-source intervals |
+| **Telegram** | `make telegram` or `restai telegram` | Cron (e.g. every minute) — polls once and exits |
+| **Slack** | `make slack` or `restai slack` | Long-running daemon (systemd/supervisor) |
+
+**Cron setup example:**
+```cron
+*/1 * * * * cd /path/to/restai && make telegram >> /var/log/restai-telegram.log 2>&1
+*/5 * * * * cd /path/to/restai && make sync >> /var/log/restai-sync.log 2>&1
+```
+
+**Slack** uses Socket Mode (persistent WebSocket), so it runs as a daemon:
+```bash
+make slack  # or: restai slack -e .env
+```
+
 ### Settings & Configuration
 
 White-label the UI, configure currency for cost tracking, set agent iteration limits, manage LLM proxy, and more.
