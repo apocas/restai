@@ -620,6 +620,10 @@ async def route_create_project(
                 detail="Failed to create project, check team's access to selected LLM and embeddings",
             )
 
+        user_db = db_wrapper.get_user_by_id(user.id)
+        user_db.projects.append(project_db)
+        db_wrapper.db.commit()
+
         project = get_project(project_db.id, db_wrapper, request.app.state.brain)
 
         if project.props.vectorstore:
@@ -630,10 +634,6 @@ async def route_create_project(
                     project.props.embeddings, db_wrapper
                 ),
             )
-
-        user_db = db_wrapper.get_user_by_id(user.id)
-        user_db.projects.append(project_db)
-        db_wrapper.db.commit()
         return {"project": project.props.id}
     except Exception as e:
         if isinstance(e, HTTPException):
