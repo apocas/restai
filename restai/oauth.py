@@ -59,18 +59,18 @@ class OAuthManager:
         try:
             token = await client.authorize_access_token(request)
         except Exception as e:
-            log.warning(f"OAuth callback error: {e}")
+            logging.warning(f"OAuth callback error: {e}")
             raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
         user_data: UserInfo = token.get("userinfo")
         if not user_data or config.OAUTH_EMAIL_CLAIM not in user_data:
             user_data: UserInfo = await client.userinfo(token=token)
         if not user_data:
-            log.warning(f"OAuth callback failed, user data is missing: {token}")
+            logging.warning(f"OAuth callback failed, user data is missing: {token}")
             raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
 
         sub = user_data.get(OAUTH_PROVIDERS[provider].get("sub_claim", "sub"))
         if not sub:
-            log.warning(f"OAuth callback failed, sub is missing: {user_data}")
+            logging.warning(f"OAuth callback failed, sub is missing: {user_data}")
             raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
         provider_sub = f"{provider}@{sub}"
         email_claim = config.OAUTH_EMAIL_CLAIM
@@ -94,29 +94,29 @@ class OAuthManager:
                                 if primary_email:
                                     email = primary_email
                                 else:
-                                    log.warning(
+                                    logging.warning(
                                         "No primary email found in GitHub response"
                                     )
                                     raise HTTPException(
                                         400, detail=ERROR_MESSAGES.INVALID_CRED
                                     )
                             else:
-                                log.warning("Failed to fetch GitHub email")
+                                logging.warning("Failed to fetch GitHub email")
                                 raise HTTPException(
                                     400, detail=ERROR_MESSAGES.INVALID_CRED
                                 )
                 except Exception as e:
-                    log.warning(f"Error fetching GitHub email: {e}")
+                    logging.warning(f"Error fetching GitHub email: {e}")
                     raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
             else:
-                log.warning(f"OAuth callback failed, email is missing: {user_data}")
+                logging.warning(f"OAuth callback failed, email is missing: {user_data}")
                 raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
         email = email.lower()
         if (
             "*" not in config.OAUTH_ALLOWED_DOMAINS
             and email.split("@")[-1] not in config.OAUTH_ALLOWED_DOMAINS
         ):
-            log.warning(
+            logging.warning(
                 f"OAuth callback failed, e-mail domain is not in the list of allowed domains: {user_data}"
             )
             raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
