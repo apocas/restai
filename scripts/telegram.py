@@ -23,7 +23,7 @@ from restai.settings import load_settings, ensure_settings_table
 from restai.database import get_db_wrapper, engine as db_engine
 from restai.models.databasemodels import ProjectDatabase
 from restai.brain import Brain
-from restai.telegram import get_updates, send_message, send_typing
+from restai.telegram import get_updates, send_message
 
 
 def main():
