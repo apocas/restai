@@ -53,7 +53,7 @@ export default function Analytics() {
   useEffect(() => {
     document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Home";
     api.get("/projects", auth.user.token).then((d) => setProjects(d.projects)).catch(() => {});
-    api.get("/statistics/top-projects", auth.user.token).then((d) => setTopProjects(d.projects)).catch(() => {});
+    api.get("/statistics/top-projects?limit=5", auth.user.token).then((d) => setTopProjects(d.projects)).catch(() => {});
     api.get("/statistics/summary", auth.user.token).then((d) => setSummary(d)).catch(() => {});
     api.get("/statistics/daily-tokens?days=30", auth.user.token).then((d) => setDailyTokens(d.tokens || [])).catch(() => {});
     api.get("/statistics/top-llms?limit=10", auth.user.token).then((d) => setTopLLMs(d.llms || [])).catch(() => {});
@@ -130,6 +130,7 @@ export default function Analytics() {
               <ProjectsTable
                 projects={projects.slice(Math.max(projects.length - 5, 0)).reverse()}
                 title="Latest Projects"
+                compact
               />
             </Grid>
           </Grid>

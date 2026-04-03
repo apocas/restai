@@ -12,6 +12,7 @@ import {
 import sha256 from 'crypto-js/sha256';
 import { useNavigate } from "react-router-dom";
 import MUIDataTable from "mui-datatables";
+import BAvatar from "boring-avatars";
 
 const Small = styled("small")(({ bgcolor }) => ({
   width: 50,
@@ -34,7 +35,7 @@ const StyledButton = styled(Button)(({ theme }) => ({
 }));
 
 
-export default function ProjectsTable({ projects = [], title = "Projects" }) {
+export default function ProjectsTable({ projects = [], title = "Projects", compact = false }) {
   const { palette } = useTheme();
   const bgError = palette.error.main;
   const bgSecondary = palette.secondary.main;
@@ -61,10 +62,11 @@ export default function ProjectsTable({ projects = [], title = "Projects" }) {
           "print": false,
           "selectableRows": "none",
           "download": false,
-          "filter": true,
+          "filter": !compact,
+          "search": !compact,
+          "pagination": !compact,
           "viewColumns": false,
-          "rowsPerPage": 10,
-          "rowsPerPageOptions": [10, 15, 100],
+          ...(compact ? {} : { "rowsPerPage": 10, "rowsPerPageOptions": [10, 15, 100] }),
           "elevation": 0,
           "textLabels": {
             body: {
@@ -75,22 +77,27 @@ export default function ProjectsTable({ projects = [], title = "Projects" }) {
           },
           customToolbar: CustomToolbar
         }}
-        data={projects.map(project => [project.id, project.name, project.type, project.llm, project.users, project.team ? project.team.name : "", project.id])}
+        data={projects.map(project => ["", project.id, project.name, project.type, project.llm, JSON.stringify(project.users || []), project.team ? project.team.name : "", project.id])}
         columns={[{
-          name: "ID",
+          name: "",
           options: {
-            customBodyRender: (value) => (
-              <Box display="flex" alignItems="center" gap={4}>
-                {value}
+            customBodyRender: (value, tableMeta) => (
+              <Box display="flex" alignItems="center" gap={4} ml={2}>
+                <BAvatar name={tableMeta.rowData[2]} size={32} variant="pixel" colors={["#73c5aa", "#c6c085", "#f9a177", "#f76157", "#4c1b05"]} />
               </Box>
-            )
+            ),
+            setCellHeaderProps: () => ({ style: { width: '60px' } }),
+            setCellProps: () => ({ style: { width: '60px' } }),
           }
+        }, {
+          name: "ID",
+          options: { display: false }
         }, {
           name: "Name",
           options: {
             customBodyRender: (value, tableMeta) => (
               <Box display="flex" alignItems="center" gap={4}>
-                <StyledButton onClick={() => { navigate("/project/" + tableMeta.rowData[0]) }} color="primary">{value}</StyledButton>
+                <StyledButton onClick={() => { navigate("/project/" + tableMeta.rowData[1]) }} color="primary">{value}</StyledButton>
               </Box>
             )
           }
@@ -112,26 +119,30 @@ export default function ProjectsTable({ projects = [], title = "Projects" }) {
         }, "LLM", {
           name: "Users",
           options: {
-            customBodyRender: (value) => (
+            customBodyRender: (value) => {
+              let users = [];
+              try { users = typeof value === "string" ? JSON.parse(value) : Array.isArray(value) ? value : []; } catch(e) {}
+              return (
               <div>
                 <Box display="flex" alignItems="center" gap={1}>
-                  {value.slice(0, 2).map((user, index) => (
+                  {users.slice(0, 2).map((user, index) => (
                     <div key={user.id || user.username || index}>
                       <Tooltip title={user.username} placement="top">
                         <StyledAvatar src={"https://www.gravatar.com/avatar/" + sha256(user.username)} />
                       </Tooltip>
                     </div>
                   ))}
-                  {value.length >= 3 &&
+                  {users.length >= 3 &&
                     <div>
-                      <Tooltip title={value.slice(2).map(user => user.username).join(", ")} placement="top">
-                        <StyledAvatar sx={{ fontSize: "14px" }}>+{value.length - 2}</StyledAvatar>
+                      <Tooltip title={users.slice(2).map(user => user.username).join(", ")} placement="top">
+                        <StyledAvatar sx={{ fontSize: "14px" }}>+{users.length - 2}</StyledAvatar>
                       </Tooltip>
                     </div>
                   }
                 </Box>
               </div>
-            )
+            );
+            }
           }
         },
         {

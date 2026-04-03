@@ -28,7 +28,7 @@ const TopProjectsTable = ({ projects, currency = "USD" }) => {
   return (
     <Card elevation={0} sx={{ pt: "20px", borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
       <MUIDataTable
-        title="Top 10 Projects"
+        title="Top Projects"
         options={{
           "print": false,
           "selectableRows": "none",
