@@ -27,4 +27,21 @@ jobs:
         run: uv run --no-group gpu python database.py
 
       - name: Run tests
-        run: uv run --no-group gpu pytest tests/ -v --tb=short --ignore=tests/test_projects.py
+        run: PYTHONDONTWRITEBYTECODE=1 uv run --no-group gpu python -c "import sys; sys.setrecursionlimit(5000); import pytest; pytest.main(['-v', '--tb=short', '--ignore=tests/test_projects.py', '--junitxml=test-results.xml', 'tests/'])"
+
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Tests
+          path: test-results.xml
+          reporter: java-junit
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build frontend
+        env:
+          CI: false
+        run: cd frontend && npm ci && npm run build

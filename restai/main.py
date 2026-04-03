@@ -71,7 +71,10 @@ async def lifespan(fs_app: FastAPI):
     from restai.multiprocessing import get_manager
     from modules.loaders import LOADERS
 
-    fs_app.state.manager = get_manager()
+    try:
+        fs_app.state.manager = get_manager()
+    except Exception:
+        fs_app.state.manager = None
 
     from restai.settings import ensure_settings_table, seed_defaults, load_settings
     from restai.database import engine as db_engine
