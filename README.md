@@ -23,6 +23,14 @@
 
 ---
 
+## Live Demo
+
+Try RESTai without installing — **[ai.restai.cloud](https://ai.restai.cloud/admin)**
+
+Login: `demo` / `demodemo` (restricted account — can browse and chat, but cannot create or modify projects)
+
+---
+
 ## Quick Start
 
 ### Install from PyPI

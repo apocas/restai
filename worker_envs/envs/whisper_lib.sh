@@ -2,9 +2,10 @@
 
 ENV_NAME=".venvs/.venv-whisper_lib"
 
-python3 -m venv $ENV_NAME
+uv venv $ENV_NAME --allow-existing
 source $ENV_NAME/bin/activate
 
+uv pip install setuptools
 uv pip install openai-whisper==20240930 \
   python-dotenv
 

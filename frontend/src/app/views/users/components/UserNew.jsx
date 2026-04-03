@@ -159,22 +159,22 @@ export default function UserNew() {
                   }
                 />
 
-                <Box>
-                  <FormControlLabel
-                    label="Restricted"
-                    control={
-                      <Switch
-                        checked={state.is_restricted}
-                        name="is_restricted"
-                        onChange={handleChange}
-                      />
-                    }
-                  />
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    Can only chat with existing projects. No create, edit, ingest, or direct access.
-                  </Typography>
-                </Box>
+                <FormControlLabel
+                  label="Restricted"
+                  control={
+                    <Switch
+                      checked={state.is_restricted}
+                      name="is_restricted"
+                      onChange={handleChange}
+                    />
+                  }
+                />
               </Stack>
+              {state.is_restricted && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Restricted users can only chat with existing projects. No create, edit, ingest, or direct access.
+                </Typography>
+              )}
 
               <Stack direction="row" spacing={2} mt={4}>
                 <Button type="submit" variant="contained" disabled={loading}>
