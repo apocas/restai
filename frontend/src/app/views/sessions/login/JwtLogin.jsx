@@ -268,8 +268,8 @@ export default function JwtLogin() {
             src="/admin/assets/images/restai-logo.png"
             alt={appName}
             sx={{
-              width: 56,
-              height: 56,
+              width: 180,
+              height: 180,
               mb: 1.5,
               filter: "drop-shadow(0 4px 12px rgba(99, 102, 241, 0.3))",
             }}
