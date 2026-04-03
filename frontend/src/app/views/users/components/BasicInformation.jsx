@@ -7,7 +7,8 @@ import {
   styled,
   Divider,
   TextField,
-  Switch
+  Switch,
+  Typography
 } from "@mui/material";
 import AvatarBadge from "./AvatarBadge";
 import { H4, H5, Small } from "app/components/Typography";
@@ -51,6 +52,9 @@ export default function BasicInformation({ user }) {
     }
     if (state.is_private !== user.is_private) {
       update.is_private = state.is_private;
+    }
+    if (state.is_restricted !== user.is_restricted) {
+      update.is_restricted = state.is_restricted;
     }
 
     api.patch("/users/" + user.username, update, auth.user.token)
@@ -196,6 +200,22 @@ export default function BasicInformation({ user }) {
                     />
                   </Grid>
 
+                  <Grid item sm={6} xs={12}>
+                    <FormControlLabel
+                      label="Restricted"
+                      control={
+                        <Switch
+                          checked={state.is_restricted ?? false}
+                          name="is_restricted"
+                          inputProps={{ "aria-label": "restricted checkbox" }}
+                          onChange={handleChange}
+                        />
+                      }
+                    />
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Restricted users can only chat with existing projects. They cannot create, edit, or delete projects, ingest data, or use direct access endpoints.
+                    </Typography>
+                  </Grid>
                 </>
               )}
 

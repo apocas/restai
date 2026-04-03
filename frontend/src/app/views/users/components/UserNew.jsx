@@ -10,7 +10,8 @@ import {
   Stack,
   styled,
   Switch,
-  TextField
+  TextField,
+  Typography
 } from "@mui/material";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import { H5, Paragraph } from "app/components/Typography";
@@ -35,7 +36,8 @@ export default function UserNew() {
     password: "",
     confirmPassword: "",
     is_admin: false,
-    is_private: false
+    is_private: false,
+    is_restricted: false
   });
   const [loading, setLoading] = useState(false);
 
@@ -68,7 +70,8 @@ export default function UserNew() {
       username: state.username,
       password: state.password,
       is_admin: state.is_admin,
-      is_private: state.is_private
+      is_private: state.is_private,
+      is_restricted: state.is_restricted
     }, auth.user.token)
       .then((response) => {
         navigate("/user/" + response.username);
@@ -155,6 +158,22 @@ export default function UserNew() {
                     />
                   }
                 />
+
+                <Box>
+                  <FormControlLabel
+                    label="Restricted"
+                    control={
+                      <Switch
+                        checked={state.is_restricted}
+                        name="is_restricted"
+                        onChange={handleChange}
+                      />
+                    }
+                  />
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Can only chat with existing projects. No create, edit, ingest, or direct access.
+                  </Typography>
+                </Box>
               </Stack>
 
               <Stack direction="row" spacing={2} mt={4}>

@@ -63,6 +63,19 @@ const ImpersonationBanner = styled(Box)({
   zIndex: 9999,
 });
 
+const RestrictedBanner = styled(Box)({
+  backgroundColor: "#ef4444",
+  color: "#fff",
+  padding: "6px 16px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  fontSize: "0.875rem",
+  fontWeight: 500,
+  zIndex: 9999,
+});
+
 const Layout1 = () => {
   const { settings, updateSettings } = useSettings();
   const { user, isImpersonating, exitImpersonation } = useAuth();
@@ -124,6 +137,11 @@ const Layout1 = () => {
               Exit
             </Button>
           </ImpersonationBanner>
+        )}
+        {user?.is_restricted && (
+          <RestrictedBanner>
+            Restricted mode — You can only view and chat with existing projects
+          </RestrictedBanner>
         )}
         {layout1Settings.topbar.show && layout1Settings.topbar.fixed && (
           <ThemeProvider theme={topbarTheme}>

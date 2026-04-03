@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
-from restai.auth import get_current_username
+from restai.auth import get_current_username, check_not_restricted
 from restai.database import get_db_wrapper, DBWrapper
 from restai.direct_access import (
     log_direct_usage,
@@ -57,6 +57,7 @@ async def chat_completions(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """OpenAI-compatible chat completions endpoint for direct LLM access."""
+    check_not_restricted(user)
     team_id = resolve_team_for_llm(user, body.model, db_wrapper)
 
     llm_obj = request.app.state.brain.get_llm(body.model, db_wrapper)
@@ -203,6 +204,7 @@ async def embeddings(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """OpenAI-compatible embeddings endpoint."""
+    check_not_restricted(user)
     team_id = resolve_team_for_embedding(user, body.model, db_wrapper)
 
     embedding_obj = request.app.state.brain.get_embedding(body.model, db_wrapper)

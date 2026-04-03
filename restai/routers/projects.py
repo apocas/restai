@@ -26,6 +26,7 @@ from restai.auth import (
     get_current_username,
     get_current_username_project,
     get_current_username_project_public,
+    check_not_restricted,
 )
 from restai.database import get_db_wrapper, DBWrapper
 from restai.helper import chat_main, question_main
@@ -359,10 +360,11 @@ async def route_get_project(
 async def route_delete_project(
     request: Request,
     projectID: int = PathParam(description="Project ID"),
-    _: User = Depends(get_current_username_project),
+    user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Delete a project and all associated data."""
+    check_not_restricted(user)
     try:
         proj = get_project(projectID, db_wrapper, request.app.state.brain)
 
@@ -402,6 +404,7 @@ async def route_edit_project(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Update project configuration."""
+    check_not_restricted(user)
     # Check if the project exists
     project = db_wrapper.get_project_by_id(projectID)
     if project is None:
@@ -519,6 +522,7 @@ async def route_create_project(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Create a new AI project."""
+    check_not_restricted(user)
     projectModel.name = unidecode(projectModel.name.strip().lower().replace(" ", "_"))
     projectModel.name = re.sub(r"[^\w\-.]+", "", projectModel.name)
 
@@ -642,10 +646,11 @@ async def route_create_project(
 async def reset_embeddings(
     request: Request,
     projectID: int = PathParam(description="Project ID"),
-    _: User = Depends(get_current_username_project),
+    user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Reset all embeddings for a RAG project."""
+    check_not_restricted(user)
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
@@ -792,6 +797,7 @@ async def clone_project(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Clone a project with all its settings, eval datasets, and prompt versions."""
+    check_not_restricted(user)
     from restai.models.databasemodels import EvalDatasetDatabase, EvalTestCaseDatabase, PromptVersionDatabase
     from datetime import datetime as dt
     from datetime import timezone as tz
@@ -916,10 +922,11 @@ async def ingest_text(
     request: Request,
     projectID: int = PathParam(description="Project ID"),
     ingest: TextIngestModel = ...,
-    _: User = Depends(get_current_username_project),
+    user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Ingest raw text into the knowledge base."""
+    check_not_restricted(user)
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
@@ -972,6 +979,7 @@ async def ingest_url(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Ingest a web page into the knowledge base."""
+    check_not_restricted(user)
     try:
         if ingest.url and not ingest.url.startswith("http"):
             raise HTTPException(
@@ -1028,6 +1036,7 @@ async def ingest_file(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Upload and ingest a file into the knowledge base."""
+    check_not_restricted(user)
     if splitter not in ("sentence", "token"):
         raise HTTPException(status_code=422, detail="splitter must be 'sentence' or 'token'")
 
@@ -1147,10 +1156,11 @@ async def delete_embedding(
     request: Request,
     projectID: int = PathParam(description="Project ID"),
     source: str = PathParam(description="Base64-encoded source identifier"),
-    _: User = Depends(get_current_username_project),
+    user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Delete all embeddings for a specific source."""
+    check_not_restricted(user)
     try:
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
@@ -1288,6 +1298,7 @@ async def activate_prompt_version(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Restore a previous prompt version as the active system prompt."""
+    check_not_restricted(user)
     version = db_wrapper.get_prompt_version(versionID)
     if version is None or version.project_id != projectID:
         raise HTTPException(status_code=404, detail="Prompt version not found")
@@ -1697,10 +1708,11 @@ async def get_chunking_analytics(
 async def trigger_sync(
     request: Request,
     projectID: int = PathParam(description="Project ID"),
-    _: User = Depends(get_current_username_project),
+    user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Manually trigger a knowledge base sync now."""
+    check_not_restricted(user)
     project = get_project(projectID, db_wrapper, request.app.state.brain)
     if project.props.type != "rag":
         raise HTTPException(status_code=400, detail="Sync only available for RAG projects")
@@ -1965,6 +1977,7 @@ async def create_project_comment(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Add a comment to a project."""
+    check_not_restricted(user)
     from restai.models.databasemodels import ProjectCommentDatabase
     from datetime import datetime, timezone
 
@@ -1991,6 +2004,7 @@ async def update_project_comment(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Edit a comment (owner or admin only)."""
+    check_not_restricted(user)
     from restai.models.databasemodels import ProjectCommentDatabase
     from datetime import datetime, timezone
 
@@ -2017,6 +2031,7 @@ async def delete_project_comment(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Delete a comment (owner or admin only)."""
+    check_not_restricted(user)
     from restai.models.databasemodels import ProjectCommentDatabase
 
     comment = db_wrapper.db.query(ProjectCommentDatabase).filter(

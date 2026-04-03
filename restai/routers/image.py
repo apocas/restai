@@ -6,7 +6,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel
 
 from restai import config
-from restai.auth import get_current_username
+from restai.auth import get_current_username, check_not_restricted
 from restai.database import get_db_wrapper, DBWrapper
 from restai.direct_access import resolve_team_for_image_generator, log_direct_usage
 from restai.models.models import ImageModel, User
@@ -96,6 +96,7 @@ async def openai_compatible_generate(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """OpenAI-compatible image generation endpoint."""
+    check_not_restricted(user)
     import time
 
     generator = body.model.lower().replace("-", "")

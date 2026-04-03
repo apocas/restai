@@ -144,6 +144,12 @@ def check_not_read_only(user: User):
         raise HTTPException(status_code=403, detail="This API key is read-only and cannot perform write operations")
 
 
+def check_not_restricted(user: User):
+    """Raise 403 if the user is restricted."""
+    if user.is_restricted and not user.is_admin:
+        raise HTTPException(status_code=403, detail="Restricted users cannot perform this operation")
+
+
 def get_current_username_project_public(
     projectID: int,
     user: User = Depends(get_current_username),

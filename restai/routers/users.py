@@ -318,6 +318,7 @@ async def route_create_user(
             user_create.password,
             user_create.is_admin,
             user_create.is_private,
+            user_create.is_restricted,
         )
         return {"username": user_create.username}
     except Exception as e:
@@ -337,6 +338,9 @@ async def route_update_user(
 ):
     """Update user properties."""
     try:
+        if user.is_restricted and not user.is_admin:
+            raise HTTPException(status_code=403, detail="Restricted users cannot edit their profile")
+
         user_to_update = db_wrapper.get_user_by_username(username)
         if user_to_update is None:
             raise HTTPException(status_code=404, detail="User not found")
@@ -354,6 +358,9 @@ async def route_update_user(
                         break
             if not can_change:
                 raise HTTPException(status_code=403, detail="Only platform admins or team admins can modify user privacy setting")
+
+        if not user.is_admin and user_update.is_restricted is not None:
+            raise HTTPException(status_code=403, detail="Only admins can modify restriction settings")
 
         if not user.is_admin and user_update.projects is not None:
             raise HTTPException(status_code=403, detail="Only admins can modify project assignments")

@@ -78,6 +78,7 @@ class DBWrapper:
         password: Optional[str],
         admin: bool = False,
         private: bool = False,
+        restricted: bool = False,
     ) -> UserDatabase:
         password_hash: Optional[str]
         if password:
@@ -89,6 +90,7 @@ class DBWrapper:
             hashed_password=password_hash,
             is_admin=admin,
             is_private=private,
+            is_restricted=restricted,
             options='{"credit": -1.0}',
         )
         self.db.add(db_user)
@@ -250,6 +252,9 @@ class DBWrapper:
 
         if user_update.is_private is not None:
             user.is_private = user_update.is_private
+
+        if user_update.is_restricted is not None:
+            user.is_restricted = user_update.is_restricted
 
         if hasattr(user_update, "options") and user_update.options is not None:
             try:
