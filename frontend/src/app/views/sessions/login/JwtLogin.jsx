@@ -270,7 +270,7 @@ export default function JwtLogin() {
             sx={{
               width: 180,
               height: 180,
-              mb: 1.5,
+              mb: 0.5,
               filter: "drop-shadow(0 4px 12px rgba(99, 102, 241, 0.3))",
             }}
           />
