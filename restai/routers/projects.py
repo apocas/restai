@@ -1032,7 +1032,7 @@ async def ingest_file(
     chunks: int = Form(256, ge=32, le=8192),
     splitter: str = Form("sentence"),
     classic: bool = Form(False),
-    _: User = Depends(get_current_username_project),
+    user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Upload and ingest a file into the knowledge base."""
