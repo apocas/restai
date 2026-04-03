@@ -28,6 +28,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
               InputLabelProps={{ shrink: true }}
               label="Tools"
               variant="outlined"
+              helperText="Built-in tools the agent can use during execution (web search, calculator, etc.)"
             />
           )}
         />

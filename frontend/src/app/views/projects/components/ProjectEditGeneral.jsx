@@ -1,6 +1,13 @@
-import { Grid, TextField, MenuItem, Switch, Slider, Autocomplete, Divider, Typography, Button, Box } from "@mui/material";
+import { Grid, TextField, MenuItem, Switch, Slider, Autocomplete, Divider, Typography, Button, Box, Tooltip } from "@mui/material";
+import { HelpOutline } from "@mui/icons-material";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import { Fragment } from "react";
+
+const HelpTip = ({ text }) => (
+  <Tooltip title={text} placement="top" arrow>
+    <HelpOutline sx={{ fontSize: 16, color: "text.disabled", ml: 0.5, cursor: "help", verticalAlign: "middle" }} />
+  </Tooltip>
+);
 
 export default function ProjectEditGeneral({ state, setState, handleChange, project, info, users, teams, promptVersions, showVersions, setShowVersions, handleTeamChange }) {
   return (
@@ -36,7 +43,7 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
       {state.public !== undefined && (
         <Grid item sm={6} xs={12}>
           <FormControlLabel
-            label="Shared"
+            label={<span>Shared<HelpTip text="When enabled, all users on the platform can access this project" /></span>}
             control={
               <Switch
                 checked={state.public}
@@ -51,7 +58,7 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
 
       <Grid item sm={6} xs={12}>
         <FormControlLabel
-          label="Logging"
+          label={<span>Logging<HelpTip text="Records all requests and responses for analytics and debugging" /></span>}
           control={
             <Switch
               checked={state.options?.logging ?? false}
@@ -292,7 +299,7 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
       </Grid>
       <Grid item sm={6} xs={12}>
         <FormControlLabel
-          label="Cache"
+          label={<span>Cache<HelpTip text="Caches similar questions to avoid redundant LLM calls, reducing cost and latency" /></span>}
           control={
             <Switch
               checked={state.options?.cache ?? false}
@@ -305,7 +312,7 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
       </Grid>
       {state.options?.cache && (
         <Grid item sm={6} xs={12}>
-          <Typography gutterBottom>Cache Threshold</Typography>
+          <Typography gutterBottom>Cache Threshold<HelpTip text="How similar a new question must be to a cached one to reuse the answer (higher = stricter match)" /></Typography>
           <Slider
             name="cache_threshold"
             value={(state.options?.cache_threshold ?? 0.85) * 100}

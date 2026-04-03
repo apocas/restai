@@ -53,7 +53,7 @@ export default function ProjectEditSecurity({ state, setState, handleChange, pro
           variant="outlined"
           onChange={handleChange}
           value={state.censorship ?? ''}
-          helperText="Message returned when a guard blocks a request"
+          helperText="Message returned when a guard blocks a request or no knowledge chunks meet the cutoff score"
         />
       </Grid>
 

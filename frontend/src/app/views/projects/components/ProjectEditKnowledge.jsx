@@ -1,8 +1,15 @@
-import { Card, Grid, TextField, Button, MenuItem, Switch, Slider, Typography, IconButton, Divider, Box } from "@mui/material";
+import { Card, Grid, TextField, Button, MenuItem, Switch, Slider, Typography, IconButton, Divider, Box, Tooltip } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { HelpOutline } from "@mui/icons-material";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import { Fragment } from "react";
 import api from "app/utils/api";
+
+const HelpTip = ({ text }) => (
+  <Tooltip title={text} placement="top" arrow>
+    <HelpOutline sx={{ fontSize: 16, color: "text.disabled", ml: 0.5, cursor: "help", verticalAlign: "middle" }} />
+  </Tooltip>
+);
 
 export default function ProjectEditKnowledge({ state, setState, handleChange, project, auth }) {
   if (state.type !== "rag") return null;
@@ -14,7 +21,7 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
       </Grid>
       <Grid item sm={6} xs={12}>
         <Typography id="discrete-slider" gutterBottom>
-          K Value
+          K Value<HelpTip text="Number of document chunks retrieved per query. Higher values provide more context but increase latency and cost" />
         </Typography>
         <Slider
           name="k"
@@ -34,6 +41,7 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
           InputLabelProps={{ shrink: true }}
           name="score"
           label="Cutoff Score"
+          helperText="Minimum relevance score (0-1) a chunk must have. Higher = stricter, may miss useful context"
           variant="outlined"
           onChange={handleChange}
           value={state.options?.score ?? ''}
@@ -41,7 +49,7 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
       </Grid>
       <Grid item sm={6} xs={12}>
         <FormControlLabel
-          label="LLM Rerank"
+          label={<span>LLM Rerank<HelpTip text="Uses the LLM to re-score and reorder retrieved chunks by relevance. More accurate but adds an extra LLM call per query" /></span>}
           control={
             <Switch
               checked={state.options?.llm_rerank ?? false}
@@ -54,7 +62,7 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
       </Grid>
       <Grid item sm={6} xs={12}>
         <FormControlLabel
-          label="Colbert Rerank"
+          label={<span>Colbert Rerank<HelpTip text="Uses a ColBERT model to rerank retrieved chunks. Faster than LLM rerank with good accuracy, runs locally" /></span>}
           control={
             <Switch
               checked={state.options?.colbert_rerank ?? false}
@@ -161,7 +169,9 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
                   </Grid>
                   <Grid item xs={12} sm={4}>
                     <TextField
-                      fullWidth select size="small" label="Splitter"
+                      fullWidth select size="small"
+                      label="Splitter"
+                      helperText="Sentence preserves natural boundaries, Token splits by fixed count"
                       value={src.splitter || "sentence"}
                       onChange={(e) => {
                         const updated = [...state.options.sync_sources];
