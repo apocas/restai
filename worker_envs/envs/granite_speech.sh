@@ -2,7 +2,7 @@
 
 ENV_NAME=".venvs/.venv-granite-speech"
 
-uv venv $ENV_NAME
+uv venv $ENV_NAME --allow-existing
 source $ENV_NAME/bin/activate
 
 uv pip install "transformers>=4.52.4" \
