@@ -268,6 +268,8 @@ OAUTH_ALLOWED_DOMAINS = [
     domain.strip() for domain in os.environ.get("OAUTH_ALLOWED_DOMAINS", "*").split(",")
 ]
 AUTO_CREATE_USER = os.environ.get("AUTO_CREATE_USER", "False").lower() == "true"
+SSO_AUTO_RESTRICTED = True
+SSO_AUTO_TEAM_ID = None
 SESSION_COOKIE_SAME_SITE = os.environ.get("SESSION_COOKIE_SAME_SITE", "lax")
 SESSION_COOKIE_SECURE = (
     os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"

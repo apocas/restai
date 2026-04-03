@@ -127,8 +127,15 @@ async def ldap_auth(request: Request, form_data: UserLogin, db_wrapper: DBWrappe
 
             user = db_wrapper.get_user_by_username(mail)
             if user is None:
-                user = db_wrapper.create_user(mail, None, False, False)
+                user = db_wrapper.create_user(mail, None, False, False, restricted=config.SSO_AUTO_RESTRICTED)
                 db_wrapper.db.commit()
+                if config.SSO_AUTO_TEAM_ID:
+                    try:
+                        team = db_wrapper.get_team_by_id(int(config.SSO_AUTO_TEAM_ID))
+                        if team:
+                            db_wrapper.add_user_to_team(team, user)
+                    except (ValueError, TypeError):
+                        pass
 
             new_token = create_access_token(
                 data={"username": user.username}, expires_delta=timedelta(minutes=1440)

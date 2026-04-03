@@ -71,10 +71,13 @@ export default function SettingsPage() {
     sso_oidc_redirect_uri: "",
     sso_oidc_scopes: "openid email profile",
     sso_oidc_provider_name: "SSO",
+    sso_auto_restricted: true,
+    sso_auto_team_id: "",
     sso_oidc_email_claim: "email",
     mcp_enabled: false,
     enforce_2fa: false,
   });
+  const [teams, setTeams] = useState([]);
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState({ google: false, microsoft: false, github: false, oidc: false });
 
@@ -91,6 +94,7 @@ export default function SettingsPage() {
   useEffect(() => {
     document.title = "RESTai - Settings";
     fetchSettings();
+    api.get("/teams", auth.user.token).then((d) => setTeams(d.teams || [])).catch(() => {});
   }, []);
 
   const handleChange = (field) => (e) => {
@@ -302,6 +306,29 @@ export default function SettingsPage() {
                     <Grid item xs={12} md={4}>
                       <TextField fullWidth label="Allowed Domains" value={form.sso_allowed_domains}
                         onChange={handleChange("sso_allowed_domains")} helperText="Comma-separated email domains, or * for all" />
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <FormControlLabel
+                        control={<Switch checked={form.sso_auto_restricted} onChange={handleChange("sso_auto_restricted")} />}
+                        label="Restrict New Users"
+                      />
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        Auto-created SSO users will be in restricted (read-only) mode
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <FormControl fullWidth>
+                        <InputLabel>Default Team</InputLabel>
+                        <Select value={form.sso_auto_team_id || ""} onChange={handleChange("sso_auto_team_id")} label="Default Team">
+                          <MenuItem value="">None</MenuItem>
+                          {teams.map((t) => (
+                            <MenuItem key={t.id} value={String(t.id)}>{t.name}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                        Auto-created SSO users will be added to this team
+                      </Typography>
                     </Grid>
                   </Grid>
                 </Card>

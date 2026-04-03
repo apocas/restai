@@ -1,6 +1,7 @@
 import random
 from fastapi.testclient import TestClient
 
+from restai import config
 from restai.config import RESTAI_DEFAULT_PASSWORD
 from restai.main import app
 
@@ -102,5 +103,90 @@ def test_update_settings_bool():
         client.patch(
             "/settings",
             json={"hide_branding": original_val},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+
+
+def test_sso_auto_restricted_default():
+    """SSO auto-restricted should default to True."""
+    with TestClient(app) as client:
+        response = client.get("/settings", auth=("admin", RESTAI_DEFAULT_PASSWORD))
+        assert response.status_code == 200
+        data = response.json()
+        assert "sso_auto_restricted" in data
+        assert data["sso_auto_restricted"] is True
+
+
+def test_sso_auto_team_id_default():
+    """SSO auto team ID should default to empty string."""
+    with TestClient(app) as client:
+        response = client.get("/settings", auth=("admin", RESTAI_DEFAULT_PASSWORD))
+        assert response.status_code == 200
+        data = response.json()
+        assert "sso_auto_team_id" in data
+        assert data["sso_auto_team_id"] == ""
+
+
+def test_update_sso_auto_restricted():
+    """Should be able to toggle SSO auto-restricted setting."""
+    with TestClient(app) as client:
+        # Disable
+        response = client.patch(
+            "/settings",
+            json={"sso_auto_restricted": False},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert response.status_code == 200
+        assert response.json()["sso_auto_restricted"] is False
+        assert config.SSO_AUTO_RESTRICTED is False
+
+        # Re-enable
+        response = client.patch(
+            "/settings",
+            json={"sso_auto_restricted": True},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert response.status_code == 200
+        assert response.json()["sso_auto_restricted"] is True
+        assert config.SSO_AUTO_RESTRICTED is True
+
+
+test_team_name = "test_sso_team_" + str(random.randint(0, 1000000))
+
+
+def test_update_sso_auto_team_id():
+    """Should be able to set a default team for SSO users."""
+    with TestClient(app) as client:
+        # Create a team
+        resp = client.post(
+            "/teams",
+            json={"name": test_team_name},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert resp.status_code in (200, 201)
+        team_id = str(resp.json()["id"])
+
+        # Set the team
+        response = client.patch(
+            "/settings",
+            json={"sso_auto_team_id": team_id},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert response.status_code == 200
+        assert response.json()["sso_auto_team_id"] == team_id
+        assert config.SSO_AUTO_TEAM_ID == team_id
+
+        # Clear it
+        response = client.patch(
+            "/settings",
+            json={"sso_auto_team_id": ""},
+            auth=("admin", RESTAI_DEFAULT_PASSWORD),
+        )
+        assert response.status_code == 200
+        assert response.json()["sso_auto_team_id"] == ""
+
+        # Clean up
+        client.delete(
+            f"/teams/{team_id}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )

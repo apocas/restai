@@ -22,6 +22,8 @@ SETTINGS_DEFAULTS = {
     "auth_disable_local": ("RESTAI_AUTH_DISABLE_LOCAL", "false"),
     "sso_auto_create_user": ("AUTO_CREATE_USER", "false"),
     "sso_allowed_domains": ("OAUTH_ALLOWED_DOMAINS", "*"),
+    "sso_auto_restricted": (None, "true"),
+    "sso_auto_team_id": (None, ""),
     # Google OAuth
     "sso_google_client_id": ("GOOGLE_CLIENT_ID", ""),
     "sso_google_client_secret": ("GOOGLE_CLIENT_SECRET", ""),
@@ -75,6 +77,8 @@ _CONFIG_ATTR_MAP = {
     "auth_disable_local": "RESTAI_AUTH_DISABLE_LOCAL",
     "sso_auto_create_user": "AUTO_CREATE_USER",
     "sso_allowed_domains": "OAUTH_ALLOWED_DOMAINS",
+    "sso_auto_restricted": "SSO_AUTO_RESTRICTED",
+    "sso_auto_team_id": "SSO_AUTO_TEAM_ID",
     # Google
     "sso_google_client_id": "GOOGLE_CLIENT_ID",
     "sso_google_client_secret": "GOOGLE_CLIENT_SECRET",
@@ -110,7 +114,7 @@ _CONFIG_ATTR_MAP = {
     "enforce_2fa": "ENFORCE_2FA",
 }
 
-_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "gpu_enabled", "mcp_enabled", "enforce_2fa"}
+_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "enforce_2fa"}
 _INT_KEYS = {"agent_max_iterations", "max_audio_upload_size", "data_retention_days"}
 
 # Secret keys that should be masked in API responses
@@ -208,6 +212,8 @@ def get_all_settings(db_wrapper) -> dict:
         "auth_disable_local": _to_bool(rows.get("auth_disable_local", "false")),
         "sso_auto_create_user": _to_bool(rows.get("sso_auto_create_user", "false")),
         "sso_allowed_domains": rows.get("sso_allowed_domains", "*"),
+        "sso_auto_restricted": _to_bool(rows.get("sso_auto_restricted", "true")),
+        "sso_auto_team_id": rows.get("sso_auto_team_id", ""),
         # Google OAuth
         "sso_google_client_id": rows.get("sso_google_client_id", ""),
         "sso_google_client_secret": mask_key(rows.get("sso_google_client_secret", "")),

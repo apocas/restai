@@ -54,7 +54,7 @@ export default function ProjectsTable({ projects = [], title = "Projects" }) {
   );
 
   return (
-    <Card elevation={3} sx={{ pt: "20px", mb: 3 }}>
+    <Card elevation={0} sx={{ pt: "20px", borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
       <MUIDataTable
         title={title}
         options={{

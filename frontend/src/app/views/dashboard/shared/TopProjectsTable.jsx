@@ -26,7 +26,7 @@ const TopProjectsTable = ({ projects, currency = "USD" }) => {
   const currencySymbol = CURRENCY_SYMBOLS[currency] || "$";
 
   return (
-    <Card elevation={3} sx={{ pt: "20px", mb: 3 }}>
+    <Card elevation={0} sx={{ pt: "20px", borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
       <MUIDataTable
         title="Top 10 Projects"
         options={{

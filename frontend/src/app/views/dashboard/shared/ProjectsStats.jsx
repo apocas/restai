@@ -1,87 +1,123 @@
-import { Card, Grid, IconButton } from "@mui/material";
-import { People, AccountTree, Token, AttachMoney, Groups } from "@mui/icons-material";
-import { H3, Paragraph } from "app/components/Typography";
+import { Card, Grid, Box, Typography } from "@mui/material";
+import {
+  AccountTree, People, Groups, Token, AttachMoney, Speed
+} from "@mui/icons-material";
 
 const CURRENCY_SYMBOLS = { USD: "$", EUR: "\u20AC" };
 
-export default function Overview({ projects = [], summary = null, currency = "USD" }) {
+function formatNumber(num) {
+  if (num == null) return "0";
+  if (num >= 1000000000) return (num / 1000000000).toFixed(1) + "B";
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+  if (num >= 10000) return (num / 1000).toFixed(1) + "K";
+  return num.toLocaleString();
+}
+
+const statCardSx = {
+  p: 2.5,
+  display: "flex",
+  alignItems: "center",
+  gap: 2,
+  borderRadius: 3,
+  border: "1px solid",
+  borderColor: "divider",
+  transition: "box-shadow 0.2s, transform 0.2s",
+  "&:hover": {
+    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+    transform: "translateY(-2px)",
+  },
+};
+
+function StatCard({ icon, iconBg, value, label }) {
+  return (
+    <Card elevation={0} sx={statCardSx}>
+      <Box
+        sx={{
+          width: 48,
+          height: 48,
+          borderRadius: "50%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: iconBg,
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="h5" fontWeight={700} lineHeight={1.2} noWrap>
+          {value}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" noWrap>
+          {label}
+        </Typography>
+      </Box>
+    </Card>
+  );
+}
+
+export default function ProjectsStats({ projects = [], summary = null, dailyTokens = [], currency = "USD" }) {
   const currencySymbol = CURRENCY_SYMBOLS[currency] || "$";
-  var users = [];
-  projects.forEach((project) => {
-    project.users.forEach((user) => {
-      if (!users.includes(user.username)) {
-        users.push(user.username);
-      }
+
+  const avgLatency = dailyTokens.length > 0
+    ? dailyTokens.reduce((sum, d) => sum + (d.avg_latency_ms || 0), 0) / dailyTokens.filter(d => d.avg_latency_ms).length
+    : null;
+
+  const cards = [
+    {
+      icon: <AccountTree sx={{ color: "#fff", fontSize: 24 }} />,
+      iconBg: "linear-gradient(135deg, #42a5f5 0%, #1976d2 100%)",
+      value: summary ? summary.total_projects : projects.length,
+      label: "Projects",
+    },
+    {
+      icon: <People sx={{ color: "#fff", fontSize: 24 }} />,
+      iconBg: "linear-gradient(135deg, #66bb6a 0%, #2e7d32 100%)",
+      value: summary ? summary.total_users : "—",
+      label: "Users",
+    },
+    {
+      icon: <Groups sx={{ color: "#fff", fontSize: 24 }} />,
+      iconBg: "linear-gradient(135deg, #ab47bc 0%, #7b1fa2 100%)",
+      value: summary ? summary.total_teams : "—",
+      label: "Teams",
+    },
+  ];
+
+  if (summary) {
+    cards.push({
+      icon: <Token sx={{ color: "#fff", fontSize: 24 }} />,
+      iconBg: "linear-gradient(135deg, #ffa726 0%, #e65100 100%)",
+      value: formatNumber(summary.total_tokens || 0),
+      label: "Total Tokens",
     });
-  });
+    cards.push({
+      icon: <AttachMoney sx={{ color: "#fff", fontSize: 24 }} />,
+      iconBg: "linear-gradient(135deg, #ef5350 0%, #c62828 100%)",
+      value: `${currencySymbol}${(summary.total_cost || 0).toFixed(2)}`,
+      label: "Total Cost",
+    });
+  }
+
+  if (avgLatency && !isNaN(avgLatency)) {
+    cards.push({
+      icon: <Speed sx={{ color: "#fff", fontSize: 24 }} />,
+      iconBg: "linear-gradient(135deg, #26c6da 0%, #00838f 100%)",
+      value: avgLatency >= 1000 ? (avgLatency / 1000).toFixed(1) + "s" : Math.round(avgLatency) + "ms",
+      label: "Avg Latency",
+    });
+  }
+
+  const gridSize = cards.length <= 4 ? 3 : cards.length === 5 ? 2.4 : 2;
 
   return (
-    <div>
-      <Grid container spacing={3}>
-        <Grid item md={3} sm={6} xs={12}>
-          <Card elevation={3} sx={{ mb: 3, p: "20px", display: "flex", gap: 2, alignItems: "start" }}>
-            <IconButton size="small" sx={{ padding: 1, backgroundColor: "divider" }}>
-              <AccountTree color="primary" />
-            </IconButton>
-
-            <div>
-              <H3 mb={0.5} lineHeight={1} fontSize={28}>
-                {summary ? summary.total_projects : projects.length}
-              </H3>
-
-              <Paragraph color="text.secondary">{"Active Projects"}</Paragraph>
-            </div>
-          </Card>
+    <Grid container spacing={2} sx={{ mb: 3 }}>
+      {cards.map((card, i) => (
+        <Grid item xs={12} sm={6} md={gridSize} key={i}>
+          <StatCard {...card} />
         </Grid>
-
-        <Grid item md={3} sm={6} xs={12}>
-          <Card elevation={3} sx={{ mb: 3, p: "20px", display: "flex", gap: 2, alignItems: "start" }}>
-            <IconButton size="small" sx={{ padding: 1, backgroundColor: "divider" }}>
-              <People color="primary" />
-            </IconButton>
-
-            <div>
-              <H3 mb={0.5} lineHeight={1} fontSize={28}>
-                {summary ? summary.total_users : users.length}
-              </H3>
-
-              <Paragraph color="text.secondary">{summary ? "Total Users" : "Shared with"}</Paragraph>
-            </div>
-          </Card>
-        </Grid>
-
-        {summary && (
-          <>
-            <Grid item md={3} sm={6} xs={12}>
-              <Card elevation={3} sx={{ mb: 3, p: "20px", display: "flex", gap: 2, alignItems: "start" }}>
-                <IconButton size="small" sx={{ padding: 1, backgroundColor: "divider" }}>
-                  <Token color="primary" />
-                </IconButton>
-                <div>
-                  <H3 mb={0.5} lineHeight={1} fontSize={28}>
-                    {(summary.total_tokens || 0).toLocaleString()}
-                  </H3>
-                  <Paragraph color="text.secondary">Total Tokens</Paragraph>
-                </div>
-              </Card>
-            </Grid>
-
-            <Grid item md={3} sm={6} xs={12}>
-              <Card elevation={3} sx={{ mb: 3, p: "20px", display: "flex", gap: 2, alignItems: "start" }}>
-                <IconButton size="small" sx={{ padding: 1, backgroundColor: "divider" }}>
-                  <AttachMoney color="primary" />
-                </IconButton>
-                <div>
-                  <H3 mb={0.5} lineHeight={1} fontSize={28}>
-                    {currencySymbol}{(summary.total_cost || 0).toFixed(2)}
-                  </H3>
-                  <Paragraph color="text.secondary">Total Cost</Paragraph>
-                </div>
-              </Card>
-            </Grid>
-          </>
-        )}
-      </Grid>
-    </div>
+      ))}
+    </Grid>
   );
 }

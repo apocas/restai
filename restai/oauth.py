@@ -123,8 +123,15 @@ class OAuthManager:
 
         user = self.db_wrapper.get_user_by_username(email)
         if user is None and config.AUTO_CREATE_USER:
-            user = self.db_wrapper.create_user(email, None, False, False)
+            user = self.db_wrapper.create_user(email, None, False, False, restricted=config.SSO_AUTO_RESTRICTED)
             self.db_wrapper.db.commit()
+            if config.SSO_AUTO_TEAM_ID:
+                try:
+                    team = self.db_wrapper.get_team_by_id(int(config.SSO_AUTO_TEAM_ID))
+                    if team:
+                        self.db_wrapper.add_user_to_team(team, user)
+                except (ValueError, TypeError):
+                    pass
         elif user is None:
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACCESS_PROHIBITED

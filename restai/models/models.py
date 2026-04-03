@@ -1031,6 +1031,8 @@ class SettingsResponse(BaseModel):
     auth_disable_local: bool = Field(default=False, description="Disable local username/password authentication")
     sso_auto_create_user: bool = Field(default=False, description="Auto-create user on first SSO login")
     sso_allowed_domains: Optional[str] = Field(default="*", description="Comma-separated allowed email domains for SSO")
+    sso_auto_restricted: bool = Field(default=True, description="Auto-created SSO users are restricted (read-only)")
+    sso_auto_team_id: Optional[str] = Field(default="", description="Team ID to auto-assign SSO users to")
     # Google OAuth
     sso_google_client_id: Optional[str] = Field(default="", description="Google OAuth client ID")
     sso_google_client_secret: Optional[str] = Field(default="", description="Google OAuth client secret (masked)")
@@ -1085,6 +1087,8 @@ class SettingsUpdate(BaseModel):
     auth_disable_local: Optional[bool] = Field(default=None, description="Disable local username/password authentication")
     sso_auto_create_user: Optional[bool] = Field(default=None, description="Auto-create user on first SSO login")
     sso_allowed_domains: Optional[str] = Field(default=None, description="Comma-separated allowed email domains for SSO")
+    sso_auto_restricted: Optional[bool] = Field(default=None, description="Auto-created SSO users are restricted (read-only)")
+    sso_auto_team_id: Optional[str] = Field(default=None, description="Team ID to auto-assign SSO users to")
     # Google OAuth
     sso_google_client_id: Optional[str] = Field(default=None, description="Google OAuth client ID")
     sso_google_client_secret: Optional[str] = Field(default=None, description="Google OAuth client secret")

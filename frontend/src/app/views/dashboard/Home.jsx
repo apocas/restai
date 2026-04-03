@@ -1,33 +1,17 @@
-import { Fragment, useState, useEffect } from "react";
-import { Card, Grid, styled, useTheme, Box } from "@mui/material";
+import { useState, useEffect } from "react";
+import { Card, Grid, styled, Box, Typography, Divider } from "@mui/material";
 import ProjectsStats from "./shared/ProjectsStats";
 import ProjectsTypesChart from "./shared/ProjectsTypesChart";
 import ProjectsLLMsChart from "./shared/ProjectsLLMsChart";
-import ProjectsTable from "./shared/ProjectsTable";
 import TopProjectsTable from "./shared/TopProjectsTable";
 import DailyTokensChart from "./shared/DailyTokensChart";
+import ActivityPulse from "./shared/ActivityPulse";
 import TopLLMsChart from "./shared/TopLLMsChart";
+import ProjectsTable from "./shared/ProjectsTable";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import api from "app/utils/api";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
-
-const ContentBox = styled("div")(({ theme }) => ({
-  margin: "30px",
-  [theme.breakpoints.down("sm")]: { margin: "16px" }
-}));
-
-const Title = styled("span")(() => ({
-  fontSize: "1rem",
-  fontWeight: "500",
-  marginRight: ".5rem",
-  textTransform: "capitalize"
-}));
-
-const SubTitle = styled("span")(({ theme }) => ({
-  fontSize: "0.875rem",
-  color: theme.palette.text.secondary
-}));
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -35,8 +19,28 @@ const Container = styled("div")(({ theme }) => ({
   "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
 }));
 
+const ContentBox = styled("div")(({ theme }) => ({
+  margin: "30px",
+  [theme.breakpoints.down("sm")]: { margin: "16px" }
+}));
+
+const SectionTitle = ({ children }) => (
+  <Box sx={{ mb: 2, mt: 1 }}>
+    <Typography variant="overline" color="text.secondary" fontWeight={600} letterSpacing={1.5}>
+      {children}
+    </Typography>
+    <Divider sx={{ mt: 0.5 }} />
+  </Box>
+);
+
+const chartCardSx = {
+  p: 2.5,
+  borderRadius: 3,
+  border: "1px solid",
+  borderColor: "divider",
+};
+
 export default function Analytics() {
-  const { palette } = useTheme();
   const [projects, setProjects] = useState([]);
   const [topProjects, setTopProjects] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -46,45 +50,13 @@ export default function Analytics() {
   const { platformCapabilities } = usePlatformCapabilities();
   const currency = platformCapabilities.currency || "EUR";
 
-  const fetchProjects = () => {
-    return api.get("/projects", auth.user.token)
-      .then((d) => {
-        setProjects(d.projects)
-      }).catch(() => {});
-  }
-
-  const fetchTopProjects = () => {
-    return api.get("/statistics/top-projects", auth.user.token)
-      .then((d) => {
-        setTopProjects(d.projects)
-      }).catch(() => {});
-  }
-
-  const fetchSummary = () => {
-    return api.get("/statistics/summary", auth.user.token)
-      .then((d) => setSummary(d))
-      .catch((err) => console.error("Failed to fetch summary:", err));
-  };
-
-  const fetchDailyTokens = () => {
-    return api.get("/statistics/daily-tokens?days=30", auth.user.token)
-      .then((d) => setDailyTokens(d.tokens || []))
-      .catch((err) => console.error("Failed to fetch daily tokens:", err));
-  };
-
-  const fetchTopLLMs = () => {
-    return api.get("/statistics/top-llms?limit=10", auth.user.token)
-      .then((d) => setTopLLMs(d.llms || []))
-      .catch((err) => console.error("Failed to fetch top LLMs:", err));
-  };
-
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + ' - Home';
-    fetchProjects();
-    fetchTopProjects();
-    fetchSummary();
-    fetchDailyTokens();
-    fetchTopLLMs();
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Home";
+    api.get("/projects", auth.user.token).then((d) => setProjects(d.projects)).catch(() => {});
+    api.get("/statistics/top-projects", auth.user.token).then((d) => setTopProjects(d.projects)).catch(() => {});
+    api.get("/statistics/summary", auth.user.token).then((d) => setSummary(d)).catch(() => {});
+    api.get("/statistics/daily-tokens?days=30", auth.user.token).then((d) => setDailyTokens(d.tokens || [])).catch(() => {});
+    api.get("/statistics/top-llms?limit=10", auth.user.token).then((d) => setTopLLMs(d.llms || [])).catch(() => {});
   }, []);
 
   return (
@@ -94,39 +66,71 @@ export default function Analytics() {
           <Breadcrumb routeSegments={[{ name: "Home", path: "/home" }]} />
         </Box>
 
-        <ContentBox className="analytics">
+        <ContentBox>
+          {/* Section 1: Stats */}
+          <ProjectsStats
+            projects={projects}
+            summary={summary}
+            dailyTokens={dailyTokens}
+            currency={currency}
+          />
+
+          {/* Section 2: Token & Cost Charts */}
+          {dailyTokens.length > 0 && (
+            <>
+              <SectionTitle>Activity</SectionTitle>
+              <Grid container spacing={3} sx={{ mb: 3 }}>
+                <Grid item xs={12} md={8}>
+                  <DailyTokensChart data={dailyTokens} />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <ActivityPulse data={dailyTokens} />
+                </Grid>
+              </Grid>
+            </>
+          )}
+
+          {/* Section 3: Distribution Row */}
+          {(projects.length > 0 || topLLMs.length > 0) && (
+            <>
+              <SectionTitle>Distribution</SectionTitle>
+              <Grid container spacing={3} sx={{ mb: 3 }}>
+                <Grid item xs={12} md={4}>
+                  <Card elevation={0} sx={chartCardSx}>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                      Project Types
+                    </Typography>
+                    <ProjectsTypesChart projects={projects} height="280px" />
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Card elevation={0} sx={chartCardSx}>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                      LLM Usage
+                    </Typography>
+                    <ProjectsLLMsChart projects={projects} height="280px" />
+                  </Card>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Card elevation={0} sx={chartCardSx}>
+                    <TopLLMsChart data={topLLMs} />
+                  </Card>
+                </Grid>
+              </Grid>
+            </>
+          )}
+
+          {/* Section 4: Tables */}
+          <SectionTitle>Projects</SectionTitle>
           <Grid container spacing={3}>
-            <Grid item lg={8} md={8} sm={12} xs={12}>
-              <ProjectsStats projects={projects} summary={summary} currency={currency} />
-              <DailyTokensChart data={dailyTokens} currency={currency} />
+            <Grid item xs={12} md={6}>
               <TopProjectsTable projects={topProjects} currency={currency} />
-              <ProjectsTable projects={projects.slice(Math.max(projects.length - 5, 0)).reverse()} title={"Latest 5 Projects"} />
             </Grid>
-
-            <Grid item lg={4} md={4} sm={12} xs={12}>
-              <Card sx={{ px: 3, py: 2, mb: 3 }}>
-                <Title>Projects</Title>
-                <SubTitle>Types</SubTitle>
-
-                <ProjectsTypesChart
-                  projects={projects}
-                  height="300px"
-                  color={[palette.primary.dark, palette.primary.main, palette.primary.light]}
-                />
-              </Card>
-
-              <Card sx={{ px: 3, py: 2, mb: 3 }}>
-                <Title>Projects</Title>
-                <SubTitle>LLMs</SubTitle>
-
-                <ProjectsLLMsChart
-                  projects={projects}
-                  height="300px"
-                  color={[palette.primary.dark, palette.primary.main, palette.primary.light]}
-                />
-              </Card>
-
-              <TopLLMsChart data={topLLMs} />
+            <Grid item xs={12} md={6}>
+              <ProjectsTable
+                projects={projects.slice(Math.max(projects.length - 5, 0)).reverse()}
+                title="Latest Projects"
+              />
             </Grid>
           </Grid>
         </ContentBox>

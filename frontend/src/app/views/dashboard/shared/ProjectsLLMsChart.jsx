@@ -1,65 +1,57 @@
-import { useTheme } from "@mui/material/styles";
 import ReactEcharts from "echarts-for-react";
 
-export default function ProjectsLLMsChart({ projects = [], height, color = [] }) {
-  const theme = useTheme();
+const COLORS = ["#5c6bc0", "#26a69a", "#ec407a", "#ffa726", "#42a5f5", "#ab47bc", "#66bb6a", "#ef5350"];
 
-  var projectsLLMs = {};
+export default function ProjectsLLMsChart({ projects = [], height = "280px" }) {
+  const llmCounts = {};
+  projects.forEach((p) => {
+    if (p.llm) {
+      llmCounts[p.llm] = (llmCounts[p.llm] || 0) + 1;
+    }
+  });
 
-  for (let i = 0; i < projects.length; i++) {
-    projectsLLMs[projects[i].llm] = (projectsLLMs[projects[i].llm] || 0) + 1;
-  }
+  const data = Object.entries(llmCounts).map(([name, value]) => ({ name, value }));
 
-  var data = [];
-  for (let key in projectsLLMs) {
-    data.push({ value: projectsLLMs[key], name: key });
-  }
-
+  if (data.length === 0) return null;
 
   const option = {
-    legend: {
-      show: false,
-      itemGap: 20,
-      icon: "circle",
-      bottom: 0,
-      textStyle: { color: theme.palette.text.secondary, fontSize: 11, fontFamily: "roboto" }
+    tooltip: {
+      trigger: "item",
+      formatter: "{b}: {c} ({d}%)",
+      backgroundColor: "rgba(255,255,255,0.96)",
+      borderColor: "#e0e0e0",
+      borderWidth: 1,
+      textStyle: { color: "#333", fontSize: 13 },
     },
-    tooltip: { show: false, trigger: "item", formatter: "{a} <br/>{b}: {c} ({d}%)" },
-    xAxis: [{ axisLine: { show: false }, splitLine: { show: false } }],
-    yAxis: [{ axisLine: { show: false }, splitLine: { show: false } }],
-
+    legend: {
+      bottom: 0,
+      itemGap: 16,
+      icon: "circle",
+      itemWidth: 10,
+      textStyle: { fontSize: 12 },
+    },
+    color: COLORS,
     series: [
       {
-        name: "Traffic Rate",
         type: "pie",
-        radius: ["45%", "72.55%"],
-        center: ["50%", "50%"],
-        avoidLabelOverlap: false,
-        hoverOffset: 5,
-        stillShowZeroSum: false,
-        bottom: 20,
+        radius: ["48%", "72%"],
+        center: ["50%", "45%"],
+        avoidLabelOverlap: true,
+        itemStyle: { borderRadius: 6, borderColor: "#fff", borderWidth: 2 },
+        label: { show: false },
         emphasis: {
           label: {
             show: true,
-            fontSize: "14",
-            fontWeight: "normal",
-            formatter: "{b} \n{c} ({d}%)"
+            fontSize: 14,
+            fontWeight: 600,
+            formatter: "{b}\n{c} ({d}%)",
           },
-          itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: "rgba(0, 0, 0, 0.5)" }
+          itemStyle: { shadowBlur: 12, shadowColor: "rgba(0,0,0,0.15)" },
         },
-        label: {
-          show: false,
-          position: "center",
-          color: theme.palette.text.secondary,
-          fontSize: 13,
-          fontFamily: "roboto",
-          formatter: "{a}"
-        },
-        labelLine: { show: false },
-        data: data,
-      }
-    ]
+        data,
+      },
+    ],
   };
 
-  return <ReactEcharts style={{ height: height }} option={{ ...option, color: [...color] }} />;
+  return <ReactEcharts style={{ height }} option={option} />;
 }
