@@ -1379,3 +1379,12 @@ class GuardEventResponse(BaseModel):
     date: Optional[datetime] = None
     user_id: Optional[int] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+# Rebuild models with forward references to resolve circular dependencies
+TeamModel.model_rebuild()
+User.model_rebuild()
+ProjectModel.model_rebuild()
+ProjectResponse.model_rebuild()
+LLMModel.model_rebuild()
+EmbeddingModel.model_rebuild()
