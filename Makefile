@@ -39,6 +39,10 @@ install:
 	if [ "$$answer" = "y" ] || [ "$$answer" = "Y" ]; then \
 		$(MAKE) systemd; \
 	fi
+	@read -p "Install cron jobs (sync + telegram polling)? [y/N] " answer; \
+	if [ "$$answer" = "y" ] || [ "$$answer" = "Y" ]; then \
+		$(MAKE) cron; \
+	fi
 
 .PHONY: systemd
 systemd:
