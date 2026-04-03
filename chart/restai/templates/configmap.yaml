@@ -9,7 +9,6 @@ data:
   RESTAI_PORT: {{ .Values.config.port | quote }}
   LOG_LEVEL: {{ .Values.config.logLevel | quote }}
   RESTAI_DEV: {{ .Values.config.dev | quote }}
-  RESTAI_DEMO: {{ .Values.config.demo | quote }}
   RESTAI_GPU: {{ .Values.config.gpu | quote }}
   MCP_SERVER: {{ .Values.config.mcpServer | quote }}
   AGENT_MAX_ITERATIONS: {{ .Values.config.agentMaxIterations | quote }}

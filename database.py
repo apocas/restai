@@ -12,7 +12,6 @@ from restai.config import (
     POSTGRES_HOST,
     POSTGRES_URL,
     RESTAI_DEFAULT_PASSWORD,
-    RESTAI_DEMO,
 )
 from restai.models.databasemodels import (
     ApiKeyDatabase,
@@ -127,89 +126,6 @@ else:
             
         dbi.commit()
         
-        if RESTAI_DEMO == True:
-            print("Creating demo scenario...")
-            db_user = UserDatabase(
-                username="demo",
-                hashed_password=hash_password("demo"),
-                is_private=True,
-            )
-            dbi.add(db_user)
-            
-            dbi.commit()
-            
-            demo_project1 = ProjectDatabase(
-                name="demo1",
-                type="inference",
-                system="Always end your answers with 'beep beep'.",
-                llm="llama31_8b",
-                creator=db_user.id
-            )
-            demo_project2 = ProjectDatabase(
-                name="demo2",
-                type="inference",
-                system="Always end your answers with 'boop boop'.",
-                llm="llama31_8b",
-                creator=db_user.id
-            )
-            demo_project4 = ProjectDatabase(
-                name="rag1",
-                type="rag",
-                llm="llama31_8b",
-                embeddings= "all-mpnet-base-v2",
-                vectorstore="chromadb",
-                creator=db_user.id
-            )
-            demo_project5 = ProjectDatabase(
-                name="vision1",
-                type="vision",
-                llm="llava16_13b",
-                creator=db_user.id
-            )
-            dbi.add(demo_project1)
-            dbi.add(demo_project2)
-            dbi.add(demo_project4)
-            dbi.add(demo_project5)
-            dbi.commit()
-
-            demo_project1.users.append(db_user)
-            demo_project2.users.append(db_user)
-            demo_project4.users.append(db_user)
-            demo_project5.users.append(db_user)
-            
-            demo_team = TeamDatabase(
-                name="Demo Team",
-                description="A team for demonstration purposes",
-                created_at=datetime.now(),
-                creator_id=db_user.id
-            )
-            dbi.add(demo_team)
-            dbi.commit()
-            
-            # Add the demo user to the team
-            demo_team.users.append(db_user)
-            demo_team.admins.append(db_user)
-            
-            # Add the required LLMs and embeddings to the demo team
-            llama_llm = dbi.query(LLMDatabase).filter(LLMDatabase.name == "llama31_8b").first()
-            llava_llm = dbi.query(LLMDatabase).filter(LLMDatabase.name == "llava16_13b").first()
-            mpnet_embedding = dbi.query(EmbeddingDatabase).filter(EmbeddingDatabase.name == "all-mpnet-base-v2").first()
-            
-            if llama_llm:
-                demo_team.llms.append(llama_llm)
-            if llava_llm:
-                demo_team.llms.append(llava_llm)
-            if mpnet_embedding:
-                demo_team.embeddings.append(mpnet_embedding)
-                
-            # Associate the projects with the team
-            demo_team.projects.append(demo_project1)
-            demo_team.projects.append(demo_project2)
-            demo_team.projects.append(demo_project4)
-            demo_team.projects.append(demo_project5)
-            
-            dbi.commit()
-            
         dbi.commit()
         dbi.close()
         print("Database initialized.")

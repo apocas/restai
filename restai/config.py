@@ -82,10 +82,6 @@ POSTGRES_URL = (
 SQL_URL = POSTGRES_URL if POSTGRES_HOST else (MYSQL_URL if MYSQL_HOST else None)
 
 RESTAI_DEFAULT_PASSWORD = os.environ.get("RESTAI_DEFAULT_PASSWORD") or "admin"
-RESTAI_DEMO = (
-    True if os.environ.get("RESTAI_DEMO", "").lower() in ("true", "1") else False
-)
-
 
 
 

@@ -545,13 +545,6 @@ async def route_create_project(
             status_code=403, detail="User does not have access to this team"
         )
 
-    if config.RESTAI_DEMO == True and not user.is_admin:
-        if projectModel.type == "agent":
-            raise HTTPException(
-                status_code=403,
-                detail="Demo mode, not allowed to create this type of projects.",
-            )
-
     # Block projects don't require an LLM
     if projectModel.type != "block":
         # Validate LLM exists
@@ -979,11 +972,6 @@ async def ingest_url(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Ingest a web page into the knowledge base."""
-    if config.RESTAI_DEMO == True and not user.is_admin:
-        raise HTTPException(
-            status_code=403, detail="Demo mode, not allowed to ingest from an URL."
-        )
-
     try:
         if ingest.url and not ingest.url.startswith("http"):
             raise HTTPException(
