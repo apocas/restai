@@ -142,4 +142,7 @@ class OAuthManager:
             httponly=True,
         )
 
-        return RedirectResponse(config.RESTAI_URL + "/admin", headers=response.headers)
+        base_url = config.RESTAI_URL or ""
+        if base_url and not base_url.startswith("http"):
+            base_url = "https://" + base_url
+        return RedirectResponse(base_url + "/admin", headers=response.headers)
