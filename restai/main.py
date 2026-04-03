@@ -103,6 +103,9 @@ async def lifespan(fs_app: FastAPI):
 
     fs_app.state.brain = Brain()
 
+    from restai.oauth import OAuthManager
+    fs_app.state.oauth_manager = OAuthManager(fs_app, db_wrapper=get_db_wrapper())
+
     # Run data retention cleanup on startup
     from restai.retention import run_retention_cleanup
     run_retention_cleanup(settings_db_wrapper)
@@ -401,9 +404,6 @@ All endpoints require authentication via one of:
     license_info={"name": "Apache 2.0", "url": "https://www.apache.org/licenses/LICENSE-2.0"},
 )
 
-oauth_manager = OAuthManager(app, db_wrapper=get_db_wrapper())
-app.state.oauth_manager = oauth_manager
-
 # Always add SessionMiddleware so SSO can be enabled at runtime via settings
 app.add_middleware(
     SessionMiddleware,
@@ -421,13 +421,13 @@ app.add_middleware(AuditMiddleware)
 @app.get("/oauth/{provider}/login", tags=["Auth"])
 async def oauth_login(provider: str = PathParam(description="OAuth provider name"), request: Request = ...):
     """Initiate OAuth login flow for the specified provider."""
-    return await oauth_manager.handle_login(request, provider)
+    return await request.app.state.oauth_manager.handle_login(request, provider)
 
 
 @app.get("/oauth/{provider}/callback", tags=["Auth"])
 async def oauth_callback(provider: str = PathParam(description="OAuth provider name"), request: Request = ..., response: Response = ...):
     """Handle OAuth callback from the specified provider."""
-    return await oauth_manager.handle_callback(request, provider, response)
+    return await request.app.state.oauth_manager.handle_callback(request, provider, response)
 
     
 
