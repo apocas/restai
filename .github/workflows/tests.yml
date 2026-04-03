@@ -27,7 +27,7 @@ jobs:
         run: uv run --no-group gpu python database.py
 
       - name: Run tests
-        run: PYTHONDONTWRITEBYTECODE=1 uv run --no-group gpu python -c "import sys; sys.setrecursionlimit(5000); import pytest; pytest.main(['-v', '--tb=short', '--ignore=tests/test_projects.py', '--junitxml=test-results.xml', 'tests/'])"
+        run: uv run --no-group gpu pytest tests/ -v --tb=short --ignore=tests/test_projects.py --junitxml=test-results.xml
 
       - name: Test Report
         uses: dorny/test-reporter@v1

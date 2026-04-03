@@ -1,6 +1,13 @@
 import sys
+sys.setrecursionlimit(20000)
 
-# Increase recursion limit to handle repeated TestClient(app) creations
-# across the full test suite. Each TestClient startup triggers Pydantic
-# schema generation which can exhaust the default limit cumulatively.
-sys.setrecursionlimit(5000)
+# Force Pydantic to fully resolve all forward references at test collection time,
+# before any TestClient instances are created. This prevents the cumulative
+# __pydantic_core_schema__ AttributeError that occurs when 200+ TestClient
+# instances each try to resolve schemas.
+from restai.models.models import (
+    TeamModel, User, ProjectModel, ProjectResponse,
+    LLMModel, EmbeddingModel, ProjectBaseModel,
+)
+for model in [TeamModel, User, ProjectModel, ProjectResponse, LLMModel, EmbeddingModel, ProjectBaseModel]:
+    model.model_rebuild()
