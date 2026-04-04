@@ -29,7 +29,7 @@ export default function RAGRetrieval({ project }) {
       .then((d) => {
         if (d.logs) {
           setLogs(d.logs)
-          if (d.logs.length === 0) {
+          if (d.logs.length === 0 && page > 0) {
             setCount(page * rows);
             setPage(page - 1);
           }
