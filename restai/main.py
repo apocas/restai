@@ -65,6 +65,7 @@ async def lifespan(fs_app: FastAPI):
         teams,
         settings,
         direct,
+        widgets,
     )
     from restai.models.models import User
     from restai.models.databasemodels import ProjectDatabase
@@ -299,6 +300,7 @@ async def lifespan(fs_app: FastAPI):
     fs_app.include_router(teams.router, tags=["Teams"])
     fs_app.include_router(settings.router, tags=["Settings"])
     fs_app.include_router(direct.router, tags=["Direct Access"])
+    fs_app.include_router(widgets.router, tags=["Widget"])
 
     from restai.routers import evals
     fs_app.include_router(evals.router)

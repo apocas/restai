@@ -132,4 +132,6 @@ else:
         print("Default LLMs initialized.")
         print("Default admin user created (admin:" + default_password + ").")
     else:
+        # Ensure new tables are created on existing databases
+        Base.metadata.create_all(bind=engine, checkfirst=True)
         print("Database already initialized.")

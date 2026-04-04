@@ -255,6 +255,26 @@ class ProjectInvitationDatabase(Base):
     inviter = relationship("UserDatabase", foreign_keys=[invited_by])
 
 
+class WidgetDatabase(Base):
+    __tablename__ = "widgets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    key_hash = Column(String(64), nullable=False, unique=True, index=True)
+    encrypted_key = Column(String(4096), nullable=False)
+    key_prefix = Column(String(12), nullable=False)
+    name = Column(String(255), nullable=False, default="Chat Widget")
+    config = Column(Text, nullable=False, default="{}")
+    allowed_domains = Column(Text, nullable=False, default="[]")
+    enabled = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+
+    project = relationship("ProjectDatabase")
+    creator = relationship("UserDatabase", foreign_keys=[creator_id])
+
+
 class AuditLogDatabase(Base):
     __tablename__ = "audit_log"
 

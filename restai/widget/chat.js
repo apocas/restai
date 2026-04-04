@@ -6,6 +6,7 @@
   if (!scriptTag) return;
 
   const cfg = {
+    widgetKey: scriptTag.getAttribute("data-widget-key"),
     projectId: scriptTag.getAttribute("data-project-id"),
     apiKey: scriptTag.getAttribute("data-api-key"),
     title: scriptTag.getAttribute("data-title") || "AI Assistant",
@@ -19,9 +20,12 @@
     server: scriptTag.getAttribute("data-server") || scriptTag.src.replace(/\/widget\/chat\.js.*$/, ""),
   };
 
-  if (!cfg.projectId || !cfg.apiKey) {
-    console.error("RESTai Widget: data-project-id and data-api-key are required.");
-    return;
+  const hasAuth = cfg.widgetKey || (cfg.projectId && cfg.apiKey);
+  if (!hasAuth) {
+    console.warn("RESTai Widget: data-widget-key or (data-project-id + data-api-key) required for chat to work.");
+  }
+  if (!cfg.widgetKey && cfg.apiKey) {
+    console.warn("RESTai Widget: data-api-key is deprecated. Use data-widget-key instead.");
   }
 
   // --- State ---
@@ -291,6 +295,11 @@
   async function sendMessage() {
     const text = inputEl.value.trim();
     if (!text || isStreaming) return;
+    if (!hasAuth) {
+      messages.push({ role: "bot", content: "Widget is in preview mode. Configure a widget key to enable chat." });
+      renderMessages();
+      return;
+    }
 
     messages.push({ role: "user", content: text });
     inputEl.value = "";
@@ -304,13 +313,17 @@
       if (chatId) body.id = chatId;
       if (cfg.stream) body.stream = true;
 
-      const headers = {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${cfg.apiKey}`,
-      };
+      let url, headers;
+      if (cfg.widgetKey) {
+        url = `${cfg.server}/widget/chat`;
+        headers = { "Content-Type": "application/json", "X-Widget-Key": cfg.widgetKey };
+      } else {
+        url = `${cfg.server}/projects/${cfg.projectId}/chat`;
+        headers = { "Content-Type": "application/json", "Authorization": `Bearer ${cfg.apiKey}` };
+      }
       if (cfg.stream) headers["Accept"] = "text/event-stream";
 
-      const resp = await fetch(`${cfg.server}/projects/${cfg.projectId}/chat`, {
+      const resp = await fetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify(body),
@@ -338,7 +351,7 @@
             if (line.startsWith("data: ")) {
               try {
                 const data = JSON.parse(line.slice(6));
-                if (data.answer !== undefined && data.type !== undefined) {
+                if (data.answer !== undefined) {
                   chatId = data.id || chatId;
                 } else if (data.text !== undefined) {
                   accumulated += data.text;

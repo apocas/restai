@@ -150,6 +150,56 @@ def check_not_restricted(user: User):
         raise HTTPException(status_code=403, detail="Restricted users cannot perform this operation")
 
 
+def get_widget_from_request(request: Request, db_wrapper):
+    """Authenticate a widget request via X-Widget-Key header. Validates domain."""
+    from restai.utils.crypto import hash_api_key
+    from urllib.parse import urlparse
+
+    widget_key = request.headers.get("X-Widget-Key")
+    if not widget_key:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer wk_"):
+            widget_key = auth_header.split(" ", 1)[1]
+    if not widget_key or not widget_key.startswith("wk_"):
+        raise HTTPException(status_code=401, detail="Widget key required")
+
+    key_hash = hash_api_key(widget_key)
+    widget = db_wrapper.get_widget_by_key_hash(key_hash)
+    if widget is None:
+        raise HTTPException(status_code=401, detail="Invalid widget key")
+
+    if not widget.enabled:
+        raise HTTPException(status_code=403, detail="Widget is disabled")
+
+    allowed = json.loads(widget.allowed_domains) if widget.allowed_domains else []
+    if allowed and "*" not in allowed:
+        origin = request.headers.get("Origin") or request.headers.get("Referer") or ""
+        if not origin:
+            raise HTTPException(status_code=403, detail="Origin header required")
+        try:
+            host = urlparse(origin).hostname or ""
+        except Exception:
+            host = ""
+        if not _domain_matches(host, allowed):
+            raise HTTPException(status_code=403, detail="Domain not allowed")
+
+    return widget
+
+
+def _domain_matches(host: str, allowed: list) -> bool:
+    """Check if host matches any allowed domain pattern (supports *.example.com)."""
+    if not host:
+        return False
+    host = host.lower()
+    for pattern in allowed:
+        pattern = pattern.lower().strip()
+        if pattern == host:
+            return True
+        if pattern.startswith("*.") and (host.endswith(pattern[1:]) or host == pattern[2:]):
+            return True
+    return False
+
+
 def get_current_username_project_public(
     projectID: int,
     user: User = Depends(get_current_username),

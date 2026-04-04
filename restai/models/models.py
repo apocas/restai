@@ -1,7 +1,7 @@
 import os
 import re
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing import Any, Dict, List, Literal, Optional, Union, Iterable
 import json
 from datetime import datetime
@@ -1385,6 +1385,109 @@ class GuardEventResponse(BaseModel):
     date: Optional[datetime] = None
     user_id: Optional[int] = None
     model_config = ConfigDict(from_attributes=True)
+
+
+# ── Widget Models ────────────────────────────────────────────────────────
+
+
+class WidgetConfig(BaseModel):
+    """Visual configuration for a chat widget."""
+    title: str = Field(default="AI Assistant", max_length=100)
+    subtitle: str = Field(default="Ask me anything", max_length=200)
+    primaryColor: str = Field(default="#6366f1", max_length=20)
+    textColor: str = Field(default="#ffffff", max_length=20)
+    position: Literal["left", "right"] = Field(default="right")
+    welcomeMessage: str = Field(default="", max_length=500)
+    avatarUrl: str = Field(default="", max_length=500)
+    stream: bool = Field(default=False)
+
+
+class WidgetCreate(BaseModel):
+    """Create a new widget for a project."""
+    name: str = Field(default="Chat Widget", max_length=255)
+    config: WidgetConfig = Field(default_factory=WidgetConfig)
+    allowed_domains: list[str] = Field(default=[])
+
+
+class WidgetUpdate(BaseModel):
+    """Update widget configuration."""
+    name: Optional[str] = Field(default=None, max_length=255)
+    config: Optional[WidgetConfig] = None
+    allowed_domains: Optional[list[str]] = None
+    enabled: Optional[bool] = None
+
+
+class WidgetResponse(BaseModel):
+    """Widget metadata returned to project owners."""
+    id: int
+    project_id: int
+    name: str
+    config: WidgetConfig
+    allowed_domains: list[str]
+    enabled: bool
+    key_prefix: str
+    widget_key: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode='before')
+    @classmethod
+    def decrypt_widget_key(cls, values):
+        if hasattr(values, 'encrypted_key') and values.encrypted_key:
+            try:
+                from restai.utils.crypto import decrypt_api_key
+                if hasattr(values, '__dict__'):
+                    values.__dict__['widget_key'] = decrypt_api_key(values.encrypted_key)
+            except Exception:
+                pass
+        elif isinstance(values, dict) and values.get('encrypted_key'):
+            try:
+                from restai.utils.crypto import decrypt_api_key
+                values['widget_key'] = decrypt_api_key(values['encrypted_key'])
+            except Exception:
+                pass
+        return values
+
+    @field_validator('config', mode='before')
+    @classmethod
+    def parse_config(cls, v):
+        if isinstance(v, str):
+            try:
+                return WidgetConfig(**json.loads(v))
+            except (json.JSONDecodeError, TypeError):
+                return WidgetConfig()
+        elif isinstance(v, dict):
+            return WidgetConfig(**v)
+        return v
+
+    @field_validator('allowed_domains', mode='before')
+    @classmethod
+    def parse_domains(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return []
+        return v
+
+
+class WidgetCreatedResponse(WidgetResponse):
+    """Returned only at creation time; includes the plaintext widget key."""
+    widget_key: str
+
+
+class WidgetChatRequest(BaseModel):
+    """Minimal chat request from an embedded widget."""
+    question: str = Field(max_length=10000)
+    id: Optional[str] = Field(default=None)
+    stream: Optional[bool] = Field(default=None)
+
+
+class WidgetChatResponse(BaseModel):
+    """Sanitized response returned to widgets."""
+    answer: str
+    id: Optional[str] = None
 
 
 # Rebuild models with forward references to resolve circular dependencies
