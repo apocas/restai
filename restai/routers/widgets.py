@@ -12,6 +12,17 @@ from restai.models.models import ChatModel, User, WidgetChatRequest, WidgetChatR
 router = APIRouter()
 
 
+@router.get("/widget/config", tags=["Widget"])
+async def widget_config(
+    request: Request,
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get widget visual configuration. Authenticated via X-Widget-Key header."""
+    widget = get_widget_from_request(request, db_wrapper)
+    config = json.loads(widget.config) if widget.config else {}
+    return config
+
+
 @router.post("/widget/chat", tags=["Widget"])
 async def widget_chat(
     request: Request,

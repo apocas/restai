@@ -33,6 +33,28 @@
   let chatId = null;
   let isStreaming = false;
   const messages = [];
+  let configLoaded = false;
+
+  // Fetch server-side config when using widget key (overrides defaults, not explicit data-* attrs)
+  if (cfg.widgetKey) {
+    fetch(`${cfg.server}/widget/config`, { headers: { "X-Widget-Key": cfg.widgetKey } })
+      .then(r => r.ok ? r.json() : null)
+      .then(serverCfg => {
+        if (!serverCfg) return;
+        const attr = (name) => scriptTag.getAttribute(name);
+        if (!attr("data-title") && serverCfg.title) cfg.title = serverCfg.title;
+        if (!attr("data-subtitle") && serverCfg.subtitle) cfg.subtitle = serverCfg.subtitle;
+        if (!attr("data-primary-color") && serverCfg.primaryColor) cfg.primaryColor = serverCfg.primaryColor;
+        if (!attr("data-text-color") && serverCfg.textColor) cfg.textColor = serverCfg.textColor;
+        if (!attr("data-position") && serverCfg.position) cfg.position = serverCfg.position;
+        if (!attr("data-welcome-message") && serverCfg.welcomeMessage) cfg.welcomeMessage = serverCfg.welcomeMessage;
+        if (!attr("data-avatar-url") && serverCfg.avatarUrl) cfg.avatarUrl = serverCfg.avatarUrl;
+        if (!attr("data-stream") && serverCfg.stream) cfg.stream = serverCfg.stream;
+        configLoaded = true;
+        applyConfig();
+      })
+      .catch(() => {});
+  }
 
   // --- Shadow DOM ---
   const host = document.createElement("div");
@@ -44,8 +66,7 @@
   const pos = cfg.position === "left" ? "left" : "right";
   const otherPos = pos === "left" ? "right" : "left";
 
-  const style = document.createElement("style");
-  style.textContent = `
+  function buildStyles() { return `
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :host{all:initial;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5;color:#1a1a2e}
 
@@ -172,7 +193,9 @@
       .restai-panel{width:calc(100vw - 16px);${pos}:8px;bottom:80px;max-height:calc(100vh - 100px);border-radius:12px}
       .restai-bubble{bottom:16px;${pos}:16px}
     }
-  `;
+  `; }
+  const style = document.createElement("style");
+  style.textContent = buildStyles();
   shadow.appendChild(style);
 
   // --- Icons ---
@@ -239,6 +262,28 @@
   const inputEl = shadow.getElementById("restai-input");
   const sendBtn = shadow.getElementById("restai-send");
   const closeBtn = panel.querySelector(".restai-close");
+
+  function applyConfig() {
+    // Update text
+    const titleEl = panel.querySelector(".restai-header-title");
+    const subtitleEl = panel.querySelector(".restai-header-subtitle");
+    if (titleEl) titleEl.textContent = cfg.title;
+    if (subtitleEl) subtitleEl.textContent = cfg.subtitle;
+    // Update avatar
+    const avatarEl = panel.querySelector(".restai-header-avatar");
+    if (avatarEl) {
+      avatarEl.innerHTML = cfg.avatarUrl
+        ? `<img src="${cfg.avatarUrl}" alt="">`
+        : ICON_BOT.replace('viewBox', 'style="width:20px;height:20px;fill:' + cfg.textColor + '" viewBox');
+    }
+    // Update colors by rebuilding the style
+    style.textContent = buildStyles();
+    // Add welcome message if not already shown
+    if (cfg.welcomeMessage && messages.length === 0) {
+      messages.push({ role: "bot", content: cfg.welcomeMessage });
+      renderMessages();
+    }
+  }
 
   // --- Toggle ---
   function toggle() {
