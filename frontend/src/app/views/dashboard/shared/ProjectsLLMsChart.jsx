@@ -10,9 +10,13 @@ export default function ProjectsLLMsChart({ projects = [], height = "280px" }) {
     }
   });
 
-  const data = Object.entries(llmCounts).map(([name, value]) => ({ name, value }));
+  const data = Object.entries(llmCounts)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
 
   if (data.length === 0) return null;
+
+  const legendNames = data.slice(0, 3).map((d) => d.name);
 
   const option = {
     tooltip: {
@@ -29,6 +33,7 @@ export default function ProjectsLLMsChart({ projects = [], height = "280px" }) {
       icon: "circle",
       itemWidth: 10,
       textStyle: { fontSize: 12 },
+      data: legendNames,
     },
     color: COLORS,
     series: [

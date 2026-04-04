@@ -125,17 +125,17 @@ export default function ProjectsTable({ projects = [], title = "Projects", compa
               return (
               <div>
                 <Box display="flex" alignItems="center" gap={1}>
-                  {users.slice(0, 2).map((user, index) => (
+                  {users.slice(0, 1).map((user, index) => (
                     <div key={user.id || user.username || index}>
                       <Tooltip title={user.username} placement="top">
                         <StyledAvatar src={"https://www.gravatar.com/avatar/" + sha256(user.username)} />
                       </Tooltip>
                     </div>
                   ))}
-                  {users.length >= 3 &&
+                  {users.length >= 2 &&
                     <div>
-                      <Tooltip title={users.slice(2).map(user => user.username).join(", ")} placement="top">
-                        <StyledAvatar sx={{ fontSize: "14px" }}>+{users.length - 2}</StyledAvatar>
+                      <Tooltip title={users.slice(1).map(user => user.username).join(", ")} placement="top">
+                        <StyledAvatar sx={{ fontSize: "14px" }}>+{users.length - 1}</StyledAvatar>
                       </Tooltip>
                     </div>
                   }
