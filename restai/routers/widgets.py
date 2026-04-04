@@ -1,6 +1,9 @@
 import json
 import time
 import logging
+import threading
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
 from starlette.responses import StreamingResponse
@@ -10,6 +13,31 @@ from restai.database import get_db_wrapper, DBWrapper
 from restai.models.models import ChatModel, User, WidgetChatRequest, WidgetChatResponse
 
 router = APIRouter()
+
+# Per-widget-key rate limiter
+_widget_requests = defaultdict(list)
+_widget_lock = threading.Lock()
+_WIDGET_MAX_REQUESTS = 30
+_WIDGET_WINDOW_SECONDS = 60
+
+
+_widget_last_cleanup = datetime.now(timezone.utc)
+
+
+def _check_widget_rate_limit(widget_key_prefix: str):
+    global _widget_last_cleanup
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(seconds=_WIDGET_WINDOW_SECONDS)
+    with _widget_lock:
+        if (now - _widget_last_cleanup).total_seconds() > _WIDGET_WINDOW_SECONDS:
+            stale = [k for k, v in _widget_requests.items() if not v or v[-1] < cutoff]
+            for k in stale:
+                del _widget_requests[k]
+            _widget_last_cleanup = now
+        _widget_requests[widget_key_prefix] = [t for t in _widget_requests[widget_key_prefix] if t > cutoff]
+        if len(_widget_requests[widget_key_prefix]) >= _WIDGET_MAX_REQUESTS:
+            raise HTTPException(status_code=429, detail="Widget rate limit exceeded")
+        _widget_requests[widget_key_prefix].append(now)
 
 
 @router.get("/widget/config", tags=["Widget"])
@@ -32,6 +60,7 @@ async def widget_chat(
 ):
     """Chat via an embedded widget. Returns sanitized response (answer + chat_id only)."""
     widget = get_widget_from_request(request, db_wrapper)
+    _check_widget_rate_limit(widget.key_prefix)
     brain = request.app.state.brain
 
     project = brain.find_project(widget.project_id, db_wrapper)

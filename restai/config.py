@@ -272,7 +272,7 @@ SSO_AUTO_RESTRICTED = True
 SSO_AUTO_TEAM_ID = None
 SESSION_COOKIE_SAME_SITE = os.environ.get("SESSION_COOKIE_SAME_SITE", "lax")
 SESSION_COOKIE_SECURE = (
-    os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
+    os.environ.get("SESSION_COOKIE_SECURE", "false" if RESTAI_DEV else "true").lower() == "true"
 )
 SSO_SECRET_KEY = os.environ.get("SSO_SECRET_KEY", os.environ.get("SECRET_KEY"))
 

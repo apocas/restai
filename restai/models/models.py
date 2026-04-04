@@ -63,7 +63,7 @@ class URLIngestModel(BaseModel):
 
 class TextIngestModel(BaseModel):
     """Ingest raw text into a RAG project's knowledge base."""
-    text: str = Field(description="Raw text content to ingest")
+    text: str = Field(max_length=10_000_000, description="Raw text content to ingest")
     source: str = Field(max_length=500, description="Source identifier for the ingested text")
     splitter: Literal["sentence", "token"] = Field(default="sentence", description="Text splitting strategy: 'sentence' or 'token'")
     chunks: int = Field(default=512, ge=32, le=8192, description="Maximum chunk size in characters or tokens")

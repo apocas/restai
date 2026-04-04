@@ -19,7 +19,8 @@ from restai.auth import (
     get_current_username,
     get_current_username_platform_admin,
     get_current_username_team_admin,
-    get_current_username_team_member
+    get_current_username_team_member,
+    check_not_restricted,
 )
 from restai.constants import ERROR_MESSAGES
 
@@ -101,10 +102,8 @@ async def create_team(
     user: User = Depends(get_current_username_platform_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Create a new team.
-    
-    Only platform admins can create teams.
-    """
+    """Create a new team."""
+    check_not_restricted(user)
     try:
         # Check if team name already exists
         existing_team = db_wrapper.get_team_by_name(team_create.name)
@@ -142,6 +141,7 @@ async def update_team(
     
     Only team admins and platform admins can update team details.
     """
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -176,6 +176,7 @@ async def delete_team(
     
     Only platform admins can delete teams.
     """
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -200,6 +201,7 @@ async def add_user_to_team(
     
     Only team admins and platform admins can add users to a team.
     """
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -228,6 +230,7 @@ async def remove_user_from_team(
     
     Only team admins and platform admins can remove users from a team.
     """
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -256,6 +259,7 @@ async def add_admin_to_team(
     
     Only team admins and platform admins can add admins to a team.
     """
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -284,6 +288,7 @@ async def remove_admin_from_team(
     
     Only team admins and platform admins can remove admins from a team.
     """
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -312,6 +317,7 @@ async def add_project_to_team(
     
     Only team admins and platform admins can add projects to a team.
     """
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -340,6 +346,7 @@ async def remove_project_from_team(
     
     Only team admins and platform admins can remove projects from a team.
     """
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -365,6 +372,7 @@ async def add_llm_to_team(
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
     """Add an LLM to a team."""
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -388,6 +396,7 @@ async def remove_llm_from_team(
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
     """Remove an LLM from a team."""
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -411,6 +420,7 @@ async def add_embedding_to_team(
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
     """Add an embedding to a team."""
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -434,6 +444,7 @@ async def remove_embedding_from_team(
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
     """Remove an embedding from a team."""
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -532,6 +543,7 @@ async def add_image_generator_to_team(
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
     """Add an image generator to a team."""
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -553,6 +565,7 @@ async def remove_image_generator_from_team(
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
     """Remove an image generator from a team."""
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -574,6 +587,7 @@ async def add_audio_generator_to_team(
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
     """Add an audio generator to a team."""
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -595,6 +609,7 @@ async def remove_audio_generator_from_team(
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
     """Remove an audio generator from a team."""
+    check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -620,6 +635,7 @@ async def send_team_invitation(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Invite a user to join a team. Does not disclose whether the user exists."""
+    check_not_restricted(user)
     username = body.get("username", "").strip()
     if not username:
         raise HTTPException(status_code=400, detail="Username is required")

@@ -1,5 +1,7 @@
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone
+from collections import defaultdict
 import logging
+import threading
 
 import jwt
 import pyotp
@@ -18,6 +20,33 @@ logging.basicConfig(level=config.LOG_LEVEL)
 
 router = APIRouter()
 
+# --- IP-based rate limiter for auth endpoints ---
+_login_attempts = defaultdict(list)  # ip -> [timestamps]
+_login_lock = threading.Lock()
+_LOGIN_MAX_ATTEMPTS = 10
+_LOGIN_WINDOW_SECONDS = 300  # 5 minutes
+
+
+_login_last_cleanup = datetime.now(timezone.utc)
+
+
+def _check_login_rate_limit(request: Request):
+    global _login_last_cleanup
+    ip = request.client.host if request.client else "unknown"
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(seconds=_LOGIN_WINDOW_SECONDS)
+    with _login_lock:
+        # Periodic cleanup of stale IPs
+        if (now - _login_last_cleanup).total_seconds() > _LOGIN_WINDOW_SECONDS:
+            stale = [k for k, v in _login_attempts.items() if not v or v[-1] < cutoff]
+            for k in stale:
+                del _login_attempts[k]
+            _login_last_cleanup = now
+        _login_attempts[ip] = [t for t in _login_attempts[ip] if t > cutoff]
+        if len(_login_attempts[ip]) >= _LOGIN_MAX_ATTEMPTS:
+            raise HTTPException(status_code=429, detail="Too many login attempts. Try again later.")
+        _login_attempts[ip].append(now)
+
 
 @router.post("/auth/login")
 async def login(
@@ -27,6 +56,7 @@ async def login(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Authenticate and receive a session cookie. If 2FA is enabled, returns a temporary token instead."""
+    _check_login_rate_limit(request)
     # Check if user has TOTP enabled
     user_db = db_wrapper.get_user_by_username(user.username)
     if user_db and user_db.totp_enabled:
@@ -55,11 +85,13 @@ async def login(
 
 @router.post("/auth/verify-totp")
 async def verify_totp(
+    request: Request,
     body: TOTPVerifyRequest,
     response: Response,
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Complete 2FA login by verifying a TOTP code or recovery code."""
+    _check_login_rate_limit(request)
     # Decode temp token
     try:
         data = jwt.decode(body.token, RESTAI_AUTH_SECRET, algorithms=["HS512"])
