@@ -35,31 +35,11 @@
   const messages = [];
   let configLoaded = false;
 
-  // Fetch server-side config when using widget key (overrides defaults, not explicit data-* attrs)
-  if (cfg.widgetKey) {
-    fetch(`${cfg.server}/widget/config`, { headers: { "X-Widget-Key": cfg.widgetKey } })
-      .then(r => r.ok ? r.json() : null)
-      .then(serverCfg => {
-        if (!serverCfg) return;
-        const attr = (name) => scriptTag.getAttribute(name);
-        if (!attr("data-title") && serverCfg.title) cfg.title = serverCfg.title;
-        if (!attr("data-subtitle") && serverCfg.subtitle) cfg.subtitle = serverCfg.subtitle;
-        if (!attr("data-primary-color") && serverCfg.primaryColor) cfg.primaryColor = serverCfg.primaryColor;
-        if (!attr("data-text-color") && serverCfg.textColor) cfg.textColor = serverCfg.textColor;
-        if (!attr("data-position") && serverCfg.position) cfg.position = serverCfg.position;
-        if (!attr("data-welcome-message") && serverCfg.welcomeMessage) cfg.welcomeMessage = serverCfg.welcomeMessage;
-        if (!attr("data-avatar-url") && serverCfg.avatarUrl) cfg.avatarUrl = serverCfg.avatarUrl;
-        if (!attr("data-stream") && serverCfg.stream) cfg.stream = serverCfg.stream;
-        configLoaded = true;
-        applyConfig();
-      })
-      .catch(() => {});
-  }
-
   // --- Shadow DOM ---
   const host = document.createElement("div");
   host.id = "restai-widget-host";
   document.body.appendChild(host);
+  if (cfg.widgetKey) host.style.display = "none";
   const shadow = host.attachShadow({ mode: "closed" });
 
   // --- Styles ---
@@ -302,6 +282,30 @@
   if (cfg.welcomeMessage) {
     messages.push({ role: "bot", content: cfg.welcomeMessage });
     renderMessages();
+  }
+
+  // --- Fetch server config (widget key mode) ---
+  if (cfg.widgetKey) {
+    fetch(`${cfg.server}/widget/config`, { headers: { "X-Widget-Key": cfg.widgetKey } })
+      .then(r => {
+        if (!r.ok) { host.remove(); return null; }
+        return r.json();
+      })
+      .then(serverCfg => {
+        if (!serverCfg) return;
+        const attr = (name) => scriptTag.getAttribute(name);
+        if (!attr("data-title") && serverCfg.title) cfg.title = serverCfg.title;
+        if (!attr("data-subtitle") && serverCfg.subtitle) cfg.subtitle = serverCfg.subtitle;
+        if (!attr("data-primary-color") && serverCfg.primaryColor) cfg.primaryColor = serverCfg.primaryColor;
+        if (!attr("data-text-color") && serverCfg.textColor) cfg.textColor = serverCfg.textColor;
+        if (!attr("data-position") && serverCfg.position) cfg.position = serverCfg.position;
+        if (!attr("data-welcome-message") && serverCfg.welcomeMessage) cfg.welcomeMessage = serverCfg.welcomeMessage;
+        if (!attr("data-avatar-url") && serverCfg.avatarUrl) cfg.avatarUrl = serverCfg.avatarUrl;
+        if (!attr("data-stream") && serverCfg.stream) cfg.stream = serverCfg.stream;
+        applyConfig();
+        host.style.display = "";
+      })
+      .catch(() => { host.remove(); });
   }
 
   // --- Render messages ---
