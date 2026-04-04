@@ -12,7 +12,8 @@ from restai.models.models import (
     User
 )
 from sqlalchemy import or_
-from restai.models.databasemodels import TeamDatabase, OutputDatabase, ProjectDatabase, UserDatabase, TeamInvitationDatabase
+from sqlalchemy.orm import joinedload
+from restai.models.databasemodels import TeamDatabase, OutputDatabase, ProjectDatabase, UserDatabase, TeamInvitationDatabase, ProjectInvitationDatabase
 from restai.database import get_db_wrapper, DBWrapper
 from restai.auth import (
     get_current_username,
@@ -660,9 +661,10 @@ async def get_my_invitations(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Get pending team invitations for the current user."""
+    """Get pending team and project invitations for the current user."""
     invites = (
         db_wrapper.db.query(TeamInvitationDatabase)
+        .options(joinedload(TeamInvitationDatabase.team), joinedload(TeamInvitationDatabase.inviter))
         .filter(
             TeamInvitationDatabase.username == user.username,
             TeamInvitationDatabase.status == "pending",
@@ -672,12 +674,35 @@ async def get_my_invitations(
     )
     result = []
     for inv in invites:
-        team = db_wrapper.get_team_by_id(inv.team_id)
-        inviter = db_wrapper.get_user_by_id(inv.invited_by) if inv.invited_by else None
+        team = inv.team
+        inviter = inv.inviter
         result.append({
             "id": inv.id,
+            "type": "team",
             "team_id": inv.team_id,
             "team_name": team.name if team else "Unknown",
+            "invited_by": inviter.username if inviter else "Unknown",
+            "created_at": inv.created_at.isoformat() if inv.created_at else None,
+        })
+
+    project_invites = (
+        db_wrapper.db.query(ProjectInvitationDatabase)
+        .options(joinedload(ProjectInvitationDatabase.project), joinedload(ProjectInvitationDatabase.inviter))
+        .filter(
+            ProjectInvitationDatabase.username == user.username,
+            ProjectInvitationDatabase.status == "pending",
+        )
+        .order_by(ProjectInvitationDatabase.created_at.desc())
+        .all()
+    )
+    for inv in project_invites:
+        project = inv.project
+        inviter = inv.inviter
+        result.append({
+            "id": inv.id,
+            "type": "project",
+            "project_id": inv.project_id,
+            "project_name": project.name if project else "Unknown",
             "invited_by": inviter.username if inviter else "Unknown",
             "created_at": inv.created_at.isoformat() if inv.created_at else None,
         })
@@ -689,9 +714,9 @@ async def get_invitation_count(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Get the count of pending invitations for the current user."""
+    """Get the count of pending invitations (team + project) for the current user."""
     from sqlalchemy import func
-    count = (
+    team_count = (
         db_wrapper.db.query(func.count(TeamInvitationDatabase.id))
         .filter(
             TeamInvitationDatabase.username == user.username,
@@ -699,7 +724,15 @@ async def get_invitation_count(
         )
         .scalar()
     ) or 0
-    return {"count": count}
+    project_count = (
+        db_wrapper.db.query(func.count(ProjectInvitationDatabase.id))
+        .filter(
+            ProjectInvitationDatabase.username == user.username,
+            ProjectInvitationDatabase.status == "pending",
+        )
+        .scalar()
+    ) or 0
+    return {"count": team_count + project_count}
 
 
 @router.post("/invitations/{invitation_id}/accept", tags=["Teams"])
@@ -741,6 +774,60 @@ async def decline_invitation(
     invite = (
         db_wrapper.db.query(TeamInvitationDatabase)
         .filter(TeamInvitationDatabase.id == invitation_id)
+        .first()
+    )
+    if invite is None or invite.username != user.username:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    if invite.status != "pending":
+        raise HTTPException(status_code=400, detail="Invitation is no longer pending")
+
+    invite.status = "declined"
+    db_wrapper.db.commit()
+
+    return {"message": "Invitation declined"}
+
+
+# ── Project Invitations ──────────────────────────────────────────────────
+
+
+@router.post("/invitations/projects/{invitation_id}/accept", tags=["Projects"])
+async def accept_project_invitation(
+    invitation_id: int = Path(description="Invitation ID"),
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Accept a project invitation."""
+    invite = (
+        db_wrapper.db.query(ProjectInvitationDatabase)
+        .filter(ProjectInvitationDatabase.id == invitation_id)
+        .first()
+    )
+    if invite is None or invite.username != user.username:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    if invite.status != "pending":
+        raise HTTPException(status_code=400, detail="Invitation is no longer pending")
+
+    project = db_wrapper.get_project_by_id(invite.project_id)
+    user_db = db_wrapper.get_user_by_username(user.username)
+    if project and user_db and user_db not in project.users:
+        project.users.append(user_db)
+
+    invite.status = "accepted"
+    db_wrapper.db.commit()
+
+    return {"message": f"Joined project '{project.name if project else ''}'"}
+
+
+@router.post("/invitations/projects/{invitation_id}/decline", tags=["Projects"])
+async def decline_project_invitation(
+    invitation_id: int = Path(description="Invitation ID"),
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Decline a project invitation."""
+    invite = (
+        db_wrapper.db.query(ProjectInvitationDatabase)
+        .filter(ProjectInvitationDatabase.id == invitation_id)
         .first()
     )
     if invite is None or invite.username != user.username:

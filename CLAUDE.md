@@ -114,7 +114,47 @@ Every inference logs `latency_ms` in `OutputDatabase`. Timing starts at the rout
 
 ### Vector stores (`restai/vectordb/`)
 
-ChromaDB (default) or Redis. Configured per-project. Reranking support: ColBERT and LLM-based.
+ChromaDB (default) or Redis. Configured per-project. Reranking support: ColBERT and LLM-based. ChromaDB uses `_client_cache` dict to reuse `PersistentClient` per path, avoiding SQLite lock contention with multiple workers.
+
+### Home Dashboard (`frontend/src/app/views/dashboard/`)
+
+Full-width layout with: 6 stat cards (Projects, Users, Teams, Tokens, Cost, Avg Latency) with gradient icon circles → Activity section (daily tokens area chart + Activity Pulse card with Nightingale rose chart, 30-day micro heatmap, insight pills) → Distribution row (project types donut, LLM usage donut, top LLMs bar) → two side-by-side tables (Top Projects, Latest Projects). Charts use Recharts gradient fills and ECharts for donuts/rose.
+
+### Project Invitations (`project_invitations` table)
+
+Users can invite other users to their projects. The invited user must belong to the same team as the project. Follows the same pattern as team invitations.
+
+Endpoints: `POST /projects/{id}/invitations` (send invite, requires project membership, blocked for restricted users), `GET /invitations` (returns both team and project invitations with `type` field), `GET /invitations/count` (combined count), `POST /invitations/projects/{id}/accept`, `POST /invitations/projects/{id}/decline`.
+
+Frontend: "Invite User" card in the Security tab of project details. Invitations page (`/invitations`) shows both team and project invitations in separate sections.
+
+### SSO Auto-Created User Settings
+
+Two global settings in the Authentication section of platform settings:
+- `sso_auto_restricted` (default: `true`) — auto-created SSO/LDAP users are in restricted (read-only) mode
+- `sso_auto_team_id` (default: empty) — auto-created users are automatically added to the specified team
+
+Applied in `restai/oauth.py` (SSO) and `restai/routers/users.py` (LDAP) during user creation. Config attrs: `config.SSO_AUTO_RESTRICTED`, `config.SSO_AUTO_TEAM_ID`.
+
+### Restricted Users (`is_restricted` field on `UserDatabase`)
+
+Per-user read-only mode. Restricted users can view assigned projects and use playgrounds but cannot create/edit projects, manage users/teams, or send project invitations. Enforced via `check_not_restricted(user)` in `restai/auth.py`, called in 14+ project endpoints plus the project invitation endpoint.
+
+### Embeddable Chat Widget (`restai/widget/chat.js`)
+
+Self-contained vanilla JS widget with Shadow DOM, served at `/widget/chat.js`. Supports streaming (opt-in via `data-stream="true"`) and non-streaming modes. Reads config from `data-*` attributes. Markdown-lite rendering, typing indicator, conversation memory via chat_id. Widget builder in the project details Widget tab auto-generates a project-scoped API key.
+
+### Knowledge Base Sync (`restai/sync.py`, `scripts/sync.py`)
+
+Sync from 5 external sources: URL, S3, Confluence, SharePoint, Google Drive. Each source has its own `sync_interval` and `last_sync` timestamp to prevent duplicate syncs across workers. Standalone cron script (`scripts/sync.py`) replaces daemon threads; uses `Brain(lightweight=True)` to skip tool loading.
+
+### Custom Team Branding
+
+`TeamBranding` model with `primary_color`, `secondary_color`, `logo_url`, `app_name`, `welcome_message`. Stored as JSON in `TeamDatabase.branding` column. Users with multiple teams can select preferred branding via `UserOptions.preferred_team_id`.
+
+### Two-Factor Authentication (TOTP)
+
+TOTP 2FA with `pyotp`, Fernet-encrypted secrets stored in `UserDatabase.totp_secret`, SHA256-hashed recovery codes. JWT-based temp tokens for TOTP verification (5-min expiry, `purpose: "totp_verify"`). Platform-wide enforcement via `enforce_2fa` setting. Login page integrates TOTP step with recovery code toggle.
 
 ## Input Validation
 
@@ -128,12 +168,17 @@ File uploads are sanitized via `sanitize_filename` (strips path components and n
 
 ## Testing
 
-Tests use `FastAPI.TestClient` with Basic auth: `auth=("admin", RESTAI_DEFAULT_PASSWORD)`. No conftest.py — fixtures are inline. Tests create real resources (projects, users) against a live app instance. Key test files:
+Tests use `FastAPI.TestClient` with Basic auth: `auth=("admin", RESTAI_DEFAULT_PASSWORD)`. Fixtures are inline in `conftest.py` (sets `sys.setrecursionlimit(20000)` and pre-builds Pydantic model schemas). Tests create real resources (projects, users) against a live app instance. Key test files:
 - `tests/test_input_validation.py` — Name validation, enum validation, valid value acceptance
 - `tests/test_security.py` — RBAC, cross-team access, empty/whitespace name rejection
 - `tests/test_users.py`, `tests/test_teams.py`, `tests/test_llms.py`, `tests/test_embeddings.py` — CRUD tests
 - `tests/test_mcp.py` — MCP server auth (Bearer only), access control, tool registration
 - `tests/test_rate_limit.py` — Rate limiting enforcement, disable/enable, HTTP 429
+- `tests/test_settings.py` — Settings CRUD, SSO auto-restricted/team defaults, config sync
+- `tests/test_restricted.py` — Restricted user permissions enforcement
+- `tests/test_totp.py` — TOTP 2FA setup, verify, recovery codes
+- `tests/test_project_invitations.py` — Project invites: send, accept, decline, team validation, duplicate prevention
+- `tests/test_comments.py` — Project comment CRUD
 
 Note: `tests/test_projects.py` may fail if no LLMs are configured in the test environment (pre-existing issue).
 

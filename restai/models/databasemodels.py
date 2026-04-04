@@ -83,13 +83,14 @@ class ProjectDatabase(Base):
     guard = Column(String(255))
     human_name = Column(String(255))
     human_description = Column(Text)
-    creator = Column(Integer)
+    creator = Column(Integer, ForeignKey("users.id"), nullable=True)
     public = Column(Boolean, default=False)
     default_prompt = Column(Text)
     options = Column(Text, default="{}")
     team_id = Column(Integer, ForeignKey("teams.id"))
     users = relationship('UserDatabase', secondary=users_projects, back_populates='projects', lazy="select")
     team = relationship('TeamDatabase', back_populates='projects')
+    creator_user = relationship('UserDatabase', foreign_keys=[creator])
 
 class UserDatabase(Base):
     __tablename__ = "users"
@@ -237,6 +238,21 @@ class TeamInvitationDatabase(Base):
     created_at = Column(DateTime, nullable=False)
 
     team = relationship("TeamDatabase")
+    inviter = relationship("UserDatabase", foreign_keys=[invited_by])
+
+
+class ProjectInvitationDatabase(Base):
+    __tablename__ = "project_invitations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    username = Column(String(255), nullable=False, index=True)
+    invited_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    status = Column(String(20), nullable=False, default="pending")
+    created_at = Column(DateTime, nullable=False)
+
+    project = relationship("ProjectDatabase")
+    inviter = relationship("UserDatabase", foreign_keys=[invited_by])
 
 
 class AuditLogDatabase(Base):

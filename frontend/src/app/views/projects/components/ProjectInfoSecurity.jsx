@@ -1,5 +1,9 @@
-import { Card, Chip, Grid, Typography, styled } from "@mui/material";
-import { Shield } from "@mui/icons-material";
+import { useState } from "react";
+import { Box, Button, Card, Chip, Grid, TextField, Typography, styled } from "@mui/material";
+import { Shield, PersonAdd } from "@mui/icons-material";
+import { toast } from "react-toastify";
+import useAuth from "app/hooks/useAuth";
+import api from "app/utils/api";
 
 const SectionTitle = styled(Typography)(({ theme }) => ({
   fontWeight: 600,
@@ -21,6 +25,19 @@ const DetailItem = ({ label, children }) => (
 );
 
 export default function ProjectInfoSecurity({ project }) {
+  const auth = useAuth();
+  const [inviteUsername, setInviteUsername] = useState("");
+
+  const handleInvite = () => {
+    if (!inviteUsername.trim()) return;
+    api.post(`/projects/${project.id}/invitations`, { username: inviteUsername.trim() }, auth.user.token)
+      .then((d) => {
+        toast.success(d.message || "Invitation sent");
+        setInviteUsername("");
+      })
+      .catch(() => {});
+  };
+
   return (
     <Grid container spacing={3}>
       <Grid item xs={12}>
@@ -84,6 +101,35 @@ export default function ProjectInfoSecurity({ project }) {
               </Grid>
             )}
           </Grid>
+        </Card>
+      </Grid>
+
+      {/* Invite User */}
+      <Grid item xs={12}>
+        <Card elevation={1} sx={{ p: 2.5 }}>
+          <SectionTitle><PersonAdd fontSize="small" /> Invite User</SectionTitle>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+            Invite a team member to this project by username. They will be able to accept or decline.
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+            <TextField
+              size="small"
+              label="Username"
+              value={inviteUsername}
+              onChange={(e) => setInviteUsername(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleInvite(); }}
+              sx={{ minWidth: 250 }}
+            />
+            <Button
+              variant="contained"
+              size="medium"
+              disabled={!inviteUsername.trim()}
+              onClick={handleInvite}
+              startIcon={<PersonAdd />}
+            >
+              Send Invite
+            </Button>
+          </Box>
         </Card>
       </Grid>
     </Grid>

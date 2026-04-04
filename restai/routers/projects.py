@@ -55,7 +55,7 @@ from restai.vectordb.tools import (
     index_documents_classic,
     index_documents_docling,
 )
-from restai.models.databasemodels import OutputDatabase, ProjectDatabase
+from restai.models.databasemodels import OutputDatabase, ProjectDatabase, ProjectInvitationDatabase
 from restai.settings import mask_key
 import datetime
 from sqlalchemy import func, Integer, case
@@ -117,6 +117,7 @@ async def route_get_projects(
     for project in projects:
         # Create a Pydantic model from the SQLAlchemy object (handles all properties dynamically)
         project_model = ProjectModel.model_validate(project)
+        project_model.creator_username = project.creator_user.username if project.creator_user else None
 
         # Convert to dict and modify just the team property
         project_dict = project_model.model_dump()
@@ -2124,3 +2125,68 @@ async def get_project_tools(
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ── Project Invitations ──────────────────────────────────────────────────
+
+
+@router.post("/projects/{projectID}/invitations", tags=["Projects"])
+async def send_project_invitation(
+    projectID: int = PathParam(description="Project ID"),
+    body: dict = ...,
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Invite a user to join a project. Only the project creator or an admin can invite."""
+    check_not_restricted(user)
+
+    project_db = db_wrapper.get_project_by_id(projectID)
+    if project_db is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if not user.is_admin and project_db.creator != user.id:
+        raise HTTPException(status_code=403, detail="Only the project creator can invite users")
+
+    response = {"message": "If the user exists and belongs to the team, they will receive the invitation."}
+
+    username = body.get("username", "").strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="Username is required")
+
+    target = db_wrapper.get_user_by_username(username)
+    if target is None:
+        return response
+
+    if any(u.id == target.id for u in project_db.users):
+        return response
+
+    # Validate target belongs to the project's team (admins always eligible)
+    in_team = target.is_admin
+    if not in_team and project_db.team:
+        in_team = target in project_db.team.users or target in project_db.team.admins
+    if not in_team:
+        return response
+
+    # Check no pending invite exists
+    existing = (
+        db_wrapper.db.query(ProjectInvitationDatabase)
+        .filter(
+            ProjectInvitationDatabase.project_id == projectID,
+            ProjectInvitationDatabase.username == username,
+            ProjectInvitationDatabase.status == "pending",
+        )
+        .first()
+    )
+    if existing is not None:
+        return response
+
+    invite = ProjectInvitationDatabase(
+        project_id=projectID,
+        username=username,
+        invited_by=user.id,
+        status="pending",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    db_wrapper.db.add(invite)
+    db_wrapper.db.commit()
+
+    return response

@@ -430,6 +430,7 @@ class ProjectBaseModel(BaseModel):
     human_description: Union[str, None] = Field(default=None, description="Human-readable description of the project")
     public: bool = Field(default=False, description="Whether the project is publicly accessible without authentication")
     creator: Union[int, None] = Field(default=None, description="User ID of the project creator")
+    creator_username: Union[str, None] = Field(default=None, description="Username of the project creator")
     default_prompt: Union[str, None] = Field(default=None, description="Default prompt template for the project")
     options: Union[str, ProjectOptions] = Field(default=ProjectOptions(), description="Project configuration options")
     users: list[ProjectUser] = Field(default=[], description="Users assigned to this project")
@@ -446,6 +447,7 @@ class ProjectBaseModel(BaseModel):
         elif isinstance(v, dict):
             return ProjectOptions(**v)
         return v
+
 
 
 class ProjectModel(ProjectBaseModel):

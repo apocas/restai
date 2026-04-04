@@ -154,6 +154,7 @@ class Brain:
         proj: ProjectModel = ProjectModel.model_validate(p)
         if proj is None:
             return None
+        proj.creator_username = p.creator_user.username if p.creator_user else None
 
         project: Project = Project(proj)
         project.props = proj

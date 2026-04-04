@@ -87,12 +87,18 @@ const Layout1Topbar = () => {
   const isMdScreen = useMediaQuery(theme.breakpoints.down("md"));
   const [inviteCount, setInviteCount] = useState(0);
 
-  useEffect(() => {
+  const refreshInviteCount = () => {
     if (user?.token || user?.username) {
       api.get("/invitations/count", user.token, { silent: true })
         .then((data) => setInviteCount(data.count || 0))
         .catch(() => {});
     }
+  };
+
+  useEffect(() => {
+    refreshInviteCount();
+    window.addEventListener("invitations-changed", refreshInviteCount);
+    return () => window.removeEventListener("invitations-changed", refreshInviteCount);
   }, [user?.username]);
 
   const updateSidebarMode = (sidebarSettings) => {

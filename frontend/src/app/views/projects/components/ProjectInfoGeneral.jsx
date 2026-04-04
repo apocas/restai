@@ -20,6 +20,7 @@ import {
   Chat,
   ExpandMore,
   Groups,
+  Person,
   Psychology,
   Settings,
   Shield,
@@ -92,6 +93,9 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
             {project.options?.rate_limit && (
               <Chip icon={<Speed />} label={`${project.options.rate_limit} req/min`} size="small" variant="outlined" />
             )}
+            {project.creator_username && (
+              <Chip icon={<Person />} label={`Owner: ${project.creator_username}`} size="small" variant="outlined" />
+            )}
             {project.public && (
               <Chip label="Shared" size="small" color="info" />
             )}
@@ -151,14 +155,19 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
           <Card elevation={1} sx={{ p: 2.5 }}>
             <SectionTitle>Users with Access</SectionTitle>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-              {project.users.slice(0, 10).map((u, i) => (
-                <Tooltip key={u.username || i} title={u.username}>
-                  <Avatar
-                    src={"https://www.gravatar.com/avatar/" + sha256(u.username || "")}
-                    sx={{ width: 32, height: 32 }}
-                  />
-                </Tooltip>
-              ))}
+              {project.users.slice(0, 10).map((u, i) => {
+                const username = typeof u === "string" ? u : u.username;
+                return (
+                  <Tooltip key={username || i} title={username} placement="top" arrow>
+                    <Box sx={{ display: "inline-flex" }}>
+                      <Avatar
+                        src={"https://www.gravatar.com/avatar/" + sha256(username || "")}
+                        sx={{ width: 32, height: 32 }}
+                      />
+                    </Box>
+                  </Tooltip>
+                );
+              })}
               {project.users.length > 10 && (
                 <Chip label={`+${project.users.length - 10}`} size="small" />
               )}
