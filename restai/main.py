@@ -120,8 +120,9 @@ async def lifespan(fs_app: FastAPI):
 
     @fs_app.get("/", tags=["Health"])
     async def get():
-        """Root endpoint."""
-        return "RESTai, so many 'A's and 'I's, so little time..."
+        """Root endpoint — redirect to admin UI."""
+        from starlette.responses import RedirectResponse
+        return RedirectResponse(url="/admin")
 
     @fs_app.get("/version", tags=["Health"])
     async def get_version():
