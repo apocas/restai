@@ -270,7 +270,11 @@ async def lifespan(fs_app: FastAPI):
             # SPA catch-all route for /admin/* - must be defined after static mounts
             @fs_app.get("/admin/{full_path:path}")
             async def serve_spa(full_path: str):
-                """Serve index.html for all /admin/* routes to support SPA routing"""
+                """Serve static files if they exist, otherwise index.html for SPA routing."""
+                # Serve actual files (manifest.json, favicon.ico, etc.)
+                file_path = FRONTEND_BUILD_DIR / full_path
+                if full_path and file_path.is_file():
+                    return FileResponse(str(file_path))
                 index_file = FRONTEND_BUILD_DIR / "index.html"
                 if index_file.exists():
                     return FileResponse(str(index_file))
