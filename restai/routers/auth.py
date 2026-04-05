@@ -48,15 +48,19 @@ def _check_login_rate_limit(request: Request):
         _login_attempts[ip].append(now)
 
 
+def _rate_limit_dependency(request: Request):
+    _check_login_rate_limit(request)
+
+
 @router.post("/auth/login")
 async def login(
     request: Request,
     response: Response,
+    _rl=Depends(_rate_limit_dependency),
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Authenticate and receive a session cookie. If 2FA is enabled, returns a temporary token instead."""
-    _check_login_rate_limit(request)
     # Check if user has TOTP enabled
     user_db = db_wrapper.get_user_by_username(user.username)
     if user_db and user_db.totp_enabled:
