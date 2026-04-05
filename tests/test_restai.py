@@ -4,10 +4,10 @@ from restai.config import RESTAI_DEFAULT_PASSWORD
 from restai.main import app
 
 def test_get():
-    with TestClient(app) as client:
+    with TestClient(app, follow_redirects=False) as client:
         response = client.get("/")
-        assert response.status_code == 200
-        assert response.json() == "RESTai, so many 'A's and 'I's, so little time..."
+        assert response.status_code in (301, 302, 307, 308)
+        assert "/admin" in response.headers.get("location", "")
 
 def test_version():
     with TestClient(app) as client:
