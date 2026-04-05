@@ -1,9 +1,18 @@
 import random
 import pyotp
+import pytest
 from fastapi.testclient import TestClient
 
 from restai.config import RESTAI_DEFAULT_PASSWORD
 from restai.main import app
+from restai.routers.auth import _login_attempts, _login_lock
+
+
+@pytest.fixture(autouse=True)
+def clear_rate_limiter():
+    """Reset login rate limiter before each test."""
+    with _login_lock:
+        _login_attempts.clear()
 
 test_username = "test_totp_user_" + str(random.randint(0, 1000000))
 test_password = "totp_test_pass_123"
