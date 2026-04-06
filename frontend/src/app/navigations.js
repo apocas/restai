@@ -70,6 +70,11 @@ export const defaultNavigations = [
     path: "/projects/tools",
   },
   {
+    name: "Classifier",
+    icon: "category",
+    path: "/classifier",
+  },
+  {
     name: "Direct Access",
     icon: "api",
     path: "/direct",

@@ -13,7 +13,7 @@ _SAFE_NAME_RE = re.compile(r'^[a-zA-Z0-9._:-]+$')
 VALID_LLM_CLASSES = {
     "Ollama", "OllamaMultiModal", "OllamaMultiModal2", "OpenAI", "OpenAILike",
     "Grok", "Groq", "Anthropic", "LiteLLM", "vLLM", "GeminiMultiModal",
-    "Gemini", "AzureOpenAI",
+    "Gemini", "AzureOpenAI", "Bedrock",
 }
 
 VALID_EMBEDDING_CLASSES = {
@@ -321,6 +321,7 @@ class MCPServer(BaseModel):
     host: str = Field(description="MCP server command or URL (e.g. 'npx', 'uvx', or an HTTP endpoint)")
     args: Union[list[str], None] = Field(default=None, description="Command-line arguments for the MCP server process")
     env: Union[dict[str, str], None] = Field(default=None, description="Environment variables to pass to the MCP server process")
+    headers: Union[dict[str, str], None] = Field(default=None, description="HTTP headers for authentication (e.g. {'Authorization': 'Bearer token'})")
     tools: Union[str, None] = Field(default=None, description="Comma-separated list of specific tools to enable from this server")
     model_config = ConfigDict(json_schema_extra={
         "example": {
@@ -337,6 +338,7 @@ class MCPProbeRequest(BaseModel):
     host: str = Field(description="MCP server command or URL to probe")
     args: Union[list[str], None] = Field(default=None, description="Command-line arguments for the MCP server process")
     env: Union[dict[str, str], None] = Field(default=None, description="Environment variables to pass to the MCP server process")
+    headers: Union[dict[str, str], None] = Field(default=None, description="HTTP headers for authentication")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "host": "npx",

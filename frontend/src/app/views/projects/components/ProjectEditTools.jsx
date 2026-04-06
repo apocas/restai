@@ -1,8 +1,70 @@
 import { Grid, TextField, Button, Autocomplete, Typography, IconButton, Divider, Box, CircularProgress } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 
-export default function ProjectEditTools({ state, setState, handleChange, project, mcpServers, setMcpServers, tools, handleAddMcpServer, handleRemoveMcpServer, handleMcpServerFieldChange, handleProbeMcpServer, handleMcpToolsChange, isStdioServer }) {
+function parseHeadersText(text) {
+  const parsed = {};
+  if (!text) return parsed;
+  text.split("\n").forEach(line => {
+    const colonIdx = line.indexOf(":");
+    if (colonIdx > 0) {
+      const key = line.substring(0, colonIdx).trim();
+      const value = line.substring(colonIdx + 1).trim();
+      if (key) parsed[key] = value;
+    }
+  });
+  return parsed;
+}
+
+function GatewayServices({ gateway, onAdd }) {
+  const [selected, setSelected] = useState({});
+  const services = gateway.services || [];
+  const toggleService = (svc) => setSelected(prev => ({ ...prev, [svc]: !prev[svc] }));
+  const selectedList = services.filter(s => selected[s]);
+
+  return (
+    <Box sx={{ mt: 1 }}>
+      <Typography variant="subtitle2" gutterBottom>
+        MCP Gateway: {gateway.name || "Unknown"}
+      </Typography>
+      {gateway.description && (
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+          {gateway.description}
+        </Typography>
+      )}
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Select services to add:
+      </Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, mb: 1.5 }}>
+        {services.map((svc) => (
+          <Box
+            key={svc}
+            onClick={() => toggleService(svc)}
+            sx={{
+              display: "flex", alignItems: "center", gap: 1,
+              p: 1, borderRadius: 1, cursor: "pointer",
+              border: "1px solid", borderColor: selected[svc] ? "primary.main" : "divider",
+              bgcolor: selected[svc] ? "action.selected" : "transparent",
+              "&:hover": { bgcolor: "action.hover" },
+            }}
+          >
+            <input type="checkbox" checked={!!selected[svc]} readOnly style={{ pointerEvents: "none" }} />
+            <Typography variant="body2" fontFamily="monospace">{svc}</Typography>
+          </Box>
+        ))}
+      </Box>
+      <Button
+        variant="contained" size="small"
+        disabled={selectedList.length === 0}
+        onClick={() => onAdd(selectedList)}
+      >
+        Add {selectedList.length} Service{selectedList.length !== 1 ? "s" : ""}
+      </Button>
+    </Box>
+  );
+}
+
+export default function ProjectEditTools({ state, setState, handleChange, project, mcpServers, setMcpServers, tools, handleAddMcpServer, handleRemoveMcpServer, handleMcpServerFieldChange, handleProbeMcpServer, handleMcpToolsChange, handleAddGatewayServices, isStdioServer }) {
   return (
     <Grid container spacing={3}>
       <Grid item sm={6} xs={12}>
@@ -105,10 +167,28 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
                 />
               </Box>
             )}
+            {!isStdioServer(server.host) && (
+              <Box sx={{ mb: 1 }}>
+                <TextField
+                  fullWidth size="small" multiline rows={2}
+                  label="Headers"
+                  placeholder={"Authorization: Bearer token123\nX-API-Key: mykey"}
+                  helperText="One header per line in KEY: VALUE format"
+                  value={server.headersText ?? ""}
+                  onChange={(e) => handleMcpServerFieldChange(index, 'headersText', e.target.value)}
+                />
+              </Box>
+            )}
             {server.error && (
               <Typography variant="body2" color="error" sx={{ mb: 1 }}>{server.error}</Typography>
             )}
-            {server.availableTools.length > 0 && (
+            {server.gateway && (
+              <GatewayServices
+                gateway={server.gateway}
+                onAdd={(selectedServices) => handleAddGatewayServices(index, selectedServices)}
+              />
+            )}
+            {server.availableTools.length > 0 && !server.gateway && (
               <Autocomplete
                 multiple
                 freeSolo

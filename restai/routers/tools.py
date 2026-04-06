@@ -50,14 +50,37 @@ async def probe_mcp_server(
     probe_request: MCPProbeRequest,
     _: User = Depends(get_current_username),
 ):
-    """Probe an MCP server to discover available tools."""
+    """Probe an MCP server or gateway to discover available tools/services."""
     try:
+        # Detect MCP gateway (returns a services list instead of being a direct MCP server)
+        if probe_request.host.startswith("http"):
+            import httpx
+            try:
+                async with httpx.AsyncClient() as http_client:
+                    resp = await http_client.get(
+                        probe_request.host,
+                        headers=probe_request.headers or {},
+                        timeout=10,
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if "services" in data and isinstance(data["services"], list):
+                            return {
+                                "type": "gateway",
+                                "name": data.get("name", ""),
+                                "description": data.get("description", ""),
+                                "services": data["services"],
+                            }
+            except Exception:
+                pass  # Not a gateway, fall through to MCP probe
+
         from llama_index.tools.mcp import BasicMCPClient, McpToolSpec
 
         mcp_client = BasicMCPClient(
             probe_request.host,
             args=probe_request.args or [],
             env=probe_request.env or {},
+            headers=probe_request.headers or None,
         )
         mcp_tool_spec = McpToolSpec(client=mcp_client)
         tools = await mcp_tool_spec.to_tool_list_async()
@@ -70,13 +93,15 @@ async def probe_mcp_server(
                 "schema": tool.metadata.fn_schema_str,
             })
 
-        return {"tools": tools_info}
-    except Exception as e:
+        return {"type": "server", "tools": tools_info}
+    except BaseException as e:
+        msg = str(e)
+        if "401" in msg or "Unauthorized" in msg:
+            msg = "Authentication required. The MCP server returned 401 Unauthorized."
         logging.error(e)
-        traceback.print_tb(e.__traceback__)
         raise HTTPException(
             status_code=502,
-            detail=f"Failed to connect to MCP server at {probe_request.host}: {str(e)}"
+            detail=f"Failed to connect to MCP server at {probe_request.host}: {msg}"
         )
 
 

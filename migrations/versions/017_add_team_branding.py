@@ -8,7 +8,7 @@ depends_on = None
 
 def upgrade():
     try:
-        op.add_column('teams', sa.Column('branding', sa.Text(), server_default='{}', nullable=True))
+        op.add_column('teams', sa.Column('branding', sa.Text(), nullable=True))
     except Exception as e:
         print(f"Error adding branding column: {e}")
 

@@ -1,17 +1,26 @@
 import { Box, Button, Card, Grid, styled } from "@mui/material";
 import { Info, Storage, Shield, Extension, Build } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import api from "app/utils/api";
-
 import ProjectTabNav from "./ProjectTabNav";
 import ProjectEditGeneral from "./ProjectEditGeneral";
 import ProjectEditKnowledge from "./ProjectEditKnowledge";
 import ProjectEditSecurity from "./ProjectEditSecurity";
 import ProjectEditIntegrations from "./ProjectEditIntegrations";
 import ProjectEditTools from "./ProjectEditTools";
+
+function parseHeadersText(text) {
+  const h = {};
+  if (!text) return h;
+  text.split("\n").forEach(line => {
+    const i = line.indexOf(":");
+    if (i > 0) { const k = line.substring(0, i).trim(); const v = line.substring(i + 1).trim(); if (k) h[k] = v; }
+  });
+  return h;
+}
 
 const ALL_TABS = [
   { name: "General", Icon: Info },
@@ -54,23 +63,38 @@ export default function ProjectEdit({ project, projects, info }) {
     setMcpServers(updated);
   };
 
+  const mcpServersRef = useRef(mcpServers);
+  mcpServersRef.current = mcpServers;
+
   const handleProbeMcpServer = (index) => {
-    const server = mcpServers[index];
-    const updated = [...mcpServers];
-    updated[index] = { ...updated[index], loading: true, error: null };
-    setMcpServers(updated);
+    const server = mcpServersRef.current[index];
+    setMcpServers(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], loading: true, error: null };
+      return next;
+    });
 
     const body = { host: server.host };
     if (server.args && server.args.length > 0) body.args = server.args;
     if (server.env && Object.keys(server.env).length > 0) body.env = server.env;
+    const headers = parseHeadersText(server.headersText);
+    if (Object.keys(headers).length > 0) body.headers = headers;
 
     api.post("/tools/mcp/probe", body, auth.user.token)
       .then((data) => {
-        setMcpServers(prev => {
-          const next = [...prev];
-          next[index] = { ...next[index], availableTools: data.tools || [], loading: false, error: null };
-          return next;
-        });
+        if (data.type === "gateway") {
+          setMcpServers(prev => {
+            const next = [...prev];
+            next[index] = { ...next[index], gateway: data, loading: false, error: null };
+            return next;
+          });
+        } else {
+          setMcpServers(prev => {
+            const next = [...prev];
+            next[index] = { ...next[index], availableTools: data.tools || [], gateway: null, loading: false, error: null };
+            return next;
+          });
+        }
       })
       .catch((err) => {
         setMcpServers(prev => {
@@ -79,6 +103,32 @@ export default function ProjectEdit({ project, projects, info }) {
           return next;
         });
       });
+  };
+
+  const handleAddGatewayServices = (index, selectedServices) => {
+    const server = mcpServers[index];
+    const baseUrl = server.host.replace(/\/+$/, "");
+    // Extract base URL without the gateway path
+    const urlObj = new URL(baseUrl);
+    const baseOrigin = urlObj.origin;
+
+    const headersText = server.headersText || "";
+    const newServers = selectedServices.map(service => ({
+      host: baseOrigin + service,
+      args: [],
+      env: {},
+      headersText: headersText,
+      tools: null,
+      availableTools: [],
+      loading: false,
+      error: null,
+    }));
+
+    setMcpServers(prev => {
+      const next = [...prev];
+      next.splice(index, 1, ...newServers); // Replace gateway entry with individual servers
+      return next;
+    });
   };
 
   const handleMcpToolsChange = (index, selectedToolNames) => {
@@ -131,6 +181,8 @@ export default function ProjectEdit({ project, projects, info }) {
           const entry = { host: s.host, tools: s.tools || null };
           if (s.args && s.args.length > 0) entry.args = s.args;
           if (s.env && Object.keys(s.env).length > 0) entry.env = s.env;
+          const h = parseHeadersText(s.headersText);
+          if (Object.keys(h).length > 0) entry.headers = h;
           return entry;
         });
       opts.options.mcp_servers = filteredMcpServers.length > 0 ? filteredMcpServers : null;
@@ -237,6 +289,7 @@ export default function ProjectEdit({ project, projects, info }) {
         host: s.host,
         args: s.args || [],
         env: s.env || {},
+        headersText: Object.entries(s.headers || {}).map(([k, v]) => `${k}: ${v}`).join("\n"),
         tools: s.tools || null,
         availableTools: s.tools ? s.tools.split(",").map((t) => ({ name: t.trim(), description: "", schema: "" })) : [],
         loading: false,
@@ -249,6 +302,8 @@ export default function ProjectEdit({ project, projects, info }) {
           const body = { host: server.host };
           if (server.args && server.args.length > 0) body.args = server.args;
           if (server.env && Object.keys(server.env).length > 0) body.env = server.env;
+          const h = parseHeadersText(server.headersText);
+          if (Object.keys(h).length > 0) body.headers = h;
           api.post("/tools/mcp/probe", body, auth.user.token, { silent: true })
             .then((data) => {
               setMcpServers((prev) => {
@@ -318,6 +373,7 @@ export default function ProjectEdit({ project, projects, info }) {
                 handleMcpServerFieldChange={handleMcpServerFieldChange}
                 handleProbeMcpServer={handleProbeMcpServer}
                 handleMcpToolsChange={handleMcpToolsChange}
+                handleAddGatewayServices={handleAddGatewayServices}
                 isStdioServer={isStdioServer}
               />
             )}

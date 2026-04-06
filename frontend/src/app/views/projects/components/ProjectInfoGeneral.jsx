@@ -331,12 +331,12 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
                               All tools available from server
                             </Typography>
                           )}
-                          {mcpTools[server.host]?.tools && (
+                          {mcpTools?.[server.host]?.tools && (
                             <Box>
                               <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
                                 Available Tools
                               </Typography>
-                              {mcpTools[server.host].tools.map((tool, i) => (
+                              {mcpTools?.[server.host]?.tools?.map((tool, i) => (
                                 <Accordion
                                   key={i}
                                   variant="outlined"
@@ -361,9 +361,9 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
                               ))}
                             </Box>
                           )}
-                          {mcpTools[server.host]?.error && (
+                          {mcpTools?.[server.host]?.error && (
                             <Typography variant="body2" color="error">
-                              {mcpTools[server.host].message || "Error connecting to server"}
+                              {mcpTools?.[server.host]?.message || "Error connecting to server"}
                             </Typography>
                           )}
                         </AccordionDetails>

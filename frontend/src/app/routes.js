@@ -44,6 +44,7 @@ const Teams = Loadable(lazy(() => import("app/views/teams/Teams")));
 const TeamView = Loadable(lazy(() => import("app/views/teams/TeamView")));
 const TeamEdit = Loadable(lazy(() => import("app/views/teams/TeamEdit")));
 const DirectAccess = Loadable(lazy(() => import("app/views/direct/DirectAccess")));
+const ClassifierPlayground = Loadable(lazy(() => import("app/views/classifier/ClassifierPlayground")));
 const OllamaModels = Loadable(lazy(() => import("app/views/llms/ollama/OllamaModels")));
 const Settings = Loadable(lazy(() => import("app/views/settings/Settings")));
 const GpuInfo = Loadable(lazy(() => import("app/views/settings/GpuInfo")));
@@ -200,6 +201,11 @@ const routes = [
       {
         path: "/proxy/keys/new",
         element: <KeysNew />,
+        auth: authRoles.admin
+      },
+      {
+        path: "/classifier",
+        element: <ClassifierPlayground />,
         auth: authRoles.admin
       },
       {

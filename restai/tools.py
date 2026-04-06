@@ -108,6 +108,10 @@ def get_llm_class(llm_class_name: str):
             from llama_index.llms.azure_openai import AzureOpenAI
 
             return AzureOpenAI, {}
+        case "Bedrock":
+            from llama_index.llms.bedrock_converse import BedrockConverse
+
+            return BedrockConverse, {}
         case _:
             raise Exception("Invalid LLM class name.")
 

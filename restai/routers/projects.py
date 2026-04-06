@@ -2095,6 +2095,7 @@ async def get_project_tools(
                     mcp_server.host,
                     args=mcp_server.args or [],
                     env=mcp_server.env or {},
+                    headers=mcp_server.headers or None,
                 )
 
                 mcp_tool_spec = McpToolSpec(
@@ -2119,8 +2120,7 @@ async def get_project_tools(
                 # Add tools to the result
                 all_tools[server_name] = {"tools": tools_info}
 
-            except Exception as e:
-                # Handle connection errors
+            except BaseException as e:
                 all_tools[server_name] = {
                     "error": str(e),
                     "message": f"Failed to connect to MCP server: {mcp_server.host}",

@@ -131,4 +131,17 @@ export const PROVIDER_CONFIG = {
       { name: "temperature", label: "Temperature", type: "number", required: false, default: 0, step: 0.1 },
     ],
   },
+  Bedrock: {
+    label: "Amazon Bedrock",
+    description: "Access Claude, Llama, Mistral, and more via AWS Bedrock",
+    defaultType: "chat",
+    fields: [
+      { name: "model", label: "Model ID", type: "text", required: true, placeholder: "e.g. anthropic.claude-3-sonnet-20240229-v1:0" },
+      { name: "region_name", label: "AWS Region", type: "text", required: false, placeholder: "e.g. us-east-1", default: "us-east-1" },
+      { name: "aws_access_key_id", label: "AWS Access Key ID", type: "password", required: false, placeholder: "Uses AWS_ACCESS_KEY_ID env var if empty" },
+      { name: "aws_secret_access_key", label: "AWS Secret Access Key", type: "password", required: false, placeholder: "Uses AWS_SECRET_ACCESS_KEY env var if empty" },
+      { name: "temperature", label: "Temperature", type: "number", required: false, default: 0, step: 0.1 },
+      { name: "max_tokens", label: "Max Tokens", type: "number", required: false, default: 4096 },
+    ],
+  },
 };

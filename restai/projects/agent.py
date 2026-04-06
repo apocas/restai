@@ -29,6 +29,7 @@ class Agent(ProjectBase):
                   mcp_server.host,
                   args=mcp_server.args or [],
                   env=mcp_server.env or {},
+                  headers=mcp_server.headers or None,
               )
 
               # Only include allowed_tools if it's not empty
