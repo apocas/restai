@@ -32,6 +32,7 @@ class Brain:
         Settings.callback_manager = CallbackManager([self.token_counter])
 
         self.embeddings_cache = {}
+        self._classifier_cache = {}
 
         if not lightweight:
             self.tools: list[FunctionTool] = tools.load_tools()
@@ -169,15 +170,25 @@ class Brain:
                 project.vector = None
         return project
 
-    @staticmethod
-    def classify(classifier_model: ClassifierModel):
-        classifier = pipeline(
-            "zero-shot-classification", model="facebook/bart-large-mnli"
-        )
+    VALID_CLASSIFIERS = {
+        "facebook/bart-large-mnli": "BART Large MNLI (default)",
+        "MoritzLaurer/deberta-v3-large-zeroshot-v2.0": "DeBERTa v3 Large (best accuracy)",
+        "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli": "DeBERTa v3 Base (balanced)",
+        "joeddav/xlm-roberta-large-xnli": "XLM-RoBERTa (multilingual, 100+ languages)",
+        "typeform/distilbert-base-uncased-mnli": "DistilBERT MNLI (fastest)",
+    }
+    DEFAULT_CLASSIFIER = "facebook/bart-large-mnli"
 
-        sequence_to_classify = classifier_model.sequence
-        candidate_labels = classifier_model.labels
-        return classifier(sequence_to_classify, candidate_labels, multi_label=True)
+    def classify(self, classifier_model: ClassifierModel):
+        model_name = classifier_model.model or self.DEFAULT_CLASSIFIER
+        if model_name not in self.VALID_CLASSIFIERS:
+            raise ValueError(f"Invalid classifier: '{model_name}'. Must be one of: {', '.join(self.VALID_CLASSIFIERS.keys())}")
+        if model_name not in self._classifier_cache:
+            self._classifier_cache[model_name] = pipeline("zero-shot-classification", model=model_name)
+        clf = self._classifier_cache[model_name]
+        result = clf(classifier_model.sequence, classifier_model.labels, multi_label=True)
+        result["model"] = model_name
+        return result
 
     def get_tools(self, names: Optional[Iterable[str]] = None) -> list[FunctionTool]:
         if names is None:

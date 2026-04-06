@@ -16,6 +16,20 @@ logging.basicConfig(level=config.LOG_LEVEL)
 router = APIRouter()
 
 
+@router.get("/tools/classifiers")
+async def list_classifiers(
+    _: User = Depends(get_current_username),
+):
+    """List available zero-shot classifier models."""
+    from restai.brain import Brain
+    return {
+        "classifiers": [
+            {"id": k, "name": v} for k, v in Brain.VALID_CLASSIFIERS.items()
+        ],
+        "default": Brain.DEFAULT_CLASSIFIER,
+    }
+
+
 @router.post("/tools/classifier", response_model=ClassifierResponse)
 async def classifier(
     request: Request,
@@ -25,6 +39,8 @@ async def classifier(
     """Classify text into provided labels using zero-shot classification."""
     try:
         return request.app.state.brain.classify(input_model)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

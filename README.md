@@ -148,6 +148,21 @@ Build processing logic visually using a Blockly-based IDE — no LLM required. D
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/block.png" width="750" alt="RESTai Block IDE"/>
 </div>
 
+### Classifier Playground
+
+Built-in zero-shot text classifier with multiple model support. Enter any text and a comma-separated list of candidate labels — get instant classification scores without training. Use it standalone from the UI or programmatically via `POST /tools/classifier`. Also available as a Blockly block for visual logic projects.
+
+**Available models:**
+- **BART Large MNLI** (default) — Established standard, reliable general-purpose classifier
+- **DeBERTa v3 Large** — Best accuracy, newer architecture
+- **DeBERTa v3 Base** — Good balance of speed and accuracy
+- **XLM-RoBERTa** — Multilingual support for 100+ languages
+- **DistilBERT MNLI** — Fastest and lightest, ideal for high-volume classification
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/classifier.png" width="750" alt="RESTai Classifier Playground"/>
+</div>
+
 ### MCP Server
 
 RESTai includes an optional built-in [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that exposes your projects as tools consumable by any MCP client — Claude Desktop, Cursor, or custom agents. Each user authenticates with a Bearer API key and can only access their assigned projects.

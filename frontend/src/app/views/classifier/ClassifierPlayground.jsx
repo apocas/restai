@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
-  Box, Button, Card, Chip, Grid, LinearProgress, styled,
+  Box, Button, Card, Chip, Grid, LinearProgress, MenuItem, styled,
   TextField, Typography,
 } from "@mui/material";
 import { Category } from "@mui/icons-material";
@@ -26,8 +26,22 @@ export default function ClassifierPlayground() {
   const auth = useAuth();
   const [sequence, setSequence] = useState("");
   const [labelsText, setLabelsText] = useState("");
+  const [selectedModel, setSelectedModel] = useState("");
+  const [classifiers, setClassifiers] = useState([]);
+  const [defaultModel, setDefaultModel] = useState("");
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Classifier";
+    api.get("/tools/classifiers", auth.user.token)
+      .then((data) => {
+        setClassifiers(data.classifiers || []);
+        setDefaultModel(data.default || "");
+        setSelectedModel(data.default || "");
+      })
+      .catch(() => {});
+  }, []);
 
   const handleClassify = () => {
     const labels = labelsText.split(",").map((l) => l.trim()).filter(Boolean);
@@ -38,7 +52,9 @@ export default function ClassifierPlayground() {
 
     setLoading(true);
     setResults(null);
-    api.post("/tools/classifier", { sequence: sequence.trim(), labels }, auth.user.token)
+    const body = { sequence: sequence.trim(), labels };
+    if (selectedModel && selectedModel !== defaultModel) body.model = selectedModel;
+    api.post("/tools/classifier", body, auth.user.token)
       .then((data) => setResults(data))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -58,6 +74,22 @@ export default function ClassifierPlayground() {
               <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
                 <Category fontSize="small" /> Classifier Playground
               </Typography>
+
+              <TextField
+                fullWidth
+                select
+                label="Model"
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                sx={{ mb: 2 }}
+                helperText="Zero-shot classification model"
+              >
+                {classifiers.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+              </TextField>
 
               <TextField
                 fullWidth
@@ -115,6 +147,11 @@ export default function ClassifierPlayground() {
                     <Typography variant="body2" sx={{ fontStyle: "italic" }}>
                       {results.sequence}
                     </Typography>
+                    {results.model && (
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                        Model: {results.model}
+                      </Typography>
+                    )}
                   </Box>
 
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>

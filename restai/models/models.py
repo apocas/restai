@@ -784,10 +784,12 @@ class ClassifierModel(BaseModel):
     """Text classification request."""
     sequence: str = Field(description="Text to classify")
     labels: list[str] = Field(description="Candidate labels for classification")
+    model: Optional[str] = Field(default=None, description="Classifier model to use (defaults to facebook/bart-large-mnli)")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "sequence": "I need help with my billing account",
-            "labels": ["billing", "technical", "general"]
+            "labels": ["billing", "technical", "general"],
+            "model": "facebook/bart-large-mnli"
         }
     })
 
@@ -797,6 +799,7 @@ class ClassifierResponse(BaseModel):
     sequence: str = Field(description="The classified text")
     labels: list[str] = Field(description="Labels ordered by confidence (highest first)")
     scores: list[float] = Field(description="Confidence scores corresponding to each label")
+    model: str = Field(description="Classifier model used")
 
 
 class KeyCreate(BaseModel):

@@ -3,7 +3,7 @@
   "info": {
     "title": "RESTai",
     "description": "RESTai is an AIaaS (AI as a Service) platform. Create AI projects and consume them via REST API.\n\nSupports multiple project types: **RAG**, **Inference**, **Agent**, and **Block**.\n\n## Authentication\n\nAll endpoints require authentication via one of:\n- **JWT Cookie** (`restai_token`)\n- **Bearer API Key** (`Authorization: Bearer <key>`)\n- **Basic Auth** (`Authorization: Basic <credentials>`)\n",
-    "version": "6.0.4"
+    "version": "6.0.33"
   },
   "paths": {
     "/oauth/{provider}/login": {
@@ -2381,6 +2381,378 @@
         }
       }
     },
+    "/projects/{projectID}/invitations": {
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Send Project Invitation",
+        "description": "Invite a user to join a project. Only the project creator or an admin can invite.",
+        "operationId": "send_project_invitation_projects__projectID__invitations_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/widgets": {
+      "post": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Create Widget",
+        "description": "Create a new widget for a project. Returns the widget key once.",
+        "operationId": "create_widget_projects__projectID__widgets_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "List Widgets",
+        "description": "List all widgets for a project.",
+        "operationId": "list_widgets_projects__projectID__widgets_get",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/widgets/{widgetID}": {
+      "get": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Get Widget",
+        "description": "Get widget details.",
+        "operationId": "get_widget_projects__projectID__widgets__widgetID__get",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "widgetID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Widget ID",
+              "title": "Widgetid"
+            },
+            "description": "Widget ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Update Widget",
+        "description": "Update widget configuration.",
+        "operationId": "update_widget_projects__projectID__widgets__widgetID__patch",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "widgetID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Widget ID",
+              "title": "Widgetid"
+            },
+            "description": "Widget ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WidgetUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Delete Widget",
+        "description": "Delete a widget.",
+        "operationId": "delete_widget_projects__projectID__widgets__widgetID__delete",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "widgetID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Widget ID",
+              "title": "Widgetid"
+            },
+            "description": "Widget ID"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/widgets/{widgetID}/regenerate-key": {
+      "post": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Regenerate Widget Key",
+        "description": "Regenerate widget key. Returns the new key once.",
+        "operationId": "regenerate_widget_key_projects__projectID__widgets__widgetID__regenerate_key_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "widgetID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Widget ID",
+              "title": "Widgetid"
+            },
+            "description": "Widget ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/classifiers": {
+      "get": {
+        "tags": [
+          "Tools"
+        ],
+        "summary": "List Classifiers",
+        "description": "List available zero-shot classifier models.",
+        "operationId": "list_classifiers_tools_classifiers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/tools/classifier": {
       "post": {
         "tags": [
@@ -2455,7 +2827,7 @@
           "Tools"
         ],
         "summary": "Probe Mcp Server",
-        "description": "Probe an MCP server to discover available tools.",
+        "description": "Probe an MCP server or gateway to discover available tools/services.",
         "operationId": "probe_mcp_server_tools_mcp_probe_post",
         "requestBody": {
           "content": {
@@ -3775,7 +4147,7 @@
           "Teams"
         ],
         "summary": "Create Team",
-        "description": "Create a new team.\n\nOnly platform admins can create teams.",
+        "description": "Create a new team.",
         "operationId": "create_team_teams_post",
         "requestBody": {
           "content": {
@@ -4790,7 +5162,7 @@
           "Teams"
         ],
         "summary": "Get My Invitations",
-        "description": "Get pending team invitations for the current user.",
+        "description": "Get pending team and project invitations for the current user.",
         "operationId": "get_my_invitations_invitations_get",
         "responses": {
           "200": {
@@ -4811,7 +5183,7 @@
           "Teams"
         ],
         "summary": "Get Invitation Count",
-        "description": "Get the count of pending invitations for the current user.",
+        "description": "Get the count of pending invitations (team + project) for the current user.",
         "operationId": "get_invitation_count_invitations_count_get",
         "responses": {
           "200": {
@@ -4878,6 +5250,94 @@
         "summary": "Decline Invitation",
         "description": "Decline a team invitation.",
         "operationId": "decline_invitation_invitations__invitation_id__decline_post",
+        "parameters": [
+          {
+            "name": "invitation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Invitation ID",
+              "title": "Invitation Id"
+            },
+            "description": "Invitation ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/projects/{invitation_id}/accept": {
+      "post": {
+        "tags": [
+          "Teams",
+          "Projects"
+        ],
+        "summary": "Accept Project Invitation",
+        "description": "Accept a project invitation.",
+        "operationId": "accept_project_invitation_invitations_projects__invitation_id__accept_post",
+        "parameters": [
+          {
+            "name": "invitation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Invitation ID",
+              "title": "Invitation Id"
+            },
+            "description": "Invitation ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/projects/{invitation_id}/decline": {
+      "post": {
+        "tags": [
+          "Teams",
+          "Projects"
+        ],
+        "summary": "Decline Project Invitation",
+        "description": "Decline a project invitation.",
+        "operationId": "decline_project_invitation_invitations_projects__invitation_id__decline_post",
         "parameters": [
           {
             "name": "invitation_id",
@@ -6010,6 +6470,18 @@
             "type": "array",
             "title": "Labels",
             "description": "Candidate labels for classification"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "Classifier model to use (defaults to facebook/bart-large-mnli)"
           }
         },
         "type": "object",
@@ -6025,6 +6497,7 @@
             "technical",
             "general"
           ],
+          "model": "facebook/bart-large-mnli",
           "sequence": "I need help with my billing account"
         }
       },
@@ -6050,13 +6523,19 @@
             "type": "array",
             "title": "Scores",
             "description": "Confidence scores corresponding to each label"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Classifier model used"
           }
         },
         "type": "object",
         "required": [
           "sequence",
           "labels",
-          "scores"
+          "scores",
+          "model"
         ],
         "title": "ClassifierResponse",
         "description": "Text classification result with scores."
@@ -7098,6 +7577,21 @@
             ],
             "title": "Env",
             "description": "Environment variables to pass to the MCP server process"
+          },
+          "headers": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headers",
+            "description": "HTTP headers for authentication"
           }
         },
         "type": "object",
@@ -7151,6 +7645,21 @@
             ],
             "title": "Env",
             "description": "Environment variables to pass to the MCP server process"
+          },
+          "headers": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headers",
+            "description": "HTTP headers for authentication (e.g. {'Authorization': 'Bearer token'})"
           },
           "tools": {
             "anyOf": [
@@ -8125,21 +8634,6 @@
             "title": "Sync Sources",
             "description": "External sources for knowledge base auto-sync"
           },
-          "sync_interval": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 10080.0,
-                "minimum": 5.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sync Interval",
-            "description": "Sync interval in minutes",
-            "default": 60
-          },
           "sync_enabled": {
             "anyOf": [
               {
@@ -8151,18 +8645,6 @@
             ],
             "title": "Sync Enabled",
             "description": "Enable automatic knowledge base sync"
-          },
-          "last_sync": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Sync",
-            "description": "Timestamp of last successful sync"
           }
         },
         "type": "object",
@@ -8300,6 +8782,18 @@
             "title": "Creator",
             "description": "User ID of the project creator"
           },
+          "creator_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Creator Username",
+            "description": "Username of the project creator"
+          },
           "default_prompt": {
             "anyOf": [
               {
@@ -8329,8 +8823,7 @@
               "score": 0.0,
               "k": 4,
               "max_iterations": 20,
-              "guard_mode": "block",
-              "sync_interval": 60
+              "guard_mode": "block"
             }
           },
           "users": {
@@ -8711,6 +9204,25 @@
             "title": "Sso Allowed Domains",
             "description": "Comma-separated allowed email domains for SSO",
             "default": "*"
+          },
+          "sso_auto_restricted": {
+            "type": "boolean",
+            "title": "Sso Auto Restricted",
+            "description": "Auto-created SSO users are restricted (read-only)",
+            "default": true
+          },
+          "sso_auto_team_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sso Auto Team Id",
+            "description": "Team ID to auto-assign SSO users to",
+            "default": ""
           },
           "sso_google_client_id": {
             "anyOf": [
@@ -9214,6 +9726,30 @@
             ],
             "title": "Sso Allowed Domains",
             "description": "Comma-separated allowed email domains for SSO"
+          },
+          "sso_auto_restricted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sso Auto Restricted",
+            "description": "Auto-created SSO users are restricted (read-only)"
+          },
+          "sso_auto_team_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sso Auto Team Id",
+            "description": "Team ID to auto-assign SSO users to"
           },
           "sso_google_client_id": {
             "anyOf": [
@@ -9785,6 +10321,26 @@
             "title": "Chunks",
             "description": "Chunk size",
             "default": 512
+          },
+          "sync_interval": {
+            "type": "integer",
+            "maximum": 10080.0,
+            "minimum": 5.0,
+            "title": "Sync Interval",
+            "description": "Sync interval in minutes for this source",
+            "default": 60
+          },
+          "last_sync": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync",
+            "description": "Timestamp of last successful sync for this source"
           }
         },
         "type": "object",
@@ -10470,6 +11026,7 @@
         "properties": {
           "text": {
             "type": "string",
+            "maxLength": 10000000,
             "title": "Text",
             "description": "Raw text content to ingest"
           },
@@ -10616,6 +11173,12 @@
             "description": "Whether the user's profile is private",
             "default": false
           },
+          "is_restricted": {
+            "type": "boolean",
+            "title": "Is Restricted",
+            "description": "Whether the user is restricted (read-only, no project creation/editing)",
+            "default": false
+          },
           "projects": {
             "items": {
               "$ref": "#/components/schemas/UserProject"
@@ -10709,6 +11272,12 @@
             "title": "Is Private",
             "description": "Make user profile private",
             "default": false
+          },
+          "is_restricted": {
+            "type": "boolean",
+            "title": "Is Restricted",
+            "description": "Restrict user to read-only operations",
+            "default": false
           }
         },
         "type": "object",
@@ -10800,6 +11369,18 @@
             "type": "boolean",
             "title": "Is Private",
             "description": "Update profile privacy setting"
+          },
+          "is_restricted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Restricted",
+            "description": "Update restricted mode"
           },
           "projects": {
             "items": {
@@ -10897,6 +11478,141 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WidgetConfig": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Title",
+            "default": "AI Assistant"
+          },
+          "subtitle": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Subtitle",
+            "default": "Ask me anything"
+          },
+          "primaryColor": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Primarycolor",
+            "default": "#6366f1"
+          },
+          "textColor": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Textcolor",
+            "default": "#ffffff"
+          },
+          "position": {
+            "type": "string",
+            "enum": [
+              "left",
+              "right"
+            ],
+            "title": "Position",
+            "default": "right"
+          },
+          "welcomeMessage": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Welcomemessage",
+            "default": ""
+          },
+          "avatarUrl": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Avatarurl",
+            "default": ""
+          },
+          "stream": {
+            "type": "boolean",
+            "title": "Stream",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "WidgetConfig",
+        "description": "Visual configuration for a chat widget."
+      },
+      "WidgetCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name",
+            "default": "Chat Widget"
+          },
+          "config": {
+            "$ref": "#/components/schemas/WidgetConfig"
+          },
+          "allowed_domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Domains",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "WidgetCreate",
+        "description": "Create a new widget for a project."
+      },
+      "WidgetUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WidgetConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allowed_domains": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Domains"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "title": "WidgetUpdate",
+        "description": "Update widget configuration."
       }
     }
   }
