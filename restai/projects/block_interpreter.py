@@ -440,10 +440,12 @@ class BlockInterpreter:
         if not labels:
             return ""
 
+        model = block.get("fields", {}).get("MODEL")
+
         try:
             from restai.models.models import ClassifierModel
 
-            classifier_input = ClassifierModel(sequence=str(text), labels=labels)
+            classifier_input = ClassifierModel(sequence=str(text), labels=labels, model=model)
             result = self.brain.classify(classifier_input)
 
             if isinstance(result, dict) and result.get("labels"):

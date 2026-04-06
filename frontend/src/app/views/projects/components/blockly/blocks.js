@@ -85,10 +85,19 @@ export function registerCustomBlocks() {
       this.appendValueInput("LABELS")
         .setCheck("String")
         .appendField("Labels (comma-separated)");
+      this.appendDummyInput()
+        .appendField("Model")
+        .appendField(new Blockly.FieldDropdown([
+          ["BART Large MNLI (default)", "facebook/bart-large-mnli"],
+          ["DeBERTa v3 Large (best accuracy)", "MoritzLaurer/deberta-v3-large-zeroshot-v2.0"],
+          ["DeBERTa v3 Base (balanced)", "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"],
+          ["XLM-RoBERTa (multilingual)", "joeddav/xlm-roberta-large-xnli"],
+          ["DistilBERT (fastest)", "typeform/distilbert-base-uncased-mnli"],
+        ]), "MODEL");
       this.setOutput(true, "String");
       this.setColour(210);
       this.setTooltip(
-        "Classifies text using the /tools/classifier endpoint. Provide comma-separated labels. Returns the top matching label."
+        "Classifies text using zero-shot classification. Provide comma-separated labels. Returns the top matching label."
       );
     },
   };
