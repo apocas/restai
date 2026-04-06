@@ -70,7 +70,7 @@ export const defaultNavigations = [
     path: "/projects/tools",
   },
   {
-    name: "Classifier",
+    name: "Classifiers",
     icon: "category",
     path: "/classifier",
   },
