@@ -414,6 +414,8 @@ class ProjectOptions(BaseModel):
     fallback_llm: Union[str, None] = Field(default=None, description="Fallback LLM to use if primary fails")
     sync_sources: Union[list[SyncSource], None] = Field(default=None, description="External sources for knowledge base auto-sync")
     sync_enabled: Union[bool, None] = Field(default=None, description="Enable automatic knowledge base sync")
+    enable_knowledge_graph: Union[bool, None] = Field(default=None, description="Enable entity extraction and knowledge graph features (RAG projects only)")
+    ner_model: Union[str, None] = Field(default=None, description="HuggingFace NER model name (default: dslim/bert-base-NER)")
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -1493,6 +1495,83 @@ class WidgetChatResponse(BaseModel):
     """Sanitized response returned to widgets."""
     answer: str
     id: Optional[str] = None
+
+
+# ── Knowledge Graph Models ───────────────────────────────────────────────
+
+
+class KGEntityResponse(BaseModel):
+    """A single knowledge graph entity."""
+    id: int
+    project_id: int
+    name: str
+    normalized: str
+    entity_type: str
+    mention_count: int
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class KGEntityMentionResponse(BaseModel):
+    """An entity mention within a source."""
+    source: str
+    mention_count: int
+
+
+class KGEntityDetailResponse(KGEntityResponse):
+    """Full entity detail including mentions and related entities."""
+    mentions: list[KGEntityMentionResponse] = []
+    related: list[dict] = []
+
+
+class KGEntityUpdate(BaseModel):
+    """Update an entity's display name."""
+    name: str = Field(min_length=1, max_length=255)
+
+
+class KGEntityMergeRequest(BaseModel):
+    """Merge one entity into another."""
+    target_id: int = Field(description="ID of the entity to merge INTO")
+
+
+class KGGraphNode(BaseModel):
+    id: int
+    label: str
+    type: str
+    mention_count: int
+
+
+class KGGraphEdge(BaseModel):
+    from_id: int = Field(alias="from")
+    to_id: int = Field(alias="to")
+    weight: int
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class KGGraphResponse(BaseModel):
+    nodes: list[KGGraphNode]
+    edges: list[KGGraphEdge]
+
+
+class KGDuplicateCandidate(BaseModel):
+    entity_a_id: int
+    entity_a_name: str
+    entity_b_id: int
+    entity_b_name: str
+    similarity: float
+
+
+class KGQueryRequest(BaseModel):
+    """Natural language query against the knowledge graph."""
+    question: str = Field(min_length=1, max_length=10000)
+
+
+class KGQueryResponse(BaseModel):
+    answer: str
+    entities_matched: list[str]
+    sources: list[str]
+    source_count: int
 
 
 # Rebuild models with forward references to resolve circular dependencies

@@ -33,6 +33,7 @@ class Brain:
 
         self.embeddings_cache = {}
         self._classifier_cache = {}
+        self._ner_cache = {}
 
         if not lightweight:
             self.tools: list[FunctionTool] = tools.load_tools()
@@ -189,6 +190,27 @@ class Brain:
         result = clf(classifier_model.sequence, classifier_model.labels, multi_label=True)
         result["model"] = model_name
         return result
+
+    DEFAULT_NER_MODEL = "dslim/bert-base-NER"
+
+    def extract_entities_from_text(self, text: str, model_name: Optional[str] = None) -> list[dict]:
+        """Run named-entity recognition on text. Returns list of {word, entity_group, score, ...}."""
+        model = model_name or self.DEFAULT_NER_MODEL
+        if model not in self._ner_cache:
+            logging.info("Loading NER model '%s' (first use, may download from HuggingFace)...", model)
+            self._ner_cache[model] = pipeline("ner", model=model, aggregation_strategy="simple")
+            logging.info("NER model '%s' loaded.", model)
+        ner = self._ner_cache[model]
+        # Process in 2000-char windows to fit BERT's token limits comfortably
+        entities = []
+        for i in range(0, len(text), 2000):
+            window = text[i:i + 2000]
+            try:
+                entities.extend(ner(window))
+            except Exception as e:
+                logging.warning("NER failed on window: %s", e)
+        logging.info("NER on %d chars produced %d raw entities", len(text), len(entities))
+        return entities
 
     def get_tools(self, names: Optional[Iterable[str]] = None) -> list[FunctionTool]:
         if names is None:

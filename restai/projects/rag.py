@@ -25,6 +25,93 @@ from llama_index.core.indices.struct_store.sql_query import NLSQLTableQueryEngin
 from sqlalchemy import create_engine
 
 
+class EntityBoostPostprocessor:
+    """Custom postprocessor that boosts retrieval scores for chunks whose source
+    contains entities mentioned in the user's query. Additive boost — does not
+    filter out non-matching chunks. Falls back gracefully if no entities found.
+    """
+
+    def __init__(self, brain, db, project_id: int, query: str, boost_factor: float = 1.5):
+        self.brain = brain
+        self.db = db
+        self.project_id = project_id
+        self.query = query
+        self.boost_factor = boost_factor
+        self._matched_sources: Optional[set] = None
+
+    def _compute_matched_sources(self) -> set:
+        if self._matched_sources is not None:
+            return self._matched_sources
+        try:
+            import re as _re
+            from restai.knowledge_graph import find_entities_in_text, normalize_entity_name
+            from restai.models.databasemodels import KGEntityDatabase, KGEntityMentionDatabase
+
+            # Primary path: word-boundary match the query against entities ALREADY
+            # in this project's graph. NER on short queries is unreliable; the DB
+            # knows what we have, so direct matching is more robust.
+            project_entities = (
+                self.db.db.query(KGEntityDatabase)
+                .filter(KGEntityDatabase.project_id == self.project_id)
+                .all()
+            )
+            if not project_entities:
+                self._matched_sources = set()
+                return self._matched_sources
+
+            query_padded = " " + _re.sub(r"[^\w\s]", " ", (self.query or "").lower()) + " "
+            matched_ids = {
+                e.id for e in project_entities
+                if e.normalized and f" {e.normalized} " in query_padded
+            }
+
+            # Supplement with NER hits in case the query phrasing is different
+            try:
+                ner_hits = find_entities_in_text(self.query, self.brain)
+                if ner_hits:
+                    ner_normalized = [normalize_entity_name(n) for n, _ in ner_hits]
+                    extra_ids = {
+                        e.id for e in project_entities
+                        if e.normalized in ner_normalized
+                    }
+                    matched_ids |= extra_ids
+            except Exception:
+                pass
+
+            if not matched_ids:
+                self._matched_sources = set()
+                return self._matched_sources
+
+            sources = {
+                row.source for row in self.db.db.query(KGEntityMentionDatabase)
+                .filter(KGEntityMentionDatabase.entity_id.in_(list(matched_ids)))
+                .all()
+            }
+            self._matched_sources = sources
+        except Exception:
+            self._matched_sources = set()
+        return self._matched_sources
+
+    def postprocess_nodes(self, nodes, query_bundle=None, query_str=None):
+        matched = self._compute_matched_sources()
+        if not matched:
+            return nodes
+        for node in nodes:
+            try:
+                node_source = node.node.metadata.get("source") if hasattr(node, "node") else None
+                if node_source and node_source in matched:
+                    if node.score is not None:
+                        node.score = node.score * self.boost_factor
+            except Exception:
+                pass
+        # Re-sort after boosting
+        try:
+            nodes.sort(key=lambda n: n.score or 0, reverse=True)
+        except Exception:
+            pass
+        return nodes
+
+
 class RAG(ProjectBase):
 
     async def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
@@ -63,6 +150,13 @@ class RAG(ProjectBase):
         )
 
         postprocessors = []
+
+        if project.props.options.enable_knowledge_graph:
+            postprocessors.append(
+                EntityBoostPostprocessor(
+                    brain=self.brain, db=db, project_id=project.props.id, query=chatModel.question,
+                )
+            )
 
         if project.props.options.colbert_rerank:
             postprocessors.append(
@@ -254,6 +348,13 @@ class RAG(ProjectBase):
         )
 
         postprocessors = []
+
+        if project.props.options.enable_knowledge_graph:
+            postprocessors.append(
+                EntityBoostPostprocessor(
+                    brain=self.brain, db=db, project_id=project.props.id, query=questionModel.question,
+                )
+            )
 
         if questionModel.colbert_rerank or project.props.options.colbert_rerank:
             postprocessors.append(

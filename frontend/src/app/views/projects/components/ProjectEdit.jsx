@@ -208,6 +208,7 @@ export default function ProjectEdit({ project, projects, info }) {
       opts.options.tables = state.options.tables || null;
       opts.options.sync_enabled = state.options.sync_enabled || false;
       opts.options.sync_sources = state.options.sync_sources || null;
+      opts.options.enable_knowledge_graph = state.options.enable_knowledge_graph || false;
 
       if (opts.censorship && opts.censorship.trim() === "") {
         delete opts.options.censorship;
@@ -223,7 +224,7 @@ export default function ProjectEdit({ project, projects, info }) {
   const handleChange = (event) => {
     if (event && event.persist) event.persist();
 
-    if (["logging", "cache", "llm_rerank", "colbert_rerank"].includes(event.target.name)) {
+    if (["logging", "cache", "llm_rerank", "colbert_rerank", "enable_knowledge_graph"].includes(event.target.name)) {
       setState({ ...state, options: { ...state.options, [event.target.name]: event.target.checked } });
     } else if (event.target.name === "cache_threshold") {
       setState({ ...state, options: { ...state.options, cache_threshold: event.target.value / 100 } });

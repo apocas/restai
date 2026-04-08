@@ -77,7 +77,7 @@ def main():
 
                     src = SyncSource(**source)
                     logger.info(f"Syncing source '{src.name}' for project {proj.name} (ID {proj.id})")
-                    _sync_source(project, src, db)
+                    _sync_source(project, src, db, brain)
                     _update_last_sync(db, proj.id, i)
                     synced_any = True
                 except Exception as e:

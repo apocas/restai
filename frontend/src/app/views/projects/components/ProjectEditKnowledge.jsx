@@ -77,6 +77,27 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
         <Divider sx={{ mb: 1 }} />
       </Grid>
       <Grid item sm={12} xs={12}>
+        <Typography variant="subtitle1" gutterBottom>Knowledge Graph</Typography>
+        <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+          Extract entities (people, organizations, places) during ingestion. Enables entity-aware retrieval, a visual graph explorer, and natural language graph queries. Adds processing time to ingestion.
+        </Typography>
+      </Grid>
+      <Grid item sm={6} xs={12}>
+        <FormControlLabel
+          label={<span>Enable Knowledge Graph<HelpTip text="Runs Named Entity Recognition on every ingested document and stores entities in a queryable graph. Off by default — adds CPU/memory overhead during ingestion." /></span>}
+          control={
+            <Switch
+              checked={state.options?.enable_knowledge_graph ?? false}
+              name="enable_knowledge_graph"
+              onChange={handleChange}
+            />
+          }
+        />
+      </Grid>
+      <Grid item sm={12} xs={12}>
+        <Divider sx={{ mb: 1 }} />
+      </Grid>
+      <Grid item sm={12} xs={12}>
         <Typography variant="subtitle1" gutterBottom>Natural Language to SQL</Typography>
         <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
           Connect a database to translate natural language questions into SQL queries automatically.

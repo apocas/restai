@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Fade, Grid } from "@mui/material";
-import { Info, Storage, Shield, BarChart, ChatBubble, Widgets } from "@mui/icons-material";
+import { Info, Storage, Shield, BarChart, ChatBubble, Widgets, Hub } from "@mui/icons-material";
 
 import ProjectInfo from "./ProjectInfo";
 import ProjectTabNav from "./ProjectTabNav";
 import ProjectInfoGeneral from "./ProjectInfoGeneral";
 import ProjectInfoKnowledge from "./ProjectInfoKnowledge";
+import ProjectInfoKnowledgeGraph from "./ProjectInfoKnowledgeGraph";
 import ProjectInfoSecurity from "./ProjectInfoSecurity";
 import ProjectInfoAnalytics from "./ProjectInfoAnalytics";
 import ProjectComments from "./ProjectComments";
@@ -14,6 +15,7 @@ import ProjectWidget from "./ProjectWidget";
 const ALL_TABS = [
   { name: "General", Icon: Info },
   { name: "Knowledge", Icon: Storage, ragOnly: true },
+  { name: "Knowledge Graph", Icon: Hub, ragOnly: true, kgOnly: true },
   { name: "Security", Icon: Shield },
   { name: "Analytics", Icon: BarChart },
   { name: "Widget", Icon: Widgets },
@@ -23,7 +25,11 @@ const ALL_TABS = [
 export default function ProjectDetails({ project, projects, info }) {
   const [active, setActive] = useState("General");
 
-  const tabs = ALL_TABS.filter((t) => !t.ragOnly || project.type === "rag");
+  const tabs = ALL_TABS.filter((t) => {
+    if (t.ragOnly && project.type !== "rag") return false;
+    if (t.kgOnly && !project.options?.enable_knowledge_graph) return false;
+    return true;
+  });
 
   return (
     <Fade in timeout={300}>
@@ -40,6 +46,7 @@ export default function ProjectDetails({ project, projects, info }) {
           <Grid item md={10} xs={12}>
             {active === "General" && <ProjectInfoGeneral project={project} info={info} />}
             {active === "Knowledge" && <ProjectInfoKnowledge project={project} />}
+            {active === "Knowledge Graph" && <ProjectInfoKnowledgeGraph project={project} />}
             {active === "Security" && <ProjectInfoSecurity project={project} />}
             {active === "Analytics" && <ProjectInfoAnalytics project={project} />}
             {active === "Widget" && <ProjectWidget project={project} />}

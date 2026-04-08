@@ -5,6 +5,7 @@ import logging
 import os
 import tempfile
 import threading
+from collections import defaultdict
 from datetime import datetime, timezone
 
 from restai.database import get_db_wrapper
@@ -12,23 +13,46 @@ from restai.database import get_db_wrapper
 logger = logging.getLogger(__name__)
 
 
-def _sync_source(project, source, db):
+def _extract_entities_for_documents(project, documents, db, brain):
+    """Group documents by source metadata and extract entities for each source.
+    Only runs if knowledge graph is enabled on the project."""
+    if not project.props.options.enable_knowledge_graph:
+        return
+    if not brain:
+        return
+    try:
+        from restai.knowledge_graph import extract_and_persist
+        grouped = defaultdict(list)
+        for doc in documents:
+            src = doc.metadata.get("source") if hasattr(doc, "metadata") else None
+            if src:
+                grouped[src].append(doc.text)
+        for src, texts in grouped.items():
+            try:
+                extract_and_persist(project.props.id, src, "\n".join(texts), brain, db)
+            except Exception as e:
+                logger.warning(f"Entity extraction failed for source '{src}': {e}")
+    except Exception as e:
+        logger.warning(f"Sync entity extraction failed: {e}")
+
+
+def _sync_source(project, source, db, brain=None):
     """Sync a single SyncSource into the project's knowledge base."""
     if source.type == "url":
-        _sync_url(project, source, db)
+        _sync_url(project, source, db, brain)
     elif source.type == "s3":
-        _sync_s3(project, source, db)
+        _sync_s3(project, source, db, brain)
     elif source.type == "confluence":
-        _sync_confluence(project, source, db)
+        _sync_confluence(project, source, db, brain)
     elif source.type == "sharepoint":
-        _sync_sharepoint(project, source, db)
+        _sync_sharepoint(project, source, db, brain)
     elif source.type == "gdrive":
-        _sync_gdrive(project, source, db)
+        _sync_gdrive(project, source, db, brain)
     else:
         logger.warning(f"Unknown sync source type: {source.type}")
 
 
-def _sync_url(project, source, db):
+def _sync_url(project, source, db, brain=None):
     """Sync a web URL source."""
     from restai.loaders.url import SeleniumWebReader
     from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
@@ -50,10 +74,11 @@ def _sync_url(project, source, db):
             logger.warning(f"Failed to delete old chunks for source '{source.name}': {e}")
     n_chunks = index_documents_classic(project, documents, source.splitter, source.chunks)
     project.vector.save()
+    _extract_entities_for_documents(project, documents, db, brain)
     logger.info(f"URL source '{source.name}' synced: {len(documents)} documents, {n_chunks} chunks")
 
 
-def _sync_s3(project, source, db):
+def _sync_s3(project, source, db, brain=None):
     """Sync files from an S3 bucket."""
     from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
     from modules.loaders import find_file_loader
@@ -124,10 +149,11 @@ def _sync_s3(project, source, db):
     from restai.vectordb.tools import index_documents_classic
     n_chunks = index_documents_classic(project, all_documents, source.splitter, source.chunks)
     project.vector.save()
+    _extract_entities_for_documents(project, all_documents, db, brain)
     logger.info(f"S3 source '{source.name}' synced: {len(all_documents)} documents, {n_chunks} chunks")
 
 
-def _sync_confluence(project, source, db):
+def _sync_confluence(project, source, db, brain=None):
     """Sync pages from a Confluence Cloud space."""
     import requests
     from llama_index.core.schema import Document
@@ -211,10 +237,11 @@ def _sync_confluence(project, source, db):
 
     n_chunks = index_documents_classic(project, all_documents, source.splitter, source.chunks)
     project.vector.save()
+    _extract_entities_for_documents(project, all_documents, db, brain)
     logger.info(f"Confluence source '{source.name}' synced: {len(all_documents)} pages, {n_chunks} chunks")
 
 
-def _sync_sharepoint(project, source, db):
+def _sync_sharepoint(project, source, db, brain=None):
     """Sync files from a SharePoint Online document library via Microsoft Graph API."""
     import requests as req
     from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
@@ -319,10 +346,11 @@ def _sync_sharepoint(project, source, db):
 
     n_chunks = index_documents_classic(project, all_documents, source.splitter, source.chunks)
     project.vector.save()
+    _extract_entities_for_documents(project, all_documents, db, brain)
     logger.info(f"SharePoint source '{source.name}' synced: {len(all_documents)} files, {n_chunks} chunks")
 
 
-def _sync_gdrive(project, source, db):
+def _sync_gdrive(project, source, db, brain=None):
     """Sync files from a Google Drive folder via service account."""
     import requests as req
     from llama_index.core.schema import Document
@@ -462,6 +490,7 @@ def _sync_gdrive(project, source, db):
 
     n_chunks = index_documents_classic(project, all_documents, source.splitter, source.chunks)
     project.vector.save()
+    _extract_entities_for_documents(project, all_documents, db, brain)
     logger.info(f"Google Drive source '{source.name}' synced: {len(all_documents)} files, {n_chunks} chunks")
 
 
@@ -484,7 +513,7 @@ def run_sync_now(project_id: int, brain):
             for i, source in enumerate(sources):
                 try:
                     logger.info(f"Manual sync source '{source.name}' for project {project_id}")
-                    _sync_source(project, source, db)
+                    _sync_source(project, source, db, brain)
                     proj_db = db.db.query(ProjectDatabase).filter(ProjectDatabase.id == project_id).first()
                     if proj_db:
                         current_opts = json.loads(proj_db.options) if proj_db.options else {}

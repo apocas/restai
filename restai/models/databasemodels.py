@@ -275,6 +275,43 @@ class WidgetDatabase(Base):
     creator = relationship("UserDatabase", foreign_keys=[creator_id])
 
 
+class KGEntityDatabase(Base):
+    __tablename__ = "kg_entities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    normalized = Column(String(255), nullable=False, index=True)
+    entity_type = Column(String(50), nullable=False)
+    mention_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+
+    project = relationship("ProjectDatabase")
+
+
+class KGEntityMentionDatabase(Base):
+    __tablename__ = "kg_entity_mentions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    entity_id = Column(Integer, ForeignKey("kg_entities.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    source = Column(String(500), nullable=False, index=True)
+    mention_count = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime, nullable=False)
+
+
+class KGEntityRelationshipDatabase(Base):
+    __tablename__ = "kg_entity_relationships"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    from_entity_id = Column(Integer, ForeignKey("kg_entities.id"), nullable=False)
+    to_entity_id = Column(Integer, ForeignKey("kg_entities.id"), nullable=False)
+    weight = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime, nullable=False)
+
+
 class AuditLogDatabase(Base):
     __tablename__ = "audit_log"
 

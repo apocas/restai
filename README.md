@@ -122,6 +122,24 @@ Upload documents and query them with LLM-powered retrieval. Supports multiple ve
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/analytics.png" width="750" alt="RESTai RAG Analytics"/>
 </div>
 
+### Knowledge Graph (RAG)
+
+Opt-in entity extraction layered on top of RAG. When enabled on a project, every ingested document is run through a NER pipeline (`dslim/bert-base-NER` by default) and the extracted people, organizations, locations, and other entities are persisted in a queryable graph alongside the vector store. Entity extraction runs as a background task so ingestion stays fast.
+
+**What you get:**
+- **Entity-aware retrieval** — A custom postprocessor boosts retrieved chunks whose source documents mention entities found in the user's query, improving recall on questions that reference specific names
+- **Visual graph explorer** — Interactive force-directed graph (vis-network) of all entities and their co-occurrence relationships. Click any node for source list, mention count, and related entities
+- **Entity browser** — Searchable, type-filtered table of every entity in the project with mention counts and one-click rename / merge / delete
+- **Disambiguation** — "Find Duplicates" surfaces near-identical entity pairs (Levenshtein-based) for one-click merging — fix "Acme", "Acme Corp", "ACME Inc." in seconds
+- **Natural language graph queries** — Ask questions like "What did the document say about Acme Corp?" and get answers scoped to entity-matched sources, bypassing pure vector similarity
+- **Rebuild** — Re-extract the entire graph from existing sources after enabling the feature on a populated project
+
+Enable it from the project edit page (Knowledge tab → "Enable Knowledge Graph"). Available exclusively for RAG projects.
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/rag2.png" width="750" alt="RESTai Knowledge Graph"/>
+</div>
+
 ### Agents + MCP
 
 Zero-shot ReAct agents with built-in tools and [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server support for extensible tool access. Connect any MCP-compatible server via HTTP/SSE or stdio.
