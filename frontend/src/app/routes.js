@@ -45,6 +45,7 @@ const TeamView = Loadable(lazy(() => import("app/views/teams/TeamView")));
 const TeamEdit = Loadable(lazy(() => import("app/views/teams/TeamEdit")));
 const DirectAccess = Loadable(lazy(() => import("app/views/direct/DirectAccess")));
 const ClassifierPlayground = Loadable(lazy(() => import("app/views/classifier/ClassifierPlayground")));
+const PermissionMatrix = Loadable(lazy(() => import("app/views/admin/PermissionMatrix")));
 const OllamaModels = Loadable(lazy(() => import("app/views/llms/ollama/OllamaModels")));
 const Settings = Loadable(lazy(() => import("app/views/settings/Settings")));
 const GpuInfo = Loadable(lazy(() => import("app/views/settings/GpuInfo")));
@@ -256,6 +257,11 @@ const routes = [
       {
         path: "/audit",
         element: <AuditLog />,
+        auth: authRoles.admin
+      },
+      {
+        path: "/admin/permissions",
+        element: <PermissionMatrix />,
         auth: authRoles.admin
       },
       {

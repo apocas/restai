@@ -24,6 +24,7 @@ from restai.models.models import (
     LimitedUser,
 )
 from restai.database import get_db_wrapper, DBWrapper
+from restai.models.databasemodels import UserDatabase, ProjectDatabase, TeamDatabase, users_projects
 from restai.auth import (
     create_access_token,
     get_current_username,
@@ -520,3 +521,47 @@ async def totp_disable(
     user_db.totp_recovery_codes = None
     db_wrapper.db.commit()
     return {"message": "2FA disabled successfully."}
+
+
+@router.get("/permissions/matrix", tags=["Admin"])
+async def get_permission_matrix(
+    user: User = Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Return the full users × projects permission matrix (admin only)."""
+    users = (
+        db_wrapper.db.query(UserDatabase)
+        .order_by(UserDatabase.username)
+        .all()
+    )
+    projects = (
+        db_wrapper.db.query(ProjectDatabase)
+        .outerjoin(TeamDatabase, ProjectDatabase.team_id == TeamDatabase.id)
+        .order_by(ProjectDatabase.name)
+        .all()
+    )
+    rows = db_wrapper.db.query(users_projects).all()
+
+    return {
+        "users": [
+            {
+                "id": u.id,
+                "username": u.username,
+                "is_admin": bool(u.is_admin),
+                "is_restricted": bool(getattr(u, "is_restricted", False)),
+            }
+            for u in users
+        ],
+        "projects": [
+            {
+                "id": p.id,
+                "name": p.name,
+                "team_id": p.team_id,
+                "team_name": p.team.name if p.team else None,
+            }
+            for p in projects
+        ],
+        "assignments": [
+            {"user_id": row.user_id, "project_id": row.project_id} for row in rows
+        ],
+    }

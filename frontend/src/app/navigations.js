@@ -99,6 +99,12 @@ export const defaultNavigations = [
     path: "/audit",
     auth: authRoles.admin,
   },
+  {
+    name: "Permissions",
+    icon: "lock",
+    path: "/admin/permissions",
+    auth: authRoles.admin,
+  },
   { label: "Docs", type: "label" },
   {
     name: "Swagger",

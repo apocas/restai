@@ -20,6 +20,21 @@ def _build_user_message(text: str, image_b64: str | None = None) -> ChatMessage:
     return ChatMessage(role=MessageRole.USER, content=text)
 
 
+def _wrap_chat_error(err: Exception, has_image: bool) -> Exception:
+    """Wrap an LLM chat error with a clearer message when an image was likely the cause."""
+    if not has_image:
+        return err
+    from fastapi import HTTPException
+    return HTTPException(
+        status_code=400,
+        detail=(
+            f"This LLM rejected the request, likely because it does not support image input. "
+            f"Try a vision-capable model (e.g. OllamaMultiModal, gpt-4o, claude-3+) or remove the image. "
+            f"Original error: {err}"
+        ),
+    )
+
+
 class Inference(ProjectBase):
 
     async def chat(self, project: Project, chat_model: ChatModel, user: User, db: DBWrapper):
@@ -123,7 +138,7 @@ class Inference(ProjectBase):
             if chat_model.stream:
                 yield "data: Inference failed\n"
                 yield "event: error\n\n"
-            raise e
+            raise _wrap_chat_error(e, bool(chat_model.image))
 
     async def question(
         self, project: Project, question_model: QuestionModel, user: User, db: DBWrapper
@@ -217,4 +232,4 @@ class Inference(ProjectBase):
             if question_model.stream:
                 yield "data: Inference failed\n"
                 yield "event: error\n\n"
-            raise e
+            raise _wrap_chat_error(e, bool(question_model.image))
