@@ -440,6 +440,9 @@ class DBWrapper:
             if embedding_db is None or embedding_db not in team.embeddings:
                 return None
                 
+        # Look up the creator so we can associate them in the same transaction
+        creator_user = self.get_user_by_id(creator) if creator else None
+
         db_project: ProjectDatabase = ProjectDatabase(
             name=name,
             embeddings=embeddings,
@@ -449,15 +452,20 @@ class DBWrapper:
             human_description=human_description,
             type=project_type,
             creator=creator,
-            options='{"logging": true}',  # Initialize with default options
+            options='{"logging": true}',
         )
         self.db.add(db_project)
+
+        # Associate with team and creator in ONE transaction so we never
+        # end up with a project row that has no users.
+        if db_project not in team.projects:
+            team.projects.append(db_project)
+        if creator_user and db_project not in creator_user.projects:
+            creator_user.projects.append(db_project)
+
         self.db.commit()
         self.db.refresh(db_project)
-        
-        # Associate the project with the team
-        self.add_project_to_team(team, db_project)
-        
+
         return db_project
 
     def delete_project(self, project: ProjectDatabase) -> bool:

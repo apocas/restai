@@ -41,7 +41,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     if (img) body.image = img.includes("base64,") ? img.split(",")[1] : img;
     if (systemOverride) body.system = systemOverride;
 
-    const endpoint = chatMode && messages.length > 0 ? "chat" : "question";
+    const endpoint = chatMode ? "chat" : "question";
     if (chatMode && messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
       if (lastMsg.id) body.id = lastMsg.id;
@@ -141,7 +141,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     if (img) body.image = img.includes("base64,") ? img.split(",")[1] : img;
     if (systemOverride) body.system = systemOverride;
 
-    const endpoint = chatMode && messages.length > 0 ? "chat" : "question";
+    const endpoint = chatMode ? "chat" : "question";
     if (chatMode && messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
       if (lastMsg.id) body.id = lastMsg.id;

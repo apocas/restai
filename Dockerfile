@@ -1,49 +1,40 @@
 FROM node:lts AS frontend-builder
 
 WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
 
-RUN git clone https://github.com/apocas/restai-frontend .
 
-RUN npm install && npm run build
+FROM python:3.12 AS backend-builder
 
-
-FROM python:3.11 AS backend-builder
-
-# Install system dependencies needed for compilation
 RUN apt-get update && apt-get install --no-install-recommends -y postgresql-client python3-dev ffmpeg \
-    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
-# Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 WORKDIR /app
 
-# Copy dependency files first for better layer caching
 COPY pyproject.toml uv.lock ./
-
-# Install dependencies (without gpu and dev groups)
 RUN uv sync --frozen --no-group gpu --no-group dev --no-editable
 
-# Copy source
 COPY . /app
 
 
-FROM python:3.11-slim AS runtime
+FROM python:3.12-slim AS runtime
 
 RUN apt-get update && apt-get install --no-install-recommends -y postgresql-client ffmpeg \
-    && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 ENV ANONYMIZED_TELEMETRY=False
 
-RUN useradd --user-group --system --create-home --no-log-init user
-RUN mkdir -p /home/user/.cache/ && chown -R user:user /home/user/.cache/
+RUN useradd --user-group --system --create-home --no-log-init user \
+    && mkdir -p /home/user/.cache /home/user/.local/share \
+    && chown -R user:user /home/user
 
 USER user
 WORKDIR /app
-
-RUN mkdir -p /home/user/.local/share
 
 COPY --from=frontend-builder /frontend/build /app/frontend/build
 COPY --from=backend-builder --chown=user:user /app/.venv /app/.venv

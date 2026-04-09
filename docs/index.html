@@ -92,7 +92,8 @@ section{padding:6rem 2rem}
 .feature-text li::before{content:'';position:absolute;left:0;top:.55em;width:8px;height:8px;border-radius:50%;background:var(--accent1)}
 .feature-img{border-radius:var(--radius);overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.4),0 0 20px var(--glow);transition:transform .3s}
 .feature-img:hover{transform:scale(1.02)}
-.feature-img img{border-radius:var(--radius)}
+.feature-img img{border-radius:var(--radius);cursor:pointer}
+.hero-screenshot img{cursor:pointer}
 @media(max-width:900px){
   .feature{grid-template-columns:1fr;gap:2rem}
   .feature.reverse{direction:ltr}
@@ -107,8 +108,12 @@ section{padding:6rem 2rem}
 
 /* Quick start */
 .quickstart{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);padding:2.5rem;max-width:700px;margin:0 auto}
-.quickstart pre{background:var(--bg);border-radius:var(--radius-sm);padding:1.5rem;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:.9rem;line-height:1.8;color:var(--accent3)}
+.quickstart pre{background:var(--bg);border-radius:var(--radius-sm);padding:1.5rem;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:.9rem;line-height:1.8;color:var(--accent3);word-break:break-all;white-space:pre-wrap}
 .quickstart .comment{color:var(--text3)}
+@media(max-width:560px){
+  .quickstart{padding:1.2rem}
+  .quickstart pre{padding:1rem;font-size:.78rem}
+}
 
 /* Footer */
 footer{border-top:1px solid rgba(255,255,255,.06);padding:3rem 2rem;text-align:center;color:var(--text3);font-size:.9rem}
@@ -121,6 +126,33 @@ footer a{color:var(--text2)}
 
 /* Dual image */
 .feature-img-dual{display:grid;grid-template-columns:1fr;gap:1rem}
+
+/* Screenshot carousel */
+.carousel-section{padding:4rem 2rem 2rem;overflow:hidden}
+.carousel-wrap{max-width:1200px;margin:0 auto;overflow:hidden}
+.carousel-track{display:flex;gap:1.2rem;overflow-x:auto;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:1rem 0}
+.carousel-track::-webkit-scrollbar{display:none}
+.carousel-slide{flex:0 0 calc((100% - 2.4rem) / 3);position:relative;border-radius:var(--radius-sm);overflow:hidden;cursor:pointer;transition:transform .3s,box-shadow .3s;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+@media(max-width:900px){.carousel-slide{flex:0 0 calc((100% - 1.2rem) / 2)}}
+@media(max-width:560px){.carousel-slide{flex:0 0 100%}}
+.carousel-slide:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 16px 50px rgba(0,0,0,.5),0 0 20px var(--glow)}
+.carousel-slide img{width:100%;height:200px;object-fit:cover;display:block}
+.carousel-slide .caption{position:absolute;bottom:0;left:0;right:0;padding:.5rem .8rem;background:linear-gradient(transparent,rgba(0,0,0,.85));font-size:.8rem;font-weight:600;color:#fff}
+.carousel-dots{display:flex;justify-content:center;gap:.4rem;margin-top:1rem}
+.carousel-dots button{width:8px;height:8px;border-radius:50%;border:none;background:rgba(255,255,255,.2);cursor:pointer;transition:all .3s;padding:0}
+.carousel-dots button.active{background:var(--accent1);width:24px;border-radius:4px}
+
+/* Lightbox */
+.lightbox{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;cursor:zoom-out;backdrop-filter:blur(10px)}
+.lightbox.open{display:flex}
+.lightbox img{max-width:92vw;max-height:90vh;border-radius:var(--radius);box-shadow:0 20px 80px rgba(0,0,0,.6)}
+.lightbox .lb-caption{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);color:#fff;font-size:1rem;font-weight:600;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+.lightbox .lb-close{position:absolute;top:1.5rem;right:2rem;color:#fff;font-size:2rem;cursor:pointer;opacity:.7;transition:opacity .2s;background:none;border:none}
+.lightbox .lb-close:hover{opacity:1}
+.lightbox .lb-nav{position:absolute;top:50%;transform:translateY(-50%);color:#fff;font-size:2.5rem;cursor:pointer;opacity:.6;transition:opacity .2s;background:rgba(0,0,0,.3);border:none;border-radius:50%;width:48px;height:48px;display:flex;align-items:center;justify-content:center}
+.lightbox .lb-nav:hover{opacity:1}
+.lightbox .lb-prev{left:1.5rem}
+.lightbox .lb-next{right:1.5rem}
 </style>
 </head>
 <body>
@@ -148,7 +180,7 @@ footer a{color:var(--text2)}
   <div class="hero-glow g2"></div>
   <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/restai-logo.png" alt="RESTai" class="hero-logo">
   <h1>RESTai</h1>
-  <p class="tagline">AIaaS (AI as a Service) — Create AI projects and consume them via a simple REST API. RAG, Agents, Visual Logic, Inference — all in one platform.</p>
+  <p class="tagline">AIaaS (AI as a Service) — Create AI projects and consume them via a simple REST API. RAG, Agents, Visual Logic — all in one platform.</p>
   <div class="hero-btns">
     <a href="https://ai.restai.cloud/admin" class="btn btn-primary" target="_blank">
       Live Demo
@@ -157,13 +189,55 @@ footer a{color:var(--text2)}
       <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
       GitHub
     </a>
-    <a href="#features" class="btn btn-outline">Explore Features</a>
   </div>
   <p style="margin-top:1rem;font-size:.85rem;color:rgba(255,255,255,.4);position:relative;z-index:1">Demo login: <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px">demo</code> / <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px">demodemo</code></p>
   <div class="hero-screenshot reveal">
     <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/templates.png" alt="RESTai Dashboard">
   </div>
 </section>
+
+<!-- Screenshot Carousel -->
+<section class="carousel-section" id="screenshots">
+  <div class="container" style="text-align:center">
+    <span class="section-badge reveal">Platform Overview</span>
+    <h2 class="section-title reveal">See it in action</h2>
+  </div>
+  <div class="carousel-wrap">
+  <div class="carousel-track reveal" id="carouselTrack">
+    <div class="carousel-slide" onclick="openLightbox(0)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/home.png" alt="Dashboard"><div class="caption">Dashboard & Analytics</div></div>
+    <div class="carousel-slide" onclick="openLightbox(1)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/projects.png" alt="Projects"><div class="caption">Projects</div></div>
+    <div class="carousel-slide" onclick="openLightbox(2)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/templates.png" alt="Templates"><div class="caption">Templates</div></div>
+    <div class="carousel-slide" onclick="openLightbox(3)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/playground.png" alt="Playground"><div class="caption">Chat Playground</div></div>
+    <div class="carousel-slide" onclick="openLightbox(4)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/agent.png" alt="Agent"><div class="caption">Agent + MCP Tools</div></div>
+    <div class="carousel-slide" onclick="openLightbox(5)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/rag.png" alt="RAG"><div class="caption">RAG</div></div>
+    <div class="carousel-slide" onclick="openLightbox(6)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/rag2.png" alt="Knowledge Graph"><div class="caption">Knowledge Graph</div></div>
+    <div class="carousel-slide" onclick="openLightbox(7)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/block.png" alt="Block IDE"><div class="caption">Block IDE</div></div>
+    <div class="carousel-slide" onclick="openLightbox(8)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/analytics.png" alt="Analytics"><div class="caption">Analytics</div></div>
+    <div class="carousel-slide" onclick="openLightbox(9)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/eval.png" alt="Evaluation"><div class="caption">Evaluation</div></div>
+    <div class="carousel-slide" onclick="openLightbox(10)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/prompts.png" alt="Prompt Versioning"><div class="caption">Prompt Versioning</div></div>
+    <div class="carousel-slide" onclick="openLightbox(11)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/classifier.png" alt="Classifier"><div class="caption">Classifier</div></div>
+    <div class="carousel-slide" onclick="openLightbox(12)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/teams.png" alt="Teams"><div class="caption">Teams</div></div>
+    <div class="carousel-slide" onclick="openLightbox(13)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/branding.png" alt="Branding"><div class="caption">Custom Branding</div></div>
+    <div class="carousel-slide" onclick="openLightbox(14)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/llms.png" alt="LLMs"><div class="caption">LLM Management</div></div>
+    <div class="carousel-slide" onclick="openLightbox(15)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/directaccess.png" alt="Direct Access"><div class="caption">Direct Access</div></div>
+    <div class="carousel-slide" onclick="openLightbox(16)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/widget.png" alt="Widget"><div class="caption">Chat Widget</div></div>
+    <div class="carousel-slide" onclick="openLightbox(17)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/settings.png" alt="Settings"><div class="caption">Settings</div></div>
+    <div class="carousel-slide" onclick="openLightbox(18)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/gpus.png" alt="GPUs"><div class="caption">GPU Detection</div></div>
+    <div class="carousel-slide" onclick="openLightbox(19)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/audit.png" alt="Audit"><div class="caption">Audit Log</div></div>
+    <div class="carousel-slide" onclick="openLightbox(20)"><img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/image.png" alt="Image Gen"><div class="caption">Image Generation</div></div>
+  </div>
+  <div class="carousel-dots" id="carouselDots"></div>
+  </div>
+</section>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+  <button class="lb-close" onclick="closeLightbox(event)">&times;</button>
+  <button class="lb-nav lb-prev" onclick="navLightbox(event,-1)">&#8249;</button>
+  <img id="lbImg" src="" alt="">
+  <button class="lb-nav lb-next" onclick="navLightbox(event,1)">&#8250;</button>
+  <div class="lb-caption" id="lbCaption"></div>
+</div>
 
 <!-- Why RESTai -->
 <section id="why">
@@ -402,18 +476,19 @@ footer a{color:var(--text2)}
   <div class="container" style="text-align:center">
     <span class="section-badge reveal">Providers</span>
     <h2 class="section-title reveal">Any LLM Provider</h2>
-    <p class="section-sub reveal" style="margin:1rem auto 3rem">Any LLM supported by LlamaIndex. Configurable context windows with automatic chat memory management.</p>
+    <p class="section-sub reveal" style="margin:1rem auto 3rem">Talks directly to provider SDKs. Configurable context windows with automatic chat memory management.</p>
     <div class="llm-grid reveal">
-      <div class="llm-card"><div class="name">Ollama</div><div class="type">chat / vision</div></div>
-      <div class="llm-card"><div class="name">OpenAI</div><div class="type">chat</div></div>
-      <div class="llm-card"><div class="name">Anthropic</div><div class="type">chat</div></div>
-      <div class="llm-card"><div class="name">Google Gemini</div><div class="type">chat / vision</div></div>
-      <div class="llm-card"><div class="name">Groq</div><div class="type">chat</div></div>
-      <div class="llm-card"><div class="name">Grok (xAI)</div><div class="type">chat</div></div>
-      <div class="llm-card"><div class="name">LiteLLM</div><div class="type">chat</div></div>
-      <div class="llm-card"><div class="name">vLLM</div><div class="type">chat</div></div>
-      <div class="llm-card"><div class="name">Azure OpenAI</div><div class="type">chat</div></div>
-      <div class="llm-card"><div class="name">OpenAI-Compatible</div><div class="type">chat</div></div>
+      <div class="llm-card"><div class="name">Ollama</div></div>
+      <div class="llm-card"><div class="name">OpenAI</div></div>
+      <div class="llm-card"><div class="name">Anthropic</div></div>
+      <div class="llm-card"><div class="name">Google Gemini</div></div>
+      <div class="llm-card"><div class="name">Groq</div></div>
+      <div class="llm-card"><div class="name">Grok (xAI)</div></div>
+      <div class="llm-card"><div class="name">LiteLLM</div></div>
+      <div class="llm-card"><div class="name">vLLM</div></div>
+      <div class="llm-card"><div class="name">Azure OpenAI</div></div>
+      <div class="llm-card"><div class="name">AWS Bedrock</div></div>
+      <div class="llm-card"><div class="name">OpenAI-Compatible</div></div>
     </div>
   </div>
 </section>
@@ -424,7 +499,7 @@ footer a{color:var(--text2)}
     <span class="section-badge reveal">Quick Start</span>
     <h2 class="section-title reveal">Up and running in 30 seconds</h2>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.5rem;text-align:left;margin-bottom:2rem" class="reveal">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:1.5rem;text-align:left;margin-bottom:2rem" class="reveal">
       <div class="quickstart">
         <div style="font-weight:600;margin-bottom:.8rem;color:var(--accent3);font-size:.9rem">Install from PyPI</div>
         <pre><span class="comment"># Install</span>
@@ -442,13 +517,10 @@ restai serve
       </div>
 
       <div class="quickstart">
-        <div style="font-weight:600;margin-bottom:.8rem;color:var(--accent3);font-size:.9rem">From Source (Development)</div>
+        <div style="font-weight:600;margin-bottom:.8rem;color:var(--accent3);font-size:.9rem">From Source</div>
         <pre><span class="comment"># Clone and install</span>
 git clone https://github.com/apocas/restai
 cd restai && make install
-
-<span class="comment"># Start dev server</span>
-make dev
 
 <span class="comment"># Open http://localhost:9000/admin</span>
 <span class="comment"># Login: admin / admin</span></pre>
@@ -503,6 +575,111 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
 
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Screenshot carousel
+(function() {
+  const track = document.getElementById('carouselTrack');
+  const dotsContainer = document.getElementById('carouselDots');
+  const slides = track.querySelectorAll('.carousel-slide');
+  const totalSlides = slides.length;
+  const w = track.offsetWidth;
+  const visibleCount = w < 560 ? 1 : w < 900 ? 2 : 3;
+  const dotCount = Math.ceil(totalSlides / visibleCount);
+  let currentDot = 0;
+  let autoTimer;
+
+  // Build dots
+  for (let i = 0; i < dotCount; i++) {
+    const btn = document.createElement('button');
+    if (i === 0) btn.classList.add('active');
+    btn.addEventListener('click', () => scrollToDot(i));
+    dotsContainer.appendChild(btn);
+  }
+
+  function scrollToDot(idx) {
+    currentDot = idx;
+    const target = slides[idx * visibleCount];
+    if (target) track.scrollTo({ left: target.offsetLeft - track.offsetLeft, behavior: 'smooth' });
+    updateDots();
+  }
+
+  function updateDots() {
+    dotsContainer.querySelectorAll('button').forEach((b, i) =>
+      b.classList.toggle('active', i === currentDot)
+    );
+  }
+
+  function autoScroll() {
+    currentDot = (currentDot + 1) % dotCount;
+    scrollToDot(currentDot);
+  }
+
+  function startAuto() { autoTimer = setInterval(autoScroll, 4000); }
+  function stopAuto() { clearInterval(autoTimer); }
+
+  startAuto();
+  track.addEventListener('mouseenter', stopAuto);
+  track.addEventListener('mouseleave', startAuto);
+  track.addEventListener('touchstart', stopAuto, { passive: true });
+  track.addEventListener('touchend', () => { setTimeout(startAuto, 3000); });
+})();
+
+// Lightbox
+const lbSlides = document.querySelectorAll('#carouselTrack .carousel-slide');
+const lbData = Array.from(lbSlides).map(s => ({
+  src: s.querySelector('img').src,
+  caption: s.querySelector('.caption').textContent
+}));
+let lbIndex = 0;
+
+function openLightbox(idx) {
+  lbIndex = idx;
+  const lb = document.getElementById('lightbox');
+  document.getElementById('lbImg').src = lbData[idx].src;
+  document.getElementById('lbCaption').textContent = lbData[idx].caption;
+  lb.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox(e) {
+  if (e.target.classList.contains('lb-nav') || e.target.classList.contains('lb-prev') || e.target.classList.contains('lb-next')) return;
+  document.getElementById('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function navLightbox(e, dir) {
+  e.stopPropagation();
+  lbIndex = (lbIndex + dir + lbData.length) % lbData.length;
+  document.getElementById('lbImg').src = lbData[lbIndex].src;
+  document.getElementById('lbCaption').textContent = lbData[lbIndex].caption;
+}
+
+document.addEventListener('keydown', (e) => {
+  const lb = document.getElementById('lightbox');
+  if (!lb.classList.contains('open')) return;
+  if (e.key === 'Escape') { lb.classList.remove('open'); document.body.style.overflow = ''; }
+  if (e.key === 'ArrowLeft') navLightbox(e, -1);
+  if (e.key === 'ArrowRight') navLightbox(e, 1);
+});
+
+// Make all feature / hero screenshots clickable → lightbox
+document.querySelectorAll('.feature-img img, .hero-screenshot img').forEach(img => {
+  img.addEventListener('click', () => {
+    const src = img.src;
+    const caption = img.alt || '';
+    // Find this image in the carousel lbData for prev/next, or show standalone
+    const idx = lbData.findIndex(d => src.includes(d.src.split('/').pop()));
+    if (idx >= 0) {
+      openLightbox(idx);
+    } else {
+      // Standalone — no prev/next
+      document.getElementById('lbImg').src = src;
+      document.getElementById('lbCaption').textContent = caption;
+      document.getElementById('lightbox').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+  });
+});
 </script>
 <script
   src="https://ai.restai.cloud/widget/chat.js"

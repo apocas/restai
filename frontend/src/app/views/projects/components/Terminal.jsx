@@ -28,34 +28,39 @@ export default function Terminal({
   return (
     <TerminalC>
 
-      {message.reasoning.steps[message.reasoning.steps.length - 1].actions.map((action, index) => (
-        <>
-          <TerminalLine color={"gray"} textDecorationLine={"underline"}>{action.action}</TerminalLine>
-          {action.action === "terminal" &&
-            <>
-              <TerminalLine>
-                <TerminalPrompt>ai@01 [~]# </TerminalPrompt>{action.input.kwargs.command}
-              </TerminalLine>
-              <TerminalLine marginLeft={"15px"} color={"#a8ffa8"}>
-                {action.output}
-              </TerminalLine>
-            </>
-          }
-          {action.action !== "terminal" &&
-            <>
-              <TerminalLine>
-                {action.input && action.input.kwargs &&
-                  JSON.stringify(action.input.kwargs)
-                }
-              </TerminalLine>
-              <TerminalLine marginLeft={"15px"} color={"#a8ffa8"}>
-                <Span sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }} value={action.output}>{action.output}
-                </Span>
-              </TerminalLine>
-            </>
-          }
-        </>
-      ))}
+      {message.reasoning.steps.map((step, stepIndex) =>
+        step.actions.map((action, actionIndex) => (
+          <Box key={`${stepIndex}-${actionIndex}`}>
+            <TerminalLine color={"gray"} textDecorationLine={"underline"}>{action.action}</TerminalLine>
+            {action.action === "terminal" &&
+              <>
+                <TerminalLine>
+                  <TerminalPrompt>ai@01 [~]# </TerminalPrompt>{action.input.kwargs.command}
+                </TerminalLine>
+                <TerminalLine marginLeft={"15px"} color={"#a8ffa8"}>
+                  {action.output}
+                </TerminalLine>
+              </>
+            }
+            {action.action !== "terminal" &&
+              <>
+                <TerminalLine>
+                  {action.input && action.input.kwargs &&
+                    JSON.stringify(action.input.kwargs)
+                  }
+                </TerminalLine>
+                <TerminalLine marginLeft={"15px"} color={"#a8ffa8"}>
+                  <Span sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }} value={action.output}>{action.output}
+                  </Span>
+                </TerminalLine>
+              </>
+            }
+            {stepIndex < message.reasoning.steps.length - 1 && actionIndex === step.actions.length - 1 && (
+              <Box sx={{ borderBottom: "1px solid #333", my: 1 }} />
+            )}
+          </Box>
+        ))
+      )}
 
     </TerminalC>
   );

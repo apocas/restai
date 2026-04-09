@@ -628,10 +628,6 @@ async def route_create_project(
                 detail="Failed to create project, check team's access to selected LLM and embeddings",
             )
 
-        user_db = db_wrapper.get_user_by_id(user.id)
-        user_db.projects.append(project_db)
-        db_wrapper.db.commit()
-
         project = get_project(project_db.id, db_wrapper, request.app.state.brain)
 
         if project.props.vectorstore:
@@ -847,11 +843,7 @@ async def clone_project(
     new_project.public = source.public
     new_project.options = source.options
 
-    # Assign to current user
-    user_db = db_wrapper.get_user_by_id(user.id)
-    if user_db and new_project not in user_db.projects:
-        user_db.projects.append(new_project)
-
+    # User + team association already handled by create_project in one transaction
     db_wrapper.db.commit()
 
     # Clone prompt versions

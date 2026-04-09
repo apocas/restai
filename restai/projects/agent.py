@@ -267,8 +267,6 @@ class Agent(ProjectBase):
                         yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
                     yield "data: " + json.dumps(output) + "\n"
                     yield "event: close\n\n"
-                else:
-                    yield output
 
             except Exception as e:
                 wrapped = _wrap_image_error(e, bool(chatModel.image))
@@ -279,9 +277,16 @@ class Agent(ProjectBase):
                     if project.props.censorship:
                         output["answer"] = project.props.censorship
                         self._count_tokens(output)
-                        yield output
                     else:
                         raise wrapped
+
+        # Non-streaming yield MUST be outside the `async with MCPSessionPool()`
+        # block. When the caller does `async for line in gen: return line`, the
+        # generator is abandoned after the first yield. If that yield happens
+        # inside the async-with, the pool's __aexit__ runs in a GC/finalizer
+        # task → "exit cancel scope in different task" → corrupted HTTP response.
+        if not chatModel.stream and "answer" in output:
+            yield output
 
     async def question(
         self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper
