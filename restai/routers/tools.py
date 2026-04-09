@@ -274,6 +274,51 @@ async def pull_ollama_model(
         logging.error(e)
         traceback.print_tb(e.__traceback__)
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail=f"Failed to pull model '{model_request.name}' to Ollama instance at {model_request.host}:{model_request.port}: {str(e)}"
         )
+
+
+@router.post("/tools/openai-compat/models")
+async def list_openai_compatible_models(
+    body: dict = ...,
+    _: User = Depends(get_current_username),
+):
+    """List models from an OpenAI-compatible endpoint."""
+    import httpx
+
+    base_url = (body.get("api_base") or body.get("base_url") or "").rstrip("/")
+    api_key = body.get("api_key") or ""
+
+    if not base_url:
+        raise HTTPException(status_code=400, detail="api_base or base_url is required")
+
+    # Normalize: ensure the URL ends with /v1 or similar
+    models_url = base_url.rstrip("/")
+    if not models_url.endswith("/models"):
+        if not models_url.endswith("/v1"):
+            models_url += "/v1"
+        models_url += "/models"
+
+    headers = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(models_url, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+
+        models = []
+        for m in data.get("data", []):
+            models.append({
+                "id": m.get("id", ""),
+                "owned_by": m.get("owned_by", ""),
+            })
+        models.sort(key=lambda x: x["id"])
+        return {"models": models}
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"Provider returned {e.response.status_code}")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to list models: {e}")
