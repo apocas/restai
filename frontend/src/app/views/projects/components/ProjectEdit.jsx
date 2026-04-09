@@ -25,7 +25,7 @@ function parseHeadersText(text) {
 const ALL_TABS = [
   { name: "General", Icon: Info },
   { name: "Knowledge", Icon: Storage, ragOnly: true },
-  { name: "Tools", Icon: Build, agentOnly: true },
+  { name: "Tools", Icon: Build, agentLike: true },
   { name: "Security", Icon: Shield },
   { name: "Integrations", Icon: Extension },
 ];
@@ -44,7 +44,7 @@ export default function ProjectEdit({ project, projects, info }) {
 
   const tabs = ALL_TABS.filter((t) => {
     if (t.ragOnly && project.type !== "rag") return false;
-    if (t.agentOnly && project.type !== "agent") return false;
+    if (t.agentLike && project.type !== "agent" && project.type !== "agent2") return false;
     return true;
   });
 
@@ -169,11 +169,11 @@ export default function ProjectEdit({ project, projects, info }) {
       opts.users = state.selectedUsers.map((user) => user.username);
     }
 
-    if (project.type === "rag" || project.type === "inference" || project.type === "agent") {
+    if (project.type === "rag" || project.type === "inference" || project.type === "agent" || project.type === "agent2") {
       opts.system = state.system;
     }
 
-    if (project.type === "agent") {
+    if (project.type === "agent" || project.type === "agent2") {
       opts.options.tools = state.options.tools;
       const filteredMcpServers = mcpServers
         .filter((s) => s.host.trim() !== "")
@@ -186,6 +186,10 @@ export default function ProjectEdit({ project, projects, info }) {
           return entry;
         });
       opts.options.mcp_servers = filteredMcpServers.length > 0 ? filteredMcpServers : null;
+    }
+
+    if (project.type === "agent2") {
+      opts.options.agent_mode = state.options.agent_mode || "auto";
     }
 
     if (state.options.telegram_token !== undefined) opts.options.telegram_token = state.options.telegram_token;
@@ -285,7 +289,7 @@ export default function ProjectEdit({ project, projects, info }) {
         .catch(() => {});
     }
 
-    if (project.type === "agent" && project.options?.mcp_servers) {
+    if ((project.type === "agent" || project.type === "agent2") && project.options?.mcp_servers) {
       const servers = project.options.mcp_servers.map((s) => ({
         host: s.host,
         args: s.args || [],

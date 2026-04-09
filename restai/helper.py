@@ -10,6 +10,7 @@ from fastapi import BackgroundTasks
 from restai.database import DBWrapper
 from restai.project import Project
 from restai.projects.agent import Agent
+from restai.projects.agent2 import Agent2
 from restai.projects.block import Block
 from restai.projects.inference import Inference
 from restai.projects.rag import RAG
@@ -148,6 +149,8 @@ async def chat_main(
                 chat_input.image = resolve_image(chat_input.image)
         case "agent":
             proj_logic = Agent(brain)
+        case "agent2":
+            proj_logic = Agent2(brain)
         case "block":
             proj_logic = Block(brain)
         case _:
@@ -202,6 +205,10 @@ async def question_main(
             )
         case "agent":
             result = await question_agent(
+                brain, project, q_input, user, db, background_tasks, start_time
+            )
+        case "agent2":
+            result = await question_agent2(
                 brain, project, q_input, user, db, background_tasks, start_time
             )
         case "block":
@@ -332,21 +339,25 @@ async def question_inference(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-async def question_agent(
+async def _question_agent_like(
     brain: Brain,
     project: Project,
     q_input: QuestionModel,
     user: User,
     db: DBWrapper,
     background_tasks: BackgroundTasks,
-    start_time: float = None,
+    start_time: float,
+    *,
+    logic_cls: type[ProjectBase],
+    expected_type: str,
 ):
     try:
-        proj_logic: Agent = Agent(brain)
+        proj_logic = logic_cls(brain)
 
-        if project.props.type != "agent":
+        if project.props.type != expected_type:
             raise HTTPException(
-                status_code=400, detail="Only available for AGENT projects."
+                status_code=400,
+                detail=f"Only available for {expected_type.upper()} projects.",
             )
 
         if q_input.stream:
@@ -370,6 +381,36 @@ async def question_agent(
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+async def question_agent(
+    brain: Brain,
+    project: Project,
+    q_input: QuestionModel,
+    user: User,
+    db: DBWrapper,
+    background_tasks: BackgroundTasks,
+    start_time: float = None,
+):
+    return await _question_agent_like(
+        brain, project, q_input, user, db, background_tasks, start_time,
+        logic_cls=Agent, expected_type="agent",
+    )
+
+
+async def question_agent2(
+    brain: Brain,
+    project: Project,
+    q_input: QuestionModel,
+    user: User,
+    db: DBWrapper,
+    background_tasks: BackgroundTasks,
+    start_time: float = None,
+):
+    return await _question_agent_like(
+        brain, project, q_input, user, db, background_tasks, start_time,
+        logic_cls=Agent2, expected_type="agent2",
+    )
 
 
 async def question_block(

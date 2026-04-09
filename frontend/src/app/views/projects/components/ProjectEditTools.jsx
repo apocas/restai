@@ -1,4 +1,4 @@
-import { Grid, TextField, Button, Autocomplete, Typography, IconButton, Divider, Box, CircularProgress } from "@mui/material";
+import { Grid, TextField, Button, Autocomplete, Typography, IconButton, Divider, Box, CircularProgress, MenuItem } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Fragment, useState } from "react";
 
@@ -95,6 +95,27 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
           )}
         />
       </Grid>
+      {project.type === "agent2" && (
+        <Grid item sm={6} xs={12}>
+          <TextField
+            select
+            fullWidth
+            label="Agent Mode"
+            variant="outlined"
+            InputLabelProps={{ shrink: true }}
+            value={state.options?.agent_mode || "auto"}
+            onChange={(e) => setState({
+              ...state,
+              options: { ...state.options, agent_mode: e.target.value }
+            })}
+            helperText="How agent2 calls tools. 'Auto' tries native function calling and falls back to text-based ReAct on first-turn error. Force 'ReAct' for models without native tool support (e.g. small Ollama models) to skip the failed first attempt."
+          >
+            <MenuItem value="auto">Auto (native, fall back to ReAct on error)</MenuItem>
+            <MenuItem value="function_calling">Function Calling (native only)</MenuItem>
+            <MenuItem value="react">ReAct (text-based prompting)</MenuItem>
+          </TextField>
+        </Grid>
+      )}
       <Grid item sm={12} xs={12}>
         <Divider sx={{ mb: 1 }} />
       </Grid>

@@ -26,11 +26,12 @@ import BAvatar from "boring-avatars";
 const Form = styled("form")(() => ({ padding: "16px" }));
 
 export default function ProjectNew({ projects, info, template }) {
-  const typeList = ["inference", "rag", "agent", "block"];
+  const typeList = ["inference", "rag", "agent", "agent2", "block"];
   const typeDescriptions = {
     inference: "Direct LLM interaction for chat, completion, and multimodal tasks. The most common project type.",
     rag: "Retrieval-Augmented Generation. Interact with your own knowledge base fed by uploaded documents.",
     agent: "LLM agent with access to tools (MCP servers or built-in) for autonomous task execution.",
+    agent2: "Lightweight LLM agent built on raw provider SDKs (no LlamaIndex). Same tool-calling capabilities as 'agent' — supports built-in tools and MCP servers — with a smaller dependency surface.",
     block: "Visual logic builder. Chain multiple projects and implement custom logic using a graphical block-based IDE. No LLM required.",
   };
   var vectorstoreList = info.vectorstores || ["chroma"];

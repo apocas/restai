@@ -416,6 +416,10 @@ class ProjectOptions(BaseModel):
     sync_enabled: Union[bool, None] = Field(default=None, description="Enable automatic knowledge base sync")
     enable_knowledge_graph: Union[bool, None] = Field(default=None, description="Enable entity extraction and knowledge graph features (RAG projects only)")
     ner_model: Union[str, None] = Field(default=None, description="HuggingFace NER model name (default: dslim/bert-base-NER)")
+    agent_mode: Union[Literal["auto", "function_calling", "react"], None] = Field(
+        default=None,
+        description="Agent execution mode (agent2 only): 'auto' tries native function calling and falls back to text-based ReAct on first-turn error; 'function_calling' always uses native (errors propagate); 'react' always uses text-based ReAct prompting."
+    )
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -465,7 +469,7 @@ class ProjectModelCreate(BaseModel):
     name: str = Field(description="URL-friendly project name (must be unique)")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model (required for RAG projects)")
     llm: Union[str, None] = Field(default=None, description="Name of the LLM to use (not required for block projects)")
-    type: Literal["rag", "inference", "agent", "block"] = Field(description="Project type: 'rag', 'inference', 'agent', or 'block'")
+    type: Literal["rag", "inference", "agent", "agent2", "block"] = Field(description="Project type: 'rag', 'inference', 'agent', 'agent2', or 'block'")
     human_name: Union[str, None] = Field(default=None, max_length=200, description="Human-readable display name")
     human_description: Union[str, None] = Field(default=None, max_length=2000, description="Human-readable project description")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")

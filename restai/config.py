@@ -96,6 +96,25 @@ REDIS_PORT = os.environ.get("REDIS_PORT")
 REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD")
 REDIS_DATABASE = os.environ.get("REDIS_DATABASE")
 
+
+def build_redis_url():
+    """Construct a redis:// URL from the live REDIS_* config attrs.
+
+    Returns None when REDIS_HOST is unset. Reads the module attributes at call
+    time so the admin Settings GUI can update them in-process and the next
+    caller picks up the new value.
+    """
+    if not REDIS_HOST:
+        return None
+    auth = f":{REDIS_PASSWORD}@" if REDIS_PASSWORD else ""
+    db = (
+        f"/{REDIS_DATABASE}"
+        if REDIS_DATABASE and REDIS_DATABASE != "0"
+        else ""
+    )
+    port = REDIS_PORT or "6379"
+    return f"redis://{auth}{REDIS_HOST}:{port}{db}"
+
 CHROMADB_HOST = os.environ.get("CHROMADB_HOST")
 CHROMADB_PORT = os.environ.get("CHROMADB_PORT")
 

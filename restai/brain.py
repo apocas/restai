@@ -34,6 +34,8 @@ class Brain:
         self.embeddings_cache = {}
         self._classifier_cache = {}
         self._ner_cache = {}
+        # agent2 in-memory session store: chat_id -> list[message dict]
+        self._agent2_sessions: dict[str, list[dict]] = {}
 
         if not lightweight:
             self.tools: list[FunctionTool] = tools.load_tools()
@@ -46,13 +48,38 @@ class Brain:
             self.reinit_chat_store()
 
     def reinit_chat_store(self):
-        if config.REDIS_HOST:
-            auth = f":{config.REDIS_PASSWORD}@" if config.REDIS_PASSWORD else ""
-            db = f"/{config.REDIS_DATABASE}" if config.REDIS_DATABASE and config.REDIS_DATABASE != "0" else ""
-            redis_url = f"redis://{auth}{config.REDIS_HOST}:{config.REDIS_PORT or '6379'}{db}"
+        redis_url = config.build_redis_url()
+        if redis_url:
             self.chat_store = RedisChatStore(redis_url=redis_url)
         else:
             self.chat_store = SimpleChatStore()
+        # Also invalidate the agent2 Redis client cache so the next session
+        # operation rebuilds it against the new settings.
+        self.reinit_agent2_redis()
+
+    def reinit_agent2_redis(self):
+        """Drop any cached agent2 Redis client + URL.
+
+        Called from the settings router whenever Redis config changes via the
+        admin GUI. Safe to call even if no client was ever built.
+        """
+        client = getattr(self, "_agent2_redis", None)
+        if client is not None:
+            try:
+                # redis.asyncio clients expose aclose(); fall back to close()
+                aclose = getattr(client, "aclose", None) or getattr(client, "close", None)
+                if aclose is not None:
+                    import asyncio
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(aclose())  # fire-and-forget
+                    except RuntimeError:
+                        # No running loop — ignore; GC will reclaim it
+                        pass
+            except Exception:
+                pass
+        self._agent2_redis = None
+        self._agent2_redis_url = None
 
     def get_llm(self, llmName: str, db: DBWrapper) -> Optional[LLM]:
         llm: Optional[LLM] = self.load_llm(llmName, db)
