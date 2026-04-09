@@ -1,6 +1,6 @@
 [project]
 name = "restai-core"
-version = "6.1.1"
+version = "6.1.2"
 description = "RESTAI, so many 'A's and 'I's, so little time..."
 authors = [{ name = "Pedro Dias", email = "petermdias@gmail.com" }]
 requires-python = ">=3.11,<3.14"
@@ -92,7 +92,7 @@ dependencies = [
     "llama-index-node-parser-docling>=0.4.2",
     "tomli>=2.4.0",
     "llama-index-readers-docling>=0.4.2",
-    "markitdown>=0.1",
+    "markitdown[all]>=0.1",
     "slack-bolt>=1.18,<2",
 ]
 

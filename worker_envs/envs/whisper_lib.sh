@@ -7,6 +7,7 @@ source $ENV_NAME/bin/activate
 
 uv pip install setuptools
 uv pip install openai-whisper==20240930 \
-  python-dotenv
+  python-dotenv \
+  --no-build-isolation
 
 echo "[INFO] $ENV_NAME installed."
