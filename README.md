@@ -403,20 +403,21 @@ White-label the UI, configure currency for cost tracking, set agent iteration li
 
 ## Supported LLMs
 
-Any LLM provider supported by LlamaIndex. Each model has a configurable context window with automatic chat memory management — older messages are summarized rather than dropped.
+Talks directly to provider SDKs. Each model has a configurable context window with automatic chat memory management — older messages are summarized rather than dropped.
 
-| Provider | Class | Type |
-|----------|-------|------|
-| [Ollama](https://ollama.com/) | `Ollama` / `OllamaMultiModal` | chat / vision |
-| [OpenAI](https://platform.openai.com/) | `OpenAI` | chat |
-| [Anthropic](https://www.anthropic.com/) | `Anthropic` | chat |
-| [Google Gemini](https://ai.google.dev/) | `Gemini` / `GeminiMultiModal` | chat / vision |
-| [Groq](https://groq.com/) | `Groq` | chat |
-| [Grok (xAI)](https://x.ai/) | `Grok` | chat |
-| [LiteLLM](https://litellm.ai/) | `LiteLLM` | chat |
-| [vLLM](https://vllm.ai/) | `vLLM` | chat |
-| [Azure OpenAI](https://azure.microsoft.com/en-us/products/ai-services/openai-service) | `AzureOpenAI` | chat |
-| OpenAI-Compatible | `OpenAILike` | chat |
+| Provider | Class |
+|----------|-------|
+| [Ollama](https://ollama.com/) | `Ollama` / `OllamaMultiModal` |
+| [OpenAI](https://platform.openai.com/) | `OpenAI` |
+| [Anthropic](https://www.anthropic.com/) | `Anthropic` |
+| [Google Gemini](https://ai.google.dev/) | `Gemini` / `GeminiMultiModal` |
+| [Groq](https://groq.com/) | `Groq` |
+| [Grok (xAI)](https://x.ai/) | `Grok` |
+| [LiteLLM](https://litellm.ai/) | `LiteLLM` |
+| [vLLM](https://vllm.ai/) | `vLLM` |
+| [Azure OpenAI](https://azure.microsoft.com/en-us/products/ai-services/openai-service) | `AzureOpenAI` |
+| [AWS Bedrock](https://aws.amazon.com/bedrock/) | `Bedrock` |
+| OpenAI-Compatible | `OpenAILike` |
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/llms.png" width="750" alt="RESTai LLMs"/>
