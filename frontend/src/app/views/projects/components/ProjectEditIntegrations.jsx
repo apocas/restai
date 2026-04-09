@@ -4,7 +4,7 @@ import { Fragment } from "react";
 export default function ProjectEditIntegrations({ state, setState, handleChange }) {
   return (
     <Grid container spacing={3}>
-      {(state.type === "rag" || state.type === "inference" || state.type === "agent") && (
+      {(state.type === "rag" || state.type === "agent") && (
         <Fragment>
           <Grid item sm={6} xs={12}>
             <TextField

@@ -212,7 +212,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     setImage(null);
   };
 
-  const showUpload = project.type === "inference" || project.type === "block";
+  const showUpload = project.type === "agent" || project.type === "block";
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: compact ? 500 : 600 }}>

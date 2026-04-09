@@ -333,7 +333,7 @@ if config.SENTRY_DSN:
     )
 
 OPENAPI_TAGS = [
-    {"name": "Projects", "description": "Create and manage AI projects (RAG, inference, agent, agent2, block)"},
+    {"name": "Projects", "description": "Create and manage AI projects (RAG, agent, block)"},
     {"name": "Knowledge", "description": "Manage embeddings and knowledge base for RAG projects"},
     {"name": "Chat", "description": "Chat and question endpoints for interacting with projects"},
     {"name": "Teams", "description": "Manage teams, members, admins, and resource access"},
@@ -355,7 +355,7 @@ app = FastAPI(
     title=config.RESTAI_NAME,
     description="""RESTai is an AIaaS (AI as a Service) platform. Create AI projects and consume them via REST API.
 
-Supports multiple project types: **RAG**, **Inference**, **Agent**, and **Block**.
+Supports multiple project types: **RAG**, **Agent**, and **Block**.
 
 ## Authentication
 

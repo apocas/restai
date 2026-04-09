@@ -107,10 +107,10 @@ export default function ProjectsTable({ projects = [], title = "Projects", compa
             customBodyRender: (value) => (
               <div>{value === "rag" ? (
                 <Small bgcolor={bgSecondary}>{value}</Small>
-              ) : value === "inference" ? (
-                <Small bgcolor={palette.success.light}>{value}</Small>
               ) : value === "agent" ? (
-                <Small bgcolor={palette.success.dark}>{value}</Small>
+                <Small bgcolor={palette.success.light}>{value}</Small>
+              ) : value === "block" ? (
+                <Small bgcolor={palette.grey[600]}>{value}</Small>
               ) : (
                 <Small bgcolor={bgError}>{value}</Small>
               )}</div>

@@ -415,7 +415,7 @@ class ProjectOptions(BaseModel):
     ner_model: Union[str, None] = Field(default=None, description="HuggingFace NER model name (default: dslim/bert-base-NER)")
     agent_mode: Union[Literal["auto", "function_calling", "react"], None] = Field(
         default=None,
-        description="Agent execution mode (agent2 only): 'auto' tries native function calling and falls back to text-based ReAct on first-turn error; 'function_calling' always uses native (errors propagate); 'react' always uses text-based ReAct prompting."
+        description="Agent execution mode (agent projects only): 'auto' tries native function calling and falls back to text-based ReAct on first-turn error; 'function_calling' always uses native (errors propagate); 'react' always uses text-based ReAct prompting."
     )
     model_config = ConfigDict(from_attributes=True)
 
@@ -426,7 +426,7 @@ class ProjectBaseModel(BaseModel):
     name: str = Field(description="URL-friendly project name (used in API paths)")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model used for this project")
     llm: Union[str, None] = Field(default=None, description="Name of the LLM used for this project")
-    type: str = Field(description="Project type: 'rag', 'inference', 'agent', or 'block'")
+    type: str = Field(description="Project type: 'rag', 'agent', or 'block'")
     system: Union[str, None] = Field(default=None, description="System prompt for the LLM")
     censorship: Union[str, None] = Field(default=None, description="Censorship message returned when the guard rejects a query")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")
@@ -466,7 +466,7 @@ class ProjectModelCreate(BaseModel):
     name: str = Field(description="URL-friendly project name (must be unique)")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model (required for RAG projects)")
     llm: Union[str, None] = Field(default=None, description="Name of the LLM to use (not required for block projects)")
-    type: Literal["rag", "inference", "agent", "agent2", "block"] = Field(description="Project type: 'rag', 'inference', 'agent', 'agent2', or 'block'")
+    type: Literal["rag", "agent", "block"] = Field(description="Project type: 'rag', 'agent', or 'block'")
     human_name: Union[str, None] = Field(default=None, max_length=200, description="Human-readable display name")
     human_description: Union[str, None] = Field(default=None, max_length=2000, description="Human-readable project description")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")

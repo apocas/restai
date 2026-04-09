@@ -27,6 +27,7 @@ import tiktoken
 
 from .types import (
     AgentSession,
+    ImageBlock,
     Message,
     TextBlock,
     ToolResultBlock,
@@ -61,11 +62,16 @@ PER_TOOL_RESULT_OVERHEAD_TOKENS = 6
 # ---------- token counting ----------
 
 
+PER_IMAGE_BLOCK_TOKENS = 1024  # rough — providers vary widely; conservative
+
+
 def _count_message_tokens(msg: Message) -> int:
     total = PER_MESSAGE_OVERHEAD_TOKENS
     for block in msg.content:
         if isinstance(block, TextBlock):
             total += _encode_len(block.text or "")
+        elif isinstance(block, ImageBlock):
+            total += PER_IMAGE_BLOCK_TOKENS
         elif isinstance(block, ToolUseBlock):
             total += PER_TOOL_USE_OVERHEAD_TOKENS
             total += _encode_len(block.name or "")
@@ -290,6 +296,10 @@ def _approx_char_count(messages: Sequence[Message]) -> int:
                 total += len(block.text or "")
             elif isinstance(block, ToolResultBlock):
                 total += len(block.content or "")
+            elif isinstance(block, ImageBlock):
+                # Force the fast-path to defer to real counting whenever an
+                # image is present — image tokens are model-dependent.
+                total += PER_IMAGE_BLOCK_TOKENS * 4
             else:  # ToolUseBlock
                 total += 32  # rough envelope estimate
     return total

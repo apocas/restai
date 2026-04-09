@@ -138,7 +138,7 @@ def test_security_setup():
             json={
                 "name": projectA_name,
                 "llm": llmA_name,
-                "type": "inference",
+                "type": "agent",
                 "team_id": teamA_id,
             },
             auth=USER_A,
@@ -152,7 +152,7 @@ def test_security_setup():
             json={
                 "name": projectB_name,
                 "llm": llmB_name,
-                "type": "inference",
+                "type": "agent",
                 "team_id": teamB_id,
             },
             auth=USER_B,
@@ -321,7 +321,7 @@ def test_user_cannot_create_project_in_other_team():
             json={
                 "name": f"sneaky_proj_{suffix}",
                 "llm": llmB_name,
-                "type": "inference",
+                "type": "agent",
                 "team_id": teamB_id,
             },
             auth=USER_A,
@@ -568,7 +568,7 @@ def test_cannot_create_project_with_unauthorized_llm():
             json={
                 "name": f"bad_llm_proj_{suffix}",
                 "llm": llmB_name,
-                "type": "inference",
+                "type": "agent",
                 "team_id": teamA_id,
             },
             auth=USER_A,
@@ -934,7 +934,7 @@ def test_create_project_empty_name_fails():
     with TestClient(app) as client:
         r = client.post(
             "/projects",
-            json={"name": "", "llm": llmA_name, "type": "inference", "team_id": teamA_id},
+            json={"name": "", "llm": llmA_name, "type": "agent", "team_id": teamA_id},
             auth=USER_A,
         )
         assert r.status_code in (400, 422), f"Expected 400 or 422, got {r.status_code}"
@@ -944,7 +944,7 @@ def test_create_project_whitespace_name_fails():
     with TestClient(app) as client:
         r = client.post(
             "/projects",
-            json={"name": "   ", "llm": llmA_name, "type": "inference", "team_id": teamA_id},
+            json={"name": "   ", "llm": llmA_name, "type": "agent", "team_id": teamA_id},
             auth=USER_A,
         )
         assert r.status_code in (400, 422), f"Expected 400 or 422, got {r.status_code}"
@@ -956,7 +956,7 @@ def test_project_name_sanitization():
     with TestClient(app, raise_server_exceptions=False) as client:
         r = client.post(
             "/projects",
-            json={"name": test_name, "llm": llmA_name, "type": "inference", "team_id": teamA_id},
+            json={"name": test_name, "llm": llmA_name, "type": "agent", "team_id": teamA_id},
             auth=USER_A,
         )
         # Should succeed with sanitized name or fail gracefully (not 500)
@@ -973,7 +973,7 @@ def test_very_long_project_name():
     with TestClient(app, raise_server_exceptions=False) as client:
         r = client.post(
             "/projects",
-            json={"name": long_name, "llm": llmA_name, "type": "inference", "team_id": teamA_id},
+            json={"name": long_name, "llm": llmA_name, "type": "agent", "team_id": teamA_id},
             auth=USER_A,
         )
         assert r.status_code != 500, f"Server error on long name: {r.text}"
@@ -990,7 +990,7 @@ def test_sql_injection_in_project_name():
             json={
                 "name": f"'; DROP TABLE projects; --{suffix}",
                 "llm": llmA_name,
-                "type": "inference",
+                "type": "agent",
                 "team_id": teamA_id,
             },
             auth=USER_A,

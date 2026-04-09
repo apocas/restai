@@ -70,7 +70,7 @@ def test_mcp_setup():
             json={
                 "name": project_name,
                 "llm": llm_name,
-                "type": "inference",
+                "type": "agent",
                 "team_id": team_id,
                 "human_description": "Test project for MCP",
             },

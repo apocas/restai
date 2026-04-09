@@ -162,7 +162,7 @@ export default function CompareMode({ project }) {
           onKeyDown={handleKeyDown}
           multiline maxRows={3}
         />
-        {(project.type === "inference" || project.type === "block") && (
+        {(project.type === "agent" || project.type === "block") && (
           <>
             <label htmlFor="compare-upload">
               <Fab color="default" size="small" component="span">

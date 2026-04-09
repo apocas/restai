@@ -182,7 +182,7 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
         </Grid>
       )}
 
-      {(state.type === "rag" || state.type === "inference" || state.type === "agent") && state.type !== "block" && (
+      {(state.type === "rag" || state.type === "agent") && (
         <Fragment>
           <Grid item sm={12} xs={12}>
             <Divider sx={{ mb: 1 }} />

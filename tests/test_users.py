@@ -194,7 +194,7 @@ def test_user_permissions_on_projects():
             json={
                 "name": user_project_name,
                 "llm": test_llm,
-                "type": "inference",
+                "type": "agent",
                 "team_id": team_id
             },
             auth=(test_username, "new_password")
@@ -209,7 +209,7 @@ def test_user_permissions_on_projects():
             json={
                 "name": admin_project_name, 
                 "llm": test_llm, 
-                "type": "inference",
+                "type": "agent",
                 "team_id": team_id
             }, 
             auth=(test_admin_username, RESTAI_DEFAULT_PASSWORD)

@@ -57,7 +57,7 @@ def test_setup():
         proj_name = "restricted_proj_" + str(random.randint(0, 1000000))
         r = client.post("/projects", json={
             "name": proj_name,
-            "type": "inference",
+            "type": "agent",
             "llm": llm_name,
             "team_id": team_id,
         }, auth=ADMIN)
@@ -107,7 +107,7 @@ def test_restricted_cannot_create_project():
     with TestClient(app) as client:
         r = client.post("/projects", json={
             "name": "should_fail",
-            "type": "inference",
+            "type": "agent",
             "llm": llm_name,
             "team_id": team_id,
         }, auth=(restricted_username, restricted_password))

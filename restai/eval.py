@@ -104,9 +104,6 @@ async def _get_project_answer(project, question: str, brain, user, db):
         case "rag":
             from restai.projects.rag import RAG
             handler = RAG(brain)
-        case "inference":
-            from restai.projects.inference import Inference
-            handler = Inference(brain)
         case "agent":
             from restai.projects.agent import Agent
             handler = Agent(brain)

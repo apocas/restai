@@ -95,7 +95,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
           )}
         />
       </Grid>
-      {project.type === "agent2" && (
+      {project.type === "agent" && (
         <Grid item sm={6} xs={12}>
           <TextField
             select
@@ -108,7 +108,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
               ...state,
               options: { ...state.options, agent_mode: e.target.value }
             })}
-            helperText="How agent2 calls tools. 'Auto' tries native function calling and falls back to text-based ReAct on first-turn error. Force 'ReAct' for models without native tool support (e.g. small Ollama models) to skip the failed first attempt."
+            helperText="How tools are called. 'Auto' tries native function calling and falls back to text-based ReAct on first-turn error. Force 'ReAct' for models without native tool support (e.g. small Ollama models) to skip the failed first attempt."
           >
             <MenuItem value="auto">Auto (native, fall back to ReAct on error)</MenuItem>
             <MenuItem value="function_calling">Function Calling (native only)</MenuItem>

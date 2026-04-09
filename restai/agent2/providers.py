@@ -11,12 +11,13 @@ import json
 import logging
 import os
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any, Optional, Sequence
+from typing import Any, Optional, Sequence, Union
 from uuid import uuid4
 
 from .tool_adapter import AdaptedTool
-from .types import Message, TextBlock, ToolResultBlock, ToolUseBlock
+from .types import ImageBlock, Message, TextBlock, ToolResultBlock, ToolUseBlock
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,45 @@ class Provider(ABC):
         config: ProviderConfig,
     ) -> Message:
         ...
+
+    async def stream_complete(
+        self,
+        *,
+        system_prompt: str,
+        messages: Sequence[Message],
+        tools: Sequence[AdaptedTool],
+        config: ProviderConfig,
+    ) -> AsyncIterator[Union[str, Message]]:
+        """Yield text deltas as `str`, then the final assembled `Message`.
+
+        Default implementation calls `complete()` and emits the full text as
+        a single chunk followed by the message — provides a working (but
+        non-streaming) fallback for providers that don't override.
+        """
+        msg = await self.complete(
+            system_prompt=system_prompt,
+            messages=messages,
+            tools=tools,
+            config=config,
+        )
+        text = msg.text_content()
+        if text:
+            yield text
+        yield msg
+
+
+def _build_user_payload(
+    text_parts: list[str], image_parts: list[dict], has_image: bool
+) -> dict:
+    """OpenAI user message: list-form content when images are present, plain
+    string otherwise. Used by both OpenAIProvider and its Azure subclass."""
+    if not has_image:
+        return {"role": "user", "content": "\n".join(text_parts)}
+    content: list[dict] = []
+    if text_parts:
+        content.append({"type": "text", "text": "\n".join(text_parts)})
+    content.extend(image_parts)
+    return {"role": "user", "content": content}
 
 
 # ====================== OpenAI / OpenAI-compatible ======================
@@ -120,6 +160,71 @@ class OpenAIProvider(Provider):
 
         return Message(role="assistant", content=blocks)
 
+    async def stream_complete(
+        self,
+        *,
+        system_prompt: str,
+        messages: Sequence[Message],
+        tools: Sequence[AdaptedTool],
+        config: ProviderConfig,
+    ) -> AsyncIterator[Union[str, Message]]:
+        payload = self._serialize_messages(system_prompt, messages)
+        kwargs: dict = {"model": config.model, "messages": payload, "stream": True}
+        if tools:
+            kwargs["tools"] = [self._serialize_tool(t) for t in tools]
+            kwargs["tool_choice"] = "auto"
+        if config.temperature is not None:
+            kwargs["temperature"] = config.temperature
+        if config.max_output_tokens:
+            kwargs["max_tokens"] = config.max_output_tokens
+
+        text_parts: list[str] = []
+        # OpenAI streams tool_calls fragmented by `index`; we accumulate
+        # name + arguments per index and assemble ToolUseBlocks at the end.
+        tool_acc: dict[int, dict] = {}
+
+        stream = await self._client.chat.completions.create(**kwargs)
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta
+            text = getattr(delta, "content", None)
+            if text:
+                text_parts.append(text)
+                yield text
+
+            for tc in (getattr(delta, "tool_calls", None) or []):
+                idx = getattr(tc, "index", 0)
+                slot = tool_acc.setdefault(idx, {"id": "", "name": "", "arguments": ""})
+                if tc.id:
+                    slot["id"] = tc.id
+                fn = getattr(tc, "function", None)
+                if fn is not None:
+                    if getattr(fn, "name", None):
+                        slot["name"] += fn.name
+                    if getattr(fn, "arguments", None):
+                        slot["arguments"] += fn.arguments
+
+        blocks: list = []
+        if text_parts:
+            blocks.append(TextBlock(text="".join(text_parts)))
+        for slot in tool_acc.values():
+            if not slot["name"]:
+                continue
+            try:
+                parsed = json.loads(slot["arguments"] or "{}")
+            except json.JSONDecodeError:
+                parsed = {"__raw_arguments": slot["arguments"]}
+            blocks.append(
+                ToolUseBlock(
+                    id=slot["id"] or f"call_{uuid4().hex}",
+                    name=slot["name"],
+                    input=parsed,
+                )
+            )
+
+        yield Message(role="assistant", content=blocks)
+
     @staticmethod
     def _serialize_tool(tool: AdaptedTool) -> dict:
         return {
@@ -147,14 +252,28 @@ class OpenAIProvider(Provider):
 
     @staticmethod
     def _append_user_message(payload: list[dict], message: Message) -> None:
+        # OpenAI requires list-form content (text + image_url parts) when any
+        # image is attached. Otherwise we keep the simple string form.
+        has_image = any(isinstance(b, ImageBlock) for b in message.content)
         text_parts: list[str] = []
+        image_parts: list[dict] = []
         for block in message.content:
             if isinstance(block, TextBlock):
                 text_parts.append(block.text)
+            elif isinstance(block, ImageBlock):
+                image_parts.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{block.mime_type};base64,{block.data}"
+                        },
+                    }
+                )
             elif isinstance(block, ToolResultBlock):
-                if text_parts:
-                    payload.append({"role": "user", "content": "\n".join(text_parts)})
+                if text_parts or image_parts:
+                    payload.append(_build_user_payload(text_parts, image_parts, has_image))
                     text_parts = []
+                    image_parts = []
                 payload.append(
                     {
                         "role": "tool",
@@ -162,8 +281,8 @@ class OpenAIProvider(Provider):
                         "content": block.content,
                     }
                 )
-        if text_parts:
-            payload.append({"role": "user", "content": "\n".join(text_parts)})
+        if text_parts or image_parts:
+            payload.append(_build_user_payload(text_parts, image_parts, has_image))
 
     @staticmethod
     def _serialize_assistant_message(message: Message) -> dict:
@@ -326,6 +445,18 @@ class BedrockProvider(Provider):
     def _serialize_block(block) -> dict:
         if isinstance(block, TextBlock):
             return {"text": block.text}
+        if isinstance(block, ImageBlock):
+            import base64 as _b64
+            # Bedrock Converse expects raw bytes + a short format string.
+            fmt = block.mime_type.split("/", 1)[-1].lower()
+            if fmt == "jpg":
+                fmt = "jpeg"
+            return {
+                "image": {
+                    "format": fmt,
+                    "source": {"bytes": _b64.b64decode(block.data)},
+                }
+            }
         if isinstance(block, ToolUseBlock):
             return {
                 "toolUse": {
@@ -419,6 +550,50 @@ class AnthropicProvider(Provider):
 
         return Message(role="assistant", content=blocks)
 
+    async def stream_complete(
+        self,
+        *,
+        system_prompt: str,
+        messages: Sequence[Message],
+        tools: Sequence[AdaptedTool],
+        config: ProviderConfig,
+    ) -> AsyncIterator[Union[str, Message]]:
+        kwargs: dict = {
+            "model": config.model,
+            "max_tokens": config.max_output_tokens,
+            "messages": [self._serialize_message(m) for m in messages],
+        }
+        if system_prompt:
+            kwargs["system"] = system_prompt
+        if tools:
+            kwargs["tools"] = [self._serialize_tool(t) for t in tools]
+        if config.temperature is not None:
+            kwargs["temperature"] = config.temperature
+
+        # Anthropic's `messages.stream(...)` is an async context manager that
+        # exposes `text_stream` for incremental deltas plus `get_final_message()`
+        # for the fully-assembled response (text + tool_use blocks).
+        async with self._client.messages.stream(**kwargs) as stream:
+            async for text in stream.text_stream:
+                if text:
+                    yield text
+            final = await stream.get_final_message()
+
+        blocks: list = []
+        for block in final.content:
+            block_type = getattr(block, "type", None)
+            if block_type == "text":
+                blocks.append(TextBlock(text=getattr(block, "text", "")))
+            elif block_type == "tool_use":
+                blocks.append(
+                    ToolUseBlock(
+                        id=getattr(block, "id", f"call_{uuid4().hex}"),
+                        name=getattr(block, "name", ""),
+                        input=dict(getattr(block, "input", {}) or {}),
+                    )
+                )
+        yield Message(role="assistant", content=blocks)
+
     @staticmethod
     def _serialize_tool(tool: AdaptedTool) -> dict:
         return {
@@ -438,6 +613,15 @@ class AnthropicProvider(Provider):
     def _serialize_block(block) -> dict:
         if isinstance(block, TextBlock):
             return {"type": "text", "text": block.text}
+        if isinstance(block, ImageBlock):
+            return {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": block.mime_type,
+                    "data": block.data,
+                },
+            }
         if isinstance(block, ToolUseBlock):
             return {
                 "type": "tool_use",
@@ -458,16 +642,50 @@ class AnthropicProvider(Provider):
 # ====================== Provider factory ======================
 
 
+# Cache: keyed by (class_name, options-string, context_window) so the cache
+# entry naturally invalidates when an LLM is edited via the admin UI (the new
+# DB row produces a different key, missing the cache and rebuilding). The
+# stale entry stays in memory until process restart — bounded by edit
+# frequency, acceptable.
+_provider_cache: dict[tuple, tuple["Provider", "ProviderConfig"]] = {}
+
+
+def _provider_cache_key(llm_db_row: Any) -> tuple:
+    raw_options = getattr(llm_db_row, "options", "") or ""
+    if not isinstance(raw_options, str):
+        try:
+            raw_options = json.dumps(raw_options, sort_keys=True)
+        except Exception:
+            raw_options = str(raw_options)
+    return (
+        getattr(llm_db_row, "class_name", "") or "",
+        raw_options,
+        getattr(llm_db_row, "context_window", None) or 0,
+    )
+
+
 def build_provider_for_llm(llm_db_row: Any) -> tuple[Provider, ProviderConfig]:
     """Build an agent2 Provider + ProviderConfig from a RestAI LLMDatabase row.
 
-    Reads `class_name` / `options` / `context_window` via the canonical
-    `LLMModel.model_validate()` path (same as `Brain.load_llm`), so we get
-    field validation + JSON parsing for free.
+    Cached on `(class_name, options, context_window)` — calls with the same
+    LLM row reuse the same Provider instance (and its underlying SDK client +
+    HTTP connection pool), saving ~13ms per call plus enabling HTTP keep-alive.
     """
     if llm_db_row is None:
         raise Agent2ProviderError("LLM database row is None")
 
+    cache_key = _provider_cache_key(llm_db_row)
+    cached = _provider_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    result = _build_provider_for_llm_uncached(llm_db_row)
+    _provider_cache[cache_key] = result
+    return result
+
+
+def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, ProviderConfig]:
+    """Uncached implementation. Called by `build_provider_for_llm` on cache miss."""
     from restai.models.models import LLMModel
 
     llm_model = LLMModel.model_validate(llm_db_row)

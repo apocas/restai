@@ -21,7 +21,6 @@ const ICONS = {
 };
 
 const TYPE_COLORS = {
-  inference: "#1976d2",
   rag: "#2e7d32",
   agent: "#ed6c02",
   block: "#795548",

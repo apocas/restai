@@ -156,28 +156,24 @@ def _extract_metadata(
     return name, description, fn, schema
 
 
-# Memoize generated JSON schemas by function identity. Built-in tools live
-# for the lifetime of the process so this cache is bounded by the tool count.
-_schema_cache: dict[int, dict] = {}
-
-
-def _schema_for_fn(fn: Callable) -> dict:
-    key = id(fn)
-    cached = _schema_cache.get(key)
-    if cached is not None:
-        return cached
-    try:
-        schema = build_json_schema(fn)
-    except Exception:
-        schema = {"type": "object", "properties": {}, "required": []}
-    _schema_cache[key] = schema
-    return schema
+# Cache fully-built AdaptedTools by source-tool identity. Built-in tools live
+# on `brain.tools` for the process lifetime so identity is stable, and the
+# expensive part of adaptation (`metadata.get_parameters_dict()` → pydantic
+# `model_json_schema()`) is uncached upstream — repeating it on every
+# request is the dominant per-request cost in `_build_runtime`.
+_adapted_tool_cache: dict[int, AdaptedTool] = {}
 
 
 def adapt_function_tools(tools: list) -> list[AdaptedTool]:
     """Convert RestAI/llamaindex FunctionTools into AdaptedTools for agent2."""
     adapted: list[AdaptedTool] = []
     for tool in tools:
+        key = id(tool)
+        cached = _adapted_tool_cache.get(key)
+        if cached is not None:
+            adapted.append(cached)
+            continue
+
         name, description, fn, schema = _extract_metadata(tool)
         if not name or fn is None:
             logger.warning("Skipping tool without name/fn: %r", tool)
@@ -190,15 +186,18 @@ def adapt_function_tools(tools: list) -> list[AdaptedTool]:
             description = (inspect.getdoc(fn) or name).strip()
 
         if schema is None:
-            schema = _schema_for_fn(fn)
+            try:
+                schema = build_json_schema(fn)
+            except Exception:
+                schema = {"type": "object", "properties": {}, "required": []}
 
-        adapted.append(
-            AdaptedTool(
-                name=name,
-                description=description,
-                input_schema=schema,
-                fn=fn,
-                is_async=inspect.iscoroutinefunction(fn),
-            )
+        adapted_tool = AdaptedTool(
+            name=name,
+            description=description,
+            input_schema=schema,
+            fn=fn,
+            is_async=inspect.iscoroutinefunction(fn),
         )
+        _adapted_tool_cache[key] = adapted_tool
+        adapted.append(adapted_tool)
     return adapted

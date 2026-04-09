@@ -51,3 +51,36 @@ class ProjectBase(ABC):
             output["guard"] = True
 
         return False
+
+    def check_output_guard(self, project: Project, user: User, db: DBWrapper, output: dict) -> None:
+        """Check the output guard against the answer in `output`. Mutates the
+        output dict in place — sets `answer` to censorship and `guard=True` if
+        a configured output guard blocks in `block` mode; just sets `guard=True`
+        in `warn` mode. No-op when `guard_output` isn't configured or the
+        answer is empty."""
+        guard_name = project.props.options.guard_output if project.props.options else None
+        if not guard_name or not output.get("answer"):
+            return
+
+        from restai.guard import Guard
+        from restai.tools import log_guard_event
+
+        out_guard = Guard(guard_name, self.brain, db)
+        out_result = out_guard.verify(output["answer"], phase="output")
+        if not out_result:
+            return
+
+        guard_mode = project.props.options.guard_mode or "block"
+        action = "block" if out_result.blocked else "pass"
+        if out_result.blocked and guard_mode == "warn":
+            action = "warn"
+        log_guard_event(
+            project, guard_name, user, "output", action, guard_mode,
+            output["answer"], out_result.raw_response, db,
+        )
+
+        if out_result.blocked and guard_mode == "block":
+            output["answer"] = project.props.censorship or self.brain.defaultCensorship
+            output["guard"] = True
+        elif out_result.blocked:
+            output["guard"] = True

@@ -341,11 +341,7 @@ async def route_get_project(
                 final_output["embeddings"] = output["embeddings"]
                 final_output["vectorstore"] = output["vectorstore"]
                 final_output["system"] = output["system"] or ""
-            case "inference":
-                final_output["system"] = output["system"] or ""
             case "agent":
-                final_output["system"] = output["system"] or ""
-            case "agent2":
                 final_output["system"] = output["system"] or ""
         if llm_model:
             final_output["llm_privacy"] = llm_model.props.privacy

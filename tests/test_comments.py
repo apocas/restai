@@ -42,7 +42,7 @@ def test_setup():
         proj_name = f"comments_proj_{random.randint(0,999999)}"
         resp = client.post(
             "/projects",
-            json={"name": proj_name, "type": "inference", "llm": llm_name, "team_id": team_id},
+            json={"name": proj_name, "type": "agent", "llm": llm_name, "team_id": team_id},
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert resp.status_code == 201

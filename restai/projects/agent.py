@@ -1,72 +1,201 @@
-import json
+"""agent project type — direct LLM chat with optional tool calling.
 
-from llama_index.core.agent import ReActAgent, FunctionAgent
-from llama_index.core.agent.workflow.workflow_events import (
-    AgentStream,
-    AgentOutput,
-    ToolCall,
-    ToolCallResult,
-)
+Built on the agent2 runtime (`restai.agent2`), which is the non-llamaindex
+agent loop. Supports built-in tools, MCP servers, multimodal image input,
+fallback LLMs, output guards, history compression, ReAct fallback for
+tool-callless models, and token-by-token streaming.
+
+Agent projects without any tools configured behave like a plain LLM chat —
+the runtime exits after one turn with no extra overhead. Add tools or MCP
+servers in the project's Tools tab to turn them into actual agents.
+"""
+import json
+from uuid import uuid4
+
+from fastapi import HTTPException
 
 from restai import config
-from restai.chat import Chat
+from restai.agent2 import (
+    Agent2Runtime,
+    Agent2UnsupportedLLMError,
+    MCPSessionPool,
+    adapt_function_tools,
+    build_provider_for_llm,
+)
+from restai.agent2.memory import get_session, save_session
+from restai.agent2.types import ImageBlock, ToolUseBlock
 from restai.database import DBWrapper
 from restai.models.models import ChatModel, QuestionModel, User
 from restai.project import Project
 from restai.projects.base import ProjectBase
-from llama_index.tools.mcp import BasicMCPClient, McpToolSpec
+from restai.tools import tokens_from_string
+
+
+def _wrap_image_error(err: Exception, has_image: bool) -> Exception:
+    """Wrap an LLM provider error with a clearer message when an image was
+    likely the cause (the model doesn't support vision)."""
+    if not has_image:
+        return err
+    return HTTPException(
+        status_code=400,
+        detail=(
+            "This LLM rejected the request, likely because it does not support "
+            "image input. Try a vision-capable model (e.g. OllamaMultiModal, "
+            "gpt-4o, claude-3+, gemini-2.0-flash) or remove the image. "
+            f"Original error: {err}"
+        ),
+    )
 
 
 class Agent(ProjectBase):
 
-    async def prepare_tools(self, project: Project):
-      tools_u = self.brain.get_tools(set((project.props.options.tools or "").split(",")))
+    def _build_runtime(
+        self,
+        project: Project,
+        db: DBWrapper,
+        system_prompt: str | None,
+        extra_tools: list | None = None,
+    ) -> Agent2Runtime:
+        llm_db = db.get_llm_by_name(project.props.llm)
+        if llm_db is None:
+            raise ValueError(f"LLM '{project.props.llm}' not found")
 
-      if project.props.options.mcp_servers:
-          for mcp_server in project.props.options.mcp_servers:
-              allowed_tools = set((mcp_server.tools or "").split(","))
-              mcp_client = BasicMCPClient(
-                  mcp_server.host,
-                  args=mcp_server.args or [],
-                  env=mcp_server.env or {},
-                  headers=mcp_server.headers or None,
-              )
+        provider, prov_config = build_provider_for_llm(llm_db)
 
-              # Only include allowed_tools if it's not empty
-              if allowed_tools and allowed_tools != {""}:
-                  mcp_tool_spec = McpToolSpec(
-                      client=mcp_client,
-                      allowed_tools=allowed_tools,
-                  )
-              else:
-                  mcp_tool_spec = McpToolSpec(
-                      client=mcp_client,
-                  )
+        # Optional fallback LLM — used by Agent2Runtime when the primary fails
+        fallback_provider = None
+        fallback_config = None
+        fallback_name = project.props.options.fallback_llm if project.props.options else None
+        if fallback_name:
+            fallback_db = db.get_llm_by_name(fallback_name)
+            if fallback_db is not None:
+                try:
+                    fallback_provider, fallback_config = build_provider_for_llm(fallback_db)
+                except Agent2UnsupportedLLMError:
+                    fallback_provider = None
+                    fallback_config = None
 
-              tools_u = tools_u + await mcp_tool_spec.to_tool_list_async()
+        raw_tool_names = set(
+            t.strip() for t in (project.props.options.tools or "").split(",") if t.strip()
+        )
+        raw_tools = self.brain.get_tools(raw_tool_names) if raw_tool_names else []
+        adapted = adapt_function_tools(raw_tools)
+        if extra_tools:
+            adapted.extend(extra_tools)
 
-      return tools_u
-
-    def _create_agent(self, tools_u, model, system_prompt, project, use_function_agent=False):
         max_iterations = min(
             project.props.options.max_iterations or config.AGENT_MAX_ITERATIONS,
             config.AGENT_MAX_ITERATIONS,
         )
 
-        AgentClass = FunctionAgent if use_function_agent else ReActAgent
-        return AgentClass(
-            tools=tools_u,
-            llm=model.llm,
-            system_prompt=system_prompt,
-            verbose=True,
-            timeout=None,
-        ), max_iterations
+        return Agent2Runtime(
+            provider=provider,
+            config=prov_config,
+            tools=adapted,
+            system_prompt=system_prompt or "",
+            max_turns=max_iterations,
+            fallback_provider=fallback_provider,
+            fallback_config=fallback_config,
+            mode=project.props.options.agent_mode or "auto",
+        )
+
+    @staticmethod
+    def _record_step(steps: list, reasoning_buf: list, tool_call: ToolUseBlock, tool_output: str):
+        reasoning_buf.append("Action: " + tool_call.name)
+        reasoning_buf.append("Action Input: " + json.dumps(tool_call.input))
+        reasoning_buf.append("Action Output: " + tool_output)
+        steps.append({
+            "actions": [{
+                "action": tool_call.name,
+                "input": tool_call.input,
+                "output": tool_output,
+            }],
+            "output": "",
+        })
+
+    @staticmethod
+    def _count_tokens(output: dict) -> None:
+        """Lightweight tiktoken-based token estimate."""
+        try:
+            output["tokens"] = {
+                "input": tokens_from_string(output.get("question") or ""),
+                "output": tokens_from_string(output.get("answer") or ""),
+                "accuracy": "low",
+            }
+        except Exception:
+            output["tokens"] = {"input": 0, "output": 0, "accuracy": "low"}
+
+    def _finalize_reasoning(self, output: dict, reasoning_buf: list, steps: list) -> None:
+        """Build the reasoning dict from tool steps if any, then let
+        `post_processing_reasoning` extract `<think>...</think>` blocks from
+        the answer if no tool reasoning was recorded. Strips think tags from
+        the answer either way."""
+        if steps:
+            output["reasoning"] = {"output": "\n".join(reasoning_buf), "steps": steps}
+        self.brain.post_processing_reasoning(output)
+
+    async def _drive_runtime(
+        self,
+        runtime,
+        *,
+        prompt: str,
+        session,
+        image_block,
+        stream: bool,
+        project: Project,
+        output: dict,
+    ):
+        """Drive the runtime's event loop, yield text deltas as `str`, mutate
+        `output["answer"]` and `output["reasoning"]` along the way. Used by
+        both `chat()` and `question()` to share the (otherwise identical)
+        per-event handling."""
+        steps: list = []
+        reasoning_buf: list = []
+        # Pair tool calls with their results so the reasoning panel renders correctly
+        pending_tool_calls: dict = {}
+
+        async for event in runtime.run_iter(
+            prompt,
+            session=session,
+            image=image_block,
+            stream=stream,
+        ):
+            if event.type == "text_delta":
+                delta = event.data.get("text", "")
+                if delta:
+                    yield delta
+
+            elif event.type == "assistant":
+                msg = event.message
+                if msg:
+                    for block in msg.content:
+                        if isinstance(block, ToolUseBlock):
+                            pending_tool_calls[block.id] = block
+
+            elif event.type == "tool_result":
+                msg = event.message
+                if msg:
+                    for block in msg.content:
+                        tool_use_id = getattr(block, "tool_use_id", None)
+                        tool_call = pending_tool_calls.pop(tool_use_id, None)
+                        if tool_call is not None:
+                            self._record_step(
+                                steps, reasoning_buf, tool_call, getattr(block, "content", "") or ""
+                            )
+
+            elif event.type == "final":
+                output["answer"] = event.data.get("final_text", "") or ""
+                if event.data.get("stop_reason") == "max_turns" and not output["answer"]:
+                    output["answer"] = (
+                        project.props.censorship
+                        or "I'm sorry, I tried my best but couldn't reach a final answer."
+                    )
+
+        self._finalize_reasoning(output, reasoning_buf, steps)
 
     async def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
-        model = self.brain.get_llm(project.props.llm, db)
-        context_window = model.props.context_window if model else 4096
-        token_limit = int(context_window * 0.75)
-        chat: Chat = Chat(chatModel, self.brain.chat_store, token_limit=token_limit, llm=model.llm if model else None)
+        chat_id = chatModel.id or str(uuid4())
+
         output = {
             "question": chatModel.question,
             "type": "agent",
@@ -74,7 +203,7 @@ class Agent(ProjectBase):
             "guard": False,
             "tokens": {"input": 0, "output": 0},
             "project": project.props.name,
-            "id": chat.chat_id,
+            "id": chat_id,
         }
 
         if self.check_input_guard(project, chatModel.question, user, db, output):
@@ -86,90 +215,73 @@ class Agent(ProjectBase):
                 yield output
             return
 
-        tools_u = await self.prepare_tools(project)
+        async with MCPSessionPool() as mcp_pool:
+            try:
+                mcp_tools = await mcp_pool.connect_servers(
+                    project.props.options.mcp_servers or []
+                )
+            except Exception:
+                mcp_tools = []
 
-        if len(tools_u) == 0:
-            chatModel.question += "\nDont use any tool just respond to the user."
-
-        use_function_agent = hasattr(project.props.options, "function_agent") and project.props.options.function_agent is True
-
-        agent, max_iterations = self._create_agent(
-            tools_u, model, project.props.system, project, use_function_agent
-        )
-
-        try:
-            handler = agent.run(
-                user_msg=chatModel.question,
-                memory=chat.memory,
-                max_iterations=max_iterations,
-            )
-
-            if chatModel.stream:
-                resp_reasoning = ""
-                steps = []
-
-                async for event in handler.stream_events():
-                    if isinstance(event, AgentStream):
-                        if event.delta:
-                            yield "data: " + json.dumps({"text": event.delta}) + "\n\n"
-                    elif isinstance(event, ToolCallResult):
-                        resp_reasoning += "Action: " + event.tool_name + "\n"
-                        resp_reasoning += "Action Input: " + json.dumps(event.tool_kwargs) + "\n"
-                        resp_reasoning += "Action Output: " + str(event.tool_output.content) + "\n"
-                        steps.append({
-                            "actions": [{
-                                "action": event.tool_name,
-                                "input": event.tool_kwargs,
-                                "output": str(event.tool_output.content),
-                            }],
-                            "output": "",
-                        })
-
-                result = await handler
-                output["answer"] = str(result.response.content or "")
-                output["reasoning"] = {"output": resp_reasoning, "steps": steps}
-
-                yield "data: " + json.dumps(output) + "\n"
-                yield "event: close\n\n"
-            else:
-                result = await handler
-                resp_reasoning = ""
-                steps = []
-
-                for tc in (result.tool_calls or []):
-                    if isinstance(tc, ToolCallResult):
-                        resp_reasoning += "Action: " + tc.tool_name + "\n"
-                        resp_reasoning += "Action Input: " + json.dumps(tc.tool_kwargs) + "\n"
-                        resp_reasoning += "Action Output: " + str(tc.tool_output.content) + "\n"
-                        steps.append({
-                            "actions": [{
-                                "action": tc.tool_name,
-                                "input": tc.tool_kwargs,
-                                "output": str(tc.tool_output.content),
-                            }],
-                            "output": "",
-                        })
-
-                output["answer"] = str(result.response.content or "")
-                output["reasoning"] = {"output": resp_reasoning, "steps": steps}
-
-                self.brain.post_processing_counting(output)
-                yield output
-        except Exception as e:
-            error_msg = str(e)
-            if chatModel.stream:
-                if "Max iterations" in error_msg:
-                    yield "data: I'm sorry, I tried my best...\n"
+            try:
+                runtime = self._build_runtime(
+                    project, db, project.props.system, extra_tools=mcp_tools
+                )
+            except Agent2UnsupportedLLMError as e:
+                err_msg = str(e)
+                if chatModel.stream:
+                    yield "data: " + json.dumps({"text": err_msg}) + "\n\n"
+                    output["answer"] = err_msg
+                    yield "data: " + json.dumps(output) + "\n"
+                    yield "event: close\n\n"
                 else:
-                    yield "data: Inference failed\n"
-                yield "event: error\n\n"
-            else:
-                if "Max iterations" in error_msg and project.props.censorship:
-                    output["answer"] = project.props.censorship
-                    self.brain.post_processing_counting(output)
+                    output["answer"] = err_msg
                     yield output
+                return
+
+            session = await get_session(self.brain, chat_id)
+            image_block = ImageBlock.from_data_url(chatModel.image) if chatModel.image else None
+            streamed_any_text = False
+
+            try:
+                async for delta in self._drive_runtime(
+                    runtime,
+                    prompt=chatModel.question,
+                    session=session,
+                    image_block=image_block,
+                    stream=chatModel.stream,
+                    project=project,
+                    output=output,
+                ):
+                    streamed_any_text = True
+                    yield "data: " + json.dumps({"text": delta}) + "\n\n"
+
+                await save_session(self.brain, chat_id, session)
+                self._count_tokens(output)
+                self.check_output_guard(project, user, db, output)
+
+                if chatModel.stream:
+                    # Emit the final answer text only if streaming didn't
+                    # already deliver it (e.g. fell back to ReAct mid-run).
+                    if not streamed_any_text and output.get("answer"):
+                        yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
+                    yield "data: " + json.dumps(output) + "\n"
+                    yield "event: close\n\n"
                 else:
-                    raise e
+                    yield output
+
+            except Exception as e:
+                wrapped = _wrap_image_error(e, bool(chatModel.image))
+                if chatModel.stream:
+                    yield "data: " + json.dumps({"text": f"Agent failed: {wrapped}"}) + "\n\n"
+                    yield "event: error\n\n"
+                else:
+                    if project.props.censorship:
+                        output["answer"] = project.props.censorship
+                        self._count_tokens(output)
+                        yield output
+                    else:
+                        raise wrapped
 
     async def question(
         self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper
@@ -192,52 +304,62 @@ class Agent(ProjectBase):
                 yield output
             return
 
-        model = self.brain.get_llm(project.props.llm, db)
-
-        tools_u = await self.prepare_tools(project)
-
-        if len(tools_u) == 0:
-            questionModel.question += "\nDont use any tool just respond to the user."
-
         system_prompt = questionModel.system or project.props.system
-        agent, max_iterations = self._create_agent(tools_u, model, system_prompt, project)
 
-        try:
-            handler = agent.run(
-                user_msg=questionModel.question,
-                max_iterations=max_iterations,
-            )
-            result = await handler
+        async with MCPSessionPool() as mcp_pool:
+            try:
+                mcp_tools = await mcp_pool.connect_servers(
+                    project.props.options.mcp_servers or []
+                )
+            except Exception:
+                mcp_tools = []
 
-            resp_reasoning = ""
-            steps = []
-            for tc in (result.tool_calls or []):
-                if isinstance(tc, ToolCallResult):
-                    resp_reasoning += "Action: " + tc.tool_name + "\n"
-                    resp_reasoning += "Action Input: " + json.dumps(tc.tool_kwargs) + "\n"
-                    resp_reasoning += "Action Output: " + str(tc.tool_output.content) + "\n"
-                    steps.append({
-                        "actions": [{
-                            "action": tc.tool_name,
-                            "input": tc.tool_kwargs,
-                            "output": str(tc.tool_output.content),
-                        }],
-                        "output": "",
-                    })
+            try:
+                runtime = self._build_runtime(
+                    project, db, system_prompt, extra_tools=mcp_tools
+                )
+            except Agent2UnsupportedLLMError as e:
+                output["answer"] = str(e)
+                if questionModel.stream:
+                    yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
+                    yield "data: " + json.dumps(output) + "\n"
+                    yield "event: close\n\n"
+                else:
+                    yield output
+                return
 
-            output["answer"] = str(result.response.content or "")
-            output["reasoning"] = {"output": resp_reasoning, "steps": steps}
-        except Exception as e:
-            error_msg = str(e)
-            if "Max iterations" in error_msg and project.props.censorship:
-                output["answer"] = project.props.censorship
-            else:
-                raise e
+            image_block = ImageBlock.from_data_url(questionModel.image) if questionModel.image else None
+            streamed_any_text = False
 
-        self.brain.post_processing_counting(output)
+            try:
+                async for delta in self._drive_runtime(
+                    runtime,
+                    prompt=questionModel.question,
+                    session=None,
+                    image_block=image_block,
+                    stream=questionModel.stream,
+                    project=project,
+                    output=output,
+                ):
+                    streamed_any_text = True
+                    yield "data: " + json.dumps({"text": delta}) + "\n\n"
+
+                self._count_tokens(output)
+                self.check_output_guard(project, user, db, output)
+            except Exception as e:
+                wrapped = _wrap_image_error(e, bool(questionModel.image))
+                if questionModel.stream:
+                    yield "data: " + json.dumps({"text": f"Agent failed: {wrapped}"}) + "\n\n"
+                    yield "event: error\n\n"
+                    return
+                if project.props.censorship:
+                    output["answer"] = project.props.censorship
+                    self._count_tokens(output)
+                else:
+                    raise wrapped
 
         if questionModel.stream:
-            if output.get("answer"):
+            if not streamed_any_text and output.get("answer"):
                 yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
             yield "data: " + json.dumps(output) + "\n"
             yield "event: close\n\n"

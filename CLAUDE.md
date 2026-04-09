@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What is RestAI
 
-AIaaS (AI as a Service) platform — create AI projects and consume them via REST API. Supports multiple project types: RAG (with optional natural language to SQL), inference, agent, and block (visual logic builder).
+AIaaS (AI as a Service) platform — create AI projects and consume them via REST API. Supports multiple project types: RAG (with optional natural language to SQL), agent (LLM chat with optional tool calling), and block (visual logic builder).
 
 ## Commands
 
@@ -43,8 +43,7 @@ Package manager is `uv`. Dependencies exclude GPU group by default (`--no-group 
 
 All inherit from `ProjectBase` (in `base.py`) which defines `chat()` and `question()`:
 - `rag.py` — Retrieval-Augmented Generation (vectorstore + embeddings + reranking + optional natural language to SQL)
-- `inference.py` — Direct LLM chat/completion (supports multimodal image input)
-- `agent.py` — ReAct agent with tools (built-in + MCP)
+- `agent.py` — Direct LLM chat. Supports multimodal image input, built-in tools, MCP servers, token-by-token streaming, fallback LLMs, history compression, ReAct fallback for tool-callless models, and output guards. Without any tools configured, behaves like a plain LLM chat (the runtime exits after one turn).
 - `block.py` — Visual logic builder using Blockly. No LLM required. Interprets workspace JSON server-side via `block_interpreter.py`. Supports image passthrough to sub-projects via "Call Project" block.
 
 ### Routers (`restai/routers/`)
@@ -160,7 +159,7 @@ TOTP 2FA with `pyotp`, Fernet-encrypted secrets stored in `UserDatabase.totp_sec
 
 Names used in URL paths (project names, usernames, team names, LLM names, embedding names) are validated with `validate_safe_name` — only `[a-zA-Z0-9._:-]` allowed. This is enforced at the Pydantic model level for create models and at the router level for LLM/embedding creation (since `LLMModel`/`EmbeddingModel` are dual-use input/output models).
 
-Enum fields use `Literal` types: `privacy` ("public"/"private"), project `type` ("rag"/"inference"/"agent"/"agent2"/"block"), `splitter` ("sentence"/"token").
+Enum fields use `Literal` types: `privacy` ("public"/"private"), project `type` ("rag"/"agent"/"block"), `splitter` ("sentence"/"token").
 
 Integer Query/Form params have `ge`/`le` bounds (pagination, chunks, limits, days).
 

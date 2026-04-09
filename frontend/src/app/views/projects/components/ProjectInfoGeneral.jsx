@@ -57,7 +57,6 @@ const MetaItem = styled(Box)(({ theme }) => ({
 }));
 
 const TYPE_COLORS = {
-  inference: "primary",
   rag: "success",
   agent: "warning",
   block: "default",

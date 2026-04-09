@@ -30,7 +30,7 @@ def test_project_name_validation():
         for name in INVALID_NAMES:
             response = client.post(
                 "/projects",
-                json={"name": name, "type": "inference", "llm": "fake", "team_id": 1},
+                json={"name": name, "type": "agent", "llm": "fake", "team_id": 1},
                 auth=("admin", RESTAI_DEFAULT_PASSWORD),
             )
             assert response.status_code == 422, f"Expected 422 for project name {name!r}, got {response.status_code}"
