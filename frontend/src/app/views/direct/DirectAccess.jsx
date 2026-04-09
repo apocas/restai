@@ -101,7 +101,7 @@ export default function DirectAccess() {
             <Typography variant="subtitle2" gutterBottom>Available Models:</Typography>
             <Box display="flex" flexWrap="wrap" gap={1}>
               {models.llms.map((llm) => (
-                <Chip key={llm.name} label={`${llm.name} (${llm.type})`} size="small" variant="outlined" />
+                <Chip key={llm.name} label={llm.name} size="small" variant="outlined" />
               ))}
             </Box>
           </Box>

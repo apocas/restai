@@ -164,12 +164,12 @@ export default function OllamaModels() {
         base_url: baseUrl,
       };
 
+      const isMultiModal = addingModel.name.includes('llava') || addingModel.details?.families?.includes('clip');
       const modelData = {
         name: addingModel.name,
-        class_name: addingModel.name.includes('llava') || addingModel.details?.families?.includes('clip') ? "OllamaMultiModal2" : "Ollama",
+        class_name: isMultiModal ? "OllamaMultiModal2" : "Ollama",
         options: JSON.stringify(options),
         privacy: "private",
-        type: addingModel.name.includes('llava') || addingModel.details?.families?.includes('clip') ? "vision" : "chat",
         description: `Ollama model ${addingModel.name} from ${ollamaConfig.host}:${ollamaConfig.port}`
       };
 

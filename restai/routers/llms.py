@@ -89,7 +89,6 @@ async def api_create_llm(
             json.dumps(llmc.options),
             llmc.privacy,
             llmc.description,
-            llmc.type,
             llmc.context_window,
             llmc.input_cost,
             llmc.output_cost,

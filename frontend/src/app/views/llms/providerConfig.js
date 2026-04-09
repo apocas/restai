@@ -2,7 +2,6 @@ export const PROVIDER_CONFIG = {
   Ollama: {
     label: "Ollama",
     description: "Run open-source models locally with Ollama",
-    defaultType: "chat",
     fields: [
       { name: "model", label: "Model", type: "text", required: true, placeholder: "e.g. llama3.1" },
       { name: "base_url", label: "Base URL", type: "text", required: false, placeholder: "http://localhost:11434", default: "" },
@@ -14,7 +13,6 @@ export const PROVIDER_CONFIG = {
   OllamaMultiModal: {
     label: "Ollama MultiModal",
     description: "Vision models via Ollama (LLaVA, etc.)",
-    defaultType: "vision",
     fields: [
       { name: "model", label: "Model", type: "text", required: true, placeholder: "e.g. llava:13b" },
       { name: "base_url", label: "Base URL", type: "text", required: false, placeholder: "http://localhost:11434", default: "" },
@@ -26,7 +24,6 @@ export const PROVIDER_CONFIG = {
   OpenAI: {
     label: "OpenAI",
     description: "GPT-4o, GPT-4o Mini, and other OpenAI models",
-    defaultType: "chat",
     fields: [
       { name: "model", label: "Model", type: "text", required: true, placeholder: "e.g. gpt-4o" },
       { name: "api_key", label: "API Key", type: "password", required: false, placeholder: "Uses OPENAI_API_KEY env var if empty" },
@@ -36,7 +33,6 @@ export const PROVIDER_CONFIG = {
   OpenAILike: {
     label: "OpenAI-Compatible",
     description: "Any provider with an OpenAI-compatible API",
-    defaultType: "chat",
     fields: [
       { name: "model", label: "Model", type: "text", required: true, placeholder: "e.g. my-model" },
       { name: "api_base", label: "API Base URL", type: "text", required: true, placeholder: "https://api.example.com/v1" },
@@ -48,7 +44,6 @@ export const PROVIDER_CONFIG = {
   Groq: {
     label: "Groq",
     description: "Ultra-fast inference with Groq LPU",
-    defaultType: "chat",
     fields: [
       { name: "model", label: "Model", type: "text", required: true, placeholder: "e.g. llama-3.1-70b-versatile" },
       { name: "api_key", label: "API Key", type: "password", required: false, placeholder: "Uses GROQ_API_KEY env var if empty" },
@@ -58,7 +53,6 @@ export const PROVIDER_CONFIG = {
   Anthropic: {
     label: "Anthropic",
     description: "Claude models from Anthropic",
-    defaultType: "chat",
     fields: [
       { name: "model", label: "Model", type: "text", required: true, placeholder: "e.g. claude-sonnet-4-20250514" },
       { name: "api_key", label: "API Key", type: "password", required: false, placeholder: "Uses ANTHROPIC_API_KEY env var if empty" },
@@ -69,7 +63,6 @@ export const PROVIDER_CONFIG = {
   Grok: {
     label: "Grok (xAI)",
     description: "Grok models from xAI",
-    defaultType: "chat",
     fields: [
       { name: "model", label: "Model", type: "text", required: false, default: "grok-beta", placeholder: "e.g. grok-beta" },
       { name: "api_key", label: "API Key", type: "password", required: false, placeholder: "Uses XAI_API_KEY env var if empty" },
@@ -79,7 +72,6 @@ export const PROVIDER_CONFIG = {
   LiteLLM: {
     label: "LiteLLM",
     description: "Unified API proxy for 100+ LLM providers",
-    defaultType: "chat",
     fields: [
       { name: "model", label: "Model", type: "text", required: true, placeholder: "e.g. openai/gpt-4o" },
       { name: "api_base", label: "API Base URL", type: "text", required: false, placeholder: "https://litellm.example.com" },
@@ -90,7 +82,6 @@ export const PROVIDER_CONFIG = {
   vLLM: {
     label: "vLLM",
     description: "High-throughput serving with vLLM",
-    defaultType: "chat",
     fields: [
       { name: "model", label: "Model", type: "text", required: true, placeholder: "e.g. meta-llama/Llama-3.1-8B" },
       { name: "api_url", label: "API URL", type: "text", required: true, placeholder: "http://localhost:8000" },
@@ -101,7 +92,6 @@ export const PROVIDER_CONFIG = {
   Gemini: {
     label: "Google Gemini",
     description: "Google Gemini text models",
-    defaultType: "chat",
     fields: [
       { name: "model", label: "Model", type: "text", required: true, placeholder: "e.g. models/gemini-2.0-flash" },
       { name: "api_key", label: "API Key", type: "password", required: false, placeholder: "Uses GOOGLE_API_KEY env var if empty" },
@@ -111,7 +101,6 @@ export const PROVIDER_CONFIG = {
   GeminiMultiModal: {
     label: "Gemini MultiModal",
     description: "Google Gemini with vision capabilities",
-    defaultType: "vision",
     fields: [
       { name: "model", label: "Model", type: "text", required: true, placeholder: "e.g. models/gemini-2.0-flash" },
       { name: "api_key", label: "API Key", type: "password", required: false, placeholder: "Uses GOOGLE_API_KEY env var if empty" },
@@ -121,7 +110,6 @@ export const PROVIDER_CONFIG = {
   AzureOpenAI: {
     label: "Azure OpenAI",
     description: "OpenAI models hosted on Microsoft Azure",
-    defaultType: "chat",
     fields: [
       { name: "model", label: "Model / Deployment Name", type: "text", required: true, placeholder: "e.g. gpt-4o" },
       { name: "engine", label: "Engine (Deployment ID)", type: "text", required: true, placeholder: "e.g. my-gpt4o-deployment" },
@@ -134,7 +122,6 @@ export const PROVIDER_CONFIG = {
   Bedrock: {
     label: "Amazon Bedrock",
     description: "Access Claude, Llama, Mistral, and more via AWS Bedrock",
-    defaultType: "chat",
     fields: [
       { name: "model", label: "Model ID", type: "text", required: true, placeholder: "e.g. anthropic.claude-3-sonnet-20240229-v1:0" },
       { name: "region_name", label: "AWS Region", type: "text", required: false, placeholder: "e.g. us-east-1", default: "us-east-1" },

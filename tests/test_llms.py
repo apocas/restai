@@ -26,7 +26,6 @@ def test_create_llm():
                 "class_name": "OpenAI",
                 "options": {"model": "gpt-test", "api_key": "sk-fake123"},
                 "privacy": "public",
-                "type": "chat",
             },
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
@@ -57,7 +56,6 @@ def test_create_llm_non_admin():
                 "class_name": "OpenAI",
                 "options": {"model": "gpt-test", "api_key": "sk-fake"},
                 "privacy": "public",
-                "type": "chat",
             },
             auth=(test_user, "testpass"),
         )

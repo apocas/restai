@@ -94,8 +94,6 @@ const TopProjectsTable = ({ projects, currency = "USD" }) => {
             customBodyRender: (value, tableMeta, updateValue) => (
               <div>{value === "rag" ? (
                 <Small bgcolor={palette.secondary.main}>{value}</Small>
-              ) : value === "vision" ? (
-                <Small bgcolor={palette.primary.main}>{value}</Small>
               ) : value === "inference" ? (
                 <Small bgcolor={palette.success.light}>{value}</Small>
               ) : value === "agent" ? (

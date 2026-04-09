@@ -160,7 +160,7 @@ TOTP 2FA with `pyotp`, Fernet-encrypted secrets stored in `UserDatabase.totp_sec
 
 Names used in URL paths (project names, usernames, team names, LLM names, embedding names) are validated with `validate_safe_name` — only `[a-zA-Z0-9._:-]` allowed. This is enforced at the Pydantic model level for create models and at the router level for LLM/embedding creation (since `LLMModel`/`EmbeddingModel` are dual-use input/output models).
 
-Enum fields use `Literal` types: `privacy` ("public"/"private"), LLM `type` ("chat"/"completion"/"vision"/"qa"), project `type` ("rag"/"inference"/"agent"/"block"), `splitter` ("sentence"/"token").
+Enum fields use `Literal` types: `privacy` ("public"/"private"), project `type` ("rag"/"inference"/"agent"/"agent2"/"block"), `splitter` ("sentence"/"token").
 
 Integer Query/Form params have `ge`/`le` bounds (pagination, chunks, limits, days).
 

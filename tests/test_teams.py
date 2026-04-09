@@ -39,7 +39,6 @@ def test_setup_dependencies():
                 "class_name": "OpenAI",
                 "options": {"model": "gpt-test", "api_key": "sk-fake"},
                 "privacy": "public",
-                "type": "chat",
             },
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )

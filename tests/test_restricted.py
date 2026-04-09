@@ -38,7 +38,6 @@ def test_setup():
             "class_name": "OpenAI",
             "options": {"model": "gpt-test", "api_key": "sk-fake"},
             "privacy": "public",
-            "type": "chat",
         }, auth=ADMIN)
         assert r.status_code == 201
         llm_id = r.json()["id"]

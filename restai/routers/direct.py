@@ -249,7 +249,7 @@ async def list_accessible_models(
     if user.is_admin:
         # Admins see everything
         all_llms = db_wrapper.get_llms()
-        llms = [{"name": l.name, "type": l.type} for l in all_llms]
+        llms = [{"name": l.name} for l in all_llms]
 
         all_embeddings = db_wrapper.get_embeddings()
         embeddings_list = [{"name": e.name, "dimension": e.dimension} for e in all_embeddings]
@@ -289,7 +289,7 @@ async def list_accessible_models(
 
     for team in teams:
         for llm in team.llms:
-            llm_names.add((llm.name, llm.type))
+            llm_names.add(llm.name)
         for emb in team.embeddings:
             embedding_names.add((emb.name, emb.dimension))
         for ig in team.image_generators:
@@ -298,7 +298,7 @@ async def list_accessible_models(
             audio_gen_names.add(ag.generator_name)
 
     return {
-        "llms": [{"name": n, "type": t} for n, t in llm_names],
+        "llms": [{"name": n} for n in sorted(llm_names)],
         "embeddings": [{"name": n, "dimension": d} for n, d in embedding_names],
         "image_generators": sorted(image_gen_names),
         "audio_generators": sorted(audio_gen_names),

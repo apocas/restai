@@ -76,7 +76,6 @@ def test_security_setup():
                     "class_name": "OpenAI",
                     "options": {"model": "gpt-test", "api_key": "sk-fake"},
                     "privacy": "private",
-                    "type": "chat",
                 },
                 auth=ADMIN,
             )
@@ -536,7 +535,6 @@ def test_non_admin_cannot_create_llm():
                 "class_name": "OpenAI",
                 "options": {"model": "gpt-test", "api_key": "sk-fake"},
                 "privacy": "public",
-                "type": "chat",
             },
             auth=USER_A,
         )

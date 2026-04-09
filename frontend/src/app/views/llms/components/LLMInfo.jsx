@@ -59,10 +59,6 @@ export default function LLMInfo({ llm, projects }) {
             <TableCell colSpan={4}>{llm.class_name}</TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={{ pl: 2 }}>Type</TableCell>
-            <TableCell colSpan={4}>{llm.type}</TableCell>
-          </TableRow>
-          <TableRow>
             <TableCell sx={{ pl: 2 }}>Privacy</TableCell>
             <TableCell colSpan={4}>{llm.privacy}</TableCell>
           </TableRow>

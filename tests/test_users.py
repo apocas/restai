@@ -172,7 +172,6 @@ def test_user_permissions_on_projects():
                 "class_name": "OpenAI",
                 "options": {"model": "gpt-test", "api_key": "sk-fake"},
                 "privacy": "private",
-                "type": "chat",
             },
             auth=(test_admin_username, RESTAI_DEFAULT_PASSWORD),
         )

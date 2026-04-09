@@ -106,7 +106,6 @@ class DBWrapper:
         options: str,
         privacy: str,
         description: str,
-        llm_type: str,
         context_window: int = 4096,
         input_cost: float = 0.0,
         output_cost: float = 0.0,
@@ -117,7 +116,6 @@ class DBWrapper:
             options=options,
             privacy=privacy,
             description=description,
-            type=llm_type,
             context_window=context_window,
             input_cost=input_cost,
             output_cost=output_cost,
@@ -325,9 +323,6 @@ class DBWrapper:
             and llm.description != llmUpdate.description
         ):
             llm.description = llmUpdate.description
-
-        if llmUpdate.type is not None and llm.type != llmUpdate.type:
-            llm.type = llmUpdate.type
 
         if llmUpdate.input_cost is not None and llm.input_cost != llmUpdate.input_cost:
             llm.input_cost = llmUpdate.input_cost

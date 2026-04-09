@@ -156,7 +156,6 @@ class LLMModel(BaseModel):
     options: Dict[str, Any] = Field(description="Provider-specific configuration options (model name, API keys, etc.)")
     privacy: Literal["public", "private"] = Field(description="Privacy level: 'public' (cloud-hosted) or 'private' (self-hosted)")
     description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable description of the LLM")
-    type: Literal["chat", "completion", "vision", "qa"] = Field(description="LLM type: 'chat', 'completion', 'vision', or 'qa'")
     input_cost: float = Field(default=0.0, ge=0, description="Cost per 1K input tokens in configured currency")
     output_cost: float = Field(default=0.0, ge=0, description="Cost per 1K output tokens in configured currency")
     context_window: Union[int, None] = Field(default=4096, ge=1, le=10000000, description="Maximum context window size in tokens")
@@ -168,7 +167,6 @@ class LLMModel(BaseModel):
             "options": {"model": "openai/gpt-4o"},
             "privacy": "public",
             "description": "OpenAI GPT-4o model",
-            "type": "chat",
             "input_cost": 0.005,
             "output_cost": 0.015,
             "context_window": 128000
@@ -245,7 +243,6 @@ class LLMUpdate(BaseModel):
     options: Union[str, Dict[str, Any], None] = Field(default=None, description="Provider-specific configuration options")
     privacy: Optional[Literal["public", "private"]] = Field(default=None, description="Privacy level: 'public' or 'private'")
     description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable description of the LLM")
-    type: Optional[Literal["chat", "completion", "vision", "qa"]] = Field(default=None, description="LLM type: 'chat', 'completion', 'vision', or 'qa'")
     input_cost: Union[float, None] = Field(default=None, ge=0, description="Cost per 1K input tokens")
     output_cost: Union[float, None] = Field(default=None, ge=0, description="Cost per 1K output tokens")
     context_window: Union[int, None] = Field(default=None, ge=1, le=10000000, description="Maximum context window size in tokens")
@@ -510,7 +507,6 @@ class ProjectsResponse(BaseModel):
 class ProjectInfo(ProjectModel):
     """Extended project info including chunk count and LLM details."""
     chunks: int = Field(default=0, description="Number of document chunks in the project's knowledge base")
-    llm_type: Union[str, None] = Field(default=None, description="Type of the associated LLM")
     llm_privacy: Union[str, None] = Field(default=None, description="Privacy level of the associated LLM")
 
 

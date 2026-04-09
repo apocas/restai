@@ -32,9 +32,6 @@ const Small = styled("small")(({ bgcolor }) => ({
 export default function LLMsTable({ llms = [], title = "LLMs" }) {
   const auth = useAuth();
   const { palette } = useTheme();
-  const bgError = palette.error.main;
-  const bgPrimary = palette.primary.main;
-  const bgSecondary = palette.secondary.main;
   const navigate = useNavigate();
 
   const handleDeleteClick = (llm) => {
@@ -87,13 +84,13 @@ export default function LLMsTable({ llms = [], title = "LLMs" }) {
           },
           customToolbar: CustomToolbar
         }}
-        data={llms.map(llm => [llm.name, llm.class_name, llm.privacy, llm.type, llm])}
+        data={llms.map(llm => [llm.name, llm.class_name, llm.privacy, llm])}
         columns={[
           {
             name: "Name",
             options: {
               customBodyRender: (value, tableMeta) => {
-                const llm = tableMeta.rowData[4];
+                const llm = tableMeta.rowData[3];
                 return (
                   <StyledButton onClick={() => navigate("/llm/" + llm.id)} color="primary">{value}</StyledButton>
                 );
@@ -112,22 +109,6 @@ export default function LLMsTable({ llms = [], title = "LLMs" }) {
                   <Small bgcolor={palette.success.main}>{value}</Small>
                 ) : (
                   <Small bgcolor={palette.error.main}>{value}</Small>
-                )
-              )
-            }
-          },
-          {
-            name: "Type",
-            options: {
-              customBodyRender: (value) => (
-                value === "vision" ? (
-                  <Small bgcolor={bgSecondary}>{value}</Small>
-                ) : value === "qa" ? (
-                  <Small bgcolor={bgPrimary}>{value}</Small>
-                ) : value === "chat" ? (
-                  <Small bgcolor={palette.success.light}>{value}</Small>
-                ) : (
-                  <Small bgcolor={bgError}>{value}</Small>
                 )
               )
             }

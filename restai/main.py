@@ -238,7 +238,6 @@ async def lifespan(fs_app: FastAPI):
                     "name": llm.name,
                     "privacy": llm.privacy,
                     "description": llm.description,
-                    "type": llm.type,
                 }
             )
 
@@ -334,7 +333,7 @@ if config.SENTRY_DSN:
     )
 
 OPENAPI_TAGS = [
-    {"name": "Projects", "description": "Create and manage AI projects (RAG, inference, agent, vision, block)"},
+    {"name": "Projects", "description": "Create and manage AI projects (RAG, inference, agent, agent2, block)"},
     {"name": "Knowledge", "description": "Manage embeddings and knowledge base for RAG projects"},
     {"name": "Chat", "description": "Chat and question endpoints for interacting with projects"},
     {"name": "Teams", "description": "Manage teams, members, admins, and resource access"},

@@ -69,7 +69,6 @@ def test_llm_name_validation():
                     "class_name": "OpenAI",
                     "options": {"model": "test"},
                     "privacy": "public",
-                    "type": "chat",
                 },
                 auth=("admin", RESTAI_DEFAULT_PASSWORD),
             )
@@ -118,27 +117,10 @@ def test_llm_invalid_privacy():
                 "class_name": "OpenAI",
                 "options": {"model": "test"},
                 "privacy": "secret",
-                "type": "chat",
             },
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 422, f"Expected 422 for invalid privacy, got {response.status_code}"
-
-
-def test_llm_invalid_type():
-    with TestClient(app) as client:
-        response = client.post(
-            "/llms",
-            json={
-                "name": "test-llm",
-                "class_name": "OpenAI",
-                "options": {"model": "test"},
-                "privacy": "public",
-                "type": "magic",
-            },
-            auth=("admin", RESTAI_DEFAULT_PASSWORD),
-        )
-        assert response.status_code == 422, f"Expected 422 for invalid type, got {response.status_code}"
 
 
 def test_llm_invalid_class_name():
@@ -150,7 +132,6 @@ def test_llm_invalid_class_name():
                 "class_name": "FakeProvider",
                 "options": {"model": "test"},
                 "privacy": "public",
-                "type": "chat",
             },
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
@@ -192,7 +173,6 @@ def test_llm_valid_enums_accepted():
                 "class_name": "OpenAI",
                 "options": {"model": "gpt-test", "api_key": "sk-fake"},
                 "privacy": "public",
-                "type": "chat",
             },
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )

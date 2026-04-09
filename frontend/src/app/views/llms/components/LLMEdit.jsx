@@ -32,9 +32,6 @@ export default function LLMEdit({ llm }) {
     if (state.description !== llm.description) {
       update.description = state.description;
     }
-    if (state.type !== llm.type) {
-      update.type = state.type;
-    }
     if (state.input_cost !== llm.input_cost) {
       update.input_cost = state.input_cost;
     }
@@ -138,23 +135,6 @@ export default function LLMEdit({ llm }) {
                 onChange={handleChange}
                 value={state.description}
               />
-            </Grid>
-
-            <Grid item sm={6} xs={12}>
-              <TextField
-                fullWidth
-                select
-                InputLabelProps={{ shrink: true }}
-                name="type"
-                label="Type"
-                variant="outlined"
-                onChange={handleChange}
-                value={state.type || ""}
-              >
-                {["qa", "chat", "vision"].map((t) => (
-                  <MenuItem key={t} value={t}>{t}</MenuItem>
-                ))}
-              </TextField>
             </Grid>
 
             <Grid item sm={6} xs={12}>

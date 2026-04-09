@@ -375,7 +375,6 @@ class LLMDatabase(Base):
     options = Column(Text)
     privacy = Column(String(255))
     description = Column(Text)
-    type = Column(String(255))
     input_cost = Column(Float, default=0.0)
     output_cost = Column(Float, default=0.0)
     context_window = Column(Integer, default=4096)

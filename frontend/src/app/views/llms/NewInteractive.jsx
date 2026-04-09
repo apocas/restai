@@ -57,7 +57,6 @@ export default function NewInteractive() {
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [formState, setFormState] = useState({
     name: "",
-    type: "",
     privacy: "private",
     description: "",
     context_window: 4096,
@@ -70,10 +69,10 @@ export default function NewInteractive() {
   }, []);
 
   const handleSelectProvider = (providerKey) => {
-    const provider = PROVIDER_CONFIG[providerKey];
     setSelectedProvider(providerKey);
 
     // Initialize options with defaults
+    const provider = PROVIDER_CONFIG[providerKey];
     const defaults = {};
     provider.fields.forEach((field) => {
       if (field.default !== undefined && field.default !== "") {
@@ -81,13 +80,12 @@ export default function NewInteractive() {
       }
     });
     setOptionsState(defaults);
-    setFormState((prev) => ({ ...prev, type: provider.defaultType }));
   };
 
   const handleBack = () => {
     setSelectedProvider(null);
     setOptionsState({});
-    setFormState({ name: "", type: "", privacy: "private", description: "", context_window: 4096 });
+    setFormState({ name: "", privacy: "private", description: "", context_window: 4096 });
   };
 
   const handleFormChange = (e) => {
@@ -125,7 +123,6 @@ export default function NewInteractive() {
         class_name: selectedProvider,
         options: JSON.stringify(options),
         privacy: formState.privacy,
-        type: formState.type,
         description: formState.description,
         context_window: parseInt(formState.context_window) || 4096,
       }, auth.user.token);
@@ -269,24 +266,6 @@ export default function NewInteractive() {
                   onChange={handleFormChange}
                   placeholder="Unique name for this LLM"
                 />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  select
-                  size="small"
-                  name="type"
-                  label="Type"
-                  value={formState.type}
-                  onChange={handleFormChange}
-                >
-                  {["qa", "chat", "vision"].map((t) => (
-                    <MenuItem key={t} value={t}>
-                      {t}
-                    </MenuItem>
-                  ))}
-                </TextField>
               </Grid>
 
               <Grid item xs={12} sm={6}>

@@ -25,7 +25,7 @@ def test_setup():
         llm_name = f"comments_llm_{random.randint(0,999999)}"
         client.post(
             "/llms",
-            json={"name": llm_name, "class_name": "OpenAI", "options": {"model": "gpt-test", "api_key": "sk-fake"}, "privacy": "public", "type": "chat"},
+            json={"name": llm_name, "class_name": "OpenAI", "options": {"model": "gpt-test", "api_key": "sk-fake"}, "privacy": "public"},
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
 

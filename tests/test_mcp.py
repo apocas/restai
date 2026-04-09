@@ -45,7 +45,6 @@ def test_mcp_setup():
                 "class_name": "OpenAI",
                 "options": {"model": "gpt-test", "api_key": "sk-fake"},
                 "privacy": "public",
-                "type": "chat",
             },
             auth=ADMIN,
         )
