@@ -17,9 +17,11 @@ import {
   TextField,
   Typography
 } from "@mui/material";
+import {
+  Memory, Cloud, Lock, AttachMoney, Token, Storage, DataArray, Hub,
+} from "@mui/icons-material";
 
 import { H4 } from "app/components/Typography";
-import ReactJson from '@microlink/react-json-view';
 import api from "app/utils/api";
 import BAvatar from "boring-avatars";
 
@@ -58,21 +60,25 @@ export default function ProjectNew({ projects, info, template }) {
       .then((team) => {
         setSelectedTeam(team);
 
-        // Get the team's available LLMs from the team response
         const availableLLMs = team.llms || [];
-        // Map LLM ids/names to full LLM objects by matching with info.llms
         const filteredLLMs = info.llms.filter(llm =>
           availableLLMs.some(teamLLM => teamLLM.name === llm.name)
         );
         setTeamLLMs(filteredLLMs);
 
-        // Get the team's available embeddings from the team response
         const availableEmbeddings = team.embeddings || [];
-        // Map embedding ids/names to full embedding objects by matching with info.embeddings
         const filteredEmbeddings = info.embeddings.filter(embedding =>
           availableEmbeddings.some(teamEmbedding => teamEmbedding.name === embedding.name)
         );
         setTeamEmbeddings(filteredEmbeddings);
+
+        // Auto-select when there's only one option
+        setState(prev => ({
+          ...prev,
+          projectllm: filteredLLMs.length === 1 ? filteredLLMs[0].name : prev.projectllm || '',
+          projectembeddings: filteredEmbeddings.length === 1 ? filteredEmbeddings[0].name : prev.projectembeddings || '',
+          projectvectorstore: vectorstoreList.length === 1 ? vectorstoreList[0] : prev.projectvectorstore || '',
+        }));
       })
       .catch(() => {});
   };
@@ -256,6 +262,7 @@ export default function ProjectNew({ projects, info, template }) {
                       name="projectllm"
                       label="LLM"
                       variant="outlined"
+                      value={state.projectllm || ""}
                       onChange={handleChange}
                       fullWidth
                       helperText={teamLLMs.length === 0 ? "No LLMs available for this team" : ""}
@@ -297,6 +304,7 @@ export default function ProjectNew({ projects, info, template }) {
                     name="projectembeddings"
                     label="Embeddings"
                     variant="outlined"
+                    value={state.projectembeddings || ""}
                     fullWidth
                     onChange={handleChange}
                     helperText={teamEmbeddings.length === 0 ? "No embeddings available for this team" : ""}
@@ -320,6 +328,7 @@ export default function ProjectNew({ projects, info, template }) {
                     name="projectvectorstore"
                     label="Vectorstore"
                     variant="outlined"
+                    value={state.projectvectorstore || ""}
                     fullWidth
                     onChange={handleChange}
                   >
@@ -341,18 +350,120 @@ export default function ProjectNew({ projects, info, template }) {
           </Form>
         </Grid>
         <Grid item xs={6}>
-          {state.projectllm && (
-            <>
-              <H4 p={2}>LLM Model</H4>
-              <ReactJson src={teamLLMs.find(llm => llm.name === state.projectllm)} enableClipboard={false} name={false} />
-            </>
-          )}
-          {state.projectembeddings && (
-            <>
-              <H4 p={2}>Embeddings Model</H4>
-              <ReactJson src={teamEmbeddings.find(embedding => embedding.name === state.projectembeddings)} enableClipboard={false} name={false} />
-            </>
-          )}
+          <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+            {(() => {
+              const llm = state.projectllm ? teamLLMs.find(l => l.name === state.projectllm) : null;
+              const emb = state.projectembeddings ? teamEmbeddings.find(e => e.name === state.projectembeddings) : null;
+              const vs = state.projectvectorstore;
+              const hasSelection = llm || emb || vs || state.projecttype;
+
+              if (!hasSelection) return (
+                <Box sx={{ textAlign: "center", py: 6, color: "text.disabled" }}>
+                  <Memory sx={{ fontSize: 48, mb: 1, opacity: 0.3 }} />
+                  <Typography variant="body2">Select options to see details</Typography>
+                </Box>
+              );
+
+              return (
+                <>
+                  {/* Project type summary */}
+                  {state.projecttype && (
+                    <Box sx={{ p: 2, borderRadius: 2, bgcolor: "action.hover" }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                        <Hub sx={{ fontSize: 20, color: "primary.main" }} />
+                        <Typography variant="subtitle2">Project Type</Typography>
+                      </Box>
+                      <Chip label={state.projecttype.toUpperCase()} size="small" color="primary" variant="outlined" />
+                      <Typography variant="caption" display="block" sx={{ mt: 0.5, color: "text.secondary" }}>
+                        {typeDescriptions[state.projecttype]}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {/* LLM card */}
+                  {llm && (
+                    <Box sx={{ p: 2, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                        <Memory sx={{ fontSize: 20, color: "success.main" }} />
+                        <Typography variant="subtitle2">LLM</Typography>
+                      </Box>
+                      <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>{llm.name}</Typography>
+                      {llm.description && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>{llm.description}</Typography>
+                      )}
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                        <Chip icon={<Cloud sx={{ fontSize: 16 }} />} label={llm.class_name} size="small" variant="outlined" />
+                        <Chip
+                          icon={<Lock sx={{ fontSize: 16 }} />}
+                          label={llm.privacy}
+                          size="small"
+                          color={llm.privacy === "private" ? "success" : "default"}
+                          variant="outlined"
+                        />
+                        {llm.context_window && (
+                          <Chip icon={<Token sx={{ fontSize: 16 }} />} label={`${(llm.context_window / 1000).toFixed(0)}K context`} size="small" variant="outlined" />
+                        )}
+                      </Box>
+                      {(llm.input_cost > 0 || llm.output_cost > 0) && (
+                        <Box sx={{ display: "flex", gap: 2, mt: 1.5 }}>
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">Input cost</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              <AttachMoney sx={{ fontSize: 14, verticalAlign: "middle" }} />{llm.input_cost}/1K tokens
+                            </Typography>
+                          </Box>
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">Output cost</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              <AttachMoney sx={{ fontSize: 14, verticalAlign: "middle" }} />{llm.output_cost}/1K tokens
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+
+                  {/* Embeddings card */}
+                  {emb && (
+                    <Box sx={{ p: 2, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                        <DataArray sx={{ fontSize: 20, color: "info.main" }} />
+                        <Typography variant="subtitle2">Embeddings</Typography>
+                      </Box>
+                      <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>{emb.name}</Typography>
+                      {emb.description && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>{emb.description}</Typography>
+                      )}
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                        <Chip icon={<Cloud sx={{ fontSize: 16 }} />} label={emb.class_name} size="small" variant="outlined" />
+                        <Chip
+                          icon={<Lock sx={{ fontSize: 16 }} />}
+                          label={emb.privacy}
+                          size="small"
+                          color={emb.privacy === "private" ? "success" : "default"}
+                          variant="outlined"
+                        />
+                        {emb.dimension && (
+                          <Chip label={`${emb.dimension}d`} size="small" variant="outlined" />
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* Vectorstore card */}
+                  {vs && (
+                    <Box sx={{ p: 2, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                        <Storage sx={{ fontSize: 20, color: "warning.main" }} />
+                        <Typography variant="subtitle2">Vector Store</Typography>
+                      </Box>
+                      <Chip label={vs} size="small" color="warning" variant="outlined" />
+                    </Box>
+                  )}
+                </>
+              );
+            })()}
+          </Box>
         </Grid>
       </Grid>
     </Card>

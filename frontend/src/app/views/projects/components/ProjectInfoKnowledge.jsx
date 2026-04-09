@@ -97,6 +97,59 @@ export default function ProjectInfoKnowledge({ project }) {
                 </Typography>
               </DetailItem>
             )}
+            <DetailItem label="Knowledge Graph">
+              <Chip
+                label={project.options?.enable_knowledge_graph ? "Enabled" : "Disabled"}
+                size="small"
+                color={project.options?.enable_knowledge_graph ? "success" : "default"}
+                variant="outlined"
+              />
+            </DetailItem>
+            <DetailItem label="Logging">
+              <Chip
+                label={project.options?.logging !== false ? "Enabled" : "Disabled"}
+                size="small"
+                color={project.options?.logging !== false ? "success" : "default"}
+                variant="outlined"
+              />
+            </DetailItem>
+            {project.options?.rate_limit && (
+              <DetailItem label="Rate Limit">
+                <Typography variant="body2">{project.options.rate_limit} req/min</Typography>
+              </DetailItem>
+            )}
+            {project.options?.fallback_llm && (
+              <DetailItem label="Fallback LLM">
+                <Typography variant="body2" fontFamily="monospace">{project.options.fallback_llm}</Typography>
+              </DetailItem>
+            )}
+            {project.guard && (
+              <DetailItem label="Input Guard">
+                <Chip label={project.guard} size="small" color="warning" variant="outlined" />
+              </DetailItem>
+            )}
+            {project.options?.guard_output && (
+              <DetailItem label="Output Guard">
+                <Chip label={project.options.guard_output} size="small" color="warning" variant="outlined" />
+              </DetailItem>
+            )}
+            {(project.guard || project.options?.guard_output) && (
+              <DetailItem label="Guard Mode">
+                <Chip
+                  label={project.options?.guard_mode === "warn" ? "Warn" : "Block"}
+                  size="small"
+                  color={project.options?.guard_mode === "warn" ? "info" : "error"}
+                  variant="outlined"
+                />
+              </DetailItem>
+            )}
+            {project.censorship && (
+              <DetailItem label="Censorship Message">
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                  {project.censorship.length > 80 ? project.censorship.slice(0, 80) + "…" : project.censorship}
+                </Typography>
+              </DetailItem>
+            )}
             <DetailItem label="Auto-Sync">
               {project.options?.sync_enabled && project.options?.sync_sources?.length > 0 ? (
                 <Chip

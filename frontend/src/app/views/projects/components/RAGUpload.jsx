@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Card, Divider, Grid, MenuItem, styled, TextField, Tabs, Tab, Typography, Box,
+  Card, Grid, MenuItem, styled, TextField, Tabs, Tab, Typography, Box, ListItemText,
 } from "@mui/material";
 import Publish from "@mui/icons-material/Publish";
 import { useDropzone } from "react-dropzone";
@@ -40,15 +40,19 @@ export default function RAGUpload({ project }) {
   const auth = useAuth();
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [state, setState] = useState({ chunksize: "512", splitter: "token" });
+  const [state, setState] = useState({
+    chunksize: "512",
+    splitter: "token",
+    method: "auto",
+  });
   const { getRootProps, getInputProps, acceptedFiles } = useDropzone({
     maxFiles: 1,
     multiple: false,
   });
   const [tabIndex, setTabIndex] = useState(0);
-  const [tabIndex2, setTabIndex2] = useState(0);
   const handleTabChange = (e, value) => setTabIndex(value);
-  const handleTabChange2 = (e, value) => setTabIndex2(value);
+
+  const showChunkSettings = state.method === "classic";
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -57,18 +61,21 @@ export default function RAGUpload({ project }) {
     if (tabIndex === 0) {
       const formData = new FormData();
       formData.append("file", files[0]);
+      formData.append("method", state.method);
 
-      if (tabIndex2 === 1) {
-        formData.append("classic", "true");
+      if (showChunkSettings) {
         formData.append("splitter", state.splitter);
         formData.append("chunks", state.chunksize);
       }
 
       try {
-        await api.post("/projects/" + project.id + "/embeddings/ingest/upload", formData, auth.user.token);
+        const result = await api.post("/projects/" + project.id + "/embeddings/ingest/upload", formData, auth.user.token);
+        if (result.method) {
+          toast.success(`Ingested with ${result.method} method — ${result.chunks} chunks`);
+        }
         window.location.reload();
       } catch (err) {
-        toast.warning("Retry in classic mode if the error persists.");
+        // errors auto-toasted
       } finally {
         setLoading(false);
       }
@@ -99,55 +106,60 @@ export default function RAGUpload({ project }) {
     setFiles(acceptedFiles);
   }, [acceptedFiles]);
 
-  useEffect(() => {
-    if (tabIndex === 1) {
-      setTabIndex2(1);
-    }
-  }, [tabIndex]);
-
   return (
     <Card elevation={1} sx={{ p: 2.5 }}>
       <SectionTitle><FileUpload fontSize="small" /> Ingest Data</SectionTitle>
 
       <form onSubmit={handleSubmit}>
-        <Tabs
-          value={tabIndex2}
-          onChange={handleTabChange2}
-          indicatorColor="primary"
-          textColor="primary"
-          sx={{ mb: 2 }}
-        >
-          {["Docling", "Classic"].map((item, ind) => (
-            <Tab key={ind} value={ind} label={item} sx={{ textTransform: "capitalize" }} />
-          ))}
-        </Tabs>
-
-        {tabIndex2 === 1 && (
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={6}>
-              <TextField
-                fullWidth select size="small"
-                name="splitter" label="Splitter" variant="outlined"
-                onChange={handleChange} value={state.splitter}
-              >
-                {["token", "sentence"].map((item) => (
-                  <MenuItem value={item} key={item}>{item}</MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid item xs={6}>
-              <TextField
-                fullWidth select size="small"
-                name="chunksize" label="Chunk Size" variant="outlined"
-                onChange={handleChange} value={state.chunksize}
-              >
-                {["126", "256", "512", "1024", "2048"].map((item) => (
-                  <MenuItem value={item} key={item}>{item}</MenuItem>
-                ))}
-              </TextField>
-            </Grid>
+        <Grid container spacing={2} sx={{ mb: 2 }}>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth select size="small"
+              name="method" label="Ingestion Method" variant="outlined"
+              onChange={handleChange} value={state.method}
+            >
+              <MenuItem value="auto">
+                <ListItemText primary="Auto" secondary="Docling → MarkItDown → Classic" />
+              </MenuItem>
+              <MenuItem value="docling">
+                <ListItemText primary="Docling" secondary="Deep-learning, best for complex PDFs" />
+              </MenuItem>
+              <MenuItem value="markitdown">
+                <ListItemText primary="MarkItDown" secondary="Broad format support (DOCX, XLSX, PPTX)" />
+              </MenuItem>
+              <MenuItem value="classic">
+                <ListItemText primary="Classic" secondary="LlamaIndex readers, basic text extraction" />
+              </MenuItem>
+            </TextField>
           </Grid>
-        )}
+
+          {showChunkSettings && (
+            <>
+              <Grid item xs={6} sm={3}>
+                <TextField
+                  fullWidth select size="small"
+                  name="splitter" label="Splitter" variant="outlined"
+                  onChange={handleChange} value={state.splitter}
+                >
+                  {["token", "sentence"].map((item) => (
+                    <MenuItem value={item} key={item}>{item}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <TextField
+                  fullWidth select size="small"
+                  name="chunksize" label="Chunk Size" variant="outlined"
+                  onChange={handleChange} value={state.chunksize}
+                >
+                  {["126", "256", "512", "1024", "2048"].map((item) => (
+                    <MenuItem value={item} key={item}>{item}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            </>
+          )}
+        </Grid>
 
         <Tabs
           value={tabIndex}

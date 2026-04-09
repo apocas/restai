@@ -1049,12 +1049,22 @@ async def ingest_file(
     options: str = Form("{}"),
     chunks: int = Form(256, ge=32, le=8192),
     splitter: str = Form("sentence"),
-    classic: bool = Form(False),
+    method: str = Form(None),
+    classic: bool = Form(None),
     background_tasks: BackgroundTasks = ...,
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Upload and ingest a file into the knowledge base."""
+    """Upload and ingest a file into the knowledge base.
+
+    `method` controls the document processing pipeline:
+    - `auto` (default) — tries Docling → MarkItDown → Classic in order
+    - `classic` — LlamaIndex file readers (fast, basic text extraction)
+    - `docling` — deep-learning document understanding (best for complex PDFs)
+    - `markitdown` — Microsoft MarkItDown (broad format support)
+
+    The deprecated `classic` boolean is still accepted for backward compatibility.
+    """
     check_not_restricted(user)
     if splitter not in ("sentence", "token"):
         raise HTTPException(status_code=422, detail="splitter must be 'sentence' or 'token'")
@@ -1075,9 +1085,16 @@ async def ingest_file(
 
     opts = json.loads(options)
 
+    # Resolve ingestion method: explicit param or "auto"
+    resolved_method = method or "auto"
+    # Backward compat: old `classic` bool overrides when method wasn't explicit
+    if classic is not None and method is None:
+        resolved_method = "classic" if classic else "docling"
+
     from restai.models.models import sanitize_filename
     file.filename = sanitize_filename(file.filename)
     ext = os.path.splitext(file.filename)[1].lower()
+    source_name = unidecode(file.filename)
 
     temp = tempfile.NamedTemporaryFile(delete=False)
     try:
@@ -1085,47 +1102,49 @@ async def ingest_file(
     finally:
         temp.close()
 
-    if classic == True:
-        loader = find_file_loader(ext, opts)
-
-        try:
-            documents = loader.load_data(file=Path(temp.name))
-        except TypeError as e:
-            documents = loader.load_data(input_file=Path(temp.name))
-        except Exception as e:
-            logging.error(e)
-            traceback.print_tb(e.__traceback__)
-            raise HTTPException(status_code=500, detail="Error while loading file.")
-    else:
-        try:
-            from restai.document.runner import load_documents
-
-            documents = load_documents(request.app.state.manager, temp.name)
-        except Exception as e:
-            if "File format not allowed" in str(e):
-                raise HTTPException(
-                    status_code=400,
-                    detail="Unsupported file format. Retry in classic mode.",
-                )
-            else:
-                raise e
-
     try:
+        used_method = resolved_method
+
+        if resolved_method == "auto":
+            from restai.loaders.markitdown_loader import auto_ingest
+            documents, used_method = auto_ingest(
+                temp.name, source_name,
+                manager=getattr(request.app.state, "manager", None),
+                opts=opts,
+            )
+            if not documents:
+                raise HTTPException(status_code=400, detail="No content could be extracted from the file.")
+        elif resolved_method == "markitdown":
+            from restai.loaders.markitdown_loader import load_with_markitdown
+            documents = load_with_markitdown(temp.name, source=source_name)
+            if not documents:
+                raise HTTPException(status_code=400, detail="MarkItDown could not extract content from this file.")
+        elif resolved_method == "docling":
+            from restai.document.runner import load_documents
+            documents = load_documents(request.app.state.manager, temp.name)
+        else:
+            # classic
+            used_method = "classic"
+            loader = find_file_loader(ext, opts)
+            try:
+                documents = loader.load_data(file=Path(temp.name))
+            except TypeError:
+                documents = loader.load_data(input_file=Path(temp.name))
+
         documents = extract_keywords_for_metadata(documents)
 
         for document in documents:
             if "filename" in document.metadata:
                 del document.metadata["filename"]
-            document.metadata["source"] = unidecode(file.filename)
+            document.metadata["source"] = source_name
 
-        if classic == True:
-            n_chunks = index_documents_classic(project, documents, splitter, chunks)
-        else:
+        if used_method in ("markitdown", "docling"):
             n_chunks = index_documents_docling(project, documents)
+        else:
+            n_chunks = index_documents_classic(project, documents, splitter, chunks)
 
         project.vector.save()
 
-        # Invalidate cache when knowledge base changes
         if project.cache:
             project.cache.clear()
 
@@ -1133,7 +1152,7 @@ async def ingest_file(
             full_text = "\n".join(d.text for d in documents)
             background_tasks.add_task(
                 extract_and_persist_safe,
-                project.props.id, unidecode(file.filename), full_text,
+                project.props.id, source_name, full_text,
                 request.app.state.brain, DBWrapper,
             )
 
@@ -1141,12 +1160,18 @@ async def ingest_file(
             "source": file.filename,
             "documents": len(documents),
             "chunks": n_chunks,
+            "method": used_method,
         }
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
+    finally:
+        try:
+            os.unlink(temp.name)
+        except OSError:
+            pass
 
 
 @router.get("/projects/{projectID}/embeddings", tags=["Knowledge"])
