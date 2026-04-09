@@ -180,7 +180,18 @@ def get_widget_from_request(request: Request, db_wrapper):
             host = urlparse(origin).hostname or ""
         except Exception:
             host = ""
-        if not _domain_matches(host, allowed):
+
+        # Always allow the RestAI instance's own domain so the widget
+        # preview on the admin UI works regardless of allowed_domains.
+        own_host = None
+        if config.RESTAI_URL:
+            try:
+                own_host = urlparse(config.RESTAI_URL).hostname
+            except Exception:
+                pass
+        is_own_domain = own_host and host and host.lower() == own_host.lower()
+
+        if not is_own_domain and not _domain_matches(host, allowed):
             raise HTTPException(status_code=403, detail="Domain not allowed")
 
     return widget

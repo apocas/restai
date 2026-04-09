@@ -4,7 +4,6 @@ warnings.filterwarnings("ignore", message=".*Accessing the 'model_fields' attrib
 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, FileResponse
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, HTTPException, Request, Depends, status, Response
 from fastapi import Path as PathParam
@@ -434,11 +433,39 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 if config.RESTAI_DEV == True:
     print("Running in development mode!")
 
-# CORS — required for embeddable widget (cross-origin chat API calls)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept", "X-Widget-Key"],
-)
+# CORS — only allow wildcard origins for widget endpoints (cross-origin
+# chat API calls from embedded widgets on third-party sites). All other
+# endpoints use same-origin only.
+_WIDGET_CORS_PATHS = ("/widget/",)
+_CORS_HEADERS = {
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Accept, X-Widget-Key",
+    "Access-Control-Max-Age": "86400",
+}
+
+
+@app.middleware("http")
+async def cors_middleware(request: Request, call_next):
+    path = request.url.path
+    is_widget = any(path.startswith(p) for p in _WIDGET_CORS_PATHS)
+    origin = request.headers.get("origin")
+
+    # Handle preflight OPTIONS
+    if request.method == "OPTIONS" and is_widget and origin:
+        return Response(
+            status_code=204,
+            headers={
+                "Access-Control-Allow-Origin": origin,
+                **_CORS_HEADERS,
+            },
+        )
+
+    response = await call_next(request)
+
+    # Add CORS headers only for widget endpoints
+    if is_widget and origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        for k, v in _CORS_HEADERS.items():
+            response.headers[k] = v
+
+    return response
