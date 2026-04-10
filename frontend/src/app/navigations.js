@@ -86,7 +86,7 @@ export const defaultNavigations = [
       { name: "GPU", iconText: "GP", path: "/gpu", auth: authRoles.admin },
     ]
   },
-  { label: "Admin", type: "label" },
+  { label: "Admin", type: "label", auth: authRoles.teamAdmin },
   {
     name: "Settings",
     icon: "settings",
@@ -103,7 +103,7 @@ export const defaultNavigations = [
     name: "Permissions",
     icon: "lock",
     path: "/admin/permissions",
-    auth: authRoles.admin,
+    auth: authRoles.teamAdmin,
   },
   { label: "Docs", type: "label" },
   {

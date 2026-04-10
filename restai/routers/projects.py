@@ -114,7 +114,16 @@ async def route_get_projects(
     if v_filter == "public":
         query = query.filter(ProjectDatabase.public == True)
     elif not user.is_admin:
-        query = query.filter(ProjectDatabase.id.in_(user.get_project_ids()))
+        accessible_ids = user.get_project_ids()
+        # Team admins also see all projects in their administered teams
+        if user.admin_teams:
+            admin_team_ids = {t.id for t in user.admin_teams}
+            team_project_ids = {
+                p[0] for p in db_wrapper.db.query(ProjectDatabase.id)
+                .filter(ProjectDatabase.team_id.in_(admin_team_ids)).all()
+            }
+            accessible_ids = accessible_ids | team_project_ids
+        query = query.filter(ProjectDatabase.id.in_(accessible_ids))
 
     # Filter by API key scope if set
     if user.api_key_allowed_projects is not None:

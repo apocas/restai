@@ -9,6 +9,12 @@ const initialState = {
   isImpersonating: false,
 };
 
+function assignRole(user) {
+  if (user.is_admin) user.role = "ADMIN";
+  else if (user.admin_teams && user.admin_teams.length > 0) user.role = "TEAM_ADMIN";
+  else user.role = "USER";
+}
+
 const reducer = (state, action) => {
   switch (action.type) {
     case "INIT": {
@@ -63,7 +69,7 @@ export const AuthProvider = ({ children }) => {
       // Normal login — fetch user profile
       const whoami = await axios.get(`${apiUrl}/auth/whoami`, { withCredentials: true });
       const user = whoami.data;
-      user.role = user.is_admin ? "ADMIN" : "USER";
+      assignRole(user);
 
       dispatch({ type: "INIT", payload: { isAuthenticated: true, user, isImpersonating: false } });
       return { requires_totp: false };
@@ -78,7 +84,7 @@ export const AuthProvider = ({ children }) => {
       await axios.post(`${apiUrl}/auth/verify-totp`, { token, code }, { withCredentials: true });
       const whoami = await axios.get(`${apiUrl}/auth/whoami`, { withCredentials: true });
       const user = whoami.data;
-      user.role = user.is_admin ? "ADMIN" : "USER";
+      assignRole(user);
       dispatch({ type: "INIT", payload: { isAuthenticated: true, user, isImpersonating: false } });
     } catch (err) {
       const detail = err.response?.data?.detail || "Invalid code.";
@@ -90,7 +96,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.get(`${apiUrl}/auth/whoami`, { withCredentials: true });
       const user = response.data;
-      user.role = user.is_admin ? "ADMIN" : "USER";
+      assignRole(user);
       dispatch({ type: "INIT", payload: { isAuthenticated: true, user, isImpersonating: user.impersonating || false } });
     } catch (err) {
       dispatch({ type: "LOGOUT" });
@@ -126,7 +132,7 @@ export const AuthProvider = ({ children }) => {
       try {
         const response = await axios.get(`${apiUrl}/auth/whoami`, { withCredentials: true });
         const user = response.data;
-        user.role = user.is_admin ? "ADMIN" : "USER";
+        assignRole(user);
         dispatch({ type: "INIT", payload: { isAuthenticated: true, user, isImpersonating: user.impersonating || false } });
       } catch (err) {
         console.error(err);

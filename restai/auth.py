@@ -129,10 +129,19 @@ def get_current_username_admin(user: User = Depends(get_current_username)):
 
 
 def get_current_username_project(
-    projectID: int, user: User = Depends(get_current_username)
+    projectID: int,
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     if not user.has_project_access(projectID):
-        raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
+        # Team admin: can access all projects in their administered teams
+        if user.admin_teams:
+            project_db = db_wrapper.get_project_by_id(projectID)
+            if not (project_db and project_db.team_id and
+                    any(t.id == project_db.team_id for t in user.admin_teams)):
+                raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
+        else:
+            raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
     if not user.has_api_key_project_access(projectID):
         raise HTTPException(status_code=403, detail="API key does not have access to this project")
     return user
@@ -216,7 +225,14 @@ def get_current_username_project_public(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    if user.has_project_access(projectID):
+    has_access = user.has_project_access(projectID)
+    # Team admin access
+    if not has_access and user.admin_teams:
+        p = db_wrapper.get_project_by_id(projectID)
+        if p and p.team_id and any(t.id == p.team_id for t in user.admin_teams):
+            has_access = True
+
+    if has_access:
         if not user.has_api_key_project_access(projectID):
             raise HTTPException(status_code=403, detail="API key does not have access to this project")
         user.level = "own"

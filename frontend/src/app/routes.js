@@ -132,67 +132,67 @@ const routes = [
       {
         path: "/projects",
         element: <Projects />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/projects/my",
         element: <MyProjects />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/projects/library",
         element: <Library />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/projects/tools",
         element: <Tools />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/project/:id",
         element: <ProjectsInfo />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/projects/new",
         element: <ProjectsNew />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/project/:id/edit",
         element: <ProjectsEdit />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/project/:id/logs",
         element: <ProjectsLogs />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/project/:id/playground",
         element: <ProjectsPlayground />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/project/:id/api",
         element: <ProjectsAPI />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/project/:id/ide",
         element: <ProjectsIDE />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/project/:id/evals",
         element: <ProjectsEvals />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/project/:id/guards",
         element: <ProjectsGuards />,
-        auth: authRoles.admin
+        auth: authRoles.user
       },
       {
         path: "/proxy/keys",
@@ -262,7 +262,7 @@ const routes = [
       {
         path: "/admin/permissions",
         element: <PermissionMatrix />,
-        auth: authRoles.admin
+        auth: authRoles.teamAdmin
       },
       {
         path: "/invitations",
