@@ -1,6 +1,6 @@
 [project]
 name = "restai-core"
-version = "6.1.4"
+version = "6.1.5"
 description = "RESTAI, so many 'A's and 'I's, so little time..."
 authors = [{ name = "Pedro Dias", email = "petermdias@gmail.com" }]
 requires-python = ">=3.11,<3.14"
