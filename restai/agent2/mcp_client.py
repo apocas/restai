@@ -22,8 +22,27 @@ from .tool_adapter import AdaptedTool
 logger = logging.getLogger(__name__)
 
 
+ALLOWED_MCP_STDIO_COMMANDS = {"npx", "uvx", "python", "python3", "node", "deno", "bun"}
+
+
 def _is_http_host(host: str) -> bool:
     return host.startswith(("http://", "https://"))
+
+
+def _validate_stdio_host(host: str, args: list = None):
+    """Validate stdio MCP command — only allow known safe executables."""
+    import os as _os
+    import re as _re
+    cmd = _os.path.basename(host)
+    if cmd not in ALLOWED_MCP_STDIO_COMMANDS:
+        raise ValueError(
+            f"MCP stdio command '{cmd}' is not allowed. "
+            f"Permitted: {', '.join(sorted(_ALLOWED_STDIO_COMMANDS))}"
+        )
+    if args:
+        for arg in args:
+            if _re.search(r'[;&|`$(){}]', str(arg)):
+                raise ValueError(f"MCP argument contains disallowed characters: {arg}")
 
 
 def _parse_allowed_tools(csv: Optional[str]) -> Optional[set[str]]:
@@ -82,6 +101,7 @@ class MCPSessionPool:
                 if _is_http_host(host):
                     session = await self._open_http_session(host, headers)
                 else:
+                    _validate_stdio_host(host, args)
                     session = await self._open_stdio_session(host, args, env)
             except Exception as e:
                 logger.warning("Failed to open MCP session for '%s': %s", host, e)

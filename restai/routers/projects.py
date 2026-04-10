@@ -904,10 +904,11 @@ async def clone_project(
 async def clear_project_cache(
     request: Request,
     projectID: int = PathParam(description="Project ID"),
-    _: User = Depends(get_current_username_project),
+    user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Clear the project's response cache."""
+    check_not_restricted(user)
     project = get_project(projectID, db_wrapper, request.app.state.brain)
     if project.cache:
         project.cache.clear()
@@ -994,6 +995,21 @@ async def ingest_url(
         if ingest.url and not ingest.url.startswith("http"):
             raise HTTPException(
                 status_code=400, detail="Specify the protocol http:// or https://"
+            )
+
+        # SSRF protection — block requests to private/internal networks
+        from restai.helper import _is_private_ip
+        from urllib.parse import urlparse as _urlparse
+        try:
+            hostname = _urlparse(ingest.url).hostname
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid URL")
+        if not hostname:
+            raise HTTPException(status_code=400, detail="URL has no valid hostname")
+        if _is_private_ip(hostname):
+            raise HTTPException(
+                status_code=400,
+                detail="Access to internal/private network addresses is not allowed",
             )
 
         project = get_project(projectID, db_wrapper, request.app.state.brain)

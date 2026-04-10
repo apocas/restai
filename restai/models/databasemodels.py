@@ -324,6 +324,14 @@ class AuditLogDatabase(Base):
     date = Column(DateTime, nullable=False, index=True)
 
 
+class LoginAttemptDatabase(Base):
+    __tablename__ = "login_attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ip = Column(String(45), nullable=False, index=True)
+    attempted_at = Column(DateTime, nullable=False, index=True)
+
+
 class RetrievalEventDatabase(Base):
     __tablename__ = "retrieval_events"
 

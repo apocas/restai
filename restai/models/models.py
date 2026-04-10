@@ -190,9 +190,15 @@ class LLMModel(BaseModel):
     def parse_options(cls, v):
         if isinstance(v, str):
             try:
-                return json.loads(v)
+                v = json.loads(v)
             except json.JSONDecodeError:
                 return {}
+        if isinstance(v, dict):
+            try:
+                from restai.utils.crypto import decrypt_sensitive_options, LLM_SENSITIVE_KEYS
+                v = decrypt_sensitive_options(v, LLM_SENSITIVE_KEYS)
+            except Exception:
+                pass
         return v
 
 
@@ -446,10 +452,15 @@ class ProjectBaseModel(BaseModel):
     def parse_options(cls, v):
         if isinstance(v, str):
             try:
-                return ProjectOptions(**json.loads(v))
+                v = json.loads(v)
             except json.JSONDecodeError:
                 return ProjectOptions()
-        elif isinstance(v, dict):
+        if isinstance(v, dict):
+            try:
+                from restai.utils.crypto import decrypt_sensitive_options, PROJECT_SENSITIVE_KEYS
+                v = decrypt_sensitive_options(v, PROJECT_SENSITIVE_KEYS)
+            except Exception:
+                pass
             return ProjectOptions(**v)
         return v
 

@@ -24,6 +24,38 @@ from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.indices.struct_store.sql_query import NLSQLTableQueryEngine
 from sqlalchemy import create_engine
 
+_ALLOWED_DB_SCHEMES = {"postgresql", "postgresql+psycopg2", "mysql", "mysql+pymysql", "sqlite"}
+_ALLOWED_SCHEME_BASES = {s.split("+")[0] for s in _ALLOWED_DB_SCHEMES}
+
+
+def _validate_connection_string(conn: str):
+    """Reject connection strings with dangerous schemes or targeting localhost/metadata."""
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(conn)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid connection string format")
+
+    scheme_full = parsed.scheme or ""
+    scheme_base = scheme_full.split("+")[0]
+
+    if scheme_base not in _ALLOWED_SCHEME_BASES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Database scheme '{scheme_full}' is not allowed. Permitted: {', '.join(sorted(_ALLOWED_DB_SCHEMES))}",
+        )
+
+    # Block SQLite absolute paths that could read system files.
+    # urlparse("sqlite:///etc/passwd").path == "/etc/passwd"
+    if scheme_base == "sqlite" and parsed.path:
+        import os
+        path = parsed.path
+        if path.startswith("/") and not path.startswith(os.getcwd()):
+            raise HTTPException(
+                status_code=400,
+                detail="SQLite absolute paths outside the application directory are not allowed",
+            )
+
 
 class EntityBoostPostprocessor:
     """Custom postprocessor that boosts retrieval scores for chunks whose source
@@ -272,7 +304,9 @@ class RAG(ProjectBase):
                     detail="Streaming is not supported for SQL queries."
                 )
 
-            engine = create_engine(project.props.options.connection)
+            conn_str = project.props.options.connection
+            _validate_connection_string(conn_str)
+            engine = create_engine(conn_str)
             try:
                 sql_database = SQLDatabase(engine)
 

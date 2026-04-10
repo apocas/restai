@@ -1,4 +1,5 @@
 import logging
+import os
 import traceback
 
 from fastapi import APIRouter
@@ -8,7 +9,7 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
 from restai import config
-from restai.auth import get_current_username
+from restai.auth import get_current_username, get_current_username_admin
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.models import ClassifierModel, ClassifierResponse, MCPProbeRequest, OllamaInstanceModel, OllamaModelInfo, OllamaModelPullRequest, OllamaModelPullResponse, Tool, User
 
@@ -62,12 +63,40 @@ async def get_tools(request: Request, _: User = Depends(get_current_username)):
     return _tools
 
 
+def _validate_mcp_host(host: str, args: list = None):
+    """Validate MCP server host — must be an HTTP(S) URL or a known safe command."""
+    from restai.agent2.mcp_client import ALLOWED_MCP_STDIO_COMMANDS
+
+    if not host or not host.strip():
+        raise HTTPException(status_code=400, detail="MCP server host is required")
+    host = host.strip()
+    if host.startswith(("http://", "https://")):
+        return  # URLs are fine
+    # Stdio mode: only allow known package runners / interpreters
+    cmd = os.path.basename(host)
+    if cmd not in ALLOWED_MCP_STDIO_COMMANDS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"MCP stdio command '{cmd}' is not allowed. Permitted commands: {', '.join(sorted(ALLOWED_MCP_STDIO_COMMANDS))}",
+        )
+    # Reject shell metacharacters in args
+    if args:
+        import re
+        for arg in args:
+            if re.search(r'[;&|`$(){}]', str(arg)):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"MCP argument contains disallowed shell characters: {arg}",
+                )
+
+
 @router.post("/tools/mcp/probe")
 async def probe_mcp_server(
     probe_request: MCPProbeRequest,
     _: User = Depends(get_current_username),
 ):
     """Probe an MCP server or gateway to discover available tools/services."""
+    _validate_mcp_host(probe_request.host, probe_request.args)
     try:
         # Detect MCP gateway (returns a services list instead of being a direct MCP server)
         if probe_request.host.startswith("http"):
@@ -284,10 +313,10 @@ async def pull_ollama_model(
 async def list_openai_compatible_models(
     request: Request,
     llm_id: int,
-    _: User = Depends(get_current_username),
+    _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """List models from an OpenAI-compatible endpoint using a saved LLM's credentials."""
+    """List models from an OpenAI-compatible endpoint using a saved LLM's credentials (admin only)."""
     import httpx
     import json as _json
 

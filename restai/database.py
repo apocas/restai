@@ -1,3 +1,4 @@
+import logging
 from sqlalchemy import create_engine, func, or_
 from restai import config
 from datetime import datetime, timezone
@@ -110,6 +111,16 @@ class DBWrapper:
         input_cost: float = 0.0,
         output_cost: float = 0.0,
     ) -> LLMDatabase:
+        # Encrypt sensitive fields (api_key) in the options JSON
+        from restai.utils.crypto import encrypt_sensitive_options, LLM_SENSITIVE_KEYS
+        import json as _json
+        try:
+            opts_dict = _json.loads(options) if isinstance(options, str) else options
+            opts_dict = encrypt_sensitive_options(opts_dict, LLM_SENSITIVE_KEYS)
+            options = _json.dumps(opts_dict)
+        except Exception as e:
+            logging.warning("Failed to encrypt LLM options: %s", e)
+
         db_llm: LLMDatabase = LLMDatabase(
             name=name,
             class_name=class_name,
@@ -313,7 +324,16 @@ class DBWrapper:
             llm.class_name = llmUpdate.class_name
 
         if llmUpdate.options is not None and llm.options != llmUpdate.options:
-            llm.options = llmUpdate.options
+            # Encrypt sensitive fields (api_key) before persisting
+            from restai.utils.crypto import encrypt_sensitive_options, LLM_SENSITIVE_KEYS
+            import json as _json
+            try:
+                opts_dict = _json.loads(llmUpdate.options) if isinstance(llmUpdate.options, str) else llmUpdate.options
+                opts_dict = encrypt_sensitive_options(opts_dict, LLM_SENSITIVE_KEYS)
+                llm.options = _json.dumps(opts_dict) if isinstance(llmUpdate.options, str) else opts_dict
+            except Exception as e:
+                logging.warning("Failed to encrypt LLM options on update: %s", e)
+                llm.options = llmUpdate.options
 
         if llmUpdate.privacy is not None and llm.privacy != llmUpdate.privacy:
             llm.privacy = llmUpdate.privacy
@@ -597,14 +617,18 @@ class DBWrapper:
             changed = True
 
         if hasattr(projectModel, "options") and projectModel.options is not None:
+            from restai.utils.crypto import encrypt_sensitive_options, PROJECT_SENSITIVE_KEYS
             try:
                 current_options = json.loads(proj_db.options) if proj_db.options else {}
                 new_options = projectModel.options.model_dump()
+                new_options = encrypt_sensitive_options(new_options, PROJECT_SENSITIVE_KEYS)
                 if current_options != new_options:
                     proj_db.options = json.dumps(new_options)
                     changed = True
             except json.JSONDecodeError:
-                proj_db.options = json.dumps(projectModel.options.model_dump())
+                new_options = projectModel.options.model_dump()
+                new_options = encrypt_sensitive_options(new_options, PROJECT_SENSITIVE_KEYS)
+                proj_db.options = json.dumps(new_options)
                 changed = True
 
         if changed:
