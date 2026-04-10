@@ -36,8 +36,6 @@ async def patch_settings(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Update platform settings (admin only)."""
-    if body.agent_max_iterations is not None and body.agent_max_iterations < 1:
-        raise HTTPException(status_code=400, detail="agent_max_iterations must be >= 1")
     if body.max_audio_upload_size is not None and body.max_audio_upload_size < 1:
         raise HTTPException(status_code=400, detail="max_audio_upload_size must be >= 1")
 

@@ -405,7 +405,7 @@ class ProjectOptions(BaseModel):
     tools: Union[str, None] = Field(default=None, description="Comma-separated list of enabled tool names")
     score: float = Field(default=0.0, description="Minimum similarity score threshold for retrieved documents")
     k: int = Field(default=4, ge=0, le=100, description="Number of documents to retrieve from the knowledge base")
-    max_iterations: int = Field(default=config.AGENT_MAX_ITERATIONS, ge=1, le=100, description="Maximum iterations for agent project execution")
+    max_iterations: int = Field(default=10, ge=1, le=100, description="Maximum iterations for agent project execution")
     connection: Union[str, None] = Field(default=None, max_length=2000, description="Database connection string for natural language to SQL queries")
     mcp_servers: Union[list[MCPServer], None] = Field(default=None, description="List of MCP server configurations for agent projects")
     telegram_token: Union[str, None] = Field(default=None, description="Telegram bot token for Telegram integration")
@@ -1041,7 +1041,6 @@ class SettingsResponse(BaseModel):
     proxy_url: Optional[str] = Field(default="", description="LiteLLM proxy URL")
     proxy_key: Optional[str] = Field(default="", description="LiteLLM proxy API key")
     proxy_team_id: Optional[str] = Field(default="", description="LiteLLM proxy team identifier")
-    agent_max_iterations: int = Field(description="Maximum iterations for agent project execution")
     max_audio_upload_size: int = Field(description="Maximum audio upload file size in bytes")
     currency: str = Field(default="EUR", description="Currency code for cost display (e.g. 'EUR', 'USD')")
     redis_host: Optional[str] = Field(default="", description="Redis host for chat history persistence")
@@ -1103,7 +1102,6 @@ class SettingsUpdate(BaseModel):
     proxy_url: Optional[str] = Field(default=None, description="LiteLLM proxy URL")
     proxy_key: Optional[str] = Field(default=None, description="LiteLLM proxy API key")
     proxy_team_id: Optional[str] = Field(default=None, description="LiteLLM proxy team identifier")
-    agent_max_iterations: Optional[int] = Field(default=None, description="Maximum iterations for agent project execution")
     max_audio_upload_size: Optional[int] = Field(default=None, description="Maximum audio upload file size in bytes")
     currency: Optional[str] = Field(default=None, description="Currency code for cost display (e.g. 'EUR', 'USD')")
     redis_host: Optional[str] = Field(default=None, description="Redis host for chat history persistence")
@@ -1160,7 +1158,7 @@ class SettingsUpdate(BaseModel):
             "app_name": "My AI Platform",
             "hide_branding": True,
             "currency": "USD",
-            "agent_max_iterations": 25
+            "currency": "USD"
         }
     })
 

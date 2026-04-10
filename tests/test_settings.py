@@ -17,7 +17,6 @@ def test_get_settings():
             "app_name",
             "hide_branding",
             "proxy_enabled",
-            "agent_max_iterations",
             "max_audio_upload_size",
         ):
             assert key in data
@@ -76,7 +75,7 @@ def test_update_settings_invalid():
     with TestClient(app) as client:
         response = client.patch(
             "/settings",
-            json={"agent_max_iterations": 0},
+            json={"max_audio_upload_size": 0},
             auth=("admin", RESTAI_DEFAULT_PASSWORD),
         )
         assert response.status_code == 400

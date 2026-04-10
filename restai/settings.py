@@ -11,7 +11,6 @@ SETTINGS_DEFAULTS = {
     "proxy_url": ("PROXY_URL", ""),
     "proxy_key": ("PROXY_KEY", ""),
     "proxy_team_id": ("PROXY_TEAM_ID", ""),
-    "agent_max_iterations": ("AGENT_MAX_ITERATIONS", "20"),
     "max_audio_upload_size": ("MAX_AUDIO_UPLOAD_SIZE", "10"),
     "currency": ("CURRENCY", "EUR"),
     "redis_host": ("REDIS_HOST", ""),
@@ -72,7 +71,6 @@ _CONFIG_ATTR_MAP = {
     "proxy_url": "PROXY_URL",
     "proxy_key": "PROXY_KEY",
     "proxy_team_id": "PROXY_TEAM_ID",
-    "agent_max_iterations": "AGENT_MAX_ITERATIONS",
     "max_audio_upload_size": "MAX_AUDIO_UPLOAD_SIZE",
     "currency": "CURRENCY",
     "redis_host": "REDIS_HOST",
@@ -127,7 +125,7 @@ _CONFIG_ATTR_MAP = {
 }
 
 _BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "enforce_2fa"}
-_INT_KEYS = {"agent_max_iterations", "max_audio_upload_size", "data_retention_days", "docker_timeout"}
+_INT_KEYS = {"max_audio_upload_size", "data_retention_days", "docker_timeout"}
 
 # Secret keys that should be masked in API responses
 _SECRET_KEYS = {
@@ -213,7 +211,6 @@ def get_all_settings(db_wrapper) -> dict:
         "proxy_url": rows.get("proxy_url", ""),
         "proxy_key": mask_key(rows.get("proxy_key", "")),
         "proxy_team_id": rows.get("proxy_team_id", ""),
-        "agent_max_iterations": int(rows.get("agent_max_iterations", "20")),
         "max_audio_upload_size": int(rows.get("max_audio_upload_size", "10")),
         "currency": rows.get("currency", "EUR"),
         "redis_host": rows.get("redis_host", ""),

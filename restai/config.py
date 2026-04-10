@@ -240,7 +240,6 @@ DB_POOL_SIZE = int(os.environ.get("DB_POOL_SIZE") or 100)
 DB_MAX_OVERFLOW = int(os.environ.get("DB_MAX_OVERFLOW") or 300)
 DB_POOL_RECYCLE = int(os.environ.get("DB_POOL_RECYCLE") or 300)
 
-AGENT_MAX_ITERATIONS = int(os.environ.get("AGENT_MAX_ITERATIONS") or 20)
 
 MAX_AUDIO_UPLOAD_SIZE = int(os.environ.get("MAX_AUDIO_UPLOAD_SIZE") or 10)
 

@@ -41,7 +41,6 @@ export default function SettingsPage() {
     proxy_url: "",
     proxy_key: "",
     proxy_team_id: "",
-    agent_max_iterations: 20,
     max_audio_upload_size: 10,
     data_retention_days: 0,
     currency: "EUR",
@@ -111,7 +110,6 @@ export default function SettingsPage() {
   const handleSave = () => {
     setSaving(true);
     const body = { ...form };
-    body.agent_max_iterations = parseInt(body.agent_max_iterations, 10) || 20;
     body.max_audio_upload_size = parseInt(body.max_audio_upload_size, 10) || 10;
     body.data_retention_days = parseInt(body.data_retention_days, 10) || 0;
     body.docker_timeout = parseInt(body.docker_timeout, 10) || 900;
@@ -211,15 +209,11 @@ export default function SettingsPage() {
                 <Card elevation={1} sx={{ p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Limits</Typography>
                   <Grid container spacing={3}>
-                    <Grid item xs={12} md={4}>
-                      <TextField fullWidth label="Agent Max Iterations" type="number" inputProps={{ min: 1 }}
-                        value={form.agent_max_iterations} onChange={handleChange("agent_max_iterations")} />
-                    </Grid>
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} md={6}>
                       <TextField fullWidth label="Max Audio Upload Size (MB)" type="number" inputProps={{ min: 1 }}
                         value={form.max_audio_upload_size} onChange={handleChange("max_audio_upload_size")} />
                     </Grid>
-                    <Grid item xs={12} md={4}>
+                    <Grid item xs={12} md={6}>
                       <TextField fullWidth label="Data Retention (days)" type="number" inputProps={{ min: 0 }}
                         value={form.data_retention_days} onChange={handleChange("data_retention_days")}
                         helperText="Auto-delete logs older than this. 0 = keep forever." />

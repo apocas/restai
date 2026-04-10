@@ -14,7 +14,6 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 
-from restai import config
 from restai.agent2 import (
     Agent2Runtime,
     Agent2UnsupportedLLMError,
@@ -83,17 +82,12 @@ class Agent(ProjectBase):
         if extra_tools:
             adapted.extend(extra_tools)
 
-        max_iterations = min(
-            project.props.options.max_iterations or config.AGENT_MAX_ITERATIONS,
-            config.AGENT_MAX_ITERATIONS,
-        )
-
         return Agent2Runtime(
             provider=provider,
             config=prov_config,
             tools=adapted,
             system_prompt=system_prompt or "",
-            max_turns=max_iterations,
+            max_turns=project.props.options.max_iterations,
             fallback_provider=fallback_provider,
             fallback_config=fallback_config,
             mode=project.props.options.agent_mode or "auto",

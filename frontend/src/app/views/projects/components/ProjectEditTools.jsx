@@ -96,7 +96,24 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
         />
       </Grid>
       {project.type === "agent" && (
-        <Grid item sm={6} xs={12}>
+        <>
+        <Grid item sm={3} xs={12}>
+          <TextField
+            fullWidth
+            type="number"
+            label="Max Iterations"
+            variant="outlined"
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ min: 1, max: 100 }}
+            value={state.options?.max_iterations ?? 10}
+            onChange={(e) => setState({
+              ...state,
+              options: { ...state.options, max_iterations: parseInt(e.target.value, 10) || 10 }
+            })}
+            helperText="Maximum tool-calling iterations per request"
+          />
+        </Grid>
+        <Grid item sm={9} xs={12}>
           <TextField
             select
             fullWidth
@@ -115,6 +132,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
             <MenuItem value="react">ReAct (text-based prompting)</MenuItem>
           </TextField>
         </Grid>
+        </>
       )}
       <Grid item sm={12} xs={12}>
         <Divider sx={{ mb: 1 }} />
