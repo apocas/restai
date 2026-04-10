@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from restai import config
 from restai.auth import get_current_username
+from restai.database import DBWrapper, get_db_wrapper
 from restai.models.models import ClassifierModel, ClassifierResponse, MCPProbeRequest, OllamaInstanceModel, OllamaModelInfo, OllamaModelPullRequest, OllamaModelPullResponse, Tool, User
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -279,21 +280,30 @@ async def pull_ollama_model(
         )
 
 
-@router.post("/tools/openai-compat/models")
+@router.get("/tools/openai-compat/models/{llm_id}")
 async def list_openai_compatible_models(
-    body: dict = ...,
+    request: Request,
+    llm_id: int,
     _: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """List models from an OpenAI-compatible endpoint."""
+    """List models from an OpenAI-compatible endpoint using a saved LLM's credentials."""
     import httpx
+    import json as _json
 
-    base_url = (body.get("api_base") or body.get("base_url") or "").rstrip("/")
-    api_key = body.get("api_key") or ""
+    llm_db = db_wrapper.get_llm_by_id(llm_id)
+    if llm_db is None:
+        raise HTTPException(status_code=404, detail="LLM not found")
+
+    raw_options = llm_db.options or "{}"
+    opts = _json.loads(raw_options) if isinstance(raw_options, str) else raw_options
+
+    base_url = (opts.get("api_base") or opts.get("base_url") or "").rstrip("/")
+    api_key = opts.get("api_key") or ""
 
     if not base_url:
-        raise HTTPException(status_code=400, detail="api_base or base_url is required")
+        raise HTTPException(status_code=400, detail="This LLM has no api_base / base_url configured")
 
-    # Normalize: ensure the URL ends with /v1 or similar
     models_url = base_url.rstrip("/")
     if not models_url.endswith("/models"):
         if not models_url.endswith("/v1"):

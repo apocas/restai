@@ -63,11 +63,7 @@ export default function LLMEdit({ llm }) {
     setLoadingModels(true);
     setRemoteModels(null);
     try {
-      const opts = state.options || {};
-      const result = await api.post("/tools/openai-compat/models", {
-        api_base: opts.api_base || opts.base_url || "",
-        api_key: opts.api_key || "",
-      }, auth.user.token);
+      const result = await api.get("/tools/openai-compat/models/" + llm.id, auth.user.token);
       setRemoteModels(result.models || []);
     } catch (err) {
       setRemoteModels([]);
