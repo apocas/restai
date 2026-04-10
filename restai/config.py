@@ -225,6 +225,7 @@ GPU_WORKER_DEVICES = os.environ.get("GPU_WORKER_DEVICES", "")
 
 RESTAI_MCP = os.environ.get("MCP_SERVER", "").lower() in ("true", "1")
 
+DOCKER_ENABLED = False
 DOCKER_URL = os.environ.get("DOCKER_URL", "")
 DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE", "python:3.12-slim")
 DOCKER_TIMEOUT = int(os.environ.get("DOCKER_TIMEOUT", "900"))

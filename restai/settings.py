@@ -54,6 +54,7 @@ SETTINGS_DEFAULTS = {
     # MCP
     "mcp_enabled": ("MCP_SERVER", "false"),
     # Docker
+    "docker_enabled": (None, "false"),
     "docker_url": ("DOCKER_URL", ""),
     "docker_image": ("DOCKER_IMAGE", "python:3.12-slim"),
     "docker_timeout": ("DOCKER_TIMEOUT", "900"),
@@ -114,6 +115,7 @@ _CONFIG_ATTR_MAP = {
     # MCP
     "mcp_enabled": "RESTAI_MCP",
     # Docker
+    "docker_enabled": "DOCKER_ENABLED",
     "docker_url": "DOCKER_URL",
     "docker_image": "DOCKER_IMAGE",
     "docker_timeout": "DOCKER_TIMEOUT",
@@ -124,7 +126,7 @@ _CONFIG_ATTR_MAP = {
     "enforce_2fa": "ENFORCE_2FA",
 }
 
-_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "enforce_2fa"}
+_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "enforce_2fa"}
 _INT_KEYS = {"agent_max_iterations", "max_audio_upload_size", "data_retention_days", "docker_timeout"}
 
 # Secret keys that should be masked in API responses
@@ -254,6 +256,7 @@ def get_all_settings(db_wrapper) -> dict:
         # MCP
         "mcp_enabled": _to_bool(rows.get("mcp_enabled", "false")),
         # Docker
+        "docker_enabled": _to_bool(rows.get("docker_enabled", "false")),
         "docker_url": rows.get("docker_url", ""),
         "docker_image": rows.get("docker_image", "python:3.12-slim"),
         "docker_timeout": int(rows.get("docker_timeout", "900") or "900"),

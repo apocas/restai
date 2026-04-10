@@ -53,11 +53,18 @@ async def classifier(
 @router.get("/tools/agent", response_model=list[Tool])
 async def get_tools(request: Request, _: User = Depends(get_current_username)):
     """List all registered agent tools."""
+    brain = request.app.state.brain
+    docker_available = brain.docker_manager is not None
     _tools = []
 
-    for tool in request.app.state.brain.get_tools():
+    for tool in brain.get_tools():
+        enabled = True
+        description = tool.metadata.description
+        if tool.metadata.name == "terminal" and not docker_available:
+            enabled = False
+            description = "Requires Docker to be configured in Settings.\n\n" + description
         _tools.append(
-            Tool(name=tool.metadata.name, description=tool.metadata.description)
+            Tool(name=tool.metadata.name, description=description, enabled=enabled)
         )
 
     return _tools

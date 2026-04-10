@@ -241,6 +241,7 @@ class Tool(BaseModel):
     """Tool metadata."""
     name: str = Field(description="Unique name of the tool")
     description: str = Field(description="Human-readable description of what the tool does")
+    enabled: bool = Field(default=True, description="Whether the tool is currently available for use")
 
 
 class LLMUpdate(BaseModel):
@@ -1083,6 +1084,7 @@ class SettingsResponse(BaseModel):
     # MCP
     mcp_enabled: bool = Field(default=False, description="Whether the internal MCP server is enabled")
     # Docker
+    docker_enabled: bool = Field(default=False, description="Whether Docker sandboxed terminal is enabled")
     docker_url: Optional[str] = Field(default="", description="Docker socket or TCP URL for sandboxed terminal")
     docker_image: Optional[str] = Field(default="python:3.12-slim", description="Base image for sandbox containers")
     docker_timeout: int = Field(default=900, description="Container idle timeout in seconds")
@@ -1144,6 +1146,7 @@ class SettingsUpdate(BaseModel):
     # MCP
     mcp_enabled: Optional[bool] = Field(default=None, description="Whether the internal MCP server is enabled")
     # Docker
+    docker_enabled: Optional[bool] = Field(default=None, description="Whether Docker sandboxed terminal is enabled")
     docker_url: Optional[str] = Field(default=None, description="Docker socket or TCP URL for sandboxed terminal")
     docker_image: Optional[str] = Field(default=None, description="Base image for sandbox containers")
     docker_timeout: Optional[int] = Field(default=None, ge=60, description="Container idle timeout in seconds")

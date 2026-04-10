@@ -75,6 +75,7 @@ export default function SettingsPage() {
     sso_auto_team_id: "",
     sso_oidc_email_claim: "email",
     mcp_enabled: false,
+    docker_enabled: false,
     docker_url: "",
     docker_image: "python:3.12-slim",
     docker_timeout: 900,
@@ -83,6 +84,7 @@ export default function SettingsPage() {
   });
   const [teams, setTeams] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [dockerTest, setDockerTest] = useState(null); // null | "testing" | {status, detail}
   const [expanded, setExpanded] = useState({ google: false, microsoft: false, github: false, oidc: false });
 
   const toggleExpanded = (section) => () => {
@@ -265,17 +267,21 @@ export default function SettingsPage() {
               {/* Docker */}
               <Grid item xs={12}>
                 <Card elevation={1} sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Docker (Sandboxed Terminal)</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Configure a Docker instance for the terminal tool. Each chat session gets its own isolated container that persists across commands and is automatically removed after the idle timeout.
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>Docker (Sandboxed Terminal)</Typography>
+                  <FormControlLabel
+                    control={<Switch checked={form.docker_enabled} onChange={handleChange("docker_enabled")} />}
+                    label="Enable Docker Terminal"
+                  />
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+                    Each chat session gets its own isolated container that persists across commands and is automatically removed after the idle timeout.
                   </Typography>
+                  {form.docker_enabled && (
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
                       <TextField fullWidth label="Docker URL"
                         value={form.docker_url || ""}
                         onChange={handleChange("docker_url")}
                         placeholder="unix:///var/run/docker.sock or tcp://host:2375"
-                        helperText="Leave empty to disable the terminal tool"
                       />
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -299,7 +305,31 @@ export default function SettingsPage() {
                         helperText={'"none" for no network access, "bridge" for internet access, or a custom network name'}
                       />
                     </Grid>
+                    <Grid item xs={12}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled={!form.docker_url || dockerTest === "testing"}
+                        onClick={() => {
+                          setDockerTest("testing");
+                          api.post("/settings/docker/test", {}, auth.user.token)
+                            .then((d) => setDockerTest({ status: "ok", detail: `Connected (Docker ${d.server_version})` }))
+                            .catch((e) => setDockerTest({ status: "error", detail: e?.detail || "Connection failed" }));
+                        }}
+                      >
+                        {dockerTest === "testing" ? "Testing..." : "Test Connection"}
+                      </Button>
+                      {dockerTest && dockerTest !== "testing" && (
+                        <Typography
+                          variant="caption"
+                          sx={{ ml: 2, color: dockerTest.status === "ok" ? "success.main" : "error.main" }}
+                        >
+                          {dockerTest.detail}
+                        </Typography>
+                      )}
+                    </Grid>
                   </Grid>
+                  )}
                 </Card>
               </Grid>
             </Grid>

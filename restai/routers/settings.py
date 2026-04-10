@@ -75,11 +75,38 @@ async def patch_settings(
     if sso_fields:
         reinit_oauth(request.app)
 
-    docker_fields = {"docker_url", "docker_image", "docker_timeout", "docker_network"}
+    docker_fields = {"docker_enabled", "docker_url", "docker_image", "docker_timeout", "docker_network"}
     if docker_fields & updates.keys():
         request.app.state.brain.init_docker_manager()
 
     return get_all_settings(db_wrapper)
+
+
+@router.post("/settings/docker/test", tags=["Settings"])
+async def test_docker_connection(
+    request: Request,
+    _=Depends(get_current_username_admin),
+):
+    """Test the Docker connection using the current settings."""
+    brain = request.app.state.brain
+    if brain.docker_manager is None:
+        docker_url = getattr(config, "DOCKER_URL", "") or ""
+        if not docker_url.strip():
+            raise HTTPException(status_code=400, detail="Docker URL is not configured")
+        # Try to connect
+        try:
+            import docker as docker_sdk
+            client = docker_sdk.DockerClient(base_url=docker_url)
+            info = client.info()
+            return {"status": "ok", "server_version": info.get("ServerVersion", "unknown")}
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Connection failed: {e}")
+    else:
+        try:
+            info = brain.docker_manager._client.info()
+            return {"status": "ok", "server_version": info.get("ServerVersion", "unknown")}
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Connection failed: {e}")
 
 
 @router.get("/audit", tags=["Settings"])

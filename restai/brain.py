@@ -56,6 +56,9 @@ class Brain:
             self.docker_manager.shutdown()
             self.docker_manager = None
 
+        if not getattr(config, "DOCKER_ENABLED", False):
+            return
+
         docker_url = getattr(config, "DOCKER_URL", "") or ""
         if not docker_url.strip():
             return
@@ -278,6 +281,9 @@ class Brain:
         if len(names) > 0:
             for tool in self.tools:
                 if tool.metadata.name in names:
+                    # Skip terminal tool when Docker is not configured
+                    if tool.metadata.name == "terminal" and self.docker_manager is None:
+                        continue
                     _tools.append(tool)
         else:
             _tools = self.tools
