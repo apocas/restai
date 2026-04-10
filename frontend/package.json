@@ -60,6 +60,7 @@
     "react-dom": "^18.3.1",
     "react-dropzone": "^15.0.0",
     "react-highlight": "^0.15.0",
+    "react-markdown": "^10.1.0",
     "react-perfect-scrollbar": "^1.5.8",
     "react-qr-code": "^2.0.18",
     "react-redux": "^9.2.0",
@@ -67,6 +68,7 @@
     "react-scripts": "^5.0.1",
     "react-toastify": "^11.0.5",
     "recharts": "^3.8.0",
+    "remark-gfm": "^4.0.1",
     "vis-data": "^7.1.10",
     "vis-network": "^9.1.13"
   },

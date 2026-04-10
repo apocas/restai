@@ -4,6 +4,8 @@ import {
   Accordion, AccordionSummary, AccordionDetails,
 } from "@mui/material";
 import { ContentCopy, ExpandMore, Shield, Cached, Speed, TerminalOutlined } from "@mui/icons-material";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import Terminal from "./Terminal";
 
 const QuestionBubble = styled(Box)(({ theme }) => ({
@@ -23,7 +25,43 @@ const AnswerBubble = styled(Box)(({ theme }) => ({
   borderRadius: "16px 16px 16px 4px",
   maxWidth: "80%",
   wordBreak: "break-word",
-  whiteSpace: "pre-wrap",
+  "& table": {
+    borderCollapse: "collapse",
+    width: "100%",
+    margin: "8px 0",
+    fontSize: "0.85rem",
+  },
+  "& th, & td": {
+    border: `1px solid ${theme.palette.divider}`,
+    padding: "6px 10px",
+    textAlign: "left",
+  },
+  "& th": {
+    backgroundColor: theme.palette.mode === "dark" ? "#383838" : "#e8e8e8",
+    fontWeight: 600,
+  },
+  "& pre": {
+    backgroundColor: theme.palette.mode === "dark" ? "#1e1e1e" : "#e0e0e0",
+    padding: "10px",
+    borderRadius: "6px",
+    overflowX: "auto",
+    fontSize: "0.82rem",
+    margin: "8px 0",
+  },
+  "& code": {
+    fontFamily: "'JetBrains Mono', 'SF Mono', Monaco, Consolas, monospace",
+    fontSize: "0.85em",
+  },
+  "& :not(pre) > code": {
+    backgroundColor: theme.palette.mode === "dark" ? "#383838" : "#e0e0e0",
+    padding: "2px 5px",
+    borderRadius: "4px",
+  },
+  "& p": { margin: "4px 0" },
+  "& ul, & ol": { margin: "4px 0", paddingLeft: "20px" },
+  "& h1, & h2, & h3, & h4, & h5, & h6": { margin: "8px 0 4px" },
+  "& hr": { border: "none", borderTop: `1px solid ${theme.palette.divider}`, margin: "8px 0" },
+  "& a": { color: theme.palette.primary.main },
 }));
 
 export default function MessageBubble({ message }) {
@@ -63,7 +101,7 @@ export default function MessageBubble({ message }) {
           <Box sx={{ maxWidth: "80%" }}>
             <AnswerBubble>
               <Typography variant="body2" component="div">
-                {message.answer}
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.answer}</ReactMarkdown>
               </Typography>
               {/* Agent reasoning — collapsed inside the bubble */}
               {message.reasoning && message.reasoning.steps && message.reasoning.steps.length > 0 && (
