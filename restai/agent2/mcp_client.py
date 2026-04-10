@@ -37,7 +37,7 @@ def _validate_stdio_host(host: str, args: list = None):
     if cmd not in ALLOWED_MCP_STDIO_COMMANDS:
         raise ValueError(
             f"MCP stdio command '{cmd}' is not allowed. "
-            f"Permitted: {', '.join(sorted(_ALLOWED_STDIO_COMMANDS))}"
+            f"Permitted: {', '.join(sorted(ALLOWED_MCP_STDIO_COMMANDS))}"
         )
     if args:
         for arg in args:
