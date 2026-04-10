@@ -6,11 +6,12 @@ from restai.main import app
 
 
 def _clear_login_attempts():
-    from restai.database import get_db_wrapper
+    from restai.database import DBWrapper
     from restai.models.databasemodels import LoginAttemptDatabase
-    db = next(get_db_wrapper())
+    db = DBWrapper()
     db.db.query(LoginAttemptDatabase).delete()
     db.db.commit()
+    db.db.close()
 
 
 def test_login_success():
