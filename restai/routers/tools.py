@@ -64,22 +64,9 @@ async def get_tools(request: Request, _: User = Depends(get_current_username)):
 
 
 def _validate_mcp_host(host: str, args: list = None):
-    """Validate MCP server host — must be an HTTP(S) URL or a known safe command."""
-    from restai.agent2.mcp_client import ALLOWED_MCP_STDIO_COMMANDS
-
+    """Validate MCP server host — reject empty hosts and shell metacharacters in args."""
     if not host or not host.strip():
         raise HTTPException(status_code=400, detail="MCP server host is required")
-    host = host.strip()
-    if host.startswith(("http://", "https://")):
-        return  # URLs are fine
-    # Stdio mode: only allow known package runners / interpreters
-    cmd = os.path.basename(host)
-    if cmd not in ALLOWED_MCP_STDIO_COMMANDS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"MCP stdio command '{cmd}' is not allowed. Permitted commands: {', '.join(sorted(ALLOWED_MCP_STDIO_COMMANDS))}",
-        )
-    # Reject shell metacharacters in args
     if args:
         import re
         for arg in args:

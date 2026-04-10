@@ -410,7 +410,11 @@ class Agent2Runtime:
             )
 
         try:
-            result_text = await tool.call(args)
+            context = {
+                "chat_id": getattr(self, "_chat_id", None),
+                "brain": getattr(self, "_brain", None),
+            }
+            result_text = await tool.call(args, context=context)
         except Exception as e:
             logger.exception("agent2 tool '%s' raised", tool_call.name)
             return ToolResultBlock(

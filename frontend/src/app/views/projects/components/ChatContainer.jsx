@@ -15,7 +15,7 @@ const ChatRoot = styled(Card)({
 export default function ChatContainer({ project }) {
   const [mode, setMode] = useState(0); // 0 = chat, 1 = compare
   const [chatMode, setChatMode] = useState(true);
-  const [streaming, setStreaming] = useState(false);
+  const [streaming, setStreaming] = useState(true);
 
   return (
     <ChatRoot elevation={3}>

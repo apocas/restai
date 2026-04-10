@@ -18,6 +18,7 @@
     avatarUrl: scriptTag.getAttribute("data-avatar-url") || "",
     stream: scriptTag.getAttribute("data-stream") === "true",
     server: scriptTag.getAttribute("data-server") || scriptTag.src.replace(/\/widget\/chat\.js.*$/, ""),
+    contextToken: scriptTag.getAttribute("data-context-token") || "",
   };
 
   const hasAuth = cfg.widgetKey || (cfg.projectId && cfg.apiKey);
@@ -286,7 +287,9 @@
 
   // --- Fetch server config (widget key mode) ---
   if (cfg.widgetKey) {
-    fetch(`${cfg.server}/widget/config`, { headers: { "X-Widget-Key": cfg.widgetKey } })
+    const configHeaders = { "X-Widget-Key": cfg.widgetKey };
+    if (cfg.contextToken) configHeaders["X-Widget-Context"] = cfg.contextToken;
+    fetch(`${cfg.server}/widget/config`, { headers: configHeaders })
       .then(r => {
         if (!r.ok) { host.remove(); return null; }
         return r.json();
@@ -366,6 +369,7 @@
       if (cfg.widgetKey) {
         url = `${cfg.server}/widget/chat`;
         headers = { "Content-Type": "application/json", "X-Widget-Key": cfg.widgetKey };
+        if (cfg.contextToken) headers["X-Widget-Context"] = cfg.contextToken;
       } else {
         url = `${cfg.server}/projects/${cfg.projectId}/chat`;
         headers = { "Content-Type": "application/json", "Authorization": `Bearer ${cfg.apiKey}` };

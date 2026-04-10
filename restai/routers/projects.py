@@ -55,7 +55,7 @@ from restai.models.models import (
 )
 import uuid
 import secrets
-from restai.utils.crypto import encrypt_api_key, hash_api_key
+from restai.utils.crypto import encrypt_api_key, hash_api_key, encrypt_field
 from restai.brain import Brain
 from restai.vectordb import tools
 from restai.knowledge_graph import extract_and_persist_safe
@@ -483,9 +483,9 @@ async def route_edit_project(
                     )
 
     # Validate private user restrictions
-    if user.is_private:
+    if user.is_private and projectModelUpdate.llm:
         llm_model = request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper)
-        if llm_model.props.privacy != "private":
+        if llm_model and llm_model.props.privacy != "private":
             raise HTTPException(
                 status_code=403, detail="User not allowed to use public models"
             )
@@ -2396,6 +2396,49 @@ async def regenerate_widget_key(
     resp = WidgetResponse.model_validate(widget).model_dump()
     resp["widget_key"] = plaintext_key
     return resp
+
+
+@router.post("/projects/{projectID}/widgets/{widgetID}/context-secret", tags=["Widgets"])
+async def generate_widget_context_secret(
+    projectID: int = PathParam(description="Project ID"),
+    widgetID: int = PathParam(description="Widget ID"),
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Generate a context secret for signed widget context injection. Returns the secret once."""
+    check_not_restricted(user)
+
+    widget = db_wrapper.get_widget_by_id(widgetID)
+    if widget is None or widget.project_id != projectID:
+        raise HTTPException(status_code=404, detail="Widget not found")
+
+    plaintext_secret = secrets.token_urlsafe(32)
+    widget.context_secret = encrypt_field(plaintext_secret)
+    widget.updated_at = datetime.datetime.now(datetime.timezone.utc)
+    db_wrapper.db.commit()
+
+    return {"context_secret": plaintext_secret}
+
+
+@router.delete("/projects/{projectID}/widgets/{widgetID}/context-secret", tags=["Widgets"])
+async def remove_widget_context_secret(
+    projectID: int = PathParam(description="Project ID"),
+    widgetID: int = PathParam(description="Widget ID"),
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Remove the context secret, disabling signed context for this widget."""
+    check_not_restricted(user)
+
+    widget = db_wrapper.get_widget_by_id(widgetID)
+    if widget is None or widget.project_id != projectID:
+        raise HTTPException(status_code=404, detail="Widget not found")
+
+    widget.context_secret = None
+    widget.updated_at = datetime.datetime.now(datetime.timezone.utc)
+    db_wrapper.db.commit()
+
+    return {"detail": "Context secret removed"}
 
 
 # ── Knowledge Graph ──────────────────────────────────────────────────────

@@ -1210,6 +1210,20 @@ wheels = [
 ]
 
 [[package]]
+name = "docker"
+version = "7.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pywin32", marker = "sys_platform == 'win32'" },
+    { name = "requests" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/91/9b/4a2ea29aeba62471211598dac5d96825bb49348fa07e906ea930394a83ce/docker-7.1.0.tar.gz", hash = "sha256:ad8c70e6e3f8926cb8a92619b832b4ea5299e2831c14284663184e200546fa6c", size = 117834, upload-time = "2024-05-23T11:13:57.216Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e3/26/57c6fb270950d476074c087527a558ccb6f4436657314bfb6cdf484114c4/docker-7.1.0-py3-none-any.whl", hash = "sha256:c96b93b7f0a746f9e77d325bcfb87422a3d8bd4f03136ae8a85b37f1898d5fc0", size = 147774, upload-time = "2024-05-23T11:13:55.01Z" },
+]
+
+[[package]]
 name = "docling"
 version = "2.79.0"
 source = { registry = "https://pypi.org/simple" }
@@ -5938,7 +5952,7 @@ wheels = [
 
 [[package]]
 name = "restai-core"
-version = "6.1.3"
+version = "6.1.4"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
@@ -5948,6 +5962,7 @@ dependencies = [
     { name = "chromadb" },
     { name = "ddgs" },
     { name = "deepeval" },
+    { name = "docker" },
     { name = "docx2txt" },
     { name = "einops" },
     { name = "exceptiongroup" },
@@ -6059,6 +6074,7 @@ requires-dist = [
     { name = "chromadb", specifier = ">=1.5.5,<2" },
     { name = "ddgs", specifier = ">=9.0.0,<10" },
     { name = "deepeval", specifier = ">=3.8.9,<4" },
+    { name = "docker", specifier = ">=7.0.0,<8" },
     { name = "docx2txt", specifier = ">=0.9,<1.0" },
     { name = "einops", specifier = ">=0.8.2,<0.9" },
     { name = "exceptiongroup", specifier = ">=1.3.0,<2" },

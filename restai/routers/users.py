@@ -24,7 +24,7 @@ from restai.models.models import (
     LimitedUser,
 )
 from restai.database import get_db_wrapper, DBWrapper
-from restai.models.databasemodels import UserDatabase, ProjectDatabase, TeamDatabase, users_projects
+from restai.models.databasemodels import UserDatabase, ProjectDatabase, TeamDatabase, users_projects, teams_users, teams_admins
 from restai.auth import (
     create_access_token,
     get_current_username,
@@ -525,22 +525,62 @@ async def totp_disable(
 
 @router.get("/permissions/matrix", tags=["Admin"])
 async def get_permission_matrix(
-    user: User = Depends(get_current_username_admin),
+    user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Return the full users × projects permission matrix (admin only)."""
-    users = (
-        db_wrapper.db.query(UserDatabase)
-        .order_by(UserDatabase.username)
-        .all()
-    )
-    projects = (
-        db_wrapper.db.query(ProjectDatabase)
-        .outerjoin(TeamDatabase, ProjectDatabase.team_id == TeamDatabase.id)
-        .order_by(ProjectDatabase.name)
-        .all()
-    )
-    rows = db_wrapper.db.query(users_projects).all()
+    """Return the users x projects permission matrix.
+
+    Admins see everything. Team leaders see only users and projects
+    belonging to their teams. Regular users get 403.
+    """
+    admin_team_ids = {t.id for t in (user.admin_teams or [])}
+
+    if not user.is_admin and not admin_team_ids:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    if user.is_admin:
+        all_users = (
+            db_wrapper.db.query(UserDatabase)
+            .order_by(UserDatabase.username)
+            .all()
+        )
+        all_projects = (
+            db_wrapper.db.query(ProjectDatabase)
+            .outerjoin(TeamDatabase, ProjectDatabase.team_id == TeamDatabase.id)
+            .order_by(ProjectDatabase.name)
+            .all()
+        )
+        rows = db_wrapper.db.query(users_projects).all()
+    else:
+        # Team leader: filter to their teams
+        all_projects = (
+            db_wrapper.db.query(ProjectDatabase)
+            .outerjoin(TeamDatabase, ProjectDatabase.team_id == TeamDatabase.id)
+            .filter(ProjectDatabase.team_id.in_(admin_team_ids))
+            .order_by(ProjectDatabase.name)
+            .all()
+        )
+        project_ids = {p.id for p in all_projects}
+
+        # Users who belong to those teams (members + admins, single query via union)
+        from sqlalchemy import union
+        members_q = db_wrapper.db.query(teams_users.c.user_id).filter(teams_users.c.team_id.in_(admin_team_ids))
+        admins_q = db_wrapper.db.query(teams_admins.c.user_id).filter(teams_admins.c.team_id.in_(admin_team_ids))
+        team_user_ids = {r[0] for r in members_q.union(admins_q).all()}
+
+        all_users = (
+            db_wrapper.db.query(UserDatabase)
+            .filter(UserDatabase.id.in_(team_user_ids))
+            .order_by(UserDatabase.username)
+            .all()
+        )
+
+        rows = (
+            db_wrapper.db.query(users_projects)
+            .filter(users_projects.c.project_id.in_(project_ids))
+            .filter(users_projects.c.user_id.in_(team_user_ids))
+            .all()
+        )
 
     return {
         "users": [
@@ -550,7 +590,7 @@ async def get_permission_matrix(
                 "is_admin": bool(u.is_admin),
                 "is_restricted": bool(getattr(u, "is_restricted", False)),
             }
-            for u in users
+            for u in all_users
         ],
         "projects": [
             {
@@ -559,7 +599,7 @@ async def get_permission_matrix(
                 "team_id": p.team_id,
                 "team_name": p.team.name if p.team else None,
             }
-            for p in projects
+            for p in all_projects
         ],
         "assignments": [
             {"user_id": row.user_id, "project_id": row.project_id} for row in rows

@@ -63,7 +63,7 @@ export default function ProjectNewView() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Projects", path: "/projects"}, { name: "Edit " + id, path: "/project/" + id + "/edit" }]} />
+        <Breadcrumb routeSegments={[{ name: "Projects", path: "/projects"}, { name: id, path: "/project/" + id }, { name: "Edit" }]} />
       </Box>
 
       <ContentBox className="analytics">

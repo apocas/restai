@@ -39,7 +39,7 @@ install:
 	if [ "$$answer" = "y" ] || [ "$$answer" = "Y" ]; then \
 		$(MAKE) systemd; \
 	fi
-	@read -p "Install cron jobs (sync + telegram polling)? [y/N] " answer; \
+	@read -p "Install cron jobs (sync + telegram + docker cleanup)? [y/N] " answer; \
 	if [ "$$answer" = "y" ] || [ "$$answer" = "Y" ]; then \
 		$(MAKE) cron; \
 	fi
@@ -93,16 +93,27 @@ migrate:
 .PHONY: cron
 cron:
 	@RESTAI_DIR=$$(pwd); \
-	( crontab -l 2>/dev/null | grep -v "restai-sync\|restai-telegram" ; \
-	  echo "*/5 * * * * cd $$RESTAI_DIR && uv run --no-group gpu python scripts/sync.py >> /var/log/restai-sync.log 2>&1 # restai-sync"; \
-	  echo "*/1 * * * * cd $$RESTAI_DIR && uv run --no-group gpu python scripts/telegram.py >> /var/log/restai-telegram.log 2>&1 # restai-telegram"; \
-	) | crontab -
+	CURRENT=$$(crontab -l 2>/dev/null || true); \
+	NEW="$$CURRENT"; \
+	if ! echo "$$CURRENT" | grep -q "restai-sync"; then \
+	  NEW="$$NEW"$$'\n'"*/5 * * * * cd $$RESTAI_DIR && uv run --no-group gpu python scripts/sync.py >> /var/log/restai-sync.log 2>&1 # restai-sync"; \
+	  echo "Added: restai-sync"; \
+	else echo "Already installed: restai-sync"; fi; \
+	if ! echo "$$CURRENT" | grep -q "restai-telegram"; then \
+	  NEW="$$NEW"$$'\n'"*/1 * * * * cd $$RESTAI_DIR && uv run --no-group gpu python scripts/telegram.py >> /var/log/restai-telegram.log 2>&1 # restai-telegram"; \
+	  echo "Added: restai-telegram"; \
+	else echo "Already installed: restai-telegram"; fi; \
+	if ! echo "$$CURRENT" | grep -q "restai-docker-cleanup"; then \
+	  NEW="$$NEW"$$'\n'"* * * * * cd $$RESTAI_DIR && uv run --no-group gpu python scripts/docker_cleanup.py >> /var/log/restai-docker-cleanup.log 2>&1 # restai-docker-cleanup"; \
+	  echo "Added: restai-docker-cleanup"; \
+	else echo "Already installed: restai-docker-cleanup"; fi; \
+	echo "$$NEW" | crontab -
 	@echo "Cron jobs installed:"
-	@crontab -l | grep restai
+	@crontab -l | grep restai || true
 
 .PHONY: cron-remove
 cron-remove:
-	@( crontab -l 2>/dev/null | grep -v "restai-sync\|restai-telegram" ) | crontab -
+	@( crontab -l 2>/dev/null | grep -v "restai-sync\|restai-telegram\|restai-docker-cleanup" ) | crontab -
 	@echo "RESTai cron jobs removed."
 
 .PHONY: sync
@@ -155,7 +166,7 @@ code:
 
 .PHONY: clean
 clean:
-	rm -rf frontend
+	rm -rf frontend/build/*
 
 .PHONY: dockershell
 dockershell:
@@ -165,10 +176,3 @@ dockershell:
 dockerbuild:
 	@docker build -t restai .
 
-.PHONY: dockernpminstall
-dockernpminstall:
-	cd frontend && docker run --rm -t -i -v $(shell pwd):/app --workdir /app node:12.18.1 make frontend
-
-.PHONY: dockernpmbuild
-dockernpmbuild:
-	cd frontend && docker run --rm -t -i -v $(shell pwd):/app --workdir /app node:12.18.1 make npmbuild

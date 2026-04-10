@@ -25,12 +25,17 @@ class AdaptedTool:
     fn: Callable
     is_async: bool = False
 
-    async def call(self, args: dict) -> str:
+    accepts_kwargs: bool = False
+
+    async def call(self, args: dict, context: dict = None) -> str:
         try:
+            call_args = dict(args)
+            if context and self.accepts_kwargs:
+                call_args.update({f"_{k}": v for k, v in context.items()})
             if self.is_async:
-                result = await self.fn(**args)
+                result = await self.fn(**call_args)
             else:
-                result = self.fn(**args)
+                result = self.fn(**call_args)
         except TypeError as e:
             return f"Error calling tool ({self.name}): {e}"
         if result is None:
@@ -191,12 +196,23 @@ def adapt_function_tools(tools: list) -> list[AdaptedTool]:
             except Exception:
                 schema = {"type": "object", "properties": {}, "required": []}
 
+        # Detect if the function accepts **kwargs (for context injection)
+        has_var_keyword = False
+        try:
+            sig = inspect.signature(fn)
+            has_var_keyword = any(
+                p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+            )
+        except (TypeError, ValueError):
+            pass
+
         adapted_tool = AdaptedTool(
             name=name,
             description=description,
             input_schema=schema,
             fn=fn,
             is_async=inspect.iscoroutinefunction(fn),
+            accepts_kwargs=has_var_keyword,
         )
         _adapted_tool_cache[key] = adapted_tool
         adapted.append(adapted_tool)

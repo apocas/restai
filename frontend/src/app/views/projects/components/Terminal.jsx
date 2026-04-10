@@ -32,29 +32,28 @@ export default function Terminal({
         step.actions.map((action, actionIndex) => (
           <Box key={`${stepIndex}-${actionIndex}`}>
             <TerminalLine color={"gray"} textDecorationLine={"underline"}>{action.action}</TerminalLine>
-            {action.action === "terminal" &&
+            {action.action === "terminal" || action.action === "connect_ssh" ? (
               <>
                 <TerminalLine>
-                  <TerminalPrompt>ai@01 [~]# </TerminalPrompt>{action.input.kwargs.command}
+                  <TerminalPrompt>ai@01 [~]# </TerminalPrompt>{action.input?.kwargs?.command || action.input?.command || ""}
                 </TerminalLine>
                 <TerminalLine marginLeft={"15px"} color={"#a8ffa8"}>
                   {action.output}
                 </TerminalLine>
               </>
-            }
-            {action.action !== "terminal" &&
+            ) : (
               <>
                 <TerminalLine>
-                  {action.input && action.input.kwargs &&
-                    JSON.stringify(action.input.kwargs)
+                  {action.input?.kwargs
+                    ? JSON.stringify(action.input.kwargs)
+                    : action.input ? JSON.stringify(action.input) : ""
                   }
                 </TerminalLine>
                 <TerminalLine marginLeft={"15px"} color={"#a8ffa8"}>
-                  <Span sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }} value={action.output}>{action.output}
-                  </Span>
+                  <Span sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{action.output}</Span>
                 </TerminalLine>
               </>
-            }
+            )}
             {stepIndex < message.reasoning.steps.length - 1 && actionIndex === step.actions.length - 1 && (
               <Box sx={{ borderBottom: "1px solid #333", my: 1 }} />
             )}

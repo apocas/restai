@@ -268,6 +268,7 @@ class WidgetDatabase(Base):
     config = Column(Text, nullable=False, default="{}")
     allowed_domains = Column(Text, nullable=False, default="[]")
     enabled = Column(Boolean, nullable=False, default=True)
+    context_secret = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False)
     updated_at = Column(DateTime, nullable=False)
 

@@ -6,6 +6,7 @@ import {
 } from "@mui/material";
 import {
   Add, Code, ContentCopy, Delete, Edit, Refresh, VpnKey, PowerSettingsNew, Visibility,
+  Lock, LockOpen, ExpandMore, ExpandLess,
 } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
@@ -200,6 +201,29 @@ export default function ProjectWidget({ project }) {
       .catch(() => {});
   };
 
+  const [contextSecret, setContextSecret] = useState(null);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  const handleGenerateContextSecret = (widget) => {
+    api.post(`/projects/${project.id}/widgets/${widget.id}/context-secret`, {}, auth.user.token)
+      .then((d) => {
+        setContextSecret({ widgetId: widget.id, secret: d.context_secret });
+        fetchWidgets();
+        toast.success("Context secret generated");
+      })
+      .catch(() => {});
+  };
+
+  const handleRemoveContextSecret = (widget) => {
+    if (!window.confirm("Remove context secret? Signed context tokens will no longer be accepted.")) return;
+    api.delete(`/projects/${project.id}/widgets/${widget.id}/context-secret`, auth.user.token)
+      .then(() => {
+        fetchWidgets();
+        toast.success("Context secret removed");
+      })
+      .catch(() => {});
+  };
+
   const serverUrl = process.env.REACT_APP_RESTAI_API_URL || window.location.origin;
 
   const getEmbedCode = (widget) => {
@@ -236,6 +260,32 @@ export default function ProjectWidget({ project }) {
 
   return (
     <Grid container spacing={3}>
+      {/* Context secret shown once alert */}
+      {contextSecret && (
+        <Grid item xs={12}>
+          <Alert
+            severity="info"
+            action={
+              <Button color="inherit" size="small" onClick={() => {
+                navigator.clipboard.writeText(contextSecret.secret);
+                toast.success("Context secret copied");
+              }}>
+                Copy Secret
+              </Button>
+            }
+            onClose={() => setContextSecret(null)}
+          >
+            <Typography variant="subtitle2" gutterBottom>Context Secret (shown only once)</Typography>
+            <Typography variant="body2" sx={{ fontFamily: "monospace", wordBreak: "break-all" }}>
+              {contextSecret.secret}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+              Use this secret in your backend to sign JWT tokens for widget context injection.
+            </Typography>
+          </Alert>
+        </Grid>
+      )}
+
       {/* Key shown once alert */}
       {newKey && (
         <Grid item xs={12}>
@@ -278,12 +328,17 @@ export default function ProjectWidget({ project }) {
                       {w.key_prefix}... &middot; {(w.allowed_domains || []).length > 0 ? `${w.allowed_domains.length} domain(s)` : "All domains"}
                     </Typography>
                   </Box>
-                  <Chip
-                    label={w.enabled ? "Active" : "Disabled"}
-                    size="small"
-                    color={w.enabled ? "success" : "default"}
-                    variant="outlined"
-                  />
+                  <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
+                    <Chip
+                      label={w.enabled ? "Active" : "Disabled"}
+                      size="small"
+                      color={w.enabled ? "success" : "default"}
+                      variant="outlined"
+                    />
+                    {w.has_context_secret && (
+                      <Chip label="Context" size="small" icon={<Lock sx={{ fontSize: 14 }} />} color="info" variant="outlined" />
+                    )}
+                  </Box>
                   <Box sx={{ display: "flex", gap: 0.5 }}>
                     <Tooltip title={w.enabled ? "Disable" : "Enable"}>
                       <IconButton size="small" onClick={() => handleToggle(w)}>
@@ -304,6 +359,18 @@ export default function ProjectWidget({ project }) {
                         <Edit fontSize="small" />
                       </IconButton>
                     </Tooltip>
+                    <Tooltip title={w.has_context_secret ? "Regenerate Context Secret" : "Generate Context Secret"}>
+                      <IconButton size="small" onClick={() => handleGenerateContextSecret(w)}>
+                        <Lock fontSize="small" color={w.has_context_secret ? "info" : "disabled"} />
+                      </IconButton>
+                    </Tooltip>
+                    {w.has_context_secret && (
+                      <Tooltip title="Remove Context Secret">
+                        <IconButton size="small" onClick={() => handleRemoveContextSecret(w)}>
+                          <LockOpen fontSize="small" color="warning" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                     <Tooltip title="Regenerate Key">
                       <IconButton size="small" onClick={() => handleRegenerateKey(w)}>
                         <VpnKey fontSize="small" />
@@ -403,6 +470,98 @@ export default function ProjectWidget({ project }) {
               sandbox="allow-scripts allow-same-origin"
             />
           </Box>
+        </Card>
+      </Grid>
+
+      {/* Context Injection Tutorial */}
+      <Grid item xs={12}>
+        <Card elevation={1} sx={{ p: 2.5 }}>
+          <Box
+            sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+            onClick={() => setShowTutorial(!showTutorial)}
+          >
+            <SectionTitle sx={{ mb: 0 }}><Lock fontSize="small" /> Site Context Injection</SectionTitle>
+            <IconButton size="small">{showTutorial ? <ExpandLess /> : <ExpandMore />}</IconButton>
+          </Box>
+
+          {showTutorial && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Pass information about your logged-in users (name, role, preferences) to the AI project so it can personalize responses.
+                Context is signed with a secret key to prevent tampering.
+              </Typography>
+
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>1. Generate a Context Secret</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Click the <Lock sx={{ fontSize: 14, verticalAlign: "middle" }} /> button on your widget above. Save the secret securely in your backend environment variables.
+              </Typography>
+
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>2. Sign a JWT on your backend</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Use any JWT library to create a signed token with your user's information. Always include an <code>exp</code> (expiry) claim.
+              </Typography>
+
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5, fontWeight: 600 }}>Python</Typography>
+              <CodeBlock sx={{ mb: 2, fontSize: "0.75rem" }}>{`import jwt, time
+
+token = jwt.encode({
+    "sub": user.id,
+    "name": user.name,
+    "role": user.role,
+    "email": user.email,
+    "meta": {"plan": "enterprise", "department": "engineering"},
+    "exp": int(time.time()) + 3600  # 1 hour
+}, CONTEXT_SECRET, algorithm="HS256")`}</CodeBlock>
+
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5, fontWeight: 600 }}>Node.js</Typography>
+              <CodeBlock sx={{ mb: 2, fontSize: "0.75rem" }}>{`const jwt = require('jsonwebtoken');
+
+const token = jwt.sign({
+    sub: user.id,
+    name: user.name,
+    role: user.role,
+    email: user.email,
+    meta: { plan: "enterprise", department: "engineering" }
+}, CONTEXT_SECRET, { expiresIn: '1h' });`}</CodeBlock>
+
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5, fontWeight: 600 }}>PHP</Typography>
+              <CodeBlock sx={{ mb: 2, fontSize: "0.75rem" }}>{`use Firebase\\JWT\\JWT;
+
+$token = JWT::encode([
+    'sub' => $user->id,
+    'name' => $user->name,
+    'role' => $user->role,
+    'email' => $user->email,
+    'meta' => ['plan' => 'enterprise', 'department' => 'engineering'],
+    'exp' => time() + 3600
+], $contextSecret, 'HS256');`}</CodeBlock>
+
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>3. Render the widget with the token</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Pass the signed token via the <code>data-context-token</code> attribute. Generate a fresh token on each page load.
+              </Typography>
+              <CodeBlock sx={{ mb: 2, fontSize: "0.75rem" }}>{`<script
+  src="${serverUrl}/widget/chat.js"
+  data-widget-key="wk_your_widget_key"
+  data-server="${serverUrl}"
+  data-context-token="<?= $token ?>"
+></script>`}</CodeBlock>
+
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>4. Use context in your system prompt</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                The context is automatically prepended to the system prompt as a <code>[User Context]</code> block.
+                You can also use template variables for precise control:
+              </Typography>
+              <CodeBlock sx={{ mb: 2, fontSize: "0.75rem" }}>{`You are a helpful assistant for {{context.name}}.
+They are on the {{context.meta.plan}} plan with {{context.role}} access.
+Adjust your responses accordingly.`}</CodeBlock>
+
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Template variables use the format <code>{"{{context.key}}"}</code>. Nested values use dots: <code>{"{{context.meta.plan}}"}</code>.
+                Missing keys resolve to empty strings, so the same prompt works with or without context.
+              </Typography>
+            </Box>
+          )}
         </Card>
       </Grid>
 

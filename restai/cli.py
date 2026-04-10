@@ -162,6 +162,10 @@ def main():
     slack_parser = subparsers.add_parser("slack", help="Start Slack bot daemon (long-running)")
     slack_parser.set_defaults(func=lambda args: _run_script(args, "scripts/slack.py"))
 
+    # docker-cleanup
+    docker_parser = subparsers.add_parser("docker-cleanup", help="Remove idle Docker containers (cron-friendly)")
+    docker_parser.set_defaults(func=lambda args: _run_script(args, "scripts/docker_cleanup.py"))
+
     args = parser.parse_args()
     if not args.command:
         # Default to serve

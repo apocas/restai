@@ -1082,6 +1082,11 @@ class SettingsResponse(BaseModel):
     gpu_worker_devices: Optional[str] = Field(default="", description="Comma-separated GPU indices for worker processes (e.g. '0,1')")
     # MCP
     mcp_enabled: bool = Field(default=False, description="Whether the internal MCP server is enabled")
+    # Docker
+    docker_url: Optional[str] = Field(default="", description="Docker socket or TCP URL for sandboxed terminal")
+    docker_image: Optional[str] = Field(default="python:3.12-slim", description="Base image for sandbox containers")
+    docker_timeout: int = Field(default=900, description="Container idle timeout in seconds")
+    docker_network: Optional[str] = Field(default="none", description="Docker network mode for containers")
     # Retention
     data_retention_days: int = Field(default=0, description="Auto-delete data older than this many days (0 = keep forever)")
     # 2FA
@@ -1138,6 +1143,11 @@ class SettingsUpdate(BaseModel):
     gpu_worker_devices: Optional[str] = Field(default=None, description="Comma-separated GPU indices for worker processes (e.g. '0,1')")
     # MCP
     mcp_enabled: Optional[bool] = Field(default=None, description="Whether the internal MCP server is enabled")
+    # Docker
+    docker_url: Optional[str] = Field(default=None, description="Docker socket or TCP URL for sandboxed terminal")
+    docker_image: Optional[str] = Field(default=None, description="Base image for sandbox containers")
+    docker_timeout: Optional[int] = Field(default=None, ge=60, description="Container idle timeout in seconds")
+    docker_network: Optional[str] = Field(default=None, description="Docker network mode for containers")
     # Retention
     data_retention_days: Optional[int] = Field(default=None, ge=0, description="Auto-delete data older than this many days (0 = keep forever)")
     # 2FA
@@ -1418,6 +1428,7 @@ class WidgetConfig(BaseModel):
     welcomeMessage: str = Field(default="", max_length=500)
     avatarUrl: str = Field(default="", max_length=500)
     stream: bool = Field(default=False)
+    context_prefix: bool = Field(default=True, description="Auto-prepend user context block to system prompt")
 
 
 class WidgetCreate(BaseModel):
@@ -1445,6 +1456,7 @@ class WidgetResponse(BaseModel):
     enabled: bool
     key_prefix: str
     widget_key: Optional[str] = None
+    has_context_secret: bool = False
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
@@ -1457,12 +1469,14 @@ class WidgetResponse(BaseModel):
                 from restai.utils.crypto import decrypt_api_key
                 if hasattr(values, '__dict__'):
                     values.__dict__['widget_key'] = decrypt_api_key(values.encrypted_key)
+                    values.__dict__['has_context_secret'] = bool(values.context_secret)
             except Exception:
                 pass
         elif isinstance(values, dict) and values.get('encrypted_key'):
             try:
                 from restai.utils.crypto import decrypt_api_key
                 values['widget_key'] = decrypt_api_key(values['encrypted_key'])
+                values['has_context_secret'] = bool(values.get('context_secret'))
             except Exception:
                 pass
         return values

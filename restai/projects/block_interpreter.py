@@ -11,7 +11,7 @@ MAX_ITERATIONS = 10000
 class BlockInterpreter:
     """Walks a Blockly workspace JSON tree and interprets each block in Python."""
 
-    def __init__(self, workspace_json: dict, input_text: str, brain, user, db, image=None):
+    def __init__(self, workspace_json: dict, input_text: str, brain, user, db, image=None, chat_id=None):
         self.workspace = workspace_json
         self.input_text = input_text
         self.image = image
@@ -22,6 +22,10 @@ class BlockInterpreter:
         self.db = db
         self.logs: list[str] = []
         self._iterations = 0
+        self.chat_id = chat_id
+        self._fake_request = type("_FakeRequest", (), {
+            "app": type("App", (), {"state": type("State", (), {"brain": brain})()})()
+        })()
 
     def _tick(self):
         self._iterations += 1
@@ -373,13 +377,17 @@ class BlockInterpreter:
         return False
 
     async def _eval_logic_operation(self, block: dict):
-        a = await self._eval_input(block, "A")
-        b = await self._eval_input(block, "B")
         op = block.get("fields", {}).get("OP", "AND")
+        a = await self._eval_input(block, "A")
+        if op == "AND" and not a:
+            return False
+        if op == "OR" and a:
+            return True
+        b = await self._eval_input(block, "B")
         if op == "AND":
             return bool(a) and bool(b)
         if op == "OR":
-            return bool(a) or bool(b)
+            return bool(b)
         return False
 
     # ------------------------------------------------------------------
@@ -402,27 +410,26 @@ class BlockInterpreter:
             logger.warning("Call Project: project '%s' could not be loaded", project_name)
             return ""
 
-        from restai.models.models import QuestionModel
-        from restai.helper import question_main
-        from fastapi import BackgroundTasks, Request
-
-        q = QuestionModel(question=str(text) if text else "", image=self.image)
+        from fastapi import BackgroundTasks
         background_tasks = BackgroundTasks()
 
-        # Create a minimal request-like object
-        class _FakeRequest:
-            app = type("App", (), {"state": type("State", (), {"brain": self.brain})()})()
-
         try:
-            result = await question_main(
-                _FakeRequest(),
-                self.brain,
-                project,
-                q,
-                self.user,
-                self.db,
-                background_tasks,
-            )
+            if self.chat_id:
+                from restai.models.models import ChatModel
+                from restai.helper import chat_main
+                q = ChatModel(question=str(text) if text else "", id=self.chat_id, image=self.image)
+                result = await chat_main(
+                    self._fake_request, self.brain, project, q,
+                    self.user, self.db, background_tasks,
+                )
+            else:
+                from restai.models.models import QuestionModel
+                from restai.helper import question_main
+                q = QuestionModel(question=str(text) if text else "", image=self.image)
+                result = await question_main(
+                    self._fake_request, self.brain, project, q,
+                    self.user, self.db, background_tasks,
+                )
             if isinstance(result, dict):
                 return result.get("answer", "")
             return str(result)

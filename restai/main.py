@@ -320,6 +320,9 @@ async def lifespan(fs_app: FastAPI):
 
     yield
 
+    # Shutdown: clean up Docker containers
+    fs_app.state.brain.shutdown_docker_manager()
+
 
 logging.basicConfig(level=config.LOG_LEVEL)
 

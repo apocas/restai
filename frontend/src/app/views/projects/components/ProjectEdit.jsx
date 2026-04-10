@@ -79,7 +79,6 @@ export default function ProjectEdit({ project, projects, info }) {
     if (server.env && Object.keys(server.env).length > 0) body.env = server.env;
     const headers = parseHeadersText(server.headersText);
     if (Object.keys(headers).length > 0) body.headers = headers;
-
     api.post("/tools/mcp/probe", body, auth.user.token)
       .then((data) => {
         if (data.type === "gateway") {

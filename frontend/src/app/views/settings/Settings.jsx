@@ -75,6 +75,10 @@ export default function SettingsPage() {
     sso_auto_team_id: "",
     sso_oidc_email_claim: "email",
     mcp_enabled: false,
+    docker_url: "",
+    docker_image: "python:3.12-slim",
+    docker_timeout: 900,
+    docker_network: "none",
     enforce_2fa: false,
   });
   const [teams, setTeams] = useState([]);
@@ -108,6 +112,7 @@ export default function SettingsPage() {
     body.agent_max_iterations = parseInt(body.agent_max_iterations, 10) || 20;
     body.max_audio_upload_size = parseInt(body.max_audio_upload_size, 10) || 10;
     body.data_retention_days = parseInt(body.data_retention_days, 10) || 0;
+    body.docker_timeout = parseInt(body.docker_timeout, 10) || 900;
 
     api.patch("/settings", body, auth.user.token)
       .then((data) => {
@@ -254,6 +259,47 @@ export default function SettingsPage() {
                   <Typography variant="caption" color="text.secondary" display="block">
                     Expose projects as MCP tools at /mcp/sse. Requires server restart.
                   </Typography>
+                </Card>
+              </Grid>
+
+              {/* Docker */}
+              <Grid item xs={12}>
+                <Card elevation={1} sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Docker (Sandboxed Terminal)</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Configure a Docker instance for the terminal tool. Each chat session gets its own isolated container that persists across commands and is automatically removed after the idle timeout.
+                  </Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth label="Docker URL"
+                        value={form.docker_url || ""}
+                        onChange={handleChange("docker_url")}
+                        placeholder="unix:///var/run/docker.sock or tcp://host:2375"
+                        helperText="Leave empty to disable the terminal tool"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth label="Container Image"
+                        value={form.docker_image ?? "python:3.12-slim"}
+                        onChange={handleChange("docker_image")}
+                        helperText="Base image for sandbox containers"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth label="Idle Timeout (seconds)" type="number" inputProps={{ min: 60 }}
+                        value={form.docker_timeout || 900}
+                        onChange={handleChange("docker_timeout")}
+                        helperText="Remove containers after this many seconds of inactivity"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth label="Network Mode"
+                        value={form.docker_network ?? "none"}
+                        onChange={handleChange("docker_network")}
+                        helperText={'"none" for no network access, "bridge" for internet access, or a custom network name'}
+                      />
+                    </Grid>
+                  </Grid>
                 </Card>
               </Grid>
             </Grid>

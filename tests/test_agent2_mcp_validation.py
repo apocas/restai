@@ -2,41 +2,37 @@
 import pytest
 
 from restai.agent2.mcp_client import (
-    ALLOWED_MCP_STDIO_COMMANDS,
     _is_http_host,
-    _validate_stdio_host,
+    _validate_stdio_args,
 )
 
 
-def test_allowed_commands_contains_expected_entries():
-    expected = {"npx", "uvx", "python", "python3", "node", "deno", "bun"}
-    for cmd in expected:
-        assert cmd in ALLOWED_MCP_STDIO_COMMANDS, f"{cmd} missing from ALLOWED_MCP_STDIO_COMMANDS"
+def test_validate_stdio_args_rejects_shell_metacharacters():
+    with pytest.raises(ValueError):
+        _validate_stdio_args(args=["$(evil)"])
 
 
-def test_validate_stdio_host_accepts_npx():
-    # Should not raise
-    _validate_stdio_host("npx")
+def test_validate_stdio_args_rejects_semicolons():
+    with pytest.raises(ValueError):
+        _validate_stdio_args(args=["foo;bar"])
 
 
-def test_validate_stdio_host_accepts_python3():
-    # Should not raise
-    _validate_stdio_host("python3")
+def test_validate_stdio_args_rejects_pipes():
+    with pytest.raises(ValueError):
+        _validate_stdio_args(args=["foo|bar"])
 
 
-def test_validate_stdio_host_rejects_bin_sh():
-    with pytest.raises((ValueError, NameError)):
-        _validate_stdio_host("/bin/sh")
+def test_validate_stdio_args_rejects_backticks():
+    with pytest.raises(ValueError):
+        _validate_stdio_args(args=["`whoami`"])
 
 
-def test_validate_stdio_host_rejects_bin_bash():
-    with pytest.raises((ValueError, NameError)):
-        _validate_stdio_host("/bin/bash")
+def test_validate_stdio_args_accepts_safe_args():
+    _validate_stdio_args(args=["--server", "my-mcp-server", "--port", "3000"])
 
 
-def test_validate_stdio_host_rejects_shell_metacharacters_in_args():
-    with pytest.raises((ValueError, NameError)):
-        _validate_stdio_host("npx", args=["$(evil)"])
+def test_validate_stdio_args_accepts_none():
+    _validate_stdio_args(args=None)
 
 
 def test_is_http_host_returns_true_for_http():

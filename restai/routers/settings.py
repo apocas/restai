@@ -75,6 +75,10 @@ async def patch_settings(
     if sso_fields:
         reinit_oauth(request.app)
 
+    docker_fields = {"docker_url", "docker_image", "docker_timeout", "docker_network"}
+    if docker_fields & updates.keys():
+        request.app.state.brain.init_docker_manager()
+
     return get_all_settings(db_wrapper)
 
 

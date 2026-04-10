@@ -53,6 +53,11 @@ SETTINGS_DEFAULTS = {
     "gpu_worker_devices": ("GPU_WORKER_DEVICES", ""),
     # MCP
     "mcp_enabled": ("MCP_SERVER", "false"),
+    # Docker
+    "docker_url": ("DOCKER_URL", ""),
+    "docker_image": ("DOCKER_IMAGE", "python:3.12-slim"),
+    "docker_timeout": ("DOCKER_TIMEOUT", "900"),
+    "docker_network": ("DOCKER_NETWORK", "none"),
     # Retention
     "data_retention_days": (None, "0"),
     # 2FA
@@ -108,6 +113,11 @@ _CONFIG_ATTR_MAP = {
     "gpu_worker_devices": "GPU_WORKER_DEVICES",
     # MCP
     "mcp_enabled": "RESTAI_MCP",
+    # Docker
+    "docker_url": "DOCKER_URL",
+    "docker_image": "DOCKER_IMAGE",
+    "docker_timeout": "DOCKER_TIMEOUT",
+    "docker_network": "DOCKER_NETWORK",
     # Retention
     "data_retention_days": "DATA_RETENTION_DAYS",
     # 2FA
@@ -115,7 +125,7 @@ _CONFIG_ATTR_MAP = {
 }
 
 _BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "enforce_2fa"}
-_INT_KEYS = {"agent_max_iterations", "max_audio_upload_size", "data_retention_days"}
+_INT_KEYS = {"agent_max_iterations", "max_audio_upload_size", "data_retention_days", "docker_timeout"}
 
 # Secret keys that should be masked in API responses
 _SECRET_KEYS = {
@@ -243,6 +253,11 @@ def get_all_settings(db_wrapper) -> dict:
         "gpu_worker_devices": rows.get("gpu_worker_devices", ""),
         # MCP
         "mcp_enabled": _to_bool(rows.get("mcp_enabled", "false")),
+        # Docker
+        "docker_url": rows.get("docker_url", ""),
+        "docker_image": rows.get("docker_image", "python:3.12-slim"),
+        "docker_timeout": int(rows.get("docker_timeout", "900") or "900"),
+        "docker_network": rows.get("docker_network", "none"),
         # Retention
         "data_retention_days": int(rows.get("data_retention_days", "0") or "0"),
     }

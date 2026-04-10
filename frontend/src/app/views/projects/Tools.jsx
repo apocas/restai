@@ -1,52 +1,120 @@
 import { useState, useEffect } from "react";
-import { Grid, styled, Box } from "@mui/material";
-import ToolsTable from "../dashboard/shared/ToolsTable";
+import {
+  Box, Card, Chip, Grid, InputAdornment, styled, TextField, Typography,
+} from "@mui/material";
+import { Search, Build } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import api from "app/utils/api";
 
-
-const ContentBox = styled("div")(({ theme }) => ({
-  margin: "30px",
-  [theme.breakpoints.down("sm")]: { margin: "16px" }
-}));
-
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
   [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
+  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } },
 }));
-
 
 export default function Tools() {
   const [tools, setTools] = useState([]);
+  const [search, setSearch] = useState("");
   const auth = useAuth();
 
-  const fetchTools = () => {
-    return api.get("/tools/agent", auth.user.token)
-      .then((d) => {
-        setTools(d)
-      })
-      .catch(() => {});
-  }
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + ' - Projects';
-    fetchTools();
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Tools";
+    api.get("/tools/agent", auth.user.token)
+      .then((d) => setTools(d || []))
+      .catch(() => {});
   }, []);
+
+  const filtered = tools.filter(
+    (t) =>
+      t.name.toLowerCase().includes(search.toLowerCase()) ||
+      (t.description || "").toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Projects", path: "/projects" }, { name: "Tools", path: "/projects/tools" }]} />
+        <Breadcrumb routeSegments={[{ name: "Projects", path: "/projects" }, { name: "Tools" }]} />
       </Box>
 
-      <ContentBox className="analytics">
-        <Grid container spacing={3}>
-          <Grid item lg={12} md={8} sm={12} xs={12}>
-            <ToolsTable tools={tools} />
+      <Box sx={{ maxWidth: 900, mx: "auto" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3, flexWrap: "wrap", gap: 2 }}>
+          <Box>
+            <Typography variant="h5" fontWeight={700}>Agent Tools</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Built-in tools available for agent projects to use during conversations.
+            </Typography>
+          </Box>
+          <Chip label={`${tools.length} tools`} variant="outlined" size="small" />
+        </Box>
+
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Search tools..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          sx={{ mb: 3 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search fontSize="small" color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        {filtered.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+            {search ? "No tools match your search." : "No tools available."}
+          </Typography>
+        ) : (
+          <Grid container spacing={2}>
+            {filtered.map((tool) => (
+              <Grid item xs={12} key={tool.name}>
+                <Card
+                  variant="outlined"
+                  sx={{
+                    p: 2.5,
+                    borderRadius: "10px",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    "&:hover": { borderColor: "primary.main", transition: "border-color 0.2s" },
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                    <Box
+                      sx={{
+                        width: 36, height: 36, borderRadius: "8px", flexShrink: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: (t) => t.palette.mode === "dark" ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)",
+                      }}
+                    >
+                      <Build sx={{ fontSize: 18, color: "primary.main" }} />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight={600}
+                        sx={{ fontFamily: "monospace", fontSize: "0.95rem" }}
+                      >
+                        {tool.name}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 0.5, whiteSpace: "pre-wrap", lineHeight: 1.6 }}
+                      >
+                        {tool.description}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Card>
+              </Grid>
+            ))}
           </Grid>
-        </Grid>
-      </ContentBox>
+        )}
+      </Box>
     </Container>
   );
 }

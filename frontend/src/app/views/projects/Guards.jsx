@@ -37,8 +37,8 @@ export default function ProjectGuardsView() {
       <Box className="breadcrumb">
         <Breadcrumb routeSegments={[
           { name: "Projects", path: "/projects" },
-          { name: project.name || id, path: "/project/" + id },
-          { name: "Guards", path: "/project/" + id + "/guards" },
+          { name: id, path: "/project/" + id },
+          { name: "Guards" },
         ]} />
       </Box>
       <ContentBox>

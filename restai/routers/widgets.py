@@ -62,10 +62,32 @@ async def widget_chat(
     widget = get_widget_from_request(request, db_wrapper)
     _check_widget_rate_limit(widget.key_prefix)
     brain = request.app.state.brain
+    w_config = json.loads(widget.config) if widget.config else {}
 
     project = brain.find_project(widget.project_id, db_wrapper)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
+
+    # Handle signed context injection
+    context_header = request.headers.get("X-Widget-Context")
+    if context_header and widget.context_secret:
+        from restai.utils.crypto import decrypt_field
+        from restai.utils.widget_context import verify_widget_context, apply_widget_context
+        from restai.project import Project
+
+        try:
+            secret = decrypt_field(widget.context_secret)
+            context = verify_widget_context(context_header, secret)
+        except ValueError:
+            raise HTTPException(status_code=401, detail="Invalid or expired context token")
+
+        # Inject context into system prompt on a per-request copy
+        prepend = w_config.get("context_prefix", True)
+        modified_props = project.props.model_copy(deep=True)
+        modified_props.system = apply_widget_context(
+            modified_props.system or "", context, prepend_block=prepend,
+        )
+        project = Project(modified_props)
 
     # Use project creator as synthetic user
     creator = db_wrapper.get_user_by_id(widget.creator_id)
@@ -84,9 +106,7 @@ async def widget_chat(
         api_key_read_only=True,
     )
 
-    # Use stream from widget config if not specified in request
-    widget_config = json.loads(widget.config) if widget.config else {}
-    use_stream = body.stream if body.stream is not None else widget_config.get("stream", False)
+    use_stream = body.stream if body.stream is not None else w_config.get("stream", False)
 
     chat_input = ChatModel(
         question=body.question,

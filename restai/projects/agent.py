@@ -239,6 +239,8 @@ class Agent(ProjectBase):
                     yield output
                 return
 
+            runtime._chat_id = chat_id
+            runtime._brain = self.brain
             session = await get_session(self.brain, chat_id)
             image_block = ImageBlock.from_data_url(chatModel.image) if chatModel.image else None
             streamed_any_text = False
@@ -333,6 +335,7 @@ class Agent(ProjectBase):
                     yield output
                 return
 
+            runtime._brain = self.brain
             image_block = ImageBlock.from_data_url(questionModel.image) if questionModel.image else None
             streamed_any_text = False
 

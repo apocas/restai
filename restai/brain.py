@@ -36,6 +36,7 @@ class Brain:
         self._ner_cache = {}
         # agent2 in-memory session store: chat_id -> list[message dict]
         self._agent2_sessions: dict[str, list[dict]] = {}
+        self.docker_manager = None
 
         if not lightweight:
             self.tools: list[FunctionTool] = tools.load_tools()
@@ -46,6 +47,36 @@ class Brain:
 
             self.chat_store: BaseChatStore
             self.reinit_chat_store()
+            self.init_docker_manager()
+
+    def init_docker_manager(self):
+        """Create or recreate the Docker manager from current config."""
+        # Shut down existing manager if any
+        if self.docker_manager is not None:
+            self.docker_manager.shutdown()
+            self.docker_manager = None
+
+        docker_url = getattr(config, "DOCKER_URL", "") or ""
+        if not docker_url.strip():
+            return
+
+        try:
+            from restai.docker_manager import DockerManager
+            self.docker_manager = DockerManager(
+                docker_url=docker_url,
+                docker_image=getattr(config, "DOCKER_IMAGE", "python:3.12-slim"),
+                container_timeout=int(getattr(config, "DOCKER_TIMEOUT", 900)),
+                network_mode=getattr(config, "DOCKER_NETWORK", "none"),
+            )
+        except Exception as e:
+            logging.warning("Failed to initialize Docker manager: %s", e)
+            self.docker_manager = None
+
+    def shutdown_docker_manager(self):
+        """Gracefully shut down the Docker manager and remove all containers."""
+        if self.docker_manager is not None:
+            self.docker_manager.shutdown()
+            self.docker_manager = None
 
     def reinit_chat_store(self):
         redis_url = config.build_redis_url()
