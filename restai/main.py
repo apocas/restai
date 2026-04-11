@@ -213,6 +213,7 @@ async def lifespan(fs_app: FastAPI):
             "embeddings": [],
             "llms": [],
             "vectorstores": get_available_vectorstores(),
+            "system_llm_configured": bool((getattr(config, "SYSTEM_LLM", "") or "").strip()),
         }
 
         # Filter LLMs and embeddings by team access for non-admin users

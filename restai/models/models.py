@@ -1521,6 +1521,11 @@ class WidgetChatRequest(BaseModel):
     stream: Optional[bool] = Field(default=None)
 
 
+class BlockGenerateRequest(BaseModel):
+    """Generate a Blockly workspace from a natural-language description."""
+    description: str = Field(max_length=4000, description="Plain-English description of what the block project should do")
+
+
 class WidgetChatResponse(BaseModel):
     """Sanitized response returned to widgets."""
     answer: str

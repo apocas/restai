@@ -5,7 +5,7 @@ import * as Blockly from "blockly";
 import { registerCustomBlocks, setProjectNames } from "./blockly/blocks";
 import { toolbox } from "./blockly/toolbox";
 
-export default function BlocklyEditor({ project, projects, onSave }) {
+export default function BlocklyEditor({ project, projects, onSave, onReady }) {
   const editorRef = useRef(null);
   const workspaceRef = useRef(null);
 
@@ -57,9 +57,23 @@ export default function BlocklyEditor({ project, projects, onSave }) {
       }
     }
 
+    // Expose a loader function to the parent via onReady callback
+    if (onReady) {
+      onReady((newState) => {
+        if (!workspaceRef.current) return;
+        try {
+          workspaceRef.current.clear();
+          Blockly.serialization.workspaces.load(newState, workspaceRef.current);
+        } catch (e) {
+          console.error("Failed to load generated workspace:", e);
+        }
+      });
+    }
+
     return () => {
       workspace.dispose();
       workspaceRef.current = null;
+      if (onReady) onReady(null);
     };
   }, [project.name, projects]);
 

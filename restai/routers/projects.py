@@ -52,6 +52,7 @@ from restai.models.models import (
     WidgetConfig,
     WidgetResponse,
     WidgetCreatedResponse,
+    BlockGenerateRequest,
 )
 import uuid
 import secrets
@@ -2448,6 +2449,42 @@ async def remove_widget_context_secret(
     db_wrapper.db.commit()
 
     return {"detail": "Context secret removed"}
+
+
+# ── Block AI helpers (system_llm powered) ───────────────────────────────
+
+
+@router.post("/projects/{projectID}/block/generate", tags=["Projects"])
+async def block_generate_workspace(
+    request: Request,
+    body: BlockGenerateRequest,
+    projectID: int = PathParam(description="Project ID"),
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Use the system LLM to generate a Blockly workspace from a plain-English description."""
+    check_not_restricted(user)
+
+    project = get_project(projectID, db_wrapper, request.app.state.brain)
+    if project.props.type != "block":
+        raise HTTPException(status_code=400, detail="Only block projects support workspace generation.")
+
+    # Collect names of other projects the user can call, to help the LLM produce valid restai_call_project blocks
+    all_projects = db_wrapper.db.query(ProjectDatabase).all()
+    available_projects = [
+        p.name for p in all_projects
+        if p.id != projectID and (user.is_admin or p.id in user.get_project_ids())
+    ]
+
+    from restai.utils.blockly_ai import generate_workspace_from_description
+    try:
+        workspace = await generate_workspace_from_description(
+            request.app.state.brain, db_wrapper, body.description, available_projects,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {"workspace": workspace}
 
 
 # ── Knowledge Graph ──────────────────────────────────────────────────────
