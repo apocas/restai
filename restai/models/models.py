@@ -1526,6 +1526,12 @@ class BlockGenerateRequest(BaseModel):
     description: str = Field(max_length=4000, description="Plain-English description of what the block project should do")
 
 
+class SystemPromptGenerateRequest(BaseModel):
+    """Generate a project system prompt from a short description."""
+    description: str = Field(max_length=2000, description="Short description of the project's purpose")
+    project_type: Optional[str] = Field(default=None, description="Project type: rag, agent, or block (for context)")
+
+
 class WidgetChatResponse(BaseModel):
     """Sanitized response returned to widgets."""
     answer: str

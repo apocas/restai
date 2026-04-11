@@ -1,7 +1,13 @@
-import { Grid, TextField, MenuItem, Switch, Slider, Autocomplete, Divider, Typography, Button, Box, Tooltip } from "@mui/material";
-import { HelpOutline } from "@mui/icons-material";
+import {
+  Grid, TextField, MenuItem, Switch, Slider, Autocomplete, Divider, Typography, Button, Box, Tooltip,
+  Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress, Alert,
+} from "@mui/material";
+import { HelpOutline, AutoAwesome } from "@mui/icons-material";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
+import { toast } from "react-toastify";
+import useAuth from "app/hooks/useAuth";
+import api from "app/utils/api";
 
 const HelpTip = ({ text }) => (
   <Tooltip title={text} placement="top" arrow>
@@ -10,7 +16,31 @@ const HelpTip = ({ text }) => (
 );
 
 export default function ProjectEditGeneral({ state, setState, handleChange, project, info, users, teams, promptVersions, showVersions, setShowVersions, handleTeamChange }) {
+  const auth = useAuth();
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiDescription, setAiDescription] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const handleGeneratePrompt = () => {
+    if (!aiDescription.trim()) return;
+    setAiLoading(true);
+    api.post(
+      `/projects/${project.id}/system-prompt/generate`,
+      { description: aiDescription, project_type: state.type || project.type },
+      auth.user.token,
+    )
+      .then((d) => {
+        setState((prev) => ({ ...prev, system: d.system_prompt || "" }));
+        toast.success("System prompt generated");
+        setAiOpen(false);
+        setAiDescription("");
+      })
+      .catch(() => {})
+      .finally(() => setAiLoading(false));
+  };
+
   return (
+    <Fragment>
     <Grid container spacing={3}>
       <Grid item sm={6} xs={12}>
         <TextField
@@ -188,7 +218,19 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
             <Divider sx={{ mb: 1 }} />
           </Grid>
           <Grid item sm={12} xs={12}>
-            <Typography variant="subtitle1" gutterBottom>System Message</Typography>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Typography variant="subtitle1" gutterBottom>System Message</Typography>
+              {info?.system_llm_configured && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<AutoAwesome />}
+                  onClick={() => setAiOpen(true)}
+                >
+                  Generate with AI
+                </Button>
+              )}
+            </Box>
             <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
               Defines the AI's behavior and personality. This is prepended to every conversation.
             </Typography>
@@ -326,5 +368,39 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
         </Grid>
       )}
     </Grid>
+
+    <Dialog open={aiOpen} onClose={() => !aiLoading && setAiOpen(false)} maxWidth="sm" fullWidth>
+      <DialogTitle>Generate system prompt with AI</DialogTitle>
+      <DialogContent>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Describe in plain English what this project does. The system LLM will draft a full system prompt you can then edit.
+        </Typography>
+        <TextField
+          autoFocus
+          fullWidth
+          multiline
+          minRows={3}
+          placeholder={'e.g. "customer support assistant for my SaaS billing product"'}
+          value={aiDescription}
+          onChange={(e) => setAiDescription(e.target.value)}
+          disabled={aiLoading}
+        />
+        <Alert severity="info" sx={{ mt: 2 }}>
+          This replaces the current system message. Copy the existing one first if you want to keep it.
+        </Alert>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setAiOpen(false)} disabled={aiLoading}>Cancel</Button>
+        <Button
+          variant="contained"
+          onClick={handleGeneratePrompt}
+          disabled={aiLoading || !aiDescription.trim()}
+          startIcon={aiLoading ? <CircularProgress size={16} /> : <AutoAwesome />}
+        >
+          {aiLoading ? "Generating..." : "Generate"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </Fragment>
   );
 }

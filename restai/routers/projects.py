@@ -53,6 +53,7 @@ from restai.models.models import (
     WidgetResponse,
     WidgetCreatedResponse,
     BlockGenerateRequest,
+    SystemPromptGenerateRequest,
 )
 import uuid
 import secrets
@@ -2485,6 +2486,31 @@ async def block_generate_workspace(
         raise HTTPException(status_code=400, detail=str(e))
 
     return {"workspace": workspace}
+
+
+@router.post("/projects/{projectID}/system-prompt/generate", tags=["Projects"])
+async def generate_system_prompt_endpoint(
+    request: Request,
+    body: SystemPromptGenerateRequest,
+    projectID: int = PathParam(description="Project ID"),
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Use the system LLM to draft a system prompt from a short description."""
+    check_not_restricted(user)
+
+    project = get_project(projectID, db_wrapper, request.app.state.brain)
+    project_type = body.project_type or project.props.type
+
+    from restai.utils.prompt_ai import generate_system_prompt
+    try:
+        text = await generate_system_prompt(
+            request.app.state.brain, db_wrapper, body.description, project_type,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {"system_prompt": text}
 
 
 # ── Knowledge Graph ──────────────────────────────────────────────────────
