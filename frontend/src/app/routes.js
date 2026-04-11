@@ -11,10 +11,12 @@ import sessionRoutes from "./views/sessions/session-routes";
 
 const Home = Loadable(lazy(() => import("app/views/dashboard/Home")));
 const LLMs = Loadable(lazy(() => import("app/views/llms/List")));
+const LLMsNewChooser = Loadable(lazy(() => import("app/views/llms/NewChooser")));
 const LLMsNew = Loadable(lazy(() => import("app/views/llms/NewInteractive")));
 const LLMsInfo = Loadable(lazy(() => import("app/views/llms/Info")));
 const LLMsEdit = Loadable(lazy(() => import("app/views/llms/Edit")));
 const Embeddings = Loadable(lazy(() => import("app/views/embeddings/List")));
+const EmbeddingsNewChooser = Loadable(lazy(() => import("app/views/embeddings/NewChooser")));
 const EmbeddingsNew = Loadable(lazy(() => import("app/views/embeddings/NewInteractive")));
 const EmbeddingsInfo = Loadable(lazy(() => import("app/views/embeddings/Info")));
 const EmbeddingsEdit = Loadable(lazy(() => import("app/views/embeddings/Edit")));
@@ -90,6 +92,11 @@ const routes = [
       },
       {
         path: "/llms/new",
+        element: <LLMsNewChooser />,
+        auth: authRoles.admin
+      },
+      {
+        path: "/llms/new/manual",
         element: <LLMsNew />,
         auth: authRoles.admin
       },
@@ -115,6 +122,11 @@ const routes = [
       },
       {
         path: "/embeddings/new",
+        element: <EmbeddingsNewChooser />,
+        auth: authRoles.admin
+      },
+      {
+        path: "/embeddings/new/manual",
         element: <EmbeddingsNew />,
         auth: authRoles.admin
       },

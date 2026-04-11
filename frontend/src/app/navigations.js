@@ -38,12 +38,6 @@ export const defaultNavigations = [
     path: "/embeddings",
   },
   {
-    name: "Import from Ollama",
-    icon: "cloud_download",
-    path: "/llms/ollama",
-    auth: authRoles.admin,
-  },
-  {
     name: "Tools",
     icon: "build",
     path: "/projects/tools",

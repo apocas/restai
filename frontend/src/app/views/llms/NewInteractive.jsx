@@ -1,53 +1,106 @@
 import { useState, useEffect } from "react";
 import {
-  Grid,
-  styled,
-  Box,
-  Card,
-  TextField,
-  Button,
-  MenuItem,
-  Divider,
-  Typography,
-  Switch,
-  FormControlLabel,
+  Box, Button, Card, Chip, Divider, FormControlLabel, Grid, IconButton,
+  InputAdornment, MenuItem, Switch, TextField, Tooltip, Typography, styled,
 } from "@mui/material";
-import useAuth from "app/hooks/useAuth";
-import Breadcrumb from "app/components/Breadcrumb";
+import { ArrowBack, Search, CheckCircle, Code } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { H4 } from "app/components/Typography";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ReactJson from "@microlink/react-json-view";
+import useAuth from "app/hooks/useAuth";
+import Breadcrumb from "app/components/Breadcrumb";
 import { PROVIDER_CONFIG } from "./providerConfig";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
-  margin: 10,
+  margin: "24px 48px",
+  [theme.breakpoints.down("md")]: { margin: "24px 32px" },
   [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": {
-    marginBottom: 30,
-    [theme.breakpoints.down("sm")]: { marginBottom: 16 },
+  "& .breadcrumb": { marginBottom: 24 },
+}));
+
+const Hero = styled(Box)(({ theme }) => ({
+  padding: "32px 0 24px",
+  textAlign: "center",
+  position: "relative",
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    top: 0,
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: 520,
+    height: 220,
+    background: `radial-gradient(circle at center, ${theme.palette.primary.main}22, transparent 70%)`,
+    pointerEvents: "none",
+    zIndex: 0,
   },
 }));
 
-const ContentBox = styled("div")(({ theme }) => ({
-  margin: "30px",
-  [theme.breakpoints.down("sm")]: { margin: "16px" },
+const HeroTitle = styled(Typography)(() => ({
+  fontWeight: 700,
+  letterSpacing: "-0.3px",
 }));
 
-const ProviderCard = styled(Card)(({ theme }) => ({
+const ProviderTile = styled(Card)(({ theme }) => ({
   padding: theme.spacing(2.5),
   cursor: "pointer",
-  transition: "all 0.2s ease",
+  transition: "all 0.25s ease",
   height: "100%",
   display: "flex",
   flexDirection: "column",
-  justifyContent: "center",
-  "&:hover": {
-    transform: "translateY(-3px)",
-    boxShadow: theme.shadows[8],
+  gap: 4,
+  border: "1px solid",
+  borderColor: theme.palette.divider,
+  borderRadius: 12,
+  position: "relative",
+  overflow: "hidden",
+  background: theme.palette.mode === "dark" ? "#1a1a24" : "#ffffff",
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    background: "linear-gradient(90deg, #6366f1, #a855f7)",
+    opacity: 0,
+    transition: "opacity 0.25s",
   },
+  "&:hover": {
+    borderColor: theme.palette.primary.main,
+    transform: "translateY(-3px)",
+    boxShadow: "0 12px 24px -12px rgba(99,102,241,0.35)",
+    "&::before": { opacity: 1 },
+  },
+}));
+
+const FormCard = styled(Card)(({ theme }) => ({
+  padding: theme.spacing(4),
+  borderRadius: 16,
+  border: "1px solid",
+  borderColor: theme.palette.divider,
+  background: theme.palette.mode === "dark" ? "#1a1a24" : "#ffffff",
+}));
+
+const SectionLabel = styled(Typography)(({ theme }) => ({
+  fontSize: "0.72rem",
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.8px",
+  color: theme.palette.text.secondary,
+  marginBottom: theme.spacing(1.5),
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+}));
+
+const Dot = styled("span")(({ theme, color }) => ({
+  width: 8,
+  height: 8,
+  borderRadius: "50%",
+  background: color || theme.palette.primary.main,
+  display: "inline-block",
 }));
 
 export default function NewInteractive() {
@@ -55,6 +108,7 @@ export default function NewInteractive() {
   const navigate = useNavigate();
 
   const [selectedProvider, setSelectedProvider] = useState(null);
+  const [search, setSearch] = useState("");
   const [formState, setFormState] = useState({
     name: "",
     privacy: "private",
@@ -64,14 +118,11 @@ export default function NewInteractive() {
   const [optionsState, setOptionsState] = useState({});
 
   useEffect(() => {
-    document.title =
-      (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - New LLM";
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - New LLM";
   }, []);
 
   const handleSelectProvider = (providerKey) => {
     setSelectedProvider(providerKey);
-
-    // Initialize options with defaults
     const provider = PROVIDER_CONFIG[providerKey];
     const defaults = {};
     provider.fields.forEach((field) => {
@@ -103,20 +154,14 @@ export default function NewInteractive() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!formState.name.trim()) {
       toast.error("Name is required");
       return;
     }
-
-    // Build options, omitting empty strings
     const options = {};
     Object.entries(optionsState).forEach(([key, value]) => {
-      if (value !== "" && value !== undefined) {
-        options[key] = value;
-      }
+      if (value !== "" && value !== undefined) options[key] = value;
     });
-
     try {
       const data = await api.post("/llms", {
         name: formState.name,
@@ -126,16 +171,14 @@ export default function NewInteractive() {
         description: formState.description,
         context_window: parseInt(formState.context_window) || 4096,
       }, auth.user.token);
-
       navigate("/llm/" + data.id);
     } catch (err) {
-      // error auto-toasted
+      // toasted
     }
   };
 
   const renderField = (field) => {
     const value = optionsState[field.name] ?? field.default ?? "";
-
     if (field.type === "boolean") {
       return (
         <Grid item xs={12} key={field.name}>
@@ -143,9 +186,7 @@ export default function NewInteractive() {
             control={
               <Switch
                 checked={!!optionsState[field.name]}
-                onChange={(e) =>
-                  handleOptionChange(field.name, e.target.checked)
-                }
+                onChange={(e) => handleOptionChange(field.name, e.target.checked)}
               />
             }
             label={field.label}
@@ -153,7 +194,6 @@ export default function NewInteractive() {
         </Grid>
       );
     }
-
     return (
       <Grid item xs={12} sm={6} key={field.name}>
         <TextField
@@ -166,10 +206,9 @@ export default function NewInteractive() {
           placeholder={field.placeholder || ""}
           inputProps={field.type === "number" ? { step: field.step || 1 } : {}}
           onChange={(e) => {
-            const val =
-              field.type === "number"
-                ? e.target.value === "" ? "" : Number(e.target.value)
-                : e.target.value;
+            const val = field.type === "number"
+              ? (e.target.value === "" ? "" : Number(e.target.value))
+              : e.target.value;
             handleOptionChange(field.name, val);
           }}
         />
@@ -177,8 +216,13 @@ export default function NewInteractive() {
     );
   };
 
-  // Phase 1: Provider selection grid
+  // ─── Phase 1: Provider selection ───────────────────────────────
   if (!selectedProvider) {
+    const providers = Object.entries(PROVIDER_CONFIG).filter(([key, p]) => {
+      const q = search.toLowerCase();
+      return !q || p.label.toLowerCase().includes(q) || key.toLowerCase().includes(q) || (p.description || "").toLowerCase().includes(q);
+    });
+
     return (
       <Container>
         <Box className="breadcrumb">
@@ -186,35 +230,70 @@ export default function NewInteractive() {
             routeSegments={[
               { name: "LLMs", path: "/llms" },
               { name: "New LLM", path: "/llms/new" },
+              { name: "Manual" },
             ]}
           />
         </Box>
 
-        <ContentBox>
-          <H4 sx={{ mb: 3 }}>Select a Provider</H4>
-          <Grid container spacing={2}>
-            {Object.entries(PROVIDER_CONFIG).map(([key, provider]) => (
+        <Hero>
+          <Box sx={{ position: "relative", zIndex: 1 }}>
+            <HeroTitle variant="h4" color="primary" sx={{ mb: 1 }}>
+              Choose a provider
+            </HeroTitle>
+            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 520, mx: "auto" }}>
+              Pick the provider that hosts your model. We'll configure the right fields automatically.
+            </Typography>
+          </Box>
+        </Hero>
+
+        <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
+          <TextField
+            size="small"
+            placeholder="Search providers..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            sx={{ width: 360 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search fontSize="small" color="action" />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
+
+        {providers.length === 0 ? (
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
+            No providers match your search.
+          </Typography>
+        ) : (
+          <Grid container spacing={2.5}>
+            {providers.map(([key, provider]) => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={key}>
-                <ProviderCard
-                  elevation={3}
-                  onClick={() => handleSelectProvider(key)}
-                >
-                  <Typography variant="h6" gutterBottom>
+                <ProviderTile onClick={() => handleSelectProvider(key)}>
+                  <Typography variant="subtitle1" fontWeight={700}>
                     {provider.label}
                   </Typography>
-                  <Typography variant="body2" color="textSecondary">
+                  <Typography variant="body2" color="text.secondary" sx={{ flex: 1, lineHeight: 1.5 }}>
                     {provider.description}
                   </Typography>
-                </ProviderCard>
+                  <Typography
+                    variant="caption"
+                    sx={{ fontFamily: "monospace", color: "text.disabled", mt: 1, fontSize: "0.7rem" }}
+                  >
+                    {key}
+                  </Typography>
+                </ProviderTile>
               </Grid>
             ))}
           </Grid>
-        </ContentBox>
+        )}
       </Container>
     );
   }
 
-  // Phase 2: Configuration form
+  // ─── Phase 2: Configuration form ───────────────────────────────
   const provider = PROVIDER_CONFIG[selectedProvider];
 
   return (
@@ -224,37 +303,50 @@ export default function NewInteractive() {
           routeSegments={[
             { name: "LLMs", path: "/llms" },
             { name: "New LLM", path: "/llms/new" },
+            { name: "Manual", path: "/llms/new/manual" },
             { name: provider.label },
           ]}
         />
       </Box>
 
-      <ContentBox>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={handleBack}
-          sx={{ mb: 2 }}
-        >
-          Back to Providers
-        </Button>
+      <Box sx={{ maxWidth: 960, mx: "auto" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+          <Tooltip title="Back to providers">
+            <IconButton onClick={handleBack} sx={{ border: "1px solid", borderColor: "divider" }}>
+              <ArrowBack />
+            </IconButton>
+          </Tooltip>
+          <Box sx={{ flex: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Typography variant="h5" fontWeight={700}>
+                New {provider.label} LLM
+              </Typography>
+              <Chip
+                label={selectedProvider}
+                size="small"
+                sx={{
+                  fontFamily: "monospace",
+                  fontSize: "0.72rem",
+                  height: 22,
+                  background: "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(168,85,247,0.12))",
+                  border: "1px solid rgba(99,102,241,0.3)",
+                  color: "primary.main",
+                }}
+              />
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              {provider.description}
+            </Typography>
+          </Box>
+        </Box>
 
-        <Card elevation={3} sx={{ p: 3 }}>
-          <H4>New {provider.label} LLM</H4>
-          <Divider sx={{ my: 2 }} />
-
-          <form onSubmit={handleSubmit}>
-            <Grid container spacing={3}>
-              {/* Common fields */}
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Class"
-                  value={selectedProvider}
-                  InputProps={{ readOnly: true }}
-                />
-              </Grid>
-
+        <form onSubmit={handleSubmit}>
+          <FormCard sx={{ mb: 3 }}>
+            <SectionLabel>
+              <Dot color="#6366f1" />
+              General
+            </SectionLabel>
+            <Grid container spacing={2.5}>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -267,7 +359,6 @@ export default function NewInteractive() {
                   placeholder="Unique name for this LLM"
                 />
               </Grid>
-
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -278,15 +369,11 @@ export default function NewInteractive() {
                   value={formState.privacy}
                   onChange={handleFormChange}
                 >
-                  {["public", "private"].map((p) => (
-                    <MenuItem key={p} value={p}>
-                      {p}
-                    </MenuItem>
-                  ))}
+                  <MenuItem value="private">Private</MenuItem>
+                  <MenuItem value="public">Public</MenuItem>
                 </TextField>
               </Grid>
-
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={8}>
                 <TextField
                   fullWidth
                   size="small"
@@ -294,10 +381,10 @@ export default function NewInteractive() {
                   label="Description"
                   value={formState.description}
                   onChange={handleFormChange}
+                  placeholder="Optional short description"
                 />
               </Grid>
-
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={4}>
                 <TextField
                   fullWidth
                   size="small"
@@ -306,50 +393,64 @@ export default function NewInteractive() {
                   type="number"
                   value={formState.context_window}
                   onChange={handleFormChange}
-                  helperText="Maximum number of tokens the LLM can process"
-                />
-              </Grid>
-
-              {/* Provider-specific fields */}
-              <Grid item xs={12}>
-                <Divider sx={{ my: 1 }} />
-                <Typography variant="subtitle2" sx={{ mt: 1, mb: 1 }}>
-                  {provider.label} Options
-                </Typography>
-              </Grid>
-
-              {provider.fields.map(renderField)}
-
-              {/* Live JSON viewer/editor */}
-              <Grid item xs={12}>
-                <Divider sx={{ my: 1 }} />
-                <Typography variant="subtitle2" sx={{ mt: 1, mb: 1 }}>
-                  Options JSON
-                </Typography>
-                <Typography variant="caption" color="textSecondary" sx={{ mb: 1, display: "block" }}>
-                  Auto-updated from the fields above. Click values to edit, or use +/- to add/remove custom options.
-                </Typography>
-                <ReactJson
-                  src={optionsState}
-                  name={false}
-                  enableClipboard={true}
-                  onEdit={handleJsonUpdate}
-                  onAdd={handleJsonUpdate}
-                  onDelete={handleJsonUpdate}
-                  displayDataTypes={false}
-                  displayObjectSize={false}
+                  helperText="Maximum tokens"
                 />
               </Grid>
             </Grid>
+          </FormCard>
 
-            <Box mt={3}>
-              <Button color="primary" variant="contained" type="submit">
-                Create LLM
-              </Button>
+          <FormCard sx={{ mb: 3 }}>
+            <SectionLabel>
+              <Dot color="#10b981" />
+              {provider.label} Options
+            </SectionLabel>
+            <Grid container spacing={2.5}>
+              {provider.fields.map(renderField)}
+            </Grid>
+          </FormCard>
+
+          <FormCard sx={{ mb: 3 }}>
+            <SectionLabel>
+              <Dot color="#f59e0b" />
+              Raw Options (JSON)
+            </SectionLabel>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: "block" }}>
+              Auto-updated from the fields above. Click values to edit, or use +/- to add/remove custom options.
+            </Typography>
+            <Box
+              sx={{
+                borderRadius: 2,
+                border: "1px solid",
+                borderColor: "divider",
+                p: 2,
+                fontSize: "0.85rem",
+                background: (t) => t.palette.mode === "dark" ? "#0f0f17" : "#fafafa",
+              }}
+            >
+              <ReactJson
+                src={optionsState}
+                name={false}
+                enableClipboard={true}
+                onEdit={handleJsonUpdate}
+                onAdd={handleJsonUpdate}
+                onDelete={handleJsonUpdate}
+                displayDataTypes={false}
+                displayObjectSize={false}
+                theme="rjv-default"
+              />
             </Box>
-          </form>
-        </Card>
-      </ContentBox>
+          </FormCard>
+
+          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5 }}>
+            <Button variant="outlined" onClick={handleBack}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained" startIcon={<CheckCircle />}>
+              Create LLM
+            </Button>
+          </Box>
+        </form>
+      </Box>
     </Container>
   );
 }
