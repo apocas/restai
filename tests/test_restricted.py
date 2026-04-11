@@ -73,7 +73,7 @@ def test_setup():
 
 def test_restricted_can_list_projects():
     with TestClient(app) as client:
-        r = client.get("/projects?filter=own", auth=(restricted_username, restricted_password))
+        r = client.get("/projects", auth=(restricted_username, restricted_password))
         assert r.status_code == 200
 
 

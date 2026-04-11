@@ -19,7 +19,6 @@ const EmbeddingsNew = Loadable(lazy(() => import("app/views/embeddings/NewIntera
 const EmbeddingsInfo = Loadable(lazy(() => import("app/views/embeddings/Info")));
 const EmbeddingsEdit = Loadable(lazy(() => import("app/views/embeddings/Edit")));
 const Projects = Loadable(lazy(() => import("app/views/projects/List")));
-const MyProjects = Loadable(lazy(() => import("app/views/projects/MyList")));
 const Library = Loadable(lazy(() => import("app/views/projects/Library")));
 const Tools = Loadable(lazy(() => import("app/views/projects/Tools")));
 const ProjectsInfo = Loadable(lazy(() => import("app/views/projects/Info")));
@@ -132,11 +131,6 @@ const routes = [
       {
         path: "/projects",
         element: <Projects />,
-        auth: authRoles.user
-      },
-      {
-        path: "/projects/my",
-        element: <MyProjects />,
         auth: authRoles.user
       },
       {

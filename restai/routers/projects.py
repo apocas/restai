@@ -102,7 +102,7 @@ def get_project(projectID: int, db_wrapper: DBWrapper, brain: Brain):
 @router.get("/projects", response_model=ProjectsResponse, tags=["Projects"])
 async def route_get_projects(
     _: Request,
-    v_filter: str = Query("own", alias="filter", description="Filter mode: 'own' for user's projects, 'public' for public projects"),
+    v_filter: str = Query("", alias="filter", description="Filter mode: 'public' to list only public projects, empty for all accessible projects"),
     start: int = Query(0, ge=0, le=100000, description="Pagination start offset"),
     end: int = Query(50, ge=1, le=100000, description="Pagination end offset"),
     user: User = Depends(get_current_username),
