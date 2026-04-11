@@ -79,9 +79,11 @@ export default function SettingsPage() {
     docker_image: "python:3.12-slim",
     docker_timeout: 900,
     docker_network: "none",
+    system_llm: "",
     enforce_2fa: false,
   });
   const [teams, setTeams] = useState([]);
+  const [llms, setLlms] = useState([]);
   const [saving, setSaving] = useState(false);
   const [dockerTest, setDockerTest] = useState(null); // null | "testing" | {status, detail}
   const [expanded, setExpanded] = useState({ google: false, microsoft: false, github: false, oidc: false });
@@ -100,6 +102,7 @@ export default function SettingsPage() {
     document.title = "RESTai - Settings";
     fetchSettings();
     api.get("/teams", auth.user.token).then((d) => setTeams(d.teams || [])).catch(() => {});
+    api.get("/llms", auth.user.token).then((d) => setLlms(Array.isArray(d) ? d : (d?.llms || []))).catch(() => {});
   }, []);
 
   const handleChange = (field) => (e) => {
@@ -171,6 +174,24 @@ export default function SettingsPage() {
                           <MenuItem value="EUR">EUR (&euro;)</MenuItem>
                         </Select>
                       </FormControl>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>System LLM</InputLabel>
+                        <Select
+                          value={form.system_llm ?? ""}
+                          label="System LLM"
+                          onChange={handleChange("system_llm")}
+                        >
+                          <MenuItem value=""><em>None</em></MenuItem>
+                          {llms.map((l) => (
+                            <MenuItem key={l.id || l.name} value={l.name}>{l.name}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                        LLM used by the platform for internal tasks (prompt helpers, summarization, etc). Leave empty to disable.
+                      </Typography>
                     </Grid>
                   </Grid>
                 </Card>

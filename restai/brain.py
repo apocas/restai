@@ -125,6 +125,13 @@ class Brain:
             llm.llm.system_prompt = None
         return llm
 
+    def get_system_llm(self, db: DBWrapper) -> Optional[LLM]:
+        """Return the configured internal/housekeeping LLM, or None if not configured."""
+        name = (getattr(config, "SYSTEM_LLM", "") or "").strip()
+        if not name:
+            return None
+        return self.get_llm(name, db)
+
     def post_processing_reasoning(self, output):
         think_content = None
         think_pattern = re.compile(r"<think>(.*?)</think>", re.DOTALL)

@@ -1082,6 +1082,8 @@ class SettingsResponse(BaseModel):
     gpu_worker_devices: Optional[str] = Field(default="", description="Comma-separated GPU indices for worker processes (e.g. '0,1')")
     # MCP
     mcp_enabled: bool = Field(default=False, description="Whether the internal MCP server is enabled")
+    # System LLM
+    system_llm: Optional[str] = Field(default="", description="Internal LLM used for housekeeping tasks (prompt helpers, summarization, etc)")
     # Docker
     docker_enabled: bool = Field(default=False, description="Whether Docker sandboxed terminal is enabled")
     docker_url: Optional[str] = Field(default="", description="Docker socket or TCP URL for sandboxed terminal")
@@ -1143,6 +1145,8 @@ class SettingsUpdate(BaseModel):
     gpu_worker_devices: Optional[str] = Field(default=None, description="Comma-separated GPU indices for worker processes (e.g. '0,1')")
     # MCP
     mcp_enabled: Optional[bool] = Field(default=None, description="Whether the internal MCP server is enabled")
+    # System LLM
+    system_llm: Optional[str] = Field(default=None, description="Internal LLM used for housekeeping tasks")
     # Docker
     docker_enabled: Optional[bool] = Field(default=None, description="Whether Docker sandboxed terminal is enabled")
     docker_url: Optional[str] = Field(default=None, description="Docker socket or TCP URL for sandboxed terminal")

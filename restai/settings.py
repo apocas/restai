@@ -52,6 +52,8 @@ SETTINGS_DEFAULTS = {
     "gpu_worker_devices": ("GPU_WORKER_DEVICES", ""),
     # MCP
     "mcp_enabled": ("MCP_SERVER", "false"),
+    # System LLM
+    "system_llm": ("SYSTEM_LLM", ""),
     # Docker
     "docker_enabled": (None, "false"),
     "docker_url": ("DOCKER_URL", ""),
@@ -112,6 +114,8 @@ _CONFIG_ATTR_MAP = {
     "gpu_worker_devices": "GPU_WORKER_DEVICES",
     # MCP
     "mcp_enabled": "RESTAI_MCP",
+    # System LLM
+    "system_llm": "SYSTEM_LLM",
     # Docker
     "docker_enabled": "DOCKER_ENABLED",
     "docker_url": "DOCKER_URL",
@@ -253,6 +257,7 @@ def get_all_settings(db_wrapper) -> dict:
         # MCP
         "mcp_enabled": _to_bool(rows.get("mcp_enabled", "false")),
         # Docker
+        "system_llm": rows.get("system_llm", ""),
         "docker_enabled": _to_bool(rows.get("docker_enabled", "false")),
         "docker_url": rows.get("docker_url", ""),
         "docker_image": rows.get("docker_image", "python:3.12-slim"),
