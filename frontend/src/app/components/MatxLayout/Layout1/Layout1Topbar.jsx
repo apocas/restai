@@ -76,7 +76,8 @@ const StyledItem = styled(MenuItem)(({ theme }) => ({
     alignItems: "center",
     textDecoration: "none"
   },
-  "& span": { marginRight: "10px", color: theme.palette.text.primary }
+  "& > svg, & a > svg, & a > .MuiBadge-root": { marginRight: 12 },
+  "& span": { color: theme.palette.text.primary }
 }));
 
 
@@ -155,7 +156,7 @@ const Layout1Topbar = () => {
 
             <StyledItem>
               <Link to="/invitations">
-                <Badge badgeContent={inviteCount} color="error" sx={{ mr: 0.5 }}>
+                <Badge badgeContent={inviteCount} color="error">
                   <Mail />
                 </Badge>
                 <Span>Invites</Span>
