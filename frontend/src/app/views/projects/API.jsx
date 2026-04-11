@@ -9,9 +9,10 @@ import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
-  margin: 10,
+  margin: "24px 48px",
+  [theme.breakpoints.down("md")]: { margin: "24px 32px" },
   [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } },
+  "& .breadcrumb": { marginBottom: 24 },
 }));
 
 const CodeBlock = styled(Box)(() => ({
@@ -459,7 +460,7 @@ export default function ProjectAPI() {
         />
       </Box>
 
-      <Box sx={{ maxWidth: 900, mx: "auto" }}>
+      <Box>
         <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
           API Reference
         </Typography>

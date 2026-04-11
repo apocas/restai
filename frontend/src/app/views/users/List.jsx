@@ -1,42 +1,124 @@
 import { useState, useEffect } from "react";
-import { Grid, styled, Box } from "@mui/material";
-import UsersTable from "../dashboard/shared/UsersTable";
+import { Box, Button, Chip, IconButton, Tooltip, Avatar, styled } from "@mui/material";
+import { Add, Edit, Delete, Visibility } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
+import sha256 from "crypto-js/sha256";
+import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
+import DataList from "app/components/DataList";
 import api from "app/utils/api";
 
-const ContentBox = styled("div")(({ theme }) => ({
-  margin: "30px",
-  [theme.breakpoints.down("sm")]: { margin: "16px" }
-}));
-
 const Container = styled("div")(({ theme }) => ({
-  margin: 10,
+  margin: "24px 48px",
+  [theme.breakpoints.down("md")]: { margin: "24px 32px" },
   [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
+  "& .breadcrumb": { marginBottom: 24 },
 }));
 
 export default function Users() {
   const [users, setUsers] = useState([]);
   const auth = useAuth();
+  const navigate = useNavigate();
+  const isAdmin = auth.user?.is_admin;
 
   const fetchUsers = () => {
-    return api.get("/users", auth.user.token)
-      .then((d) => setUsers(d.users))
-      .catch(() => {});
-  };
-
-  const handleDelete = (username) => {
-    if (!window.confirm(`Are you sure you want to delete user "${username}"?`)) return;
-    api.delete("/users/" + username, auth.user.token)
-      .then(() => fetchUsers())
+    api.get("/users", auth.user.token)
+      .then((d) => setUsers(d.users || []))
       .catch(() => {});
   };
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + ' - Users';
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Users";
     fetchUsers();
   }, []);
+
+  const handleDelete = (e, user) => {
+    e.stopPropagation();
+    if (!window.confirm(`Delete user "${user.username}"?`)) return;
+    api.delete("/users/" + user.username, auth.user.token)
+      .then(() => {
+        toast.success(`Deleted ${user.username}`);
+        fetchUsers();
+      })
+      .catch(() => {});
+  };
+
+  const columns = [
+    {
+      key: "username",
+      label: "User",
+      sortable: true,
+      render: (row) => (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Avatar
+            src={`https://www.gravatar.com/avatar/${sha256(row.username)}`}
+            sx={{ width: 32, height: 32 }}
+          />
+          <Box sx={{ fontWeight: 500 }}>{row.username}</Box>
+        </Box>
+      ),
+    },
+    {
+      key: "is_admin",
+      label: "Role",
+      sortable: true,
+      sortValue: (row) => (row.is_admin ? 0 : 1),
+      render: (row) => (
+        <Chip
+          label={row.is_admin ? "Admin" : "User"}
+          size="small"
+          sx={{
+            backgroundColor: row.is_admin ? "rgba(239,68,68,0.12)" : "rgba(107,114,128,0.15)",
+            color: row.is_admin ? "#ef4444" : "#6b7280",
+            fontWeight: 600,
+            fontSize: "0.72rem",
+            height: 22,
+          }}
+        />
+      ),
+    },
+    {
+      key: "sso",
+      label: "Auth",
+      sortable: true,
+      sortValue: (row) => (row.sso ? "sso" : "local"),
+      render: (row) => (
+        <Chip
+          label={row.sso ? "SSO" : "Local"}
+          size="small"
+          variant="outlined"
+          sx={{ fontSize: "0.72rem", height: 22 }}
+        />
+      ),
+    },
+    {
+      key: "is_restricted",
+      label: "Access",
+      sortable: true,
+      sortValue: (row) => (row.is_restricted ? 1 : 0),
+      render: (row) => (
+        <Chip
+          label={row.is_restricted ? "Read-only" : "Read/Write"}
+          size="small"
+          sx={{
+            backgroundColor: row.is_restricted ? "rgba(245,158,11,0.12)" : "rgba(16,185,129,0.12)",
+            color: row.is_restricted ? "#f59e0b" : "#10b981",
+            fontWeight: 600,
+            fontSize: "0.72rem",
+            height: 22,
+          }}
+        />
+      ),
+    },
+    {
+      key: "projects",
+      label: "Projects",
+      sortable: true,
+      sortValue: (row) => (row.projects || []).length,
+      render: (row) => (row.projects || []).length,
+    },
+  ];
 
   return (
     <Container>
@@ -44,13 +126,71 @@ export default function Users() {
         <Breadcrumb routeSegments={[{ name: "Users", path: "/users" }]} />
       </Box>
 
-      <ContentBox className="analytics">
-        <Grid container spacing={3}>
-          <Grid item lg={12} md={8} sm={12} xs={12}>
-            <UsersTable users={users} onDelete={handleDelete} />
-          </Grid>
-        </Grid>
-      </ContentBox>
+      <DataList
+        title="Users"
+        subtitle="Platform users, their roles, and project access"
+        data={users}
+        columns={columns}
+        searchKeys={["username"]}
+        filters={[
+          {
+            key: "is_admin",
+            label: "Role",
+            options: [
+              { value: "true", label: "Admin" },
+              { value: "false", label: "User" },
+            ],
+            getValue: (row) => (row.is_admin ? "true" : "false"),
+          },
+          {
+            key: "is_restricted",
+            label: "Access",
+            options: [
+              { value: "true", label: "Read-only" },
+              { value: "false", label: "Read/Write" },
+            ],
+            getValue: (row) => (row.is_restricted ? "true" : "false"),
+          },
+        ]}
+        onRowClick={(row) => navigate(`/user/${row.username}`)}
+        rowKey={(row) => row.username}
+        defaultSort={{ key: "username", direction: "asc" }}
+        headerAction={
+          isAdmin && (
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => navigate("/users/new")}
+            >
+              New User
+            </Button>
+          )
+        }
+        actions={(row) => (
+          <>
+            <Tooltip title="View">
+              <IconButton size="small" onClick={() => navigate(`/user/${row.username}`)}>
+                <Visibility fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            {isAdmin && (
+              <>
+                <Tooltip title="Edit">
+                  <IconButton size="small" onClick={() => navigate(`/user/${row.username}`)}>
+                    <Edit fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Delete">
+                  <IconButton size="small" color="error" onClick={(e) => handleDelete(e, row)}>
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
+          </>
+        )}
+        emptyMessage="No users yet."
+      />
     </Container>
   );
 }

@@ -8,9 +8,10 @@ import Breadcrumb from "app/components/Breadcrumb";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
-  margin: 10,
+  margin: "24px 48px",
+  [theme.breakpoints.down("md")]: { margin: "24px 32px" },
   [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } },
+  "& .breadcrumb": { marginBottom: 24 },
 }));
 
 export default function Tools() {
@@ -37,7 +38,7 @@ export default function Tools() {
         <Breadcrumb routeSegments={[{ name: "Projects", path: "/projects" }, { name: "Tools" }]} />
       </Box>
 
-      <Box sx={{ maxWidth: 900, mx: "auto" }}>
+      <Box>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3, flexWrap: "wrap", gap: 2 }}>
           <Box>
             <Typography variant="h5" fontWeight={700}>Agent Tools</Typography>
