@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "RESTai",
-    "description": "RESTai is an AIaaS (AI as a Service) platform. Create AI projects and consume them via REST API.\n\nSupports multiple project types: **RAG**, **Inference**, **Agent**, and **Block**.\n\n## Authentication\n\nAll endpoints require authentication via one of:\n- **JWT Cookie** (`restai_token`)\n- **Bearer API Key** (`Authorization: Bearer <key>`)\n- **Basic Auth** (`Authorization: Basic <credentials>`)\n",
-    "version": "6.0.33"
+    "description": "RESTai is an AIaaS (AI as a Service) platform. Create AI projects and consume them via REST API.\n\nSupports multiple project types: **RAG**, **Agent**, and **Block**.\n\n## Authentication\n\nAll endpoints require authentication via one of:\n- **JWT Cookie** (`restai_token`)\n- **Bearer API Key** (`Authorization: Bearer <key>`)\n- **Basic Auth** (`Authorization: Basic <credentials>`)\n",
+    "version": "6.1.6"
   },
   "paths": {
     "/oauth/{provider}/login": {
@@ -509,11 +509,11 @@
             "required": false,
             "schema": {
               "type": "string",
-              "description": "Filter mode: 'own' for user's projects, 'public' for public projects",
-              "default": "own",
+              "description": "Filter mode: 'public' to list only public projects, empty for all accessible projects",
+              "default": "",
               "title": "Filter"
             },
-            "description": "Filter mode: 'own' for user's projects, 'public' for public projects"
+            "description": "Filter mode: 'public' to list only public projects, empty for all accessible projects"
           },
           {
             "name": "start",
@@ -1157,7 +1157,7 @@
           "Knowledge"
         ],
         "summary": "Ingest File",
-        "description": "Upload and ingest a file into the knowledge base.",
+        "description": "Upload and ingest a file into the knowledge base.\n\n`method` controls the document processing pipeline:\n- `auto` (default) \u2014 tries Docling \u2192 MarkItDown \u2192 Classic in order\n- `classic` \u2014 LlamaIndex file readers (fast, basic text extraction)\n- `docling` \u2014 deep-learning document understanding (best for complex PDFs)\n- `markitdown` \u2014 Microsoft MarkItDown (broad format support)\n\nThe deprecated `classic` boolean is still accepted for backward compatibility.",
         "operationId": "ingest_file_projects__projectID__embeddings_ingest_upload_post",
         "parameters": [
           {
@@ -2733,6 +2733,663 @@
         }
       }
     },
+    "/projects/{projectID}/widgets/{widgetID}/context-secret": {
+      "post": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Generate Widget Context Secret",
+        "description": "Generate a context secret for signed widget context injection. Returns the secret once.",
+        "operationId": "generate_widget_context_secret_projects__projectID__widgets__widgetID__context_secret_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "widgetID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Widget ID",
+              "title": "Widgetid"
+            },
+            "description": "Widget ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Remove Widget Context Secret",
+        "description": "Remove the context secret, disabling signed context for this widget.",
+        "operationId": "remove_widget_context_secret_projects__projectID__widgets__widgetID__context_secret_delete",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "widgetID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Widget ID",
+              "title": "Widgetid"
+            },
+            "description": "Widget ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/kg/entities": {
+      "get": {
+        "tags": [
+          "Knowledge Graph"
+        ],
+        "summary": "Kg List Entities",
+        "description": "List entities in a project's knowledge graph.",
+        "operationId": "kg_list_entities_projects__projectID__kg_entities_get",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by entity type (PERSON, ORG, LOC, MISC)",
+              "title": "Type"
+            },
+            "description": "Filter by entity type (PERSON, ORG, LOC, MISC)"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Substring search on entity name",
+              "title": "Search"
+            },
+            "description": "Substring search on entity name"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/kg/entities/{entity_id}": {
+      "get": {
+        "tags": [
+          "Knowledge Graph"
+        ],
+        "summary": "Kg Get Entity",
+        "description": "Get one entity with all its mentions and related entities.",
+        "operationId": "kg_get_entity_projects__projectID__kg_entities__entity_id__get",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Entity ID",
+              "title": "Entity Id"
+            },
+            "description": "Entity ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Knowledge Graph"
+        ],
+        "summary": "Kg Update Entity",
+        "description": "Rename an entity (update display name only \u2014 normalized name is derived).",
+        "operationId": "kg_update_entity_projects__projectID__kg_entities__entity_id__patch",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Entity ID",
+              "title": "Entity Id"
+            },
+            "description": "Entity ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Knowledge Graph"
+        ],
+        "summary": "Kg Delete Entity",
+        "description": "Delete an entity and all its mentions/relationships.",
+        "operationId": "kg_delete_entity_projects__projectID__kg_entities__entity_id__delete",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Entity ID",
+              "title": "Entity Id"
+            },
+            "description": "Entity ID"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/kg/entities/{entity_id}/merge": {
+      "post": {
+        "tags": [
+          "Knowledge Graph"
+        ],
+        "summary": "Kg Merge Entity",
+        "description": "Merge this entity (source) INTO the target entity. Source is deleted.",
+        "operationId": "kg_merge_entity_projects__projectID__kg_entities__entity_id__merge_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Source entity ID (will be deleted)",
+              "title": "Entity Id"
+            },
+            "description": "Source entity ID (will be deleted)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/kg/duplicates": {
+      "get": {
+        "tags": [
+          "Knowledge Graph"
+        ],
+        "summary": "Kg Find Duplicates",
+        "description": "List potential duplicate entity pairs based on name similarity.",
+        "operationId": "kg_find_duplicates_projects__projectID__kg_duplicates_get",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "threshold",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1.0,
+              "minimum": 0.5,
+              "default": 0.85,
+              "title": "Threshold"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/kg/graph": {
+      "get": {
+        "tags": [
+          "Knowledge Graph"
+        ],
+        "summary": "Kg Get Graph",
+        "description": "Return nodes and edges for knowledge graph visualization.",
+        "operationId": "kg_get_graph_projects__projectID__kg_graph_get",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter nodes by entity type",
+              "title": "Type"
+            },
+            "description": "Filter nodes by entity type"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "description": "Max number of top entities to include",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Max number of top entities to include"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/kg/query": {
+      "post": {
+        "tags": [
+          "Knowledge Graph"
+        ],
+        "summary": "Kg Query",
+        "description": "Natural language query against the knowledge graph.\n\nExtracts entities from the question, finds sources mentioning those entities,\nfetches matching chunks from the vector store, then asks the project's LLM\nto answer using only those chunks as context.",
+        "operationId": "kg_query_projects__projectID__kg_query_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/kg/rebuild": {
+      "post": {
+        "tags": [
+          "Knowledge Graph"
+        ],
+        "summary": "Kg Rebuild",
+        "description": "Re-extract entities for ALL sources in this project. Runs in background.",
+        "operationId": "kg_rebuild_projects__projectID__kg_rebuild_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tools/classifiers": {
       "get": {
         "tags": [
@@ -2933,6 +3590,47 @@
                 "schema": {
                   "$ref": "#/components/schemas/OllamaModelPullResponse"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/openai-compat/models/{llm_id}": {
+      "get": {
+        "tags": [
+          "Tools"
+        ],
+        "summary": "List Openai Compatible Models",
+        "description": "List models from an OpenAI-compatible endpoint using a saved LLM's credentials (admin only).",
+        "operationId": "list_openai_compatible_models_tools_openai_compat_models__llm_id__get",
+        "parameters": [
+          {
+            "name": "llm_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Llm Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -3525,6 +4223,27 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/permissions/matrix": {
+      "get": {
+        "tags": [
+          "Users",
+          "Admin"
+        ],
+        "summary": "Get Permission Matrix",
+        "description": "Return the users x projects permission matrix.\n\nAdmins see everything. Team leaders see only users and projects\nbelonging to their teams. Regular users get 403.",
+        "operationId": "get_permission_matrix_permissions_matrix_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -5462,6 +6181,27 @@
         }
       }
     },
+    "/settings/docker/test": {
+      "post": {
+        "tags": [
+          "Settings",
+          "Settings"
+        ],
+        "summary": "Test Docker Connection",
+        "description": "Test the Docker connection using the current settings.",
+        "operationId": "test_docker_connection_settings_docker_test_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/audit": {
       "get": {
         "tags": [
@@ -6387,10 +7127,13 @@
             "title": "Splitter",
             "default": "sentence"
           },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
           "classic": {
             "type": "boolean",
-            "title": "Classic",
-            "default": false
+            "title": "Classic"
           }
         },
         "type": "object",
@@ -7191,17 +7934,6 @@
             "title": "Description",
             "description": "Human-readable description of the LLM"
           },
-          "type": {
-            "type": "string",
-            "enum": [
-              "chat",
-              "completion",
-              "vision",
-              "qa"
-            ],
-            "title": "Type",
-            "description": "LLM type: 'chat', 'completion', 'vision', or 'qa'"
-          },
           "input_cost": {
             "type": "number",
             "minimum": 0.0,
@@ -7246,8 +7978,7 @@
           "name",
           "class_name",
           "options",
-          "privacy",
-          "type"
+          "privacy"
         ],
         "title": "LLMModel",
         "description": "LLM provider configuration.",
@@ -7261,8 +7992,7 @@
             "model": "openai/gpt-4o"
           },
           "output_cost": 0.015,
-          "privacy": "public",
-          "type": "chat"
+          "privacy": "public"
         }
       },
       "LLMModel-Output": {
@@ -7317,17 +8047,6 @@
             "title": "Description",
             "description": "Human-readable description of the LLM"
           },
-          "type": {
-            "type": "string",
-            "enum": [
-              "chat",
-              "completion",
-              "vision",
-              "qa"
-            ],
-            "title": "Type",
-            "description": "LLM type: 'chat', 'completion', 'vision', or 'qa'"
-          },
           "input_cost": {
             "type": "number",
             "minimum": 0.0,
@@ -7372,8 +8091,7 @@
           "name",
           "class_name",
           "options",
-          "privacy",
-          "type"
+          "privacy"
         ],
         "title": "LLMModel",
         "description": "LLM provider configuration.",
@@ -7387,8 +8105,7 @@
             "model": "openai/gpt-4o"
           },
           "output_cost": 0.015,
-          "privacy": "public",
-          "type": "chat"
+          "privacy": "public"
         }
       },
       "LLMUpdate": {
@@ -7449,24 +8166,6 @@
             ],
             "title": "Description",
             "description": "Human-readable description of the LLM"
-          },
-          "type": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "chat",
-                  "completion",
-                  "vision",
-                  "qa"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Type",
-            "description": "LLM type: 'chat', 'completion', 'vision', or 'qa'"
           },
           "input_cost": {
             "anyOf": [
@@ -8038,12 +8737,11 @@
             "type": "string",
             "enum": [
               "rag",
-              "inference",
               "agent",
               "block"
             ],
             "title": "Type",
-            "description": "Project type: 'rag', 'inference', 'agent', or 'block'"
+            "description": "Project type: 'rag', 'agent', or 'block'"
           },
           "human_name": {
             "anyOf": [
@@ -8489,7 +9187,7 @@
             "minimum": 1.0,
             "title": "Max Iterations",
             "description": "Maximum iterations for agent project execution",
-            "default": 20
+            "default": 10
           },
           "connection": {
             "anyOf": [
@@ -8645,6 +9343,47 @@
             ],
             "title": "Sync Enabled",
             "description": "Enable automatic knowledge base sync"
+          },
+          "enable_knowledge_graph": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enable Knowledge Graph",
+            "description": "Enable entity extraction and knowledge graph features (RAG projects only)"
+          },
+          "ner_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ner Model",
+            "description": "HuggingFace NER model name (default: dslim/bert-base-NER)"
+          },
+          "agent_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "function_calling",
+                  "react"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Mode",
+            "description": "Agent execution mode (agent projects only): 'auto' tries native function calling and falls back to text-based ReAct on first-turn error; 'function_calling' always uses native (errors propagate); 'react' always uses text-based ReAct prompting."
           }
         },
         "type": "object",
@@ -8690,7 +9429,7 @@
           "type": {
             "type": "string",
             "title": "Type",
-            "description": "Project type: 'rag', 'inference', 'agent', or 'block'"
+            "description": "Project type: 'rag', 'agent', or 'block'"
           },
           "system": {
             "anyOf": [
@@ -8822,7 +9561,7 @@
               "cache_threshold": 0.85,
               "score": 0.0,
               "k": 4,
-              "max_iterations": 20,
+              "max_iterations": 10,
               "guard_mode": "block"
             }
           },
@@ -9111,11 +9850,6 @@
             "title": "Proxy Team Id",
             "description": "LiteLLM proxy team identifier",
             "default": ""
-          },
-          "agent_max_iterations": {
-            "type": "integer",
-            "title": "Agent Max Iterations",
-            "description": "Maximum iterations for agent project execution"
           },
           "max_audio_upload_size": {
             "type": "integer",
@@ -9509,6 +10243,57 @@
             "description": "Whether the internal MCP server is enabled",
             "default": false
           },
+          "docker_enabled": {
+            "type": "boolean",
+            "title": "Docker Enabled",
+            "description": "Whether Docker sandboxed terminal is enabled",
+            "default": false
+          },
+          "docker_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docker Url",
+            "description": "Docker socket or TCP URL for sandboxed terminal",
+            "default": ""
+          },
+          "docker_image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docker Image",
+            "description": "Base image for sandbox containers",
+            "default": "python:3.12-slim"
+          },
+          "docker_timeout": {
+            "type": "integer",
+            "title": "Docker Timeout",
+            "description": "Container idle timeout in seconds",
+            "default": 900
+          },
+          "docker_network": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docker Network",
+            "description": "Docker network mode for containers",
+            "default": "none"
+          },
           "data_retention_days": {
             "type": "integer",
             "title": "Data Retention Days",
@@ -9527,7 +10312,6 @@
           "app_name",
           "hide_branding",
           "proxy_enabled",
-          "agent_max_iterations",
           "max_audio_upload_size"
         ],
         "title": "SettingsResponse",
@@ -9606,18 +10390,6 @@
             ],
             "title": "Proxy Team Id",
             "description": "LiteLLM proxy team identifier"
-          },
-          "agent_max_iterations": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Agent Max Iterations",
-            "description": "Maximum iterations for agent project execution"
           },
           "max_audio_upload_size": {
             "anyOf": [
@@ -10027,6 +10799,67 @@
             "title": "Mcp Enabled",
             "description": "Whether the internal MCP server is enabled"
           },
+          "docker_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docker Enabled",
+            "description": "Whether Docker sandboxed terminal is enabled"
+          },
+          "docker_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docker Url",
+            "description": "Docker socket or TCP URL for sandboxed terminal"
+          },
+          "docker_image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docker Image",
+            "description": "Base image for sandbox containers"
+          },
+          "docker_timeout": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 60.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docker Timeout",
+            "description": "Container idle timeout in seconds"
+          },
+          "docker_network": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docker Network",
+            "description": "Docker network mode for containers"
+          },
           "data_retention_days": {
             "anyOf": [
               {
@@ -10057,7 +10890,6 @@
         "title": "SettingsUpdate",
         "description": "Update platform settings.",
         "example": {
-          "agent_max_iterations": 25,
           "app_name": "My AI Platform",
           "currency": "USD",
           "hide_branding": true
@@ -11100,6 +11932,12 @@
             "type": "string",
             "title": "Description",
             "description": "Human-readable description of what the tool does"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Whether the tool is currently available for use",
+            "default": true
           }
         },
         "type": "object",
@@ -11530,6 +12368,12 @@
             "type": "boolean",
             "title": "Stream",
             "default": false
+          },
+          "context_prefix": {
+            "type": "boolean",
+            "title": "Context Prefix",
+            "description": "Auto-prepend user context block to system prompt",
+            "default": true
           }
         },
         "type": "object",

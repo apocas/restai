@@ -12,22 +12,9 @@ const Container = styled("div")(({ theme }) => ({
   "& .breadcrumb": { marginBottom: 24 },
 }));
 
-const Hero = styled(Box)(({ theme }) => ({
+const Hero = styled(Box)(() => ({
   padding: "48px 0 40px",
   textAlign: "center",
-  position: "relative",
-  "&::before": {
-    content: '""',
-    position: "absolute",
-    top: 0,
-    left: "50%",
-    transform: "translateX(-50%)",
-    width: 520,
-    height: 260,
-    background: `radial-gradient(circle at center, ${theme.palette.primary.main}22, transparent 70%)`,
-    pointerEvents: "none",
-    zIndex: 0,
-  },
 }));
 
 const OptionCard = styled(Box, {
