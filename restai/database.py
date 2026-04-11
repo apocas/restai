@@ -506,20 +506,35 @@ class DBWrapper:
             return False  # Project should belong to at least one team
         
         if projectModel.users is not None:
-            proj_db.users = []
+            new_users = []
+            rejected = []
             for username in projectModel.users:
                 user_db = self.get_user_by_username(username)
-                if user_db is not None:
-                    # Validate that the user belongs to at least one of the teams associated with this project
-                    user_is_in_team = False
-                    for team in teams_with_project:
-                        if user_db in team.users or user_db in team.admins:
-                            user_is_in_team = True
-                            break
-                    
-                    # Only add the user if they belong to one of the project's teams
-                    if user_is_in_team:
-                        proj_db.users.append(user_db)
+                if user_db is None:
+                    rejected.append(f"{username} (not found)")
+                    continue
+                # Platform admins bypass the team membership check
+                if user_db.is_admin:
+                    new_users.append(user_db)
+                    continue
+                # Otherwise the user must belong to one of the project's teams
+                in_team = any(
+                    user_db in team.users or user_db in team.admins
+                    for team in teams_with_project
+                )
+                if in_team:
+                    new_users.append(user_db)
+                else:
+                    rejected.append(f"{username} (not in project's team)")
+
+            if rejected:
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot assign users: {', '.join(rejected)}",
+                )
+
+            proj_db.users = new_users
             changed = True
 
         if projectModel.name is not None and proj_db.name != projectModel.name:

@@ -164,8 +164,8 @@ export default function ProjectEdit({ project, projects, info }) {
       opts.team_id = state.team.id;
     }
 
-    if (state.selectedUsers && state.selectedUsers.length > 0) {
-      opts.users = state.selectedUsers.map((user) => user.username);
+    if (state.selectedUsers !== undefined) {
+      opts.users = (state.selectedUsers || []).map((user) => user.username);
     }
 
     if (project.type === "rag" || project.type === "agent") {
@@ -326,8 +326,9 @@ export default function ProjectEdit({ project, projects, info }) {
   }, [project, auth.user.token]);
 
   useEffect(() => {
-    if (project && project.users) {
-      const projectUsers = users.filter((user) => project.users.includes(user.username));
+    if (project && Array.isArray(project.users)) {
+      const projectUsernames = project.users.map((u) => typeof u === "string" ? u : u?.username);
+      const projectUsers = users.filter((user) => projectUsernames.includes(user.username));
       setState((prev) => ({ ...prev, selectedUsers: projectUsers }));
     }
   }, [users, project]);
