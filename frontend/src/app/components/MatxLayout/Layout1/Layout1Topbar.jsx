@@ -29,8 +29,10 @@ import {
   Mail,
   Menu,
   Person,
-  PowerSettingsNew
+  PowerSettingsNew,
+  Search as SearchIcon,
 } from "@mui/icons-material";
+import SmartSearch from "app/components/SmartSearch";
 
 const StyledIconButton = styled(IconButton)(({ theme }) => ({
   color: theme.palette.text.primary
@@ -87,6 +89,8 @@ const Layout1Topbar = () => {
   const { logout, user } = useAuth();
   const isMdScreen = useMediaQuery(theme.breakpoints.down("md"));
   const [inviteCount, setInviteCount] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [systemLlmConfigured, setSystemLlmConfigured] = useState(false);
 
   const refreshInviteCount = () => {
     if (user?.token || user?.username) {
@@ -101,6 +105,24 @@ const Layout1Topbar = () => {
     window.addEventListener("invitations-changed", refreshInviteCount);
     return () => window.removeEventListener("invitations-changed", refreshInviteCount);
   }, [user?.username]);
+
+  useEffect(() => {
+    if (!user) return;
+    api.get("/info", user.token, { silent: true })
+      .then((d) => setSystemLlmConfigured(!!d?.system_llm_configured))
+      .catch(() => {});
+  }, [user?.username]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        if (systemLlmConfigured) setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [systemLlmConfigured]);
 
   const updateSidebarMode = (sidebarSettings) => {
     updateSettings({ layout1Settings: { leftSidebar: { ...sidebarSettings } } });
@@ -127,6 +149,11 @@ const Layout1Topbar = () => {
         </Box>
 
         <Box display="flex" alignItems="center">
+          {systemLlmConfigured && (
+            <StyledIconButton onClick={() => setSearchOpen(true)} title="Smart search (⌘K)">
+              <SearchIcon />
+            </StyledIconButton>
+          )}
           <MatxMenu
             menuButton={
               <UserMenu>
@@ -170,6 +197,9 @@ const Layout1Topbar = () => {
           </MatxMenu>
         </Box>
       </TopbarContainer>
+      {systemLlmConfigured && (
+        <SmartSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+      )}
     </TopbarRoot>
   );
 };
