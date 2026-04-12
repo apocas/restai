@@ -13,9 +13,13 @@ def clear_rate_limiter():
     from restai.database import DBWrapper
     from restai.models.databasemodels import LoginAttemptDatabase
     db = DBWrapper()
-    db.db.query(LoginAttemptDatabase).delete()
-    db.db.commit()
-    db.db.close()
+    try:
+        db.db.query(LoginAttemptDatabase).delete()
+        db.db.commit()
+    except Exception:
+        db.db.rollback()
+    finally:
+        db.db.close()
 
 
 @pytest.fixture(scope="module")
@@ -98,71 +102,76 @@ def test_totp_status_after_enable(client):
     assert response.json()["enabled"] is True
 
 
-def test_login_requires_totp_when_enabled(client):
-    response = client.post(
-        "/auth/login",
-        auth=(test_username, test_password),
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["requires_totp"] is True
-    assert "totp_token" in data
+def test_login_requires_totp_when_enabled():
+    with TestClient(app) as c:
+        response = c.post(
+            "/auth/login",
+            auth=(test_username, test_password),
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["requires_totp"] is True
+        assert "totp_token" in data
 
 
-def test_verify_totp_invalid_code(client):
-    # First get the temp token
-    login_resp = client.post("/auth/login", auth=(test_username, test_password))
-    totp_token = login_resp.json()["totp_token"]
+def test_verify_totp_invalid_code():
+    with TestClient(app) as c:
+        login_resp = c.post("/auth/login", auth=(test_username, test_password))
+        totp_token = login_resp.json()["totp_token"]
 
-    response = client.post(
-        "/auth/verify-totp",
-        json={"token": totp_token, "code": "000000"},
-    )
-    assert response.status_code == 401
-
-
-def test_verify_totp_valid_code(client):
-    login_resp = client.post("/auth/login", auth=(test_username, test_password))
-    totp_token = login_resp.json()["totp_token"]
-
-    code = pyotp.TOTP(totp_secret).now()
-    response = client.post(
-        "/auth/verify-totp",
-        json={"token": totp_token, "code": code},
-    )
-    assert response.status_code == 200
-    assert "Logged in" in response.json()["message"]
+        response = c.post(
+            "/auth/verify-totp",
+            json={"token": totp_token, "code": "000000"},
+        )
+        assert response.status_code == 401
 
 
-def test_verify_totp_expired_token(client):
-    response = client.post(
-        "/auth/verify-totp",
-        json={"token": "invalid.jwt.token", "code": "123456"},
-    )
-    assert response.status_code == 401
+def test_verify_totp_valid_code():
+    with TestClient(app) as c:
+        login_resp = c.post("/auth/login", auth=(test_username, test_password))
+        totp_token = login_resp.json()["totp_token"]
+
+        code = pyotp.TOTP(totp_secret).now()
+        response = c.post(
+            "/auth/verify-totp",
+            json={"token": totp_token, "code": code},
+        )
+        assert response.status_code == 200
+        assert "Logged in" in response.json()["message"]
 
 
-def test_verify_totp_recovery_code(client):
-    login_resp = client.post("/auth/login", auth=(test_username, test_password))
-    totp_token = login_resp.json()["totp_token"]
-
-    response = client.post(
-        "/auth/verify-totp",
-        json={"token": totp_token, "code": recovery_codes[0]},
-    )
-    assert response.status_code == 200
-    assert "Recovery code consumed" in response.json()["message"]
+def test_verify_totp_expired_token():
+    with TestClient(app) as c:
+        response = c.post(
+            "/auth/verify-totp",
+            json={"token": "invalid.jwt.token", "code": "123456"},
+        )
+        assert response.status_code == 401
 
 
-def test_recovery_code_single_use(client):
-    login_resp = client.post("/auth/login", auth=(test_username, test_password))
-    totp_token = login_resp.json()["totp_token"]
+def test_verify_totp_recovery_code():
+    with TestClient(app) as c:
+        login_resp = c.post("/auth/login", auth=(test_username, test_password))
+        totp_token = login_resp.json()["totp_token"]
 
-    # Same recovery code should fail now
-    response = client.post(
-        "/auth/verify-totp",
-        json={"token": totp_token, "code": recovery_codes[0]},
-    )
+        response = c.post(
+            "/auth/verify-totp",
+            json={"token": totp_token, "code": recovery_codes[0]},
+        )
+        assert response.status_code == 200
+        assert "Recovery code consumed" in response.json()["message"]
+
+
+def test_recovery_code_single_use():
+    with TestClient(app) as c:
+        login_resp = c.post("/auth/login", auth=(test_username, test_password))
+        totp_token = login_resp.json()["totp_token"]
+
+        # Same recovery code should fail now
+        response = c.post(
+            "/auth/verify-totp",
+            json={"token": totp_token, "code": recovery_codes[0]},
+        )
     assert response.status_code == 401
 
 
@@ -186,15 +195,17 @@ def test_totp_disable_with_password(client):
     assert "disabled" in response.json()["message"].lower()
 
 
-def test_login_normal_after_disable(client):
-    response = client.post(
-        "/auth/login",
-        auth=(test_username, test_password),
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert "requires_totp" not in data or data.get("requires_totp") is not True
-    assert "Logged in" in data.get("message", "")
+def test_login_normal_after_disable():
+    """Uses separate client to avoid cookie pollution from login."""
+    with TestClient(app) as c:
+        response = c.post(
+            "/auth/login",
+            auth=(test_username, test_password),
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "requires_totp" not in data or data.get("requires_totp") is not True
+        assert "Logged in" in data.get("message", "")
 
 
 def test_totp_setup_overwrites_previous(client):
