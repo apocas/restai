@@ -8,6 +8,13 @@ sys.setrecursionlimit(20000)
 from restai.models.models import (
     TeamModel, User, ProjectModel, ProjectResponse,
     LLMModel, EmbeddingModel, ProjectBaseModel,
+    WidgetResponse, WidgetCreatedResponse, WidgetConfig,
+    SettingsResponse, SettingsUpdate,
 )
-for model in [TeamModel, User, ProjectModel, ProjectResponse, LLMModel, EmbeddingModel, ProjectBaseModel]:
+for model in [
+    TeamModel, User, ProjectModel, ProjectResponse,
+    LLMModel, EmbeddingModel, ProjectBaseModel,
+    WidgetResponse, WidgetCreatedResponse, WidgetConfig,
+    SettingsResponse, SettingsUpdate,
+]:
     model.model_rebuild()
