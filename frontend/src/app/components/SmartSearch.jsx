@@ -9,6 +9,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import PersonIcon from "@mui/icons-material/Person";
+import GroupsIcon from "@mui/icons-material/Groups";
+import PsychologyIcon from "@mui/icons-material/Psychology";
+import HubIcon from "@mui/icons-material/Hub";
 import { useNavigate } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
@@ -34,6 +40,14 @@ const ENTITY_LABELS = {
   teams: "Team",
   llms: "LLM",
   embeddings: "Embedding",
+};
+
+const ENTITY_ICONS = {
+  projects: AssignmentIcon,
+  users: PersonIcon,
+  teams: GroupsIcon,
+  llms: PsychologyIcon,
+  embeddings: HubIcon,
 };
 
 export default function SmartSearch({ open, onClose }) {
@@ -263,6 +277,7 @@ export default function SmartSearch({ open, onClose }) {
                     color: "text.primary",
                   }}
                 >
+                  {(() => { const Icon = ENTITY_ICONS[r.entity] || SearchIcon; return <Icon fontSize="small" sx={{ mr: 1.5, color: "text.secondary" }} />; })()}
                   <Box sx={{ flex: 1, textAlign: "left" }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Chip
