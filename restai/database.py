@@ -32,10 +32,13 @@ import bcrypt
 from typing import Optional, List
 from restai.config import MYSQL_HOST, MYSQL_URL, POSTGRES_HOST, POSTGRES_URL
 import json
-from restai.utils.crypto import decrypt_api_key, hash_api_key
+from restai.utils.crypto import decrypt_api_key, hash_api_key, verify_api_key_hash
+
+import logging as _logging
+_db_logger = _logging.getLogger(__name__)
 
 if MYSQL_HOST:
-    print("Using MySQL database: " + MYSQL_HOST)
+    _db_logger.info("Using MySQL database.")
     engine = create_engine(
         MYSQL_URL,
         pool_size=config.DB_POOL_SIZE,
@@ -43,7 +46,7 @@ if MYSQL_HOST:
         pool_recycle=config.DB_POOL_RECYCLE,
     )
 elif POSTGRES_HOST:
-    print("Using PostgreSQL database")
+    _db_logger.info("Using PostgreSQL database.")
     engine = create_engine(
         POSTGRES_URL,
         pool_size=config.DB_POOL_SIZE,
@@ -51,7 +54,7 @@ elif POSTGRES_HOST:
         pool_recycle=config.DB_POOL_RECYCLE,
     )
 else:
-    print("Using sqlite database.")
+    _db_logger.info("Using sqlite database.")
     engine = create_engine(
         "sqlite:///./restai.db",
         connect_args={"check_same_thread": False},
@@ -192,14 +195,16 @@ class DBWrapper:
 
     def get_user_by_apikey(self, apikey: str):
         """Returns (UserDatabase, ApiKeyDatabase) or (UserDatabase, None) for legacy, or (None, None)."""
-        key_hash = hash_api_key(apikey)
-        api_key_row = (
+        # Lookup by key_prefix, then verify the salted hash
+        prefix = apikey[:8]
+        candidates = (
             self.db.query(ApiKeyDatabase)
-            .filter(ApiKeyDatabase.key_hash == key_hash)
-            .first()
+            .filter(ApiKeyDatabase.key_prefix == prefix)
+            .all()
         )
-        if api_key_row is not None:
-            return api_key_row.user, api_key_row
+        for api_key_row in candidates:
+            if verify_api_key_hash(apikey, api_key_row.key_hash):
+                return api_key_row.user, api_key_row
         # Fallback: check legacy api_key column for migration period
         for user in self.db.query(UserDatabase).filter(UserDatabase.api_key.isnot(None)):
             try:

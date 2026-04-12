@@ -1,4 +1,5 @@
 import hashlib
+import os
 import secrets
 import string
 
@@ -22,8 +23,35 @@ def decrypt_api_key(token: str) -> str:
     except InvalidToken:
         raise ValueError("Invalid API key token or decryption failed.")
 
+
+# ─── Salted hashing for API keys ────────────────────────────────────────
+# New hashes use PBKDF2 with a random salt, prefixed with "$pbkdf2$".
+# Legacy SHA256 hashes (no prefix) are still accepted for lookups.
+
+_PBKDF2_PREFIX = "$pbkdf2$"
+_PBKDF2_ITERATIONS = 100_000
+
+
 def hash_api_key(plaintext: str) -> str:
-    return hashlib.sha256(plaintext.encode()).hexdigest()
+    """Hash an API key with PBKDF2-SHA256 + random salt."""
+    salt = os.urandom(16)
+    dk = hashlib.pbkdf2_hmac("sha256", plaintext.encode(), salt, _PBKDF2_ITERATIONS)
+    return _PBKDF2_PREFIX + salt.hex() + "$" + dk.hex()
+
+
+def verify_api_key_hash(plaintext: str, stored_hash: str) -> bool:
+    """Verify a plaintext API key against a stored hash (PBKDF2 or legacy SHA256)."""
+    if stored_hash.startswith(_PBKDF2_PREFIX):
+        rest = stored_hash[len(_PBKDF2_PREFIX):]
+        parts = rest.split("$", 1)
+        if len(parts) != 2:
+            return False
+        salt = bytes.fromhex(parts[0])
+        expected = bytes.fromhex(parts[1])
+        dk = hashlib.pbkdf2_hmac("sha256", plaintext.encode(), salt, _PBKDF2_ITERATIONS)
+        return dk == expected
+    # Legacy: plain SHA256
+    return hashlib.sha256(plaintext.encode()).hexdigest() == stored_hash
 
 
 # TOTP helpers
@@ -41,7 +69,24 @@ def generate_recovery_codes(count: int = 8) -> list[str]:
     return ["".join(secrets.choice(alphabet) for _ in range(8)) for _ in range(count)]
 
 def hash_recovery_code(code: str) -> str:
-    return hashlib.sha256(code.strip().lower().encode()).hexdigest()
+    """Hash a recovery code with PBKDF2-SHA256 + random salt."""
+    salt = os.urandom(16)
+    dk = hashlib.pbkdf2_hmac("sha256", code.strip().lower().encode(), salt, _PBKDF2_ITERATIONS)
+    return _PBKDF2_PREFIX + salt.hex() + "$" + dk.hex()
+
+def verify_recovery_code(code: str, stored_hash: str) -> bool:
+    """Verify a recovery code against a stored hash (PBKDF2 or legacy SHA256)."""
+    if stored_hash.startswith(_PBKDF2_PREFIX):
+        rest = stored_hash[len(_PBKDF2_PREFIX):]
+        parts = rest.split("$", 1)
+        if len(parts) != 2:
+            return False
+        salt = bytes.fromhex(parts[0])
+        expected = bytes.fromhex(parts[1])
+        dk = hashlib.pbkdf2_hmac("sha256", code.strip().lower().encode(), salt, _PBKDF2_ITERATIONS)
+        return dk == expected
+    # Legacy: plain SHA256
+    return hashlib.sha256(code.strip().lower().encode()).hexdigest() == stored_hash
 
 
 # ─── Field-level encryption for sensitive options ───

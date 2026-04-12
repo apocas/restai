@@ -10,7 +10,7 @@ from restai.auth import create_access_token, get_current_username, get_current_u
 from restai.config import RESTAI_AUTH_SECRET
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.models import User, TOTPVerifyRequest
-from restai.utils.crypto import decrypt_totp_secret, hash_recovery_code
+from restai.utils.crypto import decrypt_totp_secret, hash_recovery_code, verify_recovery_code
 import json
 
 
@@ -138,10 +138,14 @@ async def verify_totp(
     if user_db.totp_recovery_codes:
         try:
             codes = json.loads(user_db.totp_recovery_codes)
-            code_hash = hash_recovery_code(body.code)
-            if code_hash in codes:
+            matched_code = None
+            for stored_hash in codes:
+                if verify_recovery_code(body.code, stored_hash):
+                    matched_code = stored_hash
+                    break
+            if matched_code is not None:
                 # Consume the recovery code
-                codes.remove(code_hash)
+                codes.remove(matched_code)
                 user_db.totp_recovery_codes = json.dumps(codes)
                 db_wrapper.db.commit()
 
@@ -193,7 +197,7 @@ async def impersonate_user(
             key="restai_token_admin",
             value=admin_token,
             samesite="strict",
-            expires=86400,
+            max_age=1800,
             httponly=True,
         )
 

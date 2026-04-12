@@ -199,6 +199,21 @@ async def route_create_user_apikey(
         allowed_projects_json = None
         if body.allowed_projects is not None:
             import json
+            # Validate the requesting user has access to all scoped projects
+            caller = db_wrapper.get_user_by_username(_.username)
+            for pid in body.allowed_projects:
+                if not _.is_admin:
+                    has_access = any(p.id == pid for p in (caller.projects if caller else []))
+                    if not has_access and _.admin_teams:
+                        project_db = db_wrapper.get_project_by_id(pid)
+                        has_access = project_db and project_db.team_id and any(
+                            t.id == project_db.team_id for t in _.admin_teams
+                        )
+                    if not has_access:
+                        raise HTTPException(
+                            status_code=403,
+                            detail=f"Cannot scope API key to project {pid}: access denied",
+                        )
             allowed_projects_json = json.dumps(body.allowed_projects)
 
         api_key_row = db_wrapper.create_api_key(
