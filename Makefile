@@ -156,6 +156,29 @@ update:
 docs:
 	uv run --no-group gpu docs.py
 
+.PHONY: version
+version:
+	@CURRENT=$$(grep '^version' pyproject.toml | head -1 | sed 's/.*"\(.*\)"/\1/'); \
+	MAJOR=$$(echo $$CURRENT | cut -d. -f1); \
+	MINOR=$$(echo $$CURRENT | cut -d. -f2); \
+	PATCH=$$(echo $$CURRENT | cut -d. -f3); \
+	NEW_PATCH=$$((PATCH + 1)); \
+	NEW_VERSION="$$MAJOR.$$MINOR.$$NEW_PATCH"; \
+	echo "Bumping version: $$CURRENT → $$NEW_VERSION"; \
+	sed -i "s/^version = \"$$CURRENT\"/version = \"$$NEW_VERSION\"/" pyproject.toml; \
+	echo "Syncing lock file..."; \
+	uv sync --no-group gpu; \
+	echo "Committing..."; \
+	git add pyproject.toml uv.lock; \
+	git commit -m "v$$NEW_VERSION"; \
+	echo "Tagging v$$NEW_VERSION..."; \
+	git tag "v$$NEW_VERSION"; \
+	echo "Pushing..."; \
+	git push && git push --tags; \
+	echo "Creating GitHub release..."; \
+	gh release create "v$$NEW_VERSION" --title "v$$NEW_VERSION" --generate-notes; \
+	echo "Done: v$$NEW_VERSION released."
+
 .PHONY: test
 test:
 	pytest tests

@@ -20,7 +20,10 @@ def run_retention_cleanup(db_wrapper: DBWrapper):
 
     Called on startup. If DATA_RETENTION_DAYS is 0 or not set, does nothing.
     """
-    days = config.DATA_RETENTION_DAYS
+    try:
+        days = int(db_wrapper.get_setting_value("data_retention_days", "0"))
+    except (ValueError, TypeError):
+        days = 0
     if not days or days <= 0:
         return
 

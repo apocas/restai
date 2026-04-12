@@ -126,8 +126,13 @@ class Brain:
         return llm
 
     def get_system_llm(self, db: DBWrapper) -> Optional[LLM]:
-        """Return the configured internal/housekeeping LLM, or None if not configured."""
-        name = (getattr(config, "SYSTEM_LLM", "") or "").strip()
+        """Return the configured internal/housekeeping LLM, or None if not configured.
+
+        Reads from DB directly (not config cache) so it picks up changes
+        immediately, even in multi-worker deployments.
+        """
+        setting = db.get_setting("system_llm")
+        name = (setting.value if setting and setting.value else "").strip()
         if not name:
             return None
         return self.get_llm(name, db)

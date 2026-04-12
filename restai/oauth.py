@@ -123,11 +123,13 @@ class OAuthManager:
 
         user = self.db_wrapper.get_user_by_username(email)
         if user is None and config.AUTO_CREATE_USER:
-            user = self.db_wrapper.create_user(email, None, False, False, restricted=config.SSO_AUTO_RESTRICTED)
+            sso_restricted = self.db_wrapper.get_setting_value("sso_auto_restricted", "true").lower() in ("true", "1")
+            user = self.db_wrapper.create_user(email, None, False, False, restricted=sso_restricted)
             self.db_wrapper.db.commit()
-            if config.SSO_AUTO_TEAM_ID:
+            sso_team_id = self.db_wrapper.get_setting_value("sso_auto_team_id", "")
+            if sso_team_id:
                 try:
-                    team = self.db_wrapper.get_team_by_id(int(config.SSO_AUTO_TEAM_ID))
+                    team = self.db_wrapper.get_team_by_id(int(sso_team_id))
                     if team:
                         self.db_wrapper.add_user_to_team(team, user)
                 except (ValueError, TypeError):

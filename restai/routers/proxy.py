@@ -1,24 +1,25 @@
 import logging
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    Path,
-)
-import requests
-from restai import config
-from restai.auth import (
-    get_current_username_admin,
-)
-from restai.database import get_db_wrapper, DBWrapper
-from restai.models.models import (
-    KeyCreate,
-    User,
-)
 
-logging.basicConfig(level=config.LOG_LEVEL)
+import requests
+from fastapi import APIRouter, Depends, HTTPException, Path
+
+from restai.auth import get_current_username_admin
+from restai.database import get_db_wrapper, DBWrapper
+from restai.models.models import KeyCreate, User
+
+logging.basicConfig(level=logging.INFO)
 
 router = APIRouter()
+
+
+def _proxy_settings(db_wrapper: DBWrapper):
+    """Read proxy settings fresh from DB for multi-worker safety."""
+    url = db_wrapper.get_setting_value("proxy_url", "")
+    key = db_wrapper.get_setting_value("proxy_key", "")
+    team_id = db_wrapper.get_setting_value("proxy_team_id", "")
+    if not url:
+        raise HTTPException(status_code=400, detail="Proxy URL is not configured")
+    return url.rstrip("/"), key, team_id
 
 
 @router.post("/proxy/keys")
@@ -28,15 +29,16 @@ async def route_create_key(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Create a new LiteLLM proxy API key (admin only)."""
-    url = config.PROXY_URL + "/key/generate"
+    proxy_url, proxy_key, proxy_team_id = _proxy_settings(db_wrapper)
+    url = proxy_url + "/key/generate"
     headers = {
-        "Authorization": "Bearer " + config.PROXY_KEY,
+        "Authorization": "Bearer " + proxy_key,
         "Content-Type": "application/json",
     }
     data = {"models": key_create.models, "key_alias": key_create.name, "max_budget": key_create.max_budget, "budget_duration": key_create.duration_budget, "tpm_limit": key_create.tpm, "rpm_limit": key_create.rpm}
-    
-    if config.PROXY_TEAM_ID:
-        data["team_id"] = config.PROXY_TEAM_ID
+
+    if proxy_team_id:
+        data["team_id"] = proxy_team_id
 
     response = requests.post(url, headers=headers, json=data)
 
@@ -53,9 +55,10 @@ async def route_get_keys(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """List all LiteLLM proxy API keys (admin only)."""
-    url = config.PROXY_URL + "/user/info"
+    proxy_url, proxy_key, proxy_team_id = _proxy_settings(db_wrapper)
+    url = proxy_url + "/user/info"
     headers = {
-        "Authorization": "Bearer " + config.PROXY_KEY,
+        "Authorization": "Bearer " + proxy_key,
         "Content-Type": "application/json",
     }
 
@@ -65,7 +68,7 @@ async def route_get_keys(
         data = response.json()
         output = []
         for key in data["keys"]:
-            if config.PROXY_TEAM_ID and key["team_id"] != config.PROXY_TEAM_ID:
+            if proxy_team_id and key["team_id"] != proxy_team_id:
                 continue
             output.append(
                 {"key": key["key_name"], "models": key["models"], "id": key["token"], "spend": key["spend"], "max_budget": key["max_budget"], "duration_budget": key["budget_duration"], "tpm": key["tpm_limit"], "rpm": key["rpm_limit"], "name": key["key_alias"]}
@@ -82,9 +85,10 @@ async def route_delete_key(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Delete a LiteLLM proxy API key (admin only)."""
-    url = config.PROXY_URL + "/key/delete"
+    proxy_url, proxy_key, proxy_team_id = _proxy_settings(db_wrapper)
+    url = proxy_url + "/key/delete"
     headers = {
-        "Authorization": "Bearer " + config.PROXY_KEY,
+        "Authorization": "Bearer " + proxy_key,
         "Content-Type": "application/json",
     }
     data = {"keys": [key_id]}
@@ -103,9 +107,10 @@ async def route_proxy_info(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Get LiteLLM proxy info and available models (admin only)."""
-    url = config.PROXY_URL + "/models"
+    proxy_url, proxy_key, proxy_team_id = _proxy_settings(db_wrapper)
+    url = proxy_url + "/models"
     headers = {
-        "Authorization": "Bearer " + config.PROXY_KEY,
+        "Authorization": "Bearer " + proxy_key,
         "Content-Type": "application/json",
     }
 
@@ -116,6 +121,6 @@ async def route_proxy_info(
         output = []
         for key in data["data"]:
             output.append(key["id"])
-        return {"models": output, "url": config.PROXY_URL}
+        return {"models": output, "url": proxy_url}
     else:
         raise HTTPException(status_code=502, detail="Failed to list proxy models")

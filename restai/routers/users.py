@@ -128,11 +128,13 @@ async def ldap_auth(request: Request, form_data: UserLogin, db_wrapper: DBWrappe
 
             user = db_wrapper.get_user_by_username(mail)
             if user is None:
-                user = db_wrapper.create_user(mail, None, False, False, restricted=config.SSO_AUTO_RESTRICTED)
+                sso_restricted = db_wrapper.get_setting_value("sso_auto_restricted", "true").lower() in ("true", "1")
+                user = db_wrapper.create_user(mail, None, False, False, restricted=sso_restricted)
                 db_wrapper.db.commit()
-                if config.SSO_AUTO_TEAM_ID:
+                sso_team_id = db_wrapper.get_setting_value("sso_auto_team_id", "")
+                if sso_team_id:
                     try:
-                        team = db_wrapper.get_team_by_id(int(config.SSO_AUTO_TEAM_ID))
+                        team = db_wrapper.get_team_by_id(int(sso_team_id))
                         if team:
                             db_wrapper.add_user_to_team(team, user)
                     except (ValueError, TypeError):
@@ -442,7 +444,7 @@ async def totp_status(
         raise HTTPException(status_code=404, detail="User not found")
     return {
         "enabled": bool(user_db.totp_enabled),
-        "enforced": bool(getattr(config, "ENFORCE_2FA", False)),
+        "enforced": db_wrapper.get_setting_value("enforce_2fa", "false").lower() in ("true", "1"),
     }
 
 
@@ -521,7 +523,7 @@ async def totp_disable(
     if not user.is_admin and user.username != username:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if getattr(config, "ENFORCE_2FA", False):
+    if db_wrapper.get_setting_value("enforce_2fa", "false").lower() in ("true", "1"):
         raise HTTPException(status_code=403, detail="2FA is enforced by the administrator and cannot be disabled")
 
     user_db = db_wrapper.get_user_by_username(username)

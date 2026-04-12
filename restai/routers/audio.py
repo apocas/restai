@@ -47,7 +47,8 @@ async def route_generate_transcript(
     generator: str = Path(description="Audio transcription generator name"),
     file: UploadFile = ...,
     language: str = Form(..., description="Language code for transcription"),
-    _: User = Depends(get_current_username)  # Require authentication
+    _: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Transcribe an audio file using the specified generator."""
     # Read the uploaded file contents
@@ -55,11 +56,12 @@ async def route_generate_transcript(
     file_size = len(contents)
     await file.seek(0)
 
-    max_size_bytes = config.MAX_AUDIO_UPLOAD_SIZE * 1024 * 1024
+    max_audio_mb = int(db_wrapper.get_setting_value("max_audio_upload_size", "10"))
+    max_size_bytes = max_audio_mb * 1024 * 1024
     if file_size > max_size_bytes:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large. Maximum size allowed is {config.MAX_AUDIO_UPLOAD_SIZE} MB.",
+            detail=f"File too large. Maximum size allowed is {max_audio_mb} MB.",
         )
 
     # Sanitize filename
@@ -152,11 +154,12 @@ async def openai_compatible_transcription(
     file_size = len(contents)
     await file.seek(0)
 
-    max_size_bytes = config.MAX_AUDIO_UPLOAD_SIZE * 1024 * 1024
+    max_audio_mb = int(db_wrapper.get_setting_value("max_audio_upload_size", "10"))
+    max_size_bytes = max_audio_mb * 1024 * 1024
     if file_size > max_size_bytes:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large. Maximum size allowed is {config.MAX_AUDIO_UPLOAD_SIZE} MB.",
+            detail=f"File too large. Maximum size allowed is {max_audio_mb} MB.",
         )
 
     file.filename = sanitize_filename(file.filename)

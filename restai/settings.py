@@ -5,20 +5,20 @@ from restai.models.databasemodels import SettingDatabase
 
 # Mapping: setting_key -> (env_var_name_or_None, default_value)
 SETTINGS_DEFAULTS = {
-    "app_name": ("RESTAI_NAME", "RESTai"),
-    "hide_branding": ("RESTAI_HIDE", "false"),
+    "app_name": (None, "RESTai"),
+    "hide_branding": (None, "false"),
     "proxy_enabled": (None, "false"),
-    "proxy_url": ("PROXY_URL", ""),
-    "proxy_key": ("PROXY_KEY", ""),
-    "proxy_team_id": ("PROXY_TEAM_ID", ""),
-    "max_audio_upload_size": ("MAX_AUDIO_UPLOAD_SIZE", "10"),
-    "currency": ("CURRENCY", "EUR"),
+    "proxy_url": (None, ""),
+    "proxy_key": (None, ""),
+    "proxy_team_id": (None, ""),
+    "max_audio_upload_size": (None, "10"),
+    "currency": (None, "EUR"),
     "redis_host": ("REDIS_HOST", ""),
     "redis_port": ("REDIS_PORT", "6379"),
     "redis_password": ("REDIS_PASSWORD", ""),
     "redis_database": ("REDIS_DATABASE", "0"),
     # Authentication
-    "auth_disable_local": ("RESTAI_AUTH_DISABLE_LOCAL", "false"),
+    "auth_disable_local": (None, "false"),
     "sso_auto_create_user": ("AUTO_CREATE_USER", "false"),
     "sso_allowed_domains": ("OAUTH_ALLOWED_DOMAINS", "*"),
     "sso_auto_restricted": (None, "true"),
@@ -53,7 +53,7 @@ SETTINGS_DEFAULTS = {
     # MCP
     "mcp_enabled": ("MCP_SERVER", "false"),
     # System LLM
-    "system_llm": ("SYSTEM_LLM", ""),
+    "system_llm": (None, ""),
     # Docker
     "docker_enabled": (None, "false"),
     "docker_url": ("DOCKER_URL", ""),

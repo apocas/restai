@@ -170,7 +170,9 @@ async def lifespan(fs_app: FastAPI):
         return health
 
     @fs_app.get("/setup", tags=["Health"])
-    async def get_setup():
+    async def get_setup(
+        db_wrapper: DBWrapper = Depends(get_db_wrapper),
+    ):
         """Get platform setup information including SSO providers and feature flags."""
         sso_list = []
         if isinstance(config.OAUTH_PROVIDERS, dict):
@@ -186,18 +188,19 @@ async def lifespan(fs_app: FastAPI):
             else:
                 sso_provider_names[provider] = provider.capitalize()
 
+        _sv = db_wrapper.get_setting_value
         return {
             "sso": sso_list,
             "sso_provider_names": sso_provider_names,
-            "proxy": bool(config.PROXY_URL),
+            "proxy": bool(_sv("proxy_url")),
             "gpu": config.RESTAI_GPU,
-            "app_name": config.RESTAI_NAME,
-            "hide_branding": config.HIDE_BRANDING,
-            "proxy_url": config.PROXY_URL or "",
-            "currency": config.CURRENCY or "EUR",
-            "auth_disable_local": config.RESTAI_AUTH_DISABLE_LOCAL,
+            "app_name": _sv("app_name", "RESTai"),
+            "hide_branding": _sv("hide_branding", "false").lower() in ("true", "1"),
+            "proxy_url": _sv("proxy_url", ""),
+            "currency": _sv("currency", "EUR"),
+            "auth_disable_local": _sv("auth_disable_local", "false").lower() in ("true", "1"),
             "mcp": config.RESTAI_MCP,
-            "enforce_2fa": getattr(config, "ENFORCE_2FA", False),
+            "enforce_2fa": _sv("enforce_2fa", "false").lower() in ("true", "1"),
         }
 
     @fs_app.get("/info", tags=["Health"])
@@ -214,7 +217,7 @@ async def lifespan(fs_app: FastAPI):
             "embeddings": [],
             "llms": [],
             "vectorstores": get_available_vectorstores(),
-            "system_llm_configured": bool((getattr(config, "SYSTEM_LLM", "") or "").strip()),
+            "system_llm_configured": bool(getattr(db_wrapper.get_setting("system_llm"), "value", None)),
         }
 
         # Filter LLMs and embeddings by team access for non-admin users

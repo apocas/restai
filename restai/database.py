@@ -797,6 +797,11 @@ class DBWrapper:
     def get_setting(self, key: str) -> Optional[SettingDatabase]:
         return self.db.query(SettingDatabase).filter(SettingDatabase.key == key).first()
 
+    def get_setting_value(self, key: str, default: str = "") -> str:
+        """Get a setting value by key, returning default if not found or empty."""
+        row = self.get_setting(key)
+        return row.value if row and row.value else default
+
     def upsert_setting(self, key: str, value: str) -> None:
         existing = self.db.query(SettingDatabase).filter(SettingDatabase.key == key).first()
         if existing:
