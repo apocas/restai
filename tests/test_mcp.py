@@ -3,6 +3,7 @@
 import asyncio
 import json
 import random
+import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
@@ -24,86 +25,91 @@ api_key = None
 admin_api_key = None
 
 
-def test_mcp_setup():
+@pytest.fixture(scope="module")
+def client():
+    with TestClient(app) as c:
+        yield c
+
+
+def test_mcp_setup(client):
     """Create user, team, LLM, project, and API keys for MCP tests."""
     global team_id, project_id, api_key, admin_api_key
 
-    with TestClient(app) as client:
-        # Create user
-        r = client.post(
-            "/users",
-            json={"username": user_name, "password": user_pass, "is_admin": False, "is_private": False},
-            auth=ADMIN,
-        )
-        assert r.status_code == 201, f"Failed to create user: {r.text}"
+    # Create user
+    r = client.post(
+        "/users",
+        json={"username": user_name, "password": user_pass, "is_admin": False, "is_private": False},
+        auth=ADMIN,
+    )
+    assert r.status_code == 201, f"Failed to create user: {r.text}"
 
-        # Create LLM
-        r = client.post(
-            "/llms",
-            json={
-                "name": llm_name,
-                "class_name": "OpenAI",
-                "options": {"model": "gpt-test", "api_key": "sk-fake"},
-                "privacy": "public",
-            },
-            auth=ADMIN,
-        )
-        assert r.status_code in (200, 201), f"Failed to create LLM: {r.text}"
+    # Create LLM
+    r = client.post(
+        "/llms",
+        json={
+            "name": llm_name,
+            "class_name": "OpenAI",
+            "options": {"model": "gpt-test", "api_key": "sk-fake"},
+            "privacy": "public",
+        },
+        auth=ADMIN,
+    )
+    assert r.status_code in (200, 201), f"Failed to create LLM: {r.text}"
 
-        # Create team with user and LLM
-        r = client.post(
-            "/teams",
-            json={
-                "name": team_name,
-                "users": [user_name],
-                "admins": [],
-                "llms": [llm_name],
-            },
-            auth=ADMIN,
-        )
-        assert r.status_code == 201, f"Failed to create team: {r.text}"
-        team_id = r.json()["id"]
+    # Create team with user and LLM
+    r = client.post(
+        "/teams",
+        json={
+            "name": team_name,
+            "users": [user_name],
+            "admins": [],
+            "llms": [llm_name],
+        },
+        auth=ADMIN,
+    )
+    assert r.status_code == 201, f"Failed to create team: {r.text}"
+    team_id = r.json()["id"]
 
-        # Create project
-        r = client.post(
-            "/projects",
-            json={
-                "name": project_name,
-                "llm": llm_name,
-                "type": "agent",
-                "team_id": team_id,
-                "human_description": "Test project for MCP",
-            },
-            auth=ADMIN,
-        )
-        assert r.status_code == 201, f"Failed to create project: {r.text}"
-        project_id = r.json()["project"]
+    # Create project
+    r = client.post(
+        "/projects",
+        json={
+            "name": project_name,
+            "llm": llm_name,
+            "type": "agent",
+            "team_id": team_id,
+            "human_description": "Test project for MCP",
+        },
+        auth=ADMIN,
+    )
+    assert r.status_code == 201, f"Failed to create project: {r.text}"
+    project_id = r.json()["project"]
 
-        # Assign project to user
-        r = client.patch(
-            f"/projects/{project_id}",
-            json={"users": [user_name]},
-            auth=ADMIN,
-        )
-        assert r.status_code == 200, f"Failed to assign project: {r.text}"
+    # Assign project to user
+    r = client.patch(
+        f"/projects/{project_id}",
+        json={"users": [user_name]},
+        auth=ADMIN,
+    )
+    assert r.status_code == 200, f"Failed to assign project: {r.text}"
 
-        # Create API key for user
-        r = client.post(
-            f"/users/{user_name}/apikeys",
-            json={"description": "mcp test key"},
-            auth=(user_name, user_pass),
-        )
-        assert r.status_code == 201, f"Failed to create API key: {r.text}"
-        api_key = r.json()["api_key"]
+    # Create API key for user
+    r = client.post(
+        f"/users/{user_name}/apikeys",
+        json={"description": "mcp test key"},
+        auth=(user_name, user_pass),
+    )
+    assert r.status_code == 201, f"Failed to create API key: {r.text}"
+    api_key = r.json()["api_key"]
 
-        # Create API key for admin
-        r = client.post(
-            "/users/admin/apikeys",
-            json={"description": "mcp admin key"},
-            auth=ADMIN,
-        )
-        assert r.status_code == 201, f"Failed to create admin API key: {r.text}"
-        admin_api_key = r.json()["api_key"]
+    # Create API key for admin
+    r = client.post(
+        "/users/admin/apikeys",
+        json={"description": "mcp admin key"},
+        auth=ADMIN,
+    )
+    assert r.status_code == 201, f"Failed to create admin API key: {r.text}"
+    admin_api_key = r.json()["api_key"]
 
 
 # ── Authentication tests ─────────────────────────────────────────────────
@@ -269,13 +275,12 @@ def test_mcp_server_produces_sse_app():
 # ── Teardown ─────────────────────────────────────────────────────────────
 
 
-def test_mcp_teardown():
+def test_mcp_teardown(client):
     """Clean up resources created for MCP tests."""
-    with TestClient(app) as client:
-        # Delete project before team to avoid orphaned records
-        if project_id:
-            client.delete(f"/projects/{project_id}", auth=ADMIN)
-        if team_id:
-            client.delete(f"/teams/{team_id}", auth=ADMIN)
-        client.delete(f"/users/{user_name}", auth=ADMIN)
-        client.delete(f"/llms/{llm_name}", auth=ADMIN)
+    # Delete project before team to avoid orphaned records
+    if project_id:
+        client.delete(f"/projects/{project_id}", auth=ADMIN)
+    if team_id:
+        client.delete(f"/teams/{team_id}", auth=ADMIN)
+    client.delete(f"/users/{user_name}", auth=ADMIN)
+    client.delete(f"/llms/{llm_name}", auth=ADMIN)

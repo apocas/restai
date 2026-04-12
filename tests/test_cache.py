@@ -1,6 +1,7 @@
 """Tests for the project response cache system."""
 
 import random
+import pytest
 from fastapi.testclient import TestClient
 
 from restai.config import RESTAI_DEFAULT_PASSWORD
@@ -19,164 +20,164 @@ team_id = None
 project_id = None
 
 
-def test_cache_setup():
+@pytest.fixture(scope="module")
+def client():
+    with TestClient(app) as c:
+        yield c
+
+
+def test_cache_setup(client):
     """Create user, team, LLM, and a block project with cache enabled."""
     global team_id, project_id
 
-    with TestClient(app) as client:
-        r = client.post(
-            "/users",
-            json={"username": user_name, "password": user_pass, "is_admin": False, "is_private": False},
-            auth=ADMIN,
-        )
-        assert r.status_code == 201
+    r = client.post(
+        "/users",
+        json={"username": user_name, "password": user_pass, "is_admin": False, "is_private": False},
+        auth=ADMIN,
+    )
+    assert r.status_code == 201
 
-        r = client.post(
-            "/llms",
-            json={
-                "name": llm_name,
-                "class_name": "OpenAI",
-                "options": {"model": "gpt-test", "api_key": "sk-fake"},
-                "privacy": "public",
-            },
-            auth=ADMIN,
-        )
-        assert r.status_code in (200, 201)
+    r = client.post(
+        "/llms",
+        json={
+            "name": llm_name,
+            "class_name": "OpenAI",
+            "options": {"model": "gpt-test", "api_key": "sk-fake"},
+            "privacy": "public",
+        },
+        auth=ADMIN,
+    )
+    assert r.status_code in (200, 201)
 
-        r = client.post(
-            "/teams",
-            json={"name": team_name, "users": [user_name], "llms": [llm_name]},
-            auth=ADMIN,
-        )
-        assert r.status_code == 201
-        team_id = r.json()["id"]
+    r = client.post(
+        "/teams",
+        json={"name": team_name, "users": [user_name], "llms": [llm_name]},
+        auth=ADMIN,
+    )
+    assert r.status_code == 201
+    team_id = r.json()["id"]
 
-        # Create a block project (no LLM needed, easy to test cache)
-        r = client.post(
-            "/projects",
-            json={
-                "name": project_name,
-                "type": "block",
-                "team_id": team_id,
-            },
-            auth=ADMIN,
-        )
-        assert r.status_code == 201
-        project_id = r.json()["project"]
+    # Create a block project (no LLM needed, easy to test cache)
+    r = client.post(
+        "/projects",
+        json={
+            "name": project_name,
+            "type": "block",
+            "team_id": team_id,
+        },
+        auth=ADMIN,
+    )
+    assert r.status_code == 201
+    project_id = r.json()["project"]
 
-        # Assign to user, enable cache, and set up a passthrough workspace
-        r = client.patch(
-            f"/projects/{project_id}",
-            json={
-                "users": [user_name],
-                "options": {
-                    "cache": True,
-                    "cache_threshold": 0.85,
-                    "blockly_workspace": {
-                        "blocks": {
-                            "blocks": [
-                                {
-                                    "type": "restai_set_output",
-                                    "inputs": {
-                                        "VALUE": {
-                                            "block": {"type": "restai_get_input"}
-                                        }
-                                    },
-                                }
-                            ]
-                        },
-                        "variables": [],
+    # Assign to user, enable cache, and set up a passthrough workspace
+    r = client.patch(
+        f"/projects/{project_id}",
+        json={
+            "users": [user_name],
+            "options": {
+                "cache": True,
+                "cache_threshold": 0.85,
+                "blockly_workspace": {
+                    "blocks": {
+                        "blocks": [
+                            {
+                                "type": "restai_set_output",
+                                "inputs": {
+                                    "VALUE": {
+                                        "block": {"type": "restai_get_input"}
+                                    }
+                                },
+                            }
+                        ]
                     },
+                    "variables": [],
                 },
             },
-            auth=ADMIN,
-        )
-        assert r.status_code == 200
+        },
+        auth=ADMIN,
+    )
+    assert r.status_code == 200
 
 
-def test_cache_miss_first_request():
+def test_cache_miss_first_request(client):
     """First request should not be cached."""
-    with TestClient(app) as client:
-        r = client.post(
-            f"/projects/{project_id}/question",
-            json={"question": "cache test question alpha"},
-            auth=(user_name, user_pass),
-        )
-        assert r.status_code == 200
-        data = r.json()
-        assert data.get("answer") == "cache test question alpha"
-        assert data.get("cached") is not True
+    r = client.post(
+        f"/projects/{project_id}/question",
+        json={"question": "cache test question alpha"},
+        auth=(user_name, user_pass),
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("answer") == "cache test question alpha"
+    assert data.get("cached") is not True
 
 
-def test_cache_hit_same_question():
+def test_cache_hit_same_question(client):
     """Same question should return cached result."""
-    with TestClient(app) as client:
-        r = client.post(
-            f"/projects/{project_id}/question",
-            json={"question": "cache test question alpha"},
-            auth=(user_name, user_pass),
-        )
-        assert r.status_code == 200
-        data = r.json()
-        assert data.get("cached") is True
-        assert data.get("answer") == "cache test question alpha"
+    r = client.post(
+        f"/projects/{project_id}/question",
+        json={"question": "cache test question alpha"},
+        auth=(user_name, user_pass),
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("cached") is True
+    assert data.get("answer") == "cache test question alpha"
 
 
-def test_cache_miss_different_question():
+def test_cache_miss_different_question(client):
     """A completely different question should not hit cache."""
-    with TestClient(app) as client:
-        r = client.post(
-            f"/projects/{project_id}/question",
-            json={"question": "something completely unrelated xyz 12345"},
-            auth=(user_name, user_pass),
-        )
-        assert r.status_code == 200
-        data = r.json()
-        # Should not be a cache hit for a very different question
-        # (may or may not be cached depending on embedding similarity —
-        # but with default chromadb embeddings this should miss)
-        assert data.get("answer") == "something completely unrelated xyz 12345"
+    r = client.post(
+        f"/projects/{project_id}/question",
+        json={"question": "something completely unrelated xyz 12345"},
+        auth=(user_name, user_pass),
+    )
+    assert r.status_code == 200
+    data = r.json()
+    # Should not be a cache hit for a very different question
+    # (may or may not be cached depending on embedding similarity —
+    # but with default chromadb embeddings this should miss)
+    assert data.get("answer") == "something completely unrelated xyz 12345"
 
 
-def test_cache_clear_endpoint():
+def test_cache_clear_endpoint(client):
     """DELETE /projects/{id}/cache should clear the cache."""
-    with TestClient(app) as client:
-        # Clear cache
-        r = client.delete(
-            f"/projects/{project_id}/cache",
-            auth=ADMIN,
-        )
-        assert r.status_code == 200
-        assert r.json().get("cleared") is True
+    # Clear cache
+    r = client.delete(
+        f"/projects/{project_id}/cache",
+        auth=ADMIN,
+    )
+    assert r.status_code == 200
+    assert r.json().get("cleared") is True
 
-        # Same question that was cached should now miss
-        r = client.post(
-            f"/projects/{project_id}/question",
-            json={"question": "cache test question alpha"},
-            auth=(user_name, user_pass),
-        )
-        assert r.status_code == 200
-        data = r.json()
-        assert data.get("cached") is not True
+    # Same question that was cached should now miss
+    r = client.post(
+        f"/projects/{project_id}/question",
+        json={"question": "cache test question alpha"},
+        auth=(user_name, user_pass),
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("cached") is not True
 
 
-def test_cache_clear_when_not_enabled():
+def test_cache_clear_when_not_enabled(client):
     """Clearing cache on a project without cache should return cleared=False."""
-    with TestClient(app) as client:
-        # Disable cache
-        r = client.patch(
-            f"/projects/{project_id}",
-            json={"options": {"cache": False}},
-            auth=ADMIN,
-        )
-        assert r.status_code == 200
+    # Disable cache
+    r = client.patch(
+        f"/projects/{project_id}",
+        json={"options": {"cache": False}},
+        auth=ADMIN,
+    )
+    assert r.status_code == 200
 
-        r = client.delete(
-            f"/projects/{project_id}/cache",
-            auth=ADMIN,
-        )
-        assert r.status_code == 200
-        assert r.json().get("cleared") is False
+    r = client.delete(
+        f"/projects/{project_id}/cache",
+        auth=ADMIN,
+    )
+    assert r.status_code == 200
+    assert r.json().get("cleared") is False
 
 
 def test_cache_default_threshold():
@@ -210,12 +211,11 @@ def test_cache_threshold_bounds():
         pass
 
 
-def test_cache_teardown():
+def test_cache_teardown(client):
     """Clean up resources."""
-    with TestClient(app) as client:
-        if project_id:
-            client.delete(f"/projects/{project_id}", auth=ADMIN)
-        if team_id:
-            client.delete(f"/teams/{team_id}", auth=ADMIN)
-        client.delete(f"/users/{user_name}", auth=ADMIN)
-        client.delete(f"/llms/{llm_name}", auth=ADMIN)
+    if project_id:
+        client.delete(f"/projects/{project_id}", auth=ADMIN)
+    if team_id:
+        client.delete(f"/teams/{team_id}", auth=ADMIN)
+    client.delete(f"/users/{user_name}", auth=ADMIN)
+    client.delete(f"/llms/{llm_name}", auth=ADMIN)

@@ -1,6 +1,7 @@
 """Tests for the guardrail system — guard events, analytics endpoints, and guard parsing."""
 
 import random
+import pytest
 from fastapi.testclient import TestClient
 from datetime import datetime, timezone
 
@@ -19,39 +20,44 @@ team_id = None
 project_id = None
 
 
-def test_guard_setup():
+@pytest.fixture(scope="module")
+def client():
+    with TestClient(app) as c:
+        yield c
+
+
+def test_guard_setup(client):
     """Create team, LLM, and project for guard tests."""
     global team_id, project_id
 
-    with TestClient(app) as client:
-        r = client.post(
-            "/llms",
-            json={
-                "name": llm_name,
-                "class_name": "OpenAI",
-                "options": {"model": "gpt-test", "api_key": "sk-fake"},
-                "privacy": "public",
-            },
-            auth=ADMIN,
-        )
-        assert r.status_code in (200, 201)
+    r = client.post(
+        "/llms",
+        json={
+            "name": llm_name,
+            "class_name": "OpenAI",
+            "options": {"model": "gpt-test", "api_key": "sk-fake"},
+            "privacy": "public",
+        },
+        auth=ADMIN,
+    )
+    assert r.status_code in (200, 201)
 
-        r = client.post(
-            "/teams",
-            json={"name": team_name, "llms": [llm_name]},
-            auth=ADMIN,
-        )
-        assert r.status_code == 201
-        team_id = r.json()["id"]
+    r = client.post(
+        "/teams",
+        json={"name": team_name, "llms": [llm_name]},
+        auth=ADMIN,
+    )
+    assert r.status_code == 201
+    team_id = r.json()["id"]
 
-        # Create a block project (no LLM needed, easy to test)
-        r = client.post(
-            "/projects",
-            json={"name": project_name, "type": "block", "team_id": team_id},
-            auth=ADMIN,
-        )
-        assert r.status_code == 201
-        project_id = r.json()["project"]
+    # Create a block project (no LLM needed, easy to test)
+    r = client.post(
+        "/projects",
+        json={"name": project_name, "type": "block", "team_id": team_id},
+        auth=ADMIN,
+    )
+    assert r.status_code == 201
+    project_id = r.json()["project"]
 
 
 # ── Guard response parsing tests ─────────────────────────────────────────
@@ -103,70 +109,66 @@ def test_guard_result_dataclass():
 # ── Guard configuration tests ────────────────────────────────────────────
 
 
-def test_guard_output_option():
+def test_guard_output_option(client):
     """guard_output and guard_mode should be settable via project options."""
-    with TestClient(app) as client:
-        r = client.patch(
-            f"/projects/{project_id}",
-            json={
-                "options": {
-                    "guard_output": "some-guard-project",
-                    "guard_mode": "warn",
-                },
+    r = client.patch(
+        f"/projects/{project_id}",
+        json={
+            "options": {
+                "guard_output": "some-guard-project",
+                "guard_mode": "warn",
             },
-            auth=ADMIN,
-        )
-        assert r.status_code == 200
+        },
+        auth=ADMIN,
+    )
+    assert r.status_code == 200
 
-        r = client.get(f"/projects/{project_id}", auth=ADMIN)
-        assert r.status_code == 200
-        opts = r.json().get("options", {})
-        assert opts.get("guard_output") == "some-guard-project"
-        assert opts.get("guard_mode") == "warn"
+    r = client.get(f"/projects/{project_id}", auth=ADMIN)
+    assert r.status_code == 200
+    opts = r.json().get("options", {})
+    assert opts.get("guard_output") == "some-guard-project"
+    assert opts.get("guard_mode") == "warn"
 
-        # Reset
-        r = client.patch(
-            f"/projects/{project_id}",
-            json={"options": {"guard_output": None, "guard_mode": "block"}},
-            auth=ADMIN,
-        )
-        assert r.status_code == 200
+    # Reset
+    r = client.patch(
+        f"/projects/{project_id}",
+        json={"options": {"guard_output": None, "guard_mode": "block"}},
+        auth=ADMIN,
+    )
+    assert r.status_code == 200
 
 
 # ── Guard analytics endpoint tests ───────────────────────────────────────
 
 
-def test_guard_summary_empty():
+def test_guard_summary_empty(client):
     """Guard summary should return zeros when no events exist."""
-    with TestClient(app) as client:
-        r = client.get(f"/projects/{project_id}/guards/summary", auth=ADMIN)
-        assert r.status_code == 200
-        data = r.json()
-        assert data["total_checks"] == 0
-        assert data["total_blocks"] == 0
-        assert data["block_rate"] == 0
-        assert data["warn_count"] == 0
+    r = client.get(f"/projects/{project_id}/guards/summary", auth=ADMIN)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["total_checks"] == 0
+    assert data["total_blocks"] == 0
+    assert data["block_rate"] == 0
+    assert data["warn_count"] == 0
 
 
-def test_guard_daily_empty():
+def test_guard_daily_empty(client):
     """Guard daily should return empty events when no data."""
-    with TestClient(app) as client:
-        r = client.get(f"/projects/{project_id}/guards/daily", auth=ADMIN)
-        assert r.status_code == 200
-        assert "events" in r.json()
+    r = client.get(f"/projects/{project_id}/guards/daily", auth=ADMIN)
+    assert r.status_code == 200
+    assert "events" in r.json()
 
 
-def test_guard_events_empty():
+def test_guard_events_empty(client):
     """Guard events should return empty list when no events."""
-    with TestClient(app) as client:
-        r = client.get(f"/projects/{project_id}/guards/events", auth=ADMIN)
-        assert r.status_code == 200
-        data = r.json()
-        assert data["events"] == []
-        assert data["total"] == 0
+    r = client.get(f"/projects/{project_id}/guards/events", auth=ADMIN)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["events"] == []
+    assert data["total"] == 0
 
 
-def test_guard_log_and_query():
+def test_guard_log_and_query(client):
     """Manually log guard events and verify they appear in analytics."""
     from restai.database import get_db_wrapper
     from restai.models.databasemodels import GuardEventDatabase
@@ -204,45 +206,44 @@ def test_guard_log_and_query():
     finally:
         db.db.close()
 
-    with TestClient(app) as client:
-        # Summary
-        r = client.get(f"/projects/{project_id}/guards/summary", auth=ADMIN)
-        assert r.status_code == 200
-        data = r.json()
-        assert data["total_checks"] == 5
-        assert data["total_blocks"] == 3
-        assert data["warn_count"] == 1
-        assert data["input_blocks"] >= 2
-        assert data["output_blocks"] >= 1
-        assert data["block_rate"] > 0
+    # Summary
+    r = client.get(f"/projects/{project_id}/guards/summary", auth=ADMIN)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["total_checks"] == 5
+    assert data["total_blocks"] == 3
+    assert data["warn_count"] == 1
+    assert data["input_blocks"] >= 2
+    assert data["output_blocks"] >= 1
+    assert data["block_rate"] > 0
 
-        # Daily
-        r = client.get(f"/projects/{project_id}/guards/daily", auth=ADMIN)
-        assert r.status_code == 200
-        events = r.json()["events"]
-        assert len(events) > 0
-        assert events[0]["checks"] > 0
+    # Daily
+    r = client.get(f"/projects/{project_id}/guards/daily", auth=ADMIN)
+    assert r.status_code == 200
+    events = r.json()["events"]
+    assert len(events) > 0
+    assert events[0]["checks"] > 0
 
-        # Events (all)
-        r = client.get(f"/projects/{project_id}/guards/events", auth=ADMIN)
-        assert r.status_code == 200
-        assert r.json()["total"] == 5
+    # Events (all)
+    r = client.get(f"/projects/{project_id}/guards/events", auth=ADMIN)
+    assert r.status_code == 200
+    assert r.json()["total"] == 5
 
-        # Events filtered by action
-        r = client.get(f"/projects/{project_id}/guards/events?action=block", auth=ADMIN)
-        assert r.status_code == 200
-        assert r.json()["total"] == 3
+    # Events filtered by action
+    r = client.get(f"/projects/{project_id}/guards/events?action=block", auth=ADMIN)
+    assert r.status_code == 200
+    assert r.json()["total"] == 3
 
-        # Events filtered by phase
-        r = client.get(f"/projects/{project_id}/guards/events?phase=output", auth=ADMIN)
-        assert r.status_code == 200
-        assert r.json()["total"] == 1
+    # Events filtered by phase
+    r = client.get(f"/projects/{project_id}/guards/events?phase=output", auth=ADMIN)
+    assert r.status_code == 200
+    assert r.json()["total"] == 1
 
 
 # ── Teardown ─────────────────────────────────────────────────────────────
 
 
-def test_guard_teardown():
+def test_guard_teardown(client):
     """Clean up resources."""
     # Clean up guard events first
     from restai.database import get_db_wrapper
@@ -257,9 +258,8 @@ def test_guard_teardown():
     finally:
         db.db.close()
 
-    with TestClient(app) as client:
-        if project_id:
-            client.delete(f"/projects/{project_id}", auth=ADMIN)
-        if team_id:
-            client.delete(f"/teams/{team_id}", auth=ADMIN)
-        client.delete(f"/llms/{llm_name}", auth=ADMIN)
+    if project_id:
+        client.delete(f"/projects/{project_id}", auth=ADMIN)
+    if team_id:
+        client.delete(f"/teams/{team_id}", auth=ADMIN)
+    client.delete(f"/llms/{llm_name}", auth=ADMIN)

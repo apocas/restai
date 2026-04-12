@@ -1,4 +1,5 @@
 import random
+import pytest
 from fastapi.testclient import TestClient
 
 from restai.config import RESTAI_DEFAULT_PASSWORD
@@ -13,39 +14,44 @@ nonadmin_password = "nonadmin_pass_123"
 ADMIN = ("admin", RESTAI_DEFAULT_PASSWORD)
 
 
-def test_setup():
-    """Create test users for admin endpoint tests."""
-    with TestClient(app) as client:
-        # Create a non-admin user
-        resp = client.post(
-            "/users",
-            json={
-                "username": test_username,
-                "password": test_password,
-                "admin": False,
-                "private": False,
-            },
-            auth=ADMIN,
-        )
-        assert resp.status_code == 201
+@pytest.fixture(scope="module")
+def client():
+    with TestClient(app) as c:
+        yield c
 
-        resp = client.post(
-            "/users",
-            json={
-                "username": nonadmin_username,
-                "password": nonadmin_password,
-                "admin": False,
-                "private": False,
-            },
-            auth=ADMIN,
-        )
-        assert resp.status_code == 201
+
+def test_setup(client):
+    """Create test users for admin endpoint tests."""
+    # Create a non-admin user
+    resp = client.post(
+        "/users",
+        json={
+            "username": test_username,
+            "password": test_password,
+            "admin": False,
+            "private": False,
+        },
+        auth=ADMIN,
+    )
+    assert resp.status_code == 201
+
+    resp = client.post(
+        "/users",
+        json={
+            "username": nonadmin_username,
+            "password": nonadmin_password,
+            "admin": False,
+            "private": False,
+        },
+        auth=ADMIN,
+    )
+    assert resp.status_code == 201
 
 
 def test_impersonate():
-    """Admin can impersonate another user."""
-    with TestClient(app) as client:
-        resp = client.post(
+    """Admin can impersonate another user. Uses separate client to avoid cookie pollution."""
+    with TestClient(app) as c:
+        resp = c.post(
             f"/auth/impersonate/{test_username}",
             auth=ADMIN,
         )
@@ -57,8 +63,8 @@ def test_impersonate():
 
 def test_impersonate_nonexistent_user():
     """Impersonating a user that doesn't exist returns 404."""
-    with TestClient(app) as client:
-        resp = client.post(
+    with TestClient(app) as c:
+        resp = c.post(
             f"/auth/impersonate/nonexistent_user_{suffix}",
             auth=ADMIN,
         )
@@ -67,24 +73,22 @@ def test_impersonate_nonexistent_user():
 
 def test_impersonate_non_admin_rejected():
     """Non-admin users cannot impersonate others."""
-    with TestClient(app) as client:
-        resp = client.post(
+    with TestClient(app) as c:
+        resp = c.post(
             f"/auth/impersonate/{test_username}",
             auth=(nonadmin_username, nonadmin_password),
         )
         assert resp.status_code == 403
 
 
-def test_gpu_info():
+def test_gpu_info(client):
     """GET /settings/gpu-info returns 200 (may be empty list if no GPU)."""
-    with TestClient(app) as client:
-        resp = client.get("/settings/gpu-info", auth=ADMIN)
-        assert resp.status_code == 200
-        assert isinstance(resp.json(), list)
+    resp = client.get("/settings/gpu-info", auth=ADMIN)
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
 
 
-def test_cleanup():
+def test_cleanup(client):
     """Remove test users."""
-    with TestClient(app) as client:
-        client.delete(f"/users/{test_username}", auth=ADMIN)
-        client.delete(f"/users/{nonadmin_username}", auth=ADMIN)
+    client.delete(f"/users/{test_username}", auth=ADMIN)
+    client.delete(f"/users/{nonadmin_username}", auth=ADMIN)

@@ -1,4 +1,5 @@
 import random
+import pytest
 from fastapi.testclient import TestClient
 
 from restai.config import RESTAI_DEFAULT_PASSWORD
@@ -14,83 +15,84 @@ team_id = None
 project_id = None
 
 
-def test_setup():
+@pytest.fixture(scope="module")
+def client():
+    with TestClient(app) as c:
+        yield c
+
+
+def test_setup(client):
     """Create team, LLM, and a block project for sync endpoint tests."""
     global team_id, project_id
-    with TestClient(app) as client:
-        # Create LLM
-        client.post(
-            "/llms",
-            json={
-                "name": llm_name,
-                "class_name": "OpenAI",
-                "options": {"model": "gpt-test", "api_key": "sk-fake"},
-                "privacy": "public",
-            },
-            auth=ADMIN,
-        )
+    # Create LLM
+    client.post(
+        "/llms",
+        json={
+            "name": llm_name,
+            "class_name": "OpenAI",
+            "options": {"model": "gpt-test", "api_key": "sk-fake"},
+            "privacy": "public",
+        },
+        auth=ADMIN,
+    )
 
-        # Create team with LLM
-        resp = client.post(
-            "/teams",
-            json={"name": team_name, "users": [], "admins": [], "llms": [llm_name]},
-            auth=ADMIN,
-        )
-        assert resp.status_code in (200, 201)
-        team_id = resp.json()["id"]
+    # Create team with LLM
+    resp = client.post(
+        "/teams",
+        json={"name": team_name, "users": [], "admins": [], "llms": [llm_name]},
+        auth=ADMIN,
+    )
+    assert resp.status_code in (200, 201)
+    team_id = resp.json()["id"]
 
-        # Create a block project
-        resp = client.post(
-            "/projects",
-            json={"name": proj_name, "type": "block", "team_id": team_id},
-            auth=ADMIN,
-        )
-        assert resp.status_code == 201
-        project_id = resp.json()["project"]
+    # Create a block project
+    resp = client.post(
+        "/projects",
+        json={"name": proj_name, "type": "block", "team_id": team_id},
+        auth=ADMIN,
+    )
+    assert resp.status_code == 201
+    project_id = resp.json()["project"]
 
 
-def test_sync_status():
+def test_sync_status(client):
     """GET /projects/{id}/sync/status returns sync status info."""
-    with TestClient(app) as client:
-        resp = client.get(
-            f"/projects/{project_id}/sync/status",
-            auth=ADMIN,
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "enabled" in data
-        assert "sources" in data
-        assert data["sources"] == 0
+    resp = client.get(
+        f"/projects/{project_id}/sync/status",
+        auth=ADMIN,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "enabled" in data
+    assert "sources" in data
+    assert data["sources"] == 0
 
 
-def test_sync_trigger_no_sources():
+def test_sync_trigger_no_sources(client):
     """POST /projects/{id}/sync/trigger with no sync sources should return 400."""
-    with TestClient(app) as client:
-        resp = client.post(
-            f"/projects/{project_id}/sync/trigger",
-            auth=ADMIN,
-        )
-        # Block projects return 400 ("Sync only available for RAG projects")
-        # or if it were RAG with no sources, also 400
-        assert resp.status_code == 400
+    resp = client.post(
+        f"/projects/{project_id}/sync/trigger",
+        auth=ADMIN,
+    )
+    # Block projects return 400 ("Sync only available for RAG projects")
+    # or if it were RAG with no sources, also 400
+    assert resp.status_code == 400
 
 
-def test_sync_status_persists():
+def test_sync_status_persists(client):
     """Verify sync status reflects project options."""
-    with TestClient(app) as client:
-        # Initially no sync sources
-        resp = client.get(
-            f"/projects/{project_id}/sync/status",
-            auth=ADMIN,
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["enabled"] is False
-        assert data["sources"] == 0
+    # Initially no sync sources
+    resp = client.get(
+        f"/projects/{project_id}/sync/status",
+        auth=ADMIN,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["enabled"] is False
+    assert data["sources"] == 0
 
 
-def test_cleanup():
-    with TestClient(app) as client:
-        client.delete(f"/projects/{project_id}", auth=ADMIN)
-        client.delete(f"/llms/{llm_name}", auth=ADMIN)
-        client.delete(f"/teams/{team_id}", auth=ADMIN)
+def test_cleanup(client):
+    client.delete(f"/projects/{project_id}", auth=ADMIN)
+    client.delete(f"/llms/{llm_name}", auth=ADMIN)
+    client.delete(f"/teams/{team_id}", auth=ADMIN)

@@ -1,4 +1,5 @@
 import random
+import pytest
 from fastapi.testclient import TestClient
 
 from restai.config import RESTAI_DEFAULT_PASSWORD
@@ -16,117 +17,117 @@ version_id = None
 ADMIN = ("admin", RESTAI_DEFAULT_PASSWORD)
 
 
-def test_setup():
+@pytest.fixture(scope="module")
+def client():
+    with TestClient(app) as c:
+        yield c
+
+
+def test_setup(client):
     """Create team, LLM, and block project for prompt version tests."""
     global team_id, project_id
-    with TestClient(app) as client:
-        # Create LLM
-        client.post(
-            "/llms",
-            json={
-                "name": llm_name,
-                "class_name": "OpenAI",
-                "options": {"model": "gpt-test", "api_key": "sk-fake"},
-                "privacy": "public",
-            },
-            auth=ADMIN,
-        )
+    # Create LLM
+    client.post(
+        "/llms",
+        json={
+            "name": llm_name,
+            "class_name": "OpenAI",
+            "options": {"model": "gpt-test", "api_key": "sk-fake"},
+            "privacy": "public",
+        },
+        auth=ADMIN,
+    )
 
-        # Create team
-        resp = client.post(
-            "/teams",
-            json={"name": team_name, "users": [], "admins": [], "llms": [llm_name]},
-            auth=ADMIN,
-        )
-        assert resp.status_code == 201
-        team_id = resp.json()["id"]
+    # Create team
+    resp = client.post(
+        "/teams",
+        json={"name": team_name, "users": [], "admins": [], "llms": [llm_name]},
+        auth=ADMIN,
+    )
+    assert resp.status_code == 201
+    team_id = resp.json()["id"]
 
-        # Create block project
-        resp = client.post(
-            "/projects",
-            json={"name": project_name, "type": "block", "team_id": team_id},
-            auth=ADMIN,
-        )
-        assert resp.status_code == 201
-        project_id = resp.json()["project"]
+    # Create block project
+    resp = client.post(
+        "/projects",
+        json={"name": project_name, "type": "block", "team_id": team_id},
+        auth=ADMIN,
+    )
+    assert resp.status_code == 201
+    project_id = resp.json()["project"]
 
 
-def test_list_prompts_initial():
+def test_list_prompts_initial(client):
     """A new project with a system prompt has an initial version."""
-    with TestClient(app) as client:
-        resp = client.get(f"/projects/{project_id}/prompts", auth=ADMIN)
-        assert resp.status_code == 200
-        assert isinstance(resp.json(), list)
+    resp = client.get(f"/projects/{project_id}/prompts", auth=ADMIN)
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
 
 
-def test_auto_version_on_edit():
+def test_auto_version_on_edit(client):
     """Editing the system prompt creates a prompt version automatically."""
     global version_id
-    with TestClient(app) as client:
-        # Set a system prompt
-        resp = client.patch(
-            f"/projects/{project_id}",
-            json={"system": "First version of the prompt."},
-            auth=ADMIN,
-        )
-        assert resp.status_code == 200
+    # Set a system prompt
+    resp = client.patch(
+        f"/projects/{project_id}",
+        json={"system": "First version of the prompt."},
+        auth=ADMIN,
+    )
+    assert resp.status_code == 200
 
-        # List prompt versions
-        resp = client.get(f"/projects/{project_id}/prompts", auth=ADMIN)
-        assert resp.status_code == 200
-        versions = resp.json()
-        assert len(versions) >= 1
-        version_id = versions[0]["id"]
-        assert versions[0]["system_prompt"] == "First version of the prompt."
+    # List prompt versions
+    resp = client.get(f"/projects/{project_id}/prompts", auth=ADMIN)
+    assert resp.status_code == 200
+    versions = resp.json()
+    assert len(versions) >= 1
+    version_id = versions[0]["id"]
+    assert versions[0]["system_prompt"] == "First version of the prompt."
 
 
-def test_get_version():
+def test_get_version(client):
     """Retrieve a specific prompt version by ID."""
-    with TestClient(app) as client:
-        resp = client.get(
-            f"/projects/{project_id}/prompts/{version_id}", auth=ADMIN
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["id"] == version_id
-        assert data["project_id"] == project_id
-        assert data["system_prompt"] == "First version of the prompt."
-        assert "version" in data
-        assert "created_at" in data
+    resp = client.get(
+        f"/projects/{project_id}/prompts/{version_id}", auth=ADMIN
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == version_id
+    assert data["project_id"] == project_id
+    assert data["system_prompt"] == "First version of the prompt."
+    assert "version" in data
+    assert "created_at" in data
 
 
-def test_activate_version():
+def test_activate_version(client):
     """Update prompt, then activate the old version to restore it."""
-    with TestClient(app) as client:
-        # Change the prompt to something new
-        resp = client.patch(
-            f"/projects/{project_id}",
-            json={"system": "Second version of the prompt."},
-            auth=ADMIN,
-        )
-        assert resp.status_code == 200
+    # Change the prompt to something new
+    resp = client.patch(
+        f"/projects/{project_id}",
+        json={"system": "Second version of the prompt."},
+        auth=ADMIN,
+    )
+    assert resp.status_code == 200
 
-        # Verify the project now has the new prompt
-        resp = client.get(f"/projects/{project_id}", auth=ADMIN)
-        assert resp.json()["system"] == "Second version of the prompt."
+    # Verify the project now has the new prompt
+    resp = client.get(f"/projects/{project_id}", auth=ADMIN)
+    assert resp.json()["system"] == "Second version of the prompt."
 
-        # Activate the first version
-        resp = client.post(
-            f"/projects/{project_id}/prompts/{version_id}/activate",
-            auth=ADMIN,
-        )
-        assert resp.status_code == 200
+    # Activate the first version
+    resp = client.post(
+        f"/projects/{project_id}/prompts/{version_id}/activate",
+        auth=ADMIN,
+    )
+    assert resp.status_code == 200
 
-        # Verify the prompt was restored
-        resp = client.get(f"/projects/{project_id}", auth=ADMIN)
-        assert resp.json()["system"] == "First version of the prompt."
+    # Verify the prompt was restored
+    resp = client.get(f"/projects/{project_id}", auth=ADMIN)
+    assert resp.json()["system"] == "First version of the prompt."
 
 
-def test_cleanup():
+def test_cleanup(client):
     """Remove all test resources."""
-    with TestClient(app) as client:
-        if project_id:
-            client.delete(f"/projects/{project_id}", auth=ADMIN)
-        if team_id:
-            client.delete(f"/teams/{team_id}", auth=ADMIN)
-        client.delete(f"/llms/{llm_name}", auth=ADMIN)
+    if project_id:
+        client.delete(f"/projects/{project_id}", auth=ADMIN)
+    if team_id:
+        client.delete(f"/teams/{team_id}", auth=ADMIN)
+    client.delete(f"/llms/{llm_name}", auth=ADMIN)
