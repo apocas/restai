@@ -51,10 +51,14 @@ export default function ProjectIDEView() {
   useEffect(() => {
     document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - IDE - " + id;
     fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    if (!auth.user) return;
     api.get("/info", auth.user.token)
       .then((d) => setSystemLlmConfigured(!!d?.system_llm_configured))
       .catch(() => {});
-  }, []);
+  }, [auth.user?.username]);
 
   const handleSave = (blocklyOpts) => {
     const opts = {
