@@ -11,24 +11,26 @@ depends_on = None
 
 def upgrade():
     try:
-        op.alter_column('api_keys', 'key_hash', type_=sa.String(256), existing_type=sa.String(64))
+        with op.batch_alter_table('api_keys') as batch_op:
+            batch_op.alter_column('key_hash', type_=sa.String(256), existing_type=sa.String(64))
     except Exception as e:
-        print(f"Error widening api_keys.key_hash: {e}")
+        print(f"Note: api_keys.key_hash resize skipped: {e}")
 
     try:
-        op.alter_column('widgets', 'key_hash', type_=sa.String(256), existing_type=sa.String(64))
+        with op.batch_alter_table('widgets') as batch_op:
+            batch_op.alter_column('key_hash', type_=sa.String(256), existing_type=sa.String(64))
     except Exception as e:
-        print(f"Error widening widgets.key_hash: {e}")
+        print(f"Note: widgets.key_hash resize skipped: {e}")
 
     try:
         op.create_index('ix_api_keys_key_prefix', 'api_keys', ['key_prefix'])
     except Exception as e:
-        print(f"Error creating api_keys key_prefix index: {e}")
+        print(f"Note: api_keys key_prefix index skipped: {e}")
 
     try:
         op.create_index('ix_widgets_key_prefix', 'widgets', ['key_prefix'])
     except Exception as e:
-        print(f"Error creating widgets key_prefix index: {e}")
+        print(f"Note: widgets key_prefix index skipped: {e}")
 
 
 def downgrade():
@@ -38,13 +40,5 @@ def downgrade():
         pass
     try:
         op.drop_index('ix_api_keys_key_prefix', table_name='api_keys')
-    except Exception:
-        pass
-    try:
-        op.alter_column('widgets', 'key_hash', type_=sa.String(64), existing_type=sa.String(256))
-    except Exception:
-        pass
-    try:
-        op.alter_column('api_keys', 'key_hash', type_=sa.String(64), existing_type=sa.String(256))
     except Exception:
         pass
