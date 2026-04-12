@@ -1,5 +1,5 @@
 import sys
-sys.setrecursionlimit(20000)
+sys.setrecursionlimit(50000)
 
 # Force ALL Pydantic models to fully resolve their schemas in the main thread
 # under the raised recursion limit. Without this, TestClient triggers schema
