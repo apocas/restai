@@ -161,9 +161,7 @@ def check_not_restricted(user: User):
 
 def get_widget_from_request(request: Request, db_wrapper):
     """Authenticate a widget request via X-Widget-Key header. Validates domain."""
-    from restai.utils.crypto import verify_api_key_hash
     from urllib.parse import urlparse
-    from restai.models.databasemodels import WidgetDatabase
 
     widget_key = request.headers.get("X-Widget-Key")
     if not widget_key:
@@ -173,14 +171,7 @@ def get_widget_from_request(request: Request, db_wrapper):
     if not widget_key or not widget_key.startswith("wk_"):
         raise HTTPException(status_code=401, detail="Widget key required")
 
-    # Lookup by prefix, then verify salted hash
-    prefix = widget_key[:11]
-    candidates = db_wrapper.db.query(WidgetDatabase).filter(WidgetDatabase.key_prefix == prefix).all()
-    widget = None
-    for w in candidates:
-        if verify_api_key_hash(widget_key, w.key_hash):
-            widget = w
-            break
+    widget = db_wrapper.get_widget_by_key(widget_key)
     if widget is None:
         raise HTTPException(status_code=401, detail="Invalid widget key")
 

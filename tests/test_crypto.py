@@ -10,6 +10,8 @@ from restai.utils.crypto import (
     generate_recovery_codes,
     hash_api_key,
     hash_recovery_code,
+    verify_api_key_hash,
+    verify_recovery_code,
 )
 
 
@@ -83,12 +85,25 @@ def test_llm_sensitive_keys_contains_expected():
         assert k in LLM_SENSITIVE_KEYS, f"{k} missing from LLM_SENSITIVE_KEYS"
 
 
-def test_hash_api_key_consistent():
+def test_hash_api_key_salted():
+    """Each call produces a different hash (random salt), but verify works."""
     key = "sk-test-1234567890"
     h1 = hash_api_key(key)
     h2 = hash_api_key(key)
-    assert h1 == h2
-    assert len(h1) == 64  # SHA-256 hex digest length
+    assert h1 != h2, "Salted hashes should differ"
+    assert h1.startswith("$pbkdf2$")
+    assert verify_api_key_hash(key, h1)
+    assert verify_api_key_hash(key, h2)
+    assert not verify_api_key_hash("wrong-key", h1)
+
+
+def test_hash_api_key_legacy_sha256_fallback():
+    """Verify works with legacy unsalted SHA256 hashes."""
+    import hashlib
+    key = "legacy-key"
+    legacy_hash = hashlib.sha256(key.encode()).hexdigest()
+    assert verify_api_key_hash(key, legacy_hash)
+    assert not verify_api_key_hash("wrong", legacy_hash)
 
 
 def test_generate_recovery_codes_count_and_uniqueness():
@@ -100,9 +115,21 @@ def test_generate_recovery_codes_count_and_uniqueness():
         assert code.isalnum()
 
 
-def test_hash_recovery_code_consistent():
+def test_hash_recovery_code_salted():
+    """Each call produces a different hash, but verify works."""
     code = "abcd1234"
     h1 = hash_recovery_code(code)
     h2 = hash_recovery_code(code)
-    assert h1 == h2
-    assert len(h1) == 64
+    assert h1 != h2, "Salted hashes should differ"
+    assert h1.startswith("$pbkdf2$")
+    assert verify_recovery_code(code, h1)
+    assert verify_recovery_code("ABCD1234", h1), "Case-insensitive"
+    assert not verify_recovery_code("wrong", h1)
+
+
+def test_hash_recovery_code_legacy_sha256_fallback():
+    import hashlib
+    code = "mycode"
+    legacy = hashlib.sha256(code.encode()).hexdigest()
+    assert verify_recovery_code(code, legacy)
+    assert not verify_recovery_code("wrong", legacy)

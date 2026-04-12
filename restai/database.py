@@ -286,6 +286,15 @@ class DBWrapper:
     def get_widget_by_key_hash(self, key_hash):
         return self.db.query(WidgetDatabase).filter(WidgetDatabase.key_hash == key_hash).first()
 
+    def get_widget_by_key(self, plaintext_key):
+        """Look up a widget by plaintext key using prefix-then-verify (salted hash)."""
+        prefix = plaintext_key[:11]
+        candidates = self.db.query(WidgetDatabase).filter(WidgetDatabase.key_prefix == prefix).all()
+        for w in candidates:
+            if verify_api_key_hash(plaintext_key, w.key_hash):
+                return w
+        return None
+
     def get_widgets_for_project(self, project_id):
         return (
             self.db.query(WidgetDatabase)
