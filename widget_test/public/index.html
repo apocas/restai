@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Widget Context Injection Test</title>
+  <meta http-equiv="Permissions-Policy" content="clipboard-read=*, clipboard-write=*" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body, h1, h2, p, hr { margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #333; }
+    .container { max-width: 800px; margin: 40px auto; padding: 0 20px; }
+    h1 { font-size: 1.5rem; margin-bottom: 4px; }
+    .subtitle { color: #666; margin-bottom: 24px; font-size: 0.9rem; }
+    .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 24px; margin-bottom: 20px; }
+    .card h2 { font-size: 1.1rem; margin-bottom: 16px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-weight: 600; font-size: 0.82rem; margin-bottom: 4px; color: #555; }
+    .field input, .field textarea { width: 100%; padding: 8px 10px; border: 1px solid #d0d0d0; border-radius: 6px; font-size: 0.9rem; font-family: inherit; }
+    .field textarea { font-family: "SF Mono", "Fira Code", monospace; font-size: 0.82rem; resize: vertical; }
+    .field .hint { font-size: 0.75rem; color: #888; margin-top: 3px; }
+    button { padding: 8px 20px; border: none; border-radius: 6px; font-size: 0.88rem; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #6366f1; color: #fff; }
+    .btn-primary:hover { background: #4f46e5; }
+    .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+    .btn-danger { background: #ef4444; color: #fff; margin-left: 8px; }
+    .btn-danger:hover { background: #dc2626; }
+    .actions { display: flex; gap: 8px; align-items: center; margin-top: 16px; }
+    #status { margin-top: 12px; font-size: 0.85rem; }
+    #status.ok { color: #16a34a; }
+    #status.err { color: #ef4444; }
+    .token-box { background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px; font-family: "SF Mono", monospace; font-size: 0.75rem; word-break: break-all; max-height: 120px; overflow: auto; margin-top: 8px; }
+    .payload-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px; font-family: "SF Mono", monospace; font-size: 0.78rem; white-space: pre-wrap; margin-top: 8px; }
+    .divider { border: none; border-top: 1px solid #e5e5e5; margin: 20px 0; }
+    .info { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 14px; font-size: 0.82rem; color: #1e40af; line-height: 1.6; }
+    .info code { background: #dbeafe; padding: 1px 5px; border-radius: 3px; font-size: 0.8rem; }
+    #widget-host { margin-top: 20px; padding: 20px; border: 2px dashed #d0d0d0; border-radius: 8px; min-height: 60px; display: flex; align-items: center; justify-content: center; color: #999; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Widget Context Injection Test</h1>
+    <p class="subtitle">Generate signed JWT tokens and test the RESTai widget context feature</p>
+
+    <div class="info">
+      <strong>How it works:</strong><br>
+      1. Enter your <code>Widget Key</code> and <code>Context Secret</code> (from the Widget tab in your project)<br>
+      2. Define context claims (e.g. user name, plan, account ID) as JSON<br>
+      3. Click <strong>Generate Token &amp; Load Widget</strong> to sign a JWT and inject the widget<br>
+      4. The widget sends <code>X-Widget-Context</code> header &mdash; the server verifies it and injects claims into the system prompt<br>
+      5. Use <code>{{context.key}}</code> template variables in your project's system prompt to reference the claims
+    </div>
+
+    <form class="card" style="margin-top: 20px;" onsubmit="event.preventDefault(); generateAndLoad();">
+      <h2>Configuration</h2>
+
+      <div class="field">
+        <label>RESTai Server URL</label>
+        <input type="text" id="serverUrl" value="http://127.0.0.1:9000" />
+        <div class="hint">The base URL of your RESTai instance</div>
+      </div>
+
+      <div class="field">
+        <label>Widget Key</label>
+        <input type="text" id="widgetKey" placeholder="wk_..." autocomplete="off" />
+        <div class="hint">From the Widget tab in your project settings</div>
+      </div>
+
+      <div class="field">
+        <label>Context Secret</label>
+        <input type="text" id="contextSecret" placeholder="The secret shown when you generated it" autocomplete="off" />
+        <div class="hint">Shown once when you click "Generate Context Secret" in the Widget tab</div>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="field">
+        <label>Context Claims (JSON)</label>
+        <textarea id="claims" rows="6">{
+  "user_name": "John Doe",
+  "user_email": "john@example.com",
+  "account_id": "acct_12345",
+  "plan": "pro",
+  "role": "admin"
+}</textarea>
+        <div class="hint">These claims will be available as <code>{{context.user_name}}</code>, <code>{{context.plan}}</code>, etc. in the system prompt</div>
+      </div>
+
+      <div class="field">
+        <label>Token TTL (seconds)</label>
+        <input type="number" id="ttl" value="3600" min="60" max="86400" />
+        <div class="hint">How long the token is valid (max 86400 = 24h)</div>
+      </div>
+
+      <div class="field">
+        <label>Enable Streaming</label>
+        <input type="checkbox" id="enableStream" style="width: auto;" />
+        <span style="font-size: 0.82rem; color: #666; margin-left: 6px;">Send <code>data-stream="true"</code> to the widget</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn-primary" id="generateBtn" onclick="generateAndLoad()">Generate Token &amp; Load Widget</button>
+        <button class="btn-danger" id="removeBtn" onclick="removeWidget()" style="display:none;">Remove Widget</button>
+      </div>
+
+      <div id="status"></div>
+    </form>
+
+    <div id="token-result" style="display: none;">
+      <div class="card">
+        <h2>Generated Token</h2>
+        <div class="token-box" id="tokenValue"></div>
+        <div style="margin-top: 12px; font-size: 0.82rem; color: #555;">Decoded payload:</div>
+        <div class="payload-box" id="payloadValue"></div>
+      </div>
+    </div>
+
+    <div id="widget-host">Widget will appear here (bottom-right corner) after you generate a token</div>
+  </div>
+
+  <script>
+    let currentScript = null;
+
+    async function generateAndLoad() {
+      const serverUrl = document.getElementById("serverUrl").value.trim();
+      const widgetKey = document.getElementById("widgetKey").value.trim();
+      const secret = document.getElementById("contextSecret").value.trim();
+      const ttl = document.getElementById("ttl").value;
+      const stream = document.getElementById("enableStream").checked;
+      const status = document.getElementById("status");
+      let claims;
+
+      // Validate
+      if (!widgetKey) { showStatus("Widget Key is required", false); return; }
+      if (!secret) { showStatus("Context Secret is required", false); return; }
+
+      try {
+        claims = JSON.parse(document.getElementById("claims").value);
+      } catch (e) {
+        showStatus("Invalid JSON in claims: " + e.message, false);
+        return;
+      }
+
+      // Generate token via our local backend
+      showStatus("Generating token...", true);
+      try {
+        const resp = await fetch("/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ secret, claims, ttl }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) { showStatus("Token error: " + data.error, false); return; }
+
+        // Show token
+        document.getElementById("tokenValue").textContent = data.token;
+        document.getElementById("payloadValue").textContent = JSON.stringify(data.payload, null, 2);
+        document.getElementById("token-result").style.display = "";
+
+        // Remove old widget if any
+        removeWidget();
+
+        // Inject widget script
+        const script = document.createElement("script");
+        script.src = serverUrl + "/widget/chat.js";
+        script.setAttribute("data-widget-key", widgetKey);
+        script.setAttribute("data-server", serverUrl);
+        script.setAttribute("data-context-token", data.token);
+        if (stream) script.setAttribute("data-stream", "true");
+        document.body.appendChild(script);
+        currentScript = script;
+
+        document.getElementById("removeBtn").style.display = "";
+        document.getElementById("widget-host").textContent = "Widget loaded! Check the bottom-right corner of the page.";
+        showStatus("Token generated and widget loaded successfully", true);
+      } catch (e) {
+        showStatus("Request failed: " + e.message, false);
+      }
+    }
+
+    function removeWidget() {
+      // Remove the script tag
+      if (currentScript) {
+        currentScript.remove();
+        currentScript = null;
+      }
+      // Remove any shadow host the widget created
+      document.querySelectorAll("[id^='restai-widget']").forEach(el => el.remove());
+      // Also try generic shadow hosts the widget might create
+      document.querySelectorAll("div").forEach(el => {
+        if (el.shadowRoot && el.shadowRoot.querySelector(".restai-chat-container, .chat-toggle")) {
+          el.remove();
+        }
+      });
+      document.getElementById("removeBtn").style.display = "none";
+      document.getElementById("widget-host").textContent = "Widget removed. Generate a new token to reload.";
+    }
+
+    function showStatus(msg, ok) {
+      const el = document.getElementById("status");
+      el.textContent = msg;
+      el.className = ok ? "ok" : "err";
+    }
+  </script>
+</body>
+</html>
