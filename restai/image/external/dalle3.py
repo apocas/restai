@@ -9,7 +9,7 @@ def generate(imageModel: ImageModel):
     model.model_name = "dall-e-3"
     image_url = model.run(imageModel.prompt)
 
-    response = requests.get(image_url)
+    response = requests.get(image_url, timeout=10.0)
     response.raise_for_status()
     image_data = response.content
     return base64.b64encode(image_data).decode('utf-8')
