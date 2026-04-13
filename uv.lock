@@ -5952,7 +5952,7 @@ wheels = [
 
 [[package]]
 name = "restai-core"
-version = "6.1.14"
+version = "6.1.15"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
