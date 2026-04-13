@@ -2452,6 +2452,67 @@ async def remove_widget_context_secret(
     return {"detail": "Context secret removed"}
 
 
+# ── Agent-created project tools ──────────────────────────────────────────
+
+
+@router.get("/projects/{projectID}/custom-tools", tags=["Projects"])
+async def list_project_custom_tools(
+    projectID: int = PathParam(description="Project ID"),
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """List agent-created tools for a project."""
+    tools = db_wrapper.get_project_tools(projectID)
+    return {
+        "tools": [
+            {
+                "id": t.id,
+                "name": t.name,
+                "description": t.description,
+                "parameters": t.parameters,
+                "code": t.code,
+                "enabled": bool(t.enabled),
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+                "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+            }
+            for t in tools
+        ]
+    }
+
+
+@router.patch("/projects/{projectID}/custom-tools/{toolName}", tags=["Projects"])
+async def toggle_project_custom_tool(
+    projectID: int = PathParam(description="Project ID"),
+    toolName: str = PathParam(description="Tool name"),
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Toggle an agent-created tool on or off."""
+    check_not_restricted(user)
+    tool = db_wrapper.get_project_tool_by_name(projectID, toolName)
+    if not tool:
+        raise HTTPException(status_code=404, detail="Tool not found")
+    from datetime import datetime, timezone
+    tool.enabled = not tool.enabled
+    tool.updated_at = datetime.now(timezone.utc)
+    db_wrapper.db.commit()
+    return {"name": tool.name, "enabled": bool(tool.enabled)}
+
+
+@router.delete("/projects/{projectID}/custom-tools/{toolName}", tags=["Projects"])
+async def delete_project_custom_tool(
+    projectID: int = PathParam(description="Project ID"),
+    toolName: str = PathParam(description="Tool name"),
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Delete an agent-created tool from a project."""
+    check_not_restricted(user)
+    if not db_wrapper.delete_project_tool(projectID, toolName):
+        raise HTTPException(status_code=404, detail="Tool not found")
+    return {"detail": f"Tool '{toolName}' deleted"}
+
+
 # ── Block AI helpers (system_llm powered) ───────────────────────────────
 
 

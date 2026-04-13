@@ -79,6 +79,49 @@ class DockerManager:
             self._remove_container(chat_id)
             return f"ERROR: Command execution failed: {e}"
 
+    def run_script(self, chat_id: str, script: str, stdin_data: str = "") -> str:
+        """Execute a Python script in the container by piping code via python3 -c.
+
+        No file writes needed — avoids read-only filesystem issues.
+        Returns stdout. Stderr is appended if non-empty.
+        """
+        if not chat_id:
+            chat_id = "ephemeral"
+
+        container = self._get_or_create_container(chat_id)
+
+        with self._lock:
+            info = self._containers.get(chat_id)
+            if info:
+                info.last_activity = time.time()
+
+        try:
+            import base64
+            # Encode script as base64 to avoid shell quoting issues
+            b64_script = base64.b64encode(script.encode("utf-8")).decode("ascii")
+            b64_stdin = base64.b64encode(stdin_data.encode("utf-8")).decode("ascii") if stdin_data else ""
+
+            if b64_stdin:
+                cmd = f'echo "{b64_stdin}" | base64 -d | python3 -c "$(echo {b64_script} | base64 -d)"'
+            else:
+                cmd = f'python3 -c "$(echo {b64_script} | base64 -d)"'
+
+            exec_result = container.exec_run(
+                ["sh", "-c", cmd],
+                demux=True,
+                workdir="/home/user",
+            )
+            stdout = (exec_result.output[0] or b"").decode("utf-8", errors="replace")
+            stderr = (exec_result.output[1] or b"").decode("utf-8", errors="replace")
+
+            if stderr.strip():
+                return stdout + "\nSTDERR: " + stderr if stdout else "ERROR: " + stderr
+            return stdout.strip() if stdout.strip() else "(no output)"
+        except Exception as e:
+            logger.exception("Docker run_script failed for chat_id=%s: %s", chat_id, e)
+            self._remove_container(chat_id)
+            return f"ERROR: Script execution failed: {e}"
+
     def _get_or_create_container(self, chat_id: str):
         """Return existing container or create a new one."""
         import docker as docker_sdk

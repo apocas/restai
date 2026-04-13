@@ -60,7 +60,7 @@ async def get_tools(request: Request, _: User = Depends(get_current_username)):
     for tool in brain.get_tools():
         enabled = True
         description = tool.metadata.description
-        if tool.metadata.name == "terminal" and not docker_available:
+        if tool.metadata.name in ("terminal", "create_tool") and not docker_available:
             enabled = False
             description = "Requires Docker to be configured in Settings.\n\n" + description
         _tools.append(

@@ -8,6 +8,7 @@ from restai.models.databasemodels import (
     EmbeddingDatabase,
     OutputDatabase,
     ProjectDatabase,
+    ProjectToolDatabase,
     SettingDatabase,
     UserDatabase,
     TeamDatabase,
@@ -999,6 +1000,55 @@ class DBWrapper:
             .filter(PromptVersionDatabase.project_id == project_id, PromptVersionDatabase.is_active == True)
             .first()
         )
+
+    # ── Project Tools (agent-created) ────────────────────────────────────
+
+    def get_project_tools(self, project_id: int) -> list[ProjectToolDatabase]:
+        return (
+            self.db.query(ProjectToolDatabase)
+            .filter(ProjectToolDatabase.project_id == project_id)
+            .order_by(ProjectToolDatabase.name)
+            .all()
+        )
+
+    def get_project_tool_by_name(self, project_id: int, name: str) -> Optional[ProjectToolDatabase]:
+        return (
+            self.db.query(ProjectToolDatabase)
+            .filter(ProjectToolDatabase.project_id == project_id, ProjectToolDatabase.name == name)
+            .first()
+        )
+
+    def upsert_project_tool(self, project_id: int, name: str, description: str, parameters: str, code: str) -> ProjectToolDatabase:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        existing = self.get_project_tool_by_name(project_id, name)
+        if existing:
+            existing.description = description
+            existing.parameters = parameters
+            existing.code = code
+            existing.updated_at = now
+            self.db.commit()
+            return existing
+        tool = ProjectToolDatabase(
+            project_id=project_id,
+            name=name,
+            description=description,
+            parameters=parameters,
+            code=code,
+            created_at=now,
+            updated_at=now,
+        )
+        self.db.add(tool)
+        self.db.commit()
+        return tool
+
+    def delete_project_tool(self, project_id: int, name: str) -> bool:
+        tool = self.get_project_tool_by_name(project_id, name)
+        if tool:
+            self.db.delete(tool)
+            self.db.commit()
+            return True
+        return False
 
 
 def get_db_wrapper() -> DBWrapper:

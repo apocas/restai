@@ -66,6 +66,7 @@ class Agent2Runtime:
         self.config = config
         self.tools = list(tools)
         self._tools_by_name: dict[str, AdaptedTool] = {t.name: t for t in self.tools}
+        self._builtin_tool_names: set[str] = set(self._tools_by_name.keys())
         self.system_prompt = system_prompt or ""
         self.max_turns = max(1, int(max_turns))
         # "auto" starts in function_calling and may switch on first-turn error.
@@ -162,10 +163,14 @@ class Agent2Runtime:
             results = await asyncio.gather(
                 *(self._execute_tool_call(tc) for tc in tool_calls)
             )
-            for result_block in results:
+            for result_block, tc in zip(results, tool_calls):
                 tool_msg = Message(role="user", content=[result_block])
                 session.messages.append(tool_msg)
                 yield AgentEvent(type="tool_result", message=tool_msg, turn=turn)
+
+                # Hot-add newly created tools so they're usable this conversation
+                if tc.name == "create_tool" and not result_block.is_error and "created successfully" in result_block.content:
+                    self._reload_project_tools()
 
         # Hit the turn budget without producing a tool-free response
         yield AgentEvent(
@@ -392,6 +397,27 @@ class Agent2Runtime:
         # kind == "text" — model didn't follow the format; treat as final answer
         return Message(role="assistant", content=[TextBlock(text=parsed.final_text or "")])
 
+    def _reload_project_tools(self):
+        """Reload project-created tools from the DB and add any new ones to the runtime."""
+        project_id = getattr(self, "_project_id", None)
+        brain = getattr(self, "_brain", None)
+        if not project_id or not brain:
+            return
+        try:
+            from restai.database import DBWrapper as _DBW
+            from restai.projects.agent import _make_project_tool_adapted
+            _db = _DBW()
+            try:
+                for pt in _db.get_project_tools(project_id):
+                    if pt.name not in self._tools_by_name:
+                        adapted = _make_project_tool_adapted(pt, brain)
+                        self.tools.append(adapted)
+                        self._tools_by_name[adapted.name] = adapted
+            finally:
+                _db.db.close()
+        except Exception as e:
+            logger.warning("Failed to reload project tools: %s", e)
+
     async def _execute_tool_call(self, tool_call: ToolUseBlock) -> ToolResultBlock:
         tool = self._tools_by_name.get(tool_call.name)
         if tool is None:
@@ -413,6 +439,7 @@ class Agent2Runtime:
             context = {
                 "chat_id": getattr(self, "_chat_id", None),
                 "brain": getattr(self, "_brain", None),
+                "project_id": getattr(self, "_project_id", None),
             }
             result_text = await tool.call(args, context=context)
         except Exception as e:

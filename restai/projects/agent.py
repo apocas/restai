@@ -22,12 +22,46 @@ from restai.agent2 import (
     build_provider_for_llm,
 )
 from restai.agent2.memory import get_session, save_session
+from restai.agent2.tool_adapter import AdaptedTool
 from restai.agent2.types import ImageBlock, ToolUseBlock
 from restai.database import DBWrapper
 from restai.models.models import ChatModel, QuestionModel, User
 from restai.project import Project
 from restai.projects.base import ProjectBase
 from restai.tools import tokens_from_string
+
+
+def _make_project_tool_adapted(tool_row, brain) -> AdaptedTool:
+    """Create an AdaptedTool from a ProjectToolDatabase row.
+    The tool runs code in the Docker sandbox."""
+    import json as _json
+
+    try:
+        schema = _json.loads(tool_row.parameters) if isinstance(tool_row.parameters, str) else tool_row.parameters
+    except (_json.JSONDecodeError, TypeError):
+        schema = {"type": "object", "properties": {}, "required": []}
+
+    tool_code = tool_row.code
+    tool_name = tool_row.name
+
+    async def _run_project_tool(**kwargs):
+        _brain = kwargs.pop("_brain", brain)
+        _chat_id = kwargs.pop("_chat_id", None)
+        kwargs.pop("_project_id", None)
+        if not _brain or not getattr(_brain, "docker_manager", None):
+            return "ERROR: Docker is not configured."
+        args_json = _json.dumps(kwargs)
+        script = f"import json, sys\nargs = json.loads(sys.stdin.readline() or '{{}}')\n{tool_code}"
+        return _brain.docker_manager.run_script(_chat_id or "ephemeral", script, stdin_data=args_json)
+
+    return AdaptedTool(
+        name=tool_name,
+        description=tool_row.description or tool_name,
+        input_schema=schema,
+        fn=_run_project_tool,
+        is_async=True,
+        accepts_kwargs=True,
+    )
 
 
 def _wrap_image_error(err: Exception, has_image: bool) -> Exception:
@@ -81,6 +115,17 @@ class Agent(ProjectBase):
         adapted = adapt_function_tools(raw_tools)
         if extra_tools:
             adapted.extend(extra_tools)
+
+        # Load agent-created project tools from DB
+        from restai.database import DBWrapper as _DBW
+        _db = _DBW()
+        try:
+            project_tools = _db.get_project_tools(project.props.id)
+            for pt in project_tools:
+                if pt.enabled:
+                    adapted.append(_make_project_tool_adapted(pt, self.brain))
+        finally:
+            _db.db.close()
 
         return Agent2Runtime(
             provider=provider,
@@ -235,6 +280,7 @@ class Agent(ProjectBase):
 
             runtime._chat_id = chat_id
             runtime._brain = self.brain
+            runtime._project_id = project.props.id
             session = await get_session(self.brain, chat_id)
             image_block = ImageBlock.from_data_url(chatModel.image) if chatModel.image else None
             streamed_any_text = False
@@ -330,6 +376,7 @@ class Agent(ProjectBase):
                 return
 
             runtime._brain = self.brain
+            runtime._project_id = project.props.id
             image_block = ImageBlock.from_data_url(questionModel.image) if questionModel.image else None
             streamed_any_text = False
 

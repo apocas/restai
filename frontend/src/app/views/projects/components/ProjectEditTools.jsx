@@ -1,6 +1,14 @@
-import { Grid, TextField, Button, Autocomplete, Typography, IconButton, Divider, Box, CircularProgress, MenuItem } from "@mui/material";
+import {
+  Grid, TextField, Button, Autocomplete, Typography, IconButton, Divider, Box,
+  CircularProgress, MenuItem, Chip, Accordion, AccordionSummary, AccordionDetails,
+} from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { Fragment, useState } from "react";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import BuildIcon from "@mui/icons-material/Build";
+import { Fragment, useState, useEffect } from "react";
+import { toast } from "react-toastify";
+import useAuth from "app/hooks/useAuth";
+import api from "app/utils/api";
 
 function parseHeadersText(text) {
   const parsed = {};
@@ -60,6 +68,123 @@ function GatewayServices({ gateway, onAdd }) {
       >
         Add {selectedList.length} Service{selectedList.length !== 1 ? "s" : ""}
       </Button>
+    </Box>
+  );
+}
+
+function AgentCreatedTools({ project }) {
+  const [customTools, setCustomTools] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const auth = useAuth();
+
+  const fetchTools = () => {
+    if (!project?.id) return;
+    setLoading(true);
+    api.get(`/projects/${project.id}/custom-tools`, auth.user.token)
+      .then((d) => setCustomTools(d.tools || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchTools();
+  }, [project?.id]);
+
+  const handleDelete = (name) => {
+    if (!window.confirm(`Delete tool "${name}"? The agent won't be able to use it anymore.`)) return;
+    api.delete(`/projects/${project.id}/custom-tools/${name}`, auth.user.token)
+      .then(() => {
+        toast.success(`Tool "${name}" deleted`);
+        fetchTools();
+      })
+      .catch(() => {});
+  };
+
+  const handleToggle = (name) => {
+    api.patch(`/projects/${project.id}/custom-tools/${name}`, {}, auth.user.token)
+      .then((d) => {
+        toast.success(`Tool "${name}" ${d.enabled ? "enabled" : "disabled"}`);
+        fetchTools();
+      })
+      .catch(() => {});
+  };
+
+  if (loading) return <CircularProgress size={20} />;
+  if (customTools.length === 0) return null;
+
+  return (
+    <Box>
+      <Divider sx={{ my: 2 }} />
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+        <BuildIcon fontSize="small" color="primary" />
+        <Typography variant="subtitle1">Agent-Created Tools</Typography>
+        <Chip label={customTools.length} size="small" variant="outlined" />
+      </Box>
+      <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 1.5 }}>
+        Tools created by the agent during conversations. These are automatically available in all conversations for this project.
+      </Typography>
+      {customTools.map((tool) => (
+        <Accordion key={tool.id} disableGutters variant="outlined" sx={{ mb: 1, borderRadius: 1, "&:before": { display: "none" }, opacity: tool.enabled === false ? 0.5 : 1 }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flex: 1, mr: 1 }}>
+              <Typography variant="body2" fontWeight={600} sx={{ fontFamily: "monospace" }}>
+                {tool.name}
+              </Typography>
+              <Chip
+                label={tool.enabled === false ? "Disabled" : "Enabled"}
+                size="small"
+                color={tool.enabled === false ? "default" : "success"}
+                variant="outlined"
+                sx={{ fontSize: "0.68rem", height: 20, cursor: "pointer" }}
+                onClick={(e) => { e.stopPropagation(); handleToggle(tool.name); }}
+              />
+              <Typography variant="caption" color="textSecondary" sx={{ flex: 1 }}>
+                {tool.description?.substring(0, 80)}{tool.description?.length > 80 ? "..." : ""}
+              </Typography>
+            </Box>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 1 }}>
+              {tool.description}
+            </Typography>
+            <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 0.5 }}>Parameters</Typography>
+            <Box
+              sx={{
+                p: 1.5, borderRadius: 1, mb: 1.5, fontFamily: "monospace", fontSize: "0.78rem",
+                backgroundColor: (t) => t.palette.mode === "dark" ? "#0f0f17" : "#fafafa",
+                whiteSpace: "pre-wrap", border: "1px solid", borderColor: "divider",
+              }}
+            >
+              {tool.parameters}
+            </Box>
+            <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 0.5 }}>Code</Typography>
+            <Box
+              sx={{
+                p: 1.5, borderRadius: 1, mb: 1.5, fontFamily: "monospace", fontSize: "0.78rem",
+                backgroundColor: (t) => t.palette.mode === "dark" ? "#0f0f17" : "#fafafa",
+                whiteSpace: "pre-wrap", border: "1px solid", borderColor: "divider",
+                maxHeight: 300, overflow: "auto",
+              }}
+            >
+              {tool.code}
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Typography variant="caption" color="textSecondary">
+                Created: {tool.created_at ? new Date(tool.created_at).toLocaleString() : "—"}
+              </Typography>
+              <Button
+                size="small"
+                color="error"
+                variant="outlined"
+                startIcon={<DeleteIcon />}
+                onClick={() => handleDelete(tool.name)}
+              >
+                Delete
+              </Button>
+            </Box>
+          </AccordionDetails>
+        </Accordion>
+      ))}
     </Box>
   );
 }
@@ -251,6 +376,12 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
           Add MCP Server
         </Button>
       </Grid>
+
+      {project?.type === "agent" && (
+        <Grid item xs={12}>
+          <AgentCreatedTools project={project} />
+        </Grid>
+      )}
     </Grid>
   );
 }

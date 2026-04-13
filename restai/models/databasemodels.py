@@ -421,3 +421,19 @@ class TeamAudioGeneratorDatabase(Base):
     team_id = Column(Integer, ForeignKey("teams.id"), primary_key=True)
     generator_name = Column(String(255), primary_key=True)
     team = relationship("TeamDatabase", back_populates="audio_generators")
+
+
+class ProjectToolDatabase(Base):
+    __tablename__ = "project_tools"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False, default="")
+    parameters = Column(Text, nullable=False, default="{}")
+    code = Column(Text, nullable=False)
+    enabled = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+
+    project = relationship("ProjectDatabase")
