@@ -1,14 +1,20 @@
 import {
   Grid, TextField, Button, Autocomplete, Typography, IconButton, Divider, Box,
   CircularProgress, MenuItem, Chip, Accordion, AccordionSummary, AccordionDetails,
+  Dialog, DialogTitle, DialogContent, DialogActions,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import BuildIcon from "@mui/icons-material/Build";
 import { Fragment, useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
+import CodeMirror from "@uiw/react-codemirror";
+import { python } from "@codemirror/lang-python";
+import { json as jsonLang } from "@codemirror/lang-json";
 
 function parseHeadersText(text) {
   const parsed = {};
@@ -75,7 +81,14 @@ function GatewayServices({ gateway, onAdd }) {
 function AgentCreatedTools({ project }) {
   const [customTools, setCustomTools] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTool, setEditTool] = useState(null);
+  const [editDesc, setEditDesc] = useState("");
+  const [editParams, setEditParams] = useState("");
+  const [editCode, setEditCode] = useState("");
+  const [saving, setSaving] = useState(false);
   const auth = useAuth();
+  const theme = useTheme();
 
   const fetchTools = () => {
     if (!project?.id) return;
@@ -107,6 +120,41 @@ function AgentCreatedTools({ project }) {
         fetchTools();
       })
       .catch(() => {});
+  };
+
+  const handleEditOpen = (tool) => {
+    setEditTool(tool);
+    setEditDesc(tool.description || "");
+    let params = tool.parameters || "";
+    try { params = JSON.stringify(JSON.parse(params), null, 2); } catch {}
+    setEditParams(params);
+    setEditCode(tool.code || "");
+    setEditOpen(true);
+  };
+
+  const handleEditSave = () => {
+    try { JSON.parse(editParams); } catch {
+      toast.error("Invalid JSON in parameters");
+      return;
+    }
+    if (editCode.length > 10240) {
+      toast.error("Code exceeds 10KB limit");
+      return;
+    }
+    setSaving(true);
+    api.put(`/projects/${project.id}/custom-tools/${editTool.name}`, {
+      description: editDesc,
+      parameters: editParams,
+      code: editCode,
+    }, auth.user.token)
+      .then((d) => {
+        toast.success(`Tool "${editTool.name}" updated`);
+        if (d.warning) toast.warn(d.warning);
+        setEditOpen(false);
+        fetchTools();
+      })
+      .catch(() => {})
+      .finally(() => setSaving(false));
   };
 
   if (loading) return <CircularProgress size={20} />;
@@ -172,19 +220,89 @@ function AgentCreatedTools({ project }) {
               <Typography variant="caption" color="textSecondary">
                 Created: {tool.created_at ? new Date(tool.created_at).toLocaleString() : "—"}
               </Typography>
-              <Button
-                size="small"
-                color="error"
-                variant="outlined"
-                startIcon={<DeleteIcon />}
-                onClick={() => handleDelete(tool.name)}
-              >
-                Delete
-              </Button>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EditIcon />}
+                  onClick={() => handleEditOpen(tool)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  size="small"
+                  color="error"
+                  variant="outlined"
+                  startIcon={<DeleteIcon />}
+                  onClick={() => handleDelete(tool.name)}
+                >
+                  Delete
+                </Button>
+              </Box>
             </Box>
           </AccordionDetails>
         </Accordion>
       ))}
+
+      <Dialog open={editOpen} onClose={() => !saving && setEditOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ fontFamily: "monospace" }}>
+          Edit Tool: {editTool?.name}
+        </DialogTitle>
+        <DialogContent dividers>
+          <TextField
+            fullWidth
+            label="Description"
+            multiline
+            rows={2}
+            value={editDesc}
+            onChange={(e) => setEditDesc(e.target.value)}
+            sx={{ mb: 2, mt: 1 }}
+            inputProps={{ maxLength: 2000 }}
+          />
+
+          <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 0.5 }}>
+            Parameters (JSON Schema)
+          </Typography>
+          <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, mb: 2, overflow: "hidden" }}>
+            <CodeMirror
+              value={editParams}
+              height="150px"
+              extensions={[jsonLang()]}
+              theme={theme.palette.mode === "dark" ? "dark" : "light"}
+              onChange={(val) => setEditParams(val)}
+            />
+          </Box>
+
+          <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 0.5 }}>
+            Code (Python)
+          </Typography>
+          <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 0.5 }}>
+            Receives an <code>args</code> dict with the parameters. Print results to stdout.
+          </Typography>
+          <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, overflow: "hidden" }}>
+            <CodeMirror
+              value={editCode}
+              height="350px"
+              extensions={[python()]}
+              theme={theme.palette.mode === "dark" ? "dark" : "light"}
+              onChange={(val) => setEditCode(val)}
+            />
+          </Box>
+          <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: "block" }}>
+            {editCode.length.toLocaleString()} / 10,240 bytes
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditOpen(false)} disabled={saving}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleEditSave}
+            disabled={saving || !editDesc.trim() || !editCode.trim()}
+          >
+            {saving ? <><CircularProgress size={16} sx={{ mr: 1 }} /> Validating...</> : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

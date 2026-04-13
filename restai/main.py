@@ -448,7 +448,7 @@ if config.RESTAI_DEV == True:
 _WIDGET_CORS_PATHS = ("/widget/",)
 _CORS_HEADERS = {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Accept, X-Widget-Key",
+    "Access-Control-Allow-Headers": "Content-Type, Accept, X-Widget-Key, X-Widget-Context",
     "Access-Control-Max-Age": "86400",
 }
 

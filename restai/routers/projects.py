@@ -54,6 +54,7 @@ from restai.models.models import (
     WidgetCreatedResponse,
     BlockGenerateRequest,
     SystemPromptGenerateRequest,
+    ProjectToolUpdate,
 )
 import uuid
 import secrets
@@ -106,7 +107,7 @@ async def route_get_projects(
     _: Request,
     v_filter: str = Query("", alias="filter", description="Filter mode: 'public' to list only public projects, empty for all accessible projects"),
     start: int = Query(0, ge=0, le=100000, description="Pagination start offset"),
-    end: int = Query(50, ge=1, le=100000, description="Pagination end offset"),
+    end: int = Query(10000, ge=1, le=100000, description="Pagination end offset"),
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -2497,6 +2498,75 @@ async def toggle_project_custom_tool(
     tool.updated_at = datetime.now(timezone.utc)
     db_wrapper.db.commit()
     return {"name": tool.name, "enabled": bool(tool.enabled)}
+
+
+@router.put("/projects/{projectID}/custom-tools/{toolName}", tags=["Projects"])
+async def update_project_custom_tool(
+    request: Request,
+    projectID: int = PathParam(description="Project ID"),
+    toolName: str = PathParam(description="Tool name"),
+    body: ProjectToolUpdate = ...,
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Update an agent-created tool's description, parameters, or code."""
+    check_not_restricted(user)
+    tool = db_wrapper.get_project_tool_by_name(projectID, toolName)
+    if not tool:
+        raise HTTPException(status_code=404, detail="Tool not found")
+
+    # Merge: use provided values or keep existing
+    final_description = body.description if body.description is not None else tool.description
+    final_parameters = body.parameters if body.parameters is not None else tool.parameters
+    final_code = body.code if body.code is not None else tool.code
+
+    if not final_description or not final_description.strip():
+        raise HTTPException(status_code=400, detail="Description is required.")
+    if not final_code or not final_code.strip():
+        raise HTTPException(status_code=400, detail="Code is required.")
+
+    # Validate parameters JSON
+    try:
+        params_dict = json.loads(final_parameters) if isinstance(final_parameters, str) else final_parameters
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid parameters JSON: {e}")
+
+    # Docker test-run if available
+    brain = request.app.state.brain
+    warning = None
+    if getattr(brain, "docker_manager", None):
+        script = f"import json, sys\nargs = json.loads(sys.stdin.readline() or '{{}}')\n{final_code}"
+        test_result = brain.docker_manager.run_script("ephemeral", script, stdin_data="{}")
+        if test_result.startswith("ERROR:"):
+            raise HTTPException(status_code=400, detail=f"Code validation failed — {test_result}")
+    else:
+        warning = "Docker is not configured; code was saved without sandbox validation."
+
+    # Save
+    final_params_str = json.dumps(params_dict) if isinstance(params_dict, dict) else final_parameters
+    db_wrapper.upsert_project_tool(
+        project_id=projectID,
+        name=toolName,
+        description=final_description,
+        parameters=final_params_str,
+        code=final_code,
+    )
+
+    # Re-fetch to get updated timestamps
+    updated = db_wrapper.get_project_tool_by_name(projectID, toolName)
+    result = {
+        "id": updated.id,
+        "name": updated.name,
+        "description": updated.description,
+        "parameters": updated.parameters,
+        "code": updated.code,
+        "enabled": bool(updated.enabled),
+        "created_at": updated.created_at.isoformat() if updated.created_at else None,
+        "updated_at": updated.updated_at.isoformat() if updated.updated_at else None,
+    }
+    if warning:
+        result["warning"] = warning
+    return result
 
 
 @router.delete("/projects/{projectID}/custom-tools/{toolName}", tags=["Projects"])

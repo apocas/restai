@@ -244,6 +244,13 @@ class Tool(BaseModel):
     enabled: bool = Field(default=True, description="Whether the tool is currently available for use")
 
 
+class ProjectToolUpdate(BaseModel):
+    """Update an agent-created tool's content."""
+    description: Optional[str] = Field(default=None, max_length=2000)
+    parameters: Optional[str] = Field(default=None, max_length=10000)
+    code: Optional[str] = Field(default=None, max_length=10240)
+
+
 class LLMUpdate(BaseModel):
     """Update an existing LLM configuration."""
     class_name: Union[str, None] = Field(default=None, description="LLM implementation class name")

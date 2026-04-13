@@ -28,6 +28,8 @@
     ]
   },
   "dependencies": {
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lang-python": "^6.2.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@microlink/react-json-view": "^1.31.8",
@@ -36,6 +38,7 @@
     "@mui/lab": "^5.0.0-alpha.177",
     "@mui/material": "^5.18.0",
     "@reduxjs/toolkit": "^2.11.2",
+    "@uiw/react-codemirror": "^4.25.9",
     "autosuggest-highlight": "^3.3.4",
     "axios": "^1.15.0",
     "blockly": "^12.5.1",

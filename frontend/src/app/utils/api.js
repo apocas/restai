@@ -51,6 +51,9 @@ const api = {
   patch: (path, body, token, opts = {}) => request(path, {
     method: 'PATCH', body: JSON.stringify(body), ...opts
   }, token),
+  put: (path, body, token, opts = {}) => request(path, {
+    method: 'PUT', body: JSON.stringify(body), ...opts
+  }, token),
   delete: (path, token, opts = {}) => request(path, { method: 'DELETE', ...opts }, token),
   raw: request,
 };
