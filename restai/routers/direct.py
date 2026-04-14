@@ -22,6 +22,7 @@ from restai.models.models import (
     OpenAIChatCompletionChoice,
     OpenAIChatCompletionUsage,
     OpenAIChatMessage,
+    OpenAIToolCall,
     OpenAIEmbeddingRequest,
     OpenAIEmbeddingResponse,
     OpenAIEmbeddingData,
@@ -38,14 +39,126 @@ ROLE_MAP = {
     "system": MessageRole.SYSTEM,
     "user": MessageRole.USER,
     "assistant": MessageRole.ASSISTANT,
+    "tool": MessageRole.TOOL,
 }
+
+# Parameters forwarded directly to the LLM provider as kwargs
+_FORWARD_PARAMS = (
+    "temperature", "top_p", "frequency_penalty", "presence_penalty",
+    "stop", "seed", "response_format", "logprobs", "top_logprobs",
+)
 
 
 def _convert_messages(messages: list[OpenAIChatMessage]) -> list[ChatMessage]:
-    return [
-        ChatMessage(role=ROLE_MAP.get(m.role, MessageRole.USER), content=m.content)
-        for m in messages
-    ]
+    result = []
+    for m in messages:
+        additional_kwargs = {}
+        if m.tool_call_id:
+            additional_kwargs["tool_call_id"] = m.tool_call_id
+        if m.name:
+            additional_kwargs["name"] = m.name
+        if m.tool_calls:
+            additional_kwargs["tool_calls"] = [tc.model_dump() for tc in m.tool_calls]
+        result.append(ChatMessage(
+            role=ROLE_MAP.get(m.role, MessageRole.USER),
+            content=m.content or "",
+            additional_kwargs=additional_kwargs if additional_kwargs else {},
+        ))
+    return result
+
+
+def _build_kwargs(body: OpenAIChatCompletionRequest) -> dict:
+    """Build kwargs dict from request params to forward to the LLM."""
+    kwargs = {}
+    for param in _FORWARD_PARAMS:
+        val = getattr(body, param, None)
+        if val is not None:
+            kwargs[param] = val
+    if body.max_tokens is not None:
+        kwargs["max_tokens"] = body.max_tokens
+    # Tool calling
+    if body.tools:
+        kwargs["tools"] = [
+            {
+                "type": "function",
+                "function": {
+                    "name": t.function.name,
+                    "description": t.function.description or "",
+                    "parameters": t.function.parameters or {"type": "object", "properties": {}},
+                },
+            }
+            for t in body.tools
+        ]
+        if body.tool_choice is not None:
+            kwargs["tool_choice"] = body.tool_choice
+    return kwargs
+
+
+def _extract_finish_reason(response) -> str:
+    """Extract finish_reason from LlamaIndex response, falling back to 'stop'."""
+    if hasattr(response, "raw") and response.raw:
+        try:
+            return response.raw.choices[0].finish_reason or "stop"
+        except (AttributeError, IndexError, TypeError):
+            pass
+    # Check for tool calls in additional_kwargs
+    if hasattr(response, "message") and hasattr(response.message, "additional_kwargs"):
+        if response.message.additional_kwargs.get("tool_calls"):
+            return "tool_calls"
+    return "stop"
+
+
+def _extract_tool_calls(response) -> Optional[list[dict]]:
+    """Extract tool_calls from LlamaIndex response if present."""
+    if not hasattr(response, "message") or not hasattr(response.message, "additional_kwargs"):
+        return None
+    raw_calls = response.message.additional_kwargs.get("tool_calls")
+    if not raw_calls:
+        return None
+    result = []
+    for tc in raw_calls:
+        # Handle both dict and object forms
+        if isinstance(tc, dict):
+            func = tc.get("function", {})
+            result.append({
+                "id": tc.get("id", f"call_{uuid.uuid4().hex[:8]}"),
+                "type": "function",
+                "function": {
+                    "name": func.get("name", ""),
+                    "arguments": func.get("arguments", "{}"),
+                },
+            })
+        else:
+            # Object with attributes (e.g. openai ChatCompletionMessageToolCall)
+            result.append({
+                "id": getattr(tc, "id", f"call_{uuid.uuid4().hex[:8]}"),
+                "type": "function",
+                "function": {
+                    "name": getattr(tc.function, "name", ""),
+                    "arguments": getattr(tc.function, "arguments", "{}"),
+                },
+            })
+    return result
+
+
+def _build_response_message(response, tool_calls: Optional[list[dict]]) -> OpenAIChatMessage:
+    """Build the response message, including tool_calls if present."""
+    content = str(response.message.content) if response.message.content else None
+    tc_models = None
+    if tool_calls:
+        tc_models = [
+            OpenAIToolCall(id=tc["id"], type=tc["type"], function=tc["function"])
+            for tc in tool_calls
+        ]
+    return OpenAIChatMessage(role="assistant", content=content, tool_calls=tc_models)
+
+
+def _system_fingerprint() -> str:
+    try:
+        from importlib.metadata import version
+        return f"restai-{version('restai')}"
+    except Exception:
+        return "restai"
 
 
 @router.post("/v1/chat/completions")
@@ -67,26 +180,39 @@ async def chat_completions(
     llm = llm_obj.llm
     llm_model = llm_obj.props
 
-    # Apply optional parameters
-    kwargs = {}
-    if body.temperature is not None:
-        kwargs["temperature"] = body.temperature
-    if body.max_tokens is not None:
-        kwargs["max_tokens"] = body.max_tokens
-
+    kwargs = _build_kwargs(body)
     messages = _convert_messages(body.messages)
     completion_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
+    fingerprint = _system_fingerprint()
+    n = body.n or 1
 
     if not body.stream:
-        response = llm.chat(messages, **kwargs)
-        answer = str(response.message.content)
+        choices = []
+        total_input_tokens = 0
+        total_output_tokens = 0
 
-        input_tokens = tokens_from_string(
-            " ".join(m.content for m in body.messages)
-        )
-        output_tokens = tokens_from_string(answer)
-        input_cost = (input_tokens * llm_model.input_cost) / 1_000_000
-        output_cost = (output_tokens * llm_model.output_cost) / 1_000_000
+        for i in range(n):
+            response = llm.chat(messages, **kwargs)
+            tool_calls = _extract_tool_calls(response)
+            finish_reason = _extract_finish_reason(response)
+            msg = _build_response_message(response, tool_calls)
+
+            answer = msg.content or ""
+            input_tokens = tokens_from_string(" ".join(m.content or "" for m in body.messages))
+            output_tokens = tokens_from_string(answer)
+            total_input_tokens += input_tokens
+            total_output_tokens += output_tokens
+
+            choices.append(
+                OpenAIChatCompletionChoice(
+                    index=i,
+                    message=msg,
+                    finish_reason=finish_reason,
+                )
+            )
+
+        input_cost = (total_input_tokens * llm_model.input_cost) / 1_000_000
+        output_cost = (total_output_tokens * llm_model.output_cost) / 1_000_000
 
         background_tasks.add_task(
             log_direct_usage,
@@ -94,10 +220,10 @@ async def chat_completions(
             user.id,
             team_id,
             body.model,
-            body.messages[-1].content if body.messages else "",
-            answer,
-            input_tokens,
-            output_tokens,
+            body.messages[-1].content if body.messages and body.messages[-1].content else "",
+            choices[0].message.content or "",
+            total_input_tokens,
+            total_output_tokens,
             input_cost,
             output_cost,
         )
@@ -106,23 +232,24 @@ async def chat_completions(
             id=completion_id,
             created=int(time.time()),
             model=body.model,
-            choices=[
-                OpenAIChatCompletionChoice(
-                    index=0,
-                    message=OpenAIChatMessage(role="assistant", content=answer),
-                    finish_reason="stop",
-                )
-            ],
+            choices=choices,
             usage=OpenAIChatCompletionUsage(
-                prompt_tokens=input_tokens,
-                completion_tokens=output_tokens,
-                total_tokens=input_tokens + output_tokens,
+                prompt_tokens=total_input_tokens,
+                completion_tokens=total_output_tokens,
+                total_tokens=total_input_tokens + total_output_tokens,
             ),
+            system_fingerprint=fingerprint,
         )
     else:
         # Streaming response
+        include_usage = (
+            body.stream_options.get("include_usage", False)
+            if body.stream_options else False
+        )
+
         async def generate():
             full_answer = ""
+            last_finish_reason = None
             try:
                 stream_response = llm.stream_chat(messages, **kwargs)
                 for token_response in stream_response:
@@ -134,6 +261,7 @@ async def chat_completions(
                             "object": "chat.completion.chunk",
                             "created": int(time.time()),
                             "model": body.model,
+                            "system_fingerprint": fingerprint,
                             "choices": [
                                 {
                                     "index": 0,
@@ -144,26 +272,86 @@ async def chat_completions(
                         }
                         yield f"data: {json.dumps(chunk)}\n\n"
 
-                # Send final chunk
+                    # Try to extract finish_reason from streaming chunks
+                    if hasattr(token_response, "raw") and token_response.raw:
+                        try:
+                            fr = token_response.raw.choices[0].finish_reason
+                            if fr:
+                                last_finish_reason = fr
+                        except (AttributeError, IndexError, TypeError):
+                            pass
+
+                # Check for tool calls in the final aggregated response
+                tool_call_delta = None
+                if hasattr(token_response, "message") and hasattr(token_response.message, "additional_kwargs"):
+                    raw_calls = token_response.message.additional_kwargs.get("tool_calls")
+                    if raw_calls:
+                        last_finish_reason = "tool_calls"
+                        tool_call_delta = _extract_tool_calls(token_response)
+
+                # Send tool calls chunk if present
+                if tool_call_delta:
+                    tc_chunk = {
+                        "id": completion_id,
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": body.model,
+                        "system_fingerprint": fingerprint,
+                        "choices": [
+                            {
+                                "index": 0,
+                                "delta": {
+                                    "tool_calls": tool_call_delta,
+                                },
+                                "finish_reason": None,
+                            }
+                        ],
+                    }
+                    yield f"data: {json.dumps(tc_chunk)}\n\n"
+
+                # Send final chunk with finish_reason
                 final_chunk = {
                     "id": completion_id,
                     "object": "chat.completion.chunk",
                     "created": int(time.time()),
                     "model": body.model,
+                    "system_fingerprint": fingerprint,
                     "choices": [
                         {
                             "index": 0,
                             "delta": {},
-                            "finish_reason": "stop",
+                            "finish_reason": last_finish_reason or "stop",
                         }
                     ],
                 }
                 yield f"data: {json.dumps(final_chunk)}\n\n"
+
+                # Send usage chunk if requested
+                if include_usage:
+                    input_tokens = tokens_from_string(
+                        " ".join(m.content or "" for m in body.messages)
+                    )
+                    output_tokens = tokens_from_string(full_answer)
+                    usage_chunk = {
+                        "id": completion_id,
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": body.model,
+                        "system_fingerprint": fingerprint,
+                        "choices": [],
+                        "usage": {
+                            "prompt_tokens": input_tokens,
+                            "completion_tokens": output_tokens,
+                            "total_tokens": input_tokens + output_tokens,
+                        },
+                    }
+                    yield f"data: {json.dumps(usage_chunk)}\n\n"
+
                 yield "data: [DONE]\n\n"
             finally:
                 # Log after stream completes
                 input_tokens = tokens_from_string(
-                    " ".join(m.content for m in body.messages)
+                    " ".join(m.content or "" for m in body.messages)
                 )
                 output_tokens = tokens_from_string(full_answer)
                 input_cost = (input_tokens * llm_model.input_cost) / 1_000_000
@@ -174,7 +362,7 @@ async def chat_completions(
                         user.id,
                         team_id,
                         body.model,
-                        body.messages[-1].content if body.messages else "",
+                        body.messages[-1].content if body.messages and body.messages[-1].content else "",
                         full_answer,
                         input_tokens,
                         output_tokens,
@@ -193,6 +381,37 @@ async def chat_completions(
                 "X-Accel-Buffering": "no",
             },
         )
+
+
+@router.get("/v1/models")
+async def list_models(
+    user: User = Depends(get_current_username),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """OpenAI-compatible model listing endpoint."""
+    models = []
+    if user.is_admin:
+        for llm in db_wrapper.get_llms():
+            models.append({
+                "id": llm.name,
+                "object": "model",
+                "created": 0,
+                "owned_by": llm.class_name or "unknown",
+            })
+    else:
+        teams = db_wrapper.get_teams_for_user(user.id)
+        seen = set()
+        for team in teams:
+            for llm in team.llms:
+                if llm.name not in seen:
+                    seen.add(llm.name)
+                    models.append({
+                        "id": llm.name,
+                        "object": "model",
+                        "created": 0,
+                        "owned_by": llm.class_name or "unknown",
+                    })
+    return {"object": "list", "data": models}
 
 
 @router.post("/v1/embeddings")

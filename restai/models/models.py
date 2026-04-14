@@ -1202,26 +1202,62 @@ class MessageResponse(BaseModel):
     message: str = Field(description="Status message")
 
 
+class OpenAIToolCall(BaseModel):
+    """A tool call returned by the model."""
+    id: str = Field(description="Unique tool call identifier")
+    type: str = Field(default="function", description="Tool type")
+    function: dict = Field(description="Function name and arguments")
+
+
 class OpenAIChatMessage(BaseModel):
-    """A single message in an OpenAI chat completion request."""
-    role: str = Field(description="Message role: 'system', 'user', or 'assistant'")
-    content: str = Field(description="Message content")
+    """A single message in an OpenAI chat completion request/response."""
+    role: str = Field(description="Message role: 'system', 'user', 'assistant', or 'tool'")
+    content: Optional[str] = Field(default=None, description="Message content")
+    tool_calls: Optional[list[OpenAIToolCall]] = Field(default=None, description="Tool calls made by the assistant")
+    tool_call_id: Optional[str] = Field(default=None, description="ID of the tool call this message responds to")
+    name: Optional[str] = Field(default=None, description="Name of the tool or function")
+
+
+class OpenAIFunctionDef(BaseModel):
+    """Function definition for tool calling."""
+    name: str = Field(description="Function name")
+    description: Optional[str] = Field(default=None, description="What the function does")
+    parameters: Optional[dict] = Field(default=None, description="JSON Schema for function parameters")
+
+
+class OpenAIToolDef(BaseModel):
+    """Tool definition in an OpenAI chat completion request."""
+    type: str = Field(default="function", description="Tool type")
+    function: OpenAIFunctionDef = Field(description="Function definition")
 
 
 class OpenAIChatCompletionRequest(BaseModel):
     """OpenAI-compatible chat completion request."""
     model: str = Field(description="Model name to use")
     messages: list[OpenAIChatMessage] = Field(description="List of messages in the conversation")
-    temperature: Optional[float] = Field(default=None, description="Sampling temperature")
+    temperature: Optional[float] = Field(default=None, description="Sampling temperature (0-2)")
     max_tokens: Optional[int] = Field(default=None, description="Maximum tokens to generate")
     stream: bool = Field(default=False, description="Enable streaming response via SSE")
+    top_p: Optional[float] = Field(default=None, description="Nucleus sampling threshold (0-1)")
+    frequency_penalty: Optional[float] = Field(default=None, description="Frequency penalty (-2.0 to 2.0)")
+    presence_penalty: Optional[float] = Field(default=None, description="Presence penalty (-2.0 to 2.0)")
+    stop: Optional[Union[str, list[str]]] = Field(default=None, description="Stop sequence(s)")
+    seed: Optional[int] = Field(default=None, description="Seed for deterministic generation")
+    response_format: Optional[dict] = Field(default=None, description='Response format, e.g. {"type": "json_object"}')
+    n: Optional[int] = Field(default=None, ge=1, le=5, description="Number of completions to generate")
+    logprobs: Optional[bool] = Field(default=None, description="Return log probabilities")
+    top_logprobs: Optional[int] = Field(default=None, ge=0, le=20, description="Number of top logprobs per token")
+    tools: Optional[list[OpenAIToolDef]] = Field(default=None, description="Tool definitions for function calling")
+    tool_choice: Optional[Union[str, dict]] = Field(default=None, description="Tool choice: 'auto', 'none', 'required', or specific tool")
+    stream_options: Optional[dict] = Field(default=None, description='Streaming options, e.g. {"include_usage": true}')
+    user: Optional[str] = Field(default=None, description="End-user identifier")
 
 
 class OpenAIChatCompletionChoice(BaseModel):
     """A single choice in a chat completion response."""
     index: int = Field(description="Choice index")
     message: OpenAIChatMessage = Field(description="The generated message")
-    finish_reason: str = Field(default="stop", description="Reason the generation stopped")
+    finish_reason: Optional[str] = Field(default="stop", description="Reason the generation stopped")
 
 
 class OpenAIChatCompletionUsage(BaseModel):
@@ -1239,6 +1275,7 @@ class OpenAIChatCompletionResponse(BaseModel):
     model: str = Field(description="Model used")
     choices: list[OpenAIChatCompletionChoice] = Field(description="Generated completions")
     usage: OpenAIChatCompletionUsage = Field(description="Token usage statistics")
+    system_fingerprint: Optional[str] = Field(default=None, description="System fingerprint")
 
 
 class OpenAIAudioTranscriptionResponse(BaseModel):
