@@ -9,6 +9,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from "react-router-dom";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
+import api from "app/utils/api";
 
 const AppFooter = styled(Toolbar)(() => ({
   display: "flex",
@@ -42,41 +43,30 @@ export default function Footer() {
 
   const footerTheme = settings.themes[settings.footer.theme] || theme;
 
-  const url = process.env.REACT_APP_RESTAI_API_URL || "";
-  const [version, setVersion] = useState([]);
+  const [version, setVersion] = useState(null);
   const [updateInfo, setUpdateInfo] = useState(null);
   const auth = useAuth();
 
   const navigate = useNavigate();
-
-  const authHeaders = auth.user?.token
-    ? { "Authorization": "Basic " + auth.user.token }
-    : {};
-
-  const fetchVersion = () => {
-    return fetch(url + "/version", { headers: authHeaders })
-      .then((res) => res.json())
-      .then((d) => {
-        setVersion(d.version)
-      }).catch(err => {
-        console.log(err.toString());
-      });
-  }
-
-  const fetchUpdateCheck = () => {
-    if (!auth.user?.token) return;
-    fetch(url + "/version/check", { headers: authHeaders })
-      .then((res) => res.ok ? res.json() : null)
-      .then((d) => {
-        if (d && d.update_available) setUpdateInfo(d);
-      })
-      .catch(() => {});
-  };
+  const isAuthenticated = auth.isAuthenticated;
+  const token = auth.user?.token;
 
   useEffect(() => {
-    fetchVersion();
-    fetchUpdateCheck();
-  }, [auth.user?.token]);
+    if (!isAuthenticated) return;
+
+    const opts = { silent: true, credentials: "include" };
+
+    api.get("/version", token, opts)
+      .then((d) => { if (d?.version) setVersion(d.version); })
+      .catch(() => {});
+
+    api.get("/version/check", token, opts)
+      .then((d) => {
+        if (d?.current) setVersion(d.current);
+        if (d?.update_available) setUpdateInfo(d);
+      })
+      .catch(() => {});
+  }, [isAuthenticated]);
 
   return (
     <ThemeProvider theme={footerTheme}>
