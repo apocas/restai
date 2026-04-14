@@ -13,7 +13,7 @@ const HiddenInput = styled("input")({ display: "none" });
 
 const url = process.env.REACT_APP_RESTAI_API_URL || "";
 
-export default function ChatPanel({ project, systemOverride, sharedQuestion, onQuestionSent, chatMode = false, compact = false, streaming = false }) {
+export default function ChatPanel({ project, systemOverride, sharedQuestion, onQuestionSent, chatMode = false, compact = false, streaming = false, context = null }) {
   const auth = useAuth();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
@@ -120,6 +120,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     const body = { question: questionText, stream: true };
     if (img) body.image = img.includes("base64,") ? img.split(",")[1] : img;
     if (systemOverride) body.system = systemOverride;
+    if (context) body.context = context;
 
     const endpoint = chatMode ? "chat" : "question";
     if (chatMode && messages.length > 0) {
@@ -220,6 +221,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     const body = { question: questionText };
     if (img) body.image = img.includes("base64,") ? img.split(",")[1] : img;
     if (systemOverride) body.system = systemOverride;
+    if (context) body.context = context;
 
     const endpoint = chatMode ? "chat" : "question";
     if (chatMode && messages.length > 0) {

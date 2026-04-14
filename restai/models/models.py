@@ -98,6 +98,7 @@ class InteractionModel(BaseModel):
     """Base model for chat and question interactions."""
     question: str = Field(max_length=100000, description="The user's question or prompt")
     stream: Union[bool, None] = Field(default=None, description="Enable streaming response (server-sent events)")
+    context: Union[Dict[str, Any], None] = Field(default=None, description="Context variables to inject into the system prompt via {{context.key}} placeholders")
 
 
 class ImageModel(BaseModel):

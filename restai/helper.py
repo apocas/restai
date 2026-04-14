@@ -18,6 +18,7 @@ import requests
 from fastapi import HTTPException, Request
 import re
 import logging
+from restai.models.models import InteractionModel
 import base64
 from restai.tools import log_inference
 from restai.config import LOG_LEVEL
@@ -124,6 +125,21 @@ async def create_streaming_response_with_logging(
     )
 
 
+def _apply_context(project: Project, interaction: InteractionModel) -> Project:
+    """If the request includes context, apply it to the project's system prompt."""
+    if not interaction.context:
+        return project
+    from restai.utils.widget_context import apply_widget_context
+    modified_props = project.props.model_copy(deep=True)
+    modified_props.system = apply_widget_context(
+        modified_props.system or "", interaction.context, prepend_block=True,
+    )
+    new_project = Project(modified_props)
+    new_project.vector = project.vector
+    new_project.widget_context = interaction.context
+    return new_project
+
+
 async def chat_main(
     _: Request,
     brain: Brain,
@@ -136,6 +152,7 @@ async def chat_main(
 ):
     check_budget(project, db)
     check_rate_limit(project, db)
+    project = _apply_context(project, chat_input)
 
     proj_logic: ProjectBase
     match project.props.type:
@@ -180,6 +197,7 @@ async def question_main(
 ):
     check_budget(project, db)
     check_rate_limit(project, db)
+    project = _apply_context(project, q_input)
 
     # Check cache for all project types
     cached = await process_cache(project, q_input)
