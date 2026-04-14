@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import api from "app/utils/api";
+import ProjectTypeChip from "app/components/ProjectTypeChip";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -31,12 +32,6 @@ const ProjectCard = styled(Card)(({ theme }) => ({
     boxShadow: theme.shadows[8],
   },
 }));
-
-const TYPE_COLORS = {
-  rag: "#2e7d32",
-  agent: "#ed6c02",
-  block: "#795548",
-};
 
 const TYPE_FILTERS = ["all", "agent", "rag", "block"];
 
@@ -123,11 +118,7 @@ export default function Library() {
                       {project.human_name || project.name}
                     </Typography>
                     <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
-                      <Chip
-                        label={project.type}
-                        size="small"
-                        sx={{ backgroundColor: TYPE_COLORS[project.type] || "#999", color: "#fff" }}
-                      />
+                      <ProjectTypeChip type={project.type} />
                       {project.llm && (
                         <Chip label={project.llm} size="small" variant="outlined" />
                       )}

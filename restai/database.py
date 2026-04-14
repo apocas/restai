@@ -344,6 +344,13 @@ class DBWrapper:
             import json as _json
             try:
                 opts_dict = _json.loads(llmUpdate.options) if isinstance(llmUpdate.options, str) else llmUpdate.options
+                # If api_key is the masked value, preserve the existing one
+                if opts_dict.get("api_key") == "********":
+                    existing = _json.loads(llm.options) if isinstance(llm.options, str) else (llm.options or {})
+                    if "api_key" in existing:
+                        opts_dict["api_key"] = existing["api_key"]
+                    else:
+                        del opts_dict["api_key"]
                 opts_dict = encrypt_sensitive_options(opts_dict, LLM_SENSITIVE_KEYS)
                 llm.options = _json.dumps(opts_dict) if isinstance(llmUpdate.options, str) else opts_dict
             except Exception as e:
@@ -390,6 +397,19 @@ class DBWrapper:
             embeddingUpdate.options is not None
             and embedding.options != embeddingUpdate.options
         ):
+            # If api_key is the masked value, preserve the existing one
+            import json as _json
+            try:
+                new_opts = _json.loads(embeddingUpdate.options) if isinstance(embeddingUpdate.options, str) else (embeddingUpdate.options or {})
+                if new_opts.get("api_key") == "********":
+                    existing = _json.loads(embedding.options) if isinstance(embedding.options, str) else (embedding.options or {})
+                    if "api_key" in existing:
+                        new_opts["api_key"] = existing["api_key"]
+                    else:
+                        del new_opts["api_key"]
+                    embeddingUpdate.options = _json.dumps(new_opts)
+            except Exception:
+                pass
             embedding.options = embeddingUpdate.options
 
         if (

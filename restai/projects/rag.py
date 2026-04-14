@@ -418,25 +418,7 @@ class RAG(ProjectBase):
         )
 
         try:
-            try:
-                response = query_engine.query(questionModel.question)
-            except Exception as primary_error:
-                fallback_name = project.props.options.fallback_llm if project.props.options else None
-                if fallback_name:
-                    fallback_model = self.brain.get_llm(fallback_name, db)
-                    if fallback_model:
-                        logging.warning("Primary LLM failed in RAG query, using fallback '%s': %s", fallback_name, primary_error)
-                        fallback_synthesizer = get_response_synthesizer(llm=fallback_model.llm)
-                        fallback_engine = RetrieverQueryEngine(
-                            retriever=retriever,
-                            response_synthesizer=fallback_synthesizer,
-                            node_postprocessors=postprocessors,
-                        )
-                        response = fallback_engine.query(questionModel.question)
-                    else:
-                        raise primary_error
-                else:
-                    raise primary_error
+            response = query_engine.query(questionModel.question)
 
             if hasattr(response, "source_nodes"):
                 for node in response.source_nodes:

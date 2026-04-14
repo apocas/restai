@@ -13,17 +13,12 @@ import {
   Shield, AddCircleOutline,
 } from "@mui/icons-material";
 import { PROJECT_TEMPLATES, TEMPLATE_CATEGORIES } from "./projectTemplates";
+import ProjectTypeChip from "app/components/ProjectTypeChip";
 
 const ICONS = {
   SmartToy, Description, ImageSearch, Summarize, Code,
   SupportAgent, DataObject, Translate, TravelExplore, AccountTree,
   Shield,
-};
-
-const TYPE_COLORS = {
-  rag: "#2e7d32",
-  agent: "#ed6c02",
-  block: "#795548",
 };
 
 const TemplateCard = styled(Card)(({ theme }) => ({
@@ -122,16 +117,7 @@ export default function TemplateGallery({ onSelect }) {
                 <Typography variant="h6" gutterBottom>
                   {template.name}
                 </Typography>
-                <Chip
-                  label={template.type}
-                  size="small"
-                  sx={{
-                    mb: 1,
-                    backgroundColor: TYPE_COLORS[template.type] || "#999",
-                    color: "#fff",
-                    alignSelf: "flex-start",
-                  }}
-                />
+                <ProjectTypeChip type={template.type} sx={{ mb: 1, alignSelf: "flex-start" }} />
                 <Typography
                   variant="body2"
                   color="text.secondary"

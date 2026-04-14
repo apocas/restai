@@ -95,19 +95,6 @@ class Agent(ProjectBase):
 
         provider, prov_config = build_provider_for_llm(llm_db)
 
-        # Optional fallback LLM — used by Agent2Runtime when the primary fails
-        fallback_provider = None
-        fallback_config = None
-        fallback_name = project.props.options.fallback_llm if project.props.options else None
-        if fallback_name:
-            fallback_db = db.get_llm_by_name(fallback_name)
-            if fallback_db is not None:
-                try:
-                    fallback_provider, fallback_config = build_provider_for_llm(fallback_db)
-                except Agent2UnsupportedLLMError:
-                    fallback_provider = None
-                    fallback_config = None
-
         raw_tool_names = set(
             t.strip() for t in (project.props.options.tools or "").split(",") if t.strip()
         )
@@ -133,8 +120,6 @@ class Agent(ProjectBase):
             tools=adapted,
             system_prompt=system_prompt or "",
             max_turns=project.props.options.max_iterations,
-            fallback_provider=fallback_provider,
-            fallback_config=fallback_config,
             mode=project.props.options.agent_mode or "auto",
         )
 

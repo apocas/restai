@@ -57,7 +57,6 @@ services:
       MCP_SERVER: ${MCP_SERVER}
       # GPU (auto-detected, override if needed)
       RESTAI_GPU: ${RESTAI_GPU}
-      ANONYMIZED_TELEMETRY: ${ANONYMIZED_TELEMETRY:-False}
       SENTRY_DSN: ${SENTRY_DSN}
 
   # Optional services — enable with: docker compose --profile redis up

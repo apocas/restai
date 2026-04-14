@@ -195,7 +195,6 @@ export default function ProjectEdit({ project, projects, info }) {
     opts.options.rate_limit = state.options.rate_limit ? parseInt(state.options.rate_limit) : null;
     opts.options.guard_output = state.options.guard_output || null;
     opts.options.guard_mode = state.options.guard_mode || "block";
-    opts.options.fallback_llm = state.options.fallback_llm || null;
     opts.options.cache = state.options.cache;
     opts.options.cache_threshold = parseFloat(state.options.cache_threshold) || 0.85;
 

@@ -126,7 +126,7 @@ def find_embeddings_path(projectName):
         embeddings_path) if os.path.isdir(os.path.join(embeddings_path, d))]
 
     for dir in project_dirs:
-        if re.match(f'^{projectName}_[0-9]+$', dir):
+        if re.match(f'^{re.escape(projectName)}_[0-9]+$', dir):
             embeddingsPathProject = os.path.join(embeddings_path, dir)
 
     if embeddingsPathProject is None:

@@ -165,6 +165,7 @@ async def chat_main(
             latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
             background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms)
             return line
+        return None
 
 
 async def question_main(

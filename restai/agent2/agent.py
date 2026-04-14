@@ -59,8 +59,6 @@ class Agent2Runtime:
         system_prompt: Optional[str] = None,
         max_turns: int = 12,
         mode: Optional[AgentMode] = None,
-        fallback_provider: Optional[Provider] = None,
-        fallback_config: Optional[ProviderConfig] = None,
     ) -> None:
         self.provider = provider
         self.config = config
@@ -74,12 +72,6 @@ class Agent2Runtime:
             "function_calling" if (mode or "auto") == "auto" else (mode or "auto")
         )
         self._auto_fallback_allowed: bool = (mode or "auto") == "auto"
-        # Fallback LLM (project.props.options.fallback_llm). Used to retry the
-        # current turn if the primary provider raises. Independent of the
-        # native↔react auto-fallback above.
-        self._fallback_provider: Optional[Provider] = fallback_provider
-        self._fallback_config: Optional[ProviderConfig] = fallback_config
-        self._fallback_active: bool = False
 
     async def run_iter(
         self,
@@ -185,46 +177,25 @@ class Agent2Runtime:
     # ---------- per-turn helpers ----------
 
     async def _run_turn_with_fallback(self, session: AgentSession, turn: int) -> Message:
-        """Run one turn through the active mode, with two layers of fallback:
+        """Run one turn through the active mode, with native → ReAct fallback.
 
-        1. **Native → ReAct** (intra-provider): if the user picked auto mode and
-           the first-turn native call fails, swap to text-based ReAct.
-        2. **Primary → fallback LLM** (cross-provider): if the call fails on
-           any turn AND a `fallback_llm` is configured, swap to the fallback
-           provider for the rest of the run.
-
-        Both layers can fire on the same turn (native fails → ReAct fails →
-        fallback provider). After fallback activation, the runtime stays on the
-        fallback for all subsequent turns of this run.
+        If the user picked auto mode and the first-turn native call fails,
+        swap to text-based ReAct for the rest of the run.
         """
+        if self.mode == "react":
+            return await self._react_turn(session)
         try:
-            if self.mode == "react":
-                return await self._react_turn(session)
-            try:
-                return await self._native_turn(session)
-            except Exception as native_err:
-                if self._auto_fallback_allowed and turn == 1:
-                    logger.info(
-                        "agent2: native function calling failed (%s); "
-                        "falling back to ReAct mode",
-                        native_err,
-                    )
-                    self.mode = "react"
-                    self._auto_fallback_allowed = False
-                    return await self._react_turn(session)
-                raise
-        except Exception as primary_err:
-            if self._fallback_provider is not None and not self._fallback_active:
-                logger.warning(
-                    "agent2: primary LLM failed on turn %d (%s); "
-                    "switching to fallback LLM for remainder of run",
-                    turn, primary_err,
+            return await self._native_turn(session)
+        except Exception as native_err:
+            if self._auto_fallback_allowed and turn == 1:
+                logger.info(
+                    "agent2: native function calling failed (%s); "
+                    "falling back to ReAct mode",
+                    native_err,
                 )
-                self._fallback_active = True
-                # Retry the SAME turn against the fallback provider
-                if self.mode == "react":
-                    return await self._react_turn(session)
-                return await self._native_turn(session)
+                self.mode = "react"
+                self._auto_fallback_allowed = False
+                return await self._react_turn(session)
             raise
 
     async def _stream_turn_with_fallback(
@@ -232,8 +203,8 @@ class Agent2Runtime:
     ) -> AsyncIterator[Union[str, Message]]:
         """Streaming variant of `_run_turn_with_fallback`.
 
-        Yields text deltas as `str`, then the final `Message`. Fallback only
-        kicks in if the primary stream fails BEFORE any delta has been
+        Yields text deltas as `str`, then the final `Message`. Native → ReAct
+        fallback only kicks in if the stream fails BEFORE any delta has been
         emitted — once we've started streaming to the user we can't un-emit,
         so mid-stream errors propagate.
         """
@@ -252,7 +223,7 @@ class Agent2Runtime:
         except Exception as primary_err:
             if emitted_any:
                 raise
-            # Layer 1: native → ReAct (only on turn 1, only in auto mode).
+            # Native → ReAct (only on turn 1, only in auto mode).
             # ReAct is non-streaming — we just yield its result as a single
             # final Message (no text deltas).
             if self._auto_fallback_allowed and turn == 1 and self.mode != "react":
@@ -265,22 +236,6 @@ class Agent2Runtime:
                 self._auto_fallback_allowed = False
                 msg = await self._react_turn(session)
                 yield msg
-                return
-            # Layer 2: primary LLM → fallback LLM
-            if self._fallback_provider is not None and not self._fallback_active:
-                logger.warning(
-                    "agent2: primary streaming LLM failed on turn %d (%s); "
-                    "switching to fallback LLM (streaming)",
-                    turn, primary_err,
-                )
-                self._fallback_active = True
-                async for chunk in self._active_provider.stream_complete(
-                    system_prompt=self.system_prompt,
-                    messages=session.messages,
-                    tools=self.tools,
-                    config=self._active_config,
-                ):
-                    yield chunk
                 return
             raise
 
@@ -304,11 +259,11 @@ class Agent2Runtime:
 
     @property
     def _active_provider(self) -> Provider:
-        return self._fallback_provider if self._fallback_active else self.provider
+        return self.provider
 
     @property
     def _active_config(self) -> ProviderConfig:
-        return self._fallback_config if self._fallback_active else self.config
+        return self.config
 
     async def _native_turn(self, session: AgentSession) -> Message:
         """Run one turn using native function calling. Provider sees the real

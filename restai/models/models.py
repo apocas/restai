@@ -432,7 +432,6 @@ class ProjectOptions(BaseModel):
     rate_limit: Union[int, None] = Field(default=None, ge=1, le=10000, description="Maximum requests per minute (None = unlimited)")
     guard_output: Union[str, None] = Field(default=None, description="Name of the guard project for output checking")
     guard_mode: Union[str, None] = Field(default="block", description="Guard behavior: 'block' or 'warn'")
-    fallback_llm: Union[str, None] = Field(default=None, description="Fallback LLM to use if primary fails")
     sync_sources: Union[list[SyncSource], None] = Field(default=None, description="External sources for knowledge base auto-sync")
     sync_enabled: Union[bool, None] = Field(default=None, description="Enable automatic knowledge base sync")
     enable_knowledge_graph: Union[bool, None] = Field(default=None, description="Enable entity extraction and knowledge graph features (RAG projects only)")

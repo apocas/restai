@@ -27,8 +27,6 @@ FROM python:3.12-slim AS runtime
 RUN apt-get update && apt-get install --no-install-recommends -y postgresql-client ffmpeg \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
-ENV ANONYMIZED_TELEMETRY=False
-
 RUN useradd --user-group --system --create-home --no-log-init user \
     && mkdir -p /home/user/.cache /home/user/.local/share \
     && chown -R user:user /home/user

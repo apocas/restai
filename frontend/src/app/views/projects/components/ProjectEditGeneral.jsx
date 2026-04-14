@@ -183,35 +183,6 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
         </Grid>
       )}
 
-      {state.type !== "block" && (
-        <Grid item sm={6} xs={12}>
-          <TextField
-            fullWidth
-            select
-            label="Fallback LLM"
-            variant="outlined"
-            value={state.options?.fallback_llm ?? ''}
-            onChange={(e) => setState({ ...state, options: { ...state.options, fallback_llm: e.target.value || null } })}
-            helperText="Used automatically if the primary LLM fails"
-          >
-            <MenuItem value="">None</MenuItem>
-            {info.llms
-              .filter(item => {
-                if (!state.team) return true;
-                const teamLLMs = state.team.llms || [];
-                const teamLLMNames = teamLLMs.map(llm => typeof llm === 'string' ? llm : llm.name);
-                return teamLLMNames.includes(item.name);
-              })
-              .filter(item => item.name !== state.llm)
-              .map((item) => (
-                <MenuItem value={item.name} key={item.name}>
-                  {item.name}
-                </MenuItem>
-              ))}
-          </TextField>
-        </Grid>
-      )}
-
       {(state.type === "rag" || state.type === "agent") && (
         <Fragment>
           <Grid item sm={12} xs={12}>

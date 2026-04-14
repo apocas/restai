@@ -1,3 +1,4 @@
+import ProjectTypeChip from "app/components/ProjectTypeChip";
 import {
   Accordion,
   AccordionDetails,
@@ -56,12 +57,6 @@ const MetaItem = styled(Box)(({ theme }) => ({
   fontSize: "0.85rem",
 }));
 
-const TYPE_COLORS = {
-  rag: "success",
-  agent: "warning",
-  block: "default",
-};
-
 export default function ProjectInfoGeneral({ project, info, health, mcpTools, mcpLoading }) {
   const showConfig = project.type !== "block";
   const showAgent = project.type === "agent";
@@ -73,7 +68,7 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
       <Grid item xs={12}>
         <Card elevation={1} sx={{ p: 2.5 }}>
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
-            <Chip label={project.type} size="small" color={TYPE_COLORS[project.type] || "default"} />
+            <ProjectTypeChip type={project.type} />
             {project.llm && (
               <Chip icon={<Psychology />} label={project.llm} size="small" variant="outlined" />
             )}
@@ -189,13 +184,6 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
                   variant="outlined"
                 />
               </DetailItem>
-              {project.options?.fallback_llm && (
-                <DetailItem label="Fallback LLM">
-                  <Typography variant="body2" fontFamily="monospace">
-                    {project.options.fallback_llm}
-                  </Typography>
-                </DetailItem>
-              )}
               {project.options?.cache && (
                 <DetailItem label="Cache Threshold">
                   <Typography variant="body2">

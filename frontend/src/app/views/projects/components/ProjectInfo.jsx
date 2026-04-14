@@ -3,6 +3,7 @@ import {
   Avatar, Box, Button, Card, Chip, Dialog, DialogTitle, DialogContent,
   DialogActions, IconButton, TextField, Tooltip, Typography, styled,
 } from "@mui/material";
+import ProjectTypeChip from "app/components/ProjectTypeChip";
 import {
   Edit, Delete, Code, Article, SportsEsports, ViewInAr, Science, Security,
   ContentCopy, ClearAll, Speed, Shield, Cached, Groups, Psychology,
@@ -24,12 +25,6 @@ const ActionBar = styled(Box)(({ theme }) => ({
   flexWrap: "wrap",
   marginTop: theme.spacing(2),
 }));
-
-const TYPE_COLORS = {
-  rag: "success",
-  agent: "warning",
-  block: "default",
-};
 
 export default function ProjectInfo({ project }) {
   const navigate = useNavigate();
@@ -66,7 +61,7 @@ export default function ProjectInfo({ project }) {
           <Box sx={{ flex: 1, minWidth: 200 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
               <Typography variant="h5" fontWeight="bold">{project.human_name || project.name}</Typography>
-              <Chip label={project.type} size="small" color={TYPE_COLORS[project.type] || "default"} />
+              <ProjectTypeChip type={project.type} />
             </Box>
 
             {project.human_description && (

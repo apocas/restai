@@ -134,26 +134,34 @@ async def widget_chat(
     from restai.helper import chat_main
     start_time = time.perf_counter()
 
-    if use_stream:
-        # Streaming: wrap the SSE response to sanitize output
-        response = await chat_main(
-            request, brain, project, chat_input, user, db_wrapper, background_tasks, start_time=start_time,
-        )
-        # response is a StreamingResponse — wrap its body_iterator
-        return StreamingResponse(
-            _sanitize_stream(response.body_iterator),
-            media_type="text/event-stream",
-        )
-    else:
-        result = await chat_main(
-            request, brain, project, chat_input, user, db_wrapper, background_tasks, start_time=start_time,
-        )
-        if isinstance(result, dict):
-            return WidgetChatResponse(
-                answer=result.get("answer", ""),
-                id=result.get("id"),
+    try:
+        if use_stream:
+            # Streaming: wrap the SSE response to sanitize output
+            response = await chat_main(
+                request, brain, project, chat_input, user, db_wrapper, background_tasks, start_time=start_time,
             )
-        return WidgetChatResponse(answer=str(result))
+            # response is a StreamingResponse — wrap its body_iterator
+            return StreamingResponse(
+                _sanitize_stream(response.body_iterator),
+                media_type="text/event-stream",
+            )
+        else:
+            result = await chat_main(
+                request, brain, project, chat_input, user, db_wrapper, background_tasks, start_time=start_time,
+            )
+            if result is None:
+                return WidgetChatResponse(answer="No response generated.", id=body.id)
+            if isinstance(result, dict):
+                return WidgetChatResponse(
+                    answer=result.get("answer", ""),
+                    id=result.get("id"),
+                )
+            return WidgetChatResponse(answer=str(result))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception("Widget chat failed for project %s", widget.project_id)
+        raise HTTPException(status_code=500, detail="Chat failed")
 
 
 async def _sanitize_stream(body_iterator):

@@ -118,11 +118,6 @@ export default function ProjectInfoKnowledge({ project }) {
                 <Typography variant="body2">{project.options.rate_limit} req/min</Typography>
               </DetailItem>
             )}
-            {project.options?.fallback_llm && (
-              <DetailItem label="Fallback LLM">
-                <Typography variant="body2" fontFamily="monospace">{project.options.fallback_llm}</Typography>
-              </DetailItem>
-            )}
             {project.guard && (
               <DetailItem label="Input Guard">
                 <Chip label={project.guard} size="small" color="warning" variant="outlined" />

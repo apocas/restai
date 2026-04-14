@@ -8,6 +8,8 @@ import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import DataList from "app/components/DataList";
 import api from "app/utils/api";
+import { PROJECT_TYPE_COLORS } from "app/utils/constant";
+import ProjectTypeChip from "app/components/ProjectTypeChip";
 
 const Container = styled("div")(({ theme }) => ({
   margin: "24px 48px",
@@ -15,29 +17,6 @@ const Container = styled("div")(({ theme }) => ({
   [theme.breakpoints.down("sm")]: { margin: 16 },
   "& .breadcrumb": { marginBottom: 24 },
 }));
-
-const TypeChip = ({ type }) => {
-  const colors = {
-    rag: { bg: "rgba(99,102,241,0.12)", color: "#6366f1" },
-    agent: { bg: "rgba(16,185,129,0.12)", color: "#10b981" },
-    block: { bg: "rgba(107,114,128,0.15)", color: "#6b7280" },
-  };
-  const style = colors[type] || { bg: "rgba(239,68,68,0.12)", color: "#ef4444" };
-  return (
-    <Chip
-      label={type}
-      size="small"
-      sx={{
-        backgroundColor: style.bg,
-        color: style.color,
-        fontWeight: 600,
-        fontSize: "0.72rem",
-        textTransform: "uppercase",
-        height: 22,
-      }}
-    />
-  );
-};
 
 export default function Projects() {
   const [projects, setProjects] = useState([]);
@@ -72,7 +51,7 @@ export default function Projects() {
       key: "type",
       label: "Type",
       sortable: true,
-      render: (row) => <TypeChip type={row.type} />,
+      render: (row) => <ProjectTypeChip type={row.type} />,
     },
     { key: "llm", label: "LLM", sortable: true },
     {
