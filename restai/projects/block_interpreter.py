@@ -419,7 +419,10 @@ class BlockInterpreter:
             modified_props.system = apply_widget_context(
                 modified_props.system or "", self.widget_context, prepend_block=True,
             )
+            original_vector = project.vector
             project = ProjectClass(modified_props)
+            project.vector = original_vector
+            project.widget_context = self.widget_context
 
         from fastapi import BackgroundTasks
         background_tasks = BackgroundTasks()
