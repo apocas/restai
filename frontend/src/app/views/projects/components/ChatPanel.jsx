@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Box, Fab, TextField, Tooltip, Typography, Chip, styled,
+  Box, Fab, TextField, Tooltip, Typography, Chip, styled, IconButton,
 } from "@mui/material";
-import { Send, CloudUpload, DeleteSweep } from "@mui/icons-material";
+import { Send, CloudUpload, DeleteSweep, CallSplit, Close } from "@mui/icons-material";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
@@ -21,6 +21,86 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const scrollRef = useRef(null);
+
+  // Branching: each branch is { name: string, messages: array }
+  // branches is empty when there's only one thread (no branching yet)
+  const [branches, setBranches] = useState([]);
+  const [activeBranchIdx, setActiveBranchIdx] = useState(-1); // -1 = no branches
+
+  // Save current messages into the active branch
+  const saveCurrentBranch = useCallback((currentMessages) => {
+    if (activeBranchIdx >= 0) {
+      setBranches(prev => prev.map((b, i) => i === activeBranchIdx ? { ...b, messages: currentMessages } : b));
+    }
+  }, [activeBranchIdx]);
+
+  // Sync messages into active branch whenever they change
+  useEffect(() => {
+    if (activeBranchIdx >= 0 && messages.length > 0) {
+      saveCurrentBranch(messages);
+    }
+  }, [messages]);
+
+  const handleBranch = useCallback((messageIndex) => {
+    const branchPoint = messages.slice(0, messageIndex + 1);
+
+    if (branches.length === 0) {
+      // First branch: create "Main" (full current conversation) + the new branch
+      const mainBranch = { name: "Main", messages: [...messages] };
+      const newNum = 1;
+      const newBranch = { name: `Branch ${newNum}`, messages: [...branchPoint] };
+      setBranches([mainBranch, newBranch]);
+      setMessages([...branchPoint]);
+      setActiveBranchIdx(1);
+    } else {
+      // Save current branch, then create a new one
+      const newNum = branches.length;
+      const newBranch = { name: `Branch ${newNum}`, messages: [...branchPoint] };
+      setBranches(prev => {
+        const updated = prev.map((b, i) => i === activeBranchIdx ? { ...b, messages: [...messages] } : b);
+        updated.push(newBranch);
+        return updated;
+      });
+      setMessages([...branchPoint]);
+      setActiveBranchIdx(branches.length); // index of the newly pushed branch
+    }
+  }, [messages, branches, activeBranchIdx]);
+
+  const switchBranch = useCallback((targetIdx) => {
+    if (targetIdx === activeBranchIdx) return;
+    // Save current, load target
+    setBranches(prev => {
+      const updated = [...prev];
+      if (activeBranchIdx >= 0 && updated[activeBranchIdx]) {
+        updated[activeBranchIdx] = { ...updated[activeBranchIdx], messages: [...messages] };
+      }
+      return updated;
+    });
+    setMessages([...branches[targetIdx].messages]);
+    setActiveBranchIdx(targetIdx);
+  }, [messages, branches, activeBranchIdx]);
+
+  const deleteBranch = useCallback((targetIdx) => {
+    setBranches(prev => {
+      const updated = prev.filter((_, i) => i !== targetIdx);
+      if (updated.length <= 1) {
+        // Only one branch left, dissolve branching
+        if (updated.length === 1) setMessages([...updated[0].messages]);
+        setActiveBranchIdx(-1);
+        return [];
+      }
+      // Adjust active index
+      let newActive = activeBranchIdx;
+      if (targetIdx === activeBranchIdx) {
+        newActive = Math.min(targetIdx, updated.length - 1);
+        setMessages([...updated[newActive].messages]);
+      } else if (targetIdx < activeBranchIdx) {
+        newActive = activeBranchIdx - 1;
+      }
+      setActiveBranchIdx(newActive);
+      return updated;
+    });
+  }, [activeBranchIdx]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -210,12 +290,33 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     setMessages([]);
     setStreamingText("");
     setImage(null);
+    setBranches([]);
+    setActiveBranchIdx(-1);
   };
 
   const showUpload = project.type === "agent" || project.type === "block";
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: compact ? 500 : 600 }}>
+      {/* Branch tabs */}
+      {branches.length > 0 && (
+        <Box sx={{ display: "flex", gap: 0.5, px: 2, py: 1, borderBottom: 1, borderColor: "divider", flexWrap: "wrap", alignItems: "center" }}>
+          <CallSplit sx={{ fontSize: 16, color: "text.secondary", mr: 0.5 }} />
+          {branches.map((branch, idx) => (
+            <Chip
+              key={idx}
+              label={branch.name}
+              size="small"
+              color={idx === activeBranchIdx ? "primary" : "default"}
+              variant={idx === activeBranchIdx ? "filled" : "outlined"}
+              onClick={() => switchBranch(idx)}
+              onDelete={branches.length > 2 ? () => deleteBranch(idx) : undefined}
+              sx={{ fontSize: "0.75rem", height: 26 }}
+            />
+          ))}
+        </Box>
+      )}
+
       {/* Messages */}
       <Box sx={{ flex: 1, overflow: "auto" }} ref={scrollRef}>
           <Box sx={{ p: 2 }}>
@@ -236,7 +337,11 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
               </Box>
             )}
             {messages.map((msg, i) => (
-              <MessageBubble key={i} message={msg} />
+              <MessageBubble
+                key={`${activeBranchIdx}-${i}`}
+                message={msg}
+                onBranch={chatMode && msg.answer ? () => handleBranch(i) : undefined}
+              />
             ))}
             {streamingText && (
               <MessageBubble message={{ question: null, answer: streamingText, sources: [] }} />

@@ -3,7 +3,7 @@ import {
   Box, Chip, Collapse, IconButton, Typography, styled, Tooltip,
   Accordion, AccordionSummary, AccordionDetails,
 } from "@mui/material";
-import { ContentCopy, ExpandMore, Shield, Cached, Speed, TerminalOutlined } from "@mui/icons-material";
+import { ContentCopy, ExpandMore, Shield, Cached, Speed, TerminalOutlined, CallSplit } from "@mui/icons-material";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Terminal from "./Terminal";
@@ -64,7 +64,7 @@ const AnswerBubble = styled(Box)(({ theme }) => ({
   "& a": { color: theme.palette.primary.main },
 }));
 
-export default function MessageBubble({ message }) {
+export default function MessageBubble({ message, onBranch }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -186,6 +186,13 @@ export default function MessageBubble({ message }) {
                   <ContentCopy fontSize="small" />
                 </IconButton>
               </Tooltip>
+              {onBranch && (
+                <Tooltip title="Branch conversation from here">
+                  <IconButton size="small" onClick={onBranch}>
+                    <CallSplit fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Box>
           </Box>
         </Box>
