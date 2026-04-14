@@ -64,6 +64,8 @@ SETTINGS_DEFAULTS = {
     "data_retention_days": (None, "0"),
     # 2FA
     "enforce_2fa": (None, "false"),
+    # Telemetry
+    "telemetry_instance_id": (None, ""),
 }
 
 # Which config attrs map to which setting keys

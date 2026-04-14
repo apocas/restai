@@ -86,6 +86,7 @@ export default function SettingsPage() {
   const [llms, setLlms] = useState([]);
   const [saving, setSaving] = useState(false);
   const [dockerTest, setDockerTest] = useState(null); // null | "testing" | {status, detail}
+  const [telemetryEnabled, setTelemetryEnabled] = useState(null);
   const [expanded, setExpanded] = useState({ google: false, microsoft: false, github: false, oidc: false });
 
   const toggleExpanded = (section) => () => {
@@ -103,6 +104,7 @@ export default function SettingsPage() {
     fetchSettings();
     api.get("/teams", auth.user.token).then((d) => setTeams(d.teams || [])).catch(() => {});
     api.get("/llms", auth.user.token).then((d) => setLlms(Array.isArray(d) ? d : (d?.llms || []))).catch(() => {});
+    api.get("/version", auth.user.token, { silent: true }).then((d) => { if (d) setTelemetryEnabled(d.telemetry); }).catch(() => {});
   }, []);
 
   const handleChange = (field) => (e) => {
@@ -544,6 +546,23 @@ export default function SettingsPage() {
               </Grid>
             </Grid>
           )}
+
+          {/* Telemetry */}
+          <Grid item xs={12}>
+            <Card elevation={1} sx={{ p: 3 }}>
+              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>Telemetry</Typography>
+              <Typography variant="body2" color="text.secondary">
+                RESTai sends anonymized, aggregate usage statistics to help the open-source project understand adoption and prioritize development.
+                No personal data, prompts, answers, or API keys are ever sent — only counts (projects, users, LLMs) and feature flags.
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                Status: <strong>{telemetryEnabled === null ? "..." : telemetryEnabled ? "Enabled" : "Disabled"}</strong>
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                To opt out, set the <code>ANONYMIZED_TELEMETRY=false</code> environment variable and restart the server.
+              </Typography>
+            </Card>
+          </Grid>
 
           {/* Save button — always visible */}
           <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>

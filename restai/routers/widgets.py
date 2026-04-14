@@ -104,6 +104,7 @@ async def widget_chat(
             modified_props.system or "", context, prepend_block=prepend,
         )
         project = Project(modified_props)
+        project.widget_context = context
 
     # Use project creator as synthetic user
     creator = db_wrapper.get_user_by_id(widget.creator_id)

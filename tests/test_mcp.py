@@ -256,11 +256,11 @@ def test_mcp_server_has_tools():
 
 
 def test_mcp_server_name():
-    """MCP server should be named RestAI."""
+    """MCP server should be named RESTai."""
     from restai.mcp import create_mcp_server
 
     mcp = create_mcp_server(MagicMock())
-    assert mcp.name == "RestAI"
+    assert mcp.name == "RESTai"
 
 
 def test_mcp_server_produces_sse_app():

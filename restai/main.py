@@ -115,6 +115,14 @@ async def lifespan(fs_app: FastAPI):
     from restai.retention import run_retention_cleanup
     run_retention_cleanup(settings_db_wrapper)
 
+    # Anonymized telemetry
+    import os as _os
+    if _os.environ.get("ANONYMIZED_TELEMETRY", "True").lower() == "true":
+        print("Anonymized telemetry is enabled. To opt out, set ANONYMIZED_TELEMETRY=false.")
+        import asyncio
+        from restai.telemetry import telemetry_loop
+        asyncio.create_task(telemetry_loop())
+
     if not RESTAI_URL:
       logging.warning("RESTAI_URL env var missing. OAUTH auth schemes may not work properly.")
 
@@ -129,6 +137,7 @@ async def lifespan(fs_app: FastAPI):
         """Get the current RESTai version."""
         return {
             "version": fs_app.version,
+            "telemetry": _os.environ.get("ANONYMIZED_TELEMETRY", "True").lower() == "true",
         }
 
     _update_cache = {"data": None, "ts": 0}

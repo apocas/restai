@@ -1,4 +1,4 @@
-"""Slack bot integration — connects RestAI projects to Slack channels via Socket Mode."""
+"""Slack bot integration — connects RESTai projects to Slack channels via Socket Mode."""
 
 import asyncio
 import json

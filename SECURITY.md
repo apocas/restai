@@ -52,7 +52,7 @@ Do not open a public GitHub issue. We will acknowledge within 48 hours.
 
 - **Command allowlist**: MCP stdio server commands are validated against a configurable allowlist (editable from the Settings page)
 - **Shell injection prevention**: Arguments to MCP commands are checked for shell metacharacters
-- **Domain validation**: The embeddable chat widget validates request origins against configured allowed domains, with automatic inclusion of the RestAI instance's own domain for admin previews
+- **Domain validation**: The embeddable chat widget validates request origins against configured allowed domains, with automatic inclusion of the RESTai instance's own domain for admin previews
 
 ### CORS
 

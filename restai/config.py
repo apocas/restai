@@ -11,7 +11,7 @@ def load_env_vars():
         os.environ["EMBEDDINGS_PATH"] = "./embeddings/"
 
     if "ANONYMIZED_TELEMETRY" not in os.environ:
-        os.environ["ANONYMIZED_TELEMETRY"] = "False"
+        os.environ["ANONYMIZED_TELEMETRY"] = "True"
 
     if "LOG_LEVEL" not in os.environ:
         os.environ["LOG_LEVEL"] = "INFO"

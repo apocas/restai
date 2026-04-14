@@ -1,4 +1,4 @@
-"""Internal MCP server exposing RestAI projects as tools."""
+"""Internal MCP server exposing RESTai projects as tools."""
 
 import json
 import logging
@@ -59,9 +59,9 @@ def create_mcp_server(app_ref) -> FastMCP:
         app_ref: FastAPI app instance (for accessing brain via app.state.brain).
     """
     mcp = FastMCP(
-        name="RestAI",
+        name="RESTai",
         instructions=(
-            "RestAI MCP Server. Use list_projects to discover available AI projects, "
+            "RESTai MCP Server. Use list_projects to discover available AI projects, "
             "then use query_project to interact with them."
         ),
     )

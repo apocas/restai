@@ -112,7 +112,7 @@ def build_generation_prompt(description: str, available_projects: list[str]) -> 
             f"(use one of these exact names): {', '.join(available_projects)}\n\n"
         )
 
-    return f"""You are an expert at generating Blockly workspace JSON for RestAI block projects.
+    return f"""You are an expert at generating Blockly workspace JSON for RESTai block projects.
 
 {BLOCK_REFERENCE}
 

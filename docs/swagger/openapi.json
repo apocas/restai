@@ -9790,7 +9790,7 @@
           "eval": false,
           "k": 4,
           "lite": false,
-          "question": "What are the main features of RestAI?",
+          "question": "What are the main features of RESTai?",
           "score": 0.3,
           "stream": false
         }
@@ -9805,7 +9805,7 @@
           "hide_branding": {
             "type": "boolean",
             "title": "Hide Branding",
-            "description": "Whether to hide RestAI branding in the UI"
+            "description": "Whether to hide RESTai branding in the UI"
           },
           "proxy_enabled": {
             "type": "boolean",
@@ -10341,7 +10341,7 @@
               }
             ],
             "title": "Hide Branding",
-            "description": "Whether to hide RestAI branding in the UI"
+            "description": "Whether to hide RESTai branding in the UI"
           },
           "proxy_enabled": {
             "anyOf": [
@@ -11918,7 +11918,7 @@
           ],
           "source": "internal-docs",
           "splitter": "sentence",
-          "text": "RestAI is an AIaaS platform that allows you to create AI projects."
+          "text": "RESTai is an AIaaS platform that allows you to create AI projects."
         }
       },
       "Tool": {

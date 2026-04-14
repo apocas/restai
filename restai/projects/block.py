@@ -63,6 +63,7 @@ class Block(ProjectBase):
             db=db,
             image=chat_model.image,
             chat_id=chat_id,
+            widget_context=getattr(project, "widget_context", None),
         )
         result = await interpreter.execute()
         output["answer"] = result or ""
@@ -85,6 +86,7 @@ class Block(ProjectBase):
             user=user,
             db=db,
             image=question_model.image,
+            widget_context=getattr(project, "widget_context", None),
         )
         result = await interpreter.execute()
 

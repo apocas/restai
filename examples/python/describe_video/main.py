@@ -5,7 +5,7 @@ import base64
 from cap_from_youtube import cap_from_youtube
 
 """
-Describe a video (mp4 file or youtube) using RestAI.
+Describe a video (mp4 file or youtube) using RESTai.
 It uses a Vision model to describe multiple frames (sampled) and then a LLM to merge all these descriptions into a final video descritpion/story.
 """
 

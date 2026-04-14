@@ -188,7 +188,7 @@ def get_widget_from_request(request: Request, db_wrapper):
         except Exception:
             host = ""
 
-        # Always allow the RestAI instance's own domain so the widget
+        # Always allow the RESTai instance's own domain so the widget
         # preview on the admin UI works regardless of allowed_domains.
         own_host = None
         if config.RESTAI_URL:

@@ -6,6 +6,7 @@ class Project:
     def __init__(self, model: ProjectModel):
         self.vector = None
         self.props = model
+        self.widget_context = None  # Set by widget endpoint when context JWT is present
 
         if self.props.options.cache:
             self.cache = Cache(self)

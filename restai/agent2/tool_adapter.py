@@ -1,4 +1,4 @@
-"""Adapt RestAI's existing FunctionTool objects (which are llamaindex wrappers
+"""Adapt RESTai's existing FunctionTool objects (which are llamaindex wrappers
 around plain Python functions) into a llamaindex-free representation usable by
 the agent2 runtime.
 
@@ -170,7 +170,7 @@ _adapted_tool_cache: dict[int, AdaptedTool] = {}
 
 
 def adapt_function_tools(tools: list) -> list[AdaptedTool]:
-    """Convert RestAI/llamaindex FunctionTools into AdaptedTools for agent2."""
+    """Convert RESTai/llamaindex FunctionTools into AdaptedTools for agent2."""
     adapted: list[AdaptedTool] = []
     for tool in tools:
         key = id(tool)

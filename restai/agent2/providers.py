@@ -1,7 +1,7 @@
 """LLM provider implementations for agent2.
 
 These are thin wrappers around the raw `anthropic` and `openai` SDKs. They
-read configuration directly from RestAI's `LLMDatabase` rows (class_name +
+read configuration directly from RESTai's `LLMDatabase` rows (class_name +
 options dict) and translate between agent2's `Message` representation and
 the providers' wire formats.
 """
@@ -665,7 +665,7 @@ def _provider_cache_key(llm_db_row: Any) -> tuple:
 
 
 def build_provider_for_llm(llm_db_row: Any) -> tuple[Provider, ProviderConfig]:
-    """Build an agent2 Provider + ProviderConfig from a RestAI LLMDatabase row.
+    """Build an agent2 Provider + ProviderConfig from a RESTai LLMDatabase row.
 
     Cached on `(class_name, options, context_window)` — calls with the same
     LLM row reuse the same Provider instance (and its underlying SDK client +

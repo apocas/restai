@@ -297,7 +297,7 @@ Secure local user accounts with TOTP-based two-factor authentication, compatible
 
 ### Guardrails
 
-Protect your AI projects with input and output guards. Guards are regular RestAI projects — define safety rules via system prompts, and they'll evaluate every request and response automatically.
+Protect your AI projects with input and output guards. Guards are regular RESTai projects — define safety rules via system prompts, and they'll evaluate every request and response automatically.
 
 - **Input Guard** — Checks user questions before inference
 - **Output Guard** — Checks LLM responses after inference
@@ -342,7 +342,7 @@ Automatically keep your RAG knowledge base up-to-date by syncing from external s
 
 ### Embeddable Chat Widget
 
-Add an AI chat bubble to any website with a single `<script>` tag — no frontend development needed. The widget connects to a RestAI project, streams responses in real-time, and maintains conversation context.
+Add an AI chat bubble to any website with a single `<script>` tag — no frontend development needed. The widget connects to a RESTai project, streams responses in real-time, and maintains conversation context.
 
 ```html
 <script

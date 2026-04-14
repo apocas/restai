@@ -1,5 +1,5 @@
 """
-Security tests for RestAI authorization and access control.
+Security tests for RESTai authorization and access control.
 
 Tests cover: project isolation, team isolation, user isolation,
 privilege escalation, team resource validation, authentication edge cases,

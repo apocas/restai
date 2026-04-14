@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Docker Container Cleanup — cron-friendly script.
 
-Removes RestAI-managed Docker containers that have been idle longer than
+Removes RESTai-managed Docker containers that have been idle longer than
 the configured timeout (default 15 minutes).
 
 Usage:
@@ -49,7 +49,7 @@ def main():
         logger.error("Cannot connect to Docker at %s: %s", docker_url, e)
         return
 
-    # Find all RestAI-managed containers
+    # Find all RESTai-managed containers
     containers = client.containers.list(
         filters={"label": "restai.managed=true"},
     )

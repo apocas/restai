@@ -16,7 +16,7 @@ serviceAccount:
   annotations: {}
   name: ""
 
-# -- RestAI application configuration (non-sensitive, stored in ConfigMap)
+# -- RESTai application configuration (non-sensitive, stored in ConfigMap)
 config:
   port: 9000
   logLevel: "INFO"

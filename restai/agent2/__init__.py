@@ -1,8 +1,8 @@
-"""agent2 — RestAI agent runtime that does NOT depend on llamaindex.
+"""agent2 — RESTai agent runtime that does NOT depend on llamaindex.
 
 Pure-Python ReAct-style agent loop built on top of raw provider SDKs
 (`anthropic`, `openai`). Adapted from the standalone_agent reference and
-wired to RestAI's existing tool registry, LLM database rows, guards, and
+wired to RESTai's existing tool registry, LLM database rows, guards, and
 streaming protocol.
 """
 from .agent import Agent2Error, Agent2Runtime, Agent2UnsupportedLLMError

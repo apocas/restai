@@ -1,4 +1,4 @@
-RestAI has been deployed!
+RESTai has been deployed!
 
 1. Get the application URL:
 {{- if .Values.ingress.enabled }}

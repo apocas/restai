@@ -70,7 +70,7 @@ class TextIngestModel(BaseModel):
     keywords: Union[list[str], None] = Field(default=None, description="Optional keywords to associate with the ingested text")
     model_config = ConfigDict(json_schema_extra={
         "example": {
-            "text": "RestAI is an AIaaS platform that allows you to create AI projects.",
+            "text": "RESTai is an AIaaS platform that allows you to create AI projects.",
             "source": "internal-docs",
             "splitter": "sentence",
             "chunks": 512,
@@ -125,7 +125,7 @@ class QuestionModel(InteractionModel):
     score: Union[float, None] = Field(default=None, description="Minimum similarity score threshold for retrieved documents")
     model_config = ConfigDict(json_schema_extra={
         "example": {
-            "question": "What are the main features of RestAI?",
+            "question": "What are the main features of RESTai?",
             "stream": False,
             "k": 4,
             "score": 0.3,
@@ -1043,7 +1043,7 @@ class OllamaModelPullResponse(BaseModel):
 class SettingsResponse(BaseModel):
     """Current platform settings."""
     app_name: str = Field(description="Application display name")
-    hide_branding: bool = Field(description="Whether to hide RestAI branding in the UI")
+    hide_branding: bool = Field(description="Whether to hide RESTai branding in the UI")
     proxy_enabled: bool = Field(description="Whether the LiteLLM proxy is enabled")
     proxy_url: Optional[str] = Field(default="", description="LiteLLM proxy URL")
     proxy_key: Optional[str] = Field(default="", description="LiteLLM proxy API key")
@@ -1106,7 +1106,7 @@ class SettingsResponse(BaseModel):
 class SettingsUpdate(BaseModel):
     """Update platform settings."""
     app_name: Optional[str] = Field(default=None, description="Application display name")
-    hide_branding: Optional[bool] = Field(default=None, description="Whether to hide RestAI branding in the UI")
+    hide_branding: Optional[bool] = Field(default=None, description="Whether to hide RESTai branding in the UI")
     proxy_enabled: Optional[bool] = Field(default=None, description="Whether the LiteLLM proxy is enabled")
     proxy_url: Optional[str] = Field(default=None, description="LiteLLM proxy URL")
     proxy_key: Optional[str] = Field(default=None, description="LiteLLM proxy API key")
