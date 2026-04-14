@@ -1282,7 +1282,7 @@ async def chat_query(
 
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
-        return await chat_main(
+        result = await chat_main(
             request,
             request.app.state.brain,
             project,
@@ -1292,6 +1292,9 @@ async def chat_query(
             background_tasks,
             start_time=start_time,
         )
+        if result is None:
+            raise HTTPException(status_code=500, detail="No response generated")
+        return result
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
@@ -1325,7 +1328,7 @@ async def question_query_endpoint(
                 negative=q_input.negative,
             )
 
-        return await question_main(
+        result = await question_main(
             request,
             request.app.state.brain,
             project,
@@ -1335,6 +1338,9 @@ async def question_query_endpoint(
             background_tasks,
             start_time=start_time,
         )
+        if result is None:
+            raise HTTPException(status_code=500, detail="No response generated")
+        return result
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

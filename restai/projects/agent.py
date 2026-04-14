@@ -312,7 +312,9 @@ class Agent(ProjectBase):
         # generator is abandoned after the first yield. If that yield happens
         # inside the async-with, the pool's __aexit__ runs in a GC/finalizer
         # task → "exit cancel scope in different task" → corrupted HTTP response.
-        if not chatModel.stream and "answer" in output:
+        if not chatModel.stream:
+            if "answer" not in output:
+                output["answer"] = project.props.censorship or "No response generated."
             yield output
 
     async def question(
