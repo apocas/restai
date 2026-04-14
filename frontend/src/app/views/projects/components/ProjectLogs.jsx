@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Card, CircularProgress } from "@mui/material";
+import { Box, Card, Chip, CircularProgress, Collapse, Typography } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
 import { FlexBox } from "app/components/FlexBox";
 import { Article } from "@mui/icons-material";
@@ -123,8 +123,8 @@ export default function RAGRetrieval({ project }) {
             return true;
           },
           renderExpandableRow: (rowData, rowMeta) => {
-            //handleViewClick(embeddings[rowMeta.dataIndex]);
             const colSpan = rowData.length;
+            const contextData = log?.context ? (() => { try { return JSON.parse(log.context); } catch { return null; } })() : null;
             return (
               <>
                 <TableRow>
@@ -132,9 +132,33 @@ export default function RAGRetrieval({ project }) {
                     {!log &&
                       <CircularProgress className="circleProgress" />
                     }
-                    {log &&
-                      <ReactJson src={log} enableClipboard={false} />
-                    }
+                    {log && (
+                      <Box>
+                        {log.system_prompt && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 0.5 }}>System Prompt</Typography>
+                            <Box sx={{
+                              p: 1.5, borderRadius: 1, fontFamily: "monospace", fontSize: "0.8rem",
+                              backgroundColor: "#fff", border: "1px solid #e0e0e0",
+                              whiteSpace: "pre-wrap", maxHeight: 200, overflow: "auto",
+                            }}>
+                              {log.system_prompt}
+                            </Box>
+                          </Box>
+                        )}
+                        {contextData && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 0.5 }}>Context</Typography>
+                            <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                              {Object.entries(contextData).map(([k, v]) => (
+                                <Chip key={k} label={`${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`} size="small" variant="outlined" />
+                              ))}
+                            </Box>
+                          </Box>
+                        )}
+                        <ReactJson src={log} enableClipboard={false} collapsed={1} />
+                      </Box>
+                    )}
                   </TableCell>
                 </TableRow>
               </>);

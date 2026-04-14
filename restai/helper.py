@@ -100,6 +100,8 @@ async def create_streaming_response_with_logging(
     db: DBWrapper,
     background_tasks: BackgroundTasks,
     start_time: float = None,
+    system_prompt: str = None,
+    context: dict = None,
 ) -> StreamingResponse:
 
     async def stream_with_logging():
@@ -117,7 +119,7 @@ async def create_streaming_response_with_logging(
 
         if final_output:
             latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-            background_tasks.add_task(log_inference, project, user, final_output, db, latency_ms=latency_ms)
+            background_tasks.add_task(log_inference, project, user, final_output, db, latency_ms=latency_ms, system_prompt=system_prompt, context=context)
 
     return StreamingResponse(
         stream_with_logging(),
@@ -167,6 +169,9 @@ async def chat_main(
         case _:
             raise HTTPException(status_code=400, detail="Invalid project type")
 
+    _sys = project.props.system
+    _ctx = chat_input.context
+
     if chat_input.stream:
         return await create_streaming_response_with_logging(
             proj_logic.chat(project, chat_input, user, db),
@@ -175,12 +180,14 @@ async def chat_main(
             db,
             background_tasks,
             start_time=start_time,
+            system_prompt=_sys,
+            context=_ctx,
         )
     else:
         output_generator = proj_logic.chat(project, chat_input, user, db)
         async for line in output_generator:
             latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-            background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms)
+            background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms, system_prompt=_sys, context=_ctx)
             return line
         return None
 
@@ -199,26 +206,29 @@ async def question_main(
     check_rate_limit(project, db)
     project = _apply_context(project, q_input)
 
+    _sys = project.props.system
+    _ctx = q_input.context
+
     # Check cache for all project types
     cached = await process_cache(project, q_input)
     if cached:
         latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-        background_tasks.add_task(log_inference, project, user, cached, db, latency_ms=latency_ms)
+        background_tasks.add_task(log_inference, project, user, cached, db, latency_ms=latency_ms, system_prompt=_sys, context=_ctx)
         return cached
 
     result = None
     match project.props.type:
         case "rag":
             result = await question_rag(
-                request, brain, project, q_input, user, db, background_tasks, start_time
+                request, brain, project, q_input, user, db, background_tasks, start_time, _sys, _ctx
             )
         case "agent":
             result = await question_agent(
-                brain, project, q_input, user, db, background_tasks, start_time
+                brain, project, q_input, user, db, background_tasks, start_time, _sys, _ctx
             )
         case "block":
             result = await question_block(
-                brain, project, q_input, user, db, background_tasks, start_time
+                brain, project, q_input, user, db, background_tasks, start_time, _sys, _ctx
             )
         case _:
             raise HTTPException(status_code=400, detail="Invalid project type")
@@ -247,6 +257,8 @@ async def question_rag(
     db: DBWrapper,
     background_tasks: BackgroundTasks,
     start_time: float = None,
+    system_prompt: str = None,
+    context: dict = None,
 ):
     try:
         proj_logic = RAG(brain)
@@ -264,12 +276,14 @@ async def question_rag(
                 db,
                 background_tasks,
                 start_time=start_time,
+                system_prompt=system_prompt,
+                context=context,
             )
         else:
             output_generator = proj_logic.question(project, q_input, user, db)
             async for line in output_generator:
                 latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-                background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms)
+                background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms, system_prompt=system_prompt, context=context)
                 return line
     except Exception as e:
         if isinstance(e, HTTPException):
@@ -309,6 +323,8 @@ async def question_agent(
     db: DBWrapper,
     background_tasks: BackgroundTasks,
     start_time: float = None,
+    system_prompt: str = None,
+    context: dict = None,
 ):
     try:
         proj_logic: Agent = Agent(brain)
@@ -329,12 +345,14 @@ async def question_agent(
                 db,
                 background_tasks,
                 start_time=start_time,
+                system_prompt=system_prompt,
+                context=context,
             )
         else:
             output_generator = proj_logic.question(project, q_input, user, db)
             async for line in output_generator:
                 latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-                background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms)
+                background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms, system_prompt=system_prompt, context=context)
                 return line
 
     except Exception as e:
@@ -352,6 +370,8 @@ async def question_block(
     db: DBWrapper,
     background_tasks: BackgroundTasks,
     start_time: float = None,
+    system_prompt: str = None,
+    context: dict = None,
 ):
     try:
         proj_logic = Block(brain)
@@ -367,7 +387,7 @@ async def question_block(
         output_generator = proj_logic.question(project, q_input, user, db)
         async for line in output_generator:
             latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-            background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms)
+            background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms, system_prompt=system_prompt, context=context)
             return line
 
     except Exception as e:

@@ -150,6 +150,9 @@ class OutputDatabase(Base):
 
     chat_id = Column(String(255), index=True)
 
+    system_prompt = Column(Text, nullable=True)
+    context = Column(Text, nullable=True)
+
 
 class EvalDatasetDatabase(Base):
     __tablename__ = "eval_datasets"

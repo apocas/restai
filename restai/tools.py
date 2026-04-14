@@ -240,7 +240,9 @@ def get_logger(name: str, level=logging.INFO):
     return logger
 
 
-def log_inference(project: Project, user: User, output, db: DBWrapper, latency_ms=None):
+def log_inference(project: Project, user: User, output, db: DBWrapper, latency_ms=None, system_prompt=None, context=None):
+    import json as _json
+
     input_cost = 0.0
     output_cost = 0.0
     if project.props.llm:
@@ -262,6 +264,8 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
         input_cost=input_cost,
         output_cost=output_cost,
         latency_ms=latency_ms,
+        system_prompt=system_prompt if project.props.options.logging else None,
+        context=_json.dumps(context) if context and project.props.options.logging else None,
     )
 
     if "id" in output:
