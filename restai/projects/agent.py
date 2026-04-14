@@ -239,73 +239,80 @@ class Agent(ProjectBase):
                 yield output
             return
 
-        async with MCPSessionPool() as mcp_pool:
-            try:
-                mcp_tools = await mcp_pool.connect_servers(
-                    project.props.options.mcp_servers or []
-                )
-            except Exception:
-                mcp_tools = []
+        try:
+            async with MCPSessionPool() as mcp_pool:
+                try:
+                    mcp_tools = await mcp_pool.connect_servers(
+                        project.props.options.mcp_servers or []
+                    )
+                except Exception:
+                    mcp_tools = []
 
-            try:
-                runtime = self._build_runtime(
-                    project, db, project.props.system, extra_tools=mcp_tools
-                )
-            except Agent2UnsupportedLLMError as e:
-                err_msg = str(e)
-                if chatModel.stream:
-                    yield "data: " + json.dumps({"text": err_msg}) + "\n\n"
-                    output["answer"] = err_msg
-                    yield "data: " + json.dumps(output) + "\n"
-                    yield "event: close\n\n"
-                else:
-                    output["answer"] = err_msg
-                    yield output
-                return
-
-            runtime._chat_id = chat_id
-            runtime._brain = self.brain
-            runtime._project_id = project.props.id
-            session = await get_session(self.brain, chat_id)
-            image_block = ImageBlock.from_data_url(chatModel.image) if chatModel.image else None
-            streamed_any_text = False
-
-            try:
-                async for delta in self._drive_runtime(
-                    runtime,
-                    prompt=chatModel.question,
-                    session=session,
-                    image_block=image_block,
-                    stream=chatModel.stream,
-                    project=project,
-                    output=output,
-                ):
-                    streamed_any_text = True
-                    yield "data: " + json.dumps({"text": delta}) + "\n\n"
-
-                await save_session(self.brain, chat_id, session)
-                self._count_tokens(output)
-                self.check_output_guard(project, user, db, output)
-
-                if chatModel.stream:
-                    # Emit the final answer text only if streaming didn't
-                    # already deliver it (e.g. fell back to ReAct mid-run).
-                    if not streamed_any_text and output.get("answer"):
-                        yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
-                    yield "data: " + json.dumps(output) + "\n"
-                    yield "event: close\n\n"
-
-            except Exception as e:
-                wrapped = _wrap_image_error(e, bool(chatModel.image))
-                if chatModel.stream:
-                    yield "data: " + json.dumps({"text": f"Agent failed: {wrapped}"}) + "\n\n"
-                    yield "event: error\n\n"
-                else:
-                    if project.props.censorship:
-                        output["answer"] = project.props.censorship
-                        self._count_tokens(output)
+                try:
+                    runtime = self._build_runtime(
+                        project, db, project.props.system, extra_tools=mcp_tools
+                    )
+                except Agent2UnsupportedLLMError as e:
+                    err_msg = str(e)
+                    if chatModel.stream:
+                        yield "data: " + json.dumps({"text": err_msg}) + "\n\n"
+                        output["answer"] = err_msg
+                        yield "data: " + json.dumps(output) + "\n"
+                        yield "event: close\n\n"
                     else:
-                        raise wrapped
+                        output["answer"] = err_msg
+                        yield output
+                    return
+
+                runtime._chat_id = chat_id
+                runtime._brain = self.brain
+                runtime._project_id = project.props.id
+                session = await get_session(self.brain, chat_id)
+                image_block = ImageBlock.from_data_url(chatModel.image) if chatModel.image else None
+                streamed_any_text = False
+
+                try:
+                    async for delta in self._drive_runtime(
+                        runtime,
+                        prompt=chatModel.question,
+                        session=session,
+                        image_block=image_block,
+                        stream=chatModel.stream,
+                        project=project,
+                        output=output,
+                    ):
+                        streamed_any_text = True
+                        yield "data: " + json.dumps({"text": delta}) + "\n\n"
+
+                    await save_session(self.brain, chat_id, session)
+                    self._count_tokens(output)
+                    self.check_output_guard(project, user, db, output)
+
+                    if chatModel.stream:
+                        # Emit the final answer text only if streaming didn't
+                        # already deliver it (e.g. fell back to ReAct mid-run).
+                        if not streamed_any_text and output.get("answer"):
+                            yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
+                        yield "data: " + json.dumps(output) + "\n"
+                        yield "event: close\n\n"
+
+                except Exception as e:
+                    wrapped = _wrap_image_error(e, bool(chatModel.image))
+                    if chatModel.stream:
+                        yield "data: " + json.dumps({"text": f"Agent failed: {wrapped}"}) + "\n\n"
+                        yield "event: error\n\n"
+                    else:
+                        if project.props.censorship:
+                            output["answer"] = project.props.censorship
+                            self._count_tokens(output)
+                        else:
+                            raise wrapped
+        except BaseException as e:
+            # Catch ExceptionGroup from MCP session pool cleanup failures
+            # to prevent "No response returned" crashes
+            if "answer" not in output:
+                logging.warning("Agent chat failed during MCP cleanup: %s", e)
+                output["answer"] = project.props.censorship or "An error occurred processing your request."
 
         # Non-streaming yield MUST be outside the `async with MCPSessionPool()`
         # block. When the caller does `async for line in gen: return line`, the
