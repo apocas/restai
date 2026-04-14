@@ -18,11 +18,15 @@ def test_get():
         assert "/admin" in response.headers.get("location", "")
 
 def test_version(client):
-    response = client.get("/version")
+    response = client.get("/version", auth=("admin", RESTAI_DEFAULT_PASSWORD))
     assert response.status_code == 200
     data = response.json()
     assert "version" in data
     assert isinstance(data["version"], str)
+
+def test_version_unauthenticated(client):
+    response = client.get("/version")
+    assert response.status_code == 401
 
 def test_setup(client):
     response = client.get("/setup")
