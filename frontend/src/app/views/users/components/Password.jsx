@@ -1,5 +1,5 @@
-import { Box, Button, Card, Divider, Grid, Stack, styled, TextField } from "@mui/material";
-import { useState } from "react";
+import { Box, Button, Card, Divider, Grid, Stack, styled, TextField, Alert } from "@mui/material";
+import { useState, useEffect } from "react";
 import { FlexBox } from "app/components/FlexBox";
 import { H5, Paragraph } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
@@ -17,6 +17,14 @@ const Dot = styled("div")(({ theme }) => ({
 export default function Password({user}) {
   const auth = useAuth();
   const [state, setState] = useState({});
+  const [totpEnabled, setTotpEnabled] = useState(false);
+
+  useEffect(() => {
+    if (!user?.username) return;
+    api.get(`/users/${user.username}/totp/status`, auth.user.token, { silent: true })
+      .then((d) => { if (d) setTotpEnabled(d.enabled); })
+      .catch(() => {});
+  }, [user?.username]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -26,7 +34,13 @@ export default function Password({user}) {
       return;
     }
 
+    if (totpEnabled && !state.totpCode) {
+      toast.error("2FA code is required to change your password");
+      return;
+    }
+
     var update = {"password": state.newPassword};
+    if (totpEnabled && state.totpCode) update.totp_code = state.totpCode;
 
     api.patch("/users/" + user.username, update, auth.user.token)
       .then(() => {
@@ -68,6 +82,22 @@ export default function Password({user}) {
                   onChange={handleChange}
                   value={state.confirmNewPassword}
                 />
+                {totpEnabled && (
+                  <>
+                    <Alert severity="info" sx={{ py: 0.5 }}>
+                      2FA is enabled. Enter a code from your authenticator app to confirm the password change.
+                    </Alert>
+                    <TextField
+                      fullWidth
+                      name="totpCode"
+                      variant="outlined"
+                      label="2FA Code"
+                      onChange={handleChange}
+                      value={state.totpCode || ""}
+                      inputProps={{ maxLength: 6, autoComplete: "one-time-code" }}
+                    />
+                  </>
+                )}
               </Stack>
 
               <Stack direction="row" spacing={3} mt={4}>

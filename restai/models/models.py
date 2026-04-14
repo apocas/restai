@@ -547,8 +547,9 @@ class TOTPVerifyRequest(BaseModel):
     code: str = Field(max_length=20, description="6-digit TOTP code or recovery code")
 
 class TOTPEnableRequest(BaseModel):
-    """Confirm TOTP setup with a valid code."""
+    """Confirm TOTP setup with a valid code and password."""
     code: str = Field(max_length=6, description="6-digit TOTP code from authenticator app")
+    password: str = Field(description="Current password for confirmation")
 
 class TOTPDisableRequest(BaseModel):
     """Disable TOTP (requires password confirmation)."""
@@ -710,6 +711,7 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     """Update user properties."""
     password: str = Field(default=None, description="New password for the user")
+    totp_code: Optional[str] = Field(default=None, max_length=6, description="TOTP code required when changing password with 2FA enabled")
     is_admin: bool = Field(default=None, description="Update administrator privileges")
     is_private: bool = Field(default=None, description="Update profile privacy setting")
     is_restricted: Union[bool, None] = Field(default=None, description="Update restricted mode")

@@ -24,6 +24,7 @@ export default function TwoFactorAuth({ user }) {
   const [status, setStatus] = useState({ enabled: false, enforced: false });
   const [setup, setSetup] = useState(null); // { secret, provisioning_uri, recovery_codes }
   const [confirmCode, setConfirmCode] = useState("");
+  const [enablePassword, setEnablePassword] = useState("");
   const [disablePassword, setDisablePassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showDisable, setShowDisable] = useState(false);
@@ -54,10 +55,11 @@ export default function TwoFactorAuth({ user }) {
   const handleEnable = async () => {
     setLoading(true);
     try {
-      await api.post(`/users/${user.username}/totp/enable`, { code: confirmCode }, auth.user.token);
+      await api.post(`/users/${user.username}/totp/enable`, { code: confirmCode, password: enablePassword }, auth.user.token);
       toast.success("2FA enabled successfully");
       setSetup(null);
       setConfirmCode("");
+      setEnablePassword("");
       fetchStatus();
     } catch (e) {
       toast.error(e.response?.data?.detail || "Invalid code");
@@ -141,7 +143,7 @@ export default function TwoFactorAuth({ user }) {
             ))}
           </RecoveryBox>
 
-          <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>3. Enter a code from your app to confirm</Typography>
+          <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>3. Confirm with a code and your password</Typography>
           <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
             <TextField
               size="small"
@@ -151,7 +153,15 @@ export default function TwoFactorAuth({ user }) {
               inputProps={{ maxLength: 6, autoComplete: "one-time-code" }}
               sx={{ width: 160 }}
             />
-            <LoadingButton variant="contained" loading={loading} onClick={handleEnable} disabled={confirmCode.length < 6}>
+            <TextField
+              size="small"
+              type="password"
+              label="Password"
+              value={enablePassword}
+              onChange={(e) => setEnablePassword(e.target.value)}
+              sx={{ width: 200 }}
+            />
+            <LoadingButton variant="contained" loading={loading} onClick={handleEnable} disabled={confirmCode.length < 6 || !enablePassword}>
               Enable 2FA
             </LoadingButton>
           </Box>

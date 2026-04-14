@@ -75,18 +75,29 @@ def test_totp_setup(client):
 def test_totp_enable_with_invalid_code(client):
     response = client.post(
         f"/users/{test_username}/totp/enable",
-        json={"code": "000000"},
+        json={"code": "000000", "password": test_password},
         auth=(test_username, test_password),
     )
     assert response.status_code == 400
     assert "Invalid TOTP code" in response.json()["detail"]
 
 
+def test_totp_enable_with_wrong_password(client):
+    code = pyotp.TOTP(totp_secret).now()
+    response = client.post(
+        f"/users/{test_username}/totp/enable",
+        json={"code": code, "password": "wrong_password"},
+        auth=(test_username, test_password),
+    )
+    assert response.status_code == 403
+    assert "Invalid password" in response.json()["detail"]
+
+
 def test_totp_enable_with_valid_code(client):
     code = pyotp.TOTP(totp_secret).now()
     response = client.post(
         f"/users/{test_username}/totp/enable",
-        json={"code": code},
+        json={"code": code, "password": test_password},
         auth=(test_username, test_password),
     )
     assert response.status_code == 200
@@ -261,7 +272,7 @@ def test_cannot_disable_when_enforced(client):
     # First enable 2FA for the user
     client.post(f"/users/{test_username}/totp/setup", json={}, auth=(test_username, test_password))
     code = pyotp.TOTP(totp_secret).now()
-    client.post(f"/users/{test_username}/totp/enable", json={"code": code}, auth=(test_username, test_password))
+    client.post(f"/users/{test_username}/totp/enable", json={"code": code, "password": test_password}, auth=(test_username, test_password))
 
     # Try to disable — should fail
     response = client.post(

@@ -390,6 +390,15 @@ async def route_update_user(
         if not user.is_admin and user_update.projects is not None:
             raise HTTPException(status_code=403, detail="Only admins can modify project assignments")
 
+        # If changing password and user has 2FA enabled, require TOTP code
+        if user_update.password and user_to_update.totp_enabled:
+            if not user_update.totp_code:
+                raise HTTPException(status_code=400, detail="TOTP code required to change password when 2FA is enabled")
+            import pyotp
+            secret = decrypt_totp_secret(user_to_update.totp_secret)
+            if not pyotp.TOTP(secret).verify(user_update.totp_code, valid_window=1):
+                raise HTTPException(status_code=400, detail="Invalid TOTP code")
+
         db_wrapper.update_user(user_to_update, user_update)
 
         if user_update.projects is not None:
@@ -489,8 +498,9 @@ async def totp_enable(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Activate 2FA by confirming a valid TOTP code from the authenticator app."""
+    """Activate 2FA by confirming a valid TOTP code and password."""
     import pyotp
+    from restai.database import verify_password
 
     if not user.is_admin and user.username != username:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -499,6 +509,9 @@ async def totp_enable(
         raise HTTPException(status_code=404, detail="User not found")
     if not user_db.totp_secret:
         raise HTTPException(status_code=400, detail="Run /totp/setup first")
+
+    if not verify_password(body.password, user_db.hashed_password):
+        raise HTTPException(status_code=403, detail="Invalid password")
 
     secret = decrypt_totp_secret(user_db.totp_secret)
     totp = pyotp.TOTP(secret)
