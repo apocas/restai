@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 
 import { Paragraph } from "./Typography";
 import useSettings from "app/hooks/useSettings";
+import useAuth from "app/hooks/useAuth";
 import { topBarHeight } from "app/utils/constant";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -43,11 +44,17 @@ export default function Footer() {
 
   const url = process.env.REACT_APP_RESTAI_API_URL || "";
   const [version, setVersion] = useState([]);
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const auth = useAuth();
 
   const navigate = useNavigate();
 
+  const authHeaders = auth.user?.token
+    ? { "Authorization": "Basic " + auth.user.token }
+    : {};
+
   const fetchVersion = () => {
-    return fetch(url + "/version")
+    return fetch(url + "/version", { headers: authHeaders })
       .then((res) => res.json())
       .then((d) => {
         setVersion(d.version)
@@ -56,9 +63,20 @@ export default function Footer() {
       });
   }
 
+  const fetchUpdateCheck = () => {
+    if (!auth.user?.token) return;
+    fetch(url + "/version/check", { headers: authHeaders })
+      .then((res) => res.ok ? res.json() : null)
+      .then((d) => {
+        if (d && d.update_available) setUpdateInfo(d);
+      })
+      .catch(() => {});
+  };
+
   useEffect(() => {
     fetchVersion();
-  }, []);
+    fetchUpdateCheck();
+  }, [auth.user?.token]);
 
   return (
     <ThemeProvider theme={footerTheme}>
@@ -85,6 +103,25 @@ export default function Footer() {
                 </>
               )}
               {(version) && <span style={{ fontSize: "0.7rem" }}>v{version}</span>}
+              {updateInfo && (
+                <a
+                  href={updateInfo.latest_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    marginLeft: 8,
+                    fontSize: "0.65rem",
+                    fontWeight: 600,
+                    padding: "2px 8px",
+                    borderRadius: 10,
+                    backgroundColor: "rgba(99,102,241,0.15)",
+                    color: "#6366f1",
+                    textDecoration: "none",
+                  }}
+                >
+                  Update available: v{updateInfo.latest}
+                </a>
+              )}
             </Paragraph>
           </FooterContent>
         </AppFooter>

@@ -125,11 +125,54 @@ async def lifespan(fs_app: FastAPI):
         return RedirectResponse(url="/admin")
 
     @fs_app.get("/version", tags=["Health"])
-    async def get_version():
+    async def get_version(_: User = Depends(get_current_username)):
         """Get the current RESTai version."""
         return {
             "version": fs_app.version,
         }
+
+    _update_cache = {"data": None, "ts": 0}
+
+    @fs_app.get("/version/check", tags=["Health"])
+    async def check_for_update(_: User = Depends(get_current_username)):
+        """Check GitHub for a newer release. Cached for 1 hour."""
+        import time as _time
+        import httpx
+        from packaging.version import parse as parse_version
+
+        current = fs_app.version
+        now = _time.time()
+
+        # Return cached result if fresh (1 hour)
+        if _update_cache["data"] and (now - _update_cache["ts"]) < 3600:
+            return _update_cache["data"]
+
+        result = {
+            "current": current,
+            "latest": current,
+            "update_available": False,
+            "latest_url": "https://github.com/apocas/restai/releases",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    "https://api.github.com/repos/apocas/restai/releases/latest",
+                    headers={"Accept": "application/vnd.github+json"},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    tag = data.get("tag_name", "").lstrip("v")
+                    if tag:
+                        result["latest"] = tag
+                        result["latest_url"] = data.get("html_url", result["latest_url"])
+                        result["update_available"] = parse_version(tag) > parse_version(current)
+        except Exception:
+            pass
+
+        _update_cache["data"] = result
+        _update_cache["ts"] = now
+        return result
 
     @fs_app.get("/health/live", tags=["Health"])
     async def health_live():
