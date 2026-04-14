@@ -44,7 +44,7 @@ def verify_widget_context(
         raise ValueError("Context token too large")
 
     try:
-        claims = jwt.decode(token, secret, algorithms=["HS256"])
+        claims = jwt.decode(token, secret, algorithms=["HS256"], options={"verify_aud": False})
     except jwt.ExpiredSignatureError:
         raise ValueError("Context token has expired")
     except jwt.InvalidTokenError as e:

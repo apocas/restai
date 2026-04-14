@@ -48,6 +48,22 @@ async def widget_config(
     """Get widget visual configuration. Authenticated via X-Widget-Key header."""
     widget = get_widget_from_request(request, db_wrapper)
     config = json.loads(widget.config) if widget.config else {}
+
+    # Apply context placeholders to welcome message
+    context_header = request.headers.get("X-Widget-Context")
+    if context_header and widget.context_secret and config.get("welcomeMessage"):
+        try:
+            from restai.utils.crypto import decrypt_field
+            from restai.utils.widget_context import verify_widget_context, apply_widget_context
+
+            secret = decrypt_field(widget.context_secret)
+            context = verify_widget_context(context_header, secret)
+            config["welcomeMessage"] = apply_widget_context(
+                config["welcomeMessage"], context, prepend_block=False,
+            )
+        except ValueError:
+            pass  # invalid token — return config as-is without substitution
+
     return config
 
 
