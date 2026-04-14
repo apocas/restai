@@ -10,6 +10,7 @@ the runtime exits after one turn with no extra overhead. Add tools or MCP
 servers in the project's Tools tab to turn them into actual agents.
 """
 import json
+import logging
 from uuid import uuid4
 
 from fastapi import HTTPException
