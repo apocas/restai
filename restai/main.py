@@ -328,10 +328,12 @@ async def lifespan(fs_app: FastAPI):
             async def serve_spa(full_path: str):
                 """Serve static files if they exist, otherwise index.html for SPA routing."""
                 # Serve actual files (manifest.json, favicon.ico, etc.)
-                file_path = FRONTEND_BUILD_DIR / full_path
-                if full_path and file_path.is_file():
+                file_path = (FRONTEND_BUILD_DIR / full_path).resolve()
+                build_root = FRONTEND_BUILD_DIR.resolve()
+                # Prevent directory traversal — resolved path must stay inside build dir
+                if full_path and str(file_path).startswith(str(build_root) + "/") and file_path.is_file():
                     return FileResponse(str(file_path))
-                index_file = FRONTEND_BUILD_DIR / "index.html"
+                index_file = build_root / "index.html"
                 if index_file.exists():
                     return FileResponse(str(index_file))
                 return JSONResponse(status_code=404, content={"detail": "Frontend not found"})

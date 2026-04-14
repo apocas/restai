@@ -135,9 +135,12 @@ class QuestionModel(InteractionModel):
     })
 
 
+_CHAT_ID_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+
 class ChatModel(InteractionModel):
     """Send a chat message to a project. Maintains conversation state via the id field."""
-    id: Union[str, None] = Field(default=None, description="Conversation ID for maintaining chat state. Omit to start a new conversation.")
+    id: Union[str, None] = Field(default=None, max_length=128, description="Conversation ID for maintaining chat state. Omit to start a new conversation.")
     image: Union[str, None] = Field(default=None, description="Base64-encoded image for vision models")
     model_config = ConfigDict(json_schema_extra={
         "example": {
@@ -146,6 +149,13 @@ class ChatModel(InteractionModel):
             "id": "conv_abc123"
         }
     })
+
+    @field_validator("id")
+    @classmethod
+    def validate_chat_id(cls, v):
+        if v is not None and not _CHAT_ID_RE.match(v):
+            raise ValueError("Chat ID must contain only alphanumeric characters, hyphens, and underscores")
+        return v
 
 
 class LLMModel(BaseModel):
