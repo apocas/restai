@@ -254,6 +254,7 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
 
     output_db_entry = OutputDatabase(
         user_id=user.id,
+        team_id=project.props.team.id if project.props.team else None,
         llm=project.props.llm,
         question=output["question"] if project.props.options.logging else None,
         answer=output["answer"] if project.props.options.logging else None,
