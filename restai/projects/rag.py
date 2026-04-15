@@ -147,6 +147,18 @@ class EntityBoostPostprocessor:
 class RAG(ProjectBase):
 
     async def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
+        if project.vector is None:
+            yield {
+                "question": chatModel.question,
+                "answer": "Knowledge base unavailable — vector store connection failed. Please check that the vector database is running.",
+                "sources": [],
+                "type": "chat",
+                "tokens": {"input": 0, "output": 0},
+                "project": project.props.name,
+                "guard": False,
+            }
+            return
+
         model: Optional[LLM] = self.brain.get_llm(project.props.llm, db)
         context_window = model.props.context_window if model else 4096
         token_limit = int(context_window * 0.75)
@@ -280,6 +292,18 @@ class RAG(ProjectBase):
     async def question(
         self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper
     ):
+        if project.vector is None and not project.props.options.connection:
+            yield {
+                "question": questionModel.question,
+                "answer": "Knowledge base unavailable — vector store connection failed. Please check that the vector database is running.",
+                "sources": [],
+                "type": "question",
+                "tokens": {"input": 0, "output": 0},
+                "project": project.props.name,
+                "guard": False,
+            }
+            return
+
         output = {
             "question": questionModel.question,
             "type": "question",

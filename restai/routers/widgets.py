@@ -154,7 +154,7 @@ async def widget_chat(
         raise
     except Exception as e:
         logging.exception("Widget chat failed for project %s", widget.project_id)
-        raise HTTPException(status_code=500, detail="Chat failed")
+        return WidgetChatResponse(answer="An error occurred processing your request.", id=body.id)
 
 
 async def _sanitize_stream(body_iterator):
