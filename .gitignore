@@ -187,3 +187,4 @@ lab.py
 .deepeval/.deepeval_telemetry.txt
 features.txt
 stable.patch
+.cron-*.lock

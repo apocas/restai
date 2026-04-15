@@ -145,6 +145,19 @@ async def get_audit_log(
     }
 
 
+@router.delete("/cron-logs", tags=["Settings"])
+async def purge_cron_logs(
+    _=Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Delete all cron log entries (admin only)."""
+    from restai.models.databasemodels import CronLogDatabase
+
+    count = db_wrapper.db.query(CronLogDatabase).delete()
+    db_wrapper.db.commit()
+    return {"deleted": count}
+
+
 @router.post("/cron-logs/run", tags=["Settings"])
 async def run_crons(
     background_tasks: BackgroundTasks,

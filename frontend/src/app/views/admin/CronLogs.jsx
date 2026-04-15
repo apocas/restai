@@ -6,6 +6,7 @@ import {
 } from "@mui/material";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -113,6 +114,21 @@ export default function CronLogs() {
                 onClick={handleRunNow}
               >
                 {running ? "Running..." : "Run Now"}
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                color="error"
+                startIcon={<DeleteSweepIcon />}
+                onClick={() => {
+                  if (window.confirm("Purge all cron log entries?")) {
+                    api.delete("/cron-logs", auth.user.token)
+                      .then(() => { setPage(0); fetchEntries(); })
+                      .catch(() => {});
+                  }
+                }}
+              >
+                Purge
               </Button>
               <TextField
                 select
