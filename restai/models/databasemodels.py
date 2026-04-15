@@ -440,3 +440,20 @@ class ProjectToolDatabase(Base):
     updated_at = Column(DateTime, nullable=False)
 
     project = relationship("ProjectDatabase")
+
+
+class ProjectRoutineDatabase(Base):
+    __tablename__ = "project_routines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    schedule_minutes = Column(Integer, nullable=False, default=60)
+    enabled = Column(Boolean, nullable=False, default=True)
+    last_run = Column(DateTime, nullable=True)
+    last_result = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+
+    project = relationship("ProjectDatabase")

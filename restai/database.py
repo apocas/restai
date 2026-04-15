@@ -9,6 +9,7 @@ from restai.models.databasemodels import (
     OutputDatabase,
     ProjectDatabase,
     ProjectToolDatabase,
+    ProjectRoutineDatabase,
     SettingDatabase,
     UserDatabase,
     TeamDatabase,
@@ -1066,6 +1067,51 @@ class DBWrapper:
         tool = self.get_project_tool_by_name(project_id, name)
         if tool:
             self.db.delete(tool)
+            self.db.commit()
+            return True
+        return False
+
+    # ── Project Routines (scheduled messages) ────────────────────────────
+
+    def get_project_routines(self, project_id: int) -> list[ProjectRoutineDatabase]:
+        return (
+            self.db.query(ProjectRoutineDatabase)
+            .filter(ProjectRoutineDatabase.project_id == project_id)
+            .order_by(ProjectRoutineDatabase.name)
+            .all()
+        )
+
+    def get_all_enabled_routines(self) -> list[ProjectRoutineDatabase]:
+        return (
+            self.db.query(ProjectRoutineDatabase)
+            .filter(ProjectRoutineDatabase.enabled == True)
+            .all()
+        )
+
+    def get_project_routine_by_id(self, routine_id: int) -> Optional[ProjectRoutineDatabase]:
+        return self.db.query(ProjectRoutineDatabase).filter(ProjectRoutineDatabase.id == routine_id).first()
+
+    def create_project_routine(self, project_id: int, name: str, message: str, schedule_minutes: int, enabled: bool = True) -> ProjectRoutineDatabase:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        routine = ProjectRoutineDatabase(
+            project_id=project_id,
+            name=name,
+            message=message,
+            schedule_minutes=schedule_minutes,
+            enabled=enabled,
+            created_at=now,
+            updated_at=now,
+        )
+        self.db.add(routine)
+        self.db.commit()
+        self.db.refresh(routine)
+        return routine
+
+    def delete_project_routine(self, routine_id: int) -> bool:
+        routine = self.get_project_routine_by_id(routine_id)
+        if routine:
+            self.db.delete(routine)
             self.db.commit()
             return True
         return False

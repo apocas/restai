@@ -1588,6 +1588,22 @@ class SystemPromptGenerateRequest(BaseModel):
     project_type: Optional[str] = Field(default=None, description="Project type: rag, agent, or block (for context)")
 
 
+class RoutineCreate(BaseModel):
+    """Create a scheduled routine for a project."""
+    name: str = Field(max_length=255, description="Routine display name")
+    message: str = Field(max_length=10000, description="Message to send to the project when the routine fires")
+    schedule_minutes: int = Field(ge=1, le=10080, description="Interval in minutes (1 min to 7 days)")
+    enabled: bool = Field(default=True, description="Whether the routine is active")
+
+
+class RoutineUpdate(BaseModel):
+    """Update a routine."""
+    name: Optional[str] = Field(default=None, max_length=255)
+    message: Optional[str] = Field(default=None, max_length=10000)
+    schedule_minutes: Optional[int] = Field(default=None, ge=1, le=10080)
+    enabled: Optional[bool] = None
+
+
 class WidgetChatResponse(BaseModel):
     """Sanitized response returned to widgets."""
     answer: str

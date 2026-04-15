@@ -130,8 +130,7 @@ export default function GpuInfo() {
                           <Table size="small">
                             <TableHead>
                               <TableRow>
-                                <TableCell padding="checkbox">Workers</TableCell>
-                                <TableCell>#</TableCell>
+                                <TableCell sx={{ width: 60 }}>#</TableCell>
                                 <TableCell>Name</TableCell>
                                 <TableCell>Memory (Total)</TableCell>
                                 <TableCell>Memory (Used)</TableCell>
@@ -161,14 +160,15 @@ export default function GpuInfo() {
                                 };
                                 return (
                                   <TableRow key={gpu.index}>
-                                    <TableCell padding="checkbox">
+                                    <TableCell sx={{ whiteSpace: "nowrap" }}>
                                       <Checkbox
                                         checked={isSelected}
                                         onChange={handleToggleDevice}
                                         size="small"
+                                        sx={{ p: 0, mr: 0.5 }}
                                       />
+                                      {gpu.index}
                                     </TableCell>
-                                    <TableCell>{gpu.index}</TableCell>
                                     <TableCell><strong>{gpu.name}</strong></TableCell>
                                     <TableCell>{gpu.memory_total}</TableCell>
                                     <TableCell>{gpu.memory_used}</TableCell>

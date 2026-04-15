@@ -107,13 +107,17 @@ cron:
 	  NEW="$$NEW"$$'\n'"* * * * * cd $$RESTAI_DIR && uv run --no-group gpu python scripts/docker_cleanup.py >> /var/log/restai-docker-cleanup.log 2>&1 # restai-docker-cleanup"; \
 	  echo "Added: restai-docker-cleanup"; \
 	else echo "Already installed: restai-docker-cleanup"; fi; \
+	if ! echo "$$CURRENT" | grep -q "restai-routines"; then \
+	  NEW="$$NEW"$$'\n'"* * * * * cd $$RESTAI_DIR && uv run --no-group gpu python scripts/routines.py >> /var/log/restai-routines.log 2>&1 # restai-routines"; \
+	  echo "Added: restai-routines"; \
+	else echo "Already installed: restai-routines"; fi; \
 	echo "$$NEW" | crontab -
 	@echo "Cron jobs installed:"
 	@crontab -l | grep restai || true
 
 .PHONY: cron-remove
 cron-remove:
-	@( crontab -l 2>/dev/null | grep -v "restai-sync\|restai-telegram\|restai-docker-cleanup" ) | crontab -
+	@( crontab -l 2>/dev/null | grep -v "restai-sync\|restai-telegram\|restai-docker-cleanup\|restai-routines" ) | crontab -
 	@echo "RESTai cron jobs removed."
 
 .PHONY: sync

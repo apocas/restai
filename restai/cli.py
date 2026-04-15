@@ -166,6 +166,10 @@ def main():
     docker_parser = subparsers.add_parser("docker-cleanup", help="Remove idle Docker containers (cron-friendly)")
     docker_parser.set_defaults(func=lambda args: _run_script(args, "scripts/docker_cleanup.py"))
 
+    # routines
+    routines_parser = subparsers.add_parser("routines", help="Run project routines (cron-friendly)")
+    routines_parser.set_defaults(func=lambda args: _run_script(args, "scripts/routines.py"))
+
     args = parser.parse_args()
     if not args.command:
         # Default to serve

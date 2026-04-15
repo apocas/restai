@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Fade, Grid } from "@mui/material";
-import { Info, Storage, Shield, BarChart, ChatBubble, Widgets, Hub } from "@mui/icons-material";
+import { Info, Storage, Shield, BarChart, ChatBubble, Widgets, Hub, Build, Schedule } from "@mui/icons-material";
 
 import ProjectInfo from "./ProjectInfo";
 import ProjectTabNav from "./ProjectTabNav";
@@ -11,11 +11,15 @@ import ProjectInfoSecurity from "./ProjectInfoSecurity";
 import ProjectInfoAnalytics from "./ProjectInfoAnalytics";
 import ProjectComments from "./ProjectComments";
 import ProjectWidget from "./ProjectWidget";
+import ProjectInfoTools from "./ProjectInfoTools";
+import ProjectEditRoutines from "./ProjectEditRoutines";
 
 const ALL_TABS = [
   { name: "General", Icon: Info },
   { name: "Knowledge", Icon: Storage, ragOnly: true },
   { name: "Knowledge Graph", Icon: Hub, ragOnly: true, kgOnly: true },
+  { name: "Tools", Icon: Build, agentOnly: true },
+  { name: "Routines", Icon: Schedule },
   { name: "Security", Icon: Shield },
   { name: "Analytics", Icon: BarChart },
   { name: "Widget", Icon: Widgets },
@@ -28,6 +32,7 @@ export default function ProjectDetails({ project, projects, info }) {
   const tabs = ALL_TABS.filter((t) => {
     if (t.ragOnly && project.type !== "rag") return false;
     if (t.kgOnly && !project.options?.enable_knowledge_graph) return false;
+    if (t.agentOnly && project.type !== "agent") return false;
     return true;
   });
 
@@ -47,6 +52,8 @@ export default function ProjectDetails({ project, projects, info }) {
             {active === "General" && <ProjectInfoGeneral project={project} info={info} />}
             {active === "Knowledge" && <ProjectInfoKnowledge project={project} />}
             {active === "Knowledge Graph" && <ProjectInfoKnowledgeGraph project={project} />}
+            {active === "Tools" && <ProjectInfoTools project={project} />}
+            {active === "Routines" && <ProjectEditRoutines project={project} />}
             {active === "Security" && <ProjectInfoSecurity project={project} />}
             {active === "Analytics" && <ProjectInfoAnalytics project={project} />}
             {active === "Widget" && <ProjectWidget project={project} />}
