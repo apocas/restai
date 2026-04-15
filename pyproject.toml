@@ -12,7 +12,7 @@ dependencies = [
     "starlette>=0.46.0,<0.50",
     "langchain>=0.3.28,<0.4",
     "uvicorn>=0.41.0,<0.42",
-    "python-multipart>=0.0.22,<0.0.23",
+    "python-multipart>=0.0.22,<0.0.27",
     "python-dotenv>=1.2.0,<2",
     "pdfminer.six",
     "unstructured>=0.21.5,<0.22",
