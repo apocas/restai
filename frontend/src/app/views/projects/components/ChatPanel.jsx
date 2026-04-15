@@ -195,7 +195,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         throw err; // Stop reconnecting
       },
     });
-  }, [project.id, auth.user.token, systemOverride, chatMode, messages, onQuestionSent]);
+  }, [project.id, auth.user.token, systemOverride, chatMode, messages, onQuestionSent, context]);
 
   const sendMessage = useCallback(async (text, img) => {
     if (isLoading) return;
@@ -263,7 +263,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       setImage(null);
       if (onQuestionSent) onQuestionSent();
     }
-  }, [isLoading, streaming, project.id, auth.user.token, systemOverride, chatMode, messages, onQuestionSent, sendMessageStream]);
+  }, [isLoading, streaming, project.id, auth.user.token, systemOverride, chatMode, messages, onQuestionSent, sendMessageStream, context]);
 
   const handleSend = () => {
     const text = inputText.trim();
