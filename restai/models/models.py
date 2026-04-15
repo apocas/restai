@@ -428,7 +428,6 @@ class ProjectOptions(BaseModel):
     mcp_servers: Union[list[MCPServer], None] = Field(default=None, description="List of MCP server configurations for agent projects")
     telegram_token: Union[str, None] = Field(default=None, description="Telegram bot token for Telegram integration")
     slack_bot_token: Union[str, None] = Field(default=None, description="Slack bot token (xoxb-...) for Slack integration")
-    slack_app_token: Union[str, None] = Field(default=None, description="Slack app token (xapp-...) for Socket Mode")
     blockly_workspace: Union[dict, None] = Field(default=None, description="Blockly workspace JSON for block projects")
     rate_limit: Union[int, None] = Field(default=None, ge=1, le=10000, description="Maximum requests per minute (None = unlimited)")
     guard_output: Union[str, None] = Field(default=None, description="Name of the guard project for output checking")

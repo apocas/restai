@@ -73,6 +73,12 @@ export const defaultNavigations = [
     auth: authRoles.admin,
   },
   {
+    name: "Cron Logs",
+    icon: "schedule",
+    path: "/admin/cron-logs",
+    auth: authRoles.admin,
+  },
+  {
     name: "Permissions",
     icon: "lock",
     path: "/admin/permissions",

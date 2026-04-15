@@ -94,43 +94,23 @@ migrate:
 cron:
 	@RESTAI_DIR=$$(pwd); \
 	CURRENT=$$(crontab -l 2>/dev/null || true); \
-	NEW="$$CURRENT"; \
-	if ! echo "$$CURRENT" | grep -q "restai-sync"; then \
-	  NEW="$$NEW"$$'\n'"*/5 * * * * cd $$RESTAI_DIR && uv run --no-group gpu python scripts/sync.py >> /var/log/restai-sync.log 2>&1 # restai-sync"; \
-	  echo "Added: restai-sync"; \
-	else echo "Already installed: restai-sync"; fi; \
-	if ! echo "$$CURRENT" | grep -q "restai-telegram"; then \
-	  NEW="$$NEW"$$'\n'"*/1 * * * * cd $$RESTAI_DIR && uv run --no-group gpu python scripts/telegram.py >> /var/log/restai-telegram.log 2>&1 # restai-telegram"; \
-	  echo "Added: restai-telegram"; \
-	else echo "Already installed: restai-telegram"; fi; \
-	if ! echo "$$CURRENT" | grep -q "restai-docker-cleanup"; then \
-	  NEW="$$NEW"$$'\n'"* * * * * cd $$RESTAI_DIR && uv run --no-group gpu python scripts/docker_cleanup.py >> /var/log/restai-docker-cleanup.log 2>&1 # restai-docker-cleanup"; \
-	  echo "Added: restai-docker-cleanup"; \
-	else echo "Already installed: restai-docker-cleanup"; fi; \
-	if ! echo "$$CURRENT" | grep -q "restai-routines"; then \
-	  NEW="$$NEW"$$'\n'"* * * * * cd $$RESTAI_DIR && uv run --no-group gpu python scripts/routines.py >> /var/log/restai-routines.log 2>&1 # restai-routines"; \
-	  echo "Added: restai-routines"; \
-	else echo "Already installed: restai-routines"; fi; \
+	NEW=$$(echo "$$CURRENT" | grep -v "restai-sync\|restai-telegram\|restai-docker-cleanup\|restai-routines"); \
+	if echo "$$CURRENT" | grep -q "restai-sync\|restai-telegram\|restai-docker-cleanup\|restai-routines"; then \
+	  echo "Removed old individual cron jobs"; \
+	fi; \
+	if ! echo "$$NEW" | grep -q "restai-crons"; then \
+	  NEW="$$NEW"$$'\n'"* * * * * cd $$RESTAI_DIR && uv run --no-group gpu python crons/runner.py >> /var/log/restai-crons.log 2>&1 # restai-crons"; \
+	  echo "Added: restai-crons"; \
+	else echo "Already installed: restai-crons"; fi; \
 	echo "$$NEW" | crontab -
 	@echo "Cron jobs installed:"
 	@crontab -l | grep restai || true
 
 .PHONY: cron-remove
 cron-remove:
-	@( crontab -l 2>/dev/null | grep -v "restai-sync\|restai-telegram\|restai-docker-cleanup\|restai-routines" ) | crontab -
+	@( crontab -l 2>/dev/null | grep -v "restai-crons" ) | crontab -
 	@echo "RESTai cron jobs removed."
 
-.PHONY: sync
-sync:
-	uv run --no-group gpu python scripts/sync.py
-
-.PHONY: telegram
-telegram:
-	uv run --no-group gpu python scripts/telegram.py
-
-.PHONY: slack
-slack:
-	uv run --no-group gpu python scripts/slack.py
 
 .PHONY: update
 update:

@@ -2,7 +2,7 @@
 
 Manages per-chat containers that persist across tool calls within a
 conversation. Idle container cleanup is handled by an external cron script
-(scripts/docker_cleanup.py), not by an internal thread.
+(crons/docker_cleanup.py), not by an internal thread.
 """
 from __future__ import annotations
 

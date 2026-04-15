@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from restai.auth import get_current_username_admin
 from restai.config import detect_gpu_info
@@ -137,6 +137,69 @@ async def get_audit_log(
                 "action": e.action,
                 "resource": e.resource,
                 "status_code": e.status_code,
+                "date": e.date.isoformat() if e.date else None,
+            }
+            for e in entries
+        ],
+        "total": total,
+    }
+
+
+@router.post("/cron-logs/run", tags=["Settings"])
+async def run_crons(
+    background_tasks: BackgroundTasks,
+    _=Depends(get_current_username_admin),
+):
+    """Trigger all cron jobs now (admin only). Runs as a subprocess."""
+    import subprocess, sys, os
+
+    def _run():
+        try:
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            subprocess.run(
+                [sys.executable, "crons/runner.py"],
+                cwd=project_root,
+                timeout=300,
+            )
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("Manual cron run failed")
+
+    background_tasks.add_task(_run)
+    return {"status": "started"}
+
+
+@router.get("/cron-logs", tags=["Settings"])
+async def get_cron_logs(
+    start: int = 0,
+    end: int = 50,
+    job: str = None,
+    status: str = None,
+    _=Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Get paginated cron log entries (admin only)."""
+    from restai.models.databasemodels import CronLogDatabase
+
+    query = db_wrapper.db.query(CronLogDatabase)
+    if job:
+        query = query.filter(CronLogDatabase.job == job)
+    if status:
+        query = query.filter(CronLogDatabase.status == status)
+
+    total = query.count()
+    entries = query.order_by(CronLogDatabase.date.desc()).offset(start).limit(end - start).all()
+
+    return {
+        "entries": [
+            {
+                "id": e.id,
+                "job": e.job,
+                "status": e.status,
+                "message": e.message,
+                "details": e.details,
+                "items_processed": e.items_processed,
+                "duration_ms": e.duration_ms,
                 "date": e.date.isoformat() if e.date else None,
             }
             for e in entries

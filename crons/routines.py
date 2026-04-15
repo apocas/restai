@@ -4,10 +4,7 @@
 Checks all enabled routines, fires those whose schedule interval has elapsed, then exits.
 
 Usage:
-    uv run python scripts/routines.py
-
-Cron example (every minute):
-    * * * * * cd /path/to/restai && uv run python scripts/routines.py >> /var/log/restai-routines.log 2>&1
+    uv run python crons/routines.py
 """
 
 import asyncio
@@ -74,17 +71,20 @@ async def _run():
     brain = Brain(lightweight=True)
     db = get_db_wrapper()
 
+    from restai.cron_log import CronLogger
+    cron = CronLogger("routines")
+
     try:
         routines = db.get_all_enabled_routines()
         if not routines:
             logger.debug("No enabled routines found")
+            cron.finish()
             return
 
         now = datetime.now(timezone.utc)
         fired = 0
 
         for routine in routines:
-            # Check if interval has elapsed
             if routine.last_run:
                 last = routine.last_run
                 if last.tzinfo is None:
@@ -93,16 +93,18 @@ async def _run():
                 if elapsed_minutes < routine.schedule_minutes:
                     continue
 
-            # Load project
             project = brain.find_project(routine.project_id, db)
             if not project:
                 logger.warning("Routine %d: project %d not found, skipping", routine.id, routine.project_id)
+                cron.warning(f"Routine '{routine.name}': project {routine.project_id} not found")
                 continue
 
             logger.info("Firing routine '%s' (id=%d) for project '%s'", routine.name, routine.id, project.props.name)
 
             try:
-                result = await _fire_routine(brain, db, routine, project)
+                result = await asyncio.wait_for(
+                    _fire_routine(brain, db, routine, project), timeout=300,
+                )
                 answer = result.get("answer", "") if isinstance(result, dict) else str(result)
 
                 routine.last_run = datetime.now(timezone.utc)
@@ -111,17 +113,23 @@ async def _run():
                 db.db.commit()
 
                 fired += 1
-                logger.info("Routine '%s' completed: %s", routine.name, (answer[:100] + "...") if len(answer) > 100 else answer)
+                cron.info(f"Fired '{routine.name}' for {project.props.name}")
             except Exception as e:
-                routine.last_run = datetime.now(timezone.utc)
-                routine.last_result = f"ERROR: {e}"
-                routine.updated_at = datetime.now(timezone.utc)
-                db.db.commit()
                 logger.error("Routine '%s' failed: %s", routine.name, e)
+                cron.error(f"Routine '{routine.name}' failed: {e}")
+                try:
+                    db.db.rollback()
+                    routine.last_run = datetime.now(timezone.utc)
+                    routine.last_result = f"ERROR: {e}"
+                    routine.updated_at = datetime.now(timezone.utc)
+                    db.db.commit()
+                except Exception:
+                    logger.warning("Failed to update routine '%s' after error", routine.name)
 
-        if fired:
-            logger.info("Fired %d routine(s)", fired)
-
+        cron.finish(items_processed=fired)
+    except Exception as e:
+        cron.error(f"Routines runner crashed: {e}", details=__import__("traceback").format_exc())
+        cron.finish()
     finally:
         db.db.close()
 

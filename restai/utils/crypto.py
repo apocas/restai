@@ -114,7 +114,7 @@ def decrypt_field(value: str) -> str:
 
 # Keys to encrypt in project options and LLM options
 PROJECT_SENSITIVE_KEYS = {
-    "telegram_token", "slack_bot_token", "slack_app_token", "connection",
+    "telegram_token", "slack_bot_token", "connection",
 }
 LLM_SENSITIVE_KEYS = {"api_key", "key", "password", "secret"}
 

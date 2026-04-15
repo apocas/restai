@@ -457,3 +457,16 @@ class ProjectRoutineDatabase(Base):
     updated_at = Column(DateTime, nullable=False)
 
     project = relationship("ProjectDatabase")
+
+
+class CronLogDatabase(Base):
+    __tablename__ = "cron_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    job = Column(String(100), nullable=False, index=True)
+    status = Column(String(20), nullable=False)
+    message = Column(Text, nullable=False, default="")
+    details = Column(Text, nullable=True)
+    items_processed = Column(Integer, nullable=False, default=0)
+    duration_ms = Column(Integer, nullable=True)
+    date = Column(DateTime, nullable=False, index=True)

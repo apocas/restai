@@ -51,6 +51,7 @@ const OllamaModels = Loadable(lazy(() => import("app/views/llms/ollama/OllamaMod
 const Settings = Loadable(lazy(() => import("app/views/settings/Settings")));
 const GpuInfo = Loadable(lazy(() => import("app/views/settings/GpuInfo")));
 const AuditLog = Loadable(lazy(() => import("app/views/audit/AuditLog")));
+const CronLogs = Loadable(lazy(() => import("app/views/admin/CronLogs")));
 const InvitationsPage = Loadable(lazy(() => import("app/views/invitations/Invitations")));
 
 const routes = [
@@ -263,6 +264,11 @@ const routes = [
       {
         path: "/audit",
         element: <AuditLog />,
+        auth: authRoles.admin
+      },
+      {
+        path: "/admin/cron-logs",
+        element: <CronLogs />,
         auth: authRoles.admin
       },
       {

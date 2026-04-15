@@ -78,7 +78,7 @@ import calendar
 import tempfile
 import shutil
 
-_SENSITIVE_OPTION_KEYS = ("telegram_token", "slack_bot_token", "slack_app_token", "connection")
+_SENSITIVE_OPTION_KEYS = ("telegram_token", "slack_bot_token", "connection")
 
 def _mask_sync_sources(options: dict):
     """Mask sensitive credentials inside sync_sources list."""
@@ -394,11 +394,6 @@ async def route_delete_project(
         if proj.props.options and proj.props.options.telegram_token:
             from restai.telegram import stop_poller
             stop_poller(projectID)
-
-        # Stop Slack bot if running
-        if proj.props.options and proj.props.options.slack_bot_token:
-            from restai.slack_bot import stop_slack_bot
-            stop_slack_bot(projectID)
 
         proj.delete()
 

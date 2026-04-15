@@ -10,6 +10,7 @@ from restai.models.databasemodels import (
     ProjectDatabase,
     ProjectToolDatabase,
     ProjectRoutineDatabase,
+    CronLogDatabase,
     SettingDatabase,
     UserDatabase,
     TeamDatabase,
@@ -1115,6 +1116,31 @@ class DBWrapper:
             self.db.commit()
             return True
         return False
+
+    # ── Cron Logs ────────────────────────────────────────────────────────
+
+    def create_cron_log(self, job, status, message, details=None, items_processed=0, duration_ms=None):
+        from datetime import datetime, timezone
+        entry = CronLogDatabase(
+            job=job,
+            status=status,
+            message=message,
+            details=details,
+            items_processed=items_processed,
+            duration_ms=duration_ms,
+            date=datetime.now(timezone.utc),
+        )
+        self.db.add(entry)
+        self.db.commit()
+        return entry
+
+    def get_cron_logs(self, job=None, status=None, start=0, end=50):
+        query = self.db.query(CronLogDatabase).order_by(CronLogDatabase.date.desc())
+        if job:
+            query = query.filter(CronLogDatabase.job == job)
+        if status:
+            query = query.filter(CronLogDatabase.status == status)
+        return query.offset(start).limit(end - start).all()
 
 
 def get_db_wrapper() -> DBWrapper:

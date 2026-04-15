@@ -5,10 +5,7 @@ Polls Telegram for pending updates on all projects with a telegram_token configu
 processes each message through the project's chat pipeline, sends responses, then exits.
 
 Usage:
-    uv run python scripts/telegram.py
-
-Cron example (every minute):
-    * * * * * cd /path/to/restai && uv run python scripts/telegram.py >> /var/log/restai-telegram.log 2>&1
+    uv run python crons/telegram.py
 """
 
 import asyncio
@@ -35,6 +32,10 @@ def main():
     brain = Brain(lightweight=True)
     db = get_db_wrapper()
 
+    from restai.cron_log import CronLogger
+    cron = CronLogger("telegram")
+    processed = 0
+
     try:
         projects = db.db.query(ProjectDatabase).all()
 
@@ -48,6 +49,7 @@ def main():
             updates = get_updates(token, offset=0, timeout=1)
             if updates is None:
                 logger.warning(f"Telegram API error for project {proj.id}")
+                cron.warning(f"Telegram API error for project {proj.name}")
                 continue
             if not updates:
                 continue
@@ -69,14 +71,22 @@ def main():
                     response = asyncio.run(_process_message(brain, db, proj.id, text, chat_id))
                     if response:
                         send_message(token, chat_id, response)
+                    processed += 1
                 except Exception as e:
                     logger.error(f"Error processing Telegram message for project {proj.id}: {e}")
+                    cron.error(f"Error processing message for {proj.name}: {e}")
 
             # Acknowledge processed updates
             if updates:
                 last_offset = updates[-1]["update_id"] + 1
                 get_updates(token, offset=last_offset, timeout=1)
 
+        if processed:
+            cron.info(f"Processed {processed} Telegram message(s)")
+        cron.finish(items_processed=processed)
+    except Exception as e:
+        cron.error(f"Telegram poller crashed: {e}", details=__import__("traceback").format_exc())
+        cron.finish()
     finally:
         db.db.close()
 

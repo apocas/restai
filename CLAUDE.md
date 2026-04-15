@@ -143,9 +143,13 @@ Per-user read-only mode. Restricted users can view assigned projects and use pla
 
 Self-contained vanilla JS widget with Shadow DOM, served at `/widget/chat.js`. Supports streaming (opt-in via `data-stream="true"`) and non-streaming modes. Reads config from `data-*` attributes. Markdown-lite rendering, typing indicator, conversation memory via chat_id. Widget builder in the project details Widget tab auto-generates a project-scoped API key.
 
-### Knowledge Base Sync (`restai/sync.py`, `scripts/sync.py`)
+### Knowledge Base Sync (`restai/sync.py`, `crons/sync.py`)
 
-Sync from 5 external sources: URL, S3, Confluence, SharePoint, Google Drive. Each source has its own `sync_interval` and `last_sync` timestamp to prevent duplicate syncs across workers. Standalone cron script (`scripts/sync.py`) replaces daemon threads; uses `Brain(lightweight=True)` to skip tool loading.
+Sync from 5 external sources: URL, S3, Confluence, SharePoint, Google Drive. Each source has its own `sync_interval` and `last_sync` timestamp to prevent duplicate syncs across workers. Standalone cron script (`crons/sync.py`) replaces daemon threads; uses `Brain(lightweight=True)` to skip tool loading.
+
+### Cron Runner (`crons/runner.py`)
+
+Single entry point that dynamically discovers and runs all cron modules in the `crons/` directory. Each module must define a `main()` function. Modules with `DAEMON = True` (e.g. `slack.py`) are skipped. One crontab entry runs everything: `* * * * * cd /path/to/restai && uv run python crons/runner.py`. New cron scripts are auto-discovered — just add a `.py` file with a `main()` function to `crons/`. DB-backed logging via `CronLogger` in each module; logs visible at `/admin/cron-logs`.
 
 ### Custom Team Branding
 

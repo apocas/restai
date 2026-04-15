@@ -150,25 +150,29 @@ def main():
     init_parser = subparsers.add_parser("init", help="Initialize database schema and admin user")
     init_parser.set_defaults(func=cmd_init)
 
+    # crons (run all)
+    crons_parser = subparsers.add_parser("crons", help="Run all cron jobs (single entry point)")
+    crons_parser.set_defaults(func=lambda args: _run_script(args, "crons/runner.py"))
+
     # sync
     sync_parser = subparsers.add_parser("sync", help="Run knowledge base sync (cron-friendly)")
-    sync_parser.set_defaults(func=lambda args: _run_script(args, "scripts/sync.py"))
+    sync_parser.set_defaults(func=lambda args: _run_script(args, "crons/sync.py"))
 
     # telegram
     telegram_parser = subparsers.add_parser("telegram", help="Poll Telegram for updates (cron-friendly)")
-    telegram_parser.set_defaults(func=lambda args: _run_script(args, "scripts/telegram.py"))
+    telegram_parser.set_defaults(func=lambda args: _run_script(args, "crons/telegram.py"))
 
     # slack
-    slack_parser = subparsers.add_parser("slack", help="Start Slack bot daemon (long-running)")
-    slack_parser.set_defaults(func=lambda args: _run_script(args, "scripts/slack.py"))
+    slack_parser = subparsers.add_parser("slack", help="Poll Slack for messages (cron-friendly)")
+    slack_parser.set_defaults(func=lambda args: _run_script(args, "crons/slack.py"))
 
     # docker-cleanup
     docker_parser = subparsers.add_parser("docker-cleanup", help="Remove idle Docker containers (cron-friendly)")
-    docker_parser.set_defaults(func=lambda args: _run_script(args, "scripts/docker_cleanup.py"))
+    docker_parser.set_defaults(func=lambda args: _run_script(args, "crons/docker_cleanup.py"))
 
     # routines
     routines_parser = subparsers.add_parser("routines", help="Run project routines (cron-friendly)")
-    routines_parser.set_defaults(func=lambda args: _run_script(args, "scripts/routines.py"))
+    routines_parser.set_defaults(func=lambda args: _run_script(args, "crons/routines.py"))
 
     args = parser.parse_args()
     if not args.command:

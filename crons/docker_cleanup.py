@@ -5,10 +5,7 @@ Removes RESTai-managed Docker containers that have been idle longer than
 the configured timeout (default 15 minutes).
 
 Usage:
-    uv run python scripts/docker_cleanup.py
-
-Cron example (every minute):
-    * * * * * cd /path/to/restai && uv run python scripts/docker_cleanup.py >> /var/log/restai-docker-cleanup.log 2>&1
+    uv run python crons/docker_cleanup.py
 """
 
 import logging
@@ -29,9 +26,13 @@ def main():
     load_settings(db)
     db.db.close()
 
+    from restai.cron_log import CronLogger
+    cron = CronLogger("docker_cleanup")
+
     docker_url = getattr(config, "DOCKER_URL", "") or ""
     if not docker_url.strip():
         logger.debug("Docker not configured, nothing to clean up")
+        cron.finish()
         return
 
     timeout = int(getattr(config, "DOCKER_TIMEOUT", 900))
@@ -40,6 +41,8 @@ def main():
         import docker
     except ImportError:
         logger.error("docker package not installed")
+        cron.error("docker package not installed")
+        cron.finish()
         return
 
     try:
@@ -47,6 +50,8 @@ def main():
         client.ping()
     except Exception as e:
         logger.error("Cannot connect to Docker at %s: %s", docker_url, e)
+        cron.error(f"Cannot connect to Docker: {e}")
+        cron.finish()
         return
 
     # Find all RESTai-managed containers
@@ -56,6 +61,7 @@ def main():
 
     if not containers:
         logger.debug("No managed containers found")
+        cron.finish()
         return
 
     now = time.time()
@@ -93,9 +99,13 @@ def main():
                 removed += 1
             except Exception as e:
                 logger.warning("Failed to remove container %s: %s", container.short_id, e)
+                cron.warning(f"Failed to remove container {container.short_id}: {e}")
 
     if removed:
         logger.info("Cleaned up %d idle container(s)", removed)
+        cron.info(f"Cleaned up {removed} idle container(s)")
+
+    cron.finish(items_processed=removed)
 
 
 if __name__ == "__main__":

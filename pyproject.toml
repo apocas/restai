@@ -135,7 +135,7 @@ build-backend = "hatchling.build"
 artifacts = ["frontend/build/**"]
 
 [tool.hatch.build.targets.sdist]
-include = ["restai/", "modules/", "migrations/", "scripts/", "frontend/build/", "alembic.ini", "database.py"]
+include = ["restai/", "modules/", "migrations/", "crons/", "frontend/build/", "alembic.ini", "database.py"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["restai", "modules", "migrations"]
@@ -144,4 +144,4 @@ packages = ["restai", "modules", "migrations"]
 "frontend/build" = "frontend/build"
 "alembic.ini" = "alembic.ini"
 "database.py" = "database.py"
-"scripts" = "scripts"
+"crons" = "crons"
