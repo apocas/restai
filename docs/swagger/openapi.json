@@ -3,7 +3,7 @@
   "info": {
     "title": "RESTai",
     "description": "RESTai is an AIaaS (AI as a Service) platform. Create AI projects and consume them via REST API.\n\nSupports multiple project types: **RAG**, **Agent**, and **Block**.\n\n## Authentication\n\nAll endpoints require authentication via one of:\n- **JWT Cookie** (`restai_token`)\n- **Bearer API Key** (`Authorization: Bearer <key>`)\n- **Basic Auth** (`Authorization: Basic <credentials>`)\n",
-    "version": "6.1.6"
+    "version": "6.1.28"
   },
   "paths": {
     "/oauth/{provider}/login": {
@@ -538,7 +538,7 @@
               "maximum": 100000,
               "minimum": 1,
               "description": "Pagination end offset",
-              "default": 50,
+              "default": 10000,
               "title": "End"
             },
             "description": "Pagination end offset"
@@ -2835,6 +2835,560 @@
         }
       }
     },
+    "/projects/{projectID}/routines": {
+      "get": {
+        "tags": [
+          "Routines"
+        ],
+        "summary": "List Routines",
+        "description": "List all routines for a project.",
+        "operationId": "list_routines_projects__projectID__routines_get",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Routines"
+        ],
+        "summary": "Create Routine",
+        "description": "Create a new routine for a project.",
+        "operationId": "create_routine_projects__projectID__routines_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutineCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/routines/{routineID}": {
+      "patch": {
+        "tags": [
+          "Routines"
+        ],
+        "summary": "Update Routine",
+        "description": "Update a routine.",
+        "operationId": "update_routine_projects__projectID__routines__routineID__patch",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "routineID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Routine ID",
+              "title": "Routineid"
+            },
+            "description": "Routine ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutineUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Routines"
+        ],
+        "summary": "Delete Routine",
+        "description": "Delete a routine.",
+        "operationId": "delete_routine_projects__projectID__routines__routineID__delete",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "routineID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Routine ID",
+              "title": "Routineid"
+            },
+            "description": "Routine ID"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/routines/{routineID}/fire": {
+      "post": {
+        "tags": [
+          "Routines"
+        ],
+        "summary": "Fire Routine",
+        "description": "Manually trigger a routine. Runs the message through the project and returns the result.",
+        "operationId": "fire_routine_projects__projectID__routines__routineID__fire_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "routineID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Routine ID",
+              "title": "Routineid"
+            },
+            "description": "Routine ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/custom-tools": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "List Project Custom Tools",
+        "description": "List agent-created tools for a project.",
+        "operationId": "list_project_custom_tools_projects__projectID__custom_tools_get",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/custom-tools/{toolName}": {
+      "patch": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Toggle Project Custom Tool",
+        "description": "Toggle an agent-created tool on or off.",
+        "operationId": "toggle_project_custom_tool_projects__projectID__custom_tools__toolName__patch",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "toolName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Tool name",
+              "title": "Toolname"
+            },
+            "description": "Tool name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Update Project Custom Tool",
+        "description": "Update an agent-created tool's description, parameters, or code.",
+        "operationId": "update_project_custom_tool_projects__projectID__custom_tools__toolName__put",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "toolName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Tool name",
+              "title": "Toolname"
+            },
+            "description": "Tool name"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectToolUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Delete Project Custom Tool",
+        "description": "Delete an agent-created tool from a project.",
+        "operationId": "delete_project_custom_tool_projects__projectID__custom_tools__toolName__delete",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "toolName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Tool name",
+              "title": "Toolname"
+            },
+            "description": "Tool name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/block/generate": {
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Block Generate Workspace",
+        "description": "Use the system LLM to generate a Blockly workspace from a plain-English description.",
+        "operationId": "block_generate_workspace_projects__projectID__block_generate_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlockGenerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/system-prompt/generate": {
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Generate System Prompt Endpoint",
+        "description": "Use the system LLM to draft a system prompt from a short description.",
+        "operationId": "generate_system_prompt_endpoint_projects__projectID__system_prompt_generate_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemPromptGenerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/{projectID}/kg/entities": {
       "get": {
         "tags": [
@@ -4129,7 +4683,7 @@
           "Users"
         ],
         "summary": "Totp Enable",
-        "description": "Activate 2FA by confirming a valid TOTP code from the authenticator app.",
+        "description": "Activate 2FA by confirming a valid TOTP code and password.",
         "operationId": "totp_enable_users__username__totp_enable_post",
         "parameters": [
           {
@@ -6313,6 +6867,26 @@
         }
       }
     },
+    "/v1/models": {
+      "get": {
+        "tags": [
+          "Direct Access"
+        ],
+        "summary": "List Models",
+        "description": "OpenAI-compatible model listing endpoint.",
+        "operationId": "list_models_v1_models_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/embeddings": {
       "post": {
         "tags": [
@@ -7103,6 +7677,22 @@
         "title": "ApiKeyResponse",
         "description": "API key metadata (without the key value)."
       },
+      "BlockGenerateRequest": {
+        "properties": {
+          "description": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Description",
+            "description": "Plain-English description of what the block project should do"
+          }
+        },
+        "type": "object",
+        "required": [
+          "description"
+        ],
+        "title": "BlockGenerateRequest",
+        "description": "Generate a Blockly workspace from a natural-language description."
+      },
       "Body_ingest_file_projects__projectID__embeddings_ingest_upload_post": {
         "properties": {
           "file": {
@@ -7162,10 +7752,24 @@
             "title": "Stream",
             "description": "Enable streaming response (server-sent events)"
           },
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context",
+            "description": "Context variables to inject into the system prompt via {{context.key}} placeholders"
+          },
           "id": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 128
               },
               {
                 "type": "null"
@@ -8589,7 +9193,7 @@
               }
             ],
             "title": "Temperature",
-            "description": "Sampling temperature"
+            "description": "Sampling temperature (0-2)"
           },
           "max_tokens": {
             "anyOf": [
@@ -8608,6 +9212,181 @@
             "title": "Stream",
             "description": "Enable streaming response via SSE",
             "default": false
+          },
+          "top_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top P",
+            "description": "Nucleus sampling threshold (0-1)"
+          },
+          "frequency_penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frequency Penalty",
+            "description": "Frequency penalty (-2.0 to 2.0)"
+          },
+          "presence_penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presence Penalty",
+            "description": "Presence penalty (-2.0 to 2.0)"
+          },
+          "stop": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop",
+            "description": "Stop sequence(s)"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed",
+            "description": "Seed for deterministic generation"
+          },
+          "response_format": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Format",
+            "description": "Response format, e.g. {\"type\": \"json_object\"}"
+          },
+          "n": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 5.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N",
+            "description": "Number of completions to generate"
+          },
+          "logprobs": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logprobs",
+            "description": "Return log probabilities"
+          },
+          "top_logprobs": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 20.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Logprobs",
+            "description": "Number of top logprobs per token"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OpenAIToolDef"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "Tool definitions for function calling"
+          },
+          "tool_choice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Choice",
+            "description": "Tool choice: 'auto', 'none', 'required', or specific tool"
+          },
+          "stream_options": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stream Options",
+            "description": "Streaming options, e.g. {\"include_usage\": true}"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User",
+            "description": "End-user identifier"
           }
         },
         "type": "object",
@@ -8623,21 +9402,66 @@
           "role": {
             "type": "string",
             "title": "Role",
-            "description": "Message role: 'system', 'user', or 'assistant'"
+            "description": "Message role: 'system', 'user', 'assistant', or 'tool'"
           },
           "content": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Content",
             "description": "Message content"
+          },
+          "tool_calls": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OpenAIToolCall"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Calls",
+            "description": "Tool calls made by the assistant"
+          },
+          "tool_call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Call Id",
+            "description": "ID of the tool call this message responds to"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Name of the tool or function"
           }
         },
         "type": "object",
         "required": [
-          "role",
-          "content"
+          "role"
         ],
         "title": "OpenAIChatMessage",
-        "description": "A single message in an OpenAI chat completion request."
+        "description": "A single message in an OpenAI chat completion request/response."
       },
       "OpenAIEmbeddingRequest": {
         "properties": {
@@ -8669,6 +9493,94 @@
         ],
         "title": "OpenAIEmbeddingRequest",
         "description": "OpenAI-compatible embedding request."
+      },
+      "OpenAIFunctionDef": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Function name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "What the function does"
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameters",
+            "description": "JSON Schema for function parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "OpenAIFunctionDef",
+        "description": "Function definition for tool calling."
+      },
+      "OpenAIToolCall": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Unique tool call identifier"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Tool type",
+            "default": "function"
+          },
+          "function": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Function",
+            "description": "Function name and arguments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "function"
+        ],
+        "title": "OpenAIToolCall",
+        "description": "A tool call returned by the model."
+      },
+      "OpenAIToolDef": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Tool type",
+            "default": "function"
+          },
+          "function": {
+            "$ref": "#/components/schemas/OpenAIFunctionDef",
+            "description": "Function definition"
+          }
+        },
+        "type": "object",
+        "required": [
+          "function"
+        ],
+        "title": "OpenAIToolDef",
+        "description": "Tool definition in an OpenAI chat completion request."
       },
       "ProjectCommentCreate": {
         "properties": {
@@ -9305,18 +10217,6 @@
             "description": "Guard behavior: 'block' or 'warn'",
             "default": "block"
           },
-          "fallback_llm": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fallback Llm",
-            "description": "Fallback LLM to use if primary fails"
-          },
           "sync_sources": {
             "anyOf": [
               {
@@ -9595,6 +10495,49 @@
         "title": "ProjectResponse",
         "description": "Project response with simplified team."
       },
+      "ProjectToolUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameters"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10240
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "title": "ProjectToolUpdate",
+        "description": "Update an agent-created tool's content."
+      },
       "ProjectUser": {
         "properties": {
           "username": {
@@ -9665,6 +10608,19 @@
             ],
             "title": "Stream",
             "description": "Enable streaming response (server-sent events)"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context",
+            "description": "Context variables to inject into the system prompt via {{context.key}} placeholders"
           },
           "system": {
             "anyOf": [
@@ -9794,6 +10750,98 @@
           "score": 0.3,
           "stream": false
         }
+      },
+      "RoutineCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name",
+            "description": "Routine display name"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 10000,
+            "title": "Message",
+            "description": "Message to send to the project when the routine fires"
+          },
+          "schedule_minutes": {
+            "type": "integer",
+            "maximum": 10080.0,
+            "minimum": 1.0,
+            "title": "Schedule Minutes",
+            "description": "Interval in minutes (1 min to 7 days)"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "Whether the routine is active",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "message",
+          "schedule_minutes"
+        ],
+        "title": "RoutineCreate",
+        "description": "Create a scheduled routine for a project."
+      },
+      "RoutineUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "schedule_minutes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10080.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule Minutes"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "title": "RoutineUpdate",
+        "description": "Update a routine."
       },
       "SettingsResponse": {
         "properties": {
@@ -10242,6 +11290,19 @@
             "title": "Mcp Enabled",
             "description": "Whether the internal MCP server is enabled",
             "default": false
+          },
+          "system_llm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Llm",
+            "description": "Internal LLM used for housekeeping tasks (prompt helpers, summarization, etc)",
+            "default": ""
           },
           "docker_enabled": {
             "type": "boolean",
@@ -10799,6 +11860,18 @@
             "title": "Mcp Enabled",
             "description": "Whether the internal MCP server is enabled"
           },
+          "system_llm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Llm",
+            "description": "Internal LLM used for housekeeping tasks"
+          },
           "docker_enabled": {
             "anyOf": [
               {
@@ -11183,6 +12256,34 @@
         "title": "SyncSource",
         "description": "External source configuration for knowledge base auto-sync."
       },
+      "SystemPromptGenerateRequest": {
+        "properties": {
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Description",
+            "description": "Short description of the project's purpose"
+          },
+          "project_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Type",
+            "description": "Project type: rag, agent, or block (for context)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "description"
+        ],
+        "title": "SystemPromptGenerateRequest",
+        "description": "Generate a project system prompt from a short description."
+      },
       "TOTPDisableRequest": {
         "properties": {
           "password": {
@@ -11205,14 +12306,20 @@
             "maxLength": 6,
             "title": "Code",
             "description": "6-digit TOTP code from authenticator app"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password",
+            "description": "Current password for confirmation"
           }
         },
         "type": "object",
         "required": [
-          "code"
+          "code",
+          "password"
         ],
         "title": "TOTPEnableRequest",
-        "description": "Confirm TOTP setup with a valid code."
+        "description": "Confirm TOTP setup with a valid code and password."
       },
       "TOTPSetupResponse": {
         "properties": {
@@ -12197,6 +13304,19 @@
             "type": "string",
             "title": "Password",
             "description": "New password for the user"
+          },
+          "totp_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 6
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totp Code",
+            "description": "TOTP code required when changing password with 2FA enabled"
           },
           "is_admin": {
             "type": "boolean",
