@@ -1,3 +1,4 @@
+import inspect
 import logging
 from typing import Any
 
@@ -435,6 +436,18 @@ class BlockInterpreter:
                     self._fake_request, self.brain, project, q,
                     self.user, self.db, background_tasks,
                 )
+
+            # Execute queued background tasks (inference logging) since we're
+            # not inside a FastAPI response lifecycle that would run them.
+            for task in background_tasks.tasks:
+                try:
+                    if inspect.iscoroutinefunction(task.func):
+                        await task.func(*task.args, **task.kwargs)
+                    else:
+                        task.func(*task.args, **task.kwargs)
+                except Exception:
+                    pass
+
             if isinstance(result, dict):
                 return result.get("answer", "")
             return str(result)

@@ -108,6 +108,12 @@ async def create_streaming_response_with_logging(
         final_output = None
 
         async for chunk in generator:
+            if isinstance(chunk, dict):
+                # Safety: if the generator yields a dict (e.g. error fallback),
+                # wrap it as an SSE data line instead of yielding raw.
+                final_output = chunk
+                yield "data: " + json.dumps(chunk) + "\n"
+                continue
             if isinstance(chunk, str) and chunk.startswith("data: "):
                 try:
                     data = json.loads(chunk.replace("data: ", ""))
@@ -116,6 +122,10 @@ async def create_streaming_response_with_logging(
                 except:
                     pass
             yield chunk
+
+        # Ensure the stream always ends with event: close so the frontend
+        # stops waiting (critical for block projects which yield a single dict)
+        yield "event: close\n\n"
 
         if final_output:
             latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None

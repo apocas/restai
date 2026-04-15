@@ -299,15 +299,14 @@ class Agent(ProjectBase):
 
                 except Exception as e:
                     wrapped = _wrap_image_error(e, bool(chatModel.image))
+                    err_msg = project.props.censorship or f"Agent failed: {wrapped}"
+                    output["answer"] = err_msg
+                    self._count_tokens(output)
                     if chatModel.stream:
-                        yield "data: " + json.dumps({"text": f"Agent failed: {wrapped}"}) + "\n\n"
-                        yield "event: error\n\n"
-                    else:
-                        if project.props.censorship:
-                            output["answer"] = project.props.censorship
-                            self._count_tokens(output)
-                        else:
-                            raise wrapped
+                        yield "data: " + json.dumps({"text": err_msg}) + "\n\n"
+                        yield "data: " + json.dumps(output) + "\n"
+                        yield "event: close\n\n"
+                        streamed_any_text = True
         except BaseException as e:
             # Catch ExceptionGroup from MCP session pool cleanup failures
             # to prevent "No response returned" crashes
@@ -398,15 +397,14 @@ class Agent(ProjectBase):
                 self.check_output_guard(project, user, db, output)
             except Exception as e:
                 wrapped = _wrap_image_error(e, bool(questionModel.image))
+                err_msg = project.props.censorship or f"Agent failed: {wrapped}"
+                output["answer"] = err_msg
+                self._count_tokens(output)
                 if questionModel.stream:
-                    yield "data: " + json.dumps({"text": f"Agent failed: {wrapped}"}) + "\n\n"
-                    yield "event: error\n\n"
+                    yield "data: " + json.dumps({"text": err_msg}) + "\n\n"
+                    yield "data: " + json.dumps(output) + "\n"
+                    yield "event: close\n\n"
                     return
-                if project.props.censorship:
-                    output["answer"] = project.props.censorship
-                    self._count_tokens(output)
-                else:
-                    raise wrapped
 
         if questionModel.stream:
             if not streamed_any_text and output.get("answer"):
