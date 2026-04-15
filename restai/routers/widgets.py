@@ -54,11 +54,11 @@ async def widget_config(
     if context_header and widget.context_secret and config.get("welcomeMessage"):
         try:
             from restai.utils.crypto import decrypt_field
-            from restai.utils.widget_context import verify_widget_context, apply_widget_context
+            from restai.utils.widget_context import verify_context_token, apply_context
 
             secret = decrypt_field(widget.context_secret)
-            context = verify_widget_context(context_header, secret)
-            config["welcomeMessage"] = apply_widget_context(
+            context = verify_context_token(context_header, secret)
+            config["welcomeMessage"] = apply_context(
                 config["welcomeMessage"], context, prepend_block=False,
             )
         except ValueError:
@@ -88,23 +88,16 @@ async def widget_chat(
     context_header = request.headers.get("X-Widget-Context")
     if context_header and widget.context_secret:
         from restai.utils.crypto import decrypt_field
-        from restai.utils.widget_context import verify_widget_context, apply_widget_context
-        from restai.project import Project
+        from restai.utils.widget_context import verify_context_token
 
         try:
             secret = decrypt_field(widget.context_secret)
-            context = verify_widget_context(context_header, secret)
+            context = verify_context_token(context_header, secret)
         except ValueError:
             raise HTTPException(status_code=401, detail="Invalid or expired context token")
 
-        # Inject context into system prompt on a per-request copy
         prepend = w_config.get("context_prefix", True)
-        modified_props = project.props.model_copy(deep=True)
-        modified_props.system = apply_widget_context(
-            modified_props.system or "", context, prepend_block=prepend,
-        )
-        project = Project(modified_props)
-        project.widget_context = context
+        project = project.with_context(context, prepend_block=prepend)
 
     # Use project creator as synthetic user
     creator = db_wrapper.get_user_by_id(widget.creator_id)

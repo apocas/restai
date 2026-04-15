@@ -11,7 +11,7 @@ MAX_ITERATIONS = 10000
 class BlockInterpreter:
     """Walks a Blockly workspace JSON tree and interprets each block in Python."""
 
-    def __init__(self, workspace_json: dict, input_text: str, brain, user, db, image=None, chat_id=None, widget_context=None):
+    def __init__(self, workspace_json: dict, input_text: str, brain, user, db, image=None, chat_id=None, context=None):
         self.workspace = workspace_json
         self.input_text = input_text
         self.image = image
@@ -23,7 +23,7 @@ class BlockInterpreter:
         self.logs: list[str] = []
         self._iterations = 0
         self.chat_id = chat_id
-        self.widget_context = widget_context  # dict of verified context claims from widget JWT
+        self.context = context  # Verified context dict (from widget JWT or playground)
         self._fake_request = type("_FakeRequest", (), {
             "app": type("App", (), {"state": type("State", (), {"brain": brain})()})()
         })()
@@ -411,18 +411,9 @@ class BlockInterpreter:
             logger.warning("Call Project: project '%s' could not be loaded", project_name)
             return ""
 
-        # Propagate widget context to the sub-project's system prompt
-        if self.widget_context:
-            from restai.utils.widget_context import apply_widget_context
-            from restai.project import Project as ProjectClass
-            modified_props = project.props.model_copy(deep=True)
-            modified_props.system = apply_widget_context(
-                modified_props.system or "", self.widget_context, prepend_block=True,
-            )
-            original_vector = project.vector
-            project = ProjectClass(modified_props)
-            project.vector = original_vector
-            project.widget_context = self.widget_context
+        # Propagate context to the sub-project's system prompt
+        if self.context:
+            project = project.with_context(self.context)
 
         from fastapi import BackgroundTasks
         background_tasks = BackgroundTasks()

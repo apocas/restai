@@ -131,15 +131,7 @@ def _apply_context(project: Project, interaction: InteractionModel) -> Project:
     """If the request includes context, apply it to the project's system prompt."""
     if not interaction.context:
         return project
-    from restai.utils.widget_context import apply_widget_context
-    modified_props = project.props.model_copy(deep=True)
-    modified_props.system = apply_widget_context(
-        modified_props.system or "", interaction.context, prepend_block=True,
-    )
-    new_project = Project(modified_props)
-    new_project.vector = project.vector
-    new_project.widget_context = interaction.context
-    return new_project
+    return project.with_context(interaction.context)
 
 
 async def chat_main(

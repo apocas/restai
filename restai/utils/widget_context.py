@@ -1,8 +1,8 @@
-"""Widget context verification and system prompt injection.
+"""Context verification and system prompt injection.
 
-Supports signed (JWT) context tokens that site owners generate on their
-backend. The token is verified server-side before injecting claims into
-the project's system prompt.
+Supports signed (JWT) context tokens (used by widgets) and raw context dicts
+(used by the playground). Context claims are injected into the project's
+system prompt via [User Context] blocks and {{context.key}} template variables.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ _MAX_TTL_SECONDS = 86400  # 24 hours
 _CONTEXT_PATTERN = re.compile(r"\{\{context\.([a-zA-Z0-9_.]+)\}\}")
 
 
-def verify_widget_context(
+def verify_context_token(
     token: str,
     secret: str,
     max_ttl: int = _MAX_TTL_SECONDS,
@@ -73,7 +73,7 @@ def verify_widget_context(
     return cleaned
 
 
-def apply_widget_context(
+def apply_context(
     system_prompt: str,
     context: dict,
     prepend_block: bool = True,
