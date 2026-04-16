@@ -94,7 +94,7 @@ migrate:
 cron:
 	@RESTAI_DIR=$$(pwd); \
 	CURRENT=$$(crontab -l 2>/dev/null || true); \
-	NEW=$$(echo "$$CURRENT" | grep -v "restai-sync\|restai-telegram\|restai-docker-cleanup\|restai-routines"); \
+	NEW=$$(echo "$$CURRENT" | grep -v "restai-sync\|restai-telegram\|restai-docker-cleanup\|restai-routines" | sed '/^$$/d'); \
 	if echo "$$CURRENT" | grep -q "restai-sync\|restai-telegram\|restai-docker-cleanup\|restai-routines"; then \
 	  echo "Removed old individual cron jobs"; \
 	fi; \
@@ -102,7 +102,7 @@ cron:
 	  NEW="$$NEW"$$'\n'"* * * * * cd $$RESTAI_DIR && uv run --no-group gpu python crons/runner.py >> /var/log/restai-crons.log 2>&1 # restai-crons"; \
 	  echo "Added: restai-crons"; \
 	else echo "Already installed: restai-crons"; fi; \
-	echo "$$NEW" | crontab -
+	echo "$$NEW" | sed '/^$$/d' | crontab -
 	@echo "Cron jobs installed:"
 	@crontab -l | grep restai || true
 
