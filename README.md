@@ -368,28 +368,11 @@ Add an AI chat bubble to any website with a single `<script>` tag — no fronten
 Connect any project to **Telegram** or **Slack** — messages are processed through the project's chat pipeline and responses are sent back automatically. No public URL required.
 
 - **Telegram** — Paste your [BotFather](https://t.me/BotFather) token in the project settings
-- **Slack** — Create a Slack app at [api.slack.com](https://api.slack.com), enable Socket Mode, and paste the Bot Token (xoxb-...) and App Token (xapp-...) in the project settings
+- **Slack** — Create a Slack app at [api.slack.com](https://api.slack.com), add the standard message/history scopes, install it to your workspace, and paste the Bot Token (xoxb-...) in the project settings. Polled by the cron runner — no public URL or daemon required.
 
-### Background Services (Cron)
+### Project Routines
 
-Telegram polling, Slack bots, and knowledge base sync run as **standalone scripts** — not inside the web server. This avoids duplicate processing with multiple workers and gives you full control over scheduling via cron or systemd.
-
-| Service | Command | Scheduling |
-|---------|---------|------------|
-| **Knowledge Sync** | `make sync` or `restai sync` | Cron (e.g. every 5 min) — checks per-source intervals |
-| **Telegram** | `make telegram` or `restai telegram` | Cron (e.g. every minute) — polls once and exits |
-| **Slack** | `make slack` or `restai slack` | Long-running daemon (systemd/supervisor) |
-
-**Cron setup example:**
-```cron
-*/1 * * * * cd /path/to/restai && make telegram >> /var/log/restai-telegram.log 2>&1
-*/5 * * * * cd /path/to/restai && make sync >> /var/log/restai-sync.log 2>&1
-```
-
-**Slack** uses Socket Mode (persistent WebSocket), so it runs as a daemon:
-```bash
-make slack  # or: restai slack -e .env
-```
+Schedule recurring messages that auto-fire on any project — the message runs through the project's normal chat/question pipeline, so it works with RAG, agents, and block projects alike.
 
 ### Settings & Configuration
 
