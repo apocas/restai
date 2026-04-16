@@ -38,7 +38,6 @@ const UsersNew = Loadable(lazy(() => import("app/views/users/New")));
 const Image = Loadable(lazy(() => import("app/views/projects/Image")));
 const Audio = Loadable(lazy(() => import("app/views/projects/Audio")));
 const Keys = Loadable(lazy(() => import("app/views/proxy/Keys")));
-const KeysNew = Loadable(lazy(() => import("app/views/proxy/New")));
 
 // Team routes
 const Teams = Loadable(lazy(() => import("app/views/teams/Teams")));
@@ -204,11 +203,6 @@ const routes = [
       {
         path: "/proxy/keys",
         element: <Keys />,
-        auth: authRoles.admin
-      },
-      {
-        path: "/proxy/keys/new",
-        element: <KeysNew />,
         auth: authRoles.admin
       },
       {

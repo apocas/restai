@@ -121,12 +121,8 @@ export const buildNavigations = (hasGpu, hasProxy) => {
     navigations.splice(toolsIndex + 1, 0, {
       name: "AI Proxy",
       icon: "route",
-      path: "/proxy",
+      path: "/proxy/keys",
       auth: authRoles.admin,
-      children: [
-        { name: "API Keys", iconText: "SI", path: "/proxy/keys", auth: authRoles.admin },
-        { name: "New Key", iconText: "SU", path: "/proxy/keys/new", auth: authRoles.admin },
-      ]
     });
   }
 
