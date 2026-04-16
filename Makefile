@@ -98,7 +98,8 @@ cron:
 	  CURRENT=$$(echo "$$CURRENT" | grep -v "restai-sync\|restai-telegram\|restai-docker-cleanup\|restai-routines"); \
 	  echo "Removed old individual cron jobs"; \
 	fi; \
-	ENTRY="* * * * * cd $$RESTAI_DIR && uv run --no-group gpu python crons/runner.py >> /var/log/restai-crons.log 2>&1 # restai-crons"; \
+	UV_PATH=$$(which uv); \
+	ENTRY="* * * * * cd $$RESTAI_DIR && $$UV_PATH run --no-group gpu python crons/runner.py >> /var/log/restai-crons.log 2>&1 # restai-crons"; \
 	if echo "$$CURRENT" | grep -q "restai-crons"; then \
 	  echo "Already installed: restai-crons"; \
 	elif [ -z "$$CURRENT" ]; then \
