@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box, TextField, Button, Typography, Alert, Collapse,
@@ -261,6 +261,15 @@ export default function JwtLogin() {
   const authDisableLocal = platformCapabilities?.auth_disable_local || false;
 
   const { login, verifyTotp } = useAuth();
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("session_expired") === "1") {
+        setError("Your session has expired. Please log in again.");
+        sessionStorage.removeItem("session_expired");
+      }
+    } catch {}
+  }, []);
 
   const triggerError = (msg) => {
     setError(msg);

@@ -35,6 +35,19 @@ async function request(path, options = {}, token = null) {
       }
       detail = d;
     } catch {}
+
+    // Session expired or no auth: redirect to login instead of showing the
+    // misleading "wrong password" toast. Skip when we're already on /login
+    // (so failed logins keep showing their normal error).
+    if (response.status === 401 && typeof window !== "undefined"
+        && !window.location.pathname.includes("/login")) {
+      try {
+        sessionStorage.setItem("session_expired", "1");
+      } catch {}
+      window.location.href = "/admin/login";
+      throw new ApiError(401, "Session expired");
+    }
+
     if (!options.silent) toast.error(detail);
     throw new ApiError(response.status, detail);
   }
