@@ -146,7 +146,8 @@ async def ldap_auth(request: Request, form_data: UserLogin, db_wrapper: DBWrappe
 
             response = RedirectResponse("./admin")
             response.set_cookie(
-                key="restai_token", value=new_token, samesite="strict", expires=86400
+                key="restai_token", value=new_token, samesite="strict",
+                expires=86400, httponly=True,
             )
 
             return response

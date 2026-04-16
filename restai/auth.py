@@ -178,6 +178,11 @@ def get_widget_from_request(request: Request, db_wrapper):
     if not widget.enabled:
         raise HTTPException(status_code=403, detail="Widget is disabled")
 
+    # Block widgets owned by restricted users
+    creator = db_wrapper.get_user_by_id(widget.creator_id)
+    if creator is not None and getattr(creator, "is_restricted", False) and not getattr(creator, "is_admin", False):
+        raise HTTPException(status_code=403, detail="Widget owner is restricted")
+
     allowed = json.loads(widget.allowed_domains) if widget.allowed_domains else []
     if allowed and "*" not in allowed:
         origin = request.headers.get("Origin") or request.headers.get("Referer") or ""

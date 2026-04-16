@@ -160,6 +160,10 @@ export default function ProjectEdit({ project, projects, info }) {
       opts.options.logging = state.options.logging;
     }
 
+    if (state.options.redact_inference_logs !== undefined) {
+      opts.options.redact_inference_logs = state.options.redact_inference_logs;
+    }
+
     if (state.team && state.team.id) {
       opts.team_id = state.team.id;
     }
@@ -223,7 +227,7 @@ export default function ProjectEdit({ project, projects, info }) {
   const handleChange = (event) => {
     if (event && event.persist) event.persist();
 
-    if (["logging", "cache", "llm_rerank", "colbert_rerank", "enable_knowledge_graph"].includes(event.target.name)) {
+    if (["logging", "redact_inference_logs", "cache", "llm_rerank", "colbert_rerank", "enable_knowledge_graph"].includes(event.target.name)) {
       setState({ ...state, options: { ...state.options, [event.target.name]: event.target.checked } });
     } else if (event.target.name === "cache_threshold") {
       setState({ ...state, options: { ...state.options, cache_threshold: event.target.value / 100 } });

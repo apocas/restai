@@ -500,6 +500,24 @@ _CORS_HEADERS = {
 }
 
 
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+}
+_ADMIN_SECURITY_HEADERS = {
+    "X-Frame-Options": "DENY",
+    "Content-Security-Policy": (
+        "default-src 'self'; "
+        "img-src 'self' data: blob: https:; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' data: https://fonts.gstatic.com; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'"
+    ),
+}
+
+
 @app.middleware("http")
 async def cors_middleware(request: Request, call_next):
     path = request.url.path
@@ -523,5 +541,12 @@ async def cors_middleware(request: Request, call_next):
         response.headers["Access-Control-Allow-Origin"] = origin
         for k, v in _CORS_HEADERS.items():
             response.headers[k] = v
+
+    # Security headers — applied to all responses, with stricter rules for non-widget paths
+    for k, v in _SECURITY_HEADERS.items():
+        response.headers.setdefault(k, v)
+    if not is_widget:
+        for k, v in _ADMIN_SECURITY_HEADERS.items():
+            response.headers.setdefault(k, v)
 
     return response

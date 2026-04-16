@@ -407,6 +407,7 @@ class SyncSource(BaseModel):
 class ProjectOptions(BaseModel):
     """Project-level configuration options."""
     logging: bool = Field(default=True, description="Enable inference logging for this project")
+    redact_inference_logs: bool = Field(default=False, description="Redact secrets (API keys, tokens, credentials) from inference logs before persisting")
     colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking of retrieved documents")
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking of retrieved documents")
     cache: Union[bool, None] = Field(default=None, description="Enable response caching")

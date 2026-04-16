@@ -118,6 +118,16 @@ PROJECT_SENSITIVE_KEYS = {
 }
 LLM_SENSITIVE_KEYS = {"api_key", "key", "password", "secret"}
 
+# Settings table keys that must be encrypted at rest
+SETTINGS_ENCRYPTED_KEYS = {
+    "proxy_key",
+    "redis_password",
+    "sso_google_client_secret",
+    "sso_microsoft_client_secret",
+    "sso_github_client_secret",
+    "sso_oidc_client_secret",
+}
+
 # Keys inside sync_sources that should be encrypted
 SYNC_SOURCE_SENSITIVE_KEYS = {
     "s3_secret_key", "confluence_api_token",

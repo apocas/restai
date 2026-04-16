@@ -100,6 +100,21 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
         />
       </Grid>
 
+      <Grid item sm={6} xs={12}>
+        <FormControlLabel
+          label={<span>Redact secrets in logs<HelpTip text="Strip API keys, tokens and credentials from question/answer/system prompt before persisting" /></span>}
+          control={
+            <Switch
+              checked={state.options?.redact_inference_logs ?? false}
+              name="redact_inference_logs"
+              inputProps={{ "aria-label": "redact inference logs checkbox" }}
+              onChange={handleChange}
+              disabled={!(state.options?.logging ?? false)}
+            />
+          }
+        />
+      </Grid>
+
       <Grid item sm={12} xs={12}>
         <Divider sx={{ mb: 1 }} />
       </Grid>

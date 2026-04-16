@@ -815,10 +815,21 @@ class DBWrapper:
         return list(set(user.teams + user.admin_teams))
         
     def get_settings(self) -> list[SettingDatabase]:
-        return self.db.query(SettingDatabase).all()
+        from restai.utils.crypto import SETTINGS_ENCRYPTED_KEYS, decrypt_field
+        rows = self.db.query(SettingDatabase).all()
+        for r in rows:
+            if r.key in SETTINGS_ENCRYPTED_KEYS and r.value:
+                self.db.expunge(r)
+                r.value = decrypt_field(r.value)
+        return rows
 
     def get_setting(self, key: str) -> Optional[SettingDatabase]:
-        return self.db.query(SettingDatabase).filter(SettingDatabase.key == key).first()
+        from restai.utils.crypto import SETTINGS_ENCRYPTED_KEYS, decrypt_field
+        row = self.db.query(SettingDatabase).filter(SettingDatabase.key == key).first()
+        if row and key in SETTINGS_ENCRYPTED_KEYS and row.value:
+            self.db.expunge(row)
+            row.value = decrypt_field(row.value)
+        return row
 
     def get_setting_value(self, key: str, default: str = "") -> str:
         """Get a setting value by key, returning default if not found or empty."""
@@ -826,11 +837,13 @@ class DBWrapper:
         return row.value if row and row.value else default
 
     def upsert_setting(self, key: str, value: str) -> None:
+        from restai.utils.crypto import SETTINGS_ENCRYPTED_KEYS, encrypt_field
+        stored_value = encrypt_field(value) if (key in SETTINGS_ENCRYPTED_KEYS and value) else value
         existing = self.db.query(SettingDatabase).filter(SettingDatabase.key == key).first()
         if existing:
-            existing.value = value
+            existing.value = stored_value
         else:
-            self.db.add(SettingDatabase(key=key, value=value))
+            self.db.add(SettingDatabase(key=key, value=stored_value))
         try:
             self.db.commit()
         except Exception:

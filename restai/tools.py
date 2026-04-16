@@ -3,6 +3,7 @@ import inspect
 import logging
 import os
 import pkgutil
+import re
 from llama_index.core.tools import FunctionTool
 
 import tiktoken
@@ -240,6 +241,23 @@ def get_logger(name: str, level=logging.INFO):
     return logger
 
 
+_SECRET_PATTERNS = [
+    re.compile(r"\bsk-[A-Za-z0-9_\-]{20,}\b"),
+    re.compile(r"\bxox[abp]-[A-Za-z0-9\-]{10,}\b"),
+    re.compile(r"\bBearer\s+[A-Za-z0-9_\-\.=]{20,}\b", re.IGNORECASE),
+    re.compile(r"\b[A-Za-z0-9]{32,}\b"),
+    re.compile(r"\b[A-Za-z0-9._%+\-]+:[^\s@]{4,}@", re.IGNORECASE),
+]
+
+
+def _redact_secrets(text):
+    if not text or not isinstance(text, str):
+        return text
+    for pattern in _SECRET_PATTERNS:
+        text = pattern.sub("[REDACTED]", text)
+    return text
+
+
 def log_inference(project: Project, user: User, output, db: DBWrapper, latency_ms=None, system_prompt=None, context=None):
     import json as _json
 
@@ -252,12 +270,24 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
             input_cost = (output["tokens"]["input"] * llm.input_cost) / 1000000
             output_cost = (output["tokens"]["output"] * llm.output_cost) / 1000000
 
+    redact = bool(getattr(project.props.options, "redact_inference_logs", False))
+    log_question = output["question"] if project.props.options.logging else None
+    log_answer = output["answer"] if project.props.options.logging else None
+    log_system = system_prompt if project.props.options.logging else None
+    log_context = _json.dumps(context) if context and project.props.options.logging else None
+
+    if redact:
+        log_question = _redact_secrets(log_question)
+        log_answer = _redact_secrets(log_answer)
+        log_system = _redact_secrets(log_system)
+        log_context = _redact_secrets(log_context)
+
     output_db_entry = OutputDatabase(
         user_id=user.id,
         team_id=project.props.team.id if project.props.team else None,
         llm=project.props.llm,
-        question=output["question"] if project.props.options.logging else None,
-        answer=output["answer"] if project.props.options.logging else None,
+        question=log_question,
+        answer=log_answer,
         date=datetime.now(timezone.utc),
         project_id=project.props.id,
         input_tokens=output["tokens"]["input"],
@@ -265,8 +295,8 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
         input_cost=input_cost,
         output_cost=output_cost,
         latency_ms=latency_ms,
-        system_prompt=system_prompt if project.props.options.logging else None,
-        context=_json.dumps(context) if context and project.props.options.logging else None,
+        system_prompt=log_system,
+        context=log_context,
     )
 
     if "id" in output:
