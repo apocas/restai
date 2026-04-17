@@ -274,7 +274,7 @@ fun ChatScreen(cred: QrPayload, onLogout: () -> Unit) {
                     ) {
                         Row(
                             Modifier.padding(start = 4.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-                            verticalAlignment = Alignment.Bottom,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             // + button
                             Box {
