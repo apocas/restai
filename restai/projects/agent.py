@@ -44,14 +44,32 @@ def _is_image_attachment(f) -> bool:
     return name.endswith(_IMAGE_EXTS)
 
 
-def _route_attachments(files, chat_id, prompt, brain, existing_image=None):
+def _project_has_terminal(project) -> bool:
+    """True iff the project has the `terminal` tool enabled. Only that tool
+    (the Docker-sandbox shell) reads files from `/home/user/uploads/` — for
+    projects without it, pushing attachments into a container is dead weight
+    and can even fail loudly (container creation, tar size limits), so we
+    short-circuit the upload entirely."""
+    try:
+        raw = (getattr(project.props.options, "tools", None) or "")
+    except Exception:
+        raw = ""
+    names = {t.strip().lower() for t in raw.split(",") if t.strip()}
+    return "terminal" in names
+
+
+def _route_attachments(files, chat_id, prompt, brain, existing_image=None, project=None):
     """Unify the image + file upload paths.
 
     Given a list of `FileAttachment` objects, split them by MIME:
     - The first image becomes the vision-model input (returned as a data URL).
-      Any extra images are pushed into the sandbox alongside the non-image
-      files so the LLM can still reach them via the terminal tool.
-    - Non-image files go through the sandbox uploader.
+      Images *always* take the vision flow; they are never pushed into the
+      sandbox, even when `terminal` is configured — the multimodal model is
+      the right place for them.
+    - Non-image files go to the Docker sandbox uploader **only if** the
+      project has the `terminal` tool configured. Without it the sandbox
+      isn't reachable from any project tool, so uploading would just burn
+      a container and produce a misleading "files available" prompt line.
 
     Returns ``(augmented_prompt, image_data_url_or_existing)``. If the caller
     already passed an explicit `image` on the request, it wins over anything
@@ -64,23 +82,24 @@ def _route_attachments(files, chat_id, prompt, brain, existing_image=None):
     docs = [f for f in files if not _is_image_attachment(f)]
 
     image_url = existing_image
-    extras: list = []
-    if images:
-        if image_url is None:
-            primary = images[0]
-            mime = primary.mime_type or "image/png"
-            image_url = f"data:{mime};base64,{primary.content}"
-            # Any additional images still get dropped in uploads/ so the LLM
-            # can process them with vision-aware tools later.
-            extras = images[1:]
-        else:
-            # Caller supplied an explicit image — push every attached image
-            # into uploads/ instead of discarding them.
-            extras = images
+    if images and image_url is None:
+        primary = images[0]
+        mime = primary.mime_type or "image/png"
+        image_url = f"data:{mime};base64,{primary.content}"
 
-    sandbox_targets = docs + extras
-    if sandbox_targets:
-        prompt, _ = _upload_files_and_augment_prompt(sandbox_targets, chat_id, prompt, brain)
+    if docs and project is not None and _project_has_terminal(project):
+        prompt, _ = _upload_files_and_augment_prompt(docs, chat_id, prompt, brain)
+    elif docs:
+        # File attachments came in but this project can't read them — let
+        # the LLM know instead of silently dropping them.
+        names = ", ".join(f.name for f in docs[:5])
+        if len(docs) > 5:
+            names += f", …(+{len(docs) - 5} more)"
+        prompt += (
+            "\n\n[Attached file(s) ignored: this project has no tool that can "
+            f"process them ({names}). Enable the `terminal` tool on the "
+            "project to let the agent read uploaded files.]"
+        )
 
     return prompt, image_url
 
@@ -369,7 +388,7 @@ class Agent(ProjectBase):
 
                 prompt_text, image_url = _route_attachments(
                     getattr(chatModel, "files", None), chat_id, chatModel.question, self.brain,
-                    existing_image=chatModel.image,
+                    existing_image=chatModel.image, project=project,
                 )
                 image_block = ImageBlock.from_data_url(image_url) if image_url else None
 
@@ -486,7 +505,7 @@ class Agent(ProjectBase):
             runtime._chat_id = eph_chat
             prompt_text, image_url = _route_attachments(
                 getattr(questionModel, "files", None), eph_chat, questionModel.question, self.brain,
-                existing_image=questionModel.image,
+                existing_image=questionModel.image, project=project,
             )
             image_block = ImageBlock.from_data_url(image_url) if image_url else None
 
