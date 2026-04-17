@@ -55,7 +55,7 @@ fun MarkdownText(
             TextView(c).apply {
                 setTextColor(onSurface)
                 setLinkTextColor(linkColor)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                 textSize
                 setLineSpacing(0f, 1.25f)
                 // selectable text so users can copy
