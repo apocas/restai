@@ -28,11 +28,17 @@ export default function OnboardingChecklist() {
     try { return localStorage.getItem(DISMISS_KEY) === "1"; } catch { return false; }
   });
 
+  // QA override: ?onboarding=force renders the card even when dismissed
+  // and even when all 3 steps are already complete.
+  const force = (() => {
+    try { return new URLSearchParams(window.location.search).get("onboarding") === "force"; } catch { return false; }
+  })();
+
   // Only show to admins — onboarding tasks require admin permission
   const isAdmin = auth?.user?.is_admin;
 
   useEffect(() => {
-    if (!isAdmin || dismissed) return;
+    if (!isAdmin || (dismissed && !force)) return;
 
     const token = auth.user.token;
     api.get("/llms", token, { silent: true })
@@ -55,7 +61,7 @@ export default function OnboardingChecklist() {
       {
         key: "llm",
         title: "Add an LLM",
-        description: "Configure your first AI provider (OpenAI, Anthropic, Ollama, …) so projects can call models.",
+        description: "Configure your first LLM so projects can call models.",
         icon: <PsychologyIcon />,
         done: llmCount !== null && llmCount > 0,
         action: () => navigate("/llms/new"),
@@ -89,7 +95,9 @@ export default function OnboardingChecklist() {
   const completed = steps.filter((s) => s.done).length;
   const progress = (completed / steps.length) * 100;
 
-  if (!isAdmin || dismissed || !loaded || allDone) return null;
+  if (!isAdmin) return null;
+  if (!loaded) return null;
+  if (!force && (dismissed || allDone)) return null;
 
   const handleDismiss = () => {
     try { localStorage.setItem(DISMISS_KEY, "1"); } catch {}
