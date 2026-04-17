@@ -37,9 +37,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.FileProvider
 import cloud.restai.mobile.R
-import androidx.compose.ui.text.font.FontFamily
-import com.mikepenz.markdown.m3.Markdown
-import com.mikepenz.markdown.m3.markdownTypography
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -503,27 +500,9 @@ private fun MessageRow(msg: Message) {
                     TypingIndicator()
                 } else {
                     Column(Modifier.widthIn(max = 300.dp)) {
-                        val bodyStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp)
-                        Markdown(
+                        MarkdownText(
                             content = msg.text,
                             modifier = Modifier.padding(top = 4.dp),
-                            typography = markdownTypography(
-                                h1 = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                                h2 = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                h3 = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                h4 = bodyStyle.copy(fontWeight = FontWeight.SemiBold),
-                                h5 = bodyStyle.copy(fontWeight = FontWeight.SemiBold),
-                                h6 = bodyStyle.copy(fontWeight = FontWeight.SemiBold),
-                                text = bodyStyle,
-                                paragraph = bodyStyle,
-                                ordered = bodyStyle,
-                                bullet = bodyStyle,
-                                list = bodyStyle,
-                                quote = bodyStyle.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
-                                code = bodyStyle.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp),
-                                inlineCode = bodyStyle.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp),
-                                link = bodyStyle.copy(fontWeight = FontWeight.SemiBold),
-                            ),
                         )
                         IconButton(
                             onClick = {
