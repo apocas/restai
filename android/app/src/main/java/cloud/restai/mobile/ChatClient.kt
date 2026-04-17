@@ -62,6 +62,10 @@ class ChatClient(private val cred: QrPayload) {
             .post(body)
             .header("Authorization", "Bearer ${cred.apiKey}")
             .header("Accept", "text/event-stream")
+            // Disable gzip — OkHttp adds it automatically and its transparent
+            // decompression buffers the entire response, killing SSE streaming.
+            .header("Accept-Encoding", "identity")
+            .header("Cache-Control", "no-cache")
             .build()
 
         http.newCall(req).execute().use { resp ->
@@ -93,6 +97,9 @@ class ChatClient(private val cred: QrPayload) {
                                 fullText.clear()
                                 fullText.append(answer)
                             }
+                            // final metadata line seen — bail out as soon as
+                            // possible instead of waiting for the close event.
+                            break
                         }
                     }
                 } catch (_: Exception) {
