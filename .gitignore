@@ -188,3 +188,4 @@ lab.py
 features.txt
 stable.patch
 .cron-*.lock
+/android/.gradle

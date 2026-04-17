@@ -24,6 +24,9 @@ import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 
 /**
@@ -57,16 +60,21 @@ fun QrScreen(onPaired: (QrPayload) -> Unit) {
                 if (!scanning) return@CameraPreview
                 scanning = false
                 // Validate against the host before we commit to it.
-                scope.runCatching {
-                    if (ChatClient(payload).whoami()) {
-                        onPaired(payload)
-                    } else {
-                        error = "Scanned QR but authentication failed. Regenerate the key in RESTai and try again."
+                scope.launch {
+                    try {
+                        val ok = withContext(Dispatchers.IO) {
+                            ChatClient(payload).whoami()
+                        }
+                        if (ok) {
+                            onPaired(payload)
+                        } else {
+                            error = "Scanned QR but authentication failed. Regenerate the key in RESTai and try again."
+                            scanning = true
+                        }
+                    } catch (e: Exception) {
+                        error = e.message ?: "Connection failed"
                         scanning = true
                     }
-                }.onFailure {
-                    error = it.message ?: "Connection failed"
-                    scanning = true
                 }
             }
         }

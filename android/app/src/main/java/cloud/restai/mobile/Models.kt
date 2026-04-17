@@ -26,10 +26,20 @@ data class QrPayload(
     }
 }
 
+/** A file or image attached to a message. */
+data class Attachment(
+    val name: String,
+    val base64: String,
+    val mimeType: String,
+) {
+    val isImage get() = mimeType.startsWith("image/")
+}
+
 /** One chat turn shown in the UI. */
 data class Message(
     val role: Role,
-    var text: String,
+    val text: String,
+    val attachments: List<Attachment> = emptyList(),
 ) {
     enum class Role { USER, ASSISTANT }
 }
