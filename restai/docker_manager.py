@@ -150,23 +150,22 @@ class DockerManager:
         import tarfile
         import time as _time
 
+        # Always use the chunked-exec path: Docker's put_archive API is
+        # unreliable for tmpfs-mounted targets (silent extraction into the
+        # underlying rootfs layer that the tmpfs mount shadows, or 404s on
+        # runtime-created subdirs). Writing via `sh -c` inside the container
+        # always sees the live mount namespace, so files end up visible to
+        # every subsequent `exec_run`.
+        target_dir = f"{extract_to}/{subdir}"
         buf = io.BytesIO()
         manifest: list[dict] = []
         now = int(_time.time())
 
-        tar = tarfile.open(fileobj=buf, mode="w")
+        tar = tarfile.open(fileobj=buf, mode="w", format=tarfile.USTAR_FORMAT)
         try:
-            # Create the subdir entry inside the tar so extraction mkdir's it.
-            dir_info = tarfile.TarInfo(name=subdir)
-            dir_info.type = tarfile.DIRTYPE
-            dir_info.mode = 0o755
-            dir_info.mtime = now
-            tar.addfile(dir_info)
-
             seen: set[str] = set()
             for name, data in files:
                 safe = os.path.basename(name).replace("\x00", "") or "file"
-                # De-dupe identical filenames within one batch.
                 base = safe
                 counter = 1
                 while safe in seen:
@@ -175,42 +174,76 @@ class DockerManager:
                     counter += 1
                 seen.add(safe)
 
-                info = tarfile.TarInfo(name=f"{subdir}/{safe}")
+                info = tarfile.TarInfo(name=safe)
                 info.size = len(data)
                 info.mtime = now
                 info.mode = 0o644
                 tar.addfile(info, io.BytesIO(data))
                 manifest.append({
                     "name": safe,
-                    "path": f"{extract_to}/{subdir}/{safe}",
+                    "path": f"{target_dir}/{safe}",
                     "size": len(data),
                 })
         finally:
             tar.close()
 
-        # put_archive is rejected by Docker on read_only=True containers even
-        # when the target is a tmpfs mount. Instead pipe the tarball through
-        # `tar x` via exec_run — the write happens from inside the container
-        # where the tmpfs is writable.
+        tar_bytes = buf.getvalue()
+
+        # Stream the tar into the container in small base64 chunks appended
+        # to a staging file, then extract. Chunk size has to stay under the
+        # per-argv limit (Linux MAX_ARG_STRLEN = 128 KB) because the base64
+        # blob rides as a single `sh -c` argument. 64 KB raw → ~87 KB base64
+        # → safely under the cap.
         import base64 as _b64
-        tar_b64 = _b64.b64encode(buf.getvalue()).decode("ascii")
-        cmd = f"echo {tar_b64} | base64 -d | tar xf - -C {extract_to}"
+        CHUNK = 64 * 1024
+        tmp_path = f"{extract_to}/_restai_upload.tar"
+
         try:
-            result = container.exec_run(["sh", "-c", cmd])
-            if result.exit_code != 0:
-                err_out = (result.output or b"").decode("utf-8", errors="replace")
-                raise RuntimeError(f"tar extract failed (exit {result.exit_code}): {err_out.strip()}")
+            res = container.exec_run(["sh", "-c", f"mkdir -p {target_dir} && : > {tmp_path}"])
+            if res.exit_code != 0:
+                raise RuntimeError(f"tar staging failed (exit {res.exit_code})")
+
+            for offset in range(0, len(tar_bytes), CHUNK):
+                chunk = tar_bytes[offset:offset + CHUNK]
+                chunk_b64 = _b64.b64encode(chunk).decode("ascii")
+                cmd = f"printf '%s' {chunk_b64} | base64 -d >> {tmp_path}"
+                res = container.exec_run(["sh", "-c", cmd])
+                if res.exit_code != 0:
+                    err_out = (res.output or b"").decode("utf-8", errors="replace")
+                    raise RuntimeError(
+                        f"tar chunk write failed (exit {res.exit_code}): {err_out.strip()}"
+                    )
+
+            cmd = f"tar xf {tmp_path} -C {target_dir} && rm -f {tmp_path}"
+            res = container.exec_run(["sh", "-c", cmd])
+            if res.exit_code != 0:
+                err_out = (res.output or b"").decode("utf-8", errors="replace")
+                raise RuntimeError(f"tar extract failed (exit {res.exit_code}): {err_out.strip()}")
         except Exception as e:
             logger.exception("Failed to put files into container for chat_id=%s: %s", chat_id, e)
             raise RuntimeError(f"Failed to upload files to sandbox: {e}")
+
+        # Sanity check: stat each file we claim to have uploaded. Cheap, and
+        # catches any surprise where the tar silently extracted to nowhere.
+        expected_paths = " ".join(f"'{entry['path']}'" for entry in manifest)
+        check = container.exec_run(
+            ["sh", "-c", f"for p in {expected_paths}; do [ -f \"$p\" ] || {{ echo MISSING:$p; exit 1; }}; done"]
+        )
+        if check.exit_code != 0:
+            missing = (check.output or b"").decode("utf-8", errors="replace").strip()
+            logger.error(
+                "Upload verification failed for chat_id=%s: %s (tar=%d bytes, target=%s)",
+                chat_id, missing, len(tar_bytes), target_dir,
+            )
+            raise RuntimeError(f"Files not present after upload: {missing}")
 
         with self._lock:
             info = self._containers.get(chat_id)
             if info:
                 info.last_activity = time.time()
 
-        logger.info("Uploaded %d file(s) to chat_id=%s under %s/%s",
-                    len(manifest), chat_id, extract_to, subdir)
+        logger.info("Uploaded %d file(s) to chat_id=%s at %s",
+                    len(manifest), chat_id, target_dir)
         return manifest
 
     def _get_or_create_container(self, chat_id: str):
