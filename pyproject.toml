@@ -133,6 +133,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build]
 artifacts = ["frontend/build/**"]
+exclude = [
+    "wordpress/**",
+    "wordpress",
+]
 
 [tool.hatch.build.targets.sdist]
 include = ["restai/", "modules/", "migrations/", "crons/", "frontend/build/", "alembic.ini", "database.py"]

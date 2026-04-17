@@ -391,8 +391,6 @@ A full-featured WordPress plugin that turns any RESTai instance into the AI engi
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/wordpress4.png" width="49%" alt="RESTai WordPress plugin — Front-end widget"/>
 </div>
 
-Source under [`wordpress/restai/`](wordpress/restai). Targets the official WordPress.org directory (GPL-2.0+, sanitised, i18n-ready).
-
 ### Telegram & Slack Integration
 
 Connect any project to **Telegram** or **Slack** — messages are processed through the project's chat pipeline and responses are sent back automatically. No public URL required.
