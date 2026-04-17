@@ -670,16 +670,20 @@ class DBWrapper:
 
         if hasattr(projectModel, "options") and projectModel.options is not None:
             from restai.utils.crypto import encrypt_sensitive_options, PROJECT_SENSITIVE_KEYS
+            # Keys that aren't surfaced in the project-edit form — they are
+            # owned by dedicated endpoints (e.g. the Mobile pairing flow) and
+            # must not be wiped when the edit form POSTs a ProjectOptions dump.
+            PRESERVED_KEYS = ("mobile_enabled", "mobile_api_key_id")
             try:
                 current_options = json.loads(proj_db.options) if proj_db.options else {}
-                new_options = projectModel.options.model_dump()
-                new_options = encrypt_sensitive_options(new_options, PROJECT_SENSITIVE_KEYS)
-                if current_options != new_options:
-                    proj_db.options = json.dumps(new_options)
-                    changed = True
             except json.JSONDecodeError:
-                new_options = projectModel.options.model_dump()
-                new_options = encrypt_sensitive_options(new_options, PROJECT_SENSITIVE_KEYS)
+                current_options = {}
+            new_options = projectModel.options.model_dump()
+            new_options = encrypt_sensitive_options(new_options, PROJECT_SENSITIVE_KEYS)
+            for k in PRESERVED_KEYS:
+                if k in current_options:
+                    new_options[k] = current_options[k]
+            if current_options != new_options:
                 proj_db.options = json.dumps(new_options)
                 changed = True
 
