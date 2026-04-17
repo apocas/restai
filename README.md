@@ -363,6 +363,36 @@ Add an AI chat bubble to any website with a single `<script>` tag — no fronten
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/widget.png" width="750" alt="RESTai Chat Widget"/>
 </div>
 
+### WordPress Plugin
+
+A full-featured WordPress plugin that turns any RESTai instance into the AI engine of a WordPress site. Each capability maps to its own RESTai project, so models, prompts and budgets stay tunable per task — and the plugin auto-provisions the starter projects on first connect, so there's nothing to wire up by hand.
+
+**What it does:**
+- **Generate post content, excerpts and SEO meta** straight from Gutenberg — also wires title/description/focus keyphrase into Yoast and Rank Math fields
+- **One-click featured image generation** using whichever generator your team has access to (Flux, SDXL, DALL·E…)
+- **Translate any post to N languages** as drafts, with Polylang/WPML compatibility
+- **AI comment moderation** — auto-flag spam and toxic comments before they're approved, with optional suggested replies
+- **WooCommerce product descriptions and FAQ generation** from product attributes
+- **Knowledge sync** — every published post and page is auto-pushed into a Support Bot RAG project so the bot is always current
+- **AI site search** — replaces native WP search with semantic answers from the support bot
+- **Embeddable chat widget** — one toggle adds the chat bubble to public pages with the right widget key auto-provisioned
+- **AI-personalised transactional emails** via the `wp_mail` filter
+- **Token usage and cost panel** mirrored straight into the WP admin
+
+**One Make-style install:** drop the plugin zip into `Plugins → Add New → Upload Plugin`, paste your RESTai URL + API key in **Settings → RESTai**, pick a team, click **Auto-provision starter projects** — done.
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/wordpress1.png" width="49%" alt="RESTai WordPress plugin — Settings page"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/wordpress2.png" width="49%" alt="RESTai WordPress plugin — Editor sidebar"/>
+</div>
+
+<div align="center">
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/wordpress3.png" width="49%" alt="RESTai WordPress plugin — Analytics page"/>
+  <img src="https://github.com/apocas/restai/blob/master/readme/assets/wordpress4.png" width="49%" alt="RESTai WordPress plugin — Front-end widget"/>
+</div>
+
+Source under [`wordpress/restai/`](wordpress/restai). Targets the official WordPress.org directory (GPL-2.0+, sanitised, i18n-ready).
+
 ### Telegram & Slack Integration
 
 Connect any project to **Telegram** or **Slack** — messages are processed through the project's chat pipeline and responses are sent back automatically. No public URL required.
