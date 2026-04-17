@@ -1,8 +1,8 @@
-=== RESTai — AI for WordPress ===
+=== RESTai ===
 Contributors:      apocas
 Tags:              ai, content generation, seo, chatbot, translation
 Requires at least: 6.0
-Tested up to:      6.6
+Tested up to:      6.9
 Requires PHP:      7.4
 Stable tag:        0.1.0
 License:           GPLv2 or later

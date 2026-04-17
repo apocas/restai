@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CFP3KXWLNX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-CFP3KXWLNX');
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RESTai for WordPress — AI superpowers for any WP site</title>
+<meta name="description" content="Generate content, SEO meta, images, translations, AI search and an embedded chat — powered by your own RESTai instance. Auto-provisions everything on first connect.">
+<meta property="og:title" content="RESTai for WordPress — AI superpowers for any WP site">
+<meta property="og:description" content="Content, SEO, images, translations, AI search, comments, WooCommerce, embeddable chat — one plugin, all powered by your RESTai.">
+<meta property="og:image" content="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/wordpress2.png">
+<link rel="icon" href="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/restai-logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a1a;--bg2:#111128;--bg3:#1a1a3e;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+  --accent1:#6366f1;--accent2:#8b5cf6;--accent3:#06b6d4;
+  --wp:#21759b;--wp-glow:rgba(33,117,155,.25);
+  --glow:rgba(99,102,241,.15);
+  --radius:16px;--radius-sm:10px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;overflow-x:hidden}
+a{color:var(--accent3);text-decoration:none;transition:color .2s}
+a:hover{color:var(--accent1)}
+img{max-width:100%;height:auto;display:block}
+code{font-family:'JetBrains Mono',monospace;font-size:.85em;background:rgba(255,255,255,.06);padding:.15em .45em;border-radius:5px;color:var(--accent3)}
+pre{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius-sm);padding:1.25rem 1.5rem;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:.85rem;line-height:1.7}
+pre code{background:transparent;padding:0;border-radius:0;color:var(--text)}
+.comment{color:var(--text3);font-style:italic}
+
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;backdrop-filter:blur(20px);background:rgba(10,10,26,.8);border-bottom:1px solid rgba(99,102,241,.1);transition:box-shadow .3s}
+nav.scrolled{box-shadow:0 4px 30px rgba(0,0,0,.4)}
+.nav-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:64px}
+.nav-brand{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.2rem;color:#fff}
+.nav-brand img{width:32px;height:32px}
+.nav-links{display:flex;gap:1.5rem;align-items:center}
+.nav-links a{color:var(--text2);font-size:.9rem;font-weight:500;transition:color .2s}
+.nav-links a:hover{color:#fff}
+.nav-cta{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff!important;padding:.45rem 1.2rem;border-radius:8px;font-weight:600;font-size:.85rem}
+.nav-cta:hover{opacity:.9;color:#fff}
+@media(max-width:768px){.nav-links{display:none}}
+
+/* Hero */
+.hero{min-height:88vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:8rem 2rem 4rem;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 20%,rgba(99,102,241,.18),transparent 70%),radial-gradient(ellipse 60% 50% at 80% 80%,var(--wp-glow),transparent);pointer-events:none}
+.hero-glow{position:absolute;width:600px;height:600px;border-radius:50%;filter:blur(120px);opacity:.13;animation:float 8s ease-in-out infinite}
+.hero-glow.g1{background:var(--accent1);top:-200px;left:-100px}
+.hero-glow.g2{background:var(--wp);bottom:-200px;right:-100px;animation-delay:4s}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(30px)}}
+.hero-logos{display:flex;align-items:center;justify-content:center;gap:1.4rem;margin-bottom:1.5rem;position:relative;z-index:1}
+.hero-logos img{width:96px;height:96px;border-radius:24px;background:#fff;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.hero-logos .x{font-size:2rem;font-weight:300;color:var(--text2)}
+.badge-pill{display:inline-block;padding:.35rem 1rem;border-radius:99px;font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;background:rgba(99,102,241,.12);color:var(--accent1);border:1px solid rgba(99,102,241,.25);margin-bottom:1rem;position:relative;z-index:1}
+.hero h1{font-size:clamp(2.2rem,5.5vw,4rem);font-weight:900;letter-spacing:-.03em;background:linear-gradient(135deg,#fff 30%,var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;position:relative;z-index:1}
+.hero .tagline{font-size:clamp(1rem,2.2vw,1.3rem);color:var(--text2);max-width:720px;margin:1rem auto 2rem;position:relative;z-index:1;font-weight:300}
+.hero-btns{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;position:relative;z-index:1}
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.85rem 2rem;border-radius:12px;font-weight:600;font-size:1rem;transition:all .3s;border:none;cursor:pointer}
+.btn-primary{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;box-shadow:0 4px 20px rgba(99,102,241,.3)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(99,102,241,.4);color:#fff}
+.btn-outline{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.2)}
+.btn-outline:hover{border-color:var(--accent1);background:rgba(99,102,241,.1);color:#fff}
+.hero-meta{margin-top:2.5rem;display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem 2rem;font-size:.85rem;color:var(--text3);position:relative;z-index:1}
+.hero-meta span::before{content:'·';color:var(--text3);margin-right:1rem;font-weight:700}
+.hero-meta span:first-child::before{display:none}
+
+/* Sections */
+section{padding:5rem 2rem;position:relative}
+.container{max-width:1200px;margin:0 auto}
+.section-badge{display:inline-block;padding:.3rem 1rem;border-radius:20px;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;background:rgba(99,102,241,.12);color:var(--accent1);border:1px solid rgba(99,102,241,.2);margin-bottom:1rem}
+.section-title{font-size:clamp(2rem,4vw,3rem);font-weight:800;margin-bottom:1rem;letter-spacing:-.02em}
+.section-sub{font-size:1.05rem;color:var(--text2);max-width:720px;margin-bottom:3rem}
+
+/* Feature grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:1.25rem}
+.fcard{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);padding:1.6rem;transition:all .3s;position:relative;overflow:hidden}
+.fcard::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent1),var(--accent2));opacity:0;transition:opacity .3s}
+.fcard:hover{border-color:rgba(99,102,241,.3);transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.3)}
+.fcard:hover::after{opacity:1}
+.fcard .ico{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:.9rem;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.15));border:1px solid rgba(99,102,241,.18)}
+.fcard h3{font-size:1.05rem;font-weight:700;margin-bottom:.4rem;color:#fff}
+.fcard p{font-size:.9rem;color:var(--text2);line-height:1.55;margin:0}
+
+/* Steps */
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:1.5rem;margin-top:2rem;counter-reset:step}
+.step{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);padding:2rem 1.6rem;position:relative;counter-increment:step}
+.step::before{content:counter(step);position:absolute;top:-22px;left:24px;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;color:#fff;box-shadow:0 6px 20px rgba(99,102,241,.4)}
+.step h3{margin-top:.8rem;font-size:1.15rem;font-weight:700;margin-bottom:.5rem;color:#fff}
+.step p{font-size:.9rem;color:var(--text2);margin:0;line-height:1.6}
+.step code{font-size:.78rem}
+
+/* Screenshot showcase */
+.shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr));gap:1.5rem}
+.shot{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all .3s;position:relative}
+.shot:hover{transform:translateY(-3px);border-color:rgba(99,102,241,.3);box-shadow:0 16px 40px rgba(0,0,0,.4)}
+.shot img{display:block;width:100%;height:auto}
+.shot .cap{padding:1rem 1.25rem;border-top:1px solid rgba(255,255,255,.06);font-size:.9rem;color:var(--text)}
+.shot .cap span{display:block;font-size:.78rem;color:var(--text3);margin-top:.15rem}
+
+/* Tasks list */
+.tasks{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem 2rem;margin-top:2rem}
+.tasks li{list-style:none;padding-left:1.7rem;position:relative;font-size:.95rem;color:var(--text);line-height:1.55}
+.tasks li::before{content:'';position:absolute;left:0;top:.45rem;width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,var(--accent1),var(--accent2));box-shadow:0 0 0 4px rgba(99,102,241,.15)}
+.tasks li b{color:#fff;font-weight:700}
+@media(max-width:720px){.tasks{grid-template-columns:1fr}}
+
+/* Quickstart */
+.qs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr));gap:1.5rem;margin-top:1rem}
+.qs-card{background:var(--bg2);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);padding:1.5rem 1.5rem 1.75rem}
+.qs-title{font-weight:700;color:var(--accent3);font-size:.9rem;margin-bottom:.9rem}
+
+/* Lightbox */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;z-index:200;padding:2rem;cursor:zoom-out}
+.lightbox.open{display:flex}
+.lightbox img{max-width:96vw;max-height:88vh;border-radius:var(--radius);box-shadow:0 20px 80px rgba(0,0,0,.6)}
+.lb-close{position:absolute;top:1.5rem;right:1.5rem;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.08);color:#fff;border:0;font-size:1.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+.lb-close:hover{background:rgba(255,255,255,.18)}
+.lb-cap{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);padding:.6rem 1.2rem;border-radius:99px;color:#fff;font-size:.9rem;backdrop-filter:blur(10px)}
+
+/* Footer */
+footer{padding:3rem 2rem 2rem;border-top:1px solid rgba(255,255,255,.06);background:var(--bg);text-align:center}
+footer .container{display:flex;flex-direction:column;align-items:center;gap:1.2rem}
+footer .links{display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center}
+footer .links a{color:var(--text2);font-size:.9rem}
+footer .links a:hover{color:#fff}
+footer .copy{color:var(--text3);font-size:.8rem}
+
+/* Reveal */
+.reveal{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s ease}
+.reveal.in{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-inner">
+    <a href="https://restai.cloud/" class="nav-brand">
+      <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/restai-logo.png" alt="RESTai">
+      RESTai
+    </a>
+    <div class="nav-links">
+      <a href="https://restai.cloud/#features">Platform</a>
+      <a href="https://restai.cloud/#quickstart">Install RESTai</a>
+      <a href="https://github.com/apocas/restai/tree/master/wordpress">Source</a>
+      <a class="nav-cta" href="#install">Get the plugin</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-glow g1"></div>
+  <div class="hero-glow g2"></div>
+
+  <div class="hero-logos">
+    <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/restai-logo.png" alt="RESTai">
+    <span class="x">+</span>
+    <img src="https://s.w.org/style/images/about/WordPress-logotype-wmark.png" alt="WordPress" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/9/98/WordPress_blue_logo.svg'">
+  </div>
+  <span class="badge-pill">Official WordPress plugin</span>
+  <h1>RESTai superpowers for WordPress</h1>
+  <p class="tagline">
+    Generate content, SEO meta, images, translations, AI search and an embedded chat — all powered by <b>your own</b> RESTai instance.
+    Each capability runs on its own RESTai project so models, prompts and budgets stay tunable per task.
+  </p>
+  <div class="hero-btns">
+    <a class="btn btn-primary" href="#install">Install plugin</a>
+    <a class="btn btn-outline" href="https://github.com/apocas/restai/tree/master/wordpress" target="_blank" rel="noopener">View source</a>
+  </div>
+  <div class="hero-meta">
+    <span>WordPress 6.0+</span>
+    <span>PHP 7.4+</span>
+    <span>Self-hosted RESTai</span>
+    <span>GPL-2.0+</span>
+  </div>
+</section>
+
+<!-- What it does -->
+<section id="features">
+  <div class="container">
+    <span class="section-badge reveal">Features</span>
+    <h2 class="section-title reveal">One plugin, every AI surface in WordPress</h2>
+    <p class="section-sub reveal">Each capability is wired through to a dedicated RESTai project. Auto-provisioned on first connect, fully editable from your RESTai admin afterwards.</p>
+
+    <div class="grid">
+      <div class="fcard reveal">
+        <div class="ico">✍️</div>
+        <h3>Content writer</h3>
+        <p>Generate post bodies and excerpts straight from Gutenberg. Optional brief, replaces or appends to the editor with one click.</p>
+      </div>
+      <div class="fcard reveal">
+        <div class="ico">🔎</div>
+        <h3>SEO assistant</h3>
+        <p>Title, meta description, focus keyphrase and tag suggestions in JSON. Writes directly into Yoast and Rank Math fields.</p>
+      </div>
+      <div class="fcard reveal">
+        <div class="ico">🖼️</div>
+        <h3>Featured image generation</h3>
+        <p>Calls whichever image generator your team has access to (Flux, SDXL, DALL·E…). Auto-attaches as the featured media.</p>
+      </div>
+      <div class="fcard reveal">
+        <div class="ico">🌍</div>
+        <h3>Translations</h3>
+        <p>Translate any post into N languages, saved as drafts. Polylang/WPML aware so the language gets attached automatically.</p>
+      </div>
+      <div class="fcard reveal">
+        <div class="ico">💬</div>
+        <h3>Comment moderation</h3>
+        <p>Pre-publish AI moderation flags spam and toxic content, suggests replies for your team — before anything hits your site.</p>
+      </div>
+      <div class="fcard reveal">
+        <div class="ico">🛒</div>
+        <h3>WooCommerce</h3>
+        <p>Product description generator and FAQ shortcode driven by your catalog data. Cached so repeat visitors don't re-bill.</p>
+      </div>
+      <div class="fcard reveal">
+        <div class="ico">📚</div>
+        <h3>Knowledge sync</h3>
+        <p>Every published post and page is auto-pushed into a Support Bot RAG project, so the bot is always current.</p>
+      </div>
+      <div class="fcard reveal">
+        <div class="ico">🧠</div>
+        <h3>AI site search</h3>
+        <p>Replace native WordPress search with semantic answers from the support bot — citing your own pages back to visitors.</p>
+      </div>
+      <div class="fcard reveal">
+        <div class="ico">💭</div>
+        <h3>Embeddable chat widget</h3>
+        <p>One toggle adds a chat bubble to public pages. Plugin auto-creates the right widget key, allow-lists your domain — no copy/paste needed.</p>
+      </div>
+      <div class="fcard reveal">
+        <div class="ico">📨</div>
+        <h3>Email personalization</h3>
+        <p>Welcome, password reset, abandoned cart — rewritten to feel personal and on-brand via the wp_mail filter.</p>
+      </div>
+      <div class="fcard reveal">
+        <div class="ico">📊</div>
+        <h3>Analytics in WP admin</h3>
+        <p>Token usage, cost and request volume mirrored into your WP dashboard. No need to leave to know what AI is actually spending.</p>
+      </div>
+      <div class="fcard reveal">
+        <div class="ico">🤖</div>
+        <h3>Image alt text</h3>
+        <p>Optional auto alt text on uploads using a vision model — accessibility compliance without thinking about it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Screenshots -->
+<section style="background:var(--bg2)">
+  <div class="container">
+    <span class="section-badge reveal">Inside</span>
+    <h2 class="section-title reveal">See it inside WordPress</h2>
+    <p class="section-sub reveal">Native to the WP admin and the Gutenberg editor. No iframes, no detours.</p>
+
+    <div class="shots">
+      <div class="shot reveal" onclick="openLightbox(0)">
+        <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/wordpress1.png" alt="WordPress plugin settings">
+        <div class="cap">Settings & connection<span>Pick a team, map tasks to RESTai projects, auto-provision starter projects.</span></div>
+      </div>
+      <div class="shot reveal" onclick="openLightbox(1)">
+        <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/wordpress2.png" alt="Gutenberg sidebar">
+        <div class="cap">Gutenberg sidebar<span>Generate body, excerpt, SEO meta, featured image and translations from one panel.</span></div>
+      </div>
+      <div class="shot reveal" onclick="openLightbox(2)">
+        <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/wordpress3.png" alt="Analytics & knowledge sync">
+        <div class="cap">Analytics & knowledge sync<span>Token usage from your RESTai mirrored into WP admin, plus a one-shot push to the support bot.</span></div>
+      </div>
+      <div class="shot reveal" onclick="openLightbox(3)">
+        <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/wordpress4.png" alt="Live on a site">
+        <div class="cap">Live on a site<span>Embedded chat widget, AI-powered site search and translated drafts ready to publish.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section id="install">
+  <div class="container">
+    <span class="section-badge reveal">How it works</span>
+    <h2 class="section-title reveal">Up and running in three steps</h2>
+
+    <div class="steps">
+      <div class="step reveal">
+        <h3>Install the plugin</h3>
+        <p>Upload the plugin zip via <code>Plugins → Add New → Upload Plugin</code>, or drop the folder into <code>wp-content/plugins/restai</code> and activate.</p>
+      </div>
+      <div class="step reveal">
+        <h3>Connect to your RESTai</h3>
+        <p>In <code>Settings → RESTai</code>, paste your RESTai URL + API key, click <b>Test connection</b>, pick a team from the dropdown, save.</p>
+      </div>
+      <div class="step reveal">
+        <h3>Auto-provision projects</h3>
+        <p>Click <b>Auto-provision starter projects</b>. The plugin creates Content Writer, SEO Assistant, Translator, Support Bot, and 4 others on your RESTai. Re-map any to a different project later.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Tasks created -->
+<section style="background:var(--bg2)">
+  <div class="container">
+    <span class="section-badge reveal">Auto-provisioned</span>
+    <h2 class="section-title reveal">Eight RESTai projects, ready on day one</h2>
+    <p class="section-sub reveal">Each task the plugin performs is one RESTai project — so you can swap models per capability, set per-project budgets, audit usage independently, version prompts, and re-use the same projects from the API or other clients.</p>
+
+    <ul class="tasks reveal">
+      <li><b>wp-content-writer</b> — Gutenberg / classic editor body and excerpts</li>
+      <li><b>wp-seo-assistant</b> — JSON-only SEO meta + tag suggestions</li>
+      <li><b>wp-translator</b> — HTML-preserving translations to N languages</li>
+      <li><b>wp-comment-moderator</b> — spam / toxicity / suggested replies</li>
+      <li><b>wp-support-bot (RAG)</b> — knowledge synced from posts &amp; pages</li>
+      <li><b>wp-product-writer</b> — WooCommerce descriptions and FAQs</li>
+      <li><b>wp-email-personalizer</b> — rewrites transactional emails</li>
+      <li><b>wp-image-alt</b> — vision-model alt text for new uploads</li>
+    </ul>
+  </div>
+</section>
+
+<!-- Install snippets -->
+<section>
+  <div class="container">
+    <span class="section-badge reveal">Install</span>
+    <h2 class="section-title reveal">Three ways to install</h2>
+
+    <div class="qs-grid">
+      <div class="qs-card reveal">
+        <div class="qs-title">From WordPress admin (recommended)</div>
+        <pre><span class="comment"># 1. Download the latest release zip</span>
+curl -LO https://github.com/apocas/restai/releases/latest/download/restai-wordpress.zip
+
+<span class="comment"># 2. Plugins → Add New → Upload Plugin → choose zip → Install Now → Activate</span></pre>
+      </div>
+      <div class="qs-card reveal">
+        <div class="qs-title">From source (development)</div>
+<pre><span class="comment"># Clone the RESTai repo</span>
+git clone https://github.com/apocas/restai
+cp -r restai/wordpress/restai \
+      /path/to/wp-content/plugins/restai
+
+<span class="comment"># Then activate from the admin UI</span></pre>
+      </div>
+      <div class="qs-card reveal">
+        <div class="qs-title">With WP-CLI</div>
+<pre><span class="comment"># Build a zip and install in one shot</span>
+cd restai/wordpress &amp;&amp; zip -r restai.zip restai
+wp plugin install restai.zip --activate</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Privacy / compliance strip -->
+<section style="background:var(--bg2);padding:3.5rem 2rem">
+  <div class="container" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:1.5rem">
+    <div class="reveal">
+      <h3 style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.4rem">You own the data</h3>
+      <p style="font-size:.92rem;color:var(--text2);margin:0">Calls go from your WordPress to <i>your</i> RESTai instance. No third-party SaaS in between, no telemetry from the plugin.</p>
+    </div>
+    <div class="reveal">
+      <h3 style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.4rem">Per-task budgets</h3>
+      <p style="font-size:.92rem;color:var(--text2);margin:0">Each WP capability is a separate RESTai project — set rate limits and budgets per project to cap spend on any one feature.</p>
+    </div>
+    <div class="reveal">
+      <h3 style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:.4rem">Built for WP</h3>
+      <p style="font-size:.92rem;color:var(--text2);margin:0">Sanitised input, escaped output, capability checks, nonces, i18n-ready. GPL-2.0+ — same model as WordPress itself.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section style="text-align:center;padding:6rem 2rem">
+  <div class="container">
+    <h2 class="section-title reveal">Bring AI to your WordPress site today</h2>
+    <p class="section-sub reveal" style="margin-left:auto;margin-right:auto">You'll need a reachable RESTai instance with at least one LLM configured. Don't have one yet? <a href="https://restai.cloud/#quickstart">Spin one up in 30 seconds.</a></p>
+    <div class="hero-btns reveal" style="justify-content:center">
+      <a class="btn btn-primary" href="https://github.com/apocas/restai/tree/master/wordpress">Get the plugin</a>
+      <a class="btn btn-outline" href="https://restai.cloud/">Back to RESTai</a>
+    </div>
+  </div>
+</section>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+  <button class="lb-close" onclick="closeLightbox()">×</button>
+  <img id="lbImg" alt="">
+  <div class="lb-cap" id="lbCap"></div>
+</div>
+
+<footer>
+  <div class="container">
+    <div class="links">
+      <a href="https://restai.cloud/">RESTai platform</a>
+      <a href="https://github.com/apocas/restai">GitHub</a>
+      <a href="https://github.com/apocas/restai/tree/master/wordpress">Plugin source</a>
+      <a href="https://restai.cloud/swagger/">API docs</a>
+    </div>
+    <div class="copy">© RESTai · Licensed under Apache 2.0 · Plugin under GPL-2.0+</div>
+  </div>
+</footer>
+
+<script>
+// Nav scroll
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 8));
+
+// Reveal on scroll
+const obs = new IntersectionObserver((entries) => {
+  entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); obs.unobserve(e.target); } });
+}, { threshold: .12 });
+document.querySelectorAll('.reveal').forEach((el) => obs.observe(el));
+
+// Lightbox
+const shots = Array.from(document.querySelectorAll('.shot')).map((s) => ({
+  src: s.querySelector('img').src,
+  cap: s.querySelector('.cap').textContent,
+}));
+function openLightbox(i) {
+  document.getElementById('lbImg').src = shots[i].src;
+  document.getElementById('lbCap').textContent = shots[i].cap;
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox(e) {
+  if (e && e.target.tagName === 'IMG') return;
+  document.getElementById('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.getElementById('lightbox').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+});
+</script>
+
+</body>
+</html>
