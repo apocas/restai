@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Box, Fab, TextField, Tooltip, Typography, Chip, styled, IconButton,
 } from "@mui/material";
-import { Send, CloudUpload, DeleteSweep, CallSplit, Close } from "@mui/icons-material";
+import { Send, AttachFile, DeleteSweep, CallSplit, Close } from "@mui/icons-material";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
@@ -17,7 +17,11 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
   const auth = useAuth();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
-  const [image, setImage] = useState(null);
+  // Single attachments array. Entries look like:
+  //   { name, size, mime_type, contentBase64, isImage, dataUrl? }
+  // `dataUrl` is only set for images (for inline preview) and never sent
+  // over the wire — the backend only needs `contentBase64`.
+  const [files, setFiles] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const scrollRef = useRef(null);
@@ -112,13 +116,29 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
   // Handle shared question from compare mode
   useEffect(() => {
     if (sharedQuestion && sharedQuestion.text) {
-      sendMessage(sharedQuestion.text, sharedQuestion.image);
+      // Legacy sharedQuestion.image (data URL) is converted into a single
+      // image attachment so the backend's unified router picks it up.
+      const attach = sharedQuestion.image
+        ? [{
+            name: "image.png",
+            size: 0,
+            mime_type: "image/png",
+            contentBase64: sharedQuestion.image.includes("base64,")
+              ? sharedQuestion.image.split(",")[1]
+              : sharedQuestion.image,
+            isImage: true,
+            dataUrl: sharedQuestion.image.startsWith("data:") ? sharedQuestion.image : `data:image/png;base64,${sharedQuestion.image}`,
+          }]
+        : null;
+      sendMessage(sharedQuestion.text, attach);
     }
   }, [sharedQuestion]);
 
-  const sendMessageStream = useCallback(async (questionText, img) => {
+  const sendMessageStream = useCallback(async (questionText, attachments) => {
     const body = { question: questionText, stream: true };
-    if (img) body.image = img.includes("base64,") ? img.split(",")[1] : img;
+    if (attachments && attachments.length > 0) {
+      body.files = attachments.map((f) => ({ name: f.name, content: f.contentBase64, mime_type: f.mime_type }));
+    }
     if (systemOverride) body.system = systemOverride;
     if (context) body.context = context;
 
@@ -128,7 +148,16 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       if (lastMsg.id) body.id = lastMsg.id;
     }
 
-    setMessages(prev => [...prev, { question: questionText, answer: null, sources: [], _image: img || null }]);
+    // Preview refs for the chat log. Keep the image dataUrl inline, but strip
+    // contentBase64 so we don't hold onto megabytes of attachment bytes.
+    const fileRefs = (attachments || []).map((f) => ({
+      name: f.name, size: f.size, mime_type: f.mime_type,
+      isImage: f.isImage, dataUrl: f.isImage ? f.dataUrl : null,
+    }));
+    setMessages(prev => [...prev, {
+      question: questionText, answer: null, sources: [],
+      _files: fileRefs.length ? fileRefs : null,
+    }]);
     setStreamingText("");
 
     let accumulated = "";
@@ -161,7 +190,8 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         if (finalOutput) {
           setMessages(prev => {
             const updated = [...prev];
-            updated[updated.length - 1] = finalOutput;
+            const placeholder = updated[updated.length - 1] || {};
+            updated[updated.length - 1] = { ...finalOutput, _files: placeholder._files };
             return updated;
           });
           if (finalOutput.guard) {
@@ -173,13 +203,20 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         } else if (accumulated) {
           setMessages(prev => {
             const updated = [...prev];
+            const placeholder = updated[updated.length - 1] || {};
             const prevId = updated.length > 1 ? updated[updated.length - 2]?.id : undefined;
-            updated[updated.length - 1] = { question: questionText, answer: accumulated, sources: [], id: prevId };
+            updated[updated.length - 1] = {
+              question: questionText,
+              answer: accumulated,
+              sources: [],
+              id: prevId,
+              _files: placeholder._files,
+            };
             return updated;
           });
         }
         setIsLoading(false);
-        setImage(null);
+        setFiles([]);
         if (onQuestionSent) onQuestionSent();
       },
       onerror(err) {
@@ -191,15 +228,15 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
           return updated;
         });
         setIsLoading(false);
-        setImage(null);
+        setFiles([]);
         throw err; // Stop reconnecting
       },
     });
   }, [project.id, auth.user.token, systemOverride, chatMode, messages, onQuestionSent, context]);
 
-  const sendMessage = useCallback(async (text, img) => {
+  const sendMessage = useCallback(async (text, attachments) => {
     if (isLoading) return;
-    if (!text && !img) return;
+    if (!text && !(attachments && attachments.length)) return;
 
     const questionText = text || "";
     setIsLoading(true);
@@ -207,19 +244,28 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
 
     if (streaming) {
       try {
-        await sendMessageStream(questionText, img);
+        await sendMessageStream(questionText, attachments);
       } catch (e) {
         setIsLoading(false);
-        setImage(null);
+        setFiles([]);
       }
       return;
     }
 
     // Non-streaming path
-    setMessages(prev => [...prev, { question: questionText, answer: null, sources: [], _image: img || null }]);
+    const fileRefs = (attachments || []).map((f) => ({
+      name: f.name, size: f.size, mime_type: f.mime_type,
+      isImage: f.isImage, dataUrl: f.isImage ? f.dataUrl : null,
+    }));
+    setMessages(prev => [...prev, {
+      question: questionText, answer: null, sources: [],
+      _files: fileRefs.length ? fileRefs : null,
+    }]);
 
     const body = { question: questionText };
-    if (img) body.image = img.includes("base64,") ? img.split(",")[1] : img;
+    if (attachments && attachments.length > 0) {
+      body.files = attachments.map((f) => ({ name: f.name, content: f.contentBase64, mime_type: f.mime_type }));
+    }
     if (systemOverride) body.system = systemOverride;
     if (context) body.context = context;
 
@@ -237,7 +283,8 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       );
       setMessages(prev => {
         const updated = [...prev];
-        updated[updated.length - 1] = { ...response, _image: updated[updated.length - 1]._image };
+        const placeholder = updated[updated.length - 1] || {};
+        updated[updated.length - 1] = { ...response, _files: placeholder._files };
         return updated;
       });
       if (response.guard) {
@@ -260,15 +307,16 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       });
     } finally {
       setIsLoading(false);
-      setImage(null);
+      setFiles([]);
       if (onQuestionSent) onQuestionSent();
     }
   }, [isLoading, streaming, project.id, auth.user.token, systemOverride, chatMode, messages, onQuestionSent, sendMessageStream, context]);
 
   const handleSend = () => {
     const text = inputText.trim();
-    if (text || image) {
-      sendMessage(text, image);
+    const attachments = files;
+    if (text || (attachments && attachments.length)) {
+      sendMessage(text, attachments);
     }
   };
 
@@ -279,19 +327,57 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     }
   };
 
-  const handleFileSelect = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setImage(reader.result);
-    reader.readAsDataURL(file);
-    e.target.value = "";
+  const MAX_FILE_MB = 20;
+
+  const fileIsImage = (file) => {
+    const t = (file.type || "").toLowerCase();
+    if (t.startsWith("image/")) return true;
+    const n = (file.name || "").toLowerCase();
+    return /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(n);
   };
+
+  const handleAttachFiles = async (e) => {
+    const chosen = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!chosen.length) return;
+    const remaining = 10 - files.length;
+    if (remaining <= 0) {
+      toast.warning("Max 10 files per message.", { position: "top-right" });
+      return;
+    }
+    const accepted = [];
+    for (const file of chosen.slice(0, remaining)) {
+      if (file.size > MAX_FILE_MB * 1024 * 1024) {
+        toast.warning(`${file.name} exceeds ${MAX_FILE_MB} MB limit.`, { position: "top-right" });
+        continue;
+      }
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result || "");
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const idx = dataUrl.indexOf(",");
+      const b64 = idx >= 0 ? dataUrl.slice(idx + 1) : dataUrl;
+      const isImage = fileIsImage(file);
+      accepted.push({
+        name: file.name,
+        size: file.size,
+        mime_type: file.type || null,
+        contentBase64: b64,
+        isImage,
+        dataUrl: isImage ? dataUrl : null,
+      });
+    }
+    if (accepted.length) setFiles((prev) => [...prev, ...accepted]);
+  };
+
+  const removeFile = (idx) => setFiles((prev) => prev.filter((_, i) => i !== idx));
 
   const handleClear = () => {
     setMessages([]);
     setStreamingText("");
-    setImage(null);
+    setFiles([]);
     setBranches([]);
     setActiveBranchIdx(-1);
   };
@@ -351,16 +437,42 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
           </Box>
       </Box>
 
-      {/* Image preview */}
-      {image && (
-        <Box sx={{ px: 2, pb: 1 }}>
-          <Chip
-            label="Image attached"
-            onDelete={() => setImage(null)}
-            size="small"
-            color="primary"
-            variant="outlined"
-          />
+      {/* Attachments preview — thumbnails for images, chips for files */}
+      {files.length > 0 && (
+        <Box sx={{ px: 2, pb: 1, display: "flex", flexWrap: "wrap", gap: 0.75, alignItems: "center" }}>
+          {files.map((f, i) => (
+            f.isImage ? (
+              <Box
+                key={`${f.name}-${i}`}
+                sx={{ position: "relative", width: 56, height: 56, borderRadius: 1, overflow: "hidden", border: 1, borderColor: "divider" }}
+              >
+                <Box component="img" src={f.dataUrl} alt={f.name}
+                     sx={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                <IconButton
+                  size="small"
+                  onClick={() => removeFile(i)}
+                  sx={{
+                    position: "absolute", top: 0, right: 0,
+                    width: 18, height: 18, p: 0,
+                    bgcolor: "rgba(0,0,0,0.6)", color: "#fff",
+                    "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
+                  }}
+                >
+                  <Close sx={{ fontSize: 12 }} />
+                </IconButton>
+              </Box>
+            ) : (
+              <Chip
+                key={`${f.name}-${i}`}
+                icon={<AttachFile sx={{ fontSize: 16 }} />}
+                label={`${f.name} · ${(f.size / 1024).toFixed(1)} KB`}
+                onDelete={() => removeFile(i)}
+                size="small"
+                variant="outlined"
+                sx={{ maxWidth: 260 }}
+              />
+            )
+          ))}
         </Box>
       )}
 
@@ -379,16 +491,21 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         />
         {showUpload && (
           <>
-            <label htmlFor={`upload-${project.id}-${systemOverride ? "b" : "a"}`}>
-              <Fab color="default" size="small" component="span">
-                <CloudUpload fontSize="small" />
-              </Fab>
-            </label>
+            <Tooltip title={project.type === "agent"
+              ? "Attach files — images go to the vision model, the rest land in /home/user/uploads/ for the terminal tool"
+              : "Attach image"}>
+              <label htmlFor={`attach-${project.id}-${systemOverride ? "b" : "a"}`}>
+                <Fab color="default" size="small" component="span">
+                  <AttachFile fontSize="small" />
+                </Fab>
+              </label>
+            </Tooltip>
             <HiddenInput
-              onChange={handleFileSelect}
-              id={`upload-${project.id}-${systemOverride ? "b" : "a"}`}
+              onChange={handleAttachFiles}
+              id={`attach-${project.id}-${systemOverride ? "b" : "a"}`}
               type="file"
-              accept="image/*"
+              multiple={project.type === "agent"}
+              accept={project.type === "agent" ? undefined : "image/*"}
             />
           </>
         )}
@@ -401,7 +518,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
           color="primary"
           size="small"
           onClick={handleSend}
-          disabled={isLoading && !inputText.trim() && !image}
+          disabled={isLoading && !inputText.trim() && files.length === 0}
         >
           <Send fontSize="small" />
         </Fab>

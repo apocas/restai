@@ -3254,3 +3254,203 @@ async def kg_rebuild(
 
     background_tasks.add_task(_rebuild)
     return {"message": f"Rebuild scheduled for {len(sources)} sources", "source_count": len(sources)}
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Mobile-app integration (Android, iOS, ...)
+#
+# When a project admin toggles "Mobile integration" ON we mint a
+# read-only API key scoped to this single project and surface its
+# connection details as a QR code. Phones scan the QR and get instant
+# chat-only access. The QR payload is platform-neutral — any mobile
+# client that implements the protocol can pair.
+#
+# The key id is stashed on ProjectOptions so (a) multiple phones can
+# enrol by scanning the same QR and (b) the owner can revoke every
+# paired phone at once by regenerating the key.
+# ─────────────────────────────────────────────────────────────────────
+
+def _mobile_default_host(request: Request) -> str:
+    """Resolve the host URL mobile apps should hit.
+
+    Preference order: ``config.RESTAI_URL`` (admin-configured canonical URL)
+    → the scheme+host the current request came in on.
+    """
+    configured = getattr(config, "RESTAI_URL", None)
+    if configured:
+        return str(configured).rstrip("/")
+    try:
+        return f"{request.url.scheme}://{request.url.netloc}"
+    except Exception:
+        return ""
+
+
+def _mobile_key_description(project_name: str) -> str:
+    return f"RESTai Mobile — project {project_name}"
+
+
+def _mobile_status_payload(request: Request, project_db, api_key_row, api_key_plaintext: Optional[str] = None) -> dict:
+    """Shape the GET/POST response. The plaintext key is always surfaced
+    when the integration is enabled so the admin UI can keep the QR code
+    visible and pair new phones later — decrypted from the row's
+    ``encrypted_key`` when a fresh plaintext isn't already at hand. Every
+    phone scanning the same QR shares the same read-only key, and the
+    admin can revoke the whole fleet via the Regenerate button."""
+    enabled = api_key_row is not None
+    payload = {
+        "enabled": enabled,
+        "key_prefix": api_key_row.key_prefix if api_key_row else None,
+        "host": _mobile_default_host(request),
+    }
+    if enabled:
+        plaintext = api_key_plaintext
+        if plaintext is None:
+            try:
+                from restai.utils.crypto import decrypt_api_key
+                plaintext = decrypt_api_key(api_key_row.encrypted_key)
+            except Exception:
+                plaintext = None
+        if plaintext:
+            payload["qr"] = {
+                "host": payload["host"],
+                "project_id": project_db.id,
+                "project_name": project_db.name,
+                "api_key": plaintext,
+            }
+    return payload
+
+
+def _get_mobile_api_key(db_wrapper: DBWrapper, project_db):
+    """Return the ApiKeyDatabase row currently paired with this project's
+    Mobile integration, or None. Looks up by id stored in project options."""
+    opts = json.loads(project_db.options) if project_db.options else {}
+    key_id = opts.get("mobile_api_key_id")
+    if not key_id:
+        return None
+    from restai.models.databasemodels import ApiKeyDatabase
+    row = db_wrapper.db.query(ApiKeyDatabase).filter(ApiKeyDatabase.id == int(key_id)).first()
+    return row
+
+
+def _persist_mobile_key(db_wrapper: DBWrapper, project_db, api_key_id):
+    """Store (or clear) the mobile api key id on the project's options blob."""
+    opts = json.loads(project_db.options) if project_db.options else {}
+    if api_key_id is None:
+        opts.pop("mobile_api_key_id", None)
+        opts["mobile_enabled"] = False
+    else:
+        opts["mobile_api_key_id"] = int(api_key_id)
+        opts["mobile_enabled"] = True
+    project_db.options = json.dumps(opts)
+    db_wrapper.db.commit()
+
+
+def _mint_mobile_api_key(db_wrapper: DBWrapper, user, project_db) -> tuple:
+    """Create a read-only, project-scoped API key for mobile apps.
+    Returns (api_key_row, plaintext_key). The plaintext is shown only once."""
+    import uuid as _uuid
+    import secrets as _secrets
+    from restai.utils.crypto import encrypt_api_key, hash_api_key
+
+    plaintext = _uuid.uuid4().hex + _secrets.token_urlsafe(32)
+    encrypted = encrypt_api_key(plaintext)
+    key_hash = hash_api_key(plaintext)
+    key_prefix = plaintext[:8]
+
+    api_key_row = db_wrapper.create_api_key(
+        user_id=user.id,
+        encrypted_key=encrypted,
+        key_hash=key_hash,
+        key_prefix=key_prefix,
+        description=_mobile_key_description(project_db.name),
+        allowed_projects=json.dumps([project_db.id]),
+        read_only=True,
+    )
+    return api_key_row, plaintext
+
+
+@router.get("/projects/{projectID}/mobile", tags=["Mobile"])
+async def mobile_status(
+    request: Request,
+    projectID: int = PathParam(description="Project ID"),
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Return Mobile integration status. Never returns the plaintext key —
+    that's only available at enable / regenerate time."""
+    project_db = db_wrapper.get_project_by_id(projectID)
+    if project_db is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    row = _get_mobile_api_key(db_wrapper, project_db)
+    return _mobile_status_payload(request, project_db, row)
+
+
+@router.post("/projects/{projectID}/mobile/enable", tags=["Mobile"])
+async def mobile_enable(
+    request: Request,
+    projectID: int = PathParam(description="Project ID"),
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Turn Mobile integration ON. Creates a read-only, project-scoped API
+    key and returns the plaintext so the frontend can render the QR code.
+    Idempotent — if already enabled, returns the existing key prefix with no
+    plaintext (to avoid re-exposing secrets)."""
+    check_not_restricted(user)
+    project_db = db_wrapper.get_project_by_id(projectID)
+    if project_db is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    existing = _get_mobile_api_key(db_wrapper, project_db)
+    if existing is not None:
+        return _mobile_status_payload(request, project_db, existing)
+
+    api_key_row, plaintext = _mint_mobile_api_key(db_wrapper, user, project_db)
+    _persist_mobile_key(db_wrapper, project_db, api_key_row.id)
+    return _mobile_status_payload(request, project_db, api_key_row, api_key_plaintext=plaintext)
+
+
+@router.post("/projects/{projectID}/mobile/disable", tags=["Mobile"])
+async def mobile_disable(
+    request: Request,
+    projectID: int = PathParam(description="Project ID"),
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Turn Mobile integration OFF. Revokes the project-scoped key so every
+    paired phone immediately loses access."""
+    check_not_restricted(user)
+    project_db = db_wrapper.get_project_by_id(projectID)
+    if project_db is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    row = _get_mobile_api_key(db_wrapper, project_db)
+    if row is not None:
+        db_wrapper.db.delete(row)
+        db_wrapper.db.commit()
+    _persist_mobile_key(db_wrapper, project_db, None)
+    return _mobile_status_payload(request, project_db, None)
+
+
+@router.post("/projects/{projectID}/mobile/regenerate", tags=["Mobile"])
+async def mobile_regenerate(
+    request: Request,
+    projectID: int = PathParam(description="Project ID"),
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Invalidate every currently-paired phone and mint a fresh key. The
+    old phones will get 401s on their next request until they rescan the QR."""
+    check_not_restricted(user)
+    project_db = db_wrapper.get_project_by_id(projectID)
+    if project_db is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    old = _get_mobile_api_key(db_wrapper, project_db)
+    if old is not None:
+        db_wrapper.db.delete(old)
+        db_wrapper.db.commit()
+
+    api_key_row, plaintext = _mint_mobile_api_key(db_wrapper, user, project_db)
+    _persist_mobile_key(db_wrapper, project_db, api_key_row.id)
+    return _mobile_status_payload(request, project_db, api_key_row, api_key_plaintext=plaintext)

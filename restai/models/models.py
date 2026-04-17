@@ -12,7 +12,7 @@ _SAFE_NAME_RE = re.compile(r'^[a-zA-Z0-9._:-]+$')
 
 VALID_LLM_CLASSES = {
     "Ollama", "OllamaMultiModal", "OllamaMultiModal2", "OpenAI", "OpenAILike",
-    "Grok", "Groq", "Anthropic", "LiteLLM", "vLLM", "GeminiMultiModal",
+    "Grok", "Anthropic", "LiteLLM", "vLLM", "GeminiMultiModal",
     "Gemini", "AzureOpenAI", "Bedrock",
 }
 
@@ -112,6 +112,16 @@ class ImageModel(BaseModel):
     })
 
 
+class FileAttachment(BaseModel):
+    """A user-uploaded file attached to a question or chat message. The file
+    will be dropped into the agent's sandbox container at
+    ``/home/user/uploads/<name>`` so the LLM can manipulate it with the
+    terminal tool."""
+    name: str = Field(max_length=255, description="Filename (path components are stripped server-side)")
+    content: str = Field(description="Base64-encoded file bytes")
+    mime_type: Union[str, None] = Field(default=None, max_length=100, description="Optional MIME type hint (e.g. application/pdf)")
+
+
 class QuestionModel(InteractionModel):
     """Send a one-shot question to a project."""
     system: Union[str, None] = Field(default=None, description="System prompt override for this question")
@@ -120,6 +130,7 @@ class QuestionModel(InteractionModel):
     tables: Union[list[str], None] = Field(default=None, description="Restrict SQL queries to specific database tables (for RAG projects with a database connection)")
     negative: Union[str, None] = Field(default=None, description="Negative prompt to steer the response away from certain content")
     image: Union[str, None] = Field(default=None, description="Base64-encoded image for vision models")
+    files: Union[list[FileAttachment], None] = Field(default=None, max_length=10, description="Up to 10 files to upload into the agent sandbox at /home/user/uploads/")
     lite: bool = Field(default=False, description="Return a lightweight response without full source details")
     eval: bool = Field(default=False, description="Enable response evaluation and scoring")
     k: Optional[int] = Field(None, ge=1, le=25, description="Number of documents to retrieve from the knowledge base")
@@ -143,6 +154,7 @@ class ChatModel(InteractionModel):
     """Send a chat message to a project. Maintains conversation state via the id field."""
     id: Union[str, None] = Field(default=None, max_length=128, description="Conversation ID for maintaining chat state. Omit to start a new conversation.")
     image: Union[str, None] = Field(default=None, description="Base64-encoded image for vision models")
+    files: Union[list[FileAttachment], None] = Field(default=None, max_length=10, description="Up to 10 files to upload into the agent sandbox at /home/user/uploads/")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "question": "Tell me about the RAG project type.",
@@ -1109,6 +1121,7 @@ class SettingsResponse(BaseModel):
     docker_image: Optional[str] = Field(default="python:3.12-slim", description="Base image for sandbox containers")
     docker_timeout: int = Field(default=900, description="Container idle timeout in seconds")
     docker_network: Optional[str] = Field(default="none", description="Docker network mode for containers")
+    docker_read_only: bool = Field(default=True, description="Mount the sandbox container's rootfs read-only (safer). When false the LLM can pip install.")
     # Retention
     data_retention_days: int = Field(default=0, description="Auto-delete data older than this many days (0 = keep forever)")
     # 2FA
@@ -1172,6 +1185,7 @@ class SettingsUpdate(BaseModel):
     docker_image: Optional[str] = Field(default=None, description="Base image for sandbox containers")
     docker_timeout: Optional[int] = Field(default=None, ge=60, description="Container idle timeout in seconds")
     docker_network: Optional[str] = Field(default=None, description="Docker network mode for containers")
+    docker_read_only: Optional[bool] = Field(default=None, description="Mount the sandbox rootfs read-only (safer). When false the LLM can pip install.")
     # Retention
     data_retention_days: Optional[int] = Field(default=None, ge=0, description="Auto-delete data older than this many days (0 = keep forever)")
     # 2FA

@@ -27,12 +27,14 @@ class DockerManager:
     """Manages Docker containers keyed by chat_id for sandboxed command execution."""
 
     def __init__(self, docker_url: str, docker_image: str = "python:3.12-slim",
-                 container_timeout: int = 900, network_mode: str = "none"):
+                 container_timeout: int = 900, network_mode: str = "none",
+                 read_only: bool = True):
         import docker as docker_sdk
         self._client = docker_sdk.DockerClient(base_url=docker_url)
         self._image = docker_image
         self._timeout = container_timeout
         self._network_mode = network_mode
+        self._read_only = read_only
         self._containers: dict[str, ContainerInfo] = {}
         self._lock = threading.Lock()
 
@@ -122,6 +124,95 @@ class DockerManager:
             self._remove_container(chat_id)
             return f"ERROR: Script execution failed: {e}"
 
+    def put_files(self, chat_id: str, files: list[tuple[str, bytes]],
+                  extract_to: str = "/home/user", subdir: str = "uploads") -> list[dict]:
+        """Copy a batch of files into the container for this chat_id.
+
+        ``files`` is a list of ``(filename, raw_bytes)`` tuples. We build a
+        single tarball that contains a ``{subdir}/`` directory with every
+        file inside it, and extract it to ``{extract_to}``. ``{extract_to}``
+        must exist (it's a tmpfs mount, ``/home/user``, which is always
+        present). ``{subdir}`` is created by tar extraction — no shell call
+        needed, so this works on read-only root filesystems.
+
+        Returns a manifest suitable for embedding into the LLM prompt:
+        ``[{name, path, size}, ...]``.
+        """
+        if not files:
+            return []
+        if not chat_id:
+            chat_id = "ephemeral"
+
+        container = self._get_or_create_container(chat_id)
+
+        import io
+        import os
+        import tarfile
+        import time as _time
+
+        buf = io.BytesIO()
+        manifest: list[dict] = []
+        now = int(_time.time())
+
+        tar = tarfile.open(fileobj=buf, mode="w")
+        try:
+            # Create the subdir entry inside the tar so extraction mkdir's it.
+            dir_info = tarfile.TarInfo(name=subdir)
+            dir_info.type = tarfile.DIRTYPE
+            dir_info.mode = 0o755
+            dir_info.mtime = now
+            tar.addfile(dir_info)
+
+            seen: set[str] = set()
+            for name, data in files:
+                safe = os.path.basename(name).replace("\x00", "") or "file"
+                # De-dupe identical filenames within one batch.
+                base = safe
+                counter = 1
+                while safe in seen:
+                    stem, _, ext = base.rpartition(".")
+                    safe = f"{stem}_{counter}.{ext}" if stem else f"{base}_{counter}"
+                    counter += 1
+                seen.add(safe)
+
+                info = tarfile.TarInfo(name=f"{subdir}/{safe}")
+                info.size = len(data)
+                info.mtime = now
+                info.mode = 0o644
+                tar.addfile(info, io.BytesIO(data))
+                manifest.append({
+                    "name": safe,
+                    "path": f"{extract_to}/{subdir}/{safe}",
+                    "size": len(data),
+                })
+        finally:
+            tar.close()
+
+        # put_archive is rejected by Docker on read_only=True containers even
+        # when the target is a tmpfs mount. Instead pipe the tarball through
+        # `tar x` via exec_run — the write happens from inside the container
+        # where the tmpfs is writable.
+        import base64 as _b64
+        tar_b64 = _b64.b64encode(buf.getvalue()).decode("ascii")
+        cmd = f"echo {tar_b64} | base64 -d | tar xf - -C {extract_to}"
+        try:
+            result = container.exec_run(["sh", "-c", cmd])
+            if result.exit_code != 0:
+                err_out = (result.output or b"").decode("utf-8", errors="replace")
+                raise RuntimeError(f"tar extract failed (exit {result.exit_code}): {err_out.strip()}")
+        except Exception as e:
+            logger.exception("Failed to put files into container for chat_id=%s: %s", chat_id, e)
+            raise RuntimeError(f"Failed to upload files to sandbox: {e}")
+
+        with self._lock:
+            info = self._containers.get(chat_id)
+            if info:
+                info.last_activity = time.time()
+
+        logger.info("Uploaded %d file(s) to chat_id=%s under %s/%s",
+                    len(manifest), chat_id, extract_to, subdir)
+        return manifest
+
     def _get_or_create_container(self, chat_id: str):
         """Return existing container or create a new one."""
         import docker as docker_sdk
@@ -169,8 +260,14 @@ class DockerManager:
                 cpu_period=100000,
                 cpu_quota=50000,
                 network_mode=self._network_mode,
-                tmpfs={"/tmp": "size=100M", "/home/user": "size=100M"},
-                read_only=True,
+                # Roomy tmpfs so the LLM can `pip install` modest packages
+                # (pandas wheel ~60MB + build/temp space) and drop result
+                # files without hitting ENOSPC.
+                tmpfs={"/tmp": "size=1G", "/home/user": "size=1G"},
+                # Rootfs read-only by default for sandbox hardening. Toggled
+                # via the `docker_read_only` admin setting — admins can flip
+                # to false when they need `pip install` inside the sandbox.
+                read_only=self._read_only,
                 remove=True,
             )
             with self._lock:

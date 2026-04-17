@@ -3,7 +3,7 @@ import {
   Box, Chip, Collapse, IconButton, Typography, styled, Tooltip,
   Accordion, AccordionSummary, AccordionDetails,
 } from "@mui/material";
-import { ContentCopy, ExpandMore, Shield, Cached, Speed, TerminalOutlined, CallSplit } from "@mui/icons-material";
+import { ContentCopy, ExpandMore, Shield, Cached, Speed, TerminalOutlined, CallSplit, AttachFile } from "@mui/icons-material";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Terminal from "./Terminal";
@@ -78,9 +78,10 @@ export default function MessageBubble({ message, onBranch }) {
   return (
     <Box sx={{ mb: 2 }}>
       {/* Question */}
-      {(message.question || message._image) && (
+      {(message.question || (message._files && message._files.length) || message._image) && (
         <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
           <QuestionBubble>
+            {/* Back-compat: older messages stored a single _image dataURL */}
             {message._image && (
               <Box
                 component="img"
@@ -88,8 +89,45 @@ export default function MessageBubble({ message, onBranch }) {
                 sx={{ maxWidth: "100%", maxHeight: 200, borderRadius: 1, mb: message.question ? 1 : 0, display: "block" }}
               />
             )}
+
+            {/* Inline thumbnails for attached images */}
+            {message._files && message._files.some((f) => f.isImage && f.dataUrl) && (
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: message.question ? 1 : 0 }}>
+                {message._files.filter((f) => f.isImage && f.dataUrl).map((f, i) => (
+                  <Box
+                    key={`img-${f.name}-${i}`}
+                    component="img"
+                    src={f.dataUrl}
+                    alt={f.name}
+                    sx={{ maxWidth: 200, maxHeight: 200, borderRadius: 1, display: "block" }}
+                  />
+                ))}
+              </Box>
+            )}
+
             {message.question && (
               <Typography variant="body2">{message.question}</Typography>
+            )}
+
+            {/* Chips for non-image attachments */}
+            {message._files && message._files.some((f) => !f.isImage) && (
+              <Box sx={{ mt: message.question || message._image ? 1 : 0, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                {message._files.filter((f) => !f.isImage).map((f, i) => (
+                  <Chip
+                    key={`file-${f.name}-${i}`}
+                    icon={<AttachFile sx={{ fontSize: 14, color: "rgba(255,255,255,0.85) !important" }} />}
+                    label={f.size ? `${f.name} · ${(f.size / 1024).toFixed(1)} KB` : f.name}
+                    size="small"
+                    sx={{
+                      backgroundColor: "rgba(255,255,255,0.18)",
+                      color: "#fff",
+                      borderRadius: 1,
+                      height: 22,
+                      "& .MuiChip-label": { fontSize: "0.72rem", px: 0.75 },
+                    }}
+                  />
+                ))}
+              </Box>
             )}
           </QuestionBubble>
         </Box>

@@ -16,6 +16,11 @@ make database         # Initialize DB schema + admin user + default models
 make migrate          # Run Alembic migrations
 make install          # Full setup: deps + database + frontend build
 
+# Crons
+make cron             # Install a single crontab entry that runs crons/runner.py every minute
+make cron-remove      # Remove the crontab entry
+restai crons          # Run the cron runner once (same thing, for ad-hoc use)
+
 # Frontend
 make frontend         # npm install + npm run build
 cd frontend && npm start  # Dev server (port 3000, proxies to 9000)
@@ -27,6 +32,9 @@ pytest tests/test_projects.py::test_create_project  # Single test
 
 # Code quality
 make code             # black app/*.py
+
+# WordPress plugin
+cd wordpress && zip -r restai.zip restai   # Build release zip for the WP plugin
 ```
 
 Package manager is `uv`. Dependencies exclude GPU group by default (`--no-group gpu`).
@@ -50,6 +58,10 @@ All inherit from `ProjectBase` (in `base.py`) which defines `chat()` and `questi
 
 `/projects`, `/users`, `/teams`, `/llms`, `/embeddings`, `/tools`, `/proxy`, `/direct`, `/statistics`, `/settings`, `/auth`, `/evals` (evaluation framework), plus GPU-only `/image` and `/audio`.
 
+Sub-routes added to `/projects/{id}/*` over time: `/widgets` (embeddable chat widget CRUD + per-widget key regeneration), `/routines` (scheduled project messages), `/tools` (agent-created custom tools), `/prompts` (version history), `/evals` (eval runs).
+
+Path parameters on all `/projects/{projectID}/...` routes are typed `int` — callers must pass the numeric id, not the project name (a naming mismatch was the root cause of several past HTTP 422 regressions).
+
 ### Models (`restai/models/`)
 
 - `models.py` — Pydantic schemas for API request/response. Includes input validation: `validate_safe_name` for URL-safe identifiers (regex `^[a-zA-Z0-9._:-]+$`), `Literal` types for enum fields (`privacy`, `type`, `class_name`), `max_length` on string fields, `ge`/`le` bounds on integers, and `sanitize_filename` for uploads.
@@ -69,7 +81,7 @@ Three methods checked in order: JWT cookie (`restai_token`), Bearer API key, Bas
 
 ### LLM integration
 
-`restai/tools.py` maps LLM class names to implementations. Valid LLM classes: Ollama, OllamaMultiModal, OllamaMultiModal2, OpenAI, OpenAILike, Grok, Groq, Anthropic, LiteLLM, vLLM, GeminiMultiModal, Gemini, AzureOpenAI. Valid embedding classes: LangChain, LangChain.Openai, LangChain.HuggingFace, OllamaEmbeddings, Ollama. All go through LlamaIndex abstractions. These sets are defined as `VALID_LLM_CLASSES` and `VALID_EMBEDDING_CLASSES` in `models.py` and enforced via Pydantic validators.
+`restai/tools.py` maps LLM class names to implementations. Valid LLM classes: Ollama, OllamaMultiModal, OllamaMultiModal2, OpenAI, OpenAILike, Grok, Anthropic, LiteLLM, vLLM, GeminiMultiModal, Gemini, AzureOpenAI. Valid embedding classes: LangChain, LangChain.Openai, LangChain.HuggingFace, OllamaEmbeddings, Ollama. All go through LlamaIndex abstractions. These sets are defined as `VALID_LLM_CLASSES` and `VALID_EMBEDDING_CLASSES` in `models.py` and enforced via Pydantic validators.
 
 ### Frontend (`frontend/`)
 
@@ -149,7 +161,107 @@ Sync from 5 external sources: URL, S3, Confluence, SharePoint, Google Drive. Eac
 
 ### Cron Runner (`crons/runner.py`)
 
-Single entry point that dynamically discovers and runs all cron modules in the `crons/` directory. Each module must define a `main()` function. Modules with `DAEMON = True` (e.g. `slack.py`) are skipped. One crontab entry runs everything: `* * * * * cd /path/to/restai && uv run python crons/runner.py`. New cron scripts are auto-discovered — just add a `.py` file with a `main()` function to `crons/`. DB-backed logging via `CronLogger` in each module; logs visible at `/admin/cron-logs`.
+Single entry point that dynamically discovers and runs all cron modules in the `crons/` directory. Each module must define a `main()` function. Modules with `DAEMON = True` (e.g. `slack.py`) are skipped. One crontab entry runs everything: `* * * * * cd /path/to/restai && uv run python crons/runner.py`. New cron scripts are auto-discovered — just add a `.py` file with a `main()` function to `crons/`.
+
+The runner launches every cron **in parallel** as isolated subprocesses (so a slow/hung job can't block the others) with a per-job 10-minute timeout, and takes a per-job `flock` on `.cron-<name>.lock` files under the repo root — if the previous invocation is still running, the next one skips that job and leaves the others alone. DB-backed logging via `CronLogger` in each module; logs visible at `/admin/cron-logs` (filterable by job + status, with a "Run Now" button that shells out to the runner in a FastAPI `BackgroundTask`).
+
+Slack is now a cron-friendly poller (`crons/slack.py`, uses `slack_sdk.WebClient` + `conversations.history`). The old Socket Mode daemon was removed — no more `slack_bot.py`, no `slack_app_token` field.
+
+### Project Routines
+
+`ProjectRoutineDatabase` (`restai/models/databasemodels.py:445`) — scheduled messages that auto-fire on a project via the normal chat/question pipeline. Fields: `name`, `message`, `schedule_minutes`, `enabled`, `last_run`, `last_result`.
+
+Endpoints: `GET/POST/PATCH/DELETE /projects/{id}/routines[/{routineId}]`, plus `POST /projects/{id}/routines/{routineId}/fire` for manual trigger. Execution in `crons/routines.py` — `asyncio.wait_for` each routine with a 300s per-routine timeout so a hung MCP call can't stall the whole job; the runner's outer 600s timeout is a second safety net. The `for routine in routines` loop `continue`s on every exception so one broken routine never blocks the rest.
+
+Frontend: **Routines** tab on the project page, CRUD + a "fire via API" card showing the curl command.
+
+### Cron Logs
+
+`CronLogDatabase` — one row per runner invocation per job. Fields: `job`, `status` (success/error/warning), `message`, `details` (traceback), `items_processed`, `duration_ms`, `date`. Written by the `CronLogger` helper (`restai/cron_log.py`) — each cron instantiates it at the top of `main()`, calls `info()`/`warning()`/`error()`, and `finish()` at the end. `__del__` is a safety net: if `finish()` was never called (process killed), the destructor writes an error row.
+
+Admin page: `/admin/cron-logs` — filter by job/status, expand any row for the full message and traceback, **Run Now** button to kick the runner on-demand (spawns `crons/runner.py` as a subprocess so event loops / DB sessions stay clean), **Purge** button to wipe the table.
+
+### File Attachments in Chat/Question
+
+`QuestionModel` and `ChatModel` both accept an optional `files: list[FileAttachment]` (max 10) where each attachment is `{name, content (base64), mime_type?}`. When a message with files hits an agent project, `_upload_files_and_augment_prompt` (`restai/projects/agent.py`) decodes the bytes, calls `DockerManager.put_files(chat_id, [...])` to drop them into the container's `/home/user/uploads/` via `put_archive` on a tar stream, then appends a manifest to the user prompt (`[Files attached by the user (available in /home/user/uploads/...)]`) so the LLM naturally picks up the terminal-tool workflow. Container persists across messages in the same chat, so follow-up messages keep access to previously uploaded files.
+
+Docker is required — with the sandbox disabled, the helper appends a note telling the LLM the files couldn't be delivered instead of failing the request. Questions (stateless) use an ephemeral `chat_id` so the sandbox still gets spun up for the duration of that one call.
+
+Frontend: paperclip button in `ChatPanel.jsx` next to the existing image-upload cloud icon (agent-projects only). 20 MB per file, 10 files per message, base64-encoded in the same JSON body as the question.
+
+### Agent-Created Tools & Docker Sandbox
+
+Agents can create their own Python tools at runtime via the built-in `create_tool` tool (`restai/llms/tools/create_tool.py`). Tools are stored in `ProjectToolDatabase` (scoped to one project), test-executed in Docker before save, and auto-loaded by `_build_runtime` in `restai/projects/agent.py` on every subsequent chat. Each custom tool has an `enabled` toggle for per-tool kill-switch.
+
+Docker lifecycle: `restai/docker_manager.py` — per-chat containers reused across tool calls within the same conversation, idle cleanup by `crons/docker_cleanup.py` (removes containers older than `docker_timeout` seconds). Script execution uses base64-piped `python3 -c`; file uploads use `base64 -d | tar xf -` via `exec_run` because `put_archive` is blocked on read-only rootfs containers.
+
+Sandbox config: 1 GiB tmpfs on `/tmp` and `/home/user` (plenty of room for `pip install pandas` + uploaded CSVs), 512 MiB RAM, 0.5 CPU, auto-remove on stop. Admin settings: `docker_enabled`, `docker_url`, `docker_image`, `docker_network`, `docker_read_only`.
+
+- **`docker_read_only`** (default `true`) — rootfs read-only; blocks writes to `site-packages` so the LLM *cannot* `pip install`. Turn **off** only when you need pip; the container still dies on idle cleanup so mutations are ephemeral either way.
+- **`docker_network`** (default `none`) — network isolation; set to `bridge` to give the LLM outbound access (needed for pip to reach PyPI, also needed by any tool that hits external APIs).
+
+Changing either setting from the admin UI calls `brain.init_docker_manager()` which shuts down the old manager + its cached containers and rebuilds with the new config. Existing containers are stopped via `docker_cleanup.py` cron, so the next chat message always lands in a fresh container matching current settings.
+
+**Image recommendation:** Debian-slim (`python:3.12-slim`) is the default. Avoid Alpine images — they use musl libc which is incompatible with manylinux wheels, so packages like pandas/numpy have to compile from source, which is slow and can blow through the tmpfs budget.
+
+Read-only Tools view on the project main page (`ProjectInfoTools`); editable Agent-Created Tools section in project edit (`ProjectEditTools`).
+
+### System LLM & AI Assistants
+
+Global "System LLM" setting (Admin → Settings → **System LLM**). Used as the backing model for platform-level AI helpers that aren't project-scoped. When unset, the assistants are hidden from the UI.
+
+- **Smart Search** (`restai/utils/search_ai.py`, `SmartSearch.jsx`) — natural-language search across projects/users/teams/llms/embeddings. Whitelist-based entity/field schema, LLM emits a JSON query spec, server validates + runs RBAC-scoped SQLAlchemy queries, returns normalized `{entity, id, name, subtitle, path}` rows.
+- **System Prompt Generator** (`restai/utils/prompt_ai.py`) — per-project "Generate with AI" button next to the system prompt textarea.
+- **Blockly Workspace Generator** (`restai/utils/blockly_ai.py`) — block-project IDE has a "generate from description" prompt; emits Blockly workspace JSON from a `BLOCK_REFERENCE` schema.
+
+`Brain.get_system_llm()` reads the `system_llm` setting directly from the DB on every call so multi-worker deployments see config changes immediately (no env-var cache).
+
+### WordPress Plugin (`wordpress/restai/`)
+
+Full WP plugin that wraps RESTai. Each capability maps to a dedicated RESTai project (auto-provisioned on first connect); a widget key is lazily created on the support bot project and stashed in `restai_widget_credentials` so the chat script authenticates instead of staying in preview mode.
+
+- Settings page: URL + Bearer API key + team dropdown + image-generator picker; "Auto-provision starter projects" button.
+- Gutenberg sidebar: Generate body, excerpt, SEO meta, featured image, translations. Also a server-rendered content-generator block + `[restai_generate]` shortcode with transient caching.
+- Analytics admin page: mirrors `/statistics/summary` + `/statistics/daily-tokens`; button to **Push all to Support Bot** (force-full knowledge sync).
+- All `/projects/{id}/...` calls use the integer project id stored in `restai_project_map` (the plugin's task → project-id map). `sync_system_prompt` PATCHes after creation because `ProjectModelCreate` doesn't accept `system`.
+
+Plugin bootstrap in `includes/class-restai.php`, shared Icon helper (`Icon::svg()` / `Icon::data_url()`) in `includes/class-restai-icon.php`, WP REST namespace `restai/v1` in `includes/class-restai-rest.php`. Tested through WordPress 6.9, PHP 7.4+, GPL-2.0+, wp.org-ready (`readme.txt` + i18n + sanitize/escape everywhere).
+
+Local dev stack: `wordpress/docker-compose.yml` spins up WP 6.6 + MariaDB with the plugin bind-mounted at `/var/www/html/wp-content/plugins/restai`.
+
+### Mobile pairing (Android client under `android/`)
+
+Project-scoped mobile companion apps pair via a QR code generated from the project's **Mobile** tab. The protocol is platform-neutral — the QR payload is plain JSON that any mobile client can consume. An Android client ships in `android/`; future iOS would land in a sibling `ios/`.
+
+**Pairing protocol** — `ProjectEditMobile.jsx` calls `POST /projects/{id}/mobile/enable` which mints a **read-only, project-scoped API key** and returns a one-time plaintext plus a JSON QR payload:
+
+```json
+{ "host": "https://restai.example.com", "project_id": 42, "project_name": "…", "api_key": "…" }
+```
+
+- Endpoints (`restai/routers/projects.py`, Mobile section at the bottom): `GET/POST /projects/{id}/mobile{/enable,/disable,/regenerate}`.
+- The minted `ApiKeyDatabase` row id is stashed in `ProjectOptions.mobile_api_key_id` so the app can (a) pair more phones with the same key while the QR stays visible and (b) **regenerate** invalidates all paired phones in one click.
+- Disabling the toggle **deletes** the API key (cascade 401 on paired phones).
+- The plaintext is surfaced on **every** status read while the integration is enabled (decrypted from `ApiKeyDatabase.encrypted_key` via `decrypt_api_key`) so the QR stays visible across page reloads for pairing new phones. **Regenerate key** invalidates every paired phone at once by rotating the row; **Disable** drops it entirely.
+
+**Android client** — Kotlin + Jetpack Compose app. One activity, two screens: `QrScreen` (CameraX + ML Kit barcode scanner) and `ChatScreen` (Compose + OkHttp SSE reader against `/projects/{id}/chat` with `stream=true`). Credentials live in `EncryptedSharedPreferences` (AES-256-GCM). On every 401 the app clears the stored key and drops the user back on the QR screen. Build: open `android/` in Android Studio or `cd android && ./gradlew assembleDebug`. APK lands in `android/app/build/outputs/apk/debug/`.
+
+### Onboarding Checklist (`frontend/src/app/views/dashboard/shared/OnboardingChecklist.jsx`)
+
+Home-dashboard card shown to admins on fresh installs, gated by three auto-detected steps: add an LLM, attach the LLM to a team, create a project. Auto-hides when all three are done; dismissible via `localStorage["restai_onboarding_dismissed"]`. QA override: append `?onboarding=force` to the URL to render it even when dismissed or fully complete.
+
+### Security Hardening
+
+Accumulated fixes worth remembering:
+
+- **Security headers** (`cors_middleware` in `restai/main.py`) — `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY` + CSP on admin paths. Widget paths exempt from `X-Frame-Options` + CSP so embeds still work.
+- **Settings secrets encrypted at rest** — `SETTINGS_ENCRYPTED_KEYS` (`restai/utils/crypto.py`) covers `proxy_key`, `redis_password`, all `sso_*_client_secret`. `DBWrapper.upsert_setting` encrypts on write, `get_setting/get_settings/get_setting_value` decrypt on read. Rows are `expunge`d before mutation so plaintext can't be committed back.
+- **Per-project `redact_inference_logs` option** (`ProjectOptions`) — when enabled, `log_inference` strips OpenAI/Slack/Bearer tokens, long alphanumeric strings, and `user:pass@host` patterns from question/answer/system_prompt/context before persisting. Default off.
+- **Impersonation audit trail** — `/auth/impersonate/{username}` and `/auth/exit-impersonation` write `IMPERSONATE_START` / `IMPERSONATE_END` audit entries via `audit._log_to_db`.
+- **LDAP cookie** — sets `httponly=True`, `samesite="strict"` (was missing httponly).
+- **Salted API-key / recovery-code hashing** — `hash_api_key` / `hash_recovery_code` (`restai/utils/crypto.py`) now use PBKDF2-SHA256 + random 16-byte salt with `$pbkdf2$` prefix. `verify_*` accepts both new PBKDF2 hashes and legacy SHA256 for migration.
+- **Widget restricted-user block** — `get_widget_from_request` (`restai/auth.py`) rejects with 403 if the widget creator is restricted-and-not-admin.
+- **Frontend 401 handling** (`frontend/src/app/utils/api.js`) — on any 401 outside `/login`, sets `sessionStorage["session_expired"] = "1"` and redirects to `/admin/login`; the login page surfaces "Your session has expired. Please log in again." via `useEffect`.
 
 ### Custom Team Branding
 
@@ -187,4 +299,6 @@ Note: `tests/test_projects.py` may fail if no LLMs are configured in the test en
 
 ## Key env vars
 
-`RESTAI_DEV`, `RESTAI_GPU`, `RESTAI_DEFAULT_PASSWORD`, `RESTAI_URL` (for OAuth redirects), `REDIS_HOST`/`REDIS_PORT`, `CHROMADB_HOST`/`CHROMADB_PORT`, `MCP_SERVER` (enable internal MCP server), `AGENT_MAX_ITERATIONS`, LLM API keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc). Full list in `restai/config.py`.
+`RESTAI_DEV`, `RESTAI_GPU`, `RESTAI_DEFAULT_PASSWORD`, `RESTAI_URL` (for OAuth redirects), `REDIS_HOST`/`REDIS_PORT`, `CHROMADB_HOST`/`CHROMADB_PORT`, `MCP_SERVER` (enable internal MCP server), LLM API keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc). Full list in `restai/config.py`.
+
+Runtime-tunable settings (proxy, SSO, Docker, MCP, system LLM, knowledge retention, 2FA enforcement, etc.) live in the `settings` DB table and are read directly via `db.get_setting_value()` on every access — **don't rely on env-var caches in `config.*` for anything user-configurable**, they only hold the initial seed values. This is what lets multi-worker deployments pick up settings changes without a restart.

@@ -8,7 +8,7 @@ import { PROVIDER_CONFIG } from '../providerConfig';
 import api from "app/utils/api";
 
 const OPENAI_COMPAT_CLASSES = new Set([
-  "OpenAI", "OpenAILike", "LiteLLM", "vLLM", "Groq", "Grok", "Gemini", "GeminiMultiModal",
+  "OpenAI", "OpenAILike", "LiteLLM", "vLLM", "Grok", "Gemini", "GeminiMultiModal",
 ]);
 
 export default function LLMEdit({ llm }) {

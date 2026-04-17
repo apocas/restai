@@ -60,6 +60,7 @@ SETTINGS_DEFAULTS = {
     "docker_image": ("DOCKER_IMAGE", "python:3.12-slim"),
     "docker_timeout": ("DOCKER_TIMEOUT", "900"),
     "docker_network": ("DOCKER_NETWORK", "none"),
+    "docker_read_only": (None, "true"),
     # Retention
     "data_retention_days": (None, "0"),
     # 2FA
@@ -124,13 +125,14 @@ _CONFIG_ATTR_MAP = {
     "docker_image": "DOCKER_IMAGE",
     "docker_timeout": "DOCKER_TIMEOUT",
     "docker_network": "DOCKER_NETWORK",
+    "docker_read_only": "DOCKER_READ_ONLY",
     # Retention
     "data_retention_days": "DATA_RETENTION_DAYS",
     # 2FA
     "enforce_2fa": "ENFORCE_2FA",
 }
 
-_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "enforce_2fa"}
+_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "docker_read_only", "enforce_2fa"}
 _INT_KEYS = {"max_audio_upload_size", "data_retention_days", "docker_timeout"}
 
 # Secret keys that should be masked in API responses
@@ -265,6 +267,7 @@ def get_all_settings(db_wrapper) -> dict:
         "docker_image": rows.get("docker_image", "python:3.12-slim"),
         "docker_timeout": int(rows.get("docker_timeout", "900") or "900"),
         "docker_network": rows.get("docker_network", "none"),
+        "docker_read_only": _to_bool(rows.get("docker_read_only", "true")),
         # Retention
         "data_retention_days": int(rows.get("data_retention_days", "0") or "0"),
     }

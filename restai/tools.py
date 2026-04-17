@@ -66,10 +66,6 @@ def get_llm_class(llm_class_name: str):
                 "api_key": os.environ.get("XAI_API_KEY"),
                 "model": "grok-beta",
             }
-        case "Groq":
-            from llama_index.llms.groq import Groq
-
-            return Groq, {}
         case "Anthropic":
             from llama_index.llms.anthropic import Anthropic
 

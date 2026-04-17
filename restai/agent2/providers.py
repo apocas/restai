@@ -96,7 +96,7 @@ def _build_user_payload(
 
 
 class OpenAIProvider(Provider):
-    """Works for OpenAI, Ollama, Groq, Grok, OpenAILike, LiteLLM — anything
+    """Works for OpenAI, Ollama, Grok, OpenAILike, LiteLLM — anything
     that exposes a `/v1/chat/completions` endpoint."""
 
     def __init__(self, config: ProviderConfig) -> None:
@@ -738,17 +738,6 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
         )
         return OpenAIProvider(cfg), cfg
 
-    if class_name == "Groq":
-        cfg = ProviderConfig(
-            model=model,
-            api_key=api_key or os.environ.get("GROQ_API_KEY"),
-            base_url=base_url or "https://api.groq.com/openai/v1",
-            max_output_tokens=max_tokens,
-            temperature=temperature,
-            context_window=context_window,
-        )
-        return OpenAIProvider(cfg), cfg
-
     if class_name == "Grok":
         cfg = ProviderConfig(
             model=model or "grok-beta",
@@ -879,6 +868,6 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
     raise Agent2UnsupportedLLMError(
         f"agent2 does not support LLM class '{class_name}' yet. "
         "Supported: OpenAI, OpenAILike, LiteLLM, Ollama, OllamaMultiModal, "
-        "OllamaMultiModal2, Groq, Grok, Anthropic, vLLM, Gemini, "
+        "OllamaMultiModal2, Grok, Anthropic, vLLM, Gemini, "
         "GeminiMultiModal, AzureOpenAI, Bedrock."
     )

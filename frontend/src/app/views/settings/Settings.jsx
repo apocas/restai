@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Grid, styled, Box, Card, Divider, TextField, Button,
-  Switch, FormControlLabel, Typography, Select, MenuItem, InputLabel, FormControl,
+  Switch, FormControlLabel, FormHelperText, Typography, Select, MenuItem, InputLabel, FormControl,
   Collapse, IconButton
 } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
@@ -79,6 +79,7 @@ export default function SettingsPage() {
     docker_image: "python:3.12-slim",
     docker_timeout: 900,
     docker_network: "none",
+    docker_read_only: true,
     system_llm: "",
     enforce_2fa: false,
   });
@@ -321,6 +322,15 @@ export default function SettingsPage() {
                         onChange={handleChange("docker_network")}
                         helperText={'"none" for no network access, "bridge" for internet access, or a custom network name'}
                       />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={<Switch checked={!!form.docker_read_only} onChange={handleChange("docker_read_only")} />}
+                        label="Read-only rootfs"
+                      />
+                      <FormHelperText sx={{ mt: -0.5, ml: 4 }}>
+                        Safer sandbox. Disable to let the LLM run <code>pip install</code> and write to the container filesystem.
+                      </FormHelperText>
                     </Grid>
                     <Grid item xs={12}>
                       <Button

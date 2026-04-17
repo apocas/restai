@@ -32,6 +32,102 @@ from restai.projects.base import ProjectBase
 from restai.tools import tokens_from_string
 
 
+_IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
+
+
+def _is_image_attachment(f) -> bool:
+    """True if the attachment should go through the multimodal vision flow."""
+    mime = (getattr(f, "mime_type", None) or "").lower()
+    if mime.startswith("image/"):
+        return True
+    name = (getattr(f, "name", "") or "").lower()
+    return name.endswith(_IMAGE_EXTS)
+
+
+def _route_attachments(files, chat_id, prompt, brain, existing_image=None):
+    """Unify the image + file upload paths.
+
+    Given a list of `FileAttachment` objects, split them by MIME:
+    - The first image becomes the vision-model input (returned as a data URL).
+      Any extra images are pushed into the sandbox alongside the non-image
+      files so the LLM can still reach them via the terminal tool.
+    - Non-image files go through the sandbox uploader.
+
+    Returns ``(augmented_prompt, image_data_url_or_existing)``. If the caller
+    already passed an explicit `image` on the request, it wins over anything
+    in `files` (backward-compat with the old `image` field).
+    """
+    if not files:
+        return prompt, existing_image
+
+    images = [f for f in files if _is_image_attachment(f)]
+    docs = [f for f in files if not _is_image_attachment(f)]
+
+    image_url = existing_image
+    extras: list = []
+    if images:
+        if image_url is None:
+            primary = images[0]
+            mime = primary.mime_type or "image/png"
+            image_url = f"data:{mime};base64,{primary.content}"
+            # Any additional images still get dropped in uploads/ so the LLM
+            # can process them with vision-aware tools later.
+            extras = images[1:]
+        else:
+            # Caller supplied an explicit image — push every attached image
+            # into uploads/ instead of discarding them.
+            extras = images
+
+    sandbox_targets = docs + extras
+    if sandbox_targets:
+        prompt, _ = _upload_files_and_augment_prompt(sandbox_targets, chat_id, prompt, brain)
+
+    return prompt, image_url
+
+
+def _upload_files_and_augment_prompt(files, chat_id, prompt, brain):
+    """Push user-attached files into the agent's sandbox container and return
+    the original prompt augmented with a manifest the LLM can see.
+
+    Returns ``(prompt, warning_or_none)``. When Docker isn't configured we
+    skip the upload and append a note so the LLM knows the files weren't
+    available.
+    """
+    if not files:
+        return prompt, None
+
+    docker = getattr(brain, "docker_manager", None)
+    if docker is None:
+        note = "\n\n[The user attached files but the agent sandbox (Docker) isn't configured on this RESTai instance, so the files cannot be processed.]"
+        return prompt + note, "no_docker"
+
+    import base64
+    decoded: list[tuple[str, bytes]] = []
+    for f in files:
+        try:
+            raw = base64.b64decode(f.content, validate=False)
+        except Exception:
+            continue
+        if raw:
+            decoded.append((f.name, raw))
+
+    if not decoded:
+        return prompt, None
+
+    try:
+        manifest = docker.put_files(chat_id or "ephemeral", decoded)
+    except Exception as e:
+        return prompt + f"\n\n[File upload to sandbox failed: {e}]", "upload_failed"
+
+    if not manifest:
+        return prompt, None
+
+    lines = ["", "[Files attached by the user (available in /home/user/uploads/ — use the terminal tool to inspect them):]"]
+    for entry in manifest:
+        lines.append(f"  - {entry['path']}  ({entry['size']} bytes)")
+    return prompt + "\n" + "\n".join(lines), None
+
+
 def _make_project_tool_adapted(tool_row, brain) -> AdaptedTool:
     """Create an AdaptedTool from a ProjectToolDatabase row.
     The tool runs code in the Docker sandbox."""
@@ -270,12 +366,17 @@ class Agent(ProjectBase):
                 runtime._brain = self.brain
                 runtime._project_id = project.props.id
                 session = await get_session(self.brain, chat_id)
-                image_block = ImageBlock.from_data_url(chatModel.image) if chatModel.image else None
+
+                prompt_text, image_url = _route_attachments(
+                    getattr(chatModel, "files", None), chat_id, chatModel.question, self.brain,
+                    existing_image=chatModel.image,
+                )
+                image_block = ImageBlock.from_data_url(image_url) if image_url else None
 
                 try:
                     async for delta in self._drive_runtime(
                         runtime,
-                        prompt=chatModel.question,
+                        prompt=prompt_text,
                         session=session,
                         image_block=image_block,
                         stream=chatModel.stream,
@@ -377,13 +478,22 @@ class Agent(ProjectBase):
 
             runtime._brain = self.brain
             runtime._project_id = project.props.id
-            image_block = ImageBlock.from_data_url(questionModel.image) if questionModel.image else None
             streamed_any_text = False
+
+            # Ephemeral chat id so file uploads still land in a sandbox the
+            # terminal tool can read from inside this same invocation.
+            eph_chat = f"q_{uuid4().hex[:12]}"
+            runtime._chat_id = eph_chat
+            prompt_text, image_url = _route_attachments(
+                getattr(questionModel, "files", None), eph_chat, questionModel.question, self.brain,
+                existing_image=questionModel.image,
+            )
+            image_block = ImageBlock.from_data_url(image_url) if image_url else None
 
             try:
                 async for delta in self._drive_runtime(
                     runtime,
-                    prompt=questionModel.question,
+                    prompt=prompt_text,
                     session=None,
                     image_block=image_block,
                     stream=questionModel.stream,

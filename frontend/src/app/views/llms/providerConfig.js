@@ -41,15 +41,6 @@ export const PROVIDER_CONFIG = {
       { name: "is_chat_model", label: "Is Chat Model", type: "boolean", required: false, default: true },
     ],
   },
-  Groq: {
-    label: "Groq",
-    description: "Ultra-fast inference with Groq LPU",
-    fields: [
-      { name: "model", label: "Model", type: "text", required: true, placeholder: "e.g. llama-3.1-70b-versatile" },
-      { name: "api_key", label: "API Key", type: "password", required: false, placeholder: "Uses GROQ_API_KEY env var if empty" },
-      { name: "temperature", label: "Temperature", type: "number", required: false, default: 0, step: 0.1 },
-    ],
-  },
   Anthropic: {
     label: "Anthropic",
     description: "Claude models from Anthropic",

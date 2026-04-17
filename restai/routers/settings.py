@@ -73,7 +73,7 @@ async def patch_settings(
     if sso_fields:
         reinit_oauth(request.app)
 
-    docker_fields = {"docker_enabled", "docker_url", "docker_image", "docker_timeout", "docker_network"}
+    docker_fields = {"docker_enabled", "docker_url", "docker_image", "docker_timeout", "docker_network", "docker_read_only"}
     if docker_fields & updates.keys():
         request.app.state.brain.init_docker_manager()
 

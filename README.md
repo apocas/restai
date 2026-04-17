@@ -85,7 +85,7 @@ Fetches the latest release tag from GitHub, installs dependencies, runs database
 
 - **Multi-project AI platform** — RAG (with optional SQL-to-NL and auto-sync from URLs/S3), Agents, Block (visual logic), and Inference in one place
 - **Full Web UI included** — React dashboard with analytics, not just an API
-- **Any LLM** — OpenAI, Anthropic, Ollama, Gemini, Groq, LiteLLM, vLLM, Azure, and more
+- **Any LLM** — OpenAI, Anthropic, Ollama, Gemini, LiteLLM, vLLM, Azure, and more
 - **Feature complete** — Teams, RBAC, OAuth/LDAP, TOTP 2FA, token tracking, per-project rate limiting, white-label branding, Kubernetes-native
 - **Extensible tools** — MCP (Model Context Protocol) for unlimited agent integrations
 - **Token tracking, cost & latency analytics** — built-in dashboard with daily usage, per-project costs, latency monitoring, and top LLM charts
@@ -422,7 +422,6 @@ Talks directly to provider SDKs. Each model has a configurable context window wi
 | [OpenAI](https://platform.openai.com/) | `OpenAI` |
 | [Anthropic](https://www.anthropic.com/) | `Anthropic` |
 | [Google Gemini](https://ai.google.dev/) | `Gemini` / `GeminiMultiModal` |
-| [Groq](https://groq.com/) | `Groq` |
 | [Grok (xAI)](https://x.ai/) | `Grok` |
 | [LiteLLM](https://litellm.ai/) | `LiteLLM` |
 | [vLLM](https://vllm.ai/) | `vLLM` |

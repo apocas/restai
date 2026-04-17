@@ -70,6 +70,7 @@ class Brain:
                 docker_image=getattr(config, "DOCKER_IMAGE", "python:3.12-slim"),
                 container_timeout=int(getattr(config, "DOCKER_TIMEOUT", 900)),
                 network_mode=getattr(config, "DOCKER_NETWORK", "none"),
+                read_only=bool(getattr(config, "DOCKER_READ_ONLY", True)),
             )
         except Exception as e:
             logging.warning("Failed to initialize Docker manager: %s", e)

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Fade, Grid } from "@mui/material";
-import { Info, Storage, Shield, BarChart, ChatBubble, Widgets, Hub, Build, Schedule } from "@mui/icons-material";
+import { Info, Storage, Shield, BarChart, ChatBubble, Widgets, Hub, Build, Schedule, PhoneAndroid } from "@mui/icons-material";
 
 import ProjectInfo from "./ProjectInfo";
 import ProjectTabNav from "./ProjectTabNav";
@@ -13,6 +13,7 @@ import ProjectComments from "./ProjectComments";
 import ProjectWidget from "./ProjectWidget";
 import ProjectInfoTools from "./ProjectInfoTools";
 import ProjectEditRoutines from "./ProjectEditRoutines";
+import ProjectEditMobile from "./ProjectEditMobile";
 
 const ALL_TABS = [
   { name: "General", Icon: Info },
@@ -23,6 +24,7 @@ const ALL_TABS = [
   { name: "Security", Icon: Shield },
   { name: "Analytics", Icon: BarChart },
   { name: "Widget", Icon: Widgets },
+  { name: "Mobile", Icon: PhoneAndroid },
   { name: "Comments", Icon: ChatBubble },
 ];
 
@@ -57,6 +59,7 @@ export default function ProjectDetails({ project, projects, info }) {
             {active === "Security" && <ProjectInfoSecurity project={project} />}
             {active === "Analytics" && <ProjectInfoAnalytics project={project} />}
             {active === "Widget" && <ProjectWidget project={project} />}
+            {active === "Mobile" && <ProjectEditMobile project={project} />}
             {active === "Comments" && <ProjectComments project={project} />}
           </Grid>
         </Grid>
