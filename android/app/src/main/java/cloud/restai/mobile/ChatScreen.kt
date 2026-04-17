@@ -172,7 +172,7 @@ fun ChatScreen(cred: QrPayload, onLogout: () -> Unit) {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        cred.projectName,
+                        "RESTai",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
