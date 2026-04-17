@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -175,13 +174,7 @@ fun ChatScreen(cred: QrPayload, onLogout: () -> Unit) {
         containerColor = bgColor,
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "RESTai",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                },
+                title = {},
                 navigationIcon = {
                     IconButton(
                         onClick = {
@@ -198,16 +191,12 @@ fun ChatScreen(cred: QrPayload, onLogout: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        Credentials.clear(ctx)
-                        onLogout()
-                    }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Logout,
-                            contentDescription = "Log out",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    Text(
+                        "RESTai",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(end = 16.dp),
+                    )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = bgColor),
             )
@@ -511,12 +500,9 @@ private fun MessageRow(msg: Message) {
                     TypingIndicator()
                 } else {
                     Column(Modifier.widthIn(max = 300.dp)) {
-                        Text(
-                            msg.text,
+                        MarkdownText(
+                            content = msg.text,
                             modifier = Modifier.padding(top = 4.dp),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            style = MaterialTheme.typography.bodyLarge,
-                            lineHeight = 22.sp,
                         )
                         IconButton(
                             onClick = {

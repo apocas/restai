@@ -62,6 +62,14 @@ dependencies {
     // HTTP client for streaming chat
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
+    // Markdown rendering for assistant answers (Markwon — tables, code, links, etc.)
+    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:ext-tables:4.6.2")
+    implementation("io.noties.markwon:ext-strikethrough:4.6.2")
+    implementation("io.noties.markwon:ext-tasklist:4.6.2")
+    implementation("io.noties.markwon:linkify:4.6.2")
+    implementation("io.noties.markwon:html:4.6.2")
+
     // JSON
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.2")
 
