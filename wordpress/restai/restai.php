@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:       RESTai
- * Plugin URI:        https://restai.cloud
- * Description:       AI superpowers for WordPress — generate content, SEO meta, images, translations, AI search, embedded chat and more, powered by your own RESTai instance.
+ * Plugin URI:        https://restai.cloud/wordpress
+ * Description:       RESTai - AI superpowers for WordPress — generate content, SEO meta, images, translations, AI search, embedded chat and more, powered by your own RESTai instance.
  * Version:           0.1.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
