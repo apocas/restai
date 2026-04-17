@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -38,6 +37,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.FileProvider
 import cloud.restai.mobile.R
+import androidx.compose.ui.text.font.FontFamily
+import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownTypography
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -175,13 +177,7 @@ fun ChatScreen(cred: QrPayload, onLogout: () -> Unit) {
         containerColor = bgColor,
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        "RESTai",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                },
+                title = {},
                 navigationIcon = {
                     IconButton(
                         onClick = {
@@ -198,16 +194,12 @@ fun ChatScreen(cred: QrPayload, onLogout: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        Credentials.clear(ctx)
-                        onLogout()
-                    }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Logout,
-                            contentDescription = "Log out",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    Text(
+                        "RESTai",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(end = 16.dp),
+                    )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = bgColor),
             )
@@ -511,12 +503,27 @@ private fun MessageRow(msg: Message) {
                     TypingIndicator()
                 } else {
                     Column(Modifier.widthIn(max = 300.dp)) {
-                        Text(
-                            msg.text,
+                        val bodyStyle = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp)
+                        Markdown(
+                            content = msg.text,
                             modifier = Modifier.padding(top = 4.dp),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            style = MaterialTheme.typography.bodyLarge,
-                            lineHeight = 22.sp,
+                            typography = markdownTypography(
+                                h1 = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                h2 = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                h3 = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                                h4 = bodyStyle.copy(fontWeight = FontWeight.SemiBold),
+                                h5 = bodyStyle.copy(fontWeight = FontWeight.SemiBold),
+                                h6 = bodyStyle.copy(fontWeight = FontWeight.SemiBold),
+                                text = bodyStyle,
+                                paragraph = bodyStyle,
+                                ordered = bodyStyle,
+                                bullet = bodyStyle,
+                                list = bodyStyle,
+                                quote = bodyStyle.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic),
+                                code = bodyStyle.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp),
+                                inlineCode = bodyStyle.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp),
+                                link = bodyStyle.copy(fontWeight = FontWeight.SemiBold),
+                            ),
                         )
                         IconButton(
                             onClick = {

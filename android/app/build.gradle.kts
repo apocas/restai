@@ -62,6 +62,10 @@ dependencies {
     // HTTP client for streaming chat
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
+    // Markdown rendering for assistant answers
+    implementation("com.mikepenz:multiplatform-markdown-renderer-android:0.27.0")
+    implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.27.0")
+
     // JSON
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.2")
 
