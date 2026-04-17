@@ -25,14 +25,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import android.widget.Toast
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.core.content.FileProvider
+import cloud.restai.mobile.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -178,16 +183,17 @@ fun ChatScreen(cred: QrPayload, onLogout: () -> Unit) {
                     )
                 },
                 navigationIcon = {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.padding(start = 12.dp).size(34.dp),
+                    IconButton(
+                        onClick = {
+                            messages = emptyList()
+                            conversationId = null
+                        },
+                        modifier = Modifier.padding(start = 8.dp),
                     ) {
-                        Icon(
-                            Icons.Filled.SmartToy,
-                            contentDescription = null,
-                            modifier = Modifier.padding(6.dp),
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        Image(
+                            painter = painterResource(R.drawable.restai_logo),
+                            contentDescription = "New conversation",
+                            modifier = Modifier.size(32.dp).clip(CircleShape),
                         )
                     }
                 },
@@ -224,7 +230,7 @@ fun ChatScreen(cred: QrPayload, onLogout: () -> Unit) {
                                 modifier = Modifier.size(56.dp),
                             ) {
                                 Icon(
-                                    Icons.Filled.SmartToy,
+                                    Icons.Filled.Android,
                                     contentDescription = null,
                                     modifier = Modifier.padding(14.dp),
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -480,6 +486,8 @@ private fun MessageRow(msg: Message) {
                 }
             }
         } else {
+            val clipboard = LocalClipboardManager.current
+            val ctx = LocalContext.current
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -492,7 +500,7 @@ private fun MessageRow(msg: Message) {
                     modifier = Modifier.size(28.dp),
                 ) {
                     Icon(
-                        Icons.Filled.SmartToy,
+                        Icons.Filled.Android,
                         contentDescription = null,
                         modifier = Modifier.padding(5.dp),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -502,15 +510,29 @@ private fun MessageRow(msg: Message) {
                 if (msg.text.isEmpty()) {
                     TypingIndicator()
                 } else {
-                    Text(
-                        msg.text,
-                        modifier = Modifier
-                            .widthIn(max = 300.dp)
-                            .padding(top = 4.dp),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.bodyLarge,
-                        lineHeight = 22.sp,
-                    )
+                    Column(Modifier.widthIn(max = 300.dp)) {
+                        Text(
+                            msg.text,
+                            modifier = Modifier.padding(top = 4.dp),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodyLarge,
+                            lineHeight = 22.sp,
+                        )
+                        IconButton(
+                            onClick = {
+                                clipboard.setText(AnnotatedString(msg.text))
+                                Toast.makeText(ctx, "Copied", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.ContentCopy,
+                                contentDescription = "Copy",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            )
+                        }
+                    }
                 }
             }
         }
