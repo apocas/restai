@@ -8,6 +8,7 @@ import DailyTokensChart from "./shared/DailyTokensChart";
 import ActivityPulse from "./shared/ActivityPulse";
 import TopLLMsChart from "./shared/TopLLMsChart";
 import ProjectsTable from "./shared/ProjectsTable";
+import OnboardingChecklist from "./shared/OnboardingChecklist";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import api from "app/utils/api";
@@ -67,6 +68,9 @@ export default function Analytics() {
         </Box>
 
         <ContentBox>
+          {/* Onboarding (only shows on fresh installs) */}
+          <OnboardingChecklist />
+
           {/* Section 1: Stats */}
           <ProjectsStats
             projects={projects}

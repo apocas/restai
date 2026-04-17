@@ -1,0 +1,38 @@
+# Local-only WordPress dev stack for testing the RESTai plugin.
+# Bring up:   cd wordpress && docker compose up -d
+# Tear down:  docker compose down -v
+services:
+  db:
+    image: mariadb:11
+    container_name: restai-wp-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpw
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    volumes:
+      - wp_db:/var/lib/mysql
+
+  wordpress:
+    image: wordpress:6.6-php8.2-apache
+    container_name: restai-wp
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DEBUG: 1
+    volumes:
+      - wp_data:/var/www/html
+      # Bind-mount the plugin so edits to PHP/JS show up immediately.
+      - ./restai:/var/www/html/wp-content/plugins/restai
+
+volumes:
+  wp_db:
+  wp_data:

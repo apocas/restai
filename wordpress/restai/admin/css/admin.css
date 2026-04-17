@@ -1,0 +1,45 @@
+.restai-settings .form-table th { width: 220px; }
+.restai-settings select.restai-project-select { min-width: 280px; }
+.restai-settings #restai-connection-status.ok { color: #1a7f37; }
+.restai-settings #restai-connection-status.fail { color: #b32d2e; }
+
+.restai-analytics-app .stat-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	gap: 12px;
+	margin: 16px 0;
+}
+.restai-analytics-app .stat {
+	background: #fff;
+	border: 1px solid #e0e0e6;
+	border-radius: 8px;
+	padding: 16px;
+}
+.restai-analytics-app .stat .label { font-size: 12px; color: #666; }
+.restai-analytics-app .stat .value { font-size: 22px; font-weight: 600; margin-top: 4px; }
+
+.restai-editor-panel {
+	background: #fff;
+	border: 1px solid #e0e0e6;
+	border-radius: 6px;
+	padding: 12px;
+	margin: 12px 0;
+}
+.restai-editor-panel h3 {
+	margin: 0 0 8px;
+	font-size: 13px;
+	text-transform: uppercase;
+	color: #666;
+}
+.restai-editor-panel .button { margin-right: 6px; margin-bottom: 6px; }
+.restai-spinner {
+	display: inline-block;
+	width: 14px;
+	height: 14px;
+	border: 2px solid #ccc;
+	border-top-color: #2271b1;
+	border-radius: 50%;
+	animation: restai-spin 0.7s linear infinite;
+	vertical-align: middle;
+}
+@keyframes restai-spin { to { transform: rotate(360deg); } }
