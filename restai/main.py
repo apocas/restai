@@ -361,6 +361,11 @@ async def lifespan(fs_app: FastAPI):
     from restai.routers import evals
     fs_app.include_router(evals.router)
 
+    # Image cache endpoint is always mounted (used by the `draw_image` builtin
+    # tool, which works on non-GPU deployments via DALL-E / gpt-image-1.5).
+    from restai.routers import image_cache
+    fs_app.include_router(image_cache.router, tags=["Image"])
+
     if config.RESTAI_GPU == True:
         fs_app.include_router(image.router, tags=["Image"])
         fs_app.include_router(audio.router, tags=["Audio"])

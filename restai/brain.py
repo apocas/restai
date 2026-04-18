@@ -37,6 +37,11 @@ class Brain:
         # agent2 in-memory session store: chat_id -> list[message dict]
         self._agent2_sessions: dict[str, list[dict]] = {}
         self.docker_manager = None
+        # Tool-generated image cache: id -> (bytes, mime_type, expires_at).
+        # Populated by the `draw_image` builtin tool so agent context can
+        # reference images by short URL instead of carrying base64 inline.
+        # 24h TTL — see `_IMAGE_CACHE_TTL` below.
+        self._image_cache: dict[str, tuple] = {}
 
         # Tools are lazy-loaded when first requested via get_tools(). The
         # full app sets them eagerly below so the first chat is fast; cron
@@ -87,6 +92,42 @@ class Brain:
         if self.docker_manager is not None:
             self.docker_manager.shutdown()
             self.docker_manager = None
+
+    # ------------------------------------------------------------------
+    # Tool-generated image cache
+    # ------------------------------------------------------------------
+
+    _IMAGE_CACHE_TTL_SECONDS = 24 * 60 * 60  # 24h
+
+    def cache_image(self, data: bytes, mime_type: str = "image/png") -> str:
+        """Stash an image in the in-memory cache and return a random hex id.
+        The id is what the GET /image/cache/{id} endpoint resolves against.
+        Lazy expiry on each write keeps the dict from growing unbounded."""
+        import secrets
+        import time as _time
+        self._sweep_expired_images(now=_time.time())
+        image_id = secrets.token_hex(16)  # 32-char unguessable id
+        expires_at = _time.time() + self._IMAGE_CACHE_TTL_SECONDS
+        self._image_cache[image_id] = (data, mime_type, expires_at)
+        return image_id
+
+    def get_cached_image(self, image_id: str):
+        """Return ``(bytes, mime_type)`` for a cached image, or ``None``
+        when the id is unknown or has expired (the latter triggers a sweep)."""
+        import time as _time
+        entry = self._image_cache.get(image_id)
+        if entry is None:
+            return None
+        data, mime_type, expires_at = entry
+        if expires_at < _time.time():
+            self._image_cache.pop(image_id, None)
+            return None
+        return data, mime_type
+
+    def _sweep_expired_images(self, now: float) -> None:
+        expired = [k for k, (_d, _m, exp) in self._image_cache.items() if exp < now]
+        for k in expired:
+            self._image_cache.pop(k, None)
 
     def reinit_chat_store(self):
         redis_url = config.build_redis_url()
