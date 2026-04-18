@@ -40,40 +40,49 @@ def main():
         from restai.utils.crypto import decrypt_field
 
         projects = db.db.query(ProjectDatabase).all()
+        logger.info(f"Scanning {len(projects)} project(s) for Telegram tokens")
+
+        enabled_count = 0
 
         for proj in projects:
             opts = json.loads(proj.options) if proj.options else {}
-            # `telegram_token` lives in PROJECT_SENSITIVE_KEYS and is stored
-            # as `$ENC$<ciphertext>` at rest. decrypt_field is a no-op for
-            # legacy plaintext rows, so we can call it unconditionally.
             token = decrypt_field(opts.get("telegram_token") or "")
             if not token:
                 continue
 
-            # Poll with short timeout (1s) — get pending updates only
+            enabled_count += 1
+            logger.info(f"Polling project '{proj.name}' (id={proj.id})")
+
             updates, err = get_updates(token, offset=0, timeout=1)
             if err is not None:
                 logger.warning(f"Telegram API error for project {proj.name} (id={proj.id}): {err}")
                 continue
             if not updates:
+                logger.info(f"No new Telegram updates for project '{proj.name}'")
                 continue
 
-            logger.info(f"Processing {len(updates)} Telegram updates for project {proj.name}")
+            logger.info(f"Got {len(updates)} update(s) for project '{proj.name}'")
 
             for update in updates:
                 message = update.get("message")
                 if not message:
+                    logger.info(f"Skipping non-message update: {list(update.keys())}")
                     continue
 
                 text = message.get("text")
                 chat_id = message.get("chat", {}).get("id")
                 if not text or not chat_id:
+                    logger.info(f"Skipping message with no text/chat_id (text={bool(text)}, chat_id={chat_id})")
                     continue
+
+                from_user = message.get("from", {}).get("username") or message.get("from", {}).get("id")
+                logger.info(f"  ← message from {from_user} (chat={chat_id}): {text[:200]!r}")
 
                 # Built-in shortcut: replies with the chat_id so the admin
                 # can paste it into `telegram_default_chat_id` for the
-                # send_telegram tool. Cheap, no DB hit, no LLM call.
+                # send_telegram tool.
                 if text.strip().lower() in ("/chatid", "/myid"):
+                    logger.info(f"  → replying with chat id {chat_id}")
                     try:
                         send_message(token, chat_id, f"Chat ID: {chat_id}")
                     except Exception as e:
@@ -83,20 +92,26 @@ def main():
 
                 try:
                     send_typing(token, chat_id)
+                    logger.info(f"  → invoking project '{proj.name}' agent for chat {chat_id}")
                     response = asyncio.run(_process_message(brain, db, proj.id, text, chat_id))
                     if response:
+                        logger.info(f"  → sending response ({len(response)} chars): {response[:200]!r}")
                         send_message(token, chat_id, response)
+                    else:
+                        logger.warning(f"  ✗ project '{proj.name}' returned no response for chat {chat_id}")
                     processed += 1
                 except Exception as e:
                     logger.exception(f"Error processing Telegram message for project {proj.name} (id={proj.id}): {e}")
 
-            # Acknowledge processed updates
+            # Acknowledge processed updates so Telegram doesn't redeliver.
             if updates:
                 last_offset = updates[-1]["update_id"] + 1
-                get_updates(token, offset=last_offset, timeout=1)
+                logger.info(f"Acking {len(updates)} update(s) up to offset {last_offset}")
+                _, ack_err = get_updates(token, offset=last_offset, timeout=1)
+                if ack_err is not None:
+                    logger.warning(f"Failed to ack updates for project {proj.name}: {ack_err}")
 
-        if processed:
-            cron.info(f"Processed {processed} Telegram message(s)")
+        logger.info(f"Tick complete: {enabled_count} project(s) with Telegram, {processed} message(s) processed")
         cron.finish(items_processed=processed)
     except Exception as e:
         cron.error(f"Telegram poller crashed: {e}", details=__import__("traceback").format_exc())
@@ -112,22 +127,31 @@ async def _process_message(brain, db, project_id, text, chat_id):
 
     project = brain.find_project(project_id, db)
     if not project:
+        logger.warning(f"_process_message: project {project_id} not found")
         return None
 
+    # `chat_id=f"telegram_{chat_id}"` keeps each Telegram chat as its own
+    # conversation in the agent's memory store across cron ticks.
     chat_input = ChatModel(question=text, id=f"telegram_{chat_id}")
 
-    # Create a minimal user for the chat
     user_db = db.get_user_by_username("admin")
     if not user_db:
+        logger.warning("_process_message: no 'admin' user — cannot run agent")
         return None
     user = User.model_validate(user_db)
 
     background_tasks = BackgroundTasks()
-    result = await chat_main(project, chat_input, user, db, brain, background_tasks)
+    # chat_main signature: (request, brain, project, chat_input, user, db, background_tasks).
+    # The Request slot is `_` (unused) inside chat_main, so None is fine.
+    result = await chat_main(None, brain, project, chat_input, user, db, background_tasks)
     await background_tasks()
 
     if isinstance(result, dict):
         return result.get("answer", "")
+    if result is None:
+        logger.warning(f"_process_message: chat_main returned None for project {project_id}")
+        return None
+    logger.warning(f"_process_message: chat_main returned unexpected type {type(result).__name__}")
     return None
 
 
