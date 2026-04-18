@@ -22,6 +22,7 @@ import { ContentCopy } from "@mui/icons-material";
 import ApiKeys from "./components/ApiKeys";
 import Password from "./components/Password";
 import Projects from "./components/Projects";
+import Teams from "./components/Teams";
 import UserActivity from "./components/UserActivity";
 import DeleteAccount from "./components/DeleteAccount";
 import TwoFactorAuth from "./components/TwoFactorAuth";
@@ -33,6 +34,7 @@ import HttpsIcon from '@mui/icons-material/Https';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import SecurityIcon from '@mui/icons-material/Security';
+import GroupsIcon from '@mui/icons-material/Groups';
 
 const StyledButton = styled(Button)(({ theme }) => ({
   borderRadius: 0,
@@ -164,13 +166,14 @@ export default function UserInfo() {
         </Grid>
 
         <Grid item md={9} xs={12}>
-          {active === tabList[0].name && <BasicInformation user={user} />}
-          {active === tabList[1].name && <Password user={user} />}
-          {active === tabList[2].name && <TwoFactorAuth user={user} />}
-          {active === tabList[3].name && <Projects user={user} projects={projects} />}
-          {active === tabList[4].name && <ApiKeys user={user} />}
-          {active === tabList[5].name && user.id && <UserActivity user={user} />}
-          {active === tabList[6].name && <DeleteAccount user={user} />}
+          {active === "Basic Information" && <BasicInformation user={user} />}
+          {active === "Password" && <Password user={user} />}
+          {active === "Two-Factor Auth" && <TwoFactorAuth user={user} />}
+          {active === "Projects" && <Projects user={user} projects={projects} />}
+          {active === "Teams" && <Teams user={user} />}
+          {active === "API Keys" && <ApiKeys user={user} />}
+          {active === "Activity" && user.id && <UserActivity user={user} />}
+          {active === "Delete account" && <DeleteAccount user={user} />}
         </Grid>
       </Grid>
     </Box>
@@ -183,6 +186,7 @@ const tabList = [
   { id: 2, name: "Password", Icon: HttpsIcon },
   { id: 15, name: "Two-Factor Auth", Icon: SecurityIcon },
   { id: 3, name: "Projects", Icon: ContentCopy },
+  { id: 16, name: "Teams", Icon: GroupsIcon },
   { id: 12, name: "API Keys", Icon: KeyIcon },
   { id: 14, name: "Activity", Icon: TimelineIcon },
   { id: 13, name: "Delete account", Icon: DeleteForeverIcon }
