@@ -90,7 +90,9 @@ React 18 + MUI v5 + Redux Toolkit + Blockly (for block projects). CRA-based buil
 Key frontend pages for block projects:
 - `frontend/src/app/views/projects/IDE.jsx` — Standalone Blockly IDE page (`/project/:id/ide`)
 - `frontend/src/app/views/projects/components/BlocklyEditor.jsx` — Blockly workspace React component
-- `frontend/src/app/views/projects/components/blockly/blocks.js` — Custom block definitions (Get Input, Set Output, Call Project, Classifier, Log)
+- `frontend/src/app/views/projects/components/blockly/blocks.js` — Custom block definitions (Get Input, Set Output, Call Project, Classifier, Log). All other toolbox entries are Blockly 12 built-ins (full Logic / Control / Math / Text / Lists / Variables / Procedures matching MIT App Inventor's general-purpose set — no platform-specific blocks).
+
+Server-side execution for block projects lives in `restai/projects/block_interpreter.py`. Dispatch is via two dicts built in `__init__` (`_stmt_handlers`, `_value_handlers`) keyed by the block's `type` string. Flow control (break / continue / procedure early-return) uses internal sentinel exceptions `_BlockBreak`, `_BlockContinue`, `_BlockReturn` that propagate out to the enclosing loop / procedure handler. Procedures live in `self.procedures` (registered at `execute()` start so definitions can appear after calls in the workspace), with a `_scope_stack` of param frames layered over globals — `variables_set` / `variables_get` check the top frame first and fall through to `self.variables`, giving parameter isolation without polluting globals.
 - `frontend/src/app/views/projects/components/blockly/toolbox.js` — Toolbox category configuration
 
 ### MCP Server (`restai/mcp.py`)

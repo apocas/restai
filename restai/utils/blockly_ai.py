@@ -19,25 +19,80 @@ RESTai custom blocks:
 - restai_classifier (value, returns String): Zero-shot text classification. Inputs TEXT (String), LABELS (String, comma-separated). Field MODEL (default "facebook/bart-large-mnli"). Returns the top matching label.
 - restai_log (statement): Debug log. Input TEXT (String).
 
-Standard Blockly blocks:
-- text (value, returns String): Field TEXT (the literal string).
-- text_join (value, returns String): extraState {"itemCount": N}. Inputs ADD0, ADD1, ..., ADDN-1 (all String).
-- text_length (value, returns Number): Input VALUE (String).
-- text_isEmpty (value, returns Boolean): Input VALUE (String).
-- text_changeCase (value, returns String): Input TEXT (String). Field CASE ("UPPERCASE" | "LOWERCASE" | "TITLECASE").
-- text_trim (value, returns String): Input TEXT (String). Field MODE ("LEFT" | "RIGHT" | "BOTH").
-- text_contains (value, returns Boolean): Inputs VALUE (String), FIND (String).
-- math_number (value, returns Number): Field NUM.
-- math_arithmetic (value, returns Number): Inputs A, B. Field OP ("ADD" | "MINUS" | "MULTIPLY" | "DIVIDE" | "POWER").
-- logic_boolean (value, returns Boolean): Field BOOL ("TRUE" | "FALSE").
-- logic_compare (value, returns Boolean): Inputs A, B. Field OP ("EQ" | "NEQ" | "LT" | "LTE" | "GT" | "GTE").
-- logic_operation (value, returns Boolean): Inputs A, B. Field OP ("AND" | "OR").
-- logic_negate (value, returns Boolean): Input BOOL (Boolean).
+Standard Blockly blocks (General-purpose, matching MIT App Inventor):
+
+Logic:
+- logic_boolean (value, Boolean): Field BOOL ("TRUE" | "FALSE").
+- logic_null (value): Always returns null. No fields.
+- logic_compare (value, Boolean): Inputs A, B. Field OP ("EQ" | "NEQ" | "LT" | "LTE" | "GT" | "GTE").
+- logic_operation (value, Boolean): Inputs A, B. Field OP ("AND" | "OR").
+- logic_negate (value, Boolean): Input BOOL (Boolean).
+- logic_ternary (value): Inputs IF (Boolean), THEN, ELSE.
+
+Control:
 - controls_if (statement): extraState {"elseIfCount": N, "hasElse": bool}. Inputs IF0, DO0, IF1, DO1, ..., ELSE.
 - controls_repeat_ext (statement): Input TIMES (Number). Input DO (statement).
-- controls_whileUntil (statement): Field MODE ("WHILE" | "UNTIL"). Input BOOL (Boolean). Input DO (statement).
+- controls_whileUntil (statement): Field MODE ("WHILE" | "UNTIL"). Input BOOL. Input DO.
+- controls_for (statement): Field VAR {"id": ...}. Inputs FROM, TO, BY, DO.
+- controls_forEach (statement): Field VAR {"id": ...}. Inputs LIST, DO.
+- controls_flow_statements (statement): Field FLOW ("BREAK" | "CONTINUE"). Use inside a loop only.
+
+Math:
+- math_number (value, Number): Field NUM.
+- math_arithmetic (value, Number): Inputs A, B. Field OP ("ADD" | "MINUS" | "MULTIPLY" | "DIVIDE" | "POWER").
+- math_single (value, Number): Input NUM. Field OP ("ROOT" | "ABS" | "NEG" | "LN" | "LOG10" | "EXP" | "POW10").
+- math_trig (value, Number, degrees): Input NUM. Field OP ("SIN" | "COS" | "TAN" | "ASIN" | "ACOS" | "ATAN").
+- math_constant (value, Number): Field CONSTANT ("PI" | "E" | "GOLDEN_RATIO" | "SQRT2" | "SQRT1_2" | "INFINITY").
+- math_number_property (value, Boolean): Input NUMBER_TO_CHECK. Field PROPERTY ("EVEN" | "ODD" | "PRIME" | "WHOLE" | "POSITIVE" | "NEGATIVE" | "DIVISIBLE_BY"). For DIVISIBLE_BY also input DIVISOR.
+- math_round (value, Number): Input NUM. Field OP ("ROUND" | "ROUNDUP" | "ROUNDDOWN").
+- math_on_list (value): Input LIST. Field OP ("SUM" | "MIN" | "MAX" | "AVERAGE" | "MEDIAN" | "MODE" | "STD_DEV" | "RANDOM").
+- math_modulo (value, Number): Inputs DIVIDEND, DIVISOR.
+- math_constrain (value, Number): Inputs VALUE, LOW, HIGH.
+- math_random_int (value, Number): Inputs FROM, TO.
+- math_random_float (value, Number between 0 and 1): No inputs.
+- math_atan2 (value, Number, degrees): Inputs X, Y.
+
+Text:
+- text (value, String): Field TEXT.
+- text_join (value, String): extraState {"itemCount": N}. Inputs ADD0, ADD1, ..., ADDN-1.
+- text_append (statement): Field VAR {"id": ...}. Input TEXT. Appends TEXT to the variable.
+- text_length (value, Number): Input VALUE.
+- text_isEmpty (value, Boolean): Input VALUE.
+- text_indexOf (value, Number, 1-based or -1): Inputs VALUE, FIND. Field END ("FIRST" | "LAST").
+- text_charAt (value, String): Input VALUE. Field WHERE ("FROM_START" | "FROM_END" | "FIRST" | "LAST" | "RANDOM"). For FROM_START/FROM_END also input AT.
+- text_getSubstring (value, String): Input STRING. Fields WHERE1, WHERE2 (same values as charAt). Inputs AT1, AT2 as applicable. 1-based inclusive/inclusive.
+- text_changeCase (value, String): Input TEXT. Field CASE ("UPPERCASE" | "LOWERCASE" | "TITLECASE").
+- text_trim (value, String): Input TEXT. Field MODE ("LEFT" | "RIGHT" | "BOTH").
+- text_contains (value, Boolean): Inputs VALUE, FIND.
+- text_count (value, Number): Inputs SUB, TEXT.
+- text_replace (value, String): Inputs FROM, TO, TEXT.
+- text_reverse (value, String): Input TEXT.
+- text_print (statement): Input TEXT. Logs the text for debugging.
+
+Lists:
+- lists_create_with (value, List): extraState {"itemCount": N}. Inputs ADD0, ADD1, ..., ADDN-1.
+- lists_create_empty (value, List): No inputs.
+- lists_repeat (value, List): Inputs ITEM, NUM.
+- lists_length (value, Number): Input VALUE.
+- lists_isEmpty (value, Boolean): Input VALUE.
+- lists_indexOf (value, Number, 1-based or 0): Inputs VALUE, FIND. Field END ("FIRST" | "LAST").
+- lists_getIndex (value, or statement in REMOVE mode): Input VALUE. Fields MODE ("GET" | "GET_REMOVE" | "REMOVE"), WHERE ("FROM_START" | "FROM_END" | "FIRST" | "LAST" | "RANDOM"). Input AT for FROM_START/FROM_END.
+- lists_setIndex (statement): Input LIST. Fields MODE ("SET" | "INSERT"), WHERE. Input AT, TO.
+- lists_getSublist (value, List): Input LIST. Fields WHERE1, WHERE2. Inputs AT1, AT2 as applicable.
+- lists_split (value, List or String): Input INPUT. Input DELIM. Field MODE ("SPLIT" | "JOIN").
+- lists_sort (value, List): Input LIST. Fields TYPE ("NUMERIC" | "TEXT" | "IGNORE_CASE"), DIRECTION ("1" | "-1").
+- lists_reverse (value, List): Input LIST.
+
+Variables:
 - variables_set (statement): Field VAR {"id": "<var_id>"}. Input VALUE.
 - variables_get (value): Field VAR {"id": "<var_id>"}.
+
+Procedures (user-defined functions):
+- procedures_defnoreturn (statement, top-level): Field NAME. extraState {"params": [{"name": "x", "id": "<var_id>"}, ...]}. Input STACK (the body).
+- procedures_defreturn (statement, top-level): Same as above + Input RETURN (the expression returned on fall-through).
+- procedures_callnoreturn (statement): extraState {"name": "<proc name>", "params": [<ids>]}. Inputs ARG0, ARG1, ... in order.
+- procedures_callreturn (value): Same shape as callnoreturn but returns the procedure's RETURN value.
+- procedures_ifreturn (statement, inside defreturn only): Input CONDITION. Input VALUE. Returns VALUE early when CONDITION is true.
 
 Workspace shape (what you must output):
 {
