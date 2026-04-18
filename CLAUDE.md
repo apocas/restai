@@ -175,6 +175,18 @@ Endpoints: `GET/POST/PATCH/DELETE /projects/{id}/routines[/{routineId}]`, plus `
 
 Frontend: **Routines** tab on the project page, CRUD + a "fire via API" card showing the curl command.
 
+### Memory Bank (project-wide conversation context)
+
+Agent-only opt-in feature. When `ProjectOptions.memory_bank_enabled=true`, every conversation in the project contributes a short LLM-generated summary to a shared memory bank (`ProjectMemoryBankEntryDatabase` / table `project_memory_bank_entries`). The rendered bank gets prepended to the system prompt of every chat in that project, giving the agent context across users and sessions.
+
+- **Source of truth**: `OutputDatabase` rows. Authoritative across workers, survives Redis TTLs, bound to `project_id`. Redis-backed agent2 sessions are *not* used (not enumerable per project).
+- **Summaries via System LLM** — same setting Smart Search / Prompt AI use. When no System LLM is configured the cron is a no-op (logs a single warning).
+- **Cron**: `crons/memory_bank.py` — runs every minute via the standard runner. Skips conversations idle <10 min (`CONVERSATION_IDLE_MINUTES`). Per-conversation summaries upserted by `chat_id`. Then runs the compression ladder.
+- **Compression ladder** in `restai/memory_bank.py:compress_entries`: rolls up `conversation` rows older than 1 day into `day` digests; `day` rows older than 7 days into `week`; `week` older than 30 days into `month`. If still over budget after `month`, deletes oldest entries until within `memory_bank_max_tokens`. The headroom multiplier (`COMPRESSION_HEADROOM`, 1.25) avoids burning System LLM tokens on tiny overshoots.
+- **Injection** at `agent.py:_augment_system_prompt_with_memory_bank` — prepends the rendered block to the system prompt before `_build_runtime`. Failures degrade silently (the bank just isn't injected this turn).
+- **Survives project edit form saves**: the form does not surface every key in `ProjectOptions`, so the memory bank state lives inside the options blob just like other knobs. The toggle + max-tokens fields are persisted explicitly via the form, so no `PRESERVED_KEYS` carry-over needed (unlike Mobile, which is set out-of-band).
+- **Privacy**: every project member sees summaries derived from every other member's conversations. The project edit form surfaces a warning Alert when the toggle is on.
+
 ### Cron Logs
 
 `CronLogDatabase` — one row per runner invocation per job. Fields: `job`, `status` (success/error/warning), `message`, `details` (traceback), `items_processed`, `duration_ms`, `date`. Written by the `CronLogger` helper (`restai/cron_log.py`) — each cron instantiates it at the top of `main()`, calls `info()`/`warning()`/`error()`, and `finish()` at the end. `__del__` is a safety net: if `finish()` was never called (process killed), the destructor writes an error row.

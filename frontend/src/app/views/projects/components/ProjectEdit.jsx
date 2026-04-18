@@ -201,6 +201,10 @@ export default function ProjectEdit({ project, projects, info }) {
     opts.options.guard_mode = state.options.guard_mode || "block";
     opts.options.cache = state.options.cache;
     opts.options.cache_threshold = parseFloat(state.options.cache_threshold) || 0.85;
+    if (project.type === "agent") {
+      opts.options.memory_bank_enabled = state.options.memory_bank_enabled || false;
+      opts.options.memory_bank_max_tokens = parseInt(state.options.memory_bank_max_tokens) || 2000;
+    }
 
     if (project.type === "rag") {
       opts.options.colbert_rerank = state.options.colbert_rerank;
@@ -227,7 +231,7 @@ export default function ProjectEdit({ project, projects, info }) {
   const handleChange = (event) => {
     if (event && event.persist) event.persist();
 
-    if (["logging", "redact_inference_logs", "cache", "llm_rerank", "colbert_rerank", "enable_knowledge_graph"].includes(event.target.name)) {
+    if (["logging", "redact_inference_logs", "cache", "llm_rerank", "colbert_rerank", "enable_knowledge_graph", "memory_bank_enabled"].includes(event.target.name)) {
       setState({ ...state, options: { ...state.options, [event.target.name]: event.target.checked } });
     } else if (event.target.name === "cache_threshold") {
       setState({ ...state, options: { ...state.options, cache_threshold: event.target.value / 100 } });
@@ -241,6 +245,9 @@ export default function ProjectEdit({ project, projects, info }) {
       setState({ ...state, options: { ...state.options, [event.target.name]: event.target.value } });
     } else if (event.target.name === "rate_limit") {
       setState({ ...state, options: { ...state.options, rate_limit: event.target.value ? parseInt(event.target.value) : null } });
+    } else if (event.target.name === "memory_bank_max_tokens") {
+      const v = parseInt(event.target.value);
+      setState({ ...state, options: { ...state.options, memory_bank_max_tokens: Number.isFinite(v) ? v : 2000 } });
     } else {
       setState({ ...state, [event.target.name]: event.target.type === "checkbox" ? event.target.checked : event.target.value });
     }
@@ -272,6 +279,8 @@ export default function ProjectEdit({ project, projects, info }) {
         score: 0.0,
         k: 4,
         tools: null,
+        memory_bank_enabled: false,
+        memory_bank_max_tokens: 2000,
         ...project.options,
       },
     };

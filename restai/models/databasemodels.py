@@ -470,3 +470,28 @@ class CronLogDatabase(Base):
     items_processed = Column(Integer, nullable=False, default=0)
     duration_ms = Column(Integer, nullable=True)
     date = Column(DateTime, nullable=False, index=True)
+
+
+class ProjectMemoryBankEntryDatabase(Base):
+    """A single compressed entry in a project's shared memory bank.
+
+    granularity = 'conversation' rows summarize one chat_id. As they age, the
+    cron rolls them up into 'day', then 'week', then 'month' digests. Older
+    rows are dropped if the project's token budget is still exceeded after
+    the coarsest rollup.
+    """
+    __tablename__ = "project_memory_bank_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    chat_id = Column(String(255), nullable=True, index=True)
+    granularity = Column(String(20), nullable=False, index=True)
+    period_key = Column(String(20), nullable=True, index=True)
+    summary = Column(Text, nullable=False, default="")
+    token_count = Column(Integer, nullable=False, default=0)
+    source_message_count = Column(Integer, nullable=False, default=0)
+    last_source_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+
+    project = relationship("ProjectDatabase")

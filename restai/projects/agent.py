@@ -30,6 +30,7 @@ from restai.models.models import ChatModel, QuestionModel, User
 from restai.project import Project
 from restai.projects.base import ProjectBase
 from restai.tools import tokens_from_string
+from restai import memory_bank
 
 
 _IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
@@ -42,6 +43,26 @@ def _is_image_attachment(f) -> bool:
         return True
     name = (getattr(f, "name", "") or "").lower()
     return name.endswith(_IMAGE_EXTS)
+
+
+def _augment_system_prompt_with_memory_bank(project, db, base_system_prompt: str | None) -> str | None:
+    """When the project has memory_bank_enabled, prepend the rendered memory
+    bank block to the system prompt. Cheap on the no-bank-yet path: a single
+    indexed query that returns zero rows yields an empty string immediately.
+    Failures degrade silently — the worst case is the LLM not seeing memory
+    on this turn, never a broken request."""
+    try:
+        if not getattr(project.props.options, "memory_bank_enabled", False):
+            return base_system_prompt
+        max_tokens = int(getattr(project.props.options, "memory_bank_max_tokens", 2000) or 2000)
+        block = memory_bank.render_for_prompt(db, project.props.id, max_tokens)
+    except Exception:
+        return base_system_prompt
+    if not block:
+        return base_system_prompt
+    if base_system_prompt:
+        return f"{block}\n\n{base_system_prompt}"
+    return block
 
 
 def _project_has_terminal(project) -> bool:
@@ -366,8 +387,11 @@ class Agent(ProjectBase):
                     mcp_tools = []
 
                 try:
+                    sys_prompt = _augment_system_prompt_with_memory_bank(
+                        project, db, project.props.system,
+                    )
                     runtime = self._build_runtime(
-                        project, db, project.props.system, extra_tools=mcp_tools
+                        project, db, sys_prompt, extra_tools=mcp_tools
                     )
                 except Agent2UnsupportedLLMError as e:
                     err_msg = str(e)
@@ -472,6 +496,7 @@ class Agent(ProjectBase):
             return
 
         system_prompt = questionModel.system or project.props.system
+        system_prompt = _augment_system_prompt_with_memory_bank(project, db, system_prompt)
 
         async with MCPSessionPool() as mcp_pool:
             try:

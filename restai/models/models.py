@@ -453,6 +453,16 @@ class ProjectOptions(BaseModel):
         default=None,
         description="Agent execution mode (agent projects only): 'auto' tries native function calling and falls back to text-based ReAct on first-turn error; 'function_calling' always uses native (errors propagate); 'react' always uses text-based ReAct prompting."
     )
+    memory_bank_enabled: bool = Field(
+        default=False,
+        description="Agent projects only. When enabled, all conversations in this project contribute to a shared 'memory bank' that is injected into the system prompt of every chat. Compressed dynamically (per-conversation → per-day → per-week → per-month) to fit within memory_bank_max_tokens. Disabled by default; surfaces a privacy disclaimer in the UI because every project member sees summaries derived from every other member's conversations."
+    )
+    memory_bank_max_tokens: int = Field(
+        default=2000,
+        ge=200,
+        le=10000,
+        description="Token budget for the rendered memory bank block. Older entries get rolled up into coarser time buckets when this is exceeded."
+    )
     model_config = ConfigDict(from_attributes=True)
 
 

@@ -353,6 +353,49 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
           />
         </Grid>
       )}
+
+      {state.type === "agent" && (
+        <Fragment>
+          <Grid item sm={12} xs={12}>
+            <Divider sx={{ mb: 1 }} />
+          </Grid>
+          <Grid item sm={6} xs={12}>
+            <FormControlLabel
+              label={<span>Memory Bank<HelpTip text="Aggregates summaries of every conversation in this project into a shared memory that gets injected into every chat's system prompt" /></span>}
+              control={
+                <Switch
+                  checked={state.options?.memory_bank_enabled ?? false}
+                  name="memory_bank_enabled"
+                  inputProps={{ "aria-label": "memory bank checkbox" }}
+                  onChange={handleChange}
+                />
+              }
+            />
+          </Grid>
+          {state.options?.memory_bank_enabled && (
+            <Grid item sm={6} xs={12}>
+              <TextField
+                fullWidth
+                type="number"
+                name="memory_bank_max_tokens"
+                label="Memory Bank Max Tokens"
+                variant="outlined"
+                inputProps={{ min: 200, max: 10000, step: 100 }}
+                value={state.options?.memory_bank_max_tokens ?? 2000}
+                onChange={handleChange}
+                helperText="Token budget for the injected memory block (200–10000). Older entries get rolled up automatically."
+              />
+            </Grid>
+          )}
+          {state.options?.memory_bank_enabled && (
+            <Grid item sm={12} xs={12}>
+              <Alert severity="warning" variant="outlined">
+                <strong>Privacy notice.</strong> The Memory Bank shares a compressed summary of every conversation in this project with every other conversation. Any user with access to this project will see the agent reference summarized context derived from other users' chats. Do not enable this option for projects that handle confidential per-user data.
+              </Alert>
+            </Grid>
+          )}
+        </Fragment>
+      )}
     </Grid>
 
     <Dialog open={aiOpen} onClose={() => !aiLoading && setAiOpen(false)} maxWidth="sm" fullWidth>
