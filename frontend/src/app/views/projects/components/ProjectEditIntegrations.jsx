@@ -23,6 +23,25 @@ export default function ProjectEditIntegrations({ state, setState, handleChange 
             <TextField
               fullWidth
               InputLabelProps={{ shrink: true }}
+              type="number"
+              name="telegram_default_chat_id"
+              label="Default Telegram Chat ID"
+              variant="outlined"
+              value={state.options?.telegram_default_chat_id ?? ''}
+              onChange={(e) => setState({
+                ...state,
+                options: {
+                  ...state.options,
+                  telegram_default_chat_id: e.target.value ? parseInt(e.target.value) : null,
+                },
+              })}
+              helperText="Where the send_telegram tool posts. Send /chatid to the bot in Telegram to find the value (works in DMs and groups)."
+            />
+          </Grid>
+          <Grid item sm={6} xs={12}>
+            <TextField
+              fullWidth
+              InputLabelProps={{ shrink: true }}
               name="slack_bot_token"
               label="Slack Bot Token"
               type="password"

@@ -44,7 +44,12 @@ def send_typing_action(token: str, chat_id: int):
 
 
 def get_updates(token: str, offset: int = 0, timeout: int = 30):
-    """Returns list of updates on success, None on error."""
+    """Returns ``(updates, error)``.
+
+    - ``(list, None)`` on success (list may be empty for a long-poll timeout)
+    - ``(None, "<reason>")`` on failure — caller can log/surface the reason
+      instead of just "API error".
+    """
     try:
         resp = requests.get(
             f"{TELEGRAM_API_BASE.format(token=token)}/getUpdates",
@@ -54,13 +59,27 @@ def get_updates(token: str, offset: int = 0, timeout: int = 30):
         resp.raise_for_status()
         data = resp.json()
         if data.get("ok"):
-            return data.get("result", [])
-        return None
+            return data.get("result", []), None
+        # Telegram returned 200 but ok=false — surface the description it
+        # gave us (e.g. "Conflict: terminated by other getUpdates request",
+        # "Unauthorized" for a bad token).
+        desc = data.get("description") or "unknown error"
+        code = data.get("error_code")
+        return None, f"Telegram API rejected getUpdates ({code}): {desc}"
     except requests.exceptions.Timeout:
-        return []  # timeout is normal for long-polling
+        return [], None  # long-poll timeout is normal — treat as no-updates
+    except requests.exceptions.HTTPError as e:
+        # Try to extract Telegram's JSON description from the error response.
+        detail = ""
+        try:
+            payload = e.response.json()
+            if isinstance(payload, dict):
+                detail = payload.get("description") or ""
+        except Exception:
+            pass
+        return None, f"HTTP {getattr(e.response, 'status_code', '?')}: {detail or str(e)}"
     except Exception as e:
-        logging.warning(f"Telegram getUpdates error: {e}")
-        return None
+        return None, f"{type(e).__name__}: {e}"
 
 
 class TelegramPoller:
@@ -93,10 +112,10 @@ class TelegramPoller:
         consecutive_errors = 0
         backoff = 1
         while not self._stop_event.is_set():
-            updates = get_updates(self.token, offset=offset, timeout=30)
-            if updates is None:
-                # Error occurred
+            updates, err = get_updates(self.token, offset=offset, timeout=30)
+            if err is not None:
                 consecutive_errors += 1
+                logging.warning(f"Telegram poller for project {self.project_id}: {err}")
                 if consecutive_errors >= 10:
                     logging.error(f"Telegram poller for project {self.project_id}: too many consecutive errors, stopping")
                     break

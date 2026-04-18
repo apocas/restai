@@ -37,19 +37,23 @@ def main():
     processed = 0
 
     try:
+        from restai.utils.crypto import decrypt_field
+
         projects = db.db.query(ProjectDatabase).all()
 
         for proj in projects:
             opts = json.loads(proj.options) if proj.options else {}
-            token = opts.get("telegram_token")
+            # `telegram_token` lives in PROJECT_SENSITIVE_KEYS and is stored
+            # as `$ENC$<ciphertext>` at rest. decrypt_field is a no-op for
+            # legacy plaintext rows, so we can call it unconditionally.
+            token = decrypt_field(opts.get("telegram_token") or "")
             if not token:
                 continue
 
             # Poll with short timeout (1s) — get pending updates only
-            updates = get_updates(token, offset=0, timeout=1)
-            if updates is None:
-                logger.warning(f"Telegram API error for project {proj.id}")
-                cron.warning(f"Telegram API error for project {proj.name}")
+            updates, err = get_updates(token, offset=0, timeout=1)
+            if err is not None:
+                logger.warning(f"Telegram API error for project {proj.name} (id={proj.id}): {err}")
                 continue
             if not updates:
                 continue
@@ -66,6 +70,17 @@ def main():
                 if not text or not chat_id:
                     continue
 
+                # Built-in shortcut: replies with the chat_id so the admin
+                # can paste it into `telegram_default_chat_id` for the
+                # send_telegram tool. Cheap, no DB hit, no LLM call.
+                if text.strip().lower() in ("/chatid", "/myid"):
+                    try:
+                        send_message(token, chat_id, f"Chat ID: {chat_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to reply to /chatid: {e}")
+                    processed += 1
+                    continue
+
                 try:
                     send_typing(token, chat_id)
                     response = asyncio.run(_process_message(brain, db, proj.id, text, chat_id))
@@ -73,8 +88,7 @@ def main():
                         send_message(token, chat_id, response)
                     processed += 1
                 except Exception as e:
-                    logger.error(f"Error processing Telegram message for project {proj.id}: {e}")
-                    cron.error(f"Error processing message for {proj.name}: {e}")
+                    logger.exception(f"Error processing Telegram message for project {proj.name} (id={proj.id}): {e}")
 
             # Acknowledge processed updates
             if updates:

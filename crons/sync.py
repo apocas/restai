@@ -75,8 +75,14 @@ def main():
                 try:
                     from restai.sync import _sync_source
                     from restai.models.models import SyncSource
+                    from restai.utils.crypto import _decrypt_sync_source
 
-                    src = SyncSource(**source)
+                    # Source dict comes straight out of the project's JSON
+                    # options, where SYNC_SOURCE_SENSITIVE_KEYS values are
+                    # stored encrypted (`$ENC$...`). Decrypt before building
+                    # the SyncSource or auth against S3 / Confluence /
+                    # SharePoint / Google Drive will fail.
+                    src = SyncSource(**_decrypt_sync_source(source))
                     logger.info(f"Syncing source '{src.name}' for project {proj.name} (ID {proj.id})")
                     _sync_source(project, src, db, brain)
                     _update_last_sync(db, proj.id, i)

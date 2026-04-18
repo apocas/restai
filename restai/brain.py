@@ -38,8 +38,14 @@ class Brain:
         self._agent2_sessions: dict[str, list[dict]] = {}
         self.docker_manager = None
 
+        # Tools are lazy-loaded when first requested via get_tools(). The
+        # full app sets them eagerly below so the first chat is fast; cron
+        # processes (which use lightweight=True) only pay the load cost if
+        # they actually fire an agent that needs tools.
+        self.tools: list[FunctionTool] | None = None
+
         if not lightweight:
-            self.tools: list[FunctionTool] = tools.load_tools()
+            self.tools = tools.load_tools()
 
             if config.RESTAI_GPU == True:
                 self.generators: list[FunctionTool] = tools.load_generators()
@@ -287,6 +293,12 @@ class Brain:
         return entities
 
     def get_tools(self, names: Optional[Iterable[str]] = None) -> list[FunctionTool]:
+        # Lazy-load tools on first use — covers the cron path where Brain
+        # was constructed with lightweight=True and now needs tools because
+        # a routine / Telegram / Slack message fired an agent.
+        if self.tools is None:
+            self.tools = tools.load_tools()
+
         if names is None:
             names = []
         _tools = []

@@ -167,6 +167,8 @@ The runner launches every cron **in parallel** as isolated subprocesses (so a sl
 
 Slack is now a cron-friendly poller (`crons/slack.py`, uses `slack_sdk.WebClient` + `conversations.history`). The old Socket Mode daemon was removed — no more `slack_bot.py`, no `slack_app_token` field.
 
+Telegram is also cron-driven (`crons/telegram.py`, long-poll-then-exit each minute). The legacy `TelegramPoller` daemon in `restai/telegram.py` is dead code (no callers). Each project's bot also responds to `/chatid` (or `/myid`) by replying with the current chat's id — gives admins a one-shot way to fill in `telegram_default_chat_id` (the destination used by the `send_telegram` builtin tool, since Telegram bots can't initiate conversations).
+
 ### Project Routines
 
 `ProjectRoutineDatabase` (`restai/models/databasemodels.py:445`) — scheduled messages that auto-fire on a project via the normal chat/question pipeline. Fields: `name`, `message`, `schedule_minutes`, `enabled`, `last_run`, `last_result`.

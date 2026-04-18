@@ -47,11 +47,16 @@ def main():
         return
 
     try:
+        from restai.utils.crypto import decrypt_field
+
         projects = db.db.query(ProjectDatabase).all()
 
         for proj in projects:
             opts = json.loads(proj.options) if proj.options else {}
-            bot_token = opts.get("slack_bot_token")
+            # `slack_bot_token` is in PROJECT_SENSITIVE_KEYS — stored as
+            # `$ENC$<ciphertext>` at rest. decrypt_field is a no-op for
+            # legacy plaintext rows.
+            bot_token = decrypt_field(opts.get("slack_bot_token") or "")
             if not bot_token:
                 continue
 

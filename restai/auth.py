@@ -38,10 +38,11 @@ def get_current_username(
             data = jwt.decode(auth_cookie, RESTAI_AUTH_SECRET, algorithms=["HS512"])
 
             user = db_wrapper.get_user_by_username(data["username"])
-            
+
             if user is None:
                 raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_TOKEN)
 
+            request.state.audit_username = user.username
             return User.model_validate(user)
         except Exception:
             raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_TOKEN)
@@ -65,6 +66,7 @@ def get_current_username(
                         pass
                 user.api_key_read_only = api_key_row.read_only or False
 
+            request.state.audit_username = f"{user_db.username} (api)"
             return user
         elif "Basic" in auth_header:
             try:
@@ -107,6 +109,7 @@ def get_current_username(
                         headers={"WWW-Authenticate": "Basic"},
                     )
 
+                request.state.audit_username = user.username
                 return User.model_validate(user)
 
             except Exception as e:

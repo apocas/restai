@@ -18,7 +18,21 @@ AUDIT_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
 
 
 def _extract_username(request: Request) -> tuple:
-    """Extract user_id and username from the Authorization header without DB lookup."""
+    """Pull the audit-username for this request.
+
+    Fast path: the auth dependency (`get_current_username` in `restai/auth.py`)
+    has already resolved the user — including the `<owner> (api)` suffix for
+    Bearer/API-key requests — and stashed it on `request.state.audit_username`.
+    We just read it.
+
+    Fallback: parse the auth header / JWT cookie ourselves. This only kicks
+    in for unauthenticated audited paths (rare — most public endpoints are
+    GETs and aren't in `AUDIT_METHODS`), and never needs a DB call.
+    """
+    cached = getattr(request.state, "audit_username", None)
+    if cached:
+        return None, cached
+
     auth_header = request.headers.get("authorization", "")
 
     if auth_header.startswith("Basic "):
@@ -30,10 +44,8 @@ def _extract_username(request: Request) -> tuple:
             pass
 
     if auth_header.startswith("Bearer "):
-        # Can't resolve username from Bearer without DB lookup — mark as API key
         return None, "(api_key)"
 
-    # Check for JWT cookie
     cookie = request.cookies.get("restai_token")
     if cookie:
         try:
