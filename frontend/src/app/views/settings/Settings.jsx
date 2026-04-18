@@ -81,6 +81,7 @@ export default function SettingsPage() {
     docker_network: "none",
     docker_read_only: true,
     system_llm: "",
+    openai_api_key: "",
     enforce_2fa: false,
   });
   const [teams, setTeams] = useState([]);
@@ -224,6 +225,28 @@ export default function SettingsPage() {
                         </Grid>
                       </>
                     )}
+                  </Grid>
+                </Card>
+              </Grid>
+
+              {/* OpenAI credentials */}
+              <Grid item xs={12}>
+                <Card elevation={1} sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.5 }}>OpenAI</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+                    API key used by the DALL-E 3 and gpt-image-1.5 image generators. Leave blank to fall back to the OPENAI_API_KEY environment variable.
+                  </Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="OpenAI API Key"
+                        type="password"
+                        value={form.openai_api_key}
+                        onChange={handleChange("openai_api_key")}
+                        placeholder="sk-..."
+                      />
+                    </Grid>
                   </Grid>
                 </Card>
               </Grid>

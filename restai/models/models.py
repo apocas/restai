@@ -1126,6 +1126,8 @@ class SettingsResponse(BaseModel):
     mcp_enabled: bool = Field(default=False, description="Whether the internal MCP server is enabled")
     # System LLM
     system_llm: Optional[str] = Field(default="", description="Internal LLM used for housekeeping tasks (prompt helpers, summarization, etc)")
+    # OpenAI credentials
+    openai_api_key: Optional[str] = Field(default="", description="OpenAI API key used by DALL-E 3 and gpt-image-1.5 image generators (masked)")
     # Docker
     docker_enabled: bool = Field(default=False, description="Whether Docker sandboxed terminal is enabled")
     docker_url: Optional[str] = Field(default="", description="Docker socket or TCP URL for sandboxed terminal")
@@ -1190,6 +1192,8 @@ class SettingsUpdate(BaseModel):
     mcp_enabled: Optional[bool] = Field(default=None, description="Whether the internal MCP server is enabled")
     # System LLM
     system_llm: Optional[str] = Field(default=None, description="Internal LLM used for housekeeping tasks")
+    # OpenAI credentials
+    openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key used by DALL-E 3 and gpt-image-1.5 image generators")
     # Docker
     docker_enabled: Optional[bool] = Field(default=None, description="Whether Docker sandboxed terminal is enabled")
     docker_url: Optional[str] = Field(default=None, description="Docker socket or TCP URL for sandboxed terminal")

@@ -27,8 +27,10 @@ async def route_list_generators(
     generators_names = [generator.__module__.split("restai.image.workers.")[1] for generator in generators]
 
     if not user.is_private:
-        if os.environ.get("OPENAI_API_KEY"):
+        from restai.image.external._openai import has_openai_api_key
+        if has_openai_api_key(db_wrapper):
             generators_names.append("dalle")
+            generators_names.append("gpt-image-1.5")
         if os.environ.get("GOOGLE_API_KEY"):
             generators_names.append("imagen")
 
@@ -54,6 +56,11 @@ async def route_generate_image(request: Request,
             if user.is_private:
                 raise HTTPException(status_code=403, detail="User is private")
             from restai.image.external.dalle3 import generate
+            image = generate(imageModel)
+        case "gpt-image-1.5" | "gpt_image_15" | "gptimage15":
+            if user.is_private:
+                raise HTTPException(status_code=403, detail="User is private")
+            from restai.image.external.gpt_image_15 import generate
             image = generate(imageModel)
         case "imagen" | "imagen3":
             if user.is_private:
@@ -109,6 +116,11 @@ async def openai_compatible_generate(
             if user.is_private:
                 raise HTTPException(status_code=403, detail="User is private")
             from restai.image.external.dalle3 import generate
+            image = generate(imageModel)
+        case "gptimage15" | "gpt_image_15":
+            if user.is_private:
+                raise HTTPException(status_code=403, detail="User is private")
+            from restai.image.external.gpt_image_15 import generate
             image = generate(imageModel)
         case "imagen3" | "imagen":
             if user.is_private:

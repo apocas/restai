@@ -54,6 +54,9 @@ SETTINGS_DEFAULTS = {
     "mcp_enabled": ("MCP_SERVER", "false"),
     # System LLM
     "system_llm": (None, ""),
+    # OpenAI credentials (used by DALL-E 3 and gpt-image-1.5 image generators,
+    # and any other integration that wants a platform-wide OpenAI key).
+    "openai_api_key": ("OPENAI_API_KEY", ""),
     # Docker
     "docker_enabled": (None, "false"),
     "docker_url": ("DOCKER_URL", ""),
@@ -140,6 +143,7 @@ _SECRET_KEYS = {
     "proxy_key", "redis_password",
     "sso_google_client_secret", "sso_microsoft_client_secret",
     "sso_github_client_secret", "sso_oidc_client_secret",
+    "openai_api_key",
 }
 
 
