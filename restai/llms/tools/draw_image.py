@@ -40,7 +40,15 @@ def draw_image(generator: str, prompt: str, **kwargs) -> str:
 
     image_id = brain.cache_image(image_bytes, mime_type=mime)
     ext = "png" if mime == "image/png" else (mime.split("/", 1)[-1] or "png")
-    url = f"/image/cache/{image_id}.{ext}"
+
+    # Prefer an absolute URL when the deployment knows its public host —
+    # required so non-browser clients (Android app, widget embeds on a
+    # different origin, MCP consumers) can resolve the image. Falls back to
+    # a relative path which the playground / same-origin browser handles
+    # natively.
+    from restai import config as _config
+    public_url = (getattr(_config, "RESTAI_URL", None) or "").rstrip("/")
+    url = f"{public_url}/image/cache/{image_id}.{ext}" if public_url else f"/image/cache/{image_id}.{ext}"
 
     # Markdown the LLM should echo verbatim so the chat UI renders the image.
     # The tool result also includes a plain-text instruction so a confused
