@@ -165,11 +165,18 @@ class Brain:
                     data,
                     ex=self._IMAGE_CACHE_TTL_SECONDS,
                 )
+                logging.info("image cache: wrote %s to Redis (%d bytes)", filename, len(data))
                 return filename
             except Exception as e:
                 logging.warning("image cache: Redis write failed (%s); using in-process fallback", e)
 
-        # In-process fallback
+        # In-process fallback — single-worker only.
+        logging.warning(
+            "image cache: writing %s to IN-PROCESS store. Multi-worker / multi-node "
+            "deployments will 404 on cross-worker reads. Configure Redis "
+            "(REDIS_HOST or admin Settings > Chat History) to fix.",
+            filename,
+        )
         store = self._image_cache_local()
         # Lazy sweep of expired entries so the dict can't grow forever.
         now = _time.time()
@@ -197,9 +204,13 @@ class Brain:
             try:
                 data = client.get(self._IMAGE_CACHE_KEY_PREFIX + filename)
                 if data is not None:
+                    logging.info("image cache: served %s from Redis (%d bytes)", filename, len(data))
                     return data, mime
+                logging.info("image cache: %s not in Redis, checking in-process", filename)
             except Exception as e:
                 logging.warning("image cache: Redis read failed (%s); falling back to in-process", e)
+        else:
+            logging.info("image cache: Redis not configured, checking in-process for %s", filename)
 
         store = self._image_cache_local()
         entry = store.get(filename)
