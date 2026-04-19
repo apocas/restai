@@ -11,8 +11,10 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import android.net.Uri
 import coil.ImageLoader
 import io.noties.markwon.AbstractMarkwonPlugin
+import okhttp3.OkHttpClient
 import io.noties.markwon.Markwon
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
@@ -39,7 +41,10 @@ fun MarkdownText(
     // paired RESTai host so server-emitted markdown like the `draw_image`
     // builtin tool's output works regardless of whether the backend is set
     // up to emit absolute URLs.
-    val host = remember { Credentials.load(ctx)?.host?.trimEnd('/') ?: "" }
+    val cred = remember { Credentials.load(ctx) }
+    val host = cred?.host?.trimEnd('/') ?: ""
+    val apiKey = cred?.apiKey ?: ""
+    val hostName = remember(host) { if (host.isNotEmpty()) Uri.parse(host).host else null }
 
     val markwon = remember(onSurface, linkColor, host) {
         val tableTheme = TableTheme.Builder()
@@ -51,7 +56,26 @@ fun MarkdownText(
             .tableOddRowBackgroundColor(AndroidColor.TRANSPARENT)
             .build()
 
-        val coilLoader = ImageLoader.Builder(ctx).build()
+        // Authenticated OkHttp client so protected endpoints like
+        // /image/cache/<id>.png return the image bytes instead of 401/403.
+        val authedHttp = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val r = chain.request()
+                if (apiKey.isNotEmpty() && hostName != null && r.url.host == hostName) {
+                    chain.proceed(
+                        r.newBuilder()
+                            .header("Authorization", "Bearer $apiKey")
+                            .build()
+                    )
+                } else {
+                    chain.proceed(r)
+                }
+            }
+            .build()
+
+        val coilLoader = ImageLoader.Builder(ctx)
+            .okHttpClient(authedHttp)
+            .build()
 
         Markwon.builder(ctx)
             .usePlugin(TablePlugin.create(tableTheme))
@@ -63,14 +87,19 @@ fun MarkdownText(
             .usePlugin(CoilImagesPlugin.create(ctx, coilLoader))
             .usePlugin(object : AbstractMarkwonPlugin() {
                 override fun processMarkdown(markdown: String): String {
-                    // Prefix relative image URLs (e.g. `/image/cache/<id>.png`)
-                    // with the paired host so Coil can fetch them. Absolute
-                    // URLs (https://…), data: URIs, and non-image links are
-                    // left untouched.
                     if (host.isEmpty()) return markdown
-                    val re = Regex("""!\[([^\]]*)]\((/[^)\s]+)\)""")
-                    return re.replace(markdown) { m ->
+                    // 1. Prefix relative image URLs in markdown image syntax
+                    //    (`![alt](/image/cache/xyz.png)` → `![alt](https://…/image/cache/xyz.png)`).
+                    val mdImg = Regex("""!\[([^\]]*)]\((/[^)\s]+)\)""")
+                    // 2. Promote bare relative image paths (`/image/cache/xyz.png`)
+                    //    to markdown image syntax, since the LLM sometimes
+                    //    returns just the path without the `![...]()` wrapper.
+                    val bareImg = Regex("""(?<![\(\]\w/])(/image/cache/[^\s)]+\.(?:png|jpg|jpeg|gif|webp))""", RegexOption.IGNORE_CASE)
+                    val step1 = mdImg.replace(markdown) { m ->
                         "![${m.groupValues[1]}](${host}${m.groupValues[2]})"
+                    }
+                    return bareImg.replace(step1) { m ->
+                        "![](${host}${m.groupValues[1]})"
                     }
                 }
             })
