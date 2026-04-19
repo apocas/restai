@@ -50,10 +50,9 @@ def draw_image(generator: str, prompt: str, **kwargs) -> str:
     public_url = (getattr(_config, "RESTAI_URL", None) or "").rstrip("/")
     url = f"{public_url}/image/cache/{image_id}.{ext}" if public_url else f"/image/cache/{image_id}.{ext}"
 
-    # Markdown the LLM should echo verbatim so the chat UI renders the image.
-    # The tool result also includes a plain-text instruction so a confused
-    # model is more likely to actually emit the markdown.
-    return (
-        f"Image generated successfully. Show it to the user with this exact "
-        f"markdown line in your reply:\n\n![{prompt}]({url})"
-    )
+    # Return the markdown image line as the tool result. The agent runtime
+    # post-processes tool results in `_drive_runtime` to guarantee any
+    # `![](…/image/cache/…)` URL ends up in the final answer even when the
+    # LLM summarizes the tool output instead of echoing it. So we don't
+    # need to lecture the model about what to do with the result.
+    return f"![]({url})"

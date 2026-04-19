@@ -310,10 +310,20 @@ class Agent(ProjectBase):
         `output["answer"]` and `output["reasoning"]` along the way. Used by
         both `chat()` and `question()` to share the (otherwise identical)
         per-event handling."""
+        import re as _re
+
         steps: list = []
         reasoning_buf: list = []
         # Pair tool calls with their results so the reasoning panel renders correctly
         pending_tool_calls: dict = {}
+        # `draw_image` tool URLs collected from tool results — appended to the
+        # final answer if the LLM didn't echo them (some models summarize tool
+        # results instead of quoting them, which would silently swallow the
+        # image link).
+        image_urls: list[str] = []
+        _image_url_re = _re.compile(
+            r"!\[[^\]]*\]\((https?://[^)\s]+/image/cache/[A-Fa-f0-9]+\.[A-Za-z0-9]+|/image/cache/[A-Fa-f0-9]+\.[A-Za-z0-9]+)\)"
+        )
 
         async for event in runtime.run_iter(
             prompt,
@@ -339,10 +349,15 @@ class Agent(ProjectBase):
                     for block in msg.content:
                         tool_use_id = getattr(block, "tool_use_id", None)
                         tool_call = pending_tool_calls.pop(tool_use_id, None)
+                        content = getattr(block, "content", "") or ""
                         if tool_call is not None:
-                            self._record_step(
-                                steps, reasoning_buf, tool_call, getattr(block, "content", "") or ""
-                            )
+                            self._record_step(steps, reasoning_buf, tool_call, content)
+                            # Capture every image-cache URL the tool emitted so
+                            # we can guarantee it ends up in front of the user.
+                            for m in _image_url_re.finditer(content):
+                                url = m.group(1)
+                                if url not in image_urls:
+                                    image_urls.append(url)
 
             elif event.type == "final":
                 output["answer"] = event.data.get("final_text", "") or ""
@@ -351,6 +366,17 @@ class Agent(ProjectBase):
                         project.props.censorship
                         or "I'm sorry, I tried my best but couldn't reach a final answer."
                     )
+
+        # If the LLM dropped a draw_image URL on its way to writing the final
+        # answer, splice it back in. Most models echo the markdown verbatim
+        # when instructed; this is the belt-and-braces safety net for the
+        # ones that summarize ("Image generated!") without the link.
+        if image_urls:
+            answer = output.get("answer") or ""
+            missing = [u for u in image_urls if u not in answer]
+            if missing:
+                appendix = "\n\n" + "\n\n".join(f"![]({u})" for u in missing)
+                output["answer"] = (answer + appendix).strip()
 
         self._finalize_reasoning(output, reasoning_buf, steps)
 
