@@ -38,8 +38,7 @@ def draw_image(generator: str, prompt: str, **kwargs) -> str:
     except Exception as e:
         return f"ERROR: image generation failed: {e}"
 
-    image_id = brain.cache_image(image_bytes, mime_type=mime)
-    ext = "png" if mime == "image/png" else (mime.split("/", 1)[-1] or "png")
+    filename = brain.cache_image(image_bytes, mime_type=mime)
 
     # Prefer an absolute URL when the deployment knows its public host —
     # required so non-browser clients (Android app, widget embeds on a
@@ -48,7 +47,7 @@ def draw_image(generator: str, prompt: str, **kwargs) -> str:
     # natively.
     from restai import config as _config
     public_url = (getattr(_config, "RESTAI_URL", None) or "").rstrip("/")
-    url = f"{public_url}/image/cache/{image_id}.{ext}" if public_url else f"/image/cache/{image_id}.{ext}"
+    url = f"{public_url}/image/cache/{filename}" if public_url else f"/image/cache/{filename}"
 
     # Return the markdown image line as the tool result. The agent runtime
     # post-processes tool results in `_drive_runtime` to guarantee any

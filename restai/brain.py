@@ -37,11 +37,6 @@ class Brain:
         # agent2 in-memory session store: chat_id -> list[message dict]
         self._agent2_sessions: dict[str, list[dict]] = {}
         self.docker_manager = None
-        # Tool-generated image cache: id -> (bytes, mime_type, expires_at).
-        # Populated by the `draw_image` builtin tool so agent context can
-        # reference images by short URL instead of carrying base64 inline.
-        # 24h TTL — see `_IMAGE_CACHE_TTL` below.
-        self._image_cache: dict[str, tuple] = {}
 
         # Tools are lazy-loaded when first requested via get_tools(). The
         # full app sets them eagerly below so the first chat is fast; cron
@@ -94,40 +89,127 @@ class Brain:
             self.docker_manager = None
 
     # ------------------------------------------------------------------
-    # Tool-generated image cache
+    # Tool-generated image cache (Redis when available, in-memory fallback)
     # ------------------------------------------------------------------
 
     _IMAGE_CACHE_TTL_SECONDS = 24 * 60 * 60  # 24h
+    _IMAGE_CACHE_KEY_PREFIX = "restai_image_cache:"
+    _MIME_TO_EXT = {
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/jpg": "jpg",
+        "image/webp": "webp",
+        "image/gif": "gif",
+    }
+    _EXT_TO_MIME = {v: k for k, v in _MIME_TO_EXT.items()}
+
+    def _image_cache_redis(self):
+        """Lazily build a sync Redis client for the image cache. Self-healing
+        like the agent2 session store — drops the cached client when the
+        configured URL changes so admin Settings updates take effect on the
+        next call. Returns None when Redis isn't configured."""
+        url = config.build_redis_url()
+        if not url:
+            cached = getattr(self, "_image_cache_redis_client", None)
+            if cached is not None:
+                try:
+                    cached.close()
+                except Exception:
+                    pass
+                self._image_cache_redis_client = None
+                self._image_cache_redis_url = None
+            return None
+        cached = getattr(self, "_image_cache_redis_client", None)
+        cached_url = getattr(self, "_image_cache_redis_url", None)
+        if cached is not None and cached_url == url:
+            return cached
+        try:
+            import redis  # sync client; the image cache call sites are sync
+            client = redis.Redis.from_url(url)
+        except Exception as e:
+            logging.warning("image cache: failed to build Redis client (%s); using in-process fallback", e)
+            return None
+        self._image_cache_redis_client = client
+        self._image_cache_redis_url = url
+        return client
+
+    def _image_cache_local(self) -> dict:
+        """In-process fallback when Redis isn't configured. Single-worker only —
+        data is invisible to other workers / nodes, but better than failing in
+        a dev setup."""
+        store = getattr(self, "_image_cache_local_store", None)
+        if store is None:
+            store = {}
+            self._image_cache_local_store = store
+        return store
 
     def cache_image(self, data: bytes, mime_type: str = "image/png") -> str:
-        """Stash an image in the in-memory cache and return a random hex id.
-        The id is what the GET /image/cache/{id} endpoint resolves against.
-        Lazy expiry on each write keeps the dict from growing unbounded."""
+        """Stash an image and return ``"<id>.<ext>"`` for the URL.
+
+        Redis-backed when configured, so every worker / node sees the same
+        cache. Falls back to an in-process dict otherwise (works for single-
+        worker dev only — multi-worker without Redis will 404 on cross-worker
+        reads, same caveat as the chat store)."""
         import secrets
         import time as _time
-        self._sweep_expired_images(now=_time.time())
-        image_id = secrets.token_hex(16)  # 32-char unguessable id
-        expires_at = _time.time() + self._IMAGE_CACHE_TTL_SECONDS
-        self._image_cache[image_id] = (data, mime_type, expires_at)
-        return image_id
 
-    def get_cached_image(self, image_id: str):
-        """Return ``(bytes, mime_type)`` for a cached image, or ``None``
-        when the id is unknown or has expired (the latter triggers a sweep)."""
+        ext = self._MIME_TO_EXT.get((mime_type or "").lower(), "png")
+        image_id = secrets.token_hex(16)  # 32-char unguessable id
+        filename = f"{image_id}.{ext}"
+
+        client = self._image_cache_redis()
+        if client is not None:
+            try:
+                client.set(
+                    self._IMAGE_CACHE_KEY_PREFIX + filename,
+                    data,
+                    ex=self._IMAGE_CACHE_TTL_SECONDS,
+                )
+                return filename
+            except Exception as e:
+                logging.warning("image cache: Redis write failed (%s); using in-process fallback", e)
+
+        # In-process fallback
+        store = self._image_cache_local()
+        # Lazy sweep of expired entries so the dict can't grow forever.
+        now = _time.time()
+        expired = [k for k, (_d, _m, exp) in store.items() if exp < now]
+        for k in expired:
+            store.pop(k, None)
+        store[filename] = (data, mime_type, now + self._IMAGE_CACHE_TTL_SECONDS)
+        return filename
+
+    def get_cached_image(self, filename: str):
+        """Return ``(bytes, mime_type)`` for a cached image, or ``None`` when
+        the file is missing or older than the TTL."""
         import time as _time
-        entry = self._image_cache.get(image_id)
+
+        # Defense in depth against URL traversal — endpoint already validates
+        # but we double-check here.
+        if not filename or "/" in filename or "\\" in filename or filename.startswith("."):
+            return None
+
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "png"
+        mime = self._EXT_TO_MIME.get(ext, "application/octet-stream")
+
+        client = self._image_cache_redis()
+        if client is not None:
+            try:
+                data = client.get(self._IMAGE_CACHE_KEY_PREFIX + filename)
+                if data is not None:
+                    return data, mime
+            except Exception as e:
+                logging.warning("image cache: Redis read failed (%s); falling back to in-process", e)
+
+        store = self._image_cache_local()
+        entry = store.get(filename)
         if entry is None:
             return None
-        data, mime_type, expires_at = entry
+        data, stored_mime, expires_at = entry
         if expires_at < _time.time():
-            self._image_cache.pop(image_id, None)
+            store.pop(filename, None)
             return None
-        return data, mime_type
-
-    def _sweep_expired_images(self, now: float) -> None:
-        expired = [k for k, (_d, _m, exp) in self._image_cache.items() if exp < now]
-        for k in expired:
-            self._image_cache.pop(k, None)
+        return data, stored_mime or mime
 
     def reinit_chat_store(self):
         redis_url = config.build_redis_url()
