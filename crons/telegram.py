@@ -50,8 +50,27 @@ def main():
             if not token:
                 continue
 
+            # Parse the per-project allowlist. Empty/missing = open to all
+            # (legacy behavior). Tolerant of whitespace, trailing commas,
+            # and stray non-numeric junk so an admin's typo doesn't lock
+            # everyone out silently.
+            allowed_raw = (opts.get("telegram_allowed_chat_ids") or "").strip()
+            allowed_ids: set[int] = set()
+            if allowed_raw:
+                for piece in allowed_raw.replace(";", ",").split(","):
+                    piece = piece.strip()
+                    if not piece:
+                        continue
+                    try:
+                        allowed_ids.add(int(piece))
+                    except ValueError:
+                        logger.warning(f"  ⚠ ignoring non-numeric chat id in allowlist: {piece!r}")
+
             enabled_count += 1
-            logger.info(f"Polling project '{proj.name}' (id={proj.id})")
+            logger.info(
+                f"Polling project '{proj.name}' (id={proj.id})"
+                + (f" — allowlist: {sorted(allowed_ids)}" if allowed_ids else " — allowlist: open")
+            )
 
             updates, err = get_updates(token, offset=0, timeout=1)
             if err is not None:
@@ -78,15 +97,34 @@ def main():
                 from_user = message.get("from", {}).get("username") or message.get("from", {}).get("id")
                 logger.info(f"  ← message from {from_user} (chat={chat_id}): {text[:200]!r}")
 
-                # Built-in shortcut: replies with the chat_id so the admin
-                # can paste it into `telegram_default_chat_id` for the
-                # send_telegram tool.
+                # Built-in shortcut: replies with the chat_id so admins (or
+                # would-be users) can grab their id without going through
+                # the agent. Always allowed — it's the primary way an
+                # unauthorized user finds out what id they need to ask the
+                # admin to add to the allowlist.
                 if text.strip().lower() in ("/chatid", "/myid"):
                     logger.info(f"  → replying with chat id {chat_id}")
                     try:
                         send_message(token, chat_id, f"Chat ID: {chat_id}")
                     except Exception as e:
                         logger.warning(f"Failed to reply to /chatid: {e}")
+                    processed += 1
+                    continue
+
+                # Allowlist gate. Skip silently when the user isn't on the
+                # list — well, almost silently: we send a one-line "not
+                # authorized" reply so the user sees the bot is alive and
+                # knows to ask the admin.
+                if allowed_ids and chat_id not in allowed_ids:
+                    logger.info(f"  ✗ chat {chat_id} not in allowlist for project '{proj.name}', rejecting")
+                    try:
+                        send_message(
+                            token, chat_id,
+                            "You are not authorized to use this bot. "
+                            f"If you should be, ask the admin to add chat id {chat_id} to the project's allowlist.",
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to send unauthorized reply: {e}")
                     processed += 1
                     continue
 

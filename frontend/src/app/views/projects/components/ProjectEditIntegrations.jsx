@@ -35,7 +35,28 @@ export default function ProjectEditIntegrations({ state, setState, handleChange 
                   telegram_default_chat_id: e.target.value ? parseInt(e.target.value) : null,
                 },
               })}
-              helperText="Where the send_telegram tool posts. Send /chatid to the bot in Telegram to find the value (works in DMs and groups)."
+              helperText="Outbound chat for the send_telegram tool. Send /chatid to the bot in Telegram to find the value (works in DMs and groups)."
+            />
+          </Grid>
+          <Grid item sm={12} xs={12}>
+            <TextField
+              fullWidth
+              multiline
+              minRows={2}
+              InputLabelProps={{ shrink: true }}
+              name="telegram_allowed_chat_ids"
+              label="Allowed Telegram Chat IDs (inbound)"
+              variant="outlined"
+              value={state.options?.telegram_allowed_chat_ids ?? ''}
+              onChange={(e) => setState({
+                ...state,
+                options: {
+                  ...state.options,
+                  telegram_allowed_chat_ids: e.target.value,
+                },
+              })}
+              placeholder="123456789, -1001234567890"
+              helperText="Comma-separated. Only these chats may talk to the bot — anyone else gets a polite 'not authorized' reply. Leave empty to let anyone who finds the bot chat with it (default). The /chatid command stays open so unauthorized users can find their id and ask the admin to add them."
             />
           </Grid>
           <Grid item sm={6} xs={12}>

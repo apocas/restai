@@ -194,6 +194,7 @@ export default function ProjectEdit({ project, projects, info }) {
 
     if (state.options.telegram_token !== undefined) opts.options.telegram_token = state.options.telegram_token;
     if (state.options.telegram_default_chat_id !== undefined) opts.options.telegram_default_chat_id = state.options.telegram_default_chat_id || null;
+    if (state.options.telegram_allowed_chat_ids !== undefined) opts.options.telegram_allowed_chat_ids = state.options.telegram_allowed_chat_ids || null;
     if (state.options.slack_bot_token !== undefined) opts.options.slack_bot_token = state.options.slack_bot_token;
     if (state.options.slack_app_token !== undefined) opts.options.slack_app_token = state.options.slack_app_token;
 

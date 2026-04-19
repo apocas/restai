@@ -441,6 +441,7 @@ class ProjectOptions(BaseModel):
     mcp_servers: Union[list[MCPServer], None] = Field(default=None, description="List of MCP server configurations for agent projects")
     telegram_token: Union[str, None] = Field(default=None, description="Telegram bot token for Telegram integration")
     telegram_default_chat_id: Union[int, None] = Field(default=None, description="Default Telegram chat ID for the send_telegram builtin tool. Set to a chat that has already messaged the bot (Telegram bots cannot initiate). To find the value, message the bot with `/chatid` after enabling the integration.")
+    telegram_allowed_chat_ids: Union[str, None] = Field(default=None, description="Comma-separated allowlist of Telegram chat IDs that may talk to the bot (DMs and groups). Empty = anyone who finds the bot can chat with it. The /chatid command always works regardless so unauthorized users can self-discover their id and ask the admin to add them.")
     slack_bot_token: Union[str, None] = Field(default=None, description="Slack bot token (xoxb-...) for Slack integration")
     blockly_workspace: Union[dict, None] = Field(default=None, description="Blockly workspace JSON for block projects")
     rate_limit: Union[int, None] = Field(default=None, ge=1, le=10000, description="Maximum requests per minute (None = unlimited)")
