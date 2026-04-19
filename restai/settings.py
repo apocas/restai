@@ -264,8 +264,12 @@ def get_all_settings(db_wrapper) -> dict:
         "gpu_worker_devices": rows.get("gpu_worker_devices", ""),
         # MCP
         "mcp_enabled": _to_bool(rows.get("mcp_enabled", "false")),
-        # Docker
+        # System LLM
         "system_llm": rows.get("system_llm", ""),
+        # OpenAI credentials (mask_key so the existing value is shown without
+        # ever exposing the plaintext in API responses).
+        "openai_api_key": mask_key(rows.get("openai_api_key", "")),
+        # Docker
         "docker_enabled": _to_bool(rows.get("docker_enabled", "false")),
         "docker_url": rows.get("docker_url", ""),
         "docker_image": rows.get("docker_image", "python:3.12-slim"),
