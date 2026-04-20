@@ -80,21 +80,19 @@ def _project_has_terminal(project) -> bool:
 
 
 def _route_attachments(files, chat_id, prompt, brain, existing_image=None, project=None):
-    """Unify the image + file upload paths.
+    """Route non-image file attachments to the Docker sandbox (or politely
+    drop them when `terminal` isn't configured).
 
-    Given a list of `FileAttachment` objects, split them by MIME:
-    - The first image becomes the vision-model input (returned as a data URL).
-      Images *always* take the vision flow; they are never pushed into the
-      sandbox, even when `terminal` is configured — the multimodal model is
-      the right place for them.
-    - Non-image files go to the Docker sandbox uploader **only if** the
-      project has the `terminal` tool configured. Without it the sandbox
-      isn't reachable from any project tool, so uploading would just burn
-      a container and produce a misleading "files available" prompt line.
+    `helper._normalize_image_inputs` canonicalizes the two image-input
+    paths before we're called: by the time this function runs, any image
+    that arrived in `files[]` has already been promoted to
+    `chatModel.image` and removed from `files`. So `files` here should
+    only contain non-image attachments. The image branch below is kept as
+    a defensive fallback for direct callers that bypass the helper.
 
-    Returns ``(augmented_prompt, image_data_url_or_existing)``. If the caller
-    already passed an explicit `image` on the request, it wins over anything
-    in `files` (backward-compat with the old `image` field).
+    Returns ``(augmented_prompt, image_data_url_or_existing)``. If the
+    caller already passed an explicit `image` on the request, it wins
+    over anything in `files` (backward-compat with the old `image` field).
     """
     if not files:
         return prompt, existing_image

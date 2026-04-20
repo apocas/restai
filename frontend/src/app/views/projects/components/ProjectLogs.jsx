@@ -125,6 +125,8 @@ export default function RAGRetrieval({ project }) {
           renderExpandableRow: (rowData, rowMeta) => {
             const colSpan = rowData.length;
             const contextData = log?.context ? (() => { try { return JSON.parse(log.context); } catch { return null; } })() : null;
+            const attachmentsData = log?.attachments ? (() => { try { return JSON.parse(log.attachments); } catch { return null; } })() : null;
+            const imageSrc = log?.image ? (log.image.startsWith("data:") ? log.image : `data:image/png;base64,${log.image}`) : null;
             return (
               <>
                 <TableRow>
@@ -134,6 +136,43 @@ export default function RAGRetrieval({ project }) {
                     }
                     {log && (
                       <Box>
+                        {log.status && log.status !== "success" && log.error && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 0.5 }}>Error</Typography>
+                            <Box sx={{
+                              p: 1.5, borderRadius: 1, fontFamily: "monospace", fontSize: "0.8rem",
+                              backgroundColor: "#fff6f6", border: "1px solid #e0b4b4", color: "#9f3a38",
+                              whiteSpace: "pre-wrap", maxHeight: 200, overflow: "auto",
+                            }}>
+                              {log.error}
+                            </Box>
+                          </Box>
+                        )}
+                        {imageSrc && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 0.5 }}>Uploaded Image</Typography>
+                            <img
+                              src={imageSrc}
+                              alt="user attachment"
+                              style={{ maxWidth: 320, maxHeight: 240, borderRadius: 4, border: "1px solid #e0e0e0" }}
+                            />
+                          </Box>
+                        )}
+                        {attachmentsData && attachmentsData.length > 0 && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 0.5 }}>File Attachments</Typography>
+                            <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+                              {attachmentsData.map((a, i) => (
+                                <Chip
+                                  key={i}
+                                  label={`${a.name}${a.size ? ` (${Math.round(a.size / 1024)} KB)` : ""}`}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              ))}
+                            </Box>
+                          </Box>
+                        )}
                         {log.system_prompt && (
                           <Box sx={{ mb: 2 }}>
                             <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 0.5 }}>System Prompt</Typography>
@@ -170,22 +209,55 @@ export default function RAGRetrieval({ project }) {
             }
           }
         }}
-        data={logs.map(chunk => [chunk.date, chunk.llm, chunk.question, chunk.answer])}
+        data={logs.map(chunk => [
+          chunk.status || "success",
+          chunk.date,
+          chunk.llm,
+          // Pass the whole row so the Question cell can render image thumbnail
+          // + attachment chips alongside the question text without needing
+          // more server-side plumbing.
+          chunk,
+          chunk.answer,
+        ])}
         columns={[{
+          name: "Status",
+          options: {
+            filter: true,
+            customHeadRender: ({ index, ...column }) => (
+              <TableCell key={index} style={{ width: "110px" }}>
+                {column.label}
+              </TableCell>
+            ),
+            customBodyRender: (value) => {
+              const colorMap = {
+                success: "success",
+                error: "error",
+                guard_block: "warning",
+                rate_limit: "warning",
+                budget: "warning",
+              };
+              const label = value === "success"
+                ? "OK"
+                : (value === "guard_block" ? "guard" : value);
+              return (
+                <Chip size="small" label={label} color={colorMap[value] || "default"} />
+              );
+            },
+          },
+        },
+        {
           name: "Date",
           options: {
-            customHeadRender: ({ index, ...column }) => {
-              return (
-                <TableCell key={index} style={{ width: "200px" }}>
-                  {column.label}
-                </TableCell>
-              )
-            },
-            customBodyRender: (value, tableMeta, updateValue) => (
+            customHeadRender: ({ index, ...column }) => (
+              <TableCell key={index} style={{ width: "180px" }}>
+                {column.label}
+              </TableCell>
+            ),
+            customBodyRender: (value) => (
               <Box display="flex" alignItems="center" gap={4}>
                 {new Date(value).toLocaleString()}
               </Box>
-            )
+            ),
           }
         },
         {
@@ -194,7 +266,7 @@ export default function RAGRetrieval({ project }) {
             filter: false,
             sort: false,
             display: false,
-            customBodyRender: (value, tableMeta, updateValue) => (
+            customBodyRender: (value) => (
               <Box display="flex" alignItems="center" gap={4}>
                 {value}
               </Box>
@@ -204,17 +276,47 @@ export default function RAGRetrieval({ project }) {
         {
           name: "Question",
           options: {
-            customBodyRender: (value, tableMeta, updateValue) => (
-              <Box display="flex" alignItems="center" gap={4}>
-                {value}
-              </Box>
-            )
+            customBodyRender: (row) => {
+              if (!row) return null;
+              const imageSrc = row.image ? (row.image.startsWith("data:") ? row.image : `data:image/png;base64,${row.image}`) : null;
+              let attachments = [];
+              if (row.attachments) {
+                try { attachments = JSON.parse(row.attachments) || []; } catch { attachments = []; }
+              }
+              return (
+                <Box display="flex" alignItems="flex-start" gap={1} sx={{ flexWrap: "wrap" }}>
+                  {imageSrc && (
+                    <img
+                      src={imageSrc}
+                      alt=""
+                      style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 4, border: "1px solid #e0e0e0", flexShrink: 0 }}
+                    />
+                  )}
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box>{row.question}</Box>
+                    {attachments.length > 0 && (
+                      <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", mt: 0.5 }}>
+                        {attachments.map((a, i) => (
+                          <Chip
+                            key={i}
+                            label={a.name}
+                            size="small"
+                            variant="outlined"
+                            sx={{ fontSize: "0.7rem", height: 20 }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+              );
+            },
           }
         },
         {
           name: "Answer",
           options: {
-            customBodyRender: (value, tableMeta, updateValue) => (
+            customBodyRender: (value) => (
               <Box display="flex" alignItems="center" gap={4}>
                 {value}
               </Box>

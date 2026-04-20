@@ -153,6 +153,25 @@ class OutputDatabase(Base):
     system_prompt = Column(Text, nullable=True)
     context = Column(Text, nullable=True)
 
+    # Outcome of the inference. "success" is the default for successful
+    # Q/A rows; "error" covers LLM/tool crashes; "budget", "rate_limit"
+    # cover those pre-inference rejects; "guard_block" for input/output
+    # guard. Indexed so the log viewer can filter by failure kind cheaply.
+    status = Column(String(32), nullable=False, default="success", server_default="success", index=True)
+    error = Column(Text, nullable=True)
+
+    # User-supplied image attached to the message (data URL / base64). The
+    # log viewer renders it inline next to the question so it's obvious
+    # what the user actually asked about. Nullable; only populated when
+    # the user attached an image.
+    image = Column(Text, nullable=True)
+
+    # JSON list of file-attachment metadata (NOT file bytes). Shape:
+    # [{"name": str, "mime_type": str | None, "size": int}, ...]. Files
+    # themselves live in the agent sandbox / image cache; this is just a
+    # record that they existed so the log viewer can show chips.
+    attachments = Column(Text, nullable=True)
+
 
 class EvalDatasetDatabase(Base):
     __tablename__ = "eval_datasets"

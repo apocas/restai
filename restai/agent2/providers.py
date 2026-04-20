@@ -302,9 +302,14 @@ class OpenAIProvider(Provider):
                         },
                     }
                 )
+        # `content` is "" instead of None when the assistant message carries
+        # only tool calls. OpenAI accepts either form, but Ollama's
+        # OpenAI-compat shim is strict and rejects the conversation with
+        # `400 invalid message content type: <nil>` when it sees a null.
+        # Empty string keeps the message valid for both.
         payload: dict = {
             "role": "assistant",
-            "content": "\n".join(text_parts) if text_parts else None,
+            "content": "\n".join(text_parts) if text_parts else "",
         }
         if tool_calls:
             payload["tool_calls"] = tool_calls

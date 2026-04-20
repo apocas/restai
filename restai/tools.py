@@ -259,24 +259,40 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
 
     input_cost = 0.0
     output_cost = 0.0
+    # `tokens` may be missing on error paths (e.g. we failed before the LLM
+    # replied). Default to zero so the log row still gets written.
+    tokens = output.get("tokens") or {"input": 0, "output": 0}
+    in_tokens = int(tokens.get("input", 0) or 0)
+    out_tokens = int(tokens.get("output", 0) or 0)
     if project.props.llm:
         llm_db = db.get_llm_by_name(project.props.llm)
         if llm_db is not None:
             llm = LLMModel.model_validate(llm_db)
-            input_cost = (output["tokens"]["input"] * llm.input_cost) / 1000000
-            output_cost = (output["tokens"]["output"] * llm.output_cost) / 1000000
+            input_cost = (in_tokens * llm.input_cost) / 1000000
+            output_cost = (out_tokens * llm.output_cost) / 1000000
 
     redact = bool(getattr(project.props.options, "redact_inference_logs", False))
-    log_question = output["question"] if project.props.options.logging else None
-    log_answer = output["answer"] if project.props.options.logging else None
-    log_system = system_prompt if project.props.options.logging else None
-    log_context = _json.dumps(context) if context and project.props.options.logging else None
+    logging_enabled = bool(getattr(project.props.options, "logging", True))
+    log_question = output.get("question") if logging_enabled else None
+    log_answer = output.get("answer") if logging_enabled else None
+    log_system = system_prompt if logging_enabled else None
+    log_context = _json.dumps(context) if context and logging_enabled else None
+    log_image = output.get("image") if logging_enabled else None
+    log_error = output.get("error") if logging_enabled else None
+
+    # `attachments` is a list of metadata dicts on the output dict. Never
+    # includes bytes — only name/mime_type/size. JSON-encode for storage.
+    att_list = output.get("attachments") or []
+    log_attachments = _json.dumps(att_list) if att_list and logging_enabled else None
 
     if redact:
         log_question = _redact_secrets(log_question)
         log_answer = _redact_secrets(log_answer)
         log_system = _redact_secrets(log_system)
         log_context = _redact_secrets(log_context)
+        log_error = _redact_secrets(log_error)
+
+    status = output.get("status") or "success"
 
     output_db_entry = OutputDatabase(
         user_id=user.id,
@@ -286,13 +302,17 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
         answer=log_answer,
         date=datetime.now(timezone.utc),
         project_id=project.props.id,
-        input_tokens=output["tokens"]["input"],
-        output_tokens=output["tokens"]["output"],
+        input_tokens=in_tokens,
+        output_tokens=out_tokens,
         input_cost=input_cost,
         output_cost=output_cost,
         latency_ms=latency_ms,
         system_prompt=log_system,
         context=log_context,
+        status=status,
+        error=log_error,
+        image=log_image,
+        attachments=log_attachments,
     )
 
     if "id" in output:

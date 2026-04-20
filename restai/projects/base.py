@@ -45,10 +45,14 @@ class ProjectBase(ABC):
         if result.blocked and guard_mode == "block":
             output["answer"] = project.props.censorship or self.brain.defaultCensorship
             output["guard"] = True
+            # Flag the inference log entry so the log viewer can show the
+            # guard block distinctly from a normal answer.
+            output["status"] = "guard_block"
             self.brain.post_processing_counting(output)
             return True
         elif result.blocked:
             output["guard"] = True
+            output["status"] = "guard_block"
 
         return False
 

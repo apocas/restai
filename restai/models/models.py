@@ -118,7 +118,12 @@ class FileAttachment(BaseModel):
     ``/home/user/uploads/<name>`` so the LLM can manipulate it with the
     terminal tool."""
     name: str = Field(max_length=255, description="Filename (path components are stripped server-side)")
-    content: str = Field(description="Base64-encoded file bytes")
+    # 70 MB base64 string ≈ 50 MB raw bytes. Symmetric with the 10 MB cap on
+    # `ChatModel.image` (which includes URL fetch + SSRF guard via
+    # resolve_image); for base64 attachments the only useful layer is this
+    # string-length bound — otherwise a 500 MB payload OOMs the worker
+    # before any code runs.
+    content: str = Field(max_length=70_000_000, description="Base64-encoded file bytes (max ~50 MB raw)")
     mime_type: Union[str, None] = Field(default=None, max_length=100, description="Optional MIME type hint (e.g. application/pdf)")
 
 
