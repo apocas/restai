@@ -438,6 +438,30 @@ class TeamImageGeneratorDatabase(Base):
     team = relationship("TeamDatabase", back_populates="image_generators")
 
 
+class ImageGeneratorDatabase(Base):
+    """Image generator registry — both local workers (auto-seeded on startup
+    from `restai/image/workers/*.py`) and external providers (OpenAI / Google /
+    OpenAI-compat endpoints) configured by an admin via the management page.
+
+    Mirrors `LLMDatabase` / `EmbeddingDatabase` so the same admin patterns
+    (CRUD, team grants, encrypted secrets in `options`, privacy flag) carry
+    over without surprises.
+    """
+    __tablename__ = "image_generators"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), unique=True, index=True, nullable=False)
+    # Provider: "local" (worker module), "openai" (incl. OpenAI-compatible
+    # via options.base_url), "google" (Imagen / Nano Banana).
+    class_name = Column(String(64), nullable=False)
+    options = Column(Text, nullable=True, default="{}")
+    privacy = Column(String(32), nullable=False, default="public")
+    description = Column(Text, nullable=True)
+    enabled = Column(Boolean, nullable=False, default=True, server_default="1")
+    created_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
+
+
 class TeamAudioGeneratorDatabase(Base):
     __tablename__ = "teams_audio_generators"
     team_id = Column(Integer, ForeignKey("teams.id"), primary_key=True)

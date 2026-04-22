@@ -17,6 +17,7 @@ from restai.models.databasemodels import (
     TeamImageGeneratorDatabase,
     TeamAudioGeneratorDatabase,
     WidgetDatabase,
+    ImageGeneratorDatabase,
 )
 from restai.models.models import (
     LLMModel,
@@ -444,6 +445,119 @@ class DBWrapper:
         self.db.delete(embedding)
         self.db.commit()
         return True
+
+    # ─── Image generators ─────────────────────────────────────────────
+
+    def get_image_generators(self) -> list[ImageGeneratorDatabase]:
+        return self.db.query(ImageGeneratorDatabase).order_by(ImageGeneratorDatabase.name).all()
+
+    def get_image_generator_by_id(self, gen_id: int) -> Optional[ImageGeneratorDatabase]:
+        return self.db.query(ImageGeneratorDatabase).filter(ImageGeneratorDatabase.id == gen_id).first()
+
+    def get_image_generator_by_name(self, name: str) -> Optional[ImageGeneratorDatabase]:
+        return self.db.query(ImageGeneratorDatabase).filter(ImageGeneratorDatabase.name == name).first()
+
+    def create_image_generator(
+        self,
+        name: str,
+        class_name: str,
+        options,
+        privacy: str = "public",
+        description: Optional[str] = None,
+        enabled: bool = True,
+    ) -> ImageGeneratorDatabase:
+        from restai.utils.crypto import encrypt_sensitive_options, LLM_SENSITIVE_KEYS
+        import json as _json
+
+        try:
+            opts_dict = _json.loads(options) if isinstance(options, str) else (options or {})
+            opts_dict = encrypt_sensitive_options(opts_dict, LLM_SENSITIVE_KEYS)
+            options_str = _json.dumps(opts_dict)
+        except Exception as e:
+            logging.warning("Failed to encrypt image generator options: %s", e)
+            options_str = options if isinstance(options, str) else _json.dumps(options or {})
+
+        now = datetime.now(timezone.utc)
+        row = ImageGeneratorDatabase(
+            name=name,
+            class_name=class_name,
+            options=options_str,
+            privacy=privacy,
+            description=description,
+            enabled=enabled,
+            created_at=now,
+            updated_at=now,
+        )
+        self.db.add(row)
+        self.db.commit()
+        self.db.refresh(row)
+        return row
+
+    def edit_image_generator(self, gen: ImageGeneratorDatabase, update) -> bool:
+        """Patch an image generator. `update` is an ImageGeneratorModelUpdate.
+        api_key in `options` is preserved when the submitted value is the
+        masked sentinel `"********"` (matches the LLM edit pattern)."""
+        from restai.utils.crypto import encrypt_sensitive_options, LLM_SENSITIVE_KEYS
+        import json as _json
+
+        changed = False
+        if update.class_name is not None and gen.class_name != update.class_name:
+            gen.class_name = update.class_name
+            changed = True
+
+        if update.options is not None:
+            try:
+                new_opts = _json.loads(update.options) if isinstance(update.options, str) else (update.options or {})
+                # Preserve masked sensitive fields
+                existing = _json.loads(gen.options) if gen.options else {}
+                # The existing values in DB are already encrypted; decrypt
+                # them so the comparison is plaintext-vs-plaintext.
+                from restai.utils.crypto import decrypt_sensitive_options
+                existing_plain = decrypt_sensitive_options(dict(existing), LLM_SENSITIVE_KEYS)
+                for k in LLM_SENSITIVE_KEYS:
+                    val = new_opts.get(k)
+                    if isinstance(val, str) and val == "********":
+                        if k in existing_plain:
+                            new_opts[k] = existing_plain[k]
+                        else:
+                            new_opts.pop(k, None)
+                new_opts_enc = encrypt_sensitive_options(new_opts, LLM_SENSITIVE_KEYS)
+                gen.options = _json.dumps(new_opts_enc)
+                changed = True
+            except Exception as e:
+                logging.warning("Failed to update image generator options: %s", e)
+
+        if update.privacy is not None and gen.privacy != update.privacy:
+            gen.privacy = update.privacy
+            changed = True
+
+        if update.description is not None and gen.description != update.description:
+            gen.description = update.description
+            changed = True
+
+        if update.enabled is not None and gen.enabled != update.enabled:
+            gen.enabled = update.enabled
+            changed = True
+
+        if changed:
+            gen.updated_at = datetime.now(timezone.utc)
+            self.db.commit()
+        return changed
+
+    def delete_image_generator(self, gen: ImageGeneratorDatabase) -> bool:
+        # Also drop any team grants pointing at this name so we don't leave
+        # dangling rows in the legacy string-keyed teams_image_generators.
+        try:
+            self.db.query(TeamImageGeneratorDatabase).filter(
+                TeamImageGeneratorDatabase.generator_name == gen.name
+            ).delete(synchronize_session=False)
+        except Exception:
+            pass
+        self.db.delete(gen)
+        self.db.commit()
+        return True
+
+    # ─────────────────────────────────────────────────────────────────────
 
     def get_user_by_id(self, user_id: int) -> Optional[UserDatabase]:
         user: Optional[UserDatabase] = (

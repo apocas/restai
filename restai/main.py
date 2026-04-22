@@ -82,9 +82,10 @@ async def lifespan(fs_app: FastAPI):
     ensure_settings_table(db_engine)
 
     # Auto-create new association tables for generators, eval tables, and migrate output table
-    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase, TeamInvitationDatabase
+    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase, TeamInvitationDatabase, ImageGeneratorDatabase
     TeamImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     TeamAudioGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
+    ImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     EvalDatasetDatabase.__table__.create(db_engine, checkfirst=True)
     EvalTestCaseDatabase.__table__.create(db_engine, checkfirst=True)
     EvalRunDatabase.__table__.create(db_engine, checkfirst=True)
@@ -99,6 +100,17 @@ async def lifespan(fs_app: FastAPI):
     load_settings(settings_db_wrapper)
 
     fs_app.state.brain = Brain()
+
+    # Auto-seed image-generator registry rows for every worker module under
+    # restai/image/workers/*.py. Idempotent — existing rows keep their
+    # admin-applied state (enabled flag, description, team grants).
+    try:
+        from restai.image.registry import seed_local_generators
+        seeded = seed_local_generators(settings_db_wrapper)
+        if seeded:
+            logging.info("Seeded %d local image generator(s)", seeded)
+    except Exception as e:
+        logging.warning("Failed to seed local image generators: %s", e)
 
     from restai.oauth import OAuthManager
     config.load_oauth_providers()
@@ -346,6 +358,8 @@ async def lifespan(fs_app: FastAPI):
 
     fs_app.include_router(llms.router, tags=["LLMs"])
     fs_app.include_router(embeddings.router, tags=["Embeddings"])
+    from restai.routers import image_generators
+    fs_app.include_router(image_generators.router, tags=["Image Generators"])
     fs_app.include_router(projects.router)
     fs_app.include_router(tools.router, tags=["Tools"])
     fs_app.include_router(users.router, tags=["Users"])
@@ -362,12 +376,16 @@ async def lifespan(fs_app: FastAPI):
     fs_app.include_router(evals.router)
 
     # Image cache endpoint is always mounted (used by the `draw_image` builtin
-    # tool, which works on non-GPU deployments via DALL-E / gpt-image-1.5).
+    # tool, which works on non-GPU deployments via OpenAI/Google generators).
     from restai.routers import image_cache
     fs_app.include_router(image_cache.router, tags=["Image"])
 
+    # Image router is always mounted now that external providers (OpenAI,
+    # Google) live in the registry alongside local workers — non-GPU
+    # instances can still dispatch to remote generators via the dispatch
+    # helper. Local-worker calls fail cleanly with a "GPU required" error.
+    fs_app.include_router(image.router, tags=["Image"])
     if config.RESTAI_GPU == True:
-        fs_app.include_router(image.router, tags=["Image"])
         fs_app.include_router(audio.router, tags=["Audio"])
 
     if config.RESTAI_MCP:

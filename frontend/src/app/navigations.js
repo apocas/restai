@@ -56,6 +56,7 @@ export const defaultNavigations = [
     name: "Generators",
     icon: "memory",
     children: [
+      { name: "Image Generators", iconText: "IG", path: "/image_generators" },
       { name: "GPU", iconText: "GP", path: "/gpu", auth: authRoles.admin },
     ]
   },
@@ -104,12 +105,13 @@ export const buildNavigations = (hasGpu, hasProxy) => {
     return item;
   })];
 
-  // Add Image Gen and Audio Gen to Generators when GPU is available
+  // Add Audio Gen to Generators when GPU is available. The Image Gen
+  // playground is reachable from the Image Generators page itself (a
+  // "Playground" button), so it doesn't need its own nav entry.
   if (hasGpu) {
     const generators = navigations.find(item => item.name === "Generators");
     if (generators) {
       generators.children.push(
-        { name: "Image Gen", iconText: "IG", path: "/image" },
         { name: "Audio Gen", iconText: "AG", path: "/audio" }
       );
     }

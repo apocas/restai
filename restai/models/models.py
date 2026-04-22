@@ -21,6 +21,13 @@ VALID_EMBEDDING_CLASSES = {
     "OllamaEmbeddings", "Ollama",
 }
 
+# Providers for the image-generator registry. `local` covers anything in
+# `restai/image/workers/*.py` (auto-seeded on startup); `openai` covers
+# both api.openai.com and any OpenAI-spec-compatible server (Together,
+# Groq, Fireworks, vLLM image servers, etc.) — set `options.base_url` on
+# the latter. `google` covers Imagen / Nano Banana via the Google AI SDK.
+VALID_IMAGE_GENERATOR_CLASSES = {"local", "openai", "google"}
+
 
 def validate_safe_name(v: str, field_label: str = "Name") -> str:
     """Reject names containing characters unsafe for use in URL paths."""
@@ -334,6 +341,109 @@ class EmbeddingUpdate(BaseModel):
             "dimension": 3072
         }
     })
+
+    @field_validator('options', mode='before')
+    @classmethod
+    def serialize_options(cls, v):
+        if isinstance(v, dict):
+            return json.dumps(v)
+        return v
+
+
+class ImageGeneratorModel(BaseModel):
+    """Image generator registry entry — local worker or external provider."""
+    id: Union[int, None] = Field(default=None, description="Unique image generator identifier")
+    name: str = Field(description="Unique name identifier (used in /image/{name}/generate)")
+    class_name: str = Field(description="Provider: 'local' (worker module), 'openai' (incl. OpenAI-compat via options.base_url), 'google'")
+    options: Dict[str, Any] = Field(default_factory=dict, description="Provider-specific options (model, api_key, base_url, ...)")
+    privacy: Literal["public", "private"] = Field(default="public", description="Privacy level: 'public' (cloud-hosted) or 'private' (self-hosted)")
+    description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable description")
+    enabled: bool = Field(default=True, description="Whether this generator is currently usable")
+    teams: list["TeamModel"] = Field(default=[], description="Teams that have access to this generator")
+
+    @field_validator('name')
+    @classmethod
+    def name_must_be_safe(cls, v):
+        return validate_safe_name(v, "Image generator name")
+
+    @field_validator('class_name')
+    @classmethod
+    def class_name_must_be_valid(cls, v):
+        if v not in VALID_IMAGE_GENERATOR_CLASSES:
+            raise ValueError(
+                f"Invalid image generator class: '{v}'. Must be one of: {', '.join(sorted(VALID_IMAGE_GENERATOR_CLASSES))}"
+            )
+        return v
+
+    @field_validator('options', mode='before')
+    @classmethod
+    def parse_options(cls, v):
+        if isinstance(v, str):
+            try:
+                v = json.loads(v)
+            except json.JSONDecodeError:
+                return {}
+        if isinstance(v, dict):
+            try:
+                # Image generators reuse LLM_SENSITIVE_KEYS for the same
+                # `api_key`/`secret`/`password` bag — same encryption helper.
+                from restai.utils.crypto import decrypt_sensitive_options, LLM_SENSITIVE_KEYS
+                v = decrypt_sensitive_options(v, LLM_SENSITIVE_KEYS)
+            except Exception:
+                pass
+        return v
+
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={
+        "example": {
+            "name": "gpt-image-1.5",
+            "class_name": "openai",
+            "options": {"model": "gpt-image-1.5", "api_key": "sk-..."},
+            "privacy": "public",
+            "description": "OpenAI gpt-image-1.5 image model",
+        }
+    })
+
+
+class ImageGeneratorModelCreate(BaseModel):
+    """Create a new image generator entry."""
+    name: str = Field(description="Unique name identifier")
+    class_name: str = Field(description="Provider: 'local', 'openai', or 'google'")
+    options: Union[str, Dict[str, Any]] = Field(default_factory=dict, description="Provider-specific options")
+    privacy: Literal["public", "private"] = Field(default="public")
+    description: Union[str, None] = Field(default=None, max_length=1000)
+    enabled: bool = Field(default=True)
+
+    @field_validator('name')
+    @classmethod
+    def name_must_be_safe(cls, v):
+        return validate_safe_name(v, "Image generator name")
+
+    @field_validator('class_name')
+    @classmethod
+    def class_name_must_be_valid(cls, v):
+        if v not in VALID_IMAGE_GENERATOR_CLASSES:
+            raise ValueError(
+                f"Invalid image generator class: '{v}'. Must be one of: {', '.join(sorted(VALID_IMAGE_GENERATOR_CLASSES))}"
+            )
+        return v
+
+
+class ImageGeneratorModelUpdate(BaseModel):
+    """Update an existing image generator entry. All fields optional."""
+    class_name: Union[str, None] = Field(default=None)
+    options: Union[str, Dict[str, Any], None] = Field(default=None)
+    privacy: Optional[Literal["public", "private"]] = Field(default=None)
+    description: Union[str, None] = Field(default=None, max_length=1000)
+    enabled: Union[bool, None] = Field(default=None)
+
+    @field_validator('class_name')
+    @classmethod
+    def class_name_must_be_valid(cls, v):
+        if v is not None and v not in VALID_IMAGE_GENERATOR_CLASSES:
+            raise ValueError(
+                f"Invalid image generator class: '{v}'. Must be one of: {', '.join(sorted(VALID_IMAGE_GENERATOR_CLASSES))}"
+            )
+        return v
 
     @field_validator('options', mode='before')
     @classmethod
@@ -1132,8 +1242,6 @@ class SettingsResponse(BaseModel):
     mcp_enabled: bool = Field(default=False, description="Whether the internal MCP server is enabled")
     # System LLM
     system_llm: Optional[str] = Field(default="", description="Internal LLM used for housekeeping tasks (prompt helpers, summarization, etc)")
-    # OpenAI credentials
-    openai_api_key: Optional[str] = Field(default="", description="OpenAI API key used by DALL-E 3 and gpt-image-1.5 image generators (masked)")
     # Docker
     docker_enabled: bool = Field(default=False, description="Whether Docker sandboxed terminal is enabled")
     docker_url: Optional[str] = Field(default="", description="Docker socket or TCP URL for sandboxed terminal")
@@ -1198,8 +1306,6 @@ class SettingsUpdate(BaseModel):
     mcp_enabled: Optional[bool] = Field(default=None, description="Whether the internal MCP server is enabled")
     # System LLM
     system_llm: Optional[str] = Field(default=None, description="Internal LLM used for housekeeping tasks")
-    # OpenAI credentials
-    openai_api_key: Optional[str] = Field(default=None, description="OpenAI API key used by DALL-E 3 and gpt-image-1.5 image generators")
     # Docker
     docker_enabled: Optional[bool] = Field(default=None, description="Whether Docker sandboxed terminal is enabled")
     docker_url: Optional[str] = Field(default=None, description="Docker socket or TCP URL for sandboxed terminal")

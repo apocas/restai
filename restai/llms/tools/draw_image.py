@@ -7,9 +7,9 @@ def draw_image(generator: str, prompt: str, **kwargs) -> str:
     user actually sees the image.
 
     Args:
-        generator (str): Which image generator to use. One of: 'dalle' (DALL-E 3),
-            'gpt-image-1.5', 'imagen' (Imagen 3). Defaults to 'gpt-image-1.5'
-            if you pass an empty / unknown value.
+        generator (str): Name of an image generator registered in
+            `/admin/image_generators`. Pass an empty string to fall back to
+            the first enabled generator the platform knows about.
         prompt (str): The text prompt describing the image to generate. Be
             specific and visual — describe subject, style, lighting, framing.
     """
@@ -19,26 +19,43 @@ def draw_image(generator: str, prompt: str, **kwargs) -> str:
     if not prompt or not prompt.strip():
         return "ERROR: prompt is required."
 
+    from restai.database import get_db_wrapper
     from restai.image.dispatch import (
+        GeneratorDisabledError,
         UnknownGeneratorError,
         generate_image,
-        list_known_external_generators,
+        list_available_generators,
     )
     from restai.models.models import ImageModel
 
-    chosen = (generator or "").strip() or "gpt-image-1.5"
-
+    db = get_db_wrapper()
     try:
-        image_bytes, mime = generate_image(chosen, ImageModel(prompt=prompt))
-    except UnknownGeneratorError:
-        return (
-            f"ERROR: unknown image generator '{generator}'. "
-            f"Available: {', '.join(list_known_external_generators())}."
-        )
-    except Exception as e:
-        return f"ERROR: image generation failed: {e}"
+        chosen = (generator or "").strip()
+        if not chosen:
+            available = list_available_generators(db)
+            if not available:
+                return (
+                    "ERROR: no image generator is enabled. Ask the admin "
+                    "to add one in /admin/image_generators."
+                )
+            chosen = available[0]
 
-    filename = brain.cache_image(image_bytes, mime_type=mime)
+        try:
+            image_bytes, mime = generate_image(chosen, ImageModel(prompt=prompt), brain, db)
+        except UnknownGeneratorError:
+            available = list_available_generators(db)
+            return (
+                f"ERROR: unknown image generator '{generator}'. "
+                f"Available: {', '.join(available) if available else '(none configured)'}."
+            )
+        except GeneratorDisabledError:
+            return f"ERROR: image generator '{chosen}' is disabled."
+        except Exception as e:
+            return f"ERROR: image generation failed: {e}"
+
+        filename = brain.cache_image(image_bytes, mime_type=mime)
+    finally:
+        db.db.close()
 
     # Prefer an absolute URL when the deployment knows its public host —
     # required so non-browser clients (Android app, widget embeds on a

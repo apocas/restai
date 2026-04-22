@@ -54,9 +54,6 @@ SETTINGS_DEFAULTS = {
     "mcp_enabled": ("MCP_SERVER", "false"),
     # System LLM
     "system_llm": (None, ""),
-    # OpenAI credentials (used by DALL-E 3 and gpt-image-1.5 image generators,
-    # and any other integration that wants a platform-wide OpenAI key).
-    "openai_api_key": ("OPENAI_API_KEY", ""),
     # Docker
     "docker_enabled": (None, "false"),
     "docker_url": ("DOCKER_URL", ""),
@@ -143,7 +140,6 @@ _SECRET_KEYS = {
     "proxy_key", "redis_password",
     "sso_google_client_secret", "sso_microsoft_client_secret",
     "sso_github_client_secret", "sso_oidc_client_secret",
-    "openai_api_key",
 }
 
 
@@ -266,9 +262,6 @@ def get_all_settings(db_wrapper) -> dict:
         "mcp_enabled": _to_bool(rows.get("mcp_enabled", "false")),
         # System LLM
         "system_llm": rows.get("system_llm", ""),
-        # OpenAI credentials (mask_key so the existing value is shown without
-        # ever exposing the plaintext in API responses).
-        "openai_api_key": mask_key(rows.get("openai_api_key", "")),
         # Docker
         "docker_enabled": _to_bool(rows.get("docker_enabled", "false")),
         "docker_url": rows.get("docker_url", ""),

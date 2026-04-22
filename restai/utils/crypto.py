@@ -126,7 +126,6 @@ SETTINGS_ENCRYPTED_KEYS = {
     "sso_microsoft_client_secret",
     "sso_github_client_secret",
     "sso_oidc_client_secret",
-    "openai_api_key",
 }
 
 # Keys inside sync_sources that should be encrypted
