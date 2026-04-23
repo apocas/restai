@@ -232,7 +232,7 @@ export default function SpeechToText() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Speech-to-Text", path: "/speech_to_text" }]} />
+        <Breadcrumb routeSegments={[{ name: "Speech-to-Text", path: "/generators/speech2text" }]} />
       </Box>
 
       <DataList

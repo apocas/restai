@@ -143,12 +143,12 @@ const routes = [
         auth: authRoles.admin
       },
       {
-        path: "/image_generators",
+        path: "/generators/image",
         element: <ImageGenerators />,
         auth: authRoles.user
       },
       {
-        path: "/speech_to_text",
+        path: "/generators/speech2text",
         element: <SpeechToText />,
         auth: authRoles.user
       },

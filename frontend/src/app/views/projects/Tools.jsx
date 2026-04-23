@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import {
-  Box, Card, Chip, Grid, InputAdornment, styled, TextField, Typography,
+  Alert, Box, Card, Chip, Grid, InputAdornment, styled, TextField, Typography,
 } from "@mui/material";
-import { Search, Build, Block } from "@mui/icons-material";
+import { Search, Build, Block, Info } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import api from "app/utils/api";
@@ -39,7 +39,7 @@ export default function Tools() {
       </Box>
 
       <Box>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3, flexWrap: "wrap", gap: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, flexWrap: "wrap", gap: 2 }}>
           <Box>
             <Typography variant="h5" fontWeight={700}>Agent Tools</Typography>
             <Typography variant="body2" color="text.secondary">
@@ -48,6 +48,14 @@ export default function Tools() {
           </Box>
           <Chip label={`${tools.length} tools`} variant="outlined" size="small" />
         </Box>
+
+        <Alert severity="info" icon={<Info fontSize="small" />} sx={{ mb: 3 }}>
+          This is the global catalogue of <strong>built-in</strong> tools shipped with RESTai.
+          Each agent project can extend this list with its own tools — either by
+          connecting to <strong>MCP servers</strong> (configured in the project's edit page) or
+          by defining <strong>agent-created tools</strong> on the fly via the <code>create_tool</code> builtin.
+          Project-specific tools only show up in that project's chat, not here.
+        </Alert>
 
         <TextField
           fullWidth

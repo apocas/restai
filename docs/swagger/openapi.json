@@ -3,7 +3,7 @@
   "info": {
     "title": "RESTai",
     "description": "RESTai is an AIaaS (AI as a Service) platform. Create AI projects and consume them via REST API.\n\nSupports multiple project types: **RAG**, **Agent**, and **Block**.\n\n## Authentication\n\nAll endpoints require authentication via one of:\n- **JWT Cookie** (`restai_token`)\n- **Bearer API Key** (`Authorization: Bearer <key>`)\n- **Basic Auth** (`Authorization: Basic <credentials>`)\n",
-    "version": "6.1.28"
+    "version": "6.1.45"
   },
   "paths": {
     "/oauth/{provider}/login": {
@@ -119,7 +119,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LLMModel-Output"
+                  "$ref": "#/components/schemas/LLMModel"
                 }
               }
             }
@@ -244,7 +244,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/LLMModel-Output"
+                    "$ref": "#/components/schemas/LLMModel"
                   },
                   "type": "array",
                   "title": "Response Api Get Llms Llms Get"
@@ -265,7 +265,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LLMModel-Input"
+                "$ref": "#/components/schemas/LLMModel"
               }
             }
           },
@@ -320,7 +320,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EmbeddingModel-Output"
+                  "$ref": "#/components/schemas/EmbeddingModel"
                 }
               }
             }
@@ -445,7 +445,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/EmbeddingModel-Output"
+                    "$ref": "#/components/schemas/EmbeddingModel"
                   },
                   "type": "array",
                   "title": "Response Api Get Embeddings Embeddings Get"
@@ -466,7 +466,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EmbeddingModel-Input"
+                "$ref": "#/components/schemas/EmbeddingModel"
               }
             }
           },
@@ -3944,6 +3944,170 @@
         }
       }
     },
+    "/projects/{projectID}/mobile": {
+      "get": {
+        "tags": [
+          "Mobile"
+        ],
+        "summary": "Mobile Status",
+        "description": "Return Mobile integration status. Never returns the plaintext key \u2014\nthat's only available at enable / regenerate time.",
+        "operationId": "mobile_status_projects__projectID__mobile_get",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/mobile/enable": {
+      "post": {
+        "tags": [
+          "Mobile"
+        ],
+        "summary": "Mobile Enable",
+        "description": "Turn Mobile integration ON. Creates a read-only, project-scoped API\nkey and returns the plaintext so the frontend can render the QR code.\nIdempotent \u2014 if already enabled, returns the existing key prefix with no\nplaintext (to avoid re-exposing secrets).",
+        "operationId": "mobile_enable_projects__projectID__mobile_enable_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/mobile/disable": {
+      "post": {
+        "tags": [
+          "Mobile"
+        ],
+        "summary": "Mobile Disable",
+        "description": "Turn Mobile integration OFF. Revokes the project-scoped key so every\npaired phone immediately loses access.",
+        "operationId": "mobile_disable_projects__projectID__mobile_disable_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/mobile/regenerate": {
+      "post": {
+        "tags": [
+          "Mobile"
+        ],
+        "summary": "Mobile Regenerate",
+        "description": "Invalidate every currently-paired phone and mint a fresh key. The\nold phones will get 401s on their next request until they rescan the QR.",
+        "operationId": "mobile_regenerate_projects__projectID__mobile_regenerate_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tools/classifiers": {
       "get": {
         "tags": [
@@ -6827,6 +6991,117 @@
         }
       }
     },
+    "/cron-logs": {
+      "delete": {
+        "tags": [
+          "Settings",
+          "Settings"
+        ],
+        "summary": "Purge Cron Logs",
+        "description": "Delete all cron log entries (admin only).",
+        "operationId": "purge_cron_logs_cron_logs_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Settings",
+          "Settings"
+        ],
+        "summary": "Get Cron Logs",
+        "description": "Get paginated cron log entries (admin only).",
+        "operationId": "get_cron_logs_cron_logs_get",
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "End"
+            }
+          },
+          {
+            "name": "job",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Job"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cron-logs/run": {
+      "post": {
+        "tags": [
+          "Settings",
+          "Settings"
+        ],
+        "summary": "Run Crons",
+        "description": "Trigger all cron jobs now (admin only). Runs as a subprocess.",
+        "operationId": "run_crons_cron_logs_run_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/chat/completions": {
       "post": {
         "tags": [
@@ -7789,6 +8064,22 @@
             ],
             "title": "Image",
             "description": "Base64-encoded image for vision models"
+          },
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FileAttachment"
+                },
+                "type": "array",
+                "maxItems": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files",
+            "description": "Up to 10 files to upload into the agent sandbox at /home/user/uploads/"
           }
         },
         "type": "object",
@@ -7887,94 +8178,7 @@
         "title": "ClassifierResponse",
         "description": "Text classification result with scores."
       },
-      "EmbeddingModel-Input": {
-        "properties": {
-          "id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Id",
-            "description": "Unique embedding model identifier"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name",
-            "description": "Unique name identifier for the embedding model"
-          },
-          "class_name": {
-            "type": "string",
-            "title": "Class Name",
-            "description": "Embedding implementation class (e.g. 'ollama', 'openai')"
-          },
-          "options": {
-            "type": "string",
-            "title": "Options",
-            "description": "JSON string of provider-specific configuration options"
-          },
-          "privacy": {
-            "type": "string",
-            "enum": [
-              "public",
-              "private"
-            ],
-            "title": "Privacy",
-            "description": "Privacy level: 'public' (cloud-hosted) or 'private' (self-hosted)"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 1000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description",
-            "description": "Human-readable description of the embedding model"
-          },
-          "dimension": {
-            "type": "integer",
-            "maximum": 65536.0,
-            "minimum": 1.0,
-            "title": "Dimension",
-            "description": "Output embedding dimension size",
-            "default": 1536
-          },
-          "teams": {
-            "items": {
-              "$ref": "#/components/schemas/TeamModel"
-            },
-            "type": "array",
-            "title": "Teams",
-            "description": "Teams that have access to this embedding model",
-            "default": []
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "class_name",
-          "options",
-          "privacy"
-        ],
-        "title": "EmbeddingModel",
-        "description": "Embedding model provider configuration.",
-        "example": {
-          "class_name": "openai",
-          "description": "OpenAI small embedding model",
-          "dimension": 1536,
-          "name": "text-embedding-3-small",
-          "options": "{\"model\": \"text-embedding-3-small\"}",
-          "privacy": "public"
-        }
-      },
-      "EmbeddingModel-Output": {
+      "EmbeddingModel": {
         "properties": {
           "id": {
             "anyOf": [
@@ -8301,6 +8505,42 @@
         "title": "EvalTestCaseCreate",
         "description": "Create a test case for an evaluation dataset."
       },
+      "FileAttachment": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Name",
+            "description": "Filename (path components are stripped server-side)"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 70000000,
+            "title": "Content",
+            "description": "Base64-encoded file bytes (max ~50 MB raw)"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type",
+            "description": "Optional MIME type hint (e.g. application/pdf)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "content"
+        ],
+        "title": "FileAttachment",
+        "description": "A user-uploaded file attached to a question or chat message. The file\nwill be dropped into the agent's sandbox container at\n``/home/user/uploads/<name>`` so the LLM can manipulate it with the\nterminal tool."
+      },
       "FindModel": {
         "properties": {
           "source": {
@@ -8486,120 +8726,7 @@
           "tpm": 100000
         }
       },
-      "LLMModel-Input": {
-        "properties": {
-          "id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Id",
-            "description": "Unique LLM identifier"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name",
-            "description": "Unique name identifier for the LLM"
-          },
-          "class_name": {
-            "type": "string",
-            "title": "Class Name",
-            "description": "LLM implementation class (e.g. 'ollama', 'openai', 'anthropic', 'litellm')"
-          },
-          "options": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Options",
-            "description": "Provider-specific configuration options (model name, API keys, etc.)"
-          },
-          "privacy": {
-            "type": "string",
-            "enum": [
-              "public",
-              "private"
-            ],
-            "title": "Privacy",
-            "description": "Privacy level: 'public' (cloud-hosted) or 'private' (self-hosted)"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 1000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description",
-            "description": "Human-readable description of the LLM"
-          },
-          "input_cost": {
-            "type": "number",
-            "minimum": 0.0,
-            "title": "Input Cost",
-            "description": "Cost per 1K input tokens in configured currency",
-            "default": 0.0
-          },
-          "output_cost": {
-            "type": "number",
-            "minimum": 0.0,
-            "title": "Output Cost",
-            "description": "Cost per 1K output tokens in configured currency",
-            "default": 0.0
-          },
-          "context_window": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 10000000.0,
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Context Window",
-            "description": "Maximum context window size in tokens",
-            "default": 4096
-          },
-          "teams": {
-            "items": {
-              "$ref": "#/components/schemas/TeamModel"
-            },
-            "type": "array",
-            "title": "Teams",
-            "description": "Teams that have access to this LLM",
-            "default": []
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "class_name",
-          "options",
-          "privacy"
-        ],
-        "title": "LLMModel",
-        "description": "LLM provider configuration.",
-        "example": {
-          "class_name": "litellm",
-          "context_window": 128000,
-          "description": "OpenAI GPT-4o model",
-          "input_cost": 0.005,
-          "name": "gpt-4o",
-          "options": {
-            "model": "openai/gpt-4o"
-          },
-          "output_cost": 0.015,
-          "privacy": "public"
-        }
-      },
-      "LLMModel-Output": {
+      "LLMModel": {
         "properties": {
           "id": {
             "anyOf": [
@@ -10006,6 +10133,12 @@
             "description": "Enable inference logging for this project",
             "default": true
           },
+          "redact_inference_logs": {
+            "type": "boolean",
+            "title": "Redact Inference Logs",
+            "description": "Redact secrets (API keys, tokens, credentials) from inference logs before persisting",
+            "default": false
+          },
           "colbert_rerank": {
             "anyOf": [
               {
@@ -10141,6 +10274,30 @@
             "title": "Telegram Token",
             "description": "Telegram bot token for Telegram integration"
           },
+          "telegram_default_chat_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telegram Default Chat Id",
+            "description": "Default Telegram chat ID for the send_telegram builtin tool. Set to a chat that has already messaged the bot (Telegram bots cannot initiate). To find the value, message the bot with `/chatid` after enabling the integration."
+          },
+          "telegram_allowed_chat_ids": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telegram Allowed Chat Ids",
+            "description": "Comma-separated allowlist of Telegram chat IDs that may talk to the bot (DMs and groups). Empty = anyone who finds the bot can chat with it. The /chatid command always works regardless so unauthorized users can self-discover their id and ask the admin to add them."
+          },
           "slack_bot_token": {
             "anyOf": [
               {
@@ -10152,18 +10309,6 @@
             ],
             "title": "Slack Bot Token",
             "description": "Slack bot token (xoxb-...) for Slack integration"
-          },
-          "slack_app_token": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slack App Token",
-            "description": "Slack app token (xapp-...) for Socket Mode"
           },
           "blockly_workspace": {
             "anyOf": [
@@ -10284,6 +10429,20 @@
             ],
             "title": "Agent Mode",
             "description": "Agent execution mode (agent projects only): 'auto' tries native function calling and falls back to text-based ReAct on first-turn error; 'function_calling' always uses native (errors propagate); 'react' always uses text-based ReAct prompting."
+          },
+          "memory_bank_enabled": {
+            "type": "boolean",
+            "title": "Memory Bank Enabled",
+            "description": "Agent projects only. When enabled, all conversations in this project contribute to a shared 'memory bank' that is injected into the system prompt of every chat. Compressed dynamically (per-conversation \u2192 per-day \u2192 per-week \u2192 per-month) to fit within memory_bank_max_tokens. Disabled by default; surfaces a privacy disclaimer in the UI because every project member sees summaries derived from every other member's conversations.",
+            "default": false
+          },
+          "memory_bank_max_tokens": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 200.0,
+            "title": "Memory Bank Max Tokens",
+            "description": "Token budget for the rendered memory bank block. Older entries get rolled up into coarser time buckets when this is exceeded.",
+            "default": 2000
           }
         },
         "type": "object",
@@ -10458,11 +10617,14 @@
             "description": "Project configuration options",
             "default": {
               "logging": true,
+              "redact_inference_logs": false,
               "cache_threshold": 0.85,
               "score": 0.0,
               "k": 4,
               "max_iterations": 10,
-              "guard_mode": "block"
+              "guard_mode": "block",
+              "memory_bank_enabled": false,
+              "memory_bank_max_tokens": 2000
             }
           },
           "users": {
@@ -10696,6 +10858,22 @@
             ],
             "title": "Image",
             "description": "Base64-encoded image for vision models"
+          },
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FileAttachment"
+                },
+                "type": "array",
+                "maxItems": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files",
+            "description": "Up to 10 files to upload into the agent sandbox at /home/user/uploads/"
           },
           "lite": {
             "type": "boolean",
@@ -11355,6 +11533,12 @@
             "description": "Docker network mode for containers",
             "default": "none"
           },
+          "docker_read_only": {
+            "type": "boolean",
+            "title": "Docker Read Only",
+            "description": "Mount the sandbox container's rootfs read-only (safer). When false the LLM can pip install.",
+            "default": true
+          },
           "data_retention_days": {
             "type": "integer",
             "title": "Data Retention Days",
@@ -11932,6 +12116,18 @@
             ],
             "title": "Docker Network",
             "description": "Docker network mode for containers"
+          },
+          "docker_read_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docker Read Only",
+            "description": "Mount the sandbox rootfs read-only (safer). When false the LLM can pip install."
           },
           "data_retention_days": {
             "anyOf": [

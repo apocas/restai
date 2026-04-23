@@ -233,7 +233,7 @@ export default function ImageGenerators() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Image Generators", path: "/image_generators" }]} />
+        <Breadcrumb routeSegments={[{ name: "Image Generators", path: "/generators/image" }]} />
       </Box>
 
       <DataList

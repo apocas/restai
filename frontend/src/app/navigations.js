@@ -56,8 +56,8 @@ export const defaultNavigations = [
     name: "Generators",
     icon: "memory",
     children: [
-      { name: "Image Generators", iconText: "IG", path: "/image_generators" },
-      { name: "Speech-to-Text", iconText: "ST", path: "/speech_to_text" },
+      { name: "Image Generators", iconText: "IG", path: "/generators/image" },
+      { name: "Speech-to-Text", iconText: "ST", path: "/generators/speech2text" },
       { name: "GPU", iconText: "GP", path: "/gpu", auth: authRoles.admin },
     ]
   },
