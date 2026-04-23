@@ -462,6 +462,30 @@ class ImageGeneratorDatabase(Base):
     updated_at = Column(DateTime, nullable=True)
 
 
+class SpeechToTextDatabase(Base):
+    """Speech-to-text (audio transcription) model registry — local workers
+    (auto-seeded from `restai/audio/workers/*.py`) and external providers
+    (OpenAI Whisper, Google STT, Deepgram, AssemblyAI) configured by an
+    admin. Same shape as `ImageGeneratorDatabase` for symmetry; the team
+    grant table (`teams_audio_generators`) stays as-is and grants are
+    keyed by `name`.
+    """
+    __tablename__ = "speech_to_text"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), unique=True, index=True, nullable=False)
+    # Provider: "local" (worker module), "openai" (Whisper API + compat
+    # via options.base_url), "google" (Cloud Speech-to-Text), "deepgram",
+    # "assemblyai".
+    class_name = Column(String(64), nullable=False)
+    options = Column(Text, nullable=True, default="{}")
+    privacy = Column(String(32), nullable=False, default="public")
+    description = Column(Text, nullable=True)
+    enabled = Column(Boolean, nullable=False, default=True, server_default="1")
+    created_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
+
+
 class TeamAudioGeneratorDatabase(Base):
     __tablename__ = "teams_audio_generators"
     team_id = Column(Integer, ForeignKey("teams.id"), primary_key=True)

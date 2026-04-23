@@ -82,10 +82,11 @@ async def lifespan(fs_app: FastAPI):
     ensure_settings_table(db_engine)
 
     # Auto-create new association tables for generators, eval tables, and migrate output table
-    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase, TeamInvitationDatabase, ImageGeneratorDatabase
+    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase, TeamInvitationDatabase, ImageGeneratorDatabase, SpeechToTextDatabase
     TeamImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     TeamAudioGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     ImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
+    SpeechToTextDatabase.__table__.create(db_engine, checkfirst=True)
     EvalDatasetDatabase.__table__.create(db_engine, checkfirst=True)
     EvalTestCaseDatabase.__table__.create(db_engine, checkfirst=True)
     EvalRunDatabase.__table__.create(db_engine, checkfirst=True)
@@ -111,6 +112,16 @@ async def lifespan(fs_app: FastAPI):
             logging.info("Seeded %d local image generator(s)", seeded)
     except Exception as e:
         logging.warning("Failed to seed local image generators: %s", e)
+
+    # Same pattern for speech-to-text models — auto-seed from
+    # restai/audio/workers/*.py so admins can manage them via the new page.
+    try:
+        from restai.speech_to_text.registry import seed_local_stt_models
+        seeded = seed_local_stt_models(settings_db_wrapper)
+        if seeded:
+            logging.info("Seeded %d local speech-to-text model(s)", seeded)
+    except Exception as e:
+        logging.warning("Failed to seed local speech-to-text models: %s", e)
 
     from restai.oauth import OAuthManager
     config.load_oauth_providers()
@@ -358,8 +369,9 @@ async def lifespan(fs_app: FastAPI):
 
     fs_app.include_router(llms.router, tags=["LLMs"])
     fs_app.include_router(embeddings.router, tags=["Embeddings"])
-    from restai.routers import image_generators
+    from restai.routers import image_generators, speech_to_text
     fs_app.include_router(image_generators.router, tags=["Image Generators"])
+    fs_app.include_router(speech_to_text.router, tags=["Speech-to-Text"])
     fs_app.include_router(projects.router)
     fs_app.include_router(tools.router, tags=["Tools"])
     fs_app.include_router(users.router, tags=["Users"])
@@ -380,13 +392,13 @@ async def lifespan(fs_app: FastAPI):
     from restai.routers import image_cache
     fs_app.include_router(image_cache.router, tags=["Image"])
 
-    # Image router is always mounted now that external providers (OpenAI,
-    # Google) live in the registry alongside local workers — non-GPU
-    # instances can still dispatch to remote generators via the dispatch
-    # helper. Local-worker calls fail cleanly with a "GPU required" error.
+    # Image + audio routers are always mounted now that external providers
+    # (OpenAI, Google, Deepgram, AssemblyAI) live in the registry alongside
+    # local workers — non-GPU instances can still dispatch to remote
+    # generators / STT models. Local-worker calls fail cleanly with a
+    # "GPU required" error from the dispatch helper.
     fs_app.include_router(image.router, tags=["Image"])
-    if config.RESTAI_GPU == True:
-        fs_app.include_router(audio.router, tags=["Audio"])
+    fs_app.include_router(audio.router, tags=["Audio"])
 
     if config.RESTAI_MCP:
         from restai.mcp import create_mcp_server

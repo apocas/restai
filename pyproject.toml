@@ -94,6 +94,9 @@ dependencies = [
     "llama-index-readers-docling>=0.4.2,<0.5",
     "markitdown[all]>=0.1.5,<0.2",
     "slack-bolt>=1.28.0,<2",
+    "google-cloud-speech>=2.27.0,<3",
+    "deepgram-sdk>=3.7.0,<5",
+    "assemblyai>=0.34.0,<1",
 ]
 
 [project.scripts]

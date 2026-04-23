@@ -57,6 +57,7 @@ export const defaultNavigations = [
     icon: "memory",
     children: [
       { name: "Image Generators", iconText: "IG", path: "/image_generators" },
+      { name: "Speech-to-Text", iconText: "ST", path: "/speech_to_text" },
       { name: "GPU", iconText: "GP", path: "/gpu", auth: authRoles.admin },
     ]
   },
@@ -105,17 +106,9 @@ export const buildNavigations = (hasGpu, hasProxy) => {
     return item;
   })];
 
-  // Add Audio Gen to Generators when GPU is available. The Image Gen
-  // playground is reachable from the Image Generators page itself (a
-  // "Playground" button), so it doesn't need its own nav entry.
-  if (hasGpu) {
-    const generators = navigations.find(item => item.name === "Generators");
-    if (generators) {
-      generators.children.push(
-        { name: "Audio Gen", iconText: "AG", path: "/audio" }
-      );
-    }
-  }
+  // The Image Gen and Audio Gen playgrounds are reachable from the
+  // Image Generators / Speech-to-Text pages themselves (Playground
+  // button), so they don't need dedicated nav entries.
 
   // Show AI Proxy after Tools when proxy is enabled
   if (hasProxy) {

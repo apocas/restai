@@ -30,6 +30,15 @@ wheels = [
 ]
 
 [[package]]
+name = "aenum"
+version = "3.1.17"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/07/e9/8b283567c1fef7c24d1f390b37daede8b61593d8cdaffb8e95d571699e83/aenum-3.1.17.tar.gz", hash = "sha256:a969a4516b194895de72c875ece355f17c0d272146f7fda346ef74f93cf4d5ba", size = 137648, upload-time = "2026-03-20T20:43:29.846Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/48/8d/1fe30c6fd8999b9d462547c4a1bb6690bda24af38f2913c4bec7decb81f2/aenum-3.1.17-py3-none-any.whl", hash = "sha256:8b883a37a04e74cc838ac442bdd28c266eae5bbf13e1342c7ef123ed25230139", size = 165560, upload-time = "2026-03-20T20:43:27.681Z" },
+]
+
+[[package]]
 name = "aioboto3"
 version = "15.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -271,6 +280,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/19/14/2c5dd9f512b66549ae92767a9c7b330ae88e1932ca57876909410251fe13/anyio-4.13.0.tar.gz", hash = "sha256:334b70e641fd2221c1505b3890c69882fe4a2df910cba14d97019b90b24439dc", size = 231622, upload-time = "2026-03-24T12:59:09.671Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/da/42/e921fccf5015463e32a3cf6ee7f980a6ed0f395ceeaa45060b61d86486c2/anyio-4.13.0-py3-none-any.whl", hash = "sha256:08b310f9e24a9594186fd75b4f73f4a4152069e3853f1ed8bfbf58369f4ad708", size = 114353, upload-time = "2026-03-24T12:59:08.246Z" },
+]
+
+[[package]]
+name = "assemblyai"
+version = "0.62.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6a/7d/0486d56b1bdb784f1fe92402792134604d57c600ea63b2936b37c65821f1/assemblyai-0.62.0.tar.gz", hash = "sha256:c96eb468c68fc3789a547ddd8690fca846f5466cf0cf0d67d520d4c8bf973ba3", size = 58148, upload-time = "2026-04-17T18:14:01.523Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bb/da/a12f17b9ee7b4a2ac99821c44dc15cdb5e8251e071bead1679a8e3c878aa/assemblyai-0.62.0-py3-none-any.whl", hash = "sha256:e2fdaf0cc189733eb308b659576c9f2443831018f83a3751be04e1c751f0c274", size = 54803, upload-time = "2026-04-17T18:14:00.429Z" },
 ]
 
 [[package]]
@@ -1115,6 +1139,25 @@ wheels = [
 ]
 
 [[package]]
+name = "deepgram-sdk"
+version = "4.8.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aenum" },
+    { name = "aiofiles" },
+    { name = "aiohttp" },
+    { name = "dataclasses-json" },
+    { name = "deprecation" },
+    { name = "httpx" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e1/7a/420a885ddfc16b6142353414e8e529882a1e261fd4cfbae449ce84d59590/deepgram_sdk-4.8.1.tar.gz", hash = "sha256:aada4c34532096bb8c438ed23c6d182920e8cba9609bf1b1e40a7f30820cfa32", size = 100105, upload-time = "2025-08-02T01:00:33.854Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7d/85/70151387088f110623ff066d6e27d1169f5dd130eaf8b2044f4de9d41034/deepgram_sdk-4.8.1-py3-none-any.whl", hash = "sha256:1af2a9fab57c858f2201bebd8f553fdfe9ef3d1b036e0ac588104b11ae3bc727", size = 157925, upload-time = "2025-08-02T01:00:32.215Z" },
+]
+
+[[package]]
 name = "defusedxml"
 version = "0.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1133,6 +1176,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/49/85/12f0a49a7c4ffb70572b6c2ef13c90c88fd190debda93b23f026b25f9634/deprecated-1.3.1.tar.gz", hash = "sha256:b1b50e0ff0c1fddaa5708a2c6b0a6588bb09b892825ab2b214ac9ea9d92a5223", size = 2932523, upload-time = "2025-10-30T08:19:02.757Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/84/d0/205d54408c08b13550c733c4b85429e7ead111c7f0014309637425520a9a/deprecated-1.3.1-py2.py3-none-any.whl", hash = "sha256:597bfef186b6f60181535a29fbe44865ce137a5079f295b479886c82729d5f3f", size = 11298, upload-time = "2025-10-30T08:19:00.758Z" },
+]
+
+[[package]]
+name = "deprecation"
+version = "2.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5a/d3/8ae2869247df154b64c1884d7346d412fed0c49df84db635aab2d1c40e62/deprecation-2.1.0.tar.gz", hash = "sha256:72b3bde64e5d778694b0cf68178aed03d15e15477116add3fb773e581f9518ff", size = 173788, upload-time = "2020-04-20T14:23:38.738Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/02/c3/253a89ee03fc9b9682f1541728eb66db7db22148cd94f89ab22528cd1e1b/deprecation-2.1.0-py2.py3-none-any.whl", hash = "sha256:a10811591210e1fb0e768a8c25517cabeabcba6f0bf96564f8ff45189f90b14a", size = 11178, upload-time = "2020-04-20T14:23:36.581Z" },
 ]
 
 [[package]]
@@ -1792,6 +1847,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b2/1a/13060cabf553d52d151d2afc26b39561e82853380d499dd525a0d422d9f0/google_cloud_resource_manager-1.17.0.tar.gz", hash = "sha256:0f486b62e2c58ff992a3a50fa0f4a96eef7750aa6c971bb373398ccb91828660", size = 464971, upload-time = "2026-03-26T22:17:29.204Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3d/f7/661d7a9023e877a226b5683429c3662f75a29ef45cb1464cf39adb689218/google_cloud_resource_manager-1.17.0-py3-none-any.whl", hash = "sha256:e479baf4b014a57f298e01b8279e3290b032e3476d69c8e5e1427af8f82739a5", size = 404403, upload-time = "2026-03-26T22:15:26.57Z" },
+]
+
+[[package]]
+name = "google-cloud-speech"
+version = "2.38.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-api-core", extra = ["grpc"] },
+    { name = "google-auth" },
+    { name = "grpcio" },
+    { name = "proto-plus" },
+    { name = "protobuf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/21/1f/d0122ad8af8c0608fb3168bd5030e62ce0a1fcc09c730487bc8be541874a/google_cloud_speech-2.38.0.tar.gz", hash = "sha256:1854b51cbb7957273b6ba61f4a6cf49dec8d09ec450991587897e50267eaca51", size = 406015, upload-time = "2026-03-26T22:18:54.434Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/01/96/008365cddc78720d65475091be929466fb16c62b47283546f8eab5ff4445/google_cloud_speech-2.38.0-py3-none-any.whl", hash = "sha256:dbccb340a750a409b0e70c48c16c8d7d5d48a87c70cce2add50f3d571f5375a0", size = 346013, upload-time = "2026-03-26T22:13:50.88Z" },
 ]
 
 [[package]]
@@ -6043,12 +6114,14 @@ version = "6.1.45"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
+    { name = "assemblyai" },
     { name = "authlib" },
     { name = "bcrypt" },
     { name = "bs4" },
     { name = "chromadb" },
     { name = "ddgs" },
     { name = "deepeval" },
+    { name = "deepgram-sdk" },
     { name = "docker" },
     { name = "docx2txt" },
     { name = "einops" },
@@ -6056,6 +6129,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "fastmcp" },
     { name = "google-cloud-aiplatform" },
+    { name = "google-cloud-speech" },
     { name = "google-generativeai" },
     { name = "httpx" },
     { name = "ilock" },
@@ -6154,12 +6228,14 @@ gpu = [
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.18.4,<2" },
+    { name = "assemblyai", specifier = ">=0.34.0,<1" },
     { name = "authlib", specifier = ">=1.6.11,<2" },
     { name = "bcrypt", specifier = ">=4.2.0,<6" },
     { name = "bs4", specifier = ">=0.0.2,<0.1" },
     { name = "chromadb", specifier = ">=1.5.8,<2" },
     { name = "ddgs", specifier = ">=9.14.0,<10" },
     { name = "deepeval", specifier = ">=3.9.7,<4" },
+    { name = "deepgram-sdk", specifier = ">=3.7.0,<5" },
     { name = "docker", specifier = ">=7.1.0,<8" },
     { name = "docx2txt", specifier = ">=0.9,<0.10" },
     { name = "einops", specifier = ">=0.8.2,<0.9" },
@@ -6167,6 +6243,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.136.0,<0.137" },
     { name = "fastmcp", specifier = ">=2.14,<4" },
     { name = "google-cloud-aiplatform", specifier = ">=1.148.0,<2" },
+    { name = "google-cloud-speech", specifier = ">=2.27.0,<3" },
     { name = "google-generativeai", specifier = ">=0.8.6,<0.9" },
     { name = "httpx", specifier = ">=0.28.1,<0.29" },
     { name = "ilock", specifier = ">=1.0.3,<2" },

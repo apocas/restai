@@ -18,6 +18,7 @@ from restai.models.databasemodels import (
     TeamAudioGeneratorDatabase,
     WidgetDatabase,
     ImageGeneratorDatabase,
+    SpeechToTextDatabase,
 )
 from restai.models.models import (
     LLMModel,
@@ -554,6 +555,113 @@ class DBWrapper:
         except Exception:
             pass
         self.db.delete(gen)
+        self.db.commit()
+        return True
+
+    # ─── Speech-to-text models ────────────────────────────────────────
+
+    def get_speech_to_text(self) -> list[SpeechToTextDatabase]:
+        return self.db.query(SpeechToTextDatabase).order_by(SpeechToTextDatabase.name).all()
+
+    def get_speech_to_text_by_id(self, model_id: int) -> Optional[SpeechToTextDatabase]:
+        return self.db.query(SpeechToTextDatabase).filter(SpeechToTextDatabase.id == model_id).first()
+
+    def get_speech_to_text_by_name(self, name: str) -> Optional[SpeechToTextDatabase]:
+        return self.db.query(SpeechToTextDatabase).filter(SpeechToTextDatabase.name == name).first()
+
+    def create_speech_to_text(
+        self,
+        name: str,
+        class_name: str,
+        options,
+        privacy: str = "public",
+        description: Optional[str] = None,
+        enabled: bool = True,
+    ) -> SpeechToTextDatabase:
+        from restai.utils.crypto import encrypt_sensitive_options, LLM_SENSITIVE_KEYS
+        import json as _json
+
+        try:
+            opts_dict = _json.loads(options) if isinstance(options, str) else (options or {})
+            opts_dict = encrypt_sensitive_options(opts_dict, LLM_SENSITIVE_KEYS)
+            options_str = _json.dumps(opts_dict)
+        except Exception as e:
+            logging.warning("Failed to encrypt speech-to-text options: %s", e)
+            options_str = options if isinstance(options, str) else _json.dumps(options or {})
+
+        now = datetime.now(timezone.utc)
+        row = SpeechToTextDatabase(
+            name=name,
+            class_name=class_name,
+            options=options_str,
+            privacy=privacy,
+            description=description,
+            enabled=enabled,
+            created_at=now,
+            updated_at=now,
+        )
+        self.db.add(row)
+        self.db.commit()
+        self.db.refresh(row)
+        return row
+
+    def edit_speech_to_text(self, model: SpeechToTextDatabase, update) -> bool:
+        """Patch a speech-to-text row. `"********"` in `options.api_key`
+        preserves the existing value (matches the LLM/image-gen pattern)."""
+        from restai.utils.crypto import (
+            decrypt_sensitive_options,
+            encrypt_sensitive_options,
+            LLM_SENSITIVE_KEYS,
+        )
+        import json as _json
+
+        changed = False
+        if update.class_name is not None and model.class_name != update.class_name:
+            model.class_name = update.class_name
+            changed = True
+
+        if update.options is not None:
+            try:
+                new_opts = _json.loads(update.options) if isinstance(update.options, str) else (update.options or {})
+                existing = _json.loads(model.options) if model.options else {}
+                existing_plain = decrypt_sensitive_options(dict(existing), LLM_SENSITIVE_KEYS)
+                for k in LLM_SENSITIVE_KEYS:
+                    val = new_opts.get(k)
+                    if isinstance(val, str) and val == "********":
+                        if k in existing_plain:
+                            new_opts[k] = existing_plain[k]
+                        else:
+                            new_opts.pop(k, None)
+                new_opts_enc = encrypt_sensitive_options(new_opts, LLM_SENSITIVE_KEYS)
+                model.options = _json.dumps(new_opts_enc)
+                changed = True
+            except Exception as e:
+                logging.warning("Failed to update speech-to-text options: %s", e)
+
+        if update.privacy is not None and model.privacy != update.privacy:
+            model.privacy = update.privacy
+            changed = True
+        if update.description is not None and model.description != update.description:
+            model.description = update.description
+            changed = True
+        if update.enabled is not None and model.enabled != update.enabled:
+            model.enabled = update.enabled
+            changed = True
+
+        if changed:
+            model.updated_at = datetime.now(timezone.utc)
+            self.db.commit()
+        return changed
+
+    def delete_speech_to_text(self, model: SpeechToTextDatabase) -> bool:
+        # Drop team grants pointing at this name (string-keyed table).
+        try:
+            self.db.query(TeamAudioGeneratorDatabase).filter(
+                TeamAudioGeneratorDatabase.generator_name == model.name
+            ).delete(synchronize_session=False)
+        except Exception:
+            pass
+        self.db.delete(model)
         self.db.commit()
         return True
 

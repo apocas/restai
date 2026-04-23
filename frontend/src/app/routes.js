@@ -17,6 +17,7 @@ const LLMsInfo = Loadable(lazy(() => import("app/views/llms/Info")));
 const LLMsEdit = Loadable(lazy(() => import("app/views/llms/Edit")));
 const Embeddings = Loadable(lazy(() => import("app/views/embeddings/List")));
 const ImageGenerators = Loadable(lazy(() => import("app/views/image_generators/List")));
+const SpeechToText = Loadable(lazy(() => import("app/views/speech_to_text/List")));
 const EmbeddingsNewChooser = Loadable(lazy(() => import("app/views/embeddings/NewChooser")));
 const EmbeddingsNew = Loadable(lazy(() => import("app/views/embeddings/NewInteractive")));
 const EmbeddingsInfo = Loadable(lazy(() => import("app/views/embeddings/Info")));
@@ -144,6 +145,11 @@ const routes = [
       {
         path: "/image_generators",
         element: <ImageGenerators />,
+        auth: authRoles.user
+      },
+      {
+        path: "/speech_to_text",
+        element: <SpeechToText />,
         auth: authRoles.user
       },
       {

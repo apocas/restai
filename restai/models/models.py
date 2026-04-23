@@ -28,6 +28,13 @@ VALID_EMBEDDING_CLASSES = {
 # the latter. `google` covers Imagen / Nano Banana via the Google AI SDK.
 VALID_IMAGE_GENERATOR_CLASSES = {"local", "openai", "google"}
 
+# Providers for the speech-to-text registry. `local` covers
+# `restai/audio/workers/*.py` (Whisper / WhisperX / Granite Speech, etc.).
+# External providers: `openai` (Whisper API + OpenAI-compat via
+# options.base_url), `google` (Cloud Speech-to-Text), `deepgram`,
+# `assemblyai`.
+VALID_SPEECH_TO_TEXT_CLASSES = {"local", "openai", "google", "deepgram", "assemblyai"}
+
 
 def validate_safe_name(v: str, field_label: str = "Name") -> str:
     """Reject names containing characters unsafe for use in URL paths."""
@@ -442,6 +449,107 @@ class ImageGeneratorModelUpdate(BaseModel):
         if v is not None and v not in VALID_IMAGE_GENERATOR_CLASSES:
             raise ValueError(
                 f"Invalid image generator class: '{v}'. Must be one of: {', '.join(sorted(VALID_IMAGE_GENERATOR_CLASSES))}"
+            )
+        return v
+
+    @field_validator('options', mode='before')
+    @classmethod
+    def serialize_options(cls, v):
+        if isinstance(v, dict):
+            return json.dumps(v)
+        return v
+
+
+class SpeechToTextModel(BaseModel):
+    """Speech-to-text registry entry — local worker or external STT provider."""
+    id: Union[int, None] = Field(default=None, description="Unique STT model identifier")
+    name: str = Field(description="Unique name (used in /audio/{name}/transcript)")
+    class_name: str = Field(description="Provider: 'local', 'openai', 'google', 'deepgram', 'assemblyai'")
+    options: Dict[str, Any] = Field(default_factory=dict, description="Provider-specific options (model, api_key, base_url, ...)")
+    privacy: Literal["public", "private"] = Field(default="public", description="Privacy level")
+    description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable description")
+    enabled: bool = Field(default=True, description="Whether this model is currently usable")
+    teams: list["TeamModel"] = Field(default=[], description="Teams that have access to this model")
+
+    @field_validator('name')
+    @classmethod
+    def name_must_be_safe(cls, v):
+        return validate_safe_name(v, "Speech-to-text model name")
+
+    @field_validator('class_name')
+    @classmethod
+    def class_name_must_be_valid(cls, v):
+        if v not in VALID_SPEECH_TO_TEXT_CLASSES:
+            raise ValueError(
+                f"Invalid speech-to-text class: '{v}'. Must be one of: {', '.join(sorted(VALID_SPEECH_TO_TEXT_CLASSES))}"
+            )
+        return v
+
+    @field_validator('options', mode='before')
+    @classmethod
+    def parse_options(cls, v):
+        if isinstance(v, str):
+            try:
+                v = json.loads(v)
+            except json.JSONDecodeError:
+                return {}
+        if isinstance(v, dict):
+            try:
+                from restai.utils.crypto import decrypt_sensitive_options, LLM_SENSITIVE_KEYS
+                v = decrypt_sensitive_options(v, LLM_SENSITIVE_KEYS)
+            except Exception:
+                pass
+        return v
+
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={
+        "example": {
+            "name": "whisper-1",
+            "class_name": "openai",
+            "options": {"model": "whisper-1", "api_key": "sk-..."},
+            "privacy": "public",
+            "description": "OpenAI Whisper-1 hosted transcription",
+        }
+    })
+
+
+class SpeechToTextModelCreate(BaseModel):
+    """Create a new speech-to-text registry entry."""
+    name: str = Field(description="Unique name identifier")
+    class_name: str = Field(description="Provider: 'local', 'openai', 'google', 'deepgram', 'assemblyai'")
+    options: Union[str, Dict[str, Any]] = Field(default_factory=dict)
+    privacy: Literal["public", "private"] = Field(default="public")
+    description: Union[str, None] = Field(default=None, max_length=1000)
+    enabled: bool = Field(default=True)
+
+    @field_validator('name')
+    @classmethod
+    def name_must_be_safe(cls, v):
+        return validate_safe_name(v, "Speech-to-text model name")
+
+    @field_validator('class_name')
+    @classmethod
+    def class_name_must_be_valid(cls, v):
+        if v not in VALID_SPEECH_TO_TEXT_CLASSES:
+            raise ValueError(
+                f"Invalid speech-to-text class: '{v}'. Must be one of: {', '.join(sorted(VALID_SPEECH_TO_TEXT_CLASSES))}"
+            )
+        return v
+
+
+class SpeechToTextModelUpdate(BaseModel):
+    """Update an existing speech-to-text registry entry."""
+    class_name: Union[str, None] = Field(default=None)
+    options: Union[str, Dict[str, Any], None] = Field(default=None)
+    privacy: Optional[Literal["public", "private"]] = Field(default=None)
+    description: Union[str, None] = Field(default=None, max_length=1000)
+    enabled: Union[bool, None] = Field(default=None)
+
+    @field_validator('class_name')
+    @classmethod
+    def class_name_must_be_valid(cls, v):
+        if v is not None and v not in VALID_SPEECH_TO_TEXT_CLASSES:
+            raise ValueError(
+                f"Invalid speech-to-text class: '{v}'. Must be one of: {', '.join(sorted(VALID_SPEECH_TO_TEXT_CLASSES))}"
             )
         return v
 
