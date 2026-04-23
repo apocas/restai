@@ -37,6 +37,7 @@ class Brain:
         # agent2 in-memory session store: chat_id -> list[message dict]
         self._agent2_sessions: dict[str, list[dict]] = {}
         self.docker_manager = None
+        self.browser_manager = None
 
         # Tools are lazy-loaded when first requested via get_tools(). The
         # full app sets them eagerly below so the first chat is fast; cron
@@ -54,6 +55,7 @@ class Brain:
             self.chat_store: BaseChatStore
             self.reinit_chat_store()
             self.init_docker_manager()
+            self.init_browser_manager()
 
     def init_docker_manager(self):
         """Create or recreate the Docker manager from current config."""
@@ -87,6 +89,39 @@ class Brain:
         if self.docker_manager is not None:
             self.docker_manager.shutdown()
             self.docker_manager = None
+
+    def init_browser_manager(self):
+        """Create or recreate the agentic-browser manager from current config.
+        Mirror of `init_docker_manager` — same Docker host, different image
+        (Playwright) and lifecycle (per-chat Chromium)."""
+        if self.browser_manager is not None:
+            self.browser_manager.shutdown()
+            self.browser_manager = None
+
+        if not getattr(config, "BROWSER_ENABLED", False):
+            return
+
+        # Re-use the Docker daemon the sandbox-terminal uses.
+        docker_url = getattr(config, "DOCKER_URL", "") or ""
+        if not docker_url.strip():
+            return
+
+        try:
+            from restai.browser.manager import BrowserManager
+            self.browser_manager = BrowserManager(
+                docker_url=docker_url,
+                image=getattr(config, "BROWSER_IMAGE", "mcr.microsoft.com/playwright/python:v1.48.0-jammy"),
+                network=getattr(config, "BROWSER_NETWORK", "bridge"),
+                timeout=int(getattr(config, "BROWSER_TIMEOUT", 900)),
+            )
+        except Exception as e:
+            logging.warning("Failed to initialize Browser manager: %s", e)
+            self.browser_manager = None
+
+    def shutdown_browser_manager(self):
+        if self.browser_manager is not None:
+            self.browser_manager.shutdown()
+            self.browser_manager = None
 
     # ------------------------------------------------------------------
     # Tool-generated image cache (Redis when available, in-memory fallback)

@@ -77,6 +77,10 @@ async def patch_settings(
     if docker_fields & updates.keys():
         request.app.state.brain.init_docker_manager()
 
+    browser_fields = {"browser_enabled", "browser_image", "browser_network", "browser_timeout"}
+    if browser_fields & updates.keys():
+        request.app.state.brain.init_browser_manager()
+
     return get_all_settings(db_wrapper)
 
 

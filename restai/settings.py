@@ -61,6 +61,11 @@ SETTINGS_DEFAULTS = {
     "docker_timeout": ("DOCKER_TIMEOUT", "900"),
     "docker_network": ("DOCKER_NETWORK", "none"),
     "docker_read_only": (None, "true"),
+    # Agentic Browser (Playwright-backed per-chat Chromium container)
+    "browser_enabled": (None, "false"),
+    "browser_image": ("BROWSER_IMAGE", "mcr.microsoft.com/playwright/python:v1.48.0-jammy"),
+    "browser_network": ("BROWSER_NETWORK", "bridge"),
+    "browser_timeout": ("BROWSER_TIMEOUT", "900"),
     # Retention
     "data_retention_days": (None, "0"),
     # 2FA
@@ -126,14 +131,19 @@ _CONFIG_ATTR_MAP = {
     "docker_timeout": "DOCKER_TIMEOUT",
     "docker_network": "DOCKER_NETWORK",
     "docker_read_only": "DOCKER_READ_ONLY",
+    # Agentic Browser
+    "browser_enabled": "BROWSER_ENABLED",
+    "browser_image": "BROWSER_IMAGE",
+    "browser_network": "BROWSER_NETWORK",
+    "browser_timeout": "BROWSER_TIMEOUT",
     # Retention
     "data_retention_days": "DATA_RETENTION_DAYS",
     # 2FA
     "enforce_2fa": "ENFORCE_2FA",
 }
 
-_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "docker_read_only", "enforce_2fa"}
-_INT_KEYS = {"max_audio_upload_size", "data_retention_days", "docker_timeout"}
+_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "docker_read_only", "browser_enabled", "enforce_2fa"}
+_INT_KEYS = {"max_audio_upload_size", "data_retention_days", "docker_timeout", "browser_timeout"}
 
 # Secret keys that should be masked in API responses
 _SECRET_KEYS = {
@@ -269,6 +279,11 @@ def get_all_settings(db_wrapper) -> dict:
         "docker_timeout": int(rows.get("docker_timeout", "900") or "900"),
         "docker_network": rows.get("docker_network", "none"),
         "docker_read_only": _to_bool(rows.get("docker_read_only", "true")),
+        # Agentic Browser
+        "browser_enabled": _to_bool(rows.get("browser_enabled", "false")),
+        "browser_image": rows.get("browser_image", "mcr.microsoft.com/playwright/python:v1.48.0-jammy"),
+        "browser_network": rows.get("browser_network", "bridge"),
+        "browser_timeout": int(rows.get("browser_timeout", "900") or "900"),
         # Retention
         "data_retention_days": int(rows.get("data_retention_days", "0") or "0"),
     }

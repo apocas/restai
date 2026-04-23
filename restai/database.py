@@ -19,6 +19,7 @@ from restai.models.databasemodels import (
     WidgetDatabase,
     ImageGeneratorDatabase,
     SpeechToTextDatabase,
+    ProjectSecretDatabase,
 )
 from restai.models.models import (
     LLMModel,
@@ -664,6 +665,84 @@ class DBWrapper:
         self.db.delete(model)
         self.db.commit()
         return True
+
+    # ─── Project secrets (agentic browser vault) ─────────────────────
+
+    def get_project_secrets(self, project_id: int) -> list[ProjectSecretDatabase]:
+        return (
+            self.db.query(ProjectSecretDatabase)
+            .filter(ProjectSecretDatabase.project_id == project_id)
+            .order_by(ProjectSecretDatabase.name)
+            .all()
+        )
+
+    def get_project_secret_by_id(self, secret_id: int) -> Optional[ProjectSecretDatabase]:
+        return self.db.query(ProjectSecretDatabase).filter(ProjectSecretDatabase.id == secret_id).first()
+
+    def get_project_secret_by_name(self, project_id: int, name: str) -> Optional[ProjectSecretDatabase]:
+        return (
+            self.db.query(ProjectSecretDatabase)
+            .filter(ProjectSecretDatabase.project_id == project_id, ProjectSecretDatabase.name == name)
+            .first()
+        )
+
+    def create_project_secret(
+        self,
+        project_id: int,
+        name: str,
+        value: str,
+        description: Optional[str] = None,
+    ) -> ProjectSecretDatabase:
+        from restai.utils.crypto import encrypt_field
+        now = datetime.now(timezone.utc)
+        row = ProjectSecretDatabase(
+            project_id=project_id,
+            name=name,
+            value=encrypt_field(value),
+            description=description,
+            created_at=now,
+            updated_at=now,
+        )
+        self.db.add(row)
+        self.db.commit()
+        self.db.refresh(row)
+        return row
+
+    def edit_project_secret(self, secret: ProjectSecretDatabase, update) -> bool:
+        """Patch a project secret. Value `"********"` preserves the
+        existing stored value (same mask-round-trip as LLMs)."""
+        from restai.utils.crypto import encrypt_field
+
+        changed = False
+        if update.value is not None and update.value != "********":
+            secret.value = encrypt_field(update.value)
+            changed = True
+        if update.description is not None and secret.description != update.description:
+            secret.description = update.description
+            changed = True
+        if changed:
+            secret.updated_at = datetime.now(timezone.utc)
+            self.db.commit()
+        return changed
+
+    def delete_project_secret(self, secret: ProjectSecretDatabase) -> bool:
+        self.db.delete(secret)
+        self.db.commit()
+        return True
+
+    def resolve_project_secret(self, project_id: int, name: str) -> Optional[str]:
+        """Server-side plaintext resolution — only called from inside a tool
+        (e.g. `browser_fill`). Returns None when the secret doesn't exist.
+        The plaintext never crosses back into LLM context because callers
+        pass it directly to the micro-server, not back to the agent."""
+        from restai.utils.crypto import decrypt_field
+        row = self.get_project_secret_by_name(project_id, name)
+        if row is None or not row.value:
+            return None
+        try:
+            return decrypt_field(row.value)
+        except Exception:
+            return None
 
     # ─────────────────────────────────────────────────────────────────────
 

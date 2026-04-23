@@ -1,5 +1,5 @@
 import { Box, Button, Card, Grid, styled } from "@mui/material";
-import { Info, Storage, Shield, Extension, Build } from "@mui/icons-material";
+import { Info, Storage, Shield, Extension, Build, VpnKey } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
 import { useState, useEffect, useRef } from "react";
 import useAuth from "app/hooks/useAuth";
@@ -11,6 +11,7 @@ import ProjectEditKnowledge from "./ProjectEditKnowledge";
 import ProjectEditSecurity from "./ProjectEditSecurity";
 import ProjectEditIntegrations from "./ProjectEditIntegrations";
 import ProjectEditTools from "./ProjectEditTools";
+import ProjectEditSecrets from "./ProjectEditSecrets";
 
 function parseHeadersText(text) {
   const h = {};
@@ -26,6 +27,7 @@ const ALL_TABS = [
   { name: "General", Icon: Info },
   { name: "Knowledge", Icon: Storage, ragOnly: true },
   { name: "Tools", Icon: Build, agentOnly: true },
+  { name: "Secrets", Icon: VpnKey, agentOnly: true },
   { name: "Security", Icon: Shield },
   { name: "Integrations", Icon: Extension },
 ];
@@ -206,6 +208,8 @@ export default function ProjectEdit({ project, projects, info }) {
     if (project.type === "agent") {
       opts.options.memory_bank_enabled = state.options.memory_bank_enabled || false;
       opts.options.memory_bank_max_tokens = parseInt(state.options.memory_bank_max_tokens) || 2000;
+      opts.options.browser_allowed_domains = state.options.browser_allowed_domains || null;
+      opts.options.browser_allow_eval = !!state.options.browser_allow_eval;
     }
 
     if (project.type === "rag") {
@@ -233,7 +237,7 @@ export default function ProjectEdit({ project, projects, info }) {
   const handleChange = (event) => {
     if (event && event.persist) event.persist();
 
-    if (["logging", "redact_inference_logs", "cache", "llm_rerank", "colbert_rerank", "enable_knowledge_graph", "memory_bank_enabled"].includes(event.target.name)) {
+    if (["logging", "redact_inference_logs", "cache", "llm_rerank", "colbert_rerank", "enable_knowledge_graph", "memory_bank_enabled", "browser_allow_eval"].includes(event.target.name)) {
       setState({ ...state, options: { ...state.options, [event.target.name]: event.target.checked } });
     } else if (event.target.name === "cache_threshold") {
       setState({ ...state, options: { ...state.options, cache_threshold: event.target.value / 100 } });
@@ -398,6 +402,9 @@ export default function ProjectEdit({ project, projects, info }) {
                 state={state} setState={setState} handleChange={handleChange}
                 projects={projects}
               />
+            )}
+            {active === "Secrets" && (
+              <ProjectEditSecrets project={project} />
             )}
             {active === "Integrations" && (
               <ProjectEditIntegrations

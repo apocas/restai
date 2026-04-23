@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Float, Table, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Float, Table, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import declarative_base
 
@@ -458,6 +458,32 @@ class ImageGeneratorDatabase(Base):
     privacy = Column(String(32), nullable=False, default="public")
     description = Column(Text, nullable=True)
     enabled = Column(Boolean, nullable=False, default=True, server_default="1")
+    created_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
+
+
+class ProjectSecretDatabase(Base):
+    """Per-project secret vault for the Agentic Browser (and any other
+    future tool that needs server-side credential resolution).
+
+    The `value` column is encrypted at rest via the same Fernet-based
+    helper used for LLM options (`LLM_SENSITIVE_KEYS`), i.e. written by
+    `encrypt_field` / read by `decrypt_field` in `restai/utils/crypto.py`.
+    Admin CRUD is via `/projects/{id}/secrets`. Values are never surfaced
+    in API responses — they're resolved *inside* the tool (e.g.
+    `browser_fill(secret_ref="portal_password")`) and typed into the
+    browser without ever entering the LLM's context window.
+    """
+    __tablename__ = "project_secrets"
+    __table_args__ = (
+        UniqueConstraint("project_id", "name", name="uq_project_secret_name"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(128), nullable=False)
+    value = Column(Text, nullable=False)  # encrypted-at-rest
+    description = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, nullable=True)
 

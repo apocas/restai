@@ -233,6 +233,12 @@ DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE", "python:3.12-slim")
 DOCKER_TIMEOUT = int(os.environ.get("DOCKER_TIMEOUT", "900"))
 DOCKER_NETWORK = os.environ.get("DOCKER_NETWORK", "none")
 
+# Agentic Browser — Playwright + Chromium per-chat container.
+BROWSER_ENABLED = False
+BROWSER_IMAGE = os.environ.get("BROWSER_IMAGE", "mcr.microsoft.com/playwright/python:v1.48.0-jammy")
+BROWSER_NETWORK = os.environ.get("BROWSER_NETWORK", "bridge")
+BROWSER_TIMEOUT = int(os.environ.get("BROWSER_TIMEOUT", "900"))
+
 DATA_RETENTION_DAYS = 0
 
 EMBEDDINGS_PATH = os.environ.get("EMBEDDINGS_PATH")

@@ -82,11 +82,12 @@ async def lifespan(fs_app: FastAPI):
     ensure_settings_table(db_engine)
 
     # Auto-create new association tables for generators, eval tables, and migrate output table
-    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase, TeamInvitationDatabase, ImageGeneratorDatabase, SpeechToTextDatabase
+    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase, TeamInvitationDatabase, ImageGeneratorDatabase, SpeechToTextDatabase, ProjectSecretDatabase
     TeamImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     TeamAudioGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     ImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     SpeechToTextDatabase.__table__.create(db_engine, checkfirst=True)
+    ProjectSecretDatabase.__table__.create(db_engine, checkfirst=True)
     EvalDatasetDatabase.__table__.create(db_engine, checkfirst=True)
     EvalTestCaseDatabase.__table__.create(db_engine, checkfirst=True)
     EvalRunDatabase.__table__.create(db_engine, checkfirst=True)
@@ -369,9 +370,10 @@ async def lifespan(fs_app: FastAPI):
 
     fs_app.include_router(llms.router, tags=["LLMs"])
     fs_app.include_router(embeddings.router, tags=["Embeddings"])
-    from restai.routers import image_generators, speech_to_text
+    from restai.routers import image_generators, speech_to_text, secrets
     fs_app.include_router(image_generators.router, tags=["Image Generators"])
     fs_app.include_router(speech_to_text.router, tags=["Speech-to-Text"])
+    fs_app.include_router(secrets.router, tags=["Project Secrets"])
     fs_app.include_router(projects.router)
     fs_app.include_router(tools.router, tags=["Tools"])
     fs_app.include_router(users.router, tags=["Users"])
@@ -410,6 +412,7 @@ async def lifespan(fs_app: FastAPI):
 
     # Shutdown: clean up Docker containers
     fs_app.state.brain.shutdown_docker_manager()
+    fs_app.state.brain.shutdown_browser_manager()
 
 
 logging.basicConfig(level=config.LOG_LEVEL)

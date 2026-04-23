@@ -148,6 +148,27 @@ Zero-shot ReAct agents with built-in tools and [MCP (Model Context Protocol)](ht
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/agent.png" width="750" alt="RESTai Agent"/>
 </div>
 
+### Agentic Browser
+
+Give your agents a real headless Chromium they can drive — log in to vendor portals, fill forms, scrape data, download invoices, take screenshots. Powered by Playwright running in a per-chat Docker container with cookie / localStorage persistence so the agent only needs to log in once.
+
+**Nine `browser_*` builtin tools** the LLM composes into workflows:
+
+- `browser_goto`, `browser_click`, `browser_fill`, `browser_select`, `browser_wait`
+- `browser_content` (sanitized HTML/markdown of the current page)
+- `browser_screenshot` (rendered inline in the chat — uses the same image cache as `draw_image`)
+- `browser_download` (files land in the container's `/home/user/downloads/` so the `terminal` tool can pick them up)
+- `browser_eval` (admin-opt-in JS escape hatch)
+
+**Built for production, safely**:
+
+- 🔐 **Encrypted secrets vault** — admin stores credentials per-project (`portal_password`, etc.) and the agent calls `browser_fill(selector, secret_ref="portal_password")`. The plaintext is resolved server-side and typed straight into the browser; it never enters the LLM's context, the inference log, the audit log, or the chat transcript.
+- 🛡️ **Per-project domain allowlist** — `browser_goto` refuses anything not on `browser_allowed_domains` (supports `*.example.com` suffix globs). Defends against prompt injection that tells the agent to navigate to a hostile site.
+- 💾 **Persistent sessions** — login state (cookies + localStorage) is saved to Redis keyed by `(project_id, domain)` with a 30-day TTL. Future chats on the same project skip the login dance.
+- 🧹 **Auto-cleanup** — idle browser containers are reaped by `crons/browser_cleanup.py` after `browser_timeout` seconds (default 15 min).
+
+Toggle the feature on at **Settings → Agentic Browser**. Reuses the same Docker daemon as the sandboxed terminal; image defaults to `mcr.microsoft.com/playwright/python:v1.48.0-jammy`.
+
 ### Inference (Multimodal)
 
 Direct LLM chat and completion. Supports sending images alongside text using any vision-capable model (LLaVA, Gemini, GPT-4o, etc.).

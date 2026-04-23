@@ -394,6 +394,47 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
               </Alert>
             </Grid>
           )}
+
+          {/* Agentic Browser — browser_* tools controls */}
+          <Grid item sm={12} xs={12}>
+            <Divider sx={{ mb: 1 }} />
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Agentic Browser
+              <HelpTip text="Applies to the browser_* builtin tools (browser_goto, browser_fill, etc.). The admin must also enable Agentic Browser globally in Settings → Agentic Browser." />
+            </Typography>
+          </Grid>
+          <Grid item sm={12} xs={12}>
+            <TextField
+              fullWidth
+              multiline
+              minRows={2}
+              name="browser_allowed_domains"
+              label="Browser Allowed Domains"
+              variant="outlined"
+              value={state.options?.browser_allowed_domains ?? ''}
+              onChange={(e) => setState({ ...state, options: { ...state.options, browser_allowed_domains: e.target.value } })}
+              placeholder="acme.com, *.supplier.net, gov.co.uk"
+              helperText="Comma-separated allowlist for browser_goto. Empty = unrestricted (risky — prompt injection can navigate anywhere). Use suffix globs like `*.example.com`."
+            />
+          </Grid>
+          <Grid item sm={12} xs={12}>
+            <FormControlLabel
+              label={
+                <span>
+                  Allow <code>browser_eval</code>
+                  <HelpTip text="Lets the agent run arbitrary JavaScript in the page. Dangerous — a prompt-injected page can exfiltrate cookies or hit authed APIs. Off by default." />
+                </span>
+              }
+              control={
+                <Switch
+                  checked={state.options?.browser_allow_eval ?? false}
+                  name="browser_allow_eval"
+                  inputProps={{ "aria-label": "allow browser_eval checkbox" }}
+                  onChange={handleChange}
+                />
+              }
+            />
+          </Grid>
         </Fragment>
       )}
     </Grid>

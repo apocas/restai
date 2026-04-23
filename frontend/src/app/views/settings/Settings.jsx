@@ -80,6 +80,10 @@ export default function SettingsPage() {
     docker_timeout: 900,
     docker_network: "none",
     docker_read_only: true,
+    browser_enabled: false,
+    browser_image: "mcr.microsoft.com/playwright/python:v1.48.0-jammy",
+    browser_network: "bridge",
+    browser_timeout: 900,
     system_llm: "",
     enforce_2fa: false,
   });
@@ -357,6 +361,58 @@ export default function SettingsPage() {
                     </Grid>
                   </Grid>
                   )}
+                </Card>
+              </Grid>
+
+              {/* Agentic Browser — Playwright + Chromium per-chat container */}
+              <Grid item xs={12}>
+                <Card elevation={1} sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Agentic Browser</Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={<Switch checked={!!form.browser_enabled} onChange={handleChange("browser_enabled")} />}
+                        label="Enable per-chat agentic browser"
+                      />
+                      <FormHelperText sx={{ mt: -0.5, ml: 4 }}>
+                        Powers the <code>browser_*</code> builtin tools (goto, fill, click, screenshot, etc.).
+                        Reuses the Docker daemon configured above. Image is pulled on first use.
+                      </FormHelperText>
+                    </Grid>
+                    {form.browser_enabled && (
+                      <>
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            fullWidth
+                            label="Container Image"
+                            value={form.browser_image ?? "mcr.microsoft.com/playwright/python:v1.48.0-jammy"}
+                            onChange={handleChange("browser_image")}
+                            helperText="Playwright image. Needs Chromium + playwright.sync_api preinstalled."
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={3}>
+                          <TextField
+                            fullWidth
+                            label="Network Mode"
+                            value={form.browser_network ?? "bridge"}
+                            onChange={handleChange("browser_network")}
+                            helperText={"'bridge' for outbound (required — Chromium fetches remote sites). 'none' = offline only."}
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={3}>
+                          <TextField
+                            fullWidth
+                            type="number"
+                            label="Idle Timeout (seconds)"
+                            inputProps={{ min: 60 }}
+                            value={form.browser_timeout ?? 900}
+                            onChange={handleChange("browser_timeout")}
+                            helperText="Unused containers are reaped after this."
+                          />
+                        </Grid>
+                      </>
+                    )}
+                  </Grid>
                 </Card>
               </Grid>
             </Grid>

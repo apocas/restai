@@ -222,6 +222,18 @@ Changing either setting from the admin UI calls `brain.init_docker_manager()` wh
 
 Read-only Tools view on the project main page (`ProjectInfoTools`); editable Agent-Created Tools section in project edit (`ProjectEditTools`).
 
+### Agentic Browser
+
+Per-chat Playwright/Chromium container driven from a tiny in-container HTTP server. Admin-gated (Settings → Agentic Browser), then exposed to agents via nine `browser_*` builtin tools: `browser_goto`, `browser_content`, `browser_click`, `browser_fill`, `browser_select`, `browser_screenshot`, `browser_wait`, `browser_download`, `browser_eval`.
+
+- **Container lifecycle** — `restai/browser/manager.py:BrowserManager` mirrors `DockerManager`: per-chat-id labels, orphan lookup by label, idle cleanup via `crons/browser_cleanup.py`. Image defaults to `mcr.microsoft.com/playwright/python:v1.48.0-jammy` (Chromium + Playwright preinstalled). Container port `7000` is published on `127.0.0.1:<random>` and `BrowserManager.get_or_create(chat_id)` reads the host port via `container.attrs["NetworkSettings"]["Ports"]`.
+- **Micro-server** — `restai/browser/micro_server.py` runs *inside* the container (copied in via `put_archive` on create). Pure stdlib (`http.server` + `playwright.sync_api`) — zero extra pip installs. One module-level `BrowserContext` persists cookies/localStorage across tool calls within a chat.
+- **Storage state persistence** — after login flows, `BrowserManager.save_storage_state(project_id, domain, state)` writes cookies to Redis (or an in-process fallback) keyed by `(project_id, domain)` with a 30-day TTL. Next chat on the same project can `load_storage_state` and skip the login dance.
+- **Domain allowlist** — `ProjectOptions.browser_allowed_domains` (comma-separated, supports `*.example.com` suffix globs). `browser_goto` refuses anything not on the list; empty list = unrestricted (admin choice, risky).
+- **Secrets vault** — `project_secrets` table (migration 040, encrypted-at-rest via the same Fernet helpers used for LLM `LLM_SENSITIVE_KEYS`). Admin CRUD via `/projects/{id}/secrets` + new **Secrets** tab on the project edit page (`ProjectEditSecrets.jsx`). `browser_fill(selector, secret_ref="portal_pw")` resolves the plaintext server-side (`DBWrapper.resolve_project_secret`) and types it directly — the value never enters the LLM's context, the inference log, or the audit log.
+- **`browser_eval` opt-in** — disabled by default via `ProjectOptions.browser_allow_eval`. Admin must flip it on per project because a prompt-injected page could use JS eval to exfiltrate cookies / hit authed APIs.
+- **Screenshots** reuse the existing Brain image cache — `browser_screenshot` returns `![](/image/cache/<id>.png)` markdown that `_drive_runtime` guarantees lands in the final answer (same mechanism as `draw_image`).
+
 ### System LLM & AI Assistants
 
 Global "System LLM" setting (Admin → Settings → **System LLM**). Used as the backing model for platform-level AI helpers that aren't project-scoped. When unset, the assistants are hidden from the UI.

@@ -561,6 +561,44 @@ class SpeechToTextModelUpdate(BaseModel):
         return v
 
 
+class ProjectSecretModel(BaseModel):
+    """A project-scoped secret used by agentic tools (e.g. browser_fill
+    via `secret_ref`). Values are masked on read — the plaintext never
+    leaves the server."""
+    id: Union[int, None] = Field(default=None)
+    project_id: int = Field(description="Owning project id")
+    name: str = Field(description="Unique (within the project) reference name — e.g. 'portal_password'")
+    value: str = Field(description="Masked as '********' in API responses")
+    description: Union[str, None] = Field(default=None, max_length=500)
+
+    @field_validator('name')
+    @classmethod
+    def name_must_be_safe(cls, v):
+        return validate_safe_name(v, "Secret name")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProjectSecretCreate(BaseModel):
+    """Create a new project secret."""
+    name: str = Field(description="Unique (within the project) reference name")
+    value: str = Field(min_length=1, max_length=10000, description="Plaintext value — encrypted at rest before DB write")
+    description: Union[str, None] = Field(default=None, max_length=500)
+
+    @field_validator('name')
+    @classmethod
+    def name_must_be_safe(cls, v):
+        return validate_safe_name(v, "Secret name")
+
+
+class ProjectSecretUpdate(BaseModel):
+    """Patch a project secret. Value `"********"` preserves the existing
+    stored value (the same mask-round-trip pattern LLMs and image
+    generators use)."""
+    value: Union[str, None] = Field(default=None, max_length=10000)
+    description: Union[str, None] = Field(default=None, max_length=500)
+
+
 class UserProject(BaseModel):
     """Project reference for a user."""
     id: int = Field(description="Unique project identifier")
@@ -687,6 +725,15 @@ class ProjectOptions(BaseModel):
         ge=200,
         le=10000,
         description="Token budget for the rendered memory bank block. Older entries get rolled up into coarser time buckets when this is exceeded."
+    )
+    # Agentic Browser — the browser_* builtin tools.
+    browser_allowed_domains: Union[str, None] = Field(
+        default=None,
+        description="Comma-separated allowlist of domains the agent's headless Chromium may visit (e.g. 'acme.com, supplier.net'). Empty = unrestricted (not recommended). Matches full hostnames or suffix-globs like '*.acme.com'. browser_goto refuses anything not on the list."
+    )
+    browser_allow_eval: bool = Field(
+        default=False,
+        description="When true, the `browser_eval` tool is available for this project — lets the agent execute arbitrary JavaScript in the page context. Powerful but dangerous (a prompt-injected page can execute anything the domain permits). Off by default; admin must explicitly opt in."
     )
     model_config = ConfigDict(from_attributes=True)
 
@@ -1357,6 +1404,11 @@ class SettingsResponse(BaseModel):
     docker_timeout: int = Field(default=900, description="Container idle timeout in seconds")
     docker_network: Optional[str] = Field(default="none", description="Docker network mode for containers")
     docker_read_only: bool = Field(default=True, description="Mount the sandbox container's rootfs read-only (safer). When false the LLM can pip install.")
+    # Agentic Browser
+    browser_enabled: bool = Field(default=False, description="Whether the per-chat agentic browser (Playwright/Chromium) is enabled")
+    browser_image: Optional[str] = Field(default="mcr.microsoft.com/playwright/python:v1.48.0-jammy", description="Docker image used for browser containers (pre-baked Playwright + Chromium)")
+    browser_network: Optional[str] = Field(default="bridge", description="Docker network mode for browser containers (needs outbound — 'bridge' by default)")
+    browser_timeout: int = Field(default=900, description="Idle timeout in seconds before a browser container is auto-removed")
     # Retention
     data_retention_days: int = Field(default=0, description="Auto-delete data older than this many days (0 = keep forever)")
     # 2FA
@@ -1421,6 +1473,11 @@ class SettingsUpdate(BaseModel):
     docker_timeout: Optional[int] = Field(default=None, ge=60, description="Container idle timeout in seconds")
     docker_network: Optional[str] = Field(default=None, description="Docker network mode for containers")
     docker_read_only: Optional[bool] = Field(default=None, description="Mount the sandbox rootfs read-only (safer). When false the LLM can pip install.")
+    # Agentic Browser
+    browser_enabled: Optional[bool] = Field(default=None, description="Whether the per-chat agentic browser is enabled")
+    browser_image: Optional[str] = Field(default=None, description="Docker image used for browser containers")
+    browser_network: Optional[str] = Field(default=None, description="Docker network mode for browser containers")
+    browser_timeout: Optional[int] = Field(default=None, ge=60, description="Idle timeout in seconds before browser container removal")
     # Retention
     data_retention_days: Optional[int] = Field(default=None, ge=0, description="Auto-delete data older than this many days (0 = keep forever)")
     # 2FA
