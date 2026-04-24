@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
+import { useTranslation } from "react-i18next";
 import DataList from "app/components/DataList";
 import api from "app/utils/api";
 
@@ -16,6 +17,7 @@ const Container = styled("div")(({ theme }) => ({
 }));
 
 export default function Embeddings() {
+  const { t } = useTranslation();
   const [embeddings, setEmbeddings] = useState([]);
   const auth = useAuth();
   const navigate = useNavigate();
@@ -34,38 +36,58 @@ export default function Embeddings() {
 
   const handleDelete = (e, em) => {
     e.stopPropagation();
-    if (!window.confirm(`Delete embedding "${em.name}"?`)) return;
+    if (!window.confirm(t("embeddings.info.deleteConfirm", { name: em.name }))) return;
     api.delete("/embeddings/" + em.id, auth.user.token)
       .then(() => {
-        toast.success(`Deleted ${em.name}`);
+        toast.success(t("embeddings.info.deleted", { name: em.name }));
         fetchEmbeddings();
       })
       .catch(() => {});
   };
 
+  const embTooltip = (row) => (
+    <Box sx={{ p: 0.5, maxWidth: 320 }}>
+      <Box sx={{ fontWeight: 600, mb: 0.5 }}>{row.name}</Box>
+      {row.description && (
+        <Box sx={{ mb: 0.75, fontSize: "0.8rem", color: "grey.100", lineHeight: 1.4 }}>
+          {row.description}
+        </Box>
+      )}
+      <Box sx={{ fontSize: "0.75rem", lineHeight: 1.5 }}>
+        <div><strong>{t("embeddings.tooltip.class")}:</strong> {row.class_name}</div>
+        <div><strong>{t("embeddings.tooltip.privacy")}:</strong> {row.privacy}</div>
+        {row.dimension && (
+          <div><strong>{t("embeddings.tooltip.dimensions")}:</strong> {row.dimension}</div>
+        )}
+      </Box>
+    </Box>
+  );
+
   const columns = [
     {
       key: "name",
-      label: "Name",
+      label: t("embeddings.columns.name"),
       sortable: true,
       render: (row) => (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Box
-            sx={{
-              width: 32, height: 32, borderRadius: "8px",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: (t) => t.palette.mode === "dark" ? "rgba(249,115,22,0.15)" : "rgba(249,115,22,0.1)",
-            }}
-          >
-            <Hub sx={{ fontSize: 18, color: "#f97316" }} />
+        <Tooltip title={embTooltip(row)} placement="right" arrow>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "help" }}>
+            <Box
+              sx={{
+                width: 32, height: 32, borderRadius: "8px",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: (t) => t.palette.mode === "dark" ? "rgba(249,115,22,0.15)" : "rgba(249,115,22,0.1)",
+              }}
+            >
+              <Hub sx={{ fontSize: 18, color: "#f97316" }} />
+            </Box>
+            <Box sx={{ fontWeight: 500 }}>{row.name}</Box>
           </Box>
-          <Box sx={{ fontWeight: 500 }}>{row.name}</Box>
-        </Box>
+        </Tooltip>
       ),
     },
     {
       key: "class_name",
-      label: "Class",
+      label: t("embeddings.columns.class"),
       sortable: true,
       render: (row) => (
         <Box sx={{ fontFamily: "monospace", fontSize: "0.85rem", color: "text.secondary" }}>
@@ -75,7 +97,7 @@ export default function Embeddings() {
     },
     {
       key: "privacy",
-      label: "Privacy",
+      label: t("embeddings.columns.privacy"),
       sortable: true,
       render: (row) => (
         <Chip
@@ -94,7 +116,7 @@ export default function Embeddings() {
     },
     {
       key: "dimension",
-      label: "Dimensions",
+      label: t("embeddings.columns.dimensions"),
       sortable: true,
       align: "right",
       render: (row) => row.dimension ?? "—",
@@ -104,22 +126,22 @@ export default function Embeddings() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Embeddings", path: "/embeddings" }]} />
+        <Breadcrumb routeSegments={[{ name: t("nav.embeddings"), path: "/embeddings" }]} />
       </Box>
 
       <DataList
-        title="Embeddings"
-        subtitle="Embedding models for RAG knowledge retrieval"
+        title={t("embeddings.title")}
+        subtitle={t("embeddings.subtitle")}
         data={embeddings}
         columns={columns}
         searchKeys={["name", "class_name"]}
         filters={[
           {
             key: "privacy",
-            label: "Privacy",
+            label: t("embeddings.columns.privacy"),
             options: [
-              { value: "private", label: "Private" },
-              { value: "public", label: "Public" },
+              { value: "private", label: t("common.private") },
+              { value: "public", label: t("common.public") },
             ],
           },
         ]}
@@ -129,25 +151,25 @@ export default function Embeddings() {
         headerAction={
           isAdmin && (
             <Button variant="contained" startIcon={<Add />} onClick={() => navigate("/embeddings/new")}>
-              New Embedding
+              {t("embeddings.newBreadcrumb")}
             </Button>
           )
         }
         actions={(row) => (
           <>
-            <Tooltip title="View">
+            <Tooltip title={t("embeddings.actions.view")}>
               <IconButton size="small" onClick={() => navigate(`/embedding/${row.id}`)}>
                 <Visibility fontSize="small" />
               </IconButton>
             </Tooltip>
             {isAdmin && (
               <>
-                <Tooltip title="Edit">
+                <Tooltip title={t("embeddings.actions.edit")}>
                   <IconButton size="small" onClick={() => navigate(`/embedding/${row.id}/edit`)}>
                     <Edit fontSize="small" />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Delete">
+                <Tooltip title={t("embeddings.actions.delete")}>
                   <IconButton size="small" color="error" onClick={(e) => handleDelete(e, row)}>
                     <Delete fontSize="small" />
                   </IconButton>
@@ -156,7 +178,15 @@ export default function Embeddings() {
             )}
           </>
         )}
-        emptyMessage="No embeddings configured."
+        emptyState={{
+          icon: Hub,
+          title: t("embeddings.emptyTitle"),
+          message: t("embeddings.emptyMessage"),
+          actionLabel: isAdmin ? t("embeddings.new") : undefined,
+          actionIcon: <Add fontSize="small" />,
+          onAction: isAdmin ? () => navigate("/embeddings/new") : undefined,
+        }}
+        emptyMessage={t("embeddings.noEmbeddings")}
       />
     </Container>
   );

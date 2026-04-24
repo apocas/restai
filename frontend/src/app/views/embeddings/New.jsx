@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Grid, styled, Box } from "@mui/material";
 import EmbeddingNew from "./components/EmbeddingNew";
 import Breadcrumb from "app/components/Breadcrumb";
+import { useTranslation } from "react-i18next";
 
 
 const Container = styled("div")(({ theme }) => ({
@@ -17,15 +18,16 @@ const ContentBox = styled("div")(({ theme }) => ({
 
 
 export default function EmbeddingNewView() {
+  const { t } = useTranslation();
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + ' - New LLM';
-  }, []);
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + ' - ' + t("embeddings.newBreadcrumb");
+  }, [t]);
 
 
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "LLMs", path: "/embeddings" }, { name: "New LLM", path: "/embedding/new" }]} />
+        <Breadcrumb routeSegments={[{ name: t("nav.embeddings"), path: "/embeddings" }, { name: t("embeddings.newBreadcrumb"), path: "/embedding/new" }]} />
       </Box>
 
       <ContentBox className="analytics">

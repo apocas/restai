@@ -8,6 +8,7 @@ import { Security, ChevronLeft, ChevronRight } from "@mui/icons-material";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { H4 } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const FlexBox = styled(Box)({ display: "flex", alignItems: "center" });
@@ -18,6 +19,7 @@ const StatCard = styled(Card)(({ theme }) => ({
 }));
 
 export default function ProjectGuards({ project }) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [summary, setSummary] = useState(null);
   const [daily, setDaily] = useState([]);
@@ -75,7 +77,7 @@ export default function ProjectGuards({ project }) {
       <Card elevation={3} sx={{ p: 4, textAlign: "center" }}>
         <Security sx={{ fontSize: 48, opacity: 0.3, mb: 1 }} />
         <Typography variant="body2" color="text.secondary">
-          No guard data available. Configure input or output guards on this project to start tracking.
+          {t("projects.knowledge.guardAnalytics.noData")}
         </Typography>
       </Card>
     );
@@ -89,7 +91,7 @@ export default function ProjectGuards({ project }) {
           <FlexBox justifyContent="space-between">
             <FlexBox>
               <Security sx={{ ml: 2 }} />
-              <H4 sx={{ p: 2 }}>Guard Analytics</H4>
+              <H4 sx={{ p: 2 }}>{t("projects.knowledge.guardAnalytics.title")}</H4>
             </FlexBox>
             <FlexBox sx={{ mr: 2 }}>
               <IconButton onClick={handlePrev} size="small"><ChevronLeft /></IconButton>
@@ -104,30 +106,30 @@ export default function ProjectGuards({ project }) {
               <Grid item xs={6} sm={3}>
                 <StatCard elevation={1}>
                   <Typography variant="h6">{summary.total_checks.toLocaleString()}</Typography>
-                  <Typography variant="caption" color="text.secondary">Total Checks</Typography>
+                  <Typography variant="caption" color="text.secondary">{t("projects.knowledge.guardAnalytics.totalChecks")}</Typography>
                 </StatCard>
               </Grid>
               <Grid item xs={6} sm={3}>
                 <StatCard elevation={1}>
                   <Typography variant="h6" color="error.main">{summary.total_blocks}</Typography>
-                  <Typography variant="caption" color="text.secondary">Blocked</Typography>
+                  <Typography variant="caption" color="text.secondary">{t("projects.knowledge.guardAnalytics.blocked")}</Typography>
                 </StatCard>
               </Grid>
               <Grid item xs={6} sm={3}>
                 <StatCard elevation={1}>
                   <Typography variant="h6">{(summary.block_rate * 100).toFixed(1)}%</Typography>
-                  <Typography variant="caption" color="text.secondary">Block Rate</Typography>
+                  <Typography variant="caption" color="text.secondary">{t("projects.knowledge.guardAnalytics.blockRate")}</Typography>
                 </StatCard>
               </Grid>
               <Grid item xs={6} sm={3}>
                 <StatCard elevation={1}>
                   <Typography variant="h6" color="warning.main">{summary.warn_count}</Typography>
-                  <Typography variant="caption" color="text.secondary">Warnings</Typography>
+                  <Typography variant="caption" color="text.secondary">{t("projects.knowledge.guardAnalytics.warnings")}</Typography>
                 </StatCard>
               </Grid>
             </Grid>
 
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Guard Events</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("projects.knowledge.guardAnalytics.events")}</Typography>
             <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={filledDaily} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -146,21 +148,21 @@ export default function ProjectGuards({ project }) {
       {/* Recent blocked events */}
       <Grid item xs={12}>
         <Card elevation={3}>
-          <H4 sx={{ p: 2 }}>Recent Blocked Requests ({eventsTotal})</H4>
+          <H4 sx={{ p: 2 }}>{t("projects.knowledge.guardAnalytics.recentBlocked", { count: eventsTotal })}</H4>
           <Divider />
           {events.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-              No blocked requests yet.
+              {t("projects.knowledge.guardAnalytics.noBlocked")}
             </Typography>
           ) : (
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ pl: 2 }}>Date</TableCell>
-                  <TableCell>Phase</TableCell>
-                  <TableCell>Guard</TableCell>
-                  <TableCell>Text</TableCell>
-                  <TableCell sx={{ pr: 2 }}>Guard Response</TableCell>
+                  <TableCell sx={{ pl: 2 }}>{t("projects.knowledge.guardAnalytics.date")}</TableCell>
+                  <TableCell>{t("projects.knowledge.guardAnalytics.phase")}</TableCell>
+                  <TableCell>{t("projects.knowledge.guardAnalytics.guard")}</TableCell>
+                  <TableCell>{t("projects.knowledge.guardAnalytics.text")}</TableCell>
+                  <TableCell sx={{ pr: 2 }}>{t("projects.knowledge.guardAnalytics.guardResponse")}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -179,7 +181,7 @@ export default function ProjectGuards({ project }) {
                     </TableCell>
                     <TableCell>{e.guard_project}</TableCell>
                     <TableCell sx={{ maxWidth: 250, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {e.text_checked || "(logging disabled)"}
+                      {e.text_checked || t("projects.knowledge.guardAnalytics.loggingDisabled")}
                     </TableCell>
                     <TableCell sx={{ pr: 2, maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {e.guard_response || ""}

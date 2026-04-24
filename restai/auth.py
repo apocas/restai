@@ -65,6 +65,7 @@ def get_current_username(
                     except (json.JSONDecodeError, TypeError):
                         pass
                 user.api_key_read_only = api_key_row.read_only or False
+                user.api_key_id = api_key_row.id
 
             request.state.audit_username = f"{user_db.username} (api)"
             return user

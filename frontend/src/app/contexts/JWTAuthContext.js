@@ -1,6 +1,7 @@
 import { createContext, useEffect, useReducer } from "react";
 import axios from "axios";
 import { MatxLoading } from "app/components";
+import { applyLanguage } from "app/i18n";
 
 const initialState = {
   user: null,
@@ -66,10 +67,24 @@ export const AuthProvider = ({ children }) => {
         return { requires_totp: true, totp_token: data.totp_token };
       }
 
+      // Stash the password-age warning so the first authenticated page
+      // can surface it. One-shot: the banner component clears the key
+      // after rendering once per login session.
+      if (data.password_warning) {
+        try { sessionStorage.setItem("password_warning", JSON.stringify(data.password_warning)); } catch {}
+      }
+
       // Normal login — fetch user profile
       const whoami = await axios.get(`${apiUrl}/auth/whoami`, { withCredentials: true });
       const user = whoami.data;
       assignRole(user);
+      // Apply the user's saved UI language (if any) as soon as whoami
+      // resolves. `options` is either a UserOptions dict or (legacy)
+      // a JSON-string — probe for both shapes.
+      try {
+        const opts = typeof user.options === "string" ? JSON.parse(user.options) : user.options;
+        if (opts && opts.language) applyLanguage(opts.language);
+      } catch {}
 
       dispatch({ type: "INIT", payload: { isAuthenticated: true, user, isImpersonating: false } });
       return { requires_totp: false };
@@ -81,10 +96,20 @@ export const AuthProvider = ({ children }) => {
 
   const verifyTotp = async (token, code) => {
     try {
-      await axios.post(`${apiUrl}/auth/verify-totp`, { token, code }, { withCredentials: true });
+      const response = await axios.post(`${apiUrl}/auth/verify-totp`, { token, code }, { withCredentials: true });
+      if (response.data && response.data.password_warning) {
+        try { sessionStorage.setItem("password_warning", JSON.stringify(response.data.password_warning)); } catch {}
+      }
       const whoami = await axios.get(`${apiUrl}/auth/whoami`, { withCredentials: true });
       const user = whoami.data;
       assignRole(user);
+      // Apply the user's saved UI language (if any) as soon as whoami
+      // resolves. `options` is either a UserOptions dict or (legacy)
+      // a JSON-string — probe for both shapes.
+      try {
+        const opts = typeof user.options === "string" ? JSON.parse(user.options) : user.options;
+        if (opts && opts.language) applyLanguage(opts.language);
+      } catch {}
       dispatch({ type: "INIT", payload: { isAuthenticated: true, user, isImpersonating: false } });
     } catch (err) {
       const detail = err.response?.data?.detail || "Invalid code.";
@@ -97,6 +122,13 @@ export const AuthProvider = ({ children }) => {
       const response = await axios.get(`${apiUrl}/auth/whoami`, { withCredentials: true });
       const user = response.data;
       assignRole(user);
+      // Apply the user's saved UI language (if any) as soon as whoami
+      // resolves. `options` is either a UserOptions dict or (legacy)
+      // a JSON-string — probe for both shapes.
+      try {
+        const opts = typeof user.options === "string" ? JSON.parse(user.options) : user.options;
+        if (opts && opts.language) applyLanguage(opts.language);
+      } catch {}
       dispatch({ type: "INIT", payload: { isAuthenticated: true, user, isImpersonating: user.impersonating || false } });
     } catch (err) {
       dispatch({ type: "LOGOUT" });
@@ -133,6 +165,13 @@ export const AuthProvider = ({ children }) => {
         const response = await axios.get(`${apiUrl}/auth/whoami`, { withCredentials: true });
         const user = response.data;
         assignRole(user);
+      // Apply the user's saved UI language (if any) as soon as whoami
+      // resolves. `options` is either a UserOptions dict or (legacy)
+      // a JSON-string — probe for both shapes.
+      try {
+        const opts = typeof user.options === "string" ? JSON.parse(user.options) : user.options;
+        if (opts && opts.language) applyLanguage(opts.language);
+      } catch {}
         dispatch({ type: "INIT", payload: { isAuthenticated: true, user, isImpersonating: user.impersonating || false } });
       } catch (err) {
         console.error(err);

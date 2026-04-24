@@ -10,7 +10,12 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import AddIcon from "@mui/icons-material/Add";
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import TimerIcon from "@mui/icons-material/Timer";
+import HistoryIcon from "@mui/icons-material/History";
+import {
+  Table, TableBody, TableCell, TableHead, TableRow,
+} from "@mui/material";
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 
@@ -35,11 +40,26 @@ function formatSchedule(minutes) {
 }
 
 export default function ProjectEditRoutines({ project }) {
+  const { t } = useTranslation();
   const [routines, setRoutines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [editRoutine, setEditRoutine] = useState(null);
   const [firingId, setFiringId] = useState(null);
+  // History dialog: the routine whose log we're viewing + the fetched rows.
+  const [historyTarget, setHistoryTarget] = useState(null);
+  const [historyRuns, setHistoryRuns] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  const openHistory = (routine) => {
+    setHistoryTarget(routine);
+    setHistoryRuns([]);
+    setHistoryLoading(true);
+    api.get(`/projects/${project.id}/routines/${routine.id}/history?limit=50`, auth.user.token)
+      .then((d) => setHistoryRuns(d.runs || []))
+      .catch(() => {})
+      .finally(() => setHistoryLoading(false));
+  };
   const [form, setForm] = useState({ name: "", message: "", schedule_minutes: 60, enabled: true });
   const auth = useAuth();
   const serverUrl = process.env.REACT_APP_RESTAI_API_URL || window.location.origin;
@@ -177,7 +197,7 @@ export default function ProjectEditRoutines({ project }) {
                   )}
                 </Box>
                 <Box sx={{ display: "flex", gap: 0.5, flexShrink: 0 }}>
-                  <Tooltip title="Fire now">
+                  <Tooltip title={t("projects.edit.routines.fireNow")}>
                     <IconButton
                       size="small"
                       color="primary"
@@ -187,12 +207,17 @@ export default function ProjectEditRoutines({ project }) {
                       {firingId === r.id ? <CircularProgress size={18} /> : <PlayArrowIcon fontSize="small" />}
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Edit">
+                  <Tooltip title={t("projects.edit.routines.history")}>
+                    <IconButton size="small" onClick={() => openHistory(r)}>
+                      <HistoryIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t("projects.actions.edit")}>
                     <IconButton size="small" onClick={() => setEditRoutine({ ...r })}>
                       <EditIcon fontSize="small" />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Delete">
+                  <Tooltip title={t("projects.actions.delete")}>
                     <IconButton size="small" color="error" onClick={() => handleDelete(r)}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
@@ -313,6 +338,55 @@ export default function ProjectEditRoutines({ project }) {
           </DialogActions>
         </Dialog>
       )}
+
+      {/* Execution history dialog */}
+      <Dialog open={!!historyTarget} onClose={() => setHistoryTarget(null)} maxWidth="md" fullWidth>
+        <DialogTitle>{t("projects.edit.routines.history")}: {historyTarget?.name}</DialogTitle>
+        <DialogContent>
+          {historyLoading ? (
+            <Box sx={{ textAlign: "center", py: 3 }}><CircularProgress size={24} /></Box>
+          ) : historyRuns.length === 0 ? (
+            <Typography variant="body2" color="textSecondary" sx={{ py: 3, textAlign: "center" }}>
+              No runs yet. Trigger with Fire or wait for the cron to pick this up.
+            </Typography>
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>When</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Source</TableCell>
+                  <TableCell align="right">Duration</TableCell>
+                  <TableCell>Result</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {historyRuns.map((run) => (
+                  <TableRow key={run.id}>
+                    <TableCell sx={{ whiteSpace: "nowrap", fontSize: "0.8rem" }}>
+                      {new Date(run.created_at).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <Chip size="small" label={run.status} color={run.status === "ok" ? "success" : "error"} />
+                    </TableCell>
+                    <TableCell>{run.manual ? "manual" : "cron"}</TableCell>
+                    <TableCell align="right" sx={{ fontSize: "0.8rem" }}>
+                      {run.duration_ms != null ? `${run.duration_ms} ms` : "—"}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: "0.8rem", maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {run.result || ""}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => historyTarget && openHistory(historyTarget)} disabled={historyLoading}>{t("common.refresh")}</Button>
+          <Button onClick={() => setHistoryTarget(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 }

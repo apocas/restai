@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Grid, styled, Box, Card, Divider, TextField, Button,
   Switch, FormControlLabel, FormHelperText, Typography, Select, MenuItem, InputLabel, FormControl,
@@ -6,6 +6,7 @@ import {
 } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
+import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 import api from "app/utils/api";
@@ -24,15 +25,16 @@ const FlexBox = styled(Box)({
   alignItems: "center"
 });
 
-const TABS = [
-  { name: "General", Icon: SettingsIcon },
-  { name: "Authentication", Icon: Security },
-];
-
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const auth = useAuth();
   const { refreshCapabilities } = usePlatformCapabilities();
-  const [active, setActive] = useState("General");
+  const [active, setActive] = useState("general");
+
+  const TABS = [
+    { key: "general", name: t("settings.sections.general"), Icon: SettingsIcon },
+    { key: "authentication", name: t("settings.sections.authentication"), Icon: Security },
+  ];
 
   const [form, setForm] = useState({
     app_name: "RESTai",
@@ -94,9 +96,59 @@ export default function SettingsPage() {
   const [telemetryEnabled, setTelemetryEnabled] = useState(null);
   const [expanded, setExpanded] = useState({ google: false, microsoft: false, github: false, oidc: false });
 
+  // Refs for deep-linkable sections. Hash like `#microsoft` auto-opens
+  // the Authentication tab, expands the Microsoft card, and scrolls to
+  // it. Useful for copy-pasting "go to my SSO setup" links in Slack /
+  // support tickets.
+  const sectionRefs = {
+    google: useRef(null),
+    microsoft: useRef(null),
+    github: useRef(null),
+    oidc: useRef(null),
+  };
+
+  // Map each deep-linkable hash to the tab it lives on. Extend this
+  // when you add a new section that deserves a bookmark.
+  const _SECTION_TAB = {
+    google: "authentication",
+    microsoft: "authentication",
+    github: "authentication",
+    oidc: "authentication",
+  };
+
   const toggleExpanded = (section) => () => {
     setExpanded((prev) => ({ ...prev, [section]: !prev[section] }));
+    // Reflect the current section in the URL so the user can bookmark /
+    // share it. `replaceState` instead of `pushState` so expand/collapse
+    // clicks don't pollute history.
+    if (typeof window !== "undefined") {
+      const targetHash = expanded[section] ? "" : `#${section}`;
+      window.history.replaceState(null, "", window.location.pathname + window.location.search + targetHash);
+    }
   };
+
+  // Drive the tab + section state from `window.location.hash`. Runs on
+  // mount and on hashchange so users who paste a deep-link mid-session
+  // (or hit the browser back button) land on the right section.
+  useEffect(() => {
+    const applyHash = () => {
+      const hash = (window.location.hash || "").replace(/^#/, "");
+      if (!hash) return;
+      const targetTab = _SECTION_TAB[hash];
+      if (targetTab) setActive(targetTab);
+      if (hash in sectionRefs) {
+        setExpanded((prev) => ({ ...prev, [hash]: true }));
+        // Give React a beat to render the expanded card before scrolling.
+        setTimeout(() => {
+          sectionRefs[hash].current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 80);
+      }
+    };
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+    return () => window.removeEventListener("hashchange", applyHash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchSettings = () => {
     api.get("/settings", auth.user.token)
@@ -127,7 +179,7 @@ export default function SettingsPage() {
     api.patch("/settings", body, auth.user.token)
       .then((data) => {
         setForm(data);
-        toast.success("Settings saved");
+        toast.success(t("settings.saved"));
         refreshCapabilities();
       })
       .catch(() => {})
@@ -147,7 +199,7 @@ export default function SettingsPage() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Settings", path: "/settings" }]} />
+        <Breadcrumb routeSegments={[{ name: t("settings.title"), path: "/settings" }]} />
       </Box>
 
       <Grid container spacing={3}>
@@ -157,26 +209,26 @@ export default function SettingsPage() {
 
         <Grid item md={10} xs={12}>
           {/* ===== GENERAL TAB ===== */}
-          {active === "General" && (
+          {active === "general" && (
             <Grid container spacing={3}>
               {/* App */}
               <Grid item xs={12}>
                 <Card elevation={1} sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Platform</Typography>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.platform")}</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
-                      <TextField fullWidth label="App Name" value={form.app_name} onChange={handleChange("app_name")} />
+                      <TextField fullWidth label={t("settings.fields.appName")} value={form.app_name} onChange={handleChange("app_name")} />
                     </Grid>
                     <Grid item xs={12} md={3}>
                       <FormControlLabel
                         control={<Switch checked={form.hide_branding} onChange={handleChange("hide_branding")} />}
-                        label="Hide Branding"
+                        label={t("settings.fields.hideBranding")}
                       />
                     </Grid>
                     <Grid item xs={12} md={3}>
                       <FormControl fullWidth>
-                        <InputLabel>Currency</InputLabel>
-                        <Select value={form.currency} label="Currency" onChange={handleChange("currency")}>
+                        <InputLabel>{t("settings.fields.currency")}</InputLabel>
+                        <Select value={form.currency} label={t("settings.fields.currency")} onChange={handleChange("currency")}>
                           <MenuItem value="USD">USD ($)</MenuItem>
                           <MenuItem value="EUR">EUR (&euro;)</MenuItem>
                         </Select>
@@ -184,20 +236,20 @@ export default function SettingsPage() {
                     </Grid>
                     <Grid item xs={12} md={6}>
                       <FormControl fullWidth>
-                        <InputLabel>System LLM</InputLabel>
+                        <InputLabel>{t("settings.fields.systemLlm")}</InputLabel>
                         <Select
                           value={form.system_llm ?? ""}
-                          label="System LLM"
+                          label={t("settings.fields.systemLlm")}
                           onChange={handleChange("system_llm")}
                         >
-                          <MenuItem value=""><em>None</em></MenuItem>
+                          <MenuItem value=""><em>{t("common.none")}</em></MenuItem>
                           {llms.map((l) => (
                             <MenuItem key={l.id || l.name} value={l.name}>{l.name}</MenuItem>
                           ))}
                         </Select>
                       </FormControl>
                       <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-                        LLM used by the platform for internal tasks (prompt helpers, summarization, etc). Leave empty to disable.
+                        {t("settings.helpers.systemLlm")}
                       </Typography>
                     </Grid>
                   </Grid>
@@ -207,24 +259,24 @@ export default function SettingsPage() {
               {/* LLM Proxy */}
               <Grid item xs={12}>
                 <Card elevation={1} sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>LLM Proxy</Typography>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.proxy")}</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12}>
                       <FormControlLabel
                         control={<Switch checked={form.proxy_enabled} onChange={handleChange("proxy_enabled")} />}
-                        label="Enable Proxy"
+                        label={t("settings.fields.enableProxy")}
                       />
                     </Grid>
                     {form.proxy_enabled && (
                       <>
                         <Grid item xs={12} md={4}>
-                          <TextField fullWidth label="Proxy URL" value={form.proxy_url} onChange={handleChange("proxy_url")} />
+                          <TextField fullWidth label={t("settings.fields.proxyUrl")} value={form.proxy_url} onChange={handleChange("proxy_url")} />
                         </Grid>
                         <Grid item xs={12} md={4}>
-                          <TextField fullWidth label="Proxy Key" type="password" value={form.proxy_key} onChange={handleChange("proxy_key")} />
+                          <TextField fullWidth label={t("settings.fields.proxyKey")} type="password" value={form.proxy_key} onChange={handleChange("proxy_key")} />
                         </Grid>
                         <Grid item xs={12} md={4}>
-                          <TextField fullWidth label="Proxy Team ID" value={form.proxy_team_id} onChange={handleChange("proxy_team_id")} />
+                          <TextField fullWidth label={t("settings.fields.proxyTeamId")} value={form.proxy_team_id} onChange={handleChange("proxy_team_id")} />
                         </Grid>
                       </>
                     )}
@@ -235,16 +287,16 @@ export default function SettingsPage() {
               {/* Limits */}
               <Grid item xs={12}>
                 <Card elevation={1} sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Limits</Typography>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.limits")}</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
-                      <TextField fullWidth label="Max Audio Upload Size (MB)" type="number" inputProps={{ min: 1 }}
+                      <TextField fullWidth label={t("settings.fields.maxAudioUploadSize")} type="number" inputProps={{ min: 1 }}
                         value={form.max_audio_upload_size} onChange={handleChange("max_audio_upload_size")} />
                     </Grid>
                     <Grid item xs={12} md={6}>
-                      <TextField fullWidth label="Data Retention (days)" type="number" inputProps={{ min: 0 }}
+                      <TextField fullWidth label={t("settings.fields.dataRetentionDays")} type="number" inputProps={{ min: 0 }}
                         value={form.data_retention_days} onChange={handleChange("data_retention_days")}
-                        helperText="Auto-delete logs older than this. 0 = keep forever." />
+                        helperText={t("settings.helpers.retention")} />
                     </Grid>
                   </Grid>
                 </Card>
@@ -253,20 +305,20 @@ export default function SettingsPage() {
               {/* Redis */}
               <Grid item xs={12}>
                 <Card elevation={1} sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Chat History (Redis)</Typography>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.redis")}</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
-                      <TextField fullWidth label="Redis Host" placeholder="Leave empty for in-memory"
+                      <TextField fullWidth label={t("settings.fields.redisHost")} placeholder={t("settings.fields.redisHostPlaceholder")}
                         value={form.redis_host} onChange={handleChange("redis_host")} />
                     </Grid>
                     <Grid item xs={12} md={2}>
-                      <TextField fullWidth label="Port" value={form.redis_port} onChange={handleChange("redis_port")} />
+                      <TextField fullWidth label={t("settings.fields.redisPort")} value={form.redis_port} onChange={handleChange("redis_port")} />
                     </Grid>
                     <Grid item xs={12} md={2}>
-                      <TextField fullWidth label="Password" type="password" value={form.redis_password} onChange={handleChange("redis_password")} />
+                      <TextField fullWidth label={t("settings.fields.redisPassword")} type="password" value={form.redis_password} onChange={handleChange("redis_password")} />
                     </Grid>
                     <Grid item xs={12} md={2}>
-                      <TextField fullWidth label="Database" value={form.redis_database} onChange={handleChange("redis_database")} />
+                      <TextField fullWidth label={t("settings.fields.redisDatabase")} value={form.redis_database} onChange={handleChange("redis_database")} />
                     </Grid>
                   </Grid>
                 </Card>
@@ -275,10 +327,10 @@ export default function SettingsPage() {
               {/* MCP */}
               <Grid item xs={12}>
                 <Card elevation={1} sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>MCP Server</Typography>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>{t("settings.sections.mcp")}</Typography>
                   <FormControlLabel
                     control={<Switch checked={form.mcp_enabled} onChange={handleChange("mcp_enabled")} />}
-                    label="Enable MCP Server"
+                    label={t("settings.fields.enableMcp")}
                   />
                   <Typography variant="caption" color="text.secondary" display="block">
                     Expose projects as MCP tools at /mcp/sse. Requires server restart.
@@ -289,10 +341,10 @@ export default function SettingsPage() {
               {/* Docker */}
               <Grid item xs={12}>
                 <Card elevation={1} sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>Docker (Sandboxed Terminal)</Typography>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>{t("settings.sections.docker")}</Typography>
                   <FormControlLabel
                     control={<Switch checked={form.docker_enabled} onChange={handleChange("docker_enabled")} />}
-                    label="Enable Docker Terminal"
+                    label={t("settings.fields.enableDocker")}
                   />
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
                     Each chat session gets its own isolated container that persists across commands and is automatically removed after the idle timeout.
@@ -300,28 +352,28 @@ export default function SettingsPage() {
                   {form.docker_enabled && (
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
-                      <TextField fullWidth label="Docker URL"
+                      <TextField fullWidth label={t("settings.fields.dockerUrl")}
                         value={form.docker_url || ""}
                         onChange={handleChange("docker_url")}
-                        placeholder="unix:///var/run/docker.sock or tcp://host:2375"
+                        placeholder={t("settings.fields.dockerUrlPlaceholder")}
                       />
                     </Grid>
                     <Grid item xs={12} md={6}>
-                      <TextField fullWidth label="Container Image"
+                      <TextField fullWidth label={t("settings.fields.containerImage")}
                         value={form.docker_image ?? "python:3.12-slim"}
                         onChange={handleChange("docker_image")}
-                        helperText="Base image for sandbox containers"
+                        helperText={t("settings.helpers.containerImage")}
                       />
                     </Grid>
                     <Grid item xs={12} md={6}>
-                      <TextField fullWidth label="Idle Timeout (seconds)" type="number" inputProps={{ min: 60 }}
+                      <TextField fullWidth label={t("settings.fields.idleTimeout")} type="number" inputProps={{ min: 60 }}
                         value={form.docker_timeout || 900}
                         onChange={handleChange("docker_timeout")}
-                        helperText="Remove containers after this many seconds of inactivity"
+                        helperText={t("settings.helpers.dockerTimeout")}
                       />
                     </Grid>
                     <Grid item xs={12} md={6}>
-                      <TextField fullWidth label="Network Mode"
+                      <TextField fullWidth label={t("settings.fields.networkMode")}
                         value={form.docker_network ?? "none"}
                         onChange={handleChange("docker_network")}
                         helperText={'"none" for no network access, "bridge" for internet access, or a custom network name'}
@@ -330,7 +382,7 @@ export default function SettingsPage() {
                     <Grid item xs={12}>
                       <FormControlLabel
                         control={<Switch checked={!!form.docker_read_only} onChange={handleChange("docker_read_only")} />}
-                        label="Read-only rootfs"
+                        label={t("settings.fields.readOnlyRootfs")}
                       />
                       <FormHelperText sx={{ mt: -0.5, ml: 4 }}>
                         Safer sandbox. Disable to let the LLM run <code>pip install</code> and write to the container filesystem.
@@ -348,7 +400,7 @@ export default function SettingsPage() {
                             .catch((e) => setDockerTest({ status: "error", detail: e?.detail || "Connection failed" }));
                         }}
                       >
-                        {dockerTest === "testing" ? "Testing..." : "Test Connection"}
+                        {dockerTest === "testing" ? t("settings.fields.testing") : t("settings.fields.testDocker")}
                       </Button>
                       {dockerTest && dockerTest !== "testing" && (
                         <Typography
@@ -367,12 +419,12 @@ export default function SettingsPage() {
               {/* Agentic Browser — Playwright + Chromium per-chat container */}
               <Grid item xs={12}>
                 <Card elevation={1} sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Agentic Browser</Typography>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.browser")}</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12}>
                       <FormControlLabel
                         control={<Switch checked={!!form.browser_enabled} onChange={handleChange("browser_enabled")} />}
-                        label="Enable per-chat agentic browser"
+                        label={t("settings.fields.enableBrowser")}
                       />
                       <FormHelperText sx={{ mt: -0.5, ml: 4 }}>
                         Powers the <code>browser_*</code> builtin tools (goto, fill, click, screenshot, etc.).
@@ -384,16 +436,16 @@ export default function SettingsPage() {
                         <Grid item xs={12} md={6}>
                           <TextField
                             fullWidth
-                            label="Container Image"
+                            label={t("settings.fields.browserImage")}
                             value={form.browser_image ?? "mcr.microsoft.com/playwright/python:v1.48.0-jammy"}
                             onChange={handleChange("browser_image")}
-                            helperText="Playwright image. Needs Chromium + playwright.sync_api preinstalled."
+                            helperText={t("settings.helpers.browserImage")}
                           />
                         </Grid>
                         <Grid item xs={12} md={3}>
                           <TextField
                             fullWidth
-                            label="Network Mode"
+                            label={t("settings.fields.browserNetwork")}
                             value={form.browser_network ?? "bridge"}
                             onChange={handleChange("browser_network")}
                             helperText={"'bridge' for outbound (required — Chromium fetches remote sites). 'none' = offline only."}
@@ -403,11 +455,11 @@ export default function SettingsPage() {
                           <TextField
                             fullWidth
                             type="number"
-                            label="Idle Timeout (seconds)"
+                            label={t("settings.fields.browserTimeout")}
                             inputProps={{ min: 60 }}
                             value={form.browser_timeout ?? 900}
                             onChange={handleChange("browser_timeout")}
-                            helperText="Unused containers are reaped after this."
+                            helperText={t("settings.helpers.browserTimeout")}
                           />
                         </Grid>
                       </>
@@ -419,17 +471,17 @@ export default function SettingsPage() {
           )}
 
           {/* ===== AUTHENTICATION TAB ===== */}
-          {active === "Authentication" && (
+          {active === "authentication" && (
             <Grid container spacing={3}>
               {/* Core auth settings */}
               <Grid item xs={12}>
                 <Card elevation={1} sx={{ p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Local Authentication</Typography>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.localAuth")}</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={4}>
                       <FormControlLabel
                         control={<Switch checked={form.auth_disable_local} onChange={handleChange("auth_disable_local")} />}
-                        label="Disable Local Auth"
+                        label={t("settings.fields.disableLocalAuth")}
                       />
                       <Typography variant="caption" color="text.secondary" display="block">
                         When enabled, only SSO login is allowed
@@ -438,7 +490,7 @@ export default function SettingsPage() {
                     <Grid item xs={12} md={4}>
                       <FormControlLabel
                         control={<Switch checked={form.enforce_2fa} onChange={handleChange("enforce_2fa")} />}
-                        label="Enforce 2FA"
+                        label={t("settings.fields.enforce2fa")}
                       />
                       <Typography variant="caption" color="text.secondary" display="block">
                         Require TOTP two-factor authentication for all local users
@@ -456,20 +508,20 @@ export default function SettingsPage() {
                     <Grid item xs={12} md={4}>
                       <FormControlLabel
                         control={<Switch checked={form.sso_auto_create_user} onChange={handleChange("sso_auto_create_user")} />}
-                        label="Auto Create Users"
+                        label={t("settings.fields.autoCreateUsers")}
                       />
                       <Typography variant="caption" color="text.secondary" display="block">
                         Automatically create user accounts on first SSO login
                       </Typography>
                     </Grid>
                     <Grid item xs={12} md={4}>
-                      <TextField fullWidth label="Allowed Domains" value={form.sso_allowed_domains}
-                        onChange={handleChange("sso_allowed_domains")} helperText="Comma-separated email domains, or * for all" />
+                      <TextField fullWidth label={t("settings.fields.allowedDomains")} value={form.sso_allowed_domains}
+                        onChange={handleChange("sso_allowed_domains")} helperText={t("settings.helpers.allowedDomains")} />
                     </Grid>
                     <Grid item xs={12} md={4}>
                       <FormControlLabel
                         control={<Switch checked={form.sso_auto_restricted} onChange={handleChange("sso_auto_restricted")} />}
-                        label="Restrict New Users"
+                        label={t("settings.fields.restrictNewUsers")}
                       />
                       <Typography variant="caption" color="text.secondary" display="block">
                         Auto-created SSO users will be in restricted (read-only) mode
@@ -477,16 +529,16 @@ export default function SettingsPage() {
                     </Grid>
                     <Grid item xs={12} md={4}>
                       <FormControl fullWidth>
-                        <InputLabel>Default Team</InputLabel>
-                        <Select value={form.sso_auto_team_id || ""} onChange={handleChange("sso_auto_team_id")} label="Default Team">
-                          <MenuItem value="">None</MenuItem>
-                          {teams.map((t) => (
-                            <MenuItem key={t.id} value={String(t.id)}>{t.name}</MenuItem>
+                        <InputLabel>{t("settings.fields.defaultTeam")}</InputLabel>
+                        <Select value={form.sso_auto_team_id || ""} onChange={handleChange("sso_auto_team_id")} label={t("settings.fields.defaultTeam")}>
+                          <MenuItem value="">{t("common.none")}</MenuItem>
+                          {teams.map((team) => (
+                            <MenuItem key={team.id} value={String(team.id)}>{team.name}</MenuItem>
                           ))}
                         </Select>
                       </FormControl>
                       <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-                        Auto-created SSO users will be added to this team
+                        {t("settings.helpers.autoTeam")}
                       </Typography>
                     </Grid>
                   </Grid>
@@ -495,23 +547,23 @@ export default function SettingsPage() {
 
               {/* SSO — Google */}
               <Grid item xs={12}>
-                <Card elevation={1}>
+                <Card elevation={1} ref={sectionRefs.google}>
                   <CollapsibleCardHeader icon={Security} title="Google" section="google" />
                   <Collapse in={expanded.google}>
                     <Divider />
                     <Box sx={{ p: 3 }}>
                       <Grid container spacing={3}>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Client ID" value={form.sso_google_client_id} onChange={handleChange("sso_google_client_id")} />
+                          <TextField fullWidth label={t("settings.fields.clientId")} value={form.sso_google_client_id} onChange={handleChange("sso_google_client_id")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Client Secret" type="password" value={form.sso_google_client_secret} onChange={handleChange("sso_google_client_secret")} />
+                          <TextField fullWidth label={t("settings.fields.clientSecret")} type="password" value={form.sso_google_client_secret} onChange={handleChange("sso_google_client_secret")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Redirect URI" value={form.sso_google_redirect_uri} onChange={handleChange("sso_google_redirect_uri")} />
+                          <TextField fullWidth label={t("settings.fields.redirectUri")} value={form.sso_google_redirect_uri} onChange={handleChange("sso_google_redirect_uri")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Scope" value={form.sso_google_scope} onChange={handleChange("sso_google_scope")} />
+                          <TextField fullWidth label={t("settings.fields.scope")} value={form.sso_google_scope} onChange={handleChange("sso_google_scope")} />
                         </Grid>
                       </Grid>
                     </Box>
@@ -521,26 +573,26 @@ export default function SettingsPage() {
 
               {/* SSO — Microsoft */}
               <Grid item xs={12}>
-                <Card elevation={1}>
+                <Card elevation={1} ref={sectionRefs.microsoft}>
                   <CollapsibleCardHeader icon={Security} title="Microsoft" section="microsoft" />
                   <Collapse in={expanded.microsoft}>
                     <Divider />
                     <Box sx={{ p: 3 }}>
                       <Grid container spacing={3}>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Client ID" value={form.sso_microsoft_client_id} onChange={handleChange("sso_microsoft_client_id")} />
+                          <TextField fullWidth label={t("settings.fields.clientId")} value={form.sso_microsoft_client_id} onChange={handleChange("sso_microsoft_client_id")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Client Secret" type="password" value={form.sso_microsoft_client_secret} onChange={handleChange("sso_microsoft_client_secret")} />
+                          <TextField fullWidth label={t("settings.fields.clientSecret")} type="password" value={form.sso_microsoft_client_secret} onChange={handleChange("sso_microsoft_client_secret")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Tenant ID" value={form.sso_microsoft_tenant_id} onChange={handleChange("sso_microsoft_tenant_id")} />
+                          <TextField fullWidth label={t("settings.fields.tenantId")} value={form.sso_microsoft_tenant_id} onChange={handleChange("sso_microsoft_tenant_id")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Redirect URI" value={form.sso_microsoft_redirect_uri} onChange={handleChange("sso_microsoft_redirect_uri")} />
+                          <TextField fullWidth label={t("settings.fields.redirectUri")} value={form.sso_microsoft_redirect_uri} onChange={handleChange("sso_microsoft_redirect_uri")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Scope" value={form.sso_microsoft_scope} onChange={handleChange("sso_microsoft_scope")} />
+                          <TextField fullWidth label={t("settings.fields.scope")} value={form.sso_microsoft_scope} onChange={handleChange("sso_microsoft_scope")} />
                         </Grid>
                       </Grid>
                     </Box>
@@ -550,23 +602,23 @@ export default function SettingsPage() {
 
               {/* SSO — GitHub */}
               <Grid item xs={12}>
-                <Card elevation={1}>
+                <Card elevation={1} ref={sectionRefs.github}>
                   <CollapsibleCardHeader icon={Security} title="GitHub" section="github" />
                   <Collapse in={expanded.github}>
                     <Divider />
                     <Box sx={{ p: 3 }}>
                       <Grid container spacing={3}>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Client ID" value={form.sso_github_client_id} onChange={handleChange("sso_github_client_id")} />
+                          <TextField fullWidth label={t("settings.fields.clientId")} value={form.sso_github_client_id} onChange={handleChange("sso_github_client_id")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Client Secret" type="password" value={form.sso_github_client_secret} onChange={handleChange("sso_github_client_secret")} />
+                          <TextField fullWidth label={t("settings.fields.clientSecret")} type="password" value={form.sso_github_client_secret} onChange={handleChange("sso_github_client_secret")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Redirect URI" value={form.sso_github_redirect_uri} onChange={handleChange("sso_github_redirect_uri")} />
+                          <TextField fullWidth label={t("settings.fields.redirectUri")} value={form.sso_github_redirect_uri} onChange={handleChange("sso_github_redirect_uri")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Scope" value={form.sso_github_scope} onChange={handleChange("sso_github_scope")} />
+                          <TextField fullWidth label={t("settings.fields.scope")} value={form.sso_github_scope} onChange={handleChange("sso_github_scope")} />
                         </Grid>
                       </Grid>
                     </Box>
@@ -576,34 +628,34 @@ export default function SettingsPage() {
 
               {/* SSO — Generic OIDC */}
               <Grid item xs={12}>
-                <Card elevation={1}>
-                  <CollapsibleCardHeader icon={Security} title="Generic OIDC" section="oidc" />
+                <Card elevation={1} ref={sectionRefs.oidc}>
+                  <CollapsibleCardHeader icon={Security} title={t("settings.sections.oidc")} section="oidc" />
                   <Collapse in={expanded.oidc}>
                     <Divider />
                     <Box sx={{ p: 3 }}>
                       <Grid container spacing={3}>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Client ID" value={form.sso_oidc_client_id} onChange={handleChange("sso_oidc_client_id")} />
+                          <TextField fullWidth label={t("settings.fields.clientId")} value={form.sso_oidc_client_id} onChange={handleChange("sso_oidc_client_id")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Client Secret" type="password" value={form.sso_oidc_client_secret} onChange={handleChange("sso_oidc_client_secret")} />
+                          <TextField fullWidth label={t("settings.fields.clientSecret")} type="password" value={form.sso_oidc_client_secret} onChange={handleChange("sso_oidc_client_secret")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Provider URL" value={form.sso_oidc_provider_url}
-                            onChange={handleChange("sso_oidc_provider_url")} helperText="OpenID Connect discovery URL" />
+                          <TextField fullWidth label={t("settings.fields.providerUrl")} value={form.sso_oidc_provider_url}
+                            onChange={handleChange("sso_oidc_provider_url")} helperText={t("settings.helpers.oidcProviderUrl")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Redirect URI" value={form.sso_oidc_redirect_uri} onChange={handleChange("sso_oidc_redirect_uri")} />
+                          <TextField fullWidth label={t("settings.fields.redirectUri")} value={form.sso_oidc_redirect_uri} onChange={handleChange("sso_oidc_redirect_uri")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Scopes" value={form.sso_oidc_scopes} onChange={handleChange("sso_oidc_scopes")} />
+                          <TextField fullWidth label={t("settings.fields.scopes")} value={form.sso_oidc_scopes} onChange={handleChange("sso_oidc_scopes")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Provider Name" value={form.sso_oidc_provider_name}
-                            onChange={handleChange("sso_oidc_provider_name")} helperText="Display name on login button" />
+                          <TextField fullWidth label={t("settings.fields.providerName")} value={form.sso_oidc_provider_name}
+                            onChange={handleChange("sso_oidc_provider_name")} helperText={t("settings.helpers.oidcProviderName")} />
                         </Grid>
                         <Grid item xs={12} md={6}>
-                          <TextField fullWidth label="Email Claim" value={form.sso_oidc_email_claim} onChange={handleChange("sso_oidc_email_claim")} />
+                          <TextField fullWidth label={t("settings.fields.emailClaim")} value={form.sso_oidc_email_claim} onChange={handleChange("sso_oidc_email_claim")} />
                         </Grid>
                       </Grid>
                     </Box>
@@ -616,16 +668,15 @@ export default function SettingsPage() {
           {/* Telemetry */}
           <Grid item xs={12}>
             <Card elevation={1} sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>Telemetry</Typography>
+              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>{t("settings.sections.telemetry")}</Typography>
               <Typography variant="body2" color="text.secondary">
-                RESTai sends anonymized, aggregate usage statistics to help the open-source project understand adoption and prioritize development.
-                No personal data, prompts, answers, or API keys are ever sent — only counts (projects, users, LLMs) and feature flags.
+                {t("settings.telemetry.description")}
               </Typography>
               <Typography variant="body2" sx={{ mt: 1 }}>
-                Status: <strong>{telemetryEnabled === null ? "..." : telemetryEnabled ? "Enabled" : "Disabled"}</strong>
+                {t("settings.helpers.telemetryStatus", { status: telemetryEnabled === null ? "..." : telemetryEnabled ? t("settings.status.enabled") : t("settings.status.disabled") })}
               </Typography>
               <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-                To opt out, set the <code>ANONYMIZED_TELEMETRY=false</code> environment variable and restart the server.
+                {t("settings.telemetry.optOut")}
               </Typography>
             </Card>
           </Grid>
@@ -633,7 +684,7 @@ export default function SettingsPage() {
           {/* Save button — always visible */}
           <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>
             <Button variant="contained" color="primary" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save Settings"}
+              {saving ? t("settings.helpers.saving") : t("settings.helpers.saveSettings")}
             </Button>
           </Box>
         </Grid>

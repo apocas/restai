@@ -4,12 +4,12 @@ import {
   Card,
   Drawer,
   Button,
-  IconButton,
   useTheme,
   useMediaQuery,
   styled,
 } from "@mui/material";
-import { ContentCopy } from "@mui/icons-material";
+import { Menu as MenuIcon } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 import { H5 } from "app/components/Typography";
 import { FlexBox } from "app/components/FlexBox";
 
@@ -26,6 +26,7 @@ const StyledButton = styled(Button)(({ theme }) => ({
 
 export default function ProjectTabNav({ tabs, active, setActive }) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const [openDrawer, setOpenDrawer] = useState(false);
   const downMd = useMediaQuery((theme) => theme.breakpoints.down("md"));
 
@@ -46,35 +47,56 @@ export default function ProjectTabNav({ tabs, active, setActive }) {
   function TabListContent() {
     return (
       <FlexBox flexDirection="column">
-        {tabs.map(({ name, Icon }, index) => (
-          <StyledButton
-            key={index}
-            startIcon={<Icon sx={{ color: "text.disabled" }} />}
-            sx={active === name ? style : { "&:hover": style }}
-            onClick={() => {
-              setActive(name);
-              setOpenDrawer(false);
-            }}
-          >
-            {name}
-          </StyledButton>
-        ))}
+        {tabs.map((tab, index) => {
+          // `selectionId` is the stable identifier `setActive` receives
+          // — the key prop when provided (i18n-safe), else the name.
+          // Callers can switch to keys to keep `active` stable across
+          // language changes. Existing call-sites that only pass `name`
+          // still work unchanged.
+          const { name, Icon, key } = tab;
+          const selectionId = key || name;
+          return (
+            <StyledButton
+              key={index}
+              startIcon={<Icon sx={{ color: "text.disabled" }} />}
+              sx={active === selectionId ? style : { "&:hover": style }}
+              onClick={() => {
+                setActive(selectionId);
+                setOpenDrawer(false);
+              }}
+            >
+              {name}
+            </StyledButton>
+          );
+        })}
       </FlexBox>
     );
   }
 
+  // For the mobile "current tab" trigger: find the tab whose
+  // selectionId matches `active` and show its translated name.
+  const activeTab = tabs.find((tb) => (tb.key || tb.name) === active);
+  const activeLabel = activeTab?.name;
+
   if (downMd) {
+    // Mobile: the old treatment used a "Show More" label with a
+    // ContentCopy icon that was both misleading and hard to find. Show
+    // the currently-active tab as the trigger label with a Menu icon so
+    // the user knows (a) where they are and (b) that it's tappable.
     return (
       <Fragment>
-        <FlexBox alignItems="center" gap={1}>
-          <IconButton sx={{ padding: 0 }} onClick={() => setOpenDrawer(true)}>
-            <ContentCopy sx={{ color: "primary.main" }} />
-          </IconButton>
-          <H5>Show More</H5>
-        </FlexBox>
+        <Button
+          fullWidth
+          startIcon={<MenuIcon />}
+          variant="outlined"
+          onClick={() => setOpenDrawer(true)}
+          sx={{ justifyContent: "flex-start", mb: 2 }}
+        >
+          <H5 sx={{ m: 0, fontSize: 14 }}>{activeLabel || t("tabnav.menu")}</H5>
+        </Button>
 
-        <Drawer open={openDrawer} onClose={() => setOpenDrawer(false)}>
-          <Box padding={1}>
+        <Drawer anchor="left" open={openDrawer} onClose={() => setOpenDrawer(false)}>
+          <Box padding={1} sx={{ minWidth: 220 }}>
             <TabListContent />
           </Box>
         </Drawer>

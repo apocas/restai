@@ -5,8 +5,10 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
+import { useTranslation } from "react-i18next";
 import DataList from "app/components/DataList";
 import api from "app/utils/api";
+import { colors, rgba } from "app/utils/themeColors";
 
 const Container = styled("div")(({ theme }) => ({
   margin: "24px 48px",
@@ -16,6 +18,7 @@ const Container = styled("div")(({ theme }) => ({
 }));
 
 export default function Teams() {
+  const { t } = useTranslation();
   const [teams, setTeams] = useState([]);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -41,10 +44,10 @@ export default function Teams() {
 
   const handleDelete = (e, team) => {
     e.stopPropagation();
-    if (!window.confirm(`Delete team "${team.name}"?`)) return;
+    if (!window.confirm(t("teams.deleteConfirm", { name: team.name }))) return;
     api.delete(`/teams/${team.id}`, user.token)
       .then(() => {
-        toast.success("Team deleted");
+        toast.success(t("teams.deleted"));
         fetchTeams();
       })
       .catch(() => {});
@@ -53,7 +56,7 @@ export default function Teams() {
   const columns = [
     {
       key: "name",
-      label: "Name",
+      label: t("teams.columns.name"),
       sortable: true,
       render: (row) => (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -61,7 +64,7 @@ export default function Teams() {
             sx={{
               width: 32, height: 32, borderRadius: "8px",
               display: "flex", alignItems: "center", justifyContent: "center",
-              background: (t) => t.palette.mode === "dark" ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)",
+              background: (theme) => theme.palette.mode === "dark" ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)",
             }}
           >
             <Groups sx={{ fontSize: 18, color: "primary.main" }} />
@@ -72,7 +75,7 @@ export default function Teams() {
     },
     {
       key: "description",
-      label: "Description",
+      label: t("teams.columns.description"),
       render: (row) => (
         <Typography
           variant="body2"
@@ -85,29 +88,29 @@ export default function Teams() {
     },
     {
       key: "users",
-      label: "Users",
+      label: t("teams.columns.users"),
       sortable: true,
       sortValue: (row) => (row.users || []).length,
       render: (row) => (row.users || []).length,
     },
     {
       key: "projects",
-      label: "Projects",
+      label: t("teams.columns.projects"),
       sortable: true,
       sortValue: (row) => (row.projects || []).length,
       render: (row) => (row.projects || []).length,
     },
     {
       key: "role",
-      label: "Your Role",
+      label: t("teams.role.label"),
       sortable: true,
       sortValue: (row) => userRole(row),
       render: (row) => {
         const role = userRole(row);
         const styles = {
-          platform_admin: { label: "Platform Admin", color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
-          team_admin: { label: "Team Admin", color: "#6366f1", bg: "rgba(99,102,241,0.12)" },
-          member: { label: "Member", color: "#6b7280", bg: "rgba(107,114,128,0.15)" },
+          platform_admin: { label: t("teams.role.platformAdmin"), color: colors.role.platformAdmin, bg: rgba.platformAdmin },
+          team_admin: { label: t("teams.role.teamAdmin"), color: colors.role.teamAdmin, bg: rgba.teamAdmin },
+          member: { label: t("teams.role.member"), color: colors.role.member, bg: rgba.member },
         };
         const s = styles[role];
         return (
@@ -124,12 +127,12 @@ export default function Teams() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Teams", path: "/teams" }]} />
+        <Breadcrumb routeSegments={[{ name: t("nav.teams"), path: "/teams" }]} />
       </Box>
 
       <DataList
-        title="Teams"
-        subtitle="Organize users, projects, and model access"
+        title={t("teams.title")}
+        subtitle={t("teams.subtitle")}
         data={teams}
         columns={columns}
         searchKeys={["name", "description"]}
@@ -139,7 +142,7 @@ export default function Teams() {
         headerAction={
           isAdmin && (
             <Button variant="contained" startIcon={<Add />} onClick={() => navigate("/teams/new")}>
-              New Team
+              {t("teams.new")}
             </Button>
           )
         }
@@ -148,20 +151,20 @@ export default function Teams() {
           const canEdit = role !== "member";
           return (
             <>
-              <Tooltip title="View">
+              <Tooltip title={t("teams.actions.view")}>
                 <IconButton size="small" onClick={() => navigate(`/team/${row.id}`)}>
                   <Visibility fontSize="small" />
                 </IconButton>
               </Tooltip>
               {canEdit && (
-                <Tooltip title="Edit">
+                <Tooltip title={t("teams.actions.edit")}>
                   <IconButton size="small" onClick={() => navigate(`/team/${row.id}/edit`)}>
                     <Edit fontSize="small" />
                   </IconButton>
                 </Tooltip>
               )}
               {isAdmin && (
-                <Tooltip title="Delete">
+                <Tooltip title={t("teams.actions.delete")}>
                   <IconButton size="small" color="error" onClick={(e) => handleDelete(e, row)}>
                     <Delete fontSize="small" />
                   </IconButton>
@@ -170,7 +173,15 @@ export default function Teams() {
             </>
           );
         }}
-        emptyMessage="No teams yet."
+        emptyState={{
+          icon: Groups,
+          title: t("teams.emptyTitle"),
+          message: t("teams.emptyMessage"),
+          actionLabel: isAdmin ? t("teams.new") : undefined,
+          actionIcon: <Add fontSize="small" />,
+          onAction: isAdmin ? () => navigate("/teams/new") : undefined,
+        }}
+        emptyMessage={t("teams.noTeams")}
       />
     </Container>
   );

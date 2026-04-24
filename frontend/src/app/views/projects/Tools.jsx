@@ -5,6 +5,7 @@ import {
 import { Search, Build, Block, Info } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
@@ -15,52 +16,50 @@ const Container = styled("div")(({ theme }) => ({
 }));
 
 export default function Tools() {
+  const { t } = useTranslation();
   const [tools, setTools] = useState([]);
   const [search, setSearch] = useState("");
   const auth = useAuth();
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Tools";
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - " + t("tools.breadcrumb");
     api.get("/tools/agent", auth.user.token)
       .then((d) => setTools(d || []))
       .catch(() => {});
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
 
   const filtered = tools.filter(
-    (t) =>
-      t.name.toLowerCase().includes(search.toLowerCase()) ||
-      (t.description || "").toLowerCase().includes(search.toLowerCase())
+    (tl) =>
+      tl.name.toLowerCase().includes(search.toLowerCase()) ||
+      (tl.description || "").toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Projects", path: "/projects" }, { name: "Tools" }]} />
+        <Breadcrumb routeSegments={[{ name: t("nav.projects"), path: "/projects" }, { name: t("tools.breadcrumb") }]} />
       </Box>
 
       <Box>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, flexWrap: "wrap", gap: 2 }}>
           <Box>
-            <Typography variant="h5" fontWeight={700}>Agent Tools</Typography>
+            <Typography variant="h5" fontWeight={700}>{t("tools.title")}</Typography>
             <Typography variant="body2" color="text.secondary">
-              Built-in tools available for agent projects to use during conversations.
+              {t("tools.subtitle")}
             </Typography>
           </Box>
-          <Chip label={`${tools.length} tools`} variant="outlined" size="small" />
+          <Chip label={t("tools.toolCount", { count: tools.length })} variant="outlined" size="small" />
         </Box>
 
         <Alert severity="info" icon={<Info fontSize="small" />} sx={{ mb: 3 }}>
-          This is the global catalogue of <strong>built-in</strong> tools shipped with RESTai.
-          Each agent project can extend this list with its own tools — either by
-          connecting to <strong>MCP servers</strong> (configured in the project's edit page) or
-          by defining <strong>agent-created tools</strong> on the fly via the <code>create_tool</code> builtin.
-          Project-specific tools only show up in that project's chat, not here.
+          {t("tools.info")}
         </Alert>
 
         <TextField
           fullWidth
           size="small"
-          placeholder="Search tools..."
+          placeholder={t("tools.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           sx={{ mb: 3 }}
@@ -75,7 +74,7 @@ export default function Tools() {
 
         {filtered.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
-            {search ? "No tools match your search." : "No tools available."}
+            {search ? t("tools.noMatch") : t("tools.noTools")}
           </Typography>
         ) : (
           <Grid container spacing={2}>
@@ -97,9 +96,9 @@ export default function Tools() {
                       sx={{
                         width: 36, height: 36, borderRadius: "8px", flexShrink: 0,
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        background: (t) => tool.enabled === false
-                          ? (t.palette.mode === "dark" ? "rgba(150,150,150,0.15)" : "rgba(150,150,150,0.08)")
-                          : (t.palette.mode === "dark" ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)"),
+                        background: (theme) => tool.enabled === false
+                          ? (theme.palette.mode === "dark" ? "rgba(150,150,150,0.15)" : "rgba(150,150,150,0.08)")
+                          : (theme.palette.mode === "dark" ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)"),
                       }}
                     >
                       {tool.enabled === false
@@ -117,7 +116,7 @@ export default function Tools() {
                           {tool.name}
                         </Typography>
                         {tool.enabled === false && (
-                          <Chip label="Requires Docker" size="small" color="warning" variant="outlined" sx={{ fontSize: "0.7rem", height: 22 }} />
+                          <Chip label={t("tools.requiresDocker")} size="small" color="warning" variant="outlined" sx={{ fontSize: "0.7rem", height: 22 }} />
                         )}
                       </Box>
                       <Typography

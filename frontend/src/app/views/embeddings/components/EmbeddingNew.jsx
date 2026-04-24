@@ -1,6 +1,7 @@
 import { useState } from "react";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -17,6 +18,7 @@ import api from "app/utils/api";
 const Form = styled("form")(() => ({ padding: "16px" }));
 
 export default function EmbeddingNew({ projects, info }) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const navigate = useNavigate();
 
@@ -45,14 +47,14 @@ export default function EmbeddingNew({ projects, info }) {
 
   return (
     <Card elevation={3}>
-      <H4 p={2}>Add a New Embedding</H4>
+      <H4 p={2}>{t("embeddings.newCardTitle")}</H4>
 
       <Divider sx={{ mb: 1 }} />
 
       <Form onSubmit={handleSubmit}>
         <Grid container spacing={3} alignItems="center">
           <Grid item md={2} sm={4} xs={12}>
-            Name
+            {t("embeddings.edit.name")}
           </Grid>
 
           <Grid item md={10} sm={8} xs={12}>
@@ -60,13 +62,13 @@ export default function EmbeddingNew({ projects, info }) {
               size="small"
               name="name"
               variant="outlined"
-              label="Name"
+              label={t("embeddings.edit.name")}
               onChange={handleChange}
             />
           </Grid>
 
           <Grid item md={2} sm={4} xs={12}>
-            Class Name
+            {t("embeddings.edit.className")}
           </Grid>
 
           <Grid item md={10} sm={8} xs={12}>
@@ -74,13 +76,13 @@ export default function EmbeddingNew({ projects, info }) {
               size="small"
               name="class"
               variant="outlined"
-              label="Class Name"
+              label={t("embeddings.edit.className")}
               onChange={handleChange}
             />
           </Grid>
 
           <Grid item md={2} sm={4} xs={12}>
-            Privacy
+            {t("embeddings.edit.privacy")}
           </Grid>
 
           <Grid item md={10} sm={8} xs={12}>
@@ -88,7 +90,7 @@ export default function EmbeddingNew({ projects, info }) {
               select
               size="small"
               name="privacy"
-              label="Privacy"
+              label={t("embeddings.edit.privacy")}
               variant="outlined"
               onChange={handleChange}
               sx={{ minWidth: 188 }}
@@ -103,7 +105,7 @@ export default function EmbeddingNew({ projects, info }) {
 
 
           <Grid item md={2} sm={4} xs={12}>
-            Options
+            {t("embeddings.edit.options")}
           </Grid>
 
           <Grid item md={10} sm={8} xs={12}>
@@ -111,14 +113,14 @@ export default function EmbeddingNew({ projects, info }) {
               size="small"
               name="options"
               variant="outlined"
-              label="Options"
+              label={t("embeddings.edit.options")}
               onChange={handleChange}
             />
           </Grid>
 
 
           <Grid item md={2} sm={4} xs={12}>
-            Description
+            {t("embeddings.edit.description")}
           </Grid>
 
           <Grid item md={10} sm={8} xs={12}>
@@ -126,13 +128,13 @@ export default function EmbeddingNew({ projects, info }) {
               size="small"
               name="description"
               variant="outlined"
-              label="Description"
+              label={t("embeddings.edit.description")}
               onChange={handleChange}
             />
           </Grid>
 
           <Grid item md={2} sm={4} xs={12}>
-            Dimension
+            {t("embeddings.edit.dimension")}
           </Grid>
 
           <Grid item md={10} sm={8} xs={12}>
@@ -140,7 +142,7 @@ export default function EmbeddingNew({ projects, info }) {
               size="small"
               name="dimension"
               variant="outlined"
-              label="Dimension"
+              label={t("embeddings.edit.dimension")}
               onChange={handleChange}
             />
           </Grid>
@@ -149,7 +151,7 @@ export default function EmbeddingNew({ projects, info }) {
 
         <Box mt={3}>
           <Button color="primary" variant="contained" type="submit">
-            Submit
+            {t("embeddings.submit")}
           </Button>
         </Box>
       </Form>

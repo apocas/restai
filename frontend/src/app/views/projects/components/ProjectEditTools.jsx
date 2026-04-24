@@ -9,6 +9,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import BuildIcon from "@mui/icons-material/Build";
 import { Fragment, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
@@ -308,6 +309,7 @@ function AgentCreatedTools({ project }) {
 }
 
 export default function ProjectEditTools({ state, setState, handleChange, project, mcpServers, setMcpServers, tools, handleAddMcpServer, handleRemoveMcpServer, handleMcpServerFieldChange, handleProbeMcpServer, handleMcpToolsChange, handleAddGatewayServices, isStdioServer }) {
+  const { t } = useTranslation();
   return (
     <Grid container spacing={3}>
       <Grid item sm={6} xs={12}>
@@ -331,7 +333,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
               {...params}
               fullWidth
               InputLabelProps={{ shrink: true }}
-              label="Tools"
+              label={t("nav.tools")}
               variant="outlined"
               helperText="Built-in tools the agent can use during execution (web search, calculator, etc.)"
             />
@@ -381,7 +383,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
         <Divider sx={{ mb: 1 }} />
       </Grid>
       <Grid item sm={12} xs={12}>
-        <Typography variant="subtitle1" gutterBottom>MCP Servers</Typography>
+        <Typography variant="subtitle1" gutterBottom>{t("projects.edit.tools.mcpServers")}</Typography>
         <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 2 }}>
           Connect to external tool servers using the MCP protocol. Two connection modes are supported:
           <br />
@@ -407,7 +409,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
                 onClick={() => handleProbeMcpServer(index)}
                 sx={{ minWidth: 80 }}
               >
-                {server.loading ? <CircularProgress size={20} /> : "Check"}
+                {server.loading ? <CircularProgress size={20} /> : t("projects.edit.tools.mcpCheck")}
               </Button>
               <IconButton size="small" onClick={() => handleRemoveMcpServer(index)}>
                 <DeleteIcon />
@@ -418,7 +420,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
                 <TextField
                   fullWidth
                   size="small"
-                  label="Arguments"
+                  label={t("projects.edit.tools.mcpArguments")}
                   placeholder="-y @modelcontextprotocol/server-filesystem /tmp"
                   helperText="Space-separated arguments passed to the command"
                   value={(server.args || []).join(" ")}
@@ -431,7 +433,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
                 <TextField
                   fullWidth
                   size="small"
-                  label="Environment Variables"
+                  label={t("projects.edit.tools.mcpEnvVars")}
                   placeholder="KEY=value ANOTHER=value"
                   helperText="Space-separated KEY=value pairs (e.g. PORT=3001 DEBUG=true)"
                   value={Object.entries(server.env || {}).map(([k, v]) => `${k}=${v}`).join(" ")}
@@ -453,7 +455,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
               <Box sx={{ mb: 1 }}>
                 <TextField
                   fullWidth size="small" multiline rows={2}
-                  label="Headers"
+                  label={t("projects.edit.tools.mcpHeaders")}
                   placeholder={"Authorization: Bearer token123\nX-API-Key: mykey"}
                   helperText="One header per line in KEY: VALUE format"
                   value={server.headersText ?? ""}
@@ -462,7 +464,17 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
               </Box>
             )}
             {server.error && (
-              <Typography variant="body2" color="error" sx={{ mb: 1 }}>{server.error}</Typography>
+              <Box sx={{ mb: 1, display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="body2" color="error" sx={{ flex: 1 }}>{server.error}</Typography>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => handleProbeMcpServer(index)}
+                  disabled={!server.host.trim() || server.loading}
+                >
+                  Retry
+                </Button>
+              </Box>
             )}
             {server.gateway && (
               <GatewayServices

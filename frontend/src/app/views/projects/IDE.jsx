@@ -9,6 +9,7 @@ import useAuth from "app/hooks/useAuth";
 import BlocklyEditor from "./components/BlocklyEditor";
 import Breadcrumb from "app/components/Breadcrumb";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
@@ -19,6 +20,7 @@ const Container = styled("div")(({ theme }) => ({
 }));
 
 export default function ProjectIDEView() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [projects, setProjects] = useState([]);
   const [project, setProject] = useState({});
@@ -49,9 +51,10 @@ export default function ProjectIDEView() {
   }, [id]);
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - IDE - " + id;
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - " + t("projects.knowledge.ide.title") + " - " + id;
     fetchProjects();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   useEffect(() => {
     if (!auth.user) return;
@@ -70,7 +73,7 @@ export default function ProjectIDEView() {
     };
     api.patch("/projects/" + project.id, opts, auth.user.token)
       .then(() => {
-        toast.success("Workspace saved");
+        toast.success(t("projects.knowledge.ide.workspaceSaved"));
         fetchProject(id);
       })
       .catch(() => {});
@@ -84,7 +87,7 @@ export default function ProjectIDEView() {
         if (loadWorkspaceRef.current) {
           loadWorkspaceRef.current(data.workspace);
         }
-        toast.success("Workspace generated — review and save when ready");
+        toast.success(t("projects.knowledge.ide.workspaceGenerated"));
         setAiOpen(false);
         setAiPrompt("");
       })
@@ -97,18 +100,18 @@ export default function ProjectIDEView() {
       <Box className="breadcrumb">
         <Breadcrumb
           routeSegments={[
-            { name: "Projects", path: "/projects" },
+            { name: t("nav.projects"), path: "/projects" },
             { name: id, path: "/project/" + id },
-            { name: "IDE" },
+            { name: t("projects.knowledge.ide.title") },
           ]}
         />
       </Box>
 
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2, gap: 2, flexWrap: "wrap" }}>
         <Box>
-          <Typography variant="h5" fontWeight={700}>Block IDE</Typography>
+          <Typography variant="h5" fontWeight={700}>{t("projects.knowledge.ide.title")}</Typography>
           <Typography variant="body2" color="text.secondary">
-            Visually compose your block project{systemLlmConfigured ? '. Use "Generate with AI" to get a starting workspace.' : "."}
+            {systemLlmConfigured ? t("projects.knowledge.ide.subtitleWithAi") : t("projects.knowledge.ide.subtitle")}
           </Typography>
         </Box>
         {systemLlmConfigured && (
@@ -117,7 +120,7 @@ export default function ProjectIDEView() {
             startIcon={<AutoAwesome />}
             onClick={() => setAiOpen(true)}
           >
-            Generate with AI
+            {t("projects.knowledge.ide.generateAi")}
           </Button>
         )}
       </Box>
@@ -136,34 +139,34 @@ export default function ProjectIDEView() {
       </Grid>
 
       <Dialog open={aiOpen} onClose={() => !aiLoading && setAiOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Generate workspace with AI</DialogTitle>
+        <DialogTitle>{t("projects.knowledge.ide.dialogTitle")}</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Describe in plain English what this block project should do. The system LLM will generate a starter workspace you can then edit.
+            {t("projects.knowledge.ide.dialogHelp")}
           </Typography>
           <TextField
             autoFocus
             fullWidth
             multiline
             minRows={4}
-            placeholder={'e.g. "Classify user messages as billing, technical, or sales, then forward each to the right sub-project"'}
+            placeholder={t("projects.knowledge.ide.placeholder")}
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
             disabled={aiLoading}
           />
           <Alert severity="warning" sx={{ mt: 2 }}>
-            This replaces the current workspace. Save your existing blocks first if you need them.
+            {t("projects.knowledge.ide.warning")}
           </Alert>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAiOpen(false)} disabled={aiLoading}>Cancel</Button>
+          <Button onClick={() => setAiOpen(false)} disabled={aiLoading}>{t("common.cancel")}</Button>
           <Button
             variant="contained"
             onClick={handleGenerate}
             disabled={aiLoading || !aiPrompt.trim()}
             startIcon={aiLoading ? <CircularProgress size={16} /> : <AutoAwesome />}
           >
-            {aiLoading ? "Generating..." : "Generate"}
+            {aiLoading ? t("projects.knowledge.ide.generating") : t("projects.knowledge.ide.generate")}
           </Button>
         </DialogActions>
       </Dialog>

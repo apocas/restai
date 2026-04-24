@@ -91,14 +91,18 @@ class DBWrapper:
         private: bool = False,
         restricted: bool = False,
     ) -> UserDatabase:
+        from datetime import datetime, timezone
         password_hash: Optional[str]
         if password:
             password_hash = hash_password(password)
+            password_updated_at = datetime.now(timezone.utc)
         else:
             password_hash = None
+            password_updated_at = None
         db_user: UserDatabase = UserDatabase(
             username=username,
             hashed_password=password_hash,
+            password_updated_at=password_updated_at,
             is_admin=admin,
             is_private=private,
             is_restricted=restricted,
@@ -316,7 +320,9 @@ class DBWrapper:
 
     def update_user(self, user: User, user_update: UserUpdate) -> bool:
         if user_update.password is not None:
+            from datetime import datetime, timezone
             user.hashed_password = hash_password(user_update.password)
+            user.password_updated_at = datetime.now(timezone.utc)
 
         if user_update.is_admin is not None:
             user.is_admin = user_update.is_admin

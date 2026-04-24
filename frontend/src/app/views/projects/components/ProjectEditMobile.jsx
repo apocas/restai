@@ -6,6 +6,7 @@ import {
 import { Refresh, ContentCopy, PhoneAndroid, QrCode2 } from "@mui/icons-material";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "react-toastify";
+import { useTranslation, Trans } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 
@@ -19,6 +20,7 @@ import api from "app/utils/api";
  * phones can still be paired during the same session.
  */
 export default function ProjectEditMobile({ project }) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(null); // "enable" | "disable" | "regenerate" | null
@@ -88,7 +90,7 @@ export default function ProjectEditMobile({ project }) {
   const copyPayload = () => {
     if (!qrPayload) return;
     navigator.clipboard.writeText(JSON.stringify(qrPayload));
-    toast.success("Copied to clipboard");
+    toast.success(t("common.copied"));
   };
 
   if (loading) {
@@ -102,13 +104,10 @@ export default function ProjectEditMobile({ project }) {
     <Box sx={{ p: 3 }}>
       <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
         <PhoneAndroid color="primary" />
-        <Typography variant="h6" fontWeight={700}>Mobile integration</Typography>
+        <Typography variant="h6" fontWeight={700}>{t("projects.edit.mobile.title")}</Typography>
       </Stack>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Scan the QR code with the RESTai mobile app (Android today, more platforms
-        coming) to get a read-only chat into this project. The app only ever uses
-        chat mode (streaming). Toggle off or regenerate to revoke every paired
-        phone at once.
+        {t("projects.edit.mobile.intro")}
       </Typography>
 
       <FormControlLabel
@@ -119,7 +118,7 @@ export default function ProjectEditMobile({ project }) {
             onChange={(e) => (e.target.checked ? enable() : disable())}
           />
         }
-        label={enabled ? "Enabled" : "Disabled"}
+        label={enabled ? t("common.enabled") : t("common.disabled")}
       />
 
       <Divider sx={{ my: 3 }} />
@@ -144,12 +143,12 @@ export default function ProjectEditMobile({ project }) {
             {status.key_prefix && (
               <Chip
                 icon={<QrCode2 />}
-                label={`key ${status.key_prefix}…`}
+                label={t("projects.edit.mobile.keyChip", { prefix: status.key_prefix })}
                 size="small"
                 variant="outlined"
               />
             )}
-            <Tooltip title="Copy raw payload (JSON)">
+            <Tooltip title={t("projects.edit.mobile.copyPayload")}>
               <span>
                 <IconButton size="small" onClick={copyPayload} disabled={!qrPayload}>
                   <ContentCopy fontSize="small" />
@@ -164,18 +163,16 @@ export default function ProjectEditMobile({ project }) {
               disabled={busy === "regenerate"}
               onClick={regenerate}
             >
-              {busy === "regenerate" ? "Regenerating…" : "Regenerate key"}
+              {busy === "regenerate" ? t("projects.edit.mobile.regenerating") : t("projects.edit.mobile.regenerate")}
             </Button>
           </Stack>
           <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 360 }}>
-            Show this QR to as many phones as you like — every one of them
-            shares the same read-only key. Click <b>Regenerate key</b> to
-            invalidate every paired phone in one go.
+            <Trans i18nKey="projects.edit.mobile.hint" components={{ 1: <b /> }} />
           </Typography>
         </Stack>
       ) : (
         <Typography variant="body2" color="text.secondary">
-          Mobile integration is off. No API key exists for mobile apps on this project.
+          {t("projects.edit.mobile.offMessage")}
         </Typography>
       )}
     </Box>

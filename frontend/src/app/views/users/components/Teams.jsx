@@ -13,13 +13,15 @@ import {
 } from "@mui/material";
 
 import { H5, Paragraph } from "app/components/Typography";
+import { useTranslation } from "react-i18next";
 
 export default function Teams({ user }) {
+  const { t } = useTranslation();
   const memberTeams = user.teams || [];
   const adminTeams = user.admin_teams || [];
 
-  const adminIds = new Set(adminTeams.map((t) => t.id));
-  const memberOnly = memberTeams.filter((t) => !adminIds.has(t.id));
+  const adminIds = new Set(adminTeams.map((tm) => tm.id));
+  const memberOnly = memberTeams.filter((tm) => !adminIds.has(tm.id));
 
   const isEmpty = adminTeams.length === 0 && memberOnly.length === 0;
 
@@ -28,7 +30,7 @@ export default function Teams({ user }) {
       <ListItem
         secondaryAction={
           <Chip
-            label={role === "admin" ? "Admin" : "Member"}
+            label={role === "admin" ? t("users.userTeams.admin") : t("users.userTeams.member")}
             color={role === "admin" ? "primary" : "default"}
             size="small"
           />
@@ -49,33 +51,33 @@ export default function Teams({ user }) {
 
   return (
     <Card sx={{ padding: 3 }}>
-      <H5 sx={{ mb: 2 }}>Teams</H5>
+      <H5 sx={{ mb: 2 }}>{t("users.userTeams.title")}</H5>
 
       {isEmpty ? (
         <Paragraph color="textSecondary">
-          This user is not a member of any team.
+          {t("users.userTeams.noTeams")}
         </Paragraph>
       ) : (
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <Box sx={{ mb: 1 }}>
-              <H5 sx={{ fontSize: "1rem" }}>Admin of</H5>
+              <H5 sx={{ fontSize: "1rem" }}>{t("users.userTeams.adminOf")}</H5>
             </Box>
             {adminTeams.length > 0 ? (
-              <List>{adminTeams.map((t) => renderRow(t, "admin"))}</List>
+              <List>{adminTeams.map((tm) => renderRow(tm, "admin"))}</List>
             ) : (
-              <Paragraph color="textSecondary">Not an admin of any team.</Paragraph>
+              <Paragraph color="textSecondary">{t("users.userTeams.noAdmin")}</Paragraph>
             )}
           </Grid>
 
           <Grid item xs={12} md={6}>
             <Box sx={{ mb: 1 }}>
-              <H5 sx={{ fontSize: "1rem" }}>Member of</H5>
+              <H5 sx={{ fontSize: "1rem" }}>{t("users.userTeams.memberOf")}</H5>
             </Box>
             {memberOnly.length > 0 ? (
-              <List>{memberOnly.map((t) => renderRow(t, "member"))}</List>
+              <List>{memberOnly.map((tm) => renderRow(tm, "member"))}</List>
             ) : (
-              <Paragraph color="textSecondary">No additional team memberships.</Paragraph>
+              <Paragraph color="textSecondary">{t("users.userTeams.noMember")}</Paragraph>
             )}
           </Grid>
         </Grid>

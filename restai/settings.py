@@ -70,6 +70,11 @@ SETTINGS_DEFAULTS = {
     "data_retention_days": (None, "0"),
     # 2FA
     "enforce_2fa": (None, "false"),
+    # Password rotation reminder. 0 = disabled (no warning ever).
+    # Soft-only — passwords stay valid past the threshold; the login
+    # response just includes a `password_warning` field so the UI can
+    # nudge the user to rotate.
+    "password_max_age_days": (None, "0"),
     # Telemetry
     "telemetry_instance_id": (None, ""),
 }
@@ -143,7 +148,7 @@ _CONFIG_ATTR_MAP = {
 }
 
 _BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "docker_read_only", "browser_enabled", "enforce_2fa"}
-_INT_KEYS = {"max_audio_upload_size", "data_retention_days", "docker_timeout", "browser_timeout"}
+_INT_KEYS = {"max_audio_upload_size", "data_retention_days", "docker_timeout", "browser_timeout", "password_max_age_days"}
 
 # Secret keys that should be masked in API responses
 _SECRET_KEYS = {
@@ -286,6 +291,10 @@ def get_all_settings(db_wrapper) -> dict:
         "browser_timeout": int(rows.get("browser_timeout", "900") or "900"),
         # Retention
         "data_retention_days": int(rows.get("data_retention_days", "0") or "0"),
+        # 2FA
+        "enforce_2fa": _to_bool(rows.get("enforce_2fa", "false")),
+        # Password rotation
+        "password_max_age_days": int(rows.get("password_max_age_days", "0") or "0"),
     }
 
 

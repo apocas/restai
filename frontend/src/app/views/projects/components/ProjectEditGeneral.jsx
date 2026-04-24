@@ -6,8 +6,10 @@ import { HelpOutline, AutoAwesome } from "@mui/icons-material";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import { Fragment, useState } from "react";
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
+import { makeErrorFor } from "./projectOptionValidators";
 
 const HelpTip = ({ text }) => (
   <Tooltip title={text} placement="top" arrow>
@@ -15,7 +17,12 @@ const HelpTip = ({ text }) => (
   </Tooltip>
 );
 
-export default function ProjectEditGeneral({ state, setState, handleChange, project, info, users, teams, promptVersions, showVersions, setShowVersions, handleTeamChange }) {
+export default function ProjectEditGeneral({ state, setState, handleChange, project, info, users, teams, promptVersions, showVersions, setShowVersions, handleTeamChange, fieldErrors = {}, clearFieldError = () => {} }) {
+  const { t } = useTranslation();
+  // Combined client + server error lookup. Server message wins once a
+  // save has been attempted; before that, client-side bounds guide the
+  // user.
+  const errorFor = makeErrorFor(fieldErrors, state);
   const auth = useAuth();
   const [aiOpen, setAiOpen] = useState(false);
   const [aiDescription, setAiDescription] = useState("");
@@ -47,7 +54,7 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
           fullWidth
           InputLabelProps={{ shrink: true }}
           name="human_name"
-          label="Project Human Name"
+          label={t("projects.edit.general.displayName")}
           variant="outlined"
           onChange={handleChange}
           value={state.human_name ?? ''}
@@ -59,7 +66,7 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
           fullWidth
           InputLabelProps={{ shrink: true }}
           name="human_description"
-          label="Project Human Description"
+          label={t("projects.edit.general.description")}
           variant="outlined"
           onChange={handleChange}
           value={state.human_description ?? ''}
@@ -134,7 +141,7 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
             <TextField
               {...params}
               variant="outlined"
-              label="Users with access"
+              label={t("nav.users")}
               placeholder="Select users"
             />
           )}
@@ -153,7 +160,7 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
           select
           fullWidth
           name="team_id"
-          label="Team"
+          label={t("common.team")}
           variant="outlined"
           onChange={handleTeamChange}
           value={state.team ? state.team.id : (project.team ? project.team.id : '')}
@@ -176,7 +183,7 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
             fullWidth
             select
             name="llm"
-            label="LLM"
+            label={t("projects.edit.general.llm")}
             variant="outlined"
             onChange={handleChange}
             value={state.llm ?? ''}
@@ -244,7 +251,7 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
               fullWidth
               InputLabelProps={{ shrink: true }}
               name="system"
-              label="System Message"
+              label={t("projects.edit.general.systemPrompt")}
               variant="outlined"
               onChange={handleChange}
               value={state.system ?? ''}
@@ -315,7 +322,7 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
           fullWidth
           InputLabelProps={{ shrink: true }}
           name="default_prompt"
-          label="Default Prompt"
+          label={t("projects.edit.general.censorship")}
           variant="outlined"
           onChange={handleChange}
           value={state.default_prompt ?? ''}
@@ -378,12 +385,13 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
                 fullWidth
                 type="number"
                 name="memory_bank_max_tokens"
-                label="Memory Bank Max Tokens"
+                label={t("projects.edit.general.memoryBankMaxTokens")}
                 variant="outlined"
                 inputProps={{ min: 200, max: 10000, step: 100 }}
                 value={state.options?.memory_bank_max_tokens ?? 2000}
-                onChange={handleChange}
-                helperText="Token budget for the injected memory block (200–10000). Older entries get rolled up automatically."
+                onChange={(e) => { clearFieldError("memory_bank_max_tokens"); handleChange(e); }}
+                error={!!errorFor("memory_bank_max_tokens")}
+                helperText={errorFor("memory_bank_max_tokens") || "Token budget for the injected memory block (200–10000). Older entries get rolled up automatically."}
               />
             </Grid>
           )}
@@ -409,7 +417,7 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
               multiline
               minRows={2}
               name="browser_allowed_domains"
-              label="Browser Allowed Domains"
+              label={t("projects.edit.general.browserAllowedDomains")}
               variant="outlined"
               value={state.options?.browser_allowed_domains ?? ''}
               onChange={(e) => setState({ ...state, options: { ...state.options, browser_allowed_domains: e.target.value } })}

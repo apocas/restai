@@ -302,6 +302,13 @@ async def run_evaluation(run_id: int, app):
         run.summary = json.dumps(summary)
         run.completed_at = datetime.now(timezone.utc)
         db.db.commit()
+        try:
+            from restai.webhooks import emit_event_for_project_id
+            emit_event_for_project_id(run.project_id, "eval_completed", {
+                "run_id": run.id, "status": "completed", "summary": summary,
+            })
+        except Exception:
+            pass
 
     except Exception as e:
         logger.exception("Eval run %d failed: %s", run_id, e)
@@ -312,6 +319,13 @@ async def run_evaluation(run_id: int, app):
                 run.error = str(e)
                 run.completed_at = datetime.now(timezone.utc)
                 db.db.commit()
+                try:
+                    from restai.webhooks import emit_event_for_project_id
+                    emit_event_for_project_id(run.project_id, "eval_completed", {
+                        "run_id": run.id, "status": "failed", "error": str(e)[:500],
+                    })
+                except Exception:
+                    pass
         except Exception:
             pass
     finally:

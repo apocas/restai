@@ -13,6 +13,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CodeIcon from "@mui/icons-material/Code";
 import { CopyBlock, monoBlue } from "react-code-blocks";
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 
 import Breadcrumb from "app/components/Breadcrumb";
 import { H4 } from "app/components/Typography";
@@ -33,18 +34,19 @@ const ContentBox = styled("div")(({ theme }) => ({
 
 const FlexBox = styled(Box)({ display: "flex", alignItems: "center" });
 
-const DURATIONS = [
-  { value: "", label: "—" },
-  { value: "1h", label: "Hourly" },
-  { value: "1d", label: "Daily" },
-  { value: "7d", label: "Weekly" },
-  { value: "30d", label: "Monthly" },
-];
-
 export default function Proxy() {
+  const { t } = useTranslation();
   const auth = useAuth();
   const { palette } = useTheme();
   const { platformCapabilities } = usePlatformCapabilities();
+
+  const DURATIONS = [
+    { value: "", label: t("proxy.durations.none") },
+    { value: "1h", label: t("proxy.durations.hourly") },
+    { value: "1d", label: t("proxy.durations.daily") },
+    { value: "7d", label: t("proxy.durations.weekly") },
+    { value: "30d", label: t("proxy.durations.monthly") },
+  ];
   const [keys, setKeys] = useState([]);
   const [info, setInfo] = useState({ models: [], url: "" });
   const [loading, setLoading] = useState(true);
@@ -67,18 +69,19 @@ export default function Proxy() {
   };
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - AI Proxy";
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - " + t("proxy.title");
     fetchAll();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
 
   const handleDelete = (key_id, name) => {
     if (name === "default") {
-      toast.error("Cannot delete the default key");
+      toast.error(t("proxy.cannotDeleteDefault"));
       return;
     }
-    if (!window.confirm(`Delete key "${name}"?`)) return;
+    if (!window.confirm(t("proxy.deleteConfirm", { name }))) return;
     api.delete("/proxy/keys/" + key_id, auth.user.token)
-      .then(() => { toast.success("Key deleted"); fetchAll(); })
+      .then(() => { toast.success(t("proxy.keyDeleted")); fetchAll(); })
       .catch(() => {});
   };
 
@@ -94,8 +97,8 @@ export default function Proxy() {
   };
 
   const handleCreate = () => {
-    if (!form.name.trim()) { toast.error("Name is required"); return; }
-    if (!form.models || form.models.length === 0) { toast.error("Select at least one model"); return; }
+    if (!form.name.trim()) { toast.error(t("proxy.nameRequired")); return; }
+    if (!form.models || form.models.length === 0) { toast.error(t("proxy.modelRequired")); return; }
 
     setCreating(true);
     const payload = {
@@ -108,7 +111,7 @@ export default function Proxy() {
     };
     api.post("/proxy/keys", payload, auth.user.token)
       .then((response) => {
-        toast.success("Key created successfully");
+        toast.success(t("proxy.created"));
         setCreatedKey(response.key);
         fetchAll();
       })
@@ -118,7 +121,7 @@ export default function Proxy() {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
+    toast.success(t("common.copied"));
   };
 
   const proxyUrl = platformCapabilities?.proxy_url || info.url || "127.0.0.1";
@@ -139,7 +142,7 @@ print(response)`;
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "AI Proxy", path: "/proxy/keys" }]} />
+        <Breadcrumb routeSegments={[{ name: t("proxy.breadcrumb"), path: "/proxy/keys" }]} />
       </Box>
 
       <ContentBox>
@@ -147,22 +150,22 @@ print(response)`;
         <Card elevation={3} sx={{ mb: 3 }}>
           <FlexBox sx={{ p: 2 }}>
             <RouteIcon sx={{ mr: 1.5 }} />
-            <H4>Proxy Info</H4>
+            <H4>{t("proxy.info")}</H4>
           </FlexBox>
           <Divider />
           <Box sx={{ p: 2 }}>
             <Grid container spacing={2}>
               <Grid item xs={12}>
-                <Typography variant="caption" color="text.secondary">Proxy Host</Typography>
+                <Typography variant="caption" color="text.secondary">{t("proxy.host")}</Typography>
                 <Typography variant="body2" sx={{ wordBreak: "break-all" }}>
                   {platformCapabilities?.proxy_url || info.url || "—"}
                 </Typography>
               </Grid>
               <Grid item xs={12}>
-                <Typography variant="caption" color="text.secondary">Available Models ({info.models.length})</Typography>
+                <Typography variant="caption" color="text.secondary">{t("proxy.availableModels", { count: info.models.length })}</Typography>
                 <Box sx={{ mt: 0.5, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                   {info.models.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary">No models available</Typography>
+                    <Typography variant="body2" color="text.secondary">{t("proxy.noModels")}</Typography>
                   ) : info.models.map((model) => (
                     <Chip key={model} label={model} size="small" variant="outlined" color="primary" />
                   ))}
@@ -177,9 +180,9 @@ print(response)`;
           <FlexBox justifyContent="space-between" sx={{ pr: 2 }}>
             <FlexBox>
               <KeyIcon sx={{ ml: 2 }} />
-              <H4 sx={{ p: 2 }}>API Keys</H4>
+              <H4 sx={{ p: 2 }}>{t("proxy.apiKeys")}</H4>
               <Typography variant="caption" color="text.secondary">
-                {keys.length} {keys.length === 1 ? "key" : "keys"}
+                {t("proxy.keys", { count: keys.length })}
               </Typography>
             </FlexBox>
             <Button
@@ -188,7 +191,7 @@ print(response)`;
               startIcon={<AddIcon />}
               onClick={openDialog}
             >
-              New Key
+              {t("proxy.newKey")}
             </Button>
           </FlexBox>
           <Divider />
@@ -196,15 +199,15 @@ print(response)`;
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ pl: 2 }}>Name</TableCell>
-                <TableCell>Key</TableCell>
-                <TableCell>Models</TableCell>
-                <TableCell align="right">Spend</TableCell>
-                <TableCell align="right">Budget</TableCell>
-                <TableCell>Duration</TableCell>
-                <TableCell align="right">RPM</TableCell>
-                <TableCell align="right">TPM</TableCell>
-                <TableCell align="center" sx={{ pr: 2 }}>Actions</TableCell>
+                <TableCell sx={{ pl: 2 }}>{t("proxy.columns.name")}</TableCell>
+                <TableCell>{t("proxy.columns.key")}</TableCell>
+                <TableCell>{t("proxy.columns.models")}</TableCell>
+                <TableCell align="right">{t("proxy.columns.spend")}</TableCell>
+                <TableCell align="right">{t("proxy.columns.budget")}</TableCell>
+                <TableCell>{t("proxy.columns.duration")}</TableCell>
+                <TableCell align="right">{t("proxy.columns.rpm")}</TableCell>
+                <TableCell align="right">{t("proxy.columns.tpm")}</TableCell>
+                <TableCell align="center" sx={{ pr: 2 }}>{t("proxy.columns.actions")}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -217,7 +220,7 @@ print(response)`;
               ) : keys.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
-                    <Typography variant="body2" color="text.secondary">No keys yet — click "New Key" to create one</Typography>
+                    <Typography variant="body2" color="text.secondary">{t("proxy.noKeys")}</Typography>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -245,7 +248,7 @@ print(response)`;
                     <TableCell align="right">{k.rpm || "—"}</TableCell>
                     <TableCell align="right">{k.tpm || "—"}</TableCell>
                     <TableCell align="center" sx={{ pr: 2 }}>
-                      <Tooltip title="Delete">
+                      <Tooltip title={t("proxy.deleteTip")}>
                         <IconButton size="small" onClick={() => handleDelete(k.id, k.name)}>
                           <DeleteIcon fontSize="small" color="error" />
                         </IconButton>
@@ -262,7 +265,7 @@ print(response)`;
         <Card elevation={3}>
           <FlexBox sx={{ pr: 2 }}>
             <CodeIcon sx={{ ml: 2 }} />
-            <H4 sx={{ p: 2 }}>Usage Example</H4>
+            <H4 sx={{ p: 2 }}>{t("proxy.usageExample")}</H4>
           </FlexBox>
           <Divider />
           <Box sx={{ p: 2 }}>
@@ -276,7 +279,7 @@ print(response)`;
         <DialogTitle>
           <FlexBox>
             <AddIcon sx={{ mr: 1 }} />
-            Create new API Key
+            {t("proxy.createTitle")}
           </FlexBox>
         </DialogTitle>
         <Divider />
@@ -284,7 +287,7 @@ print(response)`;
           {createdKey ? (
             <Stack spacing={2} sx={{ pt: 1 }}>
               <Typography variant="body2" color="text.secondary">
-                Your new key has been created. Copy it now — it won't be shown again.
+                {t("proxy.copyReveal")}
               </Typography>
               <Box
                 sx={{
@@ -295,7 +298,7 @@ print(response)`;
                 <Box component="code" sx={{ fontSize: "0.85rem", wordBreak: "break-all" }}>
                   {createdKey}
                 </Box>
-                <Tooltip title="Copy">
+                <Tooltip title={t("proxy.copyTip")}>
                   <IconButton size="small" onClick={() => copyToClipboard(createdKey)}>
                     <ContentCopyIcon fontSize="small" />
                   </IconButton>
@@ -305,12 +308,12 @@ print(response)`;
           ) : (
             <Stack spacing={2} sx={{ pt: 1 }}>
               <TextField
-                label="Name"
+                label={t("proxy.fieldName")}
                 size="small"
                 fullWidth
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                helperText="Friendly name for this key (e.g. 'production', 'dev-team')"
+                helperText={t("proxy.fieldNameHelp")}
               />
 
               <Autocomplete
@@ -322,30 +325,30 @@ print(response)`;
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Models"
-                    helperText="Models this key can call"
+                    label={t("proxy.fieldModels")}
+                    helperText={t("proxy.fieldModelsHelp")}
                   />
                 )}
               />
 
               <Stack direction="row" spacing={2}>
                 <TextField
-                  label="Max Budget (€)"
+                  label={t("proxy.fieldMaxBudget")}
                   size="small"
                   type="number"
                   fullWidth
                   value={form.max_budget}
                   onChange={(e) => setForm({ ...form, max_budget: e.target.value })}
-                  helperText="Total spend limit"
+                  helperText={t("proxy.fieldMaxBudgetHelp")}
                 />
                 <TextField
                   select
-                  label="Budget Reset"
+                  label={t("proxy.fieldBudgetReset")}
                   size="small"
                   fullWidth
                   value={form.duration_budget}
                   onChange={(e) => setForm({ ...form, duration_budget: e.target.value })}
-                  helperText="When budget resets"
+                  helperText={t("proxy.fieldBudgetResetHelp")}
                 >
                   {DURATIONS.map((d) => (
                     <MenuItem key={d.value} value={d.value}>{d.label}</MenuItem>
@@ -355,22 +358,22 @@ print(response)`;
 
               <Stack direction="row" spacing={2}>
                 <TextField
-                  label="RPM Limit"
+                  label={t("proxy.fieldRpm")}
                   size="small"
                   type="number"
                   fullWidth
                   value={form.rpm}
                   onChange={(e) => setForm({ ...form, rpm: e.target.value })}
-                  helperText="Requests per minute"
+                  helperText={t("proxy.fieldRpmHelp")}
                 />
                 <TextField
-                  label="TPM Limit"
+                  label={t("proxy.fieldTpm")}
                   size="small"
                   type="number"
                   fullWidth
                   value={form.tpm}
                   onChange={(e) => setForm({ ...form, tpm: e.target.value })}
-                  helperText="Tokens per minute"
+                  helperText={t("proxy.fieldTpmHelp")}
                 />
               </Stack>
             </Stack>
@@ -379,17 +382,17 @@ print(response)`;
         <Divider />
         <DialogActions>
           {createdKey ? (
-            <Button onClick={closeDialog} variant="contained">Done</Button>
+            <Button onClick={closeDialog} variant="contained">{t("proxy.done")}</Button>
           ) : (
             <>
-              <Button onClick={closeDialog}>Cancel</Button>
+              <Button onClick={closeDialog}>{t("common.cancel")}</Button>
               <Button
                 onClick={handleCreate}
                 variant="contained"
                 disabled={creating}
                 startIcon={creating ? <CircularProgress size={16} color="inherit" /> : <AddIcon />}
               >
-                {creating ? "Creating..." : "Create Key"}
+                {creating ? t("proxy.creating") : t("proxy.createKey")}
               </Button>
             </>
           )}

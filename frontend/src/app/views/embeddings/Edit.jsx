@@ -4,6 +4,7 @@ import useAuth from "app/hooks/useAuth";
 import EmbeddingEdit from "./components/EmbeddingEdit";
 import Breadcrumb from "app/components/Breadcrumb";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
@@ -19,6 +20,7 @@ const ContentBox = styled("div")(({ theme }) => ({
 
 
 export default function EmbeddingEditView() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [embedding, setEmbedding] = useState({});
   const auth = useAuth();
@@ -40,7 +42,7 @@ export default function EmbeddingEditView() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Embeddings", path: "/embeddings"}, { name: "Edit " + id, path: "/embedding/" + id + "/edit" }]} />
+        <Breadcrumb routeSegments={[{ name: t("nav.embeddings"), path: "/embeddings"}, { name: t("common.edit") + " " + id, path: "/embedding/" + id + "/edit" }]} />
       </Box>
 
       <ContentBox className="analytics">

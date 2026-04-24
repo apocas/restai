@@ -104,6 +104,51 @@ def test_audit_pagination(client):
     assert len(data["entries"]) <= 5
 
 
+def test_settings_change_writes_per_key_audit_row(client):
+    """A PATCH /settings call must produce one SETTING audit row per key
+    that actually changed. Secret keys must be logged with the
+    ':secret_changed' marker (no value)."""
+    import time
+
+    # 1. Read current value so we can compute a change + restore after.
+    current = client.get("/settings", auth=ADMIN).json()
+    original_currency = current.get("currency", "EUR")
+    new_currency = "USD" if original_currency != "USD" else "EUR"
+
+    try:
+        # 2. Patch a non-secret key.
+        r = client.patch("/settings", json={"currency": new_currency}, auth=ADMIN)
+        assert r.status_code == 200
+
+        # Audit logging happens in a daemon thread — give it a beat.
+        time.sleep(0.5)
+
+        # 3. Look for the per-key audit row.
+        log = client.get("/audit?start=0&end=200&action=SETTING", auth=ADMIN).json()
+        entries = log.get("entries", [])
+        currency_rows = [e for e in entries if "settings/currency" in (e.get("resource") or "")]
+        assert currency_rows, f"expected SETTING audit row for currency change, got: {[e.get('resource') for e in entries[:10]]}"
+        # Non-secret keys include a fingerprint of the new value.
+        assert new_currency in currency_rows[0]["resource"]
+
+        # 4. Patch a secret key — verify ':secret_changed' marker is used
+        # and the value itself isn't recorded.
+        r = client.patch("/settings", json={"sso_google_client_secret": "test-not-real-secret-xyz"}, auth=ADMIN)
+        assert r.status_code == 200
+        time.sleep(0.5)
+        log2 = client.get("/audit?start=0&end=200&action=SETTING", auth=ADMIN).json()
+        secret_rows = [e for e in log2.get("entries", []) if "sso_google_client_secret" in (e.get("resource") or "")]
+        assert secret_rows, "expected SETTING audit row for secret change"
+        assert ":secret_changed" in secret_rows[0]["resource"]
+        assert "test-not-real-secret-xyz" not in secret_rows[0]["resource"], (
+            "secret value leaked into audit resource"
+        )
+    finally:
+        # Restore — best-effort cleanup.
+        client.patch("/settings", json={"currency": original_currency}, auth=ADMIN)
+        client.patch("/settings", json={"sso_google_client_secret": ""}, auth=ADMIN)
+
+
 def test_cleanup(client):
     """Remove all test resources."""
     if project_id:

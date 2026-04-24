@@ -98,6 +98,9 @@ class UserDatabase(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(255), unique=True, index=True)
     hashed_password = Column(String(255))
+    # Set on every password write (create_user + update_user). Nullable
+    # because SSO/LDAP-created users have no password to age.
+    password_updated_at = Column(DateTime, nullable=True)
     is_admin = Column(Boolean, default=False)  # Platform admin
     is_private = Column(Boolean, default=False)
     is_restricted = Column(Boolean, default=False)
@@ -124,6 +127,14 @@ class ApiKeyDatabase(Base):
     created_at = Column(DateTime, nullable=False)
     allowed_projects = Column(Text, nullable=True)
     read_only = Column(Boolean, nullable=False, default=False)
+    # Per-key monthly token quota. Lets SMBs resell API access with
+    # per-customer isolation (one customer = one key = one capped pool).
+    # Null quota = unlimited. tokens_used_this_month is bumped from
+    # log_inference; quota_reset_at rolls forward to the 1st of the
+    # next month on the first check after it lapses.
+    token_quota_monthly = Column(Integer, nullable=True)
+    tokens_used_this_month = Column(Integer, nullable=False, default=0)
+    quota_reset_at = Column(DateTime, nullable=True)
 
     user = relationship('UserDatabase', back_populates='api_keys')
 
@@ -171,6 +182,14 @@ class OutputDatabase(Base):
     # themselves live in the agent sandbox / image cache; this is just a
     # record that they existed so the log viewer can show chips.
     attachments = Column(Text, nullable=True)
+
+    # Per-tool-call trace captured during an agent's `_drive_runtime`
+    # loop. JSON list with shape:
+    # [{"tool": str, "args": str (truncated), "latency_ms": int,
+    #   "status": "ok" | "error", "error": str | None}, ...]
+    # The log viewer renders this as a timeline so "why did the agent
+    # get stuck" is answerable without re-running.
+    tool_trace = Column(Text, nullable=True)
 
 
 class EvalDatasetDatabase(Base):
@@ -275,6 +294,70 @@ class ProjectInvitationDatabase(Base):
 
     project = relationship("ProjectDatabase")
     inviter = relationship("UserDatabase", foreign_keys=[invited_by])
+
+
+class BulkIngestJobDatabase(Base):
+    """Queued file-ingest job for a RAG project. The admin UI uploads
+    files that land here as ``queued`` rows; ``crons/bulk_ingest.py``
+    picks up each queued row, runs the same ingest pipeline as the
+    synchronous endpoint, and flips status to ``done`` or ``error``.
+
+    Files are stored on disk (``file_path``) rather than inline in the
+    DB so large uploads don't bloat the SQLite/Postgres file. The cron
+    is responsible for deleting the tempfile on success."""
+    __tablename__ = "bulk_ingest_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    filename = Column(String(512), nullable=False)
+    mime_type = Column(String(255), nullable=True)
+    size_bytes = Column(Integer, nullable=False, default=0)
+    file_path = Column(String(1024), nullable=False)  # on-disk tempfile path
+    method = Column(String(32), nullable=True)  # ingestion method hint (auto/docling/classic)
+    splitter = Column(String(32), nullable=True, default="sentence")
+    chunks = Column(Integer, nullable=True, default=256)
+    status = Column(String(16), nullable=False, default="queued", index=True)  # queued / processing / done / error
+    error_message = Column(Text, nullable=True)
+    documents_count = Column(Integer, nullable=True)
+    chunks_count = Column(Integer, nullable=True)
+    created_at = Column(DateTime, nullable=False)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+
+
+class ProjectTemplateDatabase(Base):
+    """Reusable project snapshot — name + system prompt + options + (for
+    block projects) Blockly workspace. Decouples sharing from the live
+    project: an admin can publish a "Customer Support Bot" template
+    without exposing their actual project. Three-tier visibility:
+    private (creator only), team (members of `team_id`), public
+    (everyone).
+
+    Instantiated via POST /templates/{id}/instantiate, which creates a
+    fresh ProjectDatabase row pre-populated with this template's
+    system_prompt + options + blockly_workspace. The instantiating
+    user picks the target team + name + LLM/embeddings (since LLM
+    access is team-scoped, the source LLM may not be available).
+    """
+    __tablename__ = "project_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    project_type = Column(String(20), nullable=False)  # rag / agent / block
+    suggested_llm = Column(String(255), nullable=True)
+    suggested_embeddings = Column(String(255), nullable=True)
+    system_prompt = Column(Text, nullable=True)
+    options_json = Column(Text, nullable=True)  # serialized ProjectOptions snapshot
+    blockly_workspace = Column(Text, nullable=True)  # JSON for block projects
+    visibility = Column(String(20), nullable=False, default="private")  # private / team / public
+    creator_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)  # required when visibility=team
+    created_at = Column(DateTime, nullable=False)
+    use_count = Column(Integer, nullable=False, default=0)
+
+    creator = relationship("UserDatabase", foreign_keys=[creator_id])
+    team = relationship("TeamDatabase", foreign_keys=[team_id])
 
 
 class WidgetDatabase(Base):
@@ -550,6 +633,26 @@ class ProjectRoutineDatabase(Base):
     updated_at = Column(DateTime, nullable=False)
 
     project = relationship("ProjectDatabase")
+
+
+class RoutineExecutionLogDatabase(Base):
+    """Per-fire history row for `ProjectRoutineDatabase`. The existing
+    routine table only has `last_result` (a single string) — not enough
+    to debug a routine that's been flaky for a week. This table keeps
+    the full history with duration, outcome, and error so admins can
+    see "routine failed at 03:14 every Tuesday" patterns."""
+    __tablename__ = "routine_execution_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    routine_id = Column(Integer, ForeignKey("project_routines.id", ondelete="CASCADE"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(String(16), nullable=False, default="ok")  # ok / error
+    result = Column(Text, nullable=True)  # truncated answer on ok, error text on error
+    duration_ms = Column(Integer, nullable=True)
+    manual = Column(Boolean, nullable=False, default=False)  # true for admin-triggered retries
+    created_at = Column(DateTime, nullable=False, index=True)
+
+    routine = relationship("ProjectRoutineDatabase")
 
 
 class CronLogDatabase(Base):

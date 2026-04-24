@@ -15,6 +15,7 @@ import {
 import useAuth from "app/hooks/useAuth";
 import useSettings from "app/hooks/useSettings";
 import api from "app/utils/api";
+import { useTranslation } from "react-i18next";
 
 import { Span } from "app/components/Typography";
 import { MatxMenu } from "app/components";
@@ -32,6 +33,7 @@ import {
   PowerSettingsNew,
   Search as SearchIcon,
 } from "@mui/icons-material";
+import { Divider } from "@mui/material";
 import SmartSearch from "app/components/SmartSearch";
 
 const StyledIconButton = styled(IconButton)(({ theme }) => ({
@@ -87,6 +89,7 @@ const Layout1Topbar = () => {
   const theme = useTheme();
   const { settings, updateSettings } = useSettings();
   const { logout, user } = useAuth();
+  const { t } = useTranslation();
   const isMdScreen = useMediaQuery(theme.breakpoints.down("md"));
   const [inviteCount, setInviteCount] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -170,14 +173,14 @@ const Layout1Topbar = () => {
             <StyledItem>
               <Link to="/">
                 <Home />
-                <Span>Home</Span>
+                <Span>{t("nav.home")}</Span>
               </Link>
             </StyledItem>
 
             <StyledItem>
               <Link to={"/user/" + user.username}>
                 <Person />
-                <Span>Profile</Span>
+                <Span>{t("nav.profile")}</Span>
               </Link>
             </StyledItem>
 
@@ -186,13 +189,15 @@ const Layout1Topbar = () => {
                 <Badge badgeContent={inviteCount} color="error">
                   <Mail />
                 </Badge>
-                <Span>Invites</Span>
+                <Span>{t("nav.invitations")}</Span>
               </Link>
             </StyledItem>
 
+            <Divider sx={{ my: 0.5 }} />
+
             <StyledItem onClick={logout}>
               <PowerSettingsNew />
-              <Span>Logout</Span>
+              <Span>{t("nav.logout")}</Span>
             </StyledItem>
           </MatxMenu>
         </Box>

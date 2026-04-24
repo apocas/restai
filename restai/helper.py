@@ -25,7 +25,7 @@ from restai.config import LOG_LEVEL
 import json
 
 from restai.projects.base import ProjectBase
-from restai.budget import check_budget, check_rate_limit
+from restai.budget import check_budget, check_rate_limit, check_api_key_quota, record_api_key_tokens
 
 logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger(__name__)
@@ -356,6 +356,17 @@ async def chat_main(
         raise
 
     try:
+        check_api_key_quota(user, db)
+    except HTTPException as e:
+        _log_inference_error(
+            project, user, db,
+            question=_question, image=_image, attachments=_attachments,
+            status="quota", error=getattr(e, "detail", str(e)),
+            system_prompt=_sys, context=_ctx, start_time=start_time,
+        )
+        raise
+
+    try:
         project = _apply_context(project, chat_input)
 
         proj_logic: ProjectBase
@@ -460,6 +471,17 @@ async def question_main(
             project, user, db,
             question=_question, image=_image, attachments=_attachments,
             status="rate_limit", error=getattr(e, "detail", str(e)),
+            system_prompt=_sys, context=_ctx, start_time=start_time,
+        )
+        raise
+
+    try:
+        check_api_key_quota(user, db)
+    except HTTPException as e:
+        _log_inference_error(
+            project, user, db,
+            question=_question, image=_image, attachments=_attachments,
+            status="quota", error=getattr(e, "detail", str(e)),
             system_prompt=_sys, context=_ctx, start_time=start_time,
         )
         raise

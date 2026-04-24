@@ -4,6 +4,7 @@ import useAuth from "app/hooks/useAuth";
 import EmbeddingInfo from "./components/EmbeddingInfo";
 import Breadcrumb from "app/components/Breadcrumb";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
@@ -18,6 +19,7 @@ const ContentBox = styled("div")(({ theme }) => ({
 }));
 
 export default function EmbeddingViewInfo() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [projects, setProjects] = useState([]);
   const [embedding, setEmbedding] = useState({});
@@ -58,7 +60,7 @@ export default function EmbeddingViewInfo() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Embeddings", path: "/embeddings" }, { name: id, path: "/embedding/" + id }]} />
+        <Breadcrumb routeSegments={[{ name: t("nav.embeddings"), path: "/embeddings" }, { name: id, path: "/embedding/" + id }]} />
       </Box>
 
       <ContentBox className="analytics">

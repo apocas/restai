@@ -1,11 +1,35 @@
 import { toast } from 'react-toastify';
 
 class ApiError extends Error {
-  constructor(status, detail) {
+  constructor(status, detail, fieldErrors = {}) {
     super(detail);
     this.status = status;
     this.detail = detail;
+    // Map of field name -> first error message, parsed from FastAPI's
+    // Pydantic-422 `detail` array. Forms can consume this to mark the
+    // offending TextField with `error` + `helperText`.
+    this.fieldErrors = fieldErrors;
   }
+}
+
+// Pull a field-path → message map out of FastAPI's 422 detail shape.
+// FastAPI returns `[{loc:[...], msg:"...", type:"..."}, ...]` where loc
+// is ["body", "field_name"] (or ["path", "..."] / ["query", "..."]).
+// We flatten multi-level body locs to "a.b" so nested models still work.
+function _extractFieldErrors(detail) {
+  if (!Array.isArray(detail)) return {};
+  const out = {};
+  for (const err of detail) {
+    if (!err || !Array.isArray(err.loc) || err.loc.length < 2) continue;
+    const [scope, ...rest] = err.loc;
+    if (scope !== "body" && scope !== "query" && scope !== "path") continue;
+    const key = rest.join(".");
+    if (!key) continue;
+    let msg = err.msg || err.message || "";
+    if (msg.startsWith("Value error, ")) msg = msg.slice("Value error, ".length);
+    if (!(key in out)) out[key] = msg;
+  }
+  return out;
 }
 
 async function request(path, options = {}, token = null) {
@@ -21,17 +45,20 @@ async function request(path, options = {}, token = null) {
   const response = await fetch(url + path, { ...options, headers });
   if (!response.ok) {
     let detail = response.statusText;
+    let fieldErrors = {};
     try {
       const data = await response.json();
       let d = data.detail || detail;
-      // Extract clean message from validation errors
+      if (Array.isArray(d)) {
+        // FastAPI validation error shape — extract per-field before
+        // collapsing to a toast string so forms can still show inline.
+        fieldErrors = _extractFieldErrors(d);
+        d = d.map(e => e.msg || e.message || JSON.stringify(e)).join("; ");
+      }
+      // Legacy: stringified dict with 'msg' key (older endpoints).
       if (typeof d === "string" && d.includes("'msg':")) {
         const match = d.match(/'msg':\s*'([^']+)'/);
         if (match) d = match[1];
-      }
-      // Handle array of validation errors
-      if (Array.isArray(d)) {
-        d = d.map(e => e.msg || e.message || JSON.stringify(e)).join("; ");
       }
       detail = d;
     } catch {}
@@ -49,7 +76,7 @@ async function request(path, options = {}, token = null) {
     }
 
     if (!options.silent) toast.error(detail);
-    throw new ApiError(response.status, detail);
+    throw new ApiError(response.status, detail, fieldErrors);
   }
   if (response.status === 204) return null;
   return response.json();

@@ -3,9 +3,11 @@ import { H4 } from "app/components/Typography";
 import { useState, useEffect } from "react";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 export default function EmbeddingEdit({ embedding }) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [state, setState] = useState({});
   const navigate = useNavigate();
@@ -52,7 +54,7 @@ export default function EmbeddingEdit({ embedding }) {
 
   return (
     <Card elevation={3}>
-      <H4 p={2}>Edit Embedding - {embedding.name}</H4>
+      <H4 p={2}>{t("embeddings.edit.title", { name: embedding.name })}</H4>
 
       <Divider sx={{ mb: 1 }} />
 
@@ -64,7 +66,7 @@ export default function EmbeddingEdit({ embedding }) {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 name="name"
-                label="Name"
+                label={t("embeddings.edit.name")}
                 variant="outlined"
                 onChange={handleChange}
                 value={state.name}
@@ -76,7 +78,7 @@ export default function EmbeddingEdit({ embedding }) {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 name="class_name"
-                label="Class Name"
+                label={t("embeddings.edit.className")}
                 variant="outlined"
                 onChange={handleChange}
                 value={state.class_name}
@@ -88,7 +90,7 @@ export default function EmbeddingEdit({ embedding }) {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 name="options"
-                label="Options"
+                label={t("embeddings.edit.options")}
                 variant="outlined"
                 onChange={handleChange}
                 value={state.options}
@@ -100,7 +102,7 @@ export default function EmbeddingEdit({ embedding }) {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 name="privacy"
-                label="Privacy"
+                label={t("embeddings.edit.privacy")}
                 variant="outlined"
                 onChange={handleChange}
                 value={state.privacy}
@@ -112,7 +114,7 @@ export default function EmbeddingEdit({ embedding }) {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 name="description"
-                label="Description"
+                label={t("embeddings.edit.description")}
                 variant="outlined"
                 onChange={handleChange}
                 value={state.description}
@@ -124,7 +126,7 @@ export default function EmbeddingEdit({ embedding }) {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 name="dimension"
-                label="Dimension"
+                label={t("embeddings.edit.dimension")}
                 variant="outlined"
                 onChange={handleChange}
                 value={state.dimension}
@@ -133,10 +135,10 @@ export default function EmbeddingEdit({ embedding }) {
 
             <Grid item xs={12}>
               <Button type="submit" variant="contained">
-                Save Changes
+                {t("embeddings.edit.saveChanges")}
               </Button>
               <Button variant="outlined" sx={{ ml: 2 }} onClick={() => { navigate("/embeddings") }}>
-                Cancel
+                {t("common.cancel")}
               </Button>
             </Grid>
           </Grid>

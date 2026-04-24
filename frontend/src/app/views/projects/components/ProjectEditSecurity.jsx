@@ -1,7 +1,11 @@
 import { Grid, TextField, MenuItem, Autocomplete, Divider } from "@mui/material";
 import { Fragment } from "react";
+import { useTranslation } from "react-i18next";
+import { makeErrorFor } from "./projectOptionValidators";
 
-export default function ProjectEditSecurity({ state, setState, handleChange, projects }) {
+export default function ProjectEditSecurity({ state, setState, handleChange, projects, fieldErrors = {}, clearFieldError = () => {} }) {
+  const { t } = useTranslation();
+  const errorFor = makeErrorFor(fieldErrors, state);
   return (
     <Grid container spacing={3}>
       <Grid item sm={6} xs={12}>
@@ -16,7 +20,7 @@ export default function ProjectEditSecurity({ state, setState, handleChange, pro
               {...params}
               fullWidth
               InputLabelProps={{ shrink: true }}
-              label="Input Guard"
+              label={t("projects.edit.security.inputGuard")}
               variant="outlined"
               helperText="Project that evaluates user input before inference"
             />
@@ -36,7 +40,7 @@ export default function ProjectEditSecurity({ state, setState, handleChange, pro
               {...params}
               fullWidth
               InputLabelProps={{ shrink: true }}
-              label="Output Guard"
+              label={t("projects.edit.security.outputGuard")}
               variant="outlined"
               helperText="Project that evaluates LLM responses after inference"
             />
@@ -49,7 +53,7 @@ export default function ProjectEditSecurity({ state, setState, handleChange, pro
           fullWidth
           InputLabelProps={{ shrink: true }}
           name="censorship"
-          label="Censorship Message"
+          label={t("projects.edit.general.censorship")}
           variant="outlined"
           onChange={handleChange}
           value={state.censorship ?? ''}
@@ -62,7 +66,7 @@ export default function ProjectEditSecurity({ state, setState, handleChange, pro
           select
           fullWidth
           InputLabelProps={{ shrink: true }}
-          label="Guard Mode"
+          label={t("projects.edit.security.guardMode")}
           variant="outlined"
           value={state.options?.guard_mode || "block"}
           onChange={(e) => setState({ ...state, options: { ...state.options, guard_mode: e.target.value } })}
@@ -82,12 +86,13 @@ export default function ProjectEditSecurity({ state, setState, handleChange, pro
           fullWidth
           InputLabelProps={{ shrink: true }}
           name="rate_limit"
-          label="Rate Limit (requests/min)"
+          label={t("projects.edit.security.rateLimit")}
           variant="outlined"
           type="number"
-          onChange={handleChange}
+          onChange={(e) => { clearFieldError("rate_limit"); handleChange(e); }}
           value={state.options?.rate_limit ?? ''}
-          helperText="Maximum requests per minute. Leave empty for unlimited."
+          error={!!errorFor("rate_limit")}
+          helperText={errorFor("rate_limit") || "Maximum requests per minute. Leave empty for unlimited."}
           inputProps={{ min: 1, max: 10000 }}
         />
       </Grid>

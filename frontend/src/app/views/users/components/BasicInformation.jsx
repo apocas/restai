@@ -8,7 +8,8 @@ import {
   Divider,
   TextField,
   Switch,
-  Typography
+  Typography,
+  MenuItem
 } from "@mui/material";
 import AvatarBadge from "./AvatarBadge";
 import { H4, H5, Small } from "app/components/Typography";
@@ -17,7 +18,9 @@ import sha256 from 'crypto-js/sha256';
 import FormControlLabel from "@mui/material/FormControlLabel";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { People, AccountTree, Key, PersonOutline } from "@mui/icons-material";
+import { SUPPORTED_LANGUAGES, applyLanguage } from "app/i18n";
 import api from "app/utils/api";
 
 const ContentWrapper = styled(Box)(({ theme }) => ({
@@ -35,9 +38,26 @@ const ImageWrapper = styled(Box)(({ theme }) => ({
 }));
 
 export default function BasicInformation({ user }) {
+  const { t, i18n: i18nInstance } = useTranslation();
   const auth = useAuth();
   const [state, setState] = useState({});
   const navigate = useNavigate();
+
+  // Language is only editable when editing your own profile. Read the
+  // current value from user.options.language if present, otherwise fall
+  // back to i18n's active language so the dropdown shows something sane.
+  const isSelf = auth.user?.username === user.username;
+  const initialLang = (() => {
+    try {
+      const opts = typeof user.options === "string" ? JSON.parse(user.options) : user.options;
+      return (opts && opts.language) || i18nInstance.language || "en";
+    } catch {
+      return i18nInstance.language || "en";
+    }
+  })();
+  const [language, setLanguage] = useState(initialLang);
+
+  useEffect(() => { setLanguage(initialLang); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -56,9 +76,14 @@ export default function BasicInformation({ user }) {
     if (state.is_restricted !== user.is_restricted) {
       update.is_restricted = state.is_restricted;
     }
+    if (isSelf && language !== initialLang) {
+      const prevOpts = (user.options && typeof user.options === "object") ? user.options : {};
+      update.options = { ...prevOpts, language };
+    }
 
     api.patch("/users/" + user.username, update, auth.user.token)
       .then(() => {
+        if (isSelf && language !== initialLang) applyLanguage(language);
         window.location.href = "/admin/user/" + user.username;
       })
       .catch(() => {});
@@ -96,21 +121,21 @@ export default function BasicInformation({ user }) {
               <FlexBox alignItems="center" gap={1}>
                 <AccountTree sx={{ color: "text.disabled" }} />
                 <Small fontWeight={600} color="text.disabled">
-                  {user.projects && user.projects.length} Projects
+                  {user.projects && user.projects.length} {t("users.basic.projects")}
                 </Small>
               </FlexBox>
 
               <FlexBox alignItems="center" gap={1}>
                 <People sx={{ color: "text.disabled" }} />
                 <Small fontWeight={600} color="text.disabled">
-                  {user.is_admin ? "Admin" : "Regular"}
+                  {user.is_admin ? t("users.basic.roleAdmin") : t("users.basic.roleRegular")}
                 </Small>
               </FlexBox>
 
               <FlexBox alignItems="center" gap={1}>
                 <Key sx={{ color: "text.disabled" }} />
                 <Small fontWeight={600} color="text.disabled">
-                  {user.sso ? "SSO" : "Local"}
+                  {user.sso ? t("users.basic.authSso") : t("users.basic.authLocal")}
                 </Small>
               </FlexBox>
 
@@ -127,7 +152,7 @@ export default function BasicInformation({ user }) {
                     auth.impersonate(user.username);
                   }}
                 >
-                  Impersonate
+                  {t("users.basic.impersonate")}
                 </Button>
               </Box>
             )}
@@ -137,7 +162,7 @@ export default function BasicInformation({ user }) {
       </Card>
 
       <Card sx={{ mt: 3 }}>
-        <H5 padding={3}>Basic Information</H5>
+        <H5 padding={3}>{t("users.basic.title")}</H5>
         <Divider />
 
         <form onSubmit={handleSubmit}>
@@ -149,7 +174,7 @@ export default function BasicInformation({ user }) {
                   InputLabelProps={{ shrink: true }}
                   disabled
                   name="username"
-                  label="Username"
+                  label={t("users.fields.username")}
                   variant="outlined"
                   onChange={handleChange}
                   value={user.username ?? ''}
@@ -161,17 +186,39 @@ export default function BasicInformation({ user }) {
                   fullWidth
                   InputLabelProps={{ shrink: true }}
                   name="sso"
-                  label="SSO"
+                  label={t("users.basic.authSso")}
                   variant="outlined"
                   onChange={handleChange}
                   value={user.sso ?? ''}
                 />
               </Grid>
 
+              {isSelf && (
+                <Grid item sm={6} xs={12}>
+                  <TextField
+                    select
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                    name="language"
+                    label={t("users.basic.language")}
+                    variant="outlined"
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    helperText={t("users.basic.languageHelp")}
+                  >
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <MenuItem key={lang.code} value={lang.code}>
+                        {lang.nativeLabel}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+              )}
+
               {auth.user.is_admin === true &&
                 <Grid item sm={6} xs={12}>
                   <FormControlLabel
-                    label="Administrator"
+                    label={t("users.fields.isAdmin")}
                     control={
                       <Switch
                         checked={state.is_admin ?? false}
@@ -188,7 +235,7 @@ export default function BasicInformation({ user }) {
                 <>
                   <Grid item sm={6} xs={12}>
                     <FormControlLabel
-                      label="Local AI only"
+                      label={t("users.fields.isPrivate")}
                       control={
                         <Switch
                           checked={state.is_private ?? false}
@@ -202,7 +249,7 @@ export default function BasicInformation({ user }) {
 
                   <Grid item sm={6} xs={12}>
                     <FormControlLabel
-                      label="Restricted"
+                      label={t("users.basic.restricted")}
                       control={
                         <Switch
                           checked={state.is_restricted ?? false}
@@ -213,7 +260,7 @@ export default function BasicInformation({ user }) {
                       }
                     />
                     <Typography variant="caption" color="text.secondary" display="block">
-                      Restricted users can only chat with existing projects. They cannot create, edit, or delete projects, ingest data, or use direct access endpoints.
+                      {t("users.basic.restrictedHelp")}
                     </Typography>
                   </Grid>
                 </>
@@ -222,10 +269,10 @@ export default function BasicInformation({ user }) {
 
               <Grid item xs={12}>
                 <Button type="submit" variant="contained">
-                  Save Changes
+                  {t("users.basic.saveChanges")}
                 </Button>
                 <Button variant="outlined" sx={{ ml: 2 }} onClick={() => { navigate("/users") }}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
               </Grid>
             </Grid>

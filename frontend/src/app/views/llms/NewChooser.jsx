@@ -3,6 +3,7 @@ import {
   CloudDownload, Tune, ArrowForward, Bolt, CheckCircle,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import Breadcrumb from "app/components/Breadcrumb";
 
 const Container = styled("div")(({ theme }) => ({
@@ -154,6 +155,7 @@ function Option({ accent, badge, badgeIcon, icon: Icon, title, description, feat
 }
 
 export default function NewChooser() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   return (
@@ -161,8 +163,8 @@ export default function NewChooser() {
       <Box className="breadcrumb">
         <Breadcrumb
           routeSegments={[
-            { name: "LLMs", path: "/llms" },
-            { name: "New LLM" },
+            { name: t("nav.llms"), path: "/llms" },
+            { name: t("llms.newBreadcrumb") },
           ]}
         />
       </Box>
@@ -175,15 +177,14 @@ export default function NewChooser() {
             color="primary"
             sx={{ mb: 1, letterSpacing: "-0.3px" }}
           >
-            Add a new LLM
+            {t("llms.chooser.title")}
           </Typography>
           <Typography
             variant="body1"
             color="text.secondary"
             sx={{ maxWidth: 560, mx: "auto" }}
           >
-            Connect a language model to your platform. Pick the fastest path
-            based on where your model is hosted.
+            {t("llms.chooser.subtitle")}
           </Typography>
         </Box>
       </Hero>
@@ -202,16 +203,16 @@ export default function NewChooser() {
       >
         <Option
           accent="#10b981"
-          badge="Fastest"
+          badge={t("llms.chooser.fastest")}
           badgeIcon={<Bolt sx={{ fontSize: 12 }} />}
           icon={CloudDownload}
-          title="Import from Ollama"
-          description="Connect to a local or remote Ollama instance and pull its installed models in one click."
+          title={t("llms.chooser.ollama")}
+          description={t("llms.chooser.ollamaDesc")}
           features={[
-            "Auto-detects context window",
-            "Detects vision capability",
-            "Zero manual configuration",
-            "Bulk import supported",
+            t("llms.chooser.featAutoCtx"),
+            t("llms.chooser.featVision"),
+            t("llms.chooser.featZeroConfig"),
+            t("llms.chooser.featBulk"),
           ]}
           onClick={() => navigate("/llms/ollama")}
         />
@@ -219,13 +220,13 @@ export default function NewChooser() {
         <Option
           accent="#6366f1"
           icon={Tune}
-          title="Add manually"
-          description="Configure any supported provider — OpenAI, Anthropic, Azure, Bedrock, Gemini, and more."
+          title={t("llms.chooser.manual")}
+          description={t("llms.chooser.manualDesc")}
           features={[
-            "13+ provider integrations",
-            "OpenAI-compatible endpoints",
-            "Fine-grained options per model",
-            "Full control over credentials",
+            t("llms.chooser.feat13"),
+            t("llms.chooser.featCompat"),
+            t("llms.chooser.featFineGrain"),
+            t("llms.chooser.featCredentials"),
           ]}
           onClick={() => navigate("/llms/new/manual")}
         />

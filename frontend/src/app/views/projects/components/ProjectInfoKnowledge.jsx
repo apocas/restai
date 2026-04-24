@@ -1,5 +1,6 @@
 import { Card, Chip, Grid, Typography, styled } from "@mui/material";
 import { Storage } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 import RAGUpload from "./RAGUpload";
 import RAGBrowser from "./RAGBrowser";
 import RAGRetrieval from "./RAGRetrieval";
@@ -24,114 +25,115 @@ const DetailItem = ({ label, children }) => (
 );
 
 export default function ProjectInfoKnowledge({ project }) {
+  const { t } = useTranslation();
   return (
     <Grid container spacing={3}>
       {/* RAG Settings */}
       <Grid item xs={12}>
         <Card elevation={1} sx={{ p: 2.5 }}>
-          <SectionTitle><Storage fontSize="small" /> RAG Settings</SectionTitle>
+          <SectionTitle><Storage fontSize="small" /> {t("projects.knowledge.infoKnowledge.title")}</SectionTitle>
           <Grid container spacing={2}>
-            <DetailItem label="Documents">
+            <DetailItem label={t("projects.knowledge.infoKnowledge.documents")}>
               <Typography variant="body2" fontWeight="bold">
                 {project.chunks ?? 0}
               </Typography>
             </DetailItem>
             {project.embeddings && (
-              <DetailItem label="Embeddings">
+              <DetailItem label={t("projects.knowledge.infoKnowledge.embeddings")}>
                 <Typography variant="body2" fontFamily="monospace">
                   {project.embeddings}
                 </Typography>
               </DetailItem>
             )}
             {project.vectorstore && (
-              <DetailItem label="Vector Store">
+              <DetailItem label={t("projects.knowledge.infoKnowledge.vectorStore")}>
                 <Chip label={project.vectorstore} size="small" variant="outlined" />
               </DetailItem>
             )}
-            <DetailItem label="Top-K Documents">
+            <DetailItem label={t("projects.knowledge.infoKnowledge.topK")}>
               <Typography variant="body2">{project.options?.k ?? 4}</Typography>
             </DetailItem>
-            <DetailItem label="Score Cutoff">
+            <DetailItem label={t("projects.knowledge.infoKnowledge.scoreCutoff")}>
               <Typography variant="body2">{project.options?.score ?? 0.0}</Typography>
             </DetailItem>
-            <DetailItem label="ColBERT Rerank">
+            <DetailItem label={t("projects.knowledge.infoKnowledge.colbertRerank")}>
               <Chip
-                label={project.options?.colbert_rerank ? "Enabled" : "Disabled"}
+                label={project.options?.colbert_rerank ? t("common.enabled") : t("common.disabled")}
                 size="small"
                 color={project.options?.colbert_rerank ? "success" : "default"}
                 variant="outlined"
               />
             </DetailItem>
-            <DetailItem label="LLM Rerank">
+            <DetailItem label={t("projects.knowledge.infoKnowledge.llmRerank")}>
               <Chip
-                label={project.options?.llm_rerank ? "Enabled" : "Disabled"}
+                label={project.options?.llm_rerank ? t("common.enabled") : t("common.disabled")}
                 size="small"
                 color={project.options?.llm_rerank ? "success" : "default"}
                 variant="outlined"
               />
             </DetailItem>
-            <DetailItem label="Cache">
+            <DetailItem label={t("projects.knowledge.infoKnowledge.cache")}>
               <Chip
-                label={project.options?.cache ? "Enabled" : "Disabled"}
+                label={project.options?.cache ? t("common.enabled") : t("common.disabled")}
                 size="small"
                 color={project.options?.cache ? "success" : "default"}
                 variant="outlined"
               />
             </DetailItem>
             {project.options?.cache && (
-              <DetailItem label="Cache Threshold">
+              <DetailItem label={t("projects.knowledge.infoKnowledge.cacheThreshold")}>
                 <Typography variant="body2">
                   {project.options.cache_threshold ?? 0.85}
                 </Typography>
               </DetailItem>
             )}
             {project.options?.connection && (
-              <DetailItem label="SQL Connection">
-                <Chip label="Configured" size="small" color="info" variant="outlined" />
+              <DetailItem label={t("projects.knowledge.infoKnowledge.sqlConnection")}>
+                <Chip label={t("projects.knowledge.infoKnowledge.configured")} size="small" color="info" variant="outlined" />
               </DetailItem>
             )}
             {project.options?.tables && (
-              <DetailItem label="SQL Tables">
+              <DetailItem label={t("projects.knowledge.infoKnowledge.sqlTables")}>
                 <Typography variant="body2" fontFamily="monospace">
                   {project.options.tables}
                 </Typography>
               </DetailItem>
             )}
-            <DetailItem label="Knowledge Graph">
+            <DetailItem label={t("projects.knowledge.infoKnowledge.knowledgeGraph")}>
               <Chip
-                label={project.options?.enable_knowledge_graph ? "Enabled" : "Disabled"}
+                label={project.options?.enable_knowledge_graph ? t("common.enabled") : t("common.disabled")}
                 size="small"
                 color={project.options?.enable_knowledge_graph ? "success" : "default"}
                 variant="outlined"
               />
             </DetailItem>
-            <DetailItem label="Logging">
+            <DetailItem label={t("projects.knowledge.infoKnowledge.logging")}>
               <Chip
-                label={project.options?.logging !== false ? "Enabled" : "Disabled"}
+                label={project.options?.logging !== false ? t("common.enabled") : t("common.disabled")}
                 size="small"
                 color={project.options?.logging !== false ? "success" : "default"}
                 variant="outlined"
               />
             </DetailItem>
             {project.options?.rate_limit && (
-              <DetailItem label="Rate Limit">
-                <Typography variant="body2">{project.options.rate_limit} req/min</Typography>
+              <DetailItem label={t("projects.knowledge.infoKnowledge.rateLimit")}>
+                <Typography variant="body2">{t("projects.knowledge.infoKnowledge.rateLimitValue", { value: project.options.rate_limit })}</Typography>
               </DetailItem>
             )}
             {project.guard && (
-              <DetailItem label="Input Guard">
+              <DetailItem label={t("projects.knowledge.infoKnowledge.inputGuard")}>
                 <Chip label={project.guard} size="small" color="warning" variant="outlined" />
               </DetailItem>
             )}
             {project.options?.guard_output && (
-              <DetailItem label="Output Guard">
+              <DetailItem label={t("projects.knowledge.infoKnowledge.outputGuard")}>
                 <Chip label={project.options.guard_output} size="small" color="warning" variant="outlined" />
               </DetailItem>
             )}
             {(project.guard || project.options?.guard_output) && (
-              <DetailItem label="Guard Mode">
+              <DetailItem label={t("projects.knowledge.infoKnowledge.guardMode")}>
                 <Chip
-                  label={project.options?.guard_mode === "warn" ? "Warn" : "Block"}
+                  label={project.options?.guard_mode === "warn" ? t("projects.knowledge.infoKnowledge.guardWarn") : t("projects.knowledge.infoKnowledge.guardBlock")}
                   size="small"
                   color={project.options?.guard_mode === "warn" ? "info" : "error"}
                   variant="outlined"
@@ -139,23 +141,23 @@ export default function ProjectInfoKnowledge({ project }) {
               </DetailItem>
             )}
             {project.censorship && (
-              <DetailItem label="Censorship Message">
+              <DetailItem label={t("projects.knowledge.infoKnowledge.censorshipMessage")}>
                 <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
                   {project.censorship.length > 80 ? project.censorship.slice(0, 80) + "…" : project.censorship}
                 </Typography>
               </DetailItem>
             )}
-            <DetailItem label="Auto-Sync">
+            <DetailItem label={t("projects.knowledge.infoKnowledge.autoSync")}>
               {project.options?.sync_enabled && project.options?.sync_sources?.length > 0 ? (
                 <Chip
-                  label={`Active (${project.options.sync_sources.length} source${project.options.sync_sources.length > 1 ? "s" : ""})`}
+                  label={t("projects.knowledge.infoKnowledge.autoSyncActive", { count: project.options.sync_sources.length })}
                   size="small"
                   color="success"
                   variant="outlined"
                 />
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  Disabled
+                  {t("common.disabled")}
                 </Typography>
               )}
             </DetailItem>

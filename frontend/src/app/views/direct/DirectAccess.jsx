@@ -11,6 +11,7 @@ import {
 import { Psychology, Image, Speaker, DataArray } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import { Breadcrumb } from "app/components";
+import { Trans, useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
@@ -40,6 +41,7 @@ const CodeBlock = styled("pre")(({ theme }) => ({
 }));
 
 export default function DirectAccess() {
+  const { t } = useTranslation();
   const [models, setModels] = useState({ llms: [], embeddings: [], image_generators: [], audio_generators: [] });
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -47,7 +49,7 @@ export default function DirectAccess() {
   const baseUrl = process.env.REACT_APP_RESTAI_API_URL || window.location.origin;
 
   useEffect(() => {
-    document.title = `${process.env.REACT_APP_RESTAI_NAME || "RESTai"} - Direct Access`;
+    document.title = `${process.env.REACT_APP_RESTAI_NAME || "RESTai"} - ${t("direct.title")}`;
 
     const fetchModels = async () => {
       try {
@@ -65,20 +67,19 @@ export default function DirectAccess() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Direct Access", path: "/direct" }]} />
+        <Breadcrumb routeSegments={[{ name: t("direct.breadcrumb"), path: "/direct" }]} />
       </Box>
 
       <StyledCard>
         <Typography variant="h4" gutterBottom>
-          Direct Access
+          {t("direct.title")}
         </Typography>
         <Typography variant="body1" color="textSecondary" paragraph>
-          Access LLMs, embeddings, image generators, and audio transcription directly via OpenAI-compatible API endpoints.
-          Use your API key for authentication (Bearer token or Basic auth).
+          {t("direct.subtitle")}
         </Typography>
 
         <Alert severity="info" sx={{ mb: 0 }}>
-          Base URL: <strong>{baseUrl}</strong> &mdash; manage your API keys in your user profile.
+          <Trans i18nKey="direct.baseUrlLine" values={{ url: baseUrl }} components={{ strong: <strong /> }} />
         </Alert>
       </StyledCard>
 
@@ -86,19 +87,18 @@ export default function DirectAccess() {
       <StyledCard>
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <Psychology color="primary" />
-          <Typography variant="h5">Chat Completions</Typography>
+          <Typography variant="h5">{t("direct.chat")}</Typography>
         </Box>
         <Typography variant="body2" color="textSecondary" paragraph>
           <strong>POST</strong> {baseUrl}/v1/chat/completions
         </Typography>
         <Typography variant="body2" paragraph>
-          OpenAI-compatible chat completions endpoint. Supports both streaming (<code>stream: true</code>) and non-streaming responses.
-          Works with any LLM your team has access to.
+          {t("direct.chatDesc")}
         </Typography>
 
         {models.llms.length > 0 ? (
           <Box mb={2}>
-            <Typography variant="subtitle2" gutterBottom>Available Models:</Typography>
+            <Typography variant="subtitle2" gutterBottom>{t("direct.availableModels")}</Typography>
             <Box display="flex" flexWrap="wrap" gap={1}>
               {models.llms.map((llm) => (
                 <Chip key={llm.name} label={llm.name} size="small" variant="outlined" />
@@ -108,13 +108,13 @@ export default function DirectAccess() {
         ) : (
           !loading && (
             <Alert severity="warning" sx={{ mb: 2 }}>
-              No LLMs available. Ask your team admin to grant LLM access to your team.
+              {t("direct.noLlms")}
             </Alert>
           )
         )}
 
         <Divider sx={{ my: 2 }} />
-        <Typography variant="subtitle2" gutterBottom>Python (openai SDK):</Typography>
+        <Typography variant="subtitle2" gutterBottom>{t("direct.pythonSdk")}</Typography>
         <CodeBlock>
           <code>{`from openai import OpenAI
 
@@ -133,7 +133,7 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)`}</code>
         </CodeBlock>
 
-        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>Streaming example:</Typography>
+        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>{t("direct.streamingExample")}</Typography>
         <CodeBlock>
           <code>{`stream = client.chat.completions.create(
     model="${models.llms[0]?.name || 'your-model'}",
@@ -145,7 +145,7 @@ for chunk in stream:
         print(chunk.choices[0].delta.content, end="")`}</code>
         </CodeBlock>
 
-        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>curl:</Typography>
+        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>{t("direct.curl")}</Typography>
         <CodeBlock>
           <code>{`curl ${baseUrl}/v1/chat/completions \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -161,35 +161,34 @@ for chunk in stream:
       <StyledCard>
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <DataArray color="primary" />
-          <Typography variant="h5">Embeddings</Typography>
+          <Typography variant="h5">{t("direct.embeddings")}</Typography>
         </Box>
         <Typography variant="body2" color="textSecondary" paragraph>
           <strong>POST</strong> {baseUrl}/v1/embeddings
         </Typography>
         <Typography variant="body2" paragraph>
-          OpenAI-compatible embeddings endpoint. Generate vector embeddings for text inputs.
-          Supports single or batch input. Works with any embedding model your team has access to.
+          {t("direct.embeddingsDesc")}
         </Typography>
 
         {models.embeddings.length > 0 ? (
           <Box mb={2}>
-            <Typography variant="subtitle2" gutterBottom>Available Models:</Typography>
+            <Typography variant="subtitle2" gutterBottom>{t("direct.availableModels")}</Typography>
             <Box display="flex" flexWrap="wrap" gap={1}>
               {models.embeddings.map((emb) => (
-                <Chip key={emb.name} label={`${emb.name} (dim: ${emb.dimension})`} size="small" variant="outlined" />
+                <Chip key={emb.name} label={t("direct.embeddingChip", { name: emb.name, dim: emb.dimension })} size="small" variant="outlined" />
               ))}
             </Box>
           </Box>
         ) : (
           !loading && (
             <Alert severity="warning" sx={{ mb: 2 }}>
-              No embedding models available. Ask your team admin to grant embedding model access to your team.
+              {t("direct.noEmbeddings")}
             </Alert>
           )
         )}
 
         <Divider sx={{ my: 2 }} />
-        <Typography variant="subtitle2" gutterBottom>Python (openai SDK):</Typography>
+        <Typography variant="subtitle2" gutterBottom>{t("direct.pythonSdk")}</Typography>
         <CodeBlock>
           <code>{`from openai import OpenAI
 
@@ -205,7 +204,7 @@ response = client.embeddings.create(
 print(response.data[0].embedding[:5])  # first 5 dimensions`}</code>
         </CodeBlock>
 
-        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>Batch example:</Typography>
+        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>{t("direct.batchExample")}</Typography>
         <CodeBlock>
           <code>{`response = client.embeddings.create(
     model="${models.embeddings[0]?.name || 'your-embedding-model'}",
@@ -215,7 +214,7 @@ for item in response.data:
     print(f"Index {item.index}: {len(item.embedding)} dimensions")`}</code>
         </CodeBlock>
 
-        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>curl:</Typography>
+        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>{t("direct.curl")}</Typography>
         <CodeBlock>
           <code>{`curl ${baseUrl}/v1/embeddings \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -231,19 +230,18 @@ for item in response.data:
       <StyledCard>
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <Image color="primary" />
-          <Typography variant="h5">Image Generation</Typography>
+          <Typography variant="h5">{t("direct.images")}</Typography>
         </Box>
         <Typography variant="body2" color="textSecondary" paragraph>
           <strong>POST</strong> {baseUrl}/v1/images/generations
         </Typography>
         <Typography variant="body2" paragraph>
-          OpenAI-compatible image generation endpoint. Supports local GPU-based generators (e.g. Stable Diffusion, Flux)
-          and external providers (DALL-E, Imagen). Returns base64-encoded images or data URLs.
+          {t("direct.imagesDesc")}
         </Typography>
 
         {models.image_generators.length > 0 ? (
           <Box mb={2}>
-            <Typography variant="subtitle2" gutterBottom>Available Generators:</Typography>
+            <Typography variant="subtitle2" gutterBottom>{t("direct.availableGenerators")}</Typography>
             <Box display="flex" flexWrap="wrap" gap={1}>
               {models.image_generators.map((gen) => (
                 <Chip key={gen} label={gen} size="small" variant="outlined" />
@@ -253,13 +251,13 @@ for item in response.data:
         ) : (
           !loading && (
             <Alert severity="warning" sx={{ mb: 2 }}>
-              No image generators available. Ask your team admin to grant image generator access, or GPU may not be enabled on this instance.
+              {t("direct.noImage")}
             </Alert>
           )
         )}
 
         <Divider sx={{ my: 2 }} />
-        <Typography variant="subtitle2" gutterBottom>Python (openai SDK):</Typography>
+        <Typography variant="subtitle2" gutterBottom>{t("direct.pythonSdk")}</Typography>
         <CodeBlock>
           <code>{`from openai import OpenAI
 
@@ -276,7 +274,7 @@ response = client.images.generate(
 print(response.data[0].b64_json[:50] + "...")`}</code>
         </CodeBlock>
 
-        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>curl:</Typography>
+        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>{t("direct.curl")}</Typography>
         <CodeBlock>
           <code>{`curl ${baseUrl}/v1/images/generations \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
@@ -293,19 +291,18 @@ print(response.data[0].b64_json[:50] + "...")`}</code>
       <StyledCard>
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <Speaker color="primary" />
-          <Typography variant="h5">Audio Transcription</Typography>
+          <Typography variant="h5">{t("direct.audio")}</Typography>
         </Box>
         <Typography variant="body2" color="textSecondary" paragraph>
           <strong>POST</strong> {baseUrl}/v1/audio/transcriptions
         </Typography>
         <Typography variant="body2" paragraph>
-          OpenAI-compatible audio transcription endpoint. Upload an audio file (mp3, wav, etc.) and receive the transcribed text.
-          Non-mp3 files are automatically converted using ffmpeg. Supports language specification for improved accuracy.
+          {t("direct.audioDesc")}
         </Typography>
 
         {models.audio_generators.length > 0 ? (
           <Box mb={2}>
-            <Typography variant="subtitle2" gutterBottom>Available Models:</Typography>
+            <Typography variant="subtitle2" gutterBottom>{t("direct.availableModels")}</Typography>
             <Box display="flex" flexWrap="wrap" gap={1}>
               {models.audio_generators.map((gen) => (
                 <Chip key={gen} label={gen} size="small" variant="outlined" />
@@ -315,13 +312,13 @@ print(response.data[0].b64_json[:50] + "...")`}</code>
         ) : (
           !loading && (
             <Alert severity="warning" sx={{ mb: 2 }}>
-              No audio generators available. Ask your team admin to grant audio generator access, or GPU may not be enabled on this instance.
+              {t("direct.noAudio")}
             </Alert>
           )
         )}
 
         <Divider sx={{ my: 2 }} />
-        <Typography variant="subtitle2" gutterBottom>Python (openai SDK):</Typography>
+        <Typography variant="subtitle2" gutterBottom>{t("direct.pythonSdk")}</Typography>
         <CodeBlock>
           <code>{`from openai import OpenAI
 
@@ -339,7 +336,7 @@ with open("audio.mp3", "rb") as f:
 print(transcript.text)`}</code>
         </CodeBlock>
 
-        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>curl:</Typography>
+        <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>{t("direct.curl")}</Typography>
         <CodeBlock>
           <code>{`curl ${baseUrl}/v1/audio/transcriptions \\
   -H "Authorization: Bearer YOUR_API_KEY" \\

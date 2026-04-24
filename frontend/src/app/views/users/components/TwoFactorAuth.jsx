@@ -7,6 +7,7 @@ import { QRCodeSVG } from "qrcode.react";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 
 const RecoveryBox = styled(Box)(({ theme }) => ({
   display: "grid",
@@ -20,6 +21,7 @@ const RecoveryBox = styled(Box)(({ theme }) => ({
 }));
 
 export default function TwoFactorAuth({ user }) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [status, setStatus] = useState({ enabled: false, enforced: false });
   const [setup, setSetup] = useState(null); // { secret, provisioning_uri, recovery_codes }
@@ -46,7 +48,7 @@ export default function TwoFactorAuth({ user }) {
       const data = await api.post(`/users/${user.username}/totp/setup`, {}, auth.user.token);
       setSetup(data);
     } catch (e) {
-      toast.error("Failed to setup 2FA");
+      toast.error(t("users.twoFactor.setupFailed"));
     } finally {
       setLoading(false);
     }
@@ -56,7 +58,7 @@ export default function TwoFactorAuth({ user }) {
     setLoading(true);
     try {
       await api.post(`/users/${user.username}/totp/enable`, { code: confirmCode, password: enablePassword }, auth.user.token);
-      toast.success("2FA enabled successfully");
+      toast.success(t("users.twoFactor.enabledSuccess"));
       setSetup(null);
       setConfirmCode("");
       setEnablePassword("");
@@ -72,7 +74,7 @@ export default function TwoFactorAuth({ user }) {
     setLoading(true);
     try {
       await api.post(`/users/${user.username}/totp/disable`, { password: disablePassword }, auth.user.token);
-      toast.success("2FA disabled");
+      toast.success(t("users.twoFactor.disabledSuccess"));
       setDisablePassword("");
       setShowDisable(false);
       fetchStatus();
@@ -85,20 +87,20 @@ export default function TwoFactorAuth({ user }) {
 
   return (
     <Card sx={{ p: 3 }}>
-      <Typography variant="h6" gutterBottom>Two-Factor Authentication</Typography>
+      <Typography variant="h6" gutterBottom>{t("users.twoFactor.title")}</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Add an extra layer of security using a TOTP authenticator app (Google Authenticator, Authy, etc.).
+        {t("users.twoFactor.description")}
       </Typography>
 
       {status.enforced && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          2FA is enforced by the administrator for all local users.
+          {t("users.twoFactor.enforced")}
         </Alert>
       )}
 
       <Box sx={{ mb: 2 }}>
         <Chip
-          label={status.enabled ? "2FA Enabled" : "2FA Disabled"}
+          label={status.enabled ? t("users.twoFactor.enabledChip") : t("users.twoFactor.disabledChip")}
           color={status.enabled ? "success" : "default"}
           variant="outlined"
         />
@@ -109,21 +111,21 @@ export default function TwoFactorAuth({ user }) {
       {/* Setup flow — not yet enabled */}
       {!status.enabled && !setup && (
         <LoadingButton variant="contained" loading={loading} onClick={handleSetup}>
-          Set Up 2FA
+          {t("users.twoFactor.setup")}
         </LoadingButton>
       )}
 
       {/* QR code + recovery codes + confirmation */}
       {setup && !status.enabled && (
         <Box>
-          <Typography variant="subtitle1" gutterBottom>1. Scan this QR code with your authenticator app</Typography>
+          <Typography variant="subtitle1" gutterBottom>{t("users.twoFactor.step1")}</Typography>
           <Box sx={{ display: "flex", gap: 3, mb: 3, flexWrap: "wrap" }}>
             <Box sx={{ p: 2, bgcolor: "#fff", borderRadius: 1, display: "inline-block" }}>
               <QRCodeSVG value={setup.provisioning_uri} size={180} />
             </Box>
             <Box>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Or enter this key manually:
+                {t("users.twoFactor.manualKey")}
               </Typography>
               <Typography variant="body2" fontFamily="monospace" sx={{
                 bgcolor: "grey.100", p: 1, borderRadius: 1, wordBreak: "break-all", maxWidth: 280,
@@ -133,9 +135,9 @@ export default function TwoFactorAuth({ user }) {
             </Box>
           </Box>
 
-          <Typography variant="subtitle1" gutterBottom>2. Save your recovery codes</Typography>
+          <Typography variant="subtitle1" gutterBottom>{t("users.twoFactor.step2")}</Typography>
           <Alert severity="warning" sx={{ mb: 1 }}>
-            Store these codes securely. Each code can only be used once to log in if you lose your authenticator.
+            {t("users.twoFactor.recoveryAlert")}
           </Alert>
           <RecoveryBox>
             {setup.recovery_codes.map((code, i) => (
@@ -143,11 +145,11 @@ export default function TwoFactorAuth({ user }) {
             ))}
           </RecoveryBox>
 
-          <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>3. Confirm with a code and your password</Typography>
+          <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>{t("users.twoFactor.step3")}</Typography>
           <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
             <TextField
               size="small"
-              label="6-digit code"
+              label={t("users.twoFactor.code")}
               value={confirmCode}
               onChange={(e) => setConfirmCode(e.target.value)}
               inputProps={{ maxLength: 6, autoComplete: "one-time-code" }}
@@ -156,13 +158,13 @@ export default function TwoFactorAuth({ user }) {
             <TextField
               size="small"
               type="password"
-              label="Password"
+              label={t("users.twoFactor.password")}
               value={enablePassword}
               onChange={(e) => setEnablePassword(e.target.value)}
               sx={{ width: 200 }}
             />
             <LoadingButton variant="contained" loading={loading} onClick={handleEnable} disabled={confirmCode.length < 6 || !enablePassword}>
-              Enable 2FA
+              {t("users.twoFactor.enable")}
             </LoadingButton>
           </Box>
         </Box>
@@ -178,23 +180,23 @@ export default function TwoFactorAuth({ user }) {
               onClick={() => setShowDisable(true)}
               disabled={status.enforced}
             >
-              {status.enforced ? "Cannot disable (enforced)" : "Disable 2FA"}
+              {status.enforced ? t("users.twoFactor.cannotDisable") : t("users.twoFactor.disable")}
             </Button>
           ) : (
             <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
               <TextField
                 size="small"
                 type="password"
-                label="Confirm password"
+                label={t("users.twoFactor.confirmPassword")}
                 value={disablePassword}
                 onChange={(e) => setDisablePassword(e.target.value)}
                 sx={{ width: 220 }}
               />
               <LoadingButton variant="contained" color="error" loading={loading} onClick={handleDisable}>
-                Confirm Disable
+                {t("users.twoFactor.confirmDisable")}
               </LoadingButton>
               <Button variant="outlined" onClick={() => { setShowDisable(false); setDisablePassword(""); }}>
-                Cancel
+                {t("common.cancel")}
               </Button>
             </Box>
           )}

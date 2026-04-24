@@ -126,6 +126,9 @@ export default function RAGRetrieval({ project }) {
             const colSpan = rowData.length;
             const contextData = log?.context ? (() => { try { return JSON.parse(log.context); } catch { return null; } })() : null;
             const attachmentsData = log?.attachments ? (() => { try { return JSON.parse(log.attachments); } catch { return null; } })() : null;
+            // Tool-call timeline — populated for agent projects that
+            // actually invoked tools. Shape: [{tool, args, latency_ms, status, error?}, ...]
+            const toolTrace = log?.tool_trace ? (() => { try { return JSON.parse(log.tool_trace); } catch { return null; } })() : null;
             const imageSrc = log?.image ? (log.image.startsWith("data:") ? log.image : `data:image/png;base64,${log.image}`) : null;
             return (
               <>
@@ -191,6 +194,48 @@ export default function RAGRetrieval({ project }) {
                             <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
                               {Object.entries(contextData).map(([k, v]) => (
                                 <Chip key={k} label={`${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`} size="small" variant="outlined" />
+                              ))}
+                            </Box>
+                          </Box>
+                        )}
+                        {toolTrace && toolTrace.length > 0 && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="caption" fontWeight={600} sx={{ display: "block", mb: 0.5 }}>
+                              Tool Trace
+                            </Typography>
+                            <Box sx={{
+                              borderRadius: 1, border: "1px solid #e0e0e0",
+                              backgroundColor: "#fff", overflow: "hidden",
+                            }}>
+                              {toolTrace.map((step, i) => (
+                                <Box
+                                  key={i}
+                                  sx={{
+                                    display: "flex", alignItems: "flex-start", gap: 1,
+                                    p: 1, borderTop: i === 0 ? 0 : "1px solid #f0f0f0",
+                                    backgroundColor: step.status === "error" ? "#fff6f6" : "transparent",
+                                  }}
+                                >
+                                  <Chip
+                                    size="small"
+                                    label={step.tool}
+                                    color={step.status === "error" ? "error" : "primary"}
+                                    variant="outlined"
+                                  />
+                                  <Box sx={{ flex: 1, fontFamily: "monospace", fontSize: "0.78rem", overflow: "hidden" }}>
+                                    <Box sx={{ color: "text.secondary", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                      {step.args || "(no args)"}
+                                    </Box>
+                                    {step.status === "error" && step.error && (
+                                      <Box sx={{ color: "#9f3a38", whiteSpace: "pre-wrap", mt: 0.5 }}>
+                                        {step.error}
+                                      </Box>
+                                    )}
+                                  </Box>
+                                  <Typography variant="caption" sx={{ color: "text.secondary", whiteSpace: "nowrap" }}>
+                                    {step.latency_ms != null ? `${step.latency_ms} ms` : "—"}
+                                  </Typography>
+                                </Box>
                               ))}
                             </Box>
                           </Box>

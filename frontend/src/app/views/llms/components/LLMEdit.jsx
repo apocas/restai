@@ -3,6 +3,7 @@ import { H4 } from "app/components/Typography";
 import { useState, useEffect } from "react";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { JsonEditor } from 'json-edit-react';
 import { PROVIDER_CONFIG } from '../providerConfig';
 import api from "app/utils/api";
@@ -12,6 +13,7 @@ const OPENAI_COMPAT_CLASSES = new Set([
 ]);
 
 export default function LLMEdit({ llm }) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [state, setState] = useState({});
   const [remoteModels, setRemoteModels] = useState(null);
@@ -88,7 +90,7 @@ export default function LLMEdit({ llm }) {
 
   return (
     <Card elevation={3}>
-      <H4 p={2}>Edit LLM - {llm.name}</H4>
+      <H4 p={2}>{t("llms.edit.title", { name: llm.name })}</H4>
 
       <Divider sx={{ mb: 1 }} />
 
@@ -100,7 +102,7 @@ export default function LLMEdit({ llm }) {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 name="name"
-                label="Name"
+                label={t("llms.edit.name")}
                 variant="outlined"
                 onChange={handleChange}
                 value={state.name}
@@ -113,7 +115,7 @@ export default function LLMEdit({ llm }) {
                 select
                 InputLabelProps={{ shrink: true }}
                 name="class_name"
-                label="Class Name"
+                label={t("llms.edit.className")}
                 variant="outlined"
                 onChange={handleChange}
                 value={state.class_name || ""}
@@ -126,7 +128,7 @@ export default function LLMEdit({ llm }) {
 
             <Grid item sm={6} xs={12}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-                <Typography variant="h6">Options</Typography>
+                <Typography variant="h6">{t("llms.edit.options")}</Typography>
                 {canListModels && (
                   <Button
                     size="small"
@@ -135,7 +137,7 @@ export default function LLMEdit({ llm }) {
                     disabled={loadingModels}
                     startIcon={loadingModels ? <CircularProgress size={16} /> : null}
                   >
-                    {loadingModels ? "Loading..." : "List Models"}
+                    {loadingModels ? t("llms.edit.loading") : t("llms.edit.listModels")}
                   </Button>
                 )}
               </Box>
@@ -147,7 +149,7 @@ export default function LLMEdit({ llm }) {
                   maxHeight: 200, overflowY: "auto",
                 }}>
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                    {remoteModels.length} model{remoteModels.length !== 1 ? "s" : ""} available — click to select
+                    {t("llms.edit.modelsAvailable", { count: remoteModels.length })}
                   </Typography>
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                     {remoteModels.map((m) => (
@@ -167,7 +169,7 @@ export default function LLMEdit({ llm }) {
 
               {remoteModels && remoteModels.length === 0 && !loadingModels && (
                 <Typography variant="body2" color="error" sx={{ mb: 2 }}>
-                  No models found. Check the API base URL and API key in the options below.
+                  {t("llms.edit.modelsNone")}
                 </Typography>
               )}
 
@@ -175,7 +177,7 @@ export default function LLMEdit({ llm }) {
                 data={state.options || {}}
                 setData={(updatedOptions) => setState({ ...state, options: updatedOptions })}
                 restrictDelete={false}
-                rootName="Options"
+                rootName={t("llms.edit.options")}
                 numberType="float"
               />
             </Grid>
@@ -186,7 +188,7 @@ export default function LLMEdit({ llm }) {
                 select
                 InputLabelProps={{ shrink: true }}
                 name="privacy"
-                label="Privacy"
+                label={t("llms.edit.privacy")}
                 variant="outlined"
                 onChange={handleChange}
                 value={state.privacy || ""}
@@ -202,7 +204,7 @@ export default function LLMEdit({ llm }) {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 name="description"
-                label="Description"
+                label={t("llms.edit.description")}
                 variant="outlined"
                 onChange={handleChange}
                 value={state.description}
@@ -214,7 +216,7 @@ export default function LLMEdit({ llm }) {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 name="input_cost"
-                label="Input Cost"
+                label={t("llms.edit.inputCost")}
                 variant="outlined"
                 onChange={handleChange}
                 value={state.input_cost}
@@ -226,7 +228,7 @@ export default function LLMEdit({ llm }) {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 name="output_cost"
-                label="Output Cost"
+                label={t("llms.edit.outputCost")}
                 variant="outlined"
                 onChange={handleChange}
                 value={state.output_cost}
@@ -238,21 +240,21 @@ export default function LLMEdit({ llm }) {
                 fullWidth
                 InputLabelProps={{ shrink: true }}
                 name="context_window"
-                label="Context Window"
+                label={t("llms.edit.contextWindow")}
                 type="number"
                 variant="outlined"
                 onChange={handleChange}
                 value={state.context_window}
-                helperText="Maximum number of tokens the LLM can process"
+                helperText={t("llms.edit.contextHelp")}
               />
             </Grid>
 
             <Grid item xs={12}>
               <Button type="submit" variant="contained">
-                Save Changes
+                {t("llms.edit.saveChanges")}
               </Button>
               <Button variant="outlined" sx={{ ml: 2 }} onClick={() => { navigate("/llms") }}>
-                Cancel
+                {t("common.cancel")}
               </Button>
             </Grid>
           </Grid>

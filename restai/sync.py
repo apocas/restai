@@ -54,10 +54,34 @@ def _sync_source(project, source, db, brain=None):
 
 def _sync_url(project, source, db, brain=None):
     """Sync a web URL source."""
+    from urllib.parse import urlparse
+    from restai.helper import _is_private_ip
     from restai.loaders.url import SeleniumWebReader
     from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
 
     logger.info(f"Syncing URL source '{source.name}': {source.url}")
+
+    # SSRF guard — refuse loopback / private / link-local destinations.
+    # An admin-configured source still shouldn't be allowed to point the
+    # cron's headless browser at the cloud metadata service or an
+    # internal LAN host.
+    try:
+        hostname = urlparse(source.url).hostname
+    except Exception:
+        logger.warning(f"Skipping URL source '{source.name}': invalid url {source.url!r}")
+        return
+    if not hostname:
+        logger.warning(f"Skipping URL source '{source.name}': no hostname in {source.url!r}")
+        return
+    try:
+        if _is_private_ip(hostname):
+            logger.warning(
+                f"Skipping URL source '{source.name}': refusing to sync private/internal address {hostname}"
+            )
+            return
+    except ValueError as e:
+        logger.warning(f"Skipping URL source '{source.name}': {e}")
+        return
 
     loader = SeleniumWebReader()
     documents = loader.load_data(urls=[source.url])

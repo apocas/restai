@@ -1,4 +1,5 @@
 from datetime import timedelta, datetime, timezone
+from typing import Optional
 import logging
 
 import jwt
@@ -60,6 +61,38 @@ def _rate_limit_dependency(request: Request, db_wrapper: DBWrapper = Depends(get
     _check_login_rate_limit(request, db_wrapper)
 
 
+def _password_age_warning(user_db, db_wrapper) -> Optional[dict]:
+    """Return a soft warning dict when the user's password is older than
+    the admin-configured `password_max_age_days` setting. Returns None
+    when the feature is disabled (max_age=0), the user has no password
+    (SSO/LDAP), or the timestamp is missing (legacy row pre-migration).
+
+    Soft-only by design: we never block login on stale credentials —
+    forcing rotation creates worse outcomes than nudging it. The UI can
+    show a banner when this field appears in the response."""
+    try:
+        max_days = int(db_wrapper.get_setting_value("password_max_age_days", "0") or "0")
+    except (TypeError, ValueError):
+        return None
+    if max_days <= 0 or user_db is None or user_db.password_updated_at is None:
+        return None
+    from datetime import datetime, timezone
+    last = user_db.password_updated_at
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    age_days = (datetime.now(timezone.utc) - last).days
+    if age_days < max_days:
+        return None
+    return {
+        "password_age_days": age_days,
+        "password_max_age_days": max_days,
+        "message": (
+            f"Your password is {age_days} days old (limit: {max_days}). "
+            "Please change it from the Account page."
+        ),
+    }
+
+
 @router.post("/auth/login")
 async def login(
     request: Request,
@@ -92,7 +125,11 @@ async def login(
         httponly=True,
     )
 
-    return {"message": "Logged in successfully."}
+    out = {"message": "Logged in successfully."}
+    warning = _password_age_warning(user_db, db_wrapper)
+    if warning:
+        out["password_warning"] = warning
+    return out
 
 
 @router.post("/auth/verify-totp")
@@ -130,7 +167,11 @@ async def verify_totp(
                 key="restai_token", value=jwt_token,
                 samesite="strict", expires=86400, httponly=True,
             )
-            return {"message": "Logged in successfully."}
+            out = {"message": "Logged in successfully."}
+            warning = _password_age_warning(user_db, db_wrapper)
+            if warning:
+                out["password_warning"] = warning
+            return out
     except Exception:
         pass
 
@@ -156,7 +197,11 @@ async def verify_totp(
                     key="restai_token", value=jwt_token,
                     samesite="strict", expires=86400, httponly=True,
                 )
-                return {"message": "Logged in successfully. Recovery code consumed."}
+                out = {"message": "Logged in successfully. Recovery code consumed."}
+                warning = _password_age_warning(user_db, db_wrapper)
+                if warning:
+                    out["password_warning"] = warning
+                return out
         except Exception:
             pass
 

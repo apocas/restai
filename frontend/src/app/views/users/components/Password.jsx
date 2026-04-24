@@ -4,6 +4,7 @@ import { FlexBox } from "app/components/FlexBox";
 import { H5, Paragraph } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
 import { toast } from 'react-toastify';
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const Dot = styled("div")(({ theme }) => ({
@@ -15,6 +16,7 @@ const Dot = styled("div")(({ theme }) => ({
 }));
 
 export default function Password({user}) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [state, setState] = useState({});
   const [totpEnabled, setTotpEnabled] = useState(false);
@@ -30,12 +32,12 @@ export default function Password({user}) {
     event.preventDefault();
 
     if (state.newPassword !== state.confirmNewPassword) {
-      toast.error("Passwords do not match");
+      toast.error(t("users.password.mismatch"));
       return;
     }
 
     if (totpEnabled && !state.totpCode) {
-      toast.error("2FA code is required to change your password");
+      toast.error(t("users.password.twoFactorRequired"));
       return;
     }
 
@@ -56,7 +58,7 @@ export default function Password({user}) {
 
   return (
     <Card>
-      <H5 padding={3}>Password</H5>
+      <H5 padding={3}>{t("users.password.title")}</H5>
       <Divider />
 
       <Box padding={3}>
@@ -69,7 +71,7 @@ export default function Password({user}) {
                   type="password"
                   name="newPassword"
                   variant="outlined"
-                  label="New Password"
+                  label={t("users.password.newPassword")}
                   onChange={handleChange}
                   value={state.newPassword}
                 />
@@ -78,20 +80,20 @@ export default function Password({user}) {
                   type="password"
                   variant="outlined"
                   name="confirmNewPassword"
-                  label="Confirm Password"
+                  label={t("users.password.confirmPassword")}
                   onChange={handleChange}
                   value={state.confirmNewPassword}
                 />
                 {totpEnabled && (
                   <>
                     <Alert severity="info" sx={{ py: 0.5 }}>
-                      2FA is enabled. Enter a code from your authenticator app to confirm the password change.
+                      {t("users.password.twoFactorAlert")}
                     </Alert>
                     <TextField
                       fullWidth
                       name="totpCode"
                       variant="outlined"
-                      label="2FA Code"
+                      label={t("users.password.twoFactorCode")}
                       onChange={handleChange}
                       value={state.totpCode || ""}
                       inputProps={{ maxLength: 6, autoComplete: "one-time-code" }}
@@ -102,37 +104,37 @@ export default function Password({user}) {
 
               <Stack direction="row" spacing={3} mt={4}>
                 <Button type="submit" variant="contained">
-                  Save Changes
+                  {t("users.password.saveChanges")}
                 </Button>
               </Stack>
             </form>
           </Grid>
 
           <Grid item sm={6} xs={12}>
-            <H5>Password recommendations:</H5>
+            <H5>{t("users.password.recommendations")}</H5>
 
             <Stack spacing={1} mt={2}>
               <FlexBox alignItems="center" gap={1}>
                 <Dot />
                 <Paragraph fontSize={13}>
-                  8 characters long - the more, the better
+                  {t("users.password.recMin")}
                 </Paragraph>
               </FlexBox>
 
               <FlexBox alignItems="center" gap={1}>
                 <Dot />
-                <Paragraph fontSize={13}>At least one lowercase character</Paragraph>
+                <Paragraph fontSize={13}>{t("users.password.recLower")}</Paragraph>
               </FlexBox>
 
               <FlexBox alignItems="center" gap={1}>
                 <Dot />
-                <Paragraph fontSize={13}>At least one uppercase character</Paragraph>
+                <Paragraph fontSize={13}>{t("users.password.recUpper")}</Paragraph>
               </FlexBox>
 
-              <FlexBox alignItems="center" gap={1}> 
+              <FlexBox alignItems="center" gap={1}>
                 <Dot />
                 <Paragraph fontSize={13}>
-                  At least one number, symbol, or whitespace character
+                  {t("users.password.recSymbol")}
                 </Paragraph>
               </FlexBox>
             </Stack>

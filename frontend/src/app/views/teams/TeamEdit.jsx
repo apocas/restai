@@ -17,6 +17,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
 import { Breadcrumb } from "app/components";
 import { toast } from 'react-toastify';
+import { useTranslation } from "react-i18next";
 import { Group, Code, Psychology, Palette } from "@mui/icons-material";
 import api from "app/utils/api";
 
@@ -51,6 +52,7 @@ function TabPanel(props) {
 }
 
 export default function TeamEdit() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const isNewTeam = id === undefined;
   const [team, setTeam] = useState({
@@ -80,7 +82,7 @@ export default function TeamEdit() {
     if (!inviteUsername.trim()) return;
     api.post(`/teams/${id}/invitations`, { username: inviteUsername.trim() }, auth.user.token)
       .then((data) => {
-        toast.success(data.message || "Invitation sent");
+        toast.success(data.message || t("invitations.sent"));
         setInviteUsername("");
       })
       .catch(() => {});
@@ -169,8 +171,8 @@ export default function TeamEdit() {
   }, [id]);
 
   useEffect(() => {
-    document.title = `${process.env.REACT_APP_RESTAI_NAME || "RESTai"} - ${isNewTeam ? 'New Team' : 'Edit Team'}`;
-  }, [isNewTeam]);
+    document.title = `${process.env.REACT_APP_RESTAI_NAME || "RESTai"} - ${isNewTeam ? t("teams.edit.newTitle") : t("teams.edit.editTitle")}`;
+  }, [isNewTeam, t]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -207,7 +209,7 @@ export default function TeamEdit() {
         ? await api.post(endpoint, payload, user.token)
         : await api.patch(endpoint, payload, user.token);
 
-      toast.success(`Team ${isNewTeam ? 'created' : 'updated'} successfully`);
+      toast.success(isNewTeam ? t("teams.edit.created") : t("teams.edit.updated"));
 
       // Redirect to the team view page
       navigate(isNewTeam ? `/team/${data.id}` : `/team/${id}`);
@@ -225,11 +227,11 @@ export default function TeamEdit() {
       <Container>
         <Box className="breadcrumb">
           <Breadcrumb routeSegments={[
-            { name: "Teams", path: "/teams" },
-            { name: isNewTeam ? "New Team" : "Edit Team", path: isNewTeam ? "/teams/new" : `/teams/${id}/edit` }
+            { name: t("nav.teams"), path: "/teams" },
+            { name: isNewTeam ? t("teams.edit.newTitle") : t("teams.edit.editTitle"), path: isNewTeam ? "/teams/new" : `/teams/${id}/edit` }
           ]} />
         </Box>
-        <Typography>Loading...</Typography>
+        <Typography>{t("common.loading")}</Typography>
       </Container>
     );
   }
@@ -238,20 +240,20 @@ export default function TeamEdit() {
     <Container>
       <Box className="breadcrumb">
         <Breadcrumb routeSegments={[
-          { name: "Teams", path: "/teams" },
-          { name: isNewTeam ? "New Team" : "Edit Team", path: isNewTeam ? "/teams/new" : `/teams/${id}/edit` }
+          { name: t("nav.teams"), path: "/teams" },
+          { name: isNewTeam ? t("teams.edit.newTitle") : t("teams.edit.editTitle"), path: isNewTeam ? "/teams/new" : `/teams/${id}/edit` }
         ]} />
       </Box>
 
       <form onSubmit={handleSubmit}>
         <StyledCard>
-          <Typography variant="h5" mb={3}>{isNewTeam ? 'Create New Team' : 'Edit Team'}</Typography>
+          <Typography variant="h5" mb={3}>{isNewTeam ? t("teams.edit.newTitle") : t("teams.edit.editTitle")}</Typography>
           
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Team Name"
+                label={t("teams.edit.name")}
                 name="name"
                 value={team.name}
                 onChange={handleChange}
@@ -263,7 +265,7 @@ export default function TeamEdit() {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Description"
+                label={t("teams.edit.description")}
                 name="description"
                 value={team.description || ''}
                 onChange={handleChange}
@@ -276,13 +278,13 @@ export default function TeamEdit() {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Budget (-1 = unlimited)"
+                label={t("teams.edit.budget")}
                 name="budget"
                 type="number"
                 value={team.budget}
                 onChange={handleChange}
                 variant="outlined"
-                helperText="Set to -1 for unlimited budget"
+                helperText={t("teams.edit.budgetHelp")}
                 inputProps={{ step: "0.01" }}
               />
             </Grid>
@@ -290,17 +292,17 @@ export default function TeamEdit() {
 
           <Box sx={{ mt: 4, borderBottom: 1, borderColor: 'divider' }}>
             <Tabs value={tabValue} onChange={handleTabChange} aria-label="team tabs">
-              <Tab label="Users" icon={<Group />} iconPosition="start" />
-              <Tab label="Projects" icon={<Code />} iconPosition="start" />
-              <Tab label="Models" icon={<Psychology />} iconPosition="start" />
-              <Tab label="Branding" icon={<Palette />} iconPosition="start" />
+              <Tab label={t("teams.edit.tabs.users")} icon={<Group />} iconPosition="start" />
+              <Tab label={t("teams.edit.tabs.projects")} icon={<Code />} iconPosition="start" />
+              <Tab label={t("teams.edit.tabs.models")} icon={<Psychology />} iconPosition="start" />
+              <Tab label={t("teams.edit.tabs.branding")} icon={<Palette />} iconPosition="start" />
             </Tabs>
           </Box>
           
           <TabPanel value={tabValue} index={0}>
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>Team Members</Typography>
+                <Typography variant="h6" gutterBottom>{t("teams.edit.members")}</Typography>
                 <Autocomplete
                   multiple
                   id="users-select"
@@ -315,15 +317,15 @@ export default function TeamEdit() {
                     <TextField
                       {...params}
                       variant="outlined"
-                      label="Select Users"
-                      placeholder="Users"
+                      label={t("teams.edit.selectUsers")}
+                      placeholder={t("teams.edit.tabs.users")}
                     />
                   )}
                 />
               </Grid>
               
               <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>Team Admins</Typography>
+                <Typography variant="h6" gutterBottom>{t("teams.edit.admins")}</Typography>
                 <Autocomplete
                   multiple
                   id="admins-select"
@@ -338,26 +340,26 @@ export default function TeamEdit() {
                     <TextField
                       {...params}
                       variant="outlined"
-                      label="Select Admins"
-                      placeholder="Admins"
+                      label={t("teams.edit.selectAdmins")}
+                      placeholder={t("teams.edit.admins")}
                     />
                   )}
                 />
                 <Typography variant="caption" color="textSecondary">
-                  Team admins can manage team settings and members
+                  {t("teams.edit.adminsHelp")}
                 </Typography>
               </Grid>
 
               <Grid item xs={12}>
                 <Divider sx={{ my: 2 }} />
-                <Typography variant="h6" gutterBottom>Invite User</Typography>
+                <Typography variant="h6" gutterBottom>{t("teams.edit.invite")}</Typography>
                 <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 1 }}>
-                  Send an invitation to a user by username. They will be able to accept or decline.
+                  {t("teams.edit.inviteHelp")}
                 </Typography>
                 <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
                   <TextField
                     size="small"
-                    label="Username"
+                    label={t("teams.edit.username")}
                     value={inviteUsername}
                     onChange={(e) => setInviteUsername(e.target.value)}
                     sx={{ width: 250 }}
@@ -367,7 +369,7 @@ export default function TeamEdit() {
                     onClick={handleInvite}
                     disabled={!inviteUsername.trim()}
                   >
-                    Send Invite
+                    {t("teams.edit.sendInvite")}
                   </Button>
                 </Box>
               </Grid>
@@ -375,7 +377,7 @@ export default function TeamEdit() {
           </TabPanel>
           
           <TabPanel value={tabValue} index={1}>
-            <Typography variant="h6" gutterBottom>Team Projects</Typography>
+            <Typography variant="h6" gutterBottom>{t("teams.edit.projectsHeading")}</Typography>
             <Autocomplete
               multiple
               id="projects-select"
@@ -390,20 +392,20 @@ export default function TeamEdit() {
                 <TextField
                   {...params}
                   variant="outlined"
-                  label="Select Projects"
-                  placeholder="Projects"
+                  label={t("teams.edit.selectProjects")}
+                  placeholder={t("teams.edit.tabs.projects")}
                 />
               )}
             />
             <Typography variant="caption" color="textSecondary">
-              Projects assigned to this team will be accessible by all team members
+              {t("teams.edit.projectsHelp")}
             </Typography>
           </TabPanel>
           
           <TabPanel value={tabValue} index={2}>
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>Team LLMs</Typography>
+                <Typography variant="h6" gutterBottom>{t("teams.edit.llms")}</Typography>
                 <Autocomplete
                   multiple
                   id="llms-select"
@@ -418,15 +420,15 @@ export default function TeamEdit() {
                     <TextField
                       {...params}
                       variant="outlined"
-                      label="Select LLMs"
-                      placeholder="LLMs"
+                      label={t("teams.edit.selectLlms")}
+                      placeholder={t("nav.llms")}
                     />
                   )}
                 />
               </Grid>
               
               <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>Team Embedding Models</Typography>
+                <Typography variant="h6" gutterBottom>{t("teams.edit.embeddings")}</Typography>
                 <Autocomplete
                   multiple
                   id="embeddings-select"
@@ -441,15 +443,15 @@ export default function TeamEdit() {
                     <TextField
                       {...params}
                       variant="outlined"
-                      label="Select Embeddings"
-                      placeholder="Embeddings"
+                      label={t("teams.edit.selectEmbeddings")}
+                      placeholder={t("nav.embeddings")}
                     />
                   )}
                 />
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>Image Generators</Typography>
+                <Typography variant="h6" gutterBottom>{t("teams.edit.imageGen")}</Typography>
                 {imageGenerators.length > 0 ? (
                   <Autocomplete
                     multiple
@@ -466,20 +468,20 @@ export default function TeamEdit() {
                       <TextField
                         {...params}
                         variant="outlined"
-                        label="Select Image Generators"
-                        placeholder="Image Generators"
+                        label={t("teams.edit.selectImageGen")}
+                        placeholder={t("teams.edit.imageGen")}
                       />
                     )}
                   />
                 ) : (
                   <Typography variant="body2" color="textSecondary">
-                    No image generators available. GPU may not be enabled on this instance.
+                    {t("teams.edit.noImageGen")}
                   </Typography>
                 )}
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>Audio Generators</Typography>
+                <Typography variant="h6" gutterBottom>{t("teams.edit.audioGen")}</Typography>
                 {audioGenerators.length > 0 ? (
                   <Autocomplete
                     multiple
@@ -496,14 +498,14 @@ export default function TeamEdit() {
                       <TextField
                         {...params}
                         variant="outlined"
-                        label="Select Audio Generators"
-                        placeholder="Audio Generators"
+                        label={t("teams.edit.selectAudioGen")}
+                        placeholder={t("teams.edit.audioGen")}
                       />
                     )}
                   />
                 ) : (
                   <Typography variant="body2" color="textSecondary">
-                    No audio generators available. GPU may not be enabled on this instance.
+                    {t("teams.edit.noAudioGen")}
                   </Typography>
                 )}
               </Grid>
@@ -511,40 +513,40 @@ export default function TeamEdit() {
           </TabPanel>
 
           <TabPanel value={tabValue} index={3}>
-            <Typography variant="h6" gutterBottom>White-Label Branding</Typography>
+            <Typography variant="h6" gutterBottom>{t("teams.edit.branding")}</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Customize the platform appearance for team members. Leave fields empty to use platform defaults.
+              {t("teams.edit.brandingHelp")}
             </Typography>
             <Grid container spacing={3}>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="App Name"
+                  label={t("teams.edit.appName")}
                   value={team.branding?.app_name || ""}
                   onChange={(e) => setTeam({ ...team, branding: { ...team.branding, app_name: e.target.value } })}
                   variant="outlined"
-                  helperText="Overrides the platform name in the sidebar"
+                  helperText={t("teams.edit.appNameHelp")}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Logo URL"
+                  label={t("teams.edit.logoUrl")}
                   value={team.branding?.logo_url || ""}
                   onChange={(e) => setTeam({ ...team, branding: { ...team.branding, logo_url: e.target.value } })}
                   variant="outlined"
-                  helperText="URL or data:image/... URI for the sidebar logo"
+                  helperText={t("teams.edit.logoUrlHelp")}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Primary Color"
+                  label={t("teams.edit.primaryColor")}
                   value={team.branding?.primary_color || ""}
                   onChange={(e) => setTeam({ ...team, branding: { ...team.branding, primary_color: e.target.value } })}
                   variant="outlined"
                   placeholder="#1976d2"
-                  helperText="Hex color for header and primary elements"
+                  helperText={t("teams.edit.primaryColorHelp")}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
@@ -562,12 +564,12 @@ export default function TeamEdit() {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Secondary Color"
+                  label={t("teams.edit.secondaryColor")}
                   value={team.branding?.secondary_color || ""}
                   onChange={(e) => setTeam({ ...team, branding: { ...team.branding, secondary_color: e.target.value } })}
                   variant="outlined"
                   placeholder="#ff9800"
-                  helperText="Hex color for accents and secondary elements"
+                  helperText={t("teams.edit.secondaryColorHelp")}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
@@ -587,18 +589,18 @@ export default function TeamEdit() {
                   fullWidth
                   multiline
                   rows={3}
-                  label="Welcome Message"
+                  label={t("teams.edit.welcomeMessage")}
                   value={team.branding?.welcome_message || ""}
                   onChange={(e) => setTeam({ ...team, branding: { ...team.branding, welcome_message: e.target.value } })}
                   variant="outlined"
-                  helperText="Displayed on the landing page for team members"
+                  helperText={t("teams.edit.welcomeHelp")}
                 />
               </Grid>
 
               {/* Live preview */}
               {(team.branding?.logo_url || team.branding?.primary_color || team.branding?.app_name) && (
                 <Grid item xs={12}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Preview</Typography>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("teams.edit.preview")}</Typography>
                   <Box sx={{
                     display: "flex", alignItems: "center", gap: 1.5, p: 2,
                     bgcolor: team.branding?.primary_color || "primary.main",
@@ -625,14 +627,14 @@ export default function TeamEdit() {
               onClick={handleCancel}
               sx={{ mr: 2 }}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="submit"
               variant="contained"
               color="primary"
             >
-              {isNewTeam ? 'Create Team' : 'Save Changes'}
+              {isNewTeam ? t("teams.edit.createTeam") : t("teams.edit.saveChanges")}
             </Button>
           </Box>
         </StyledCard>

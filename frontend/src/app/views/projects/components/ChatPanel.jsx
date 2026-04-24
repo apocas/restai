@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box, Fab, TextField, Tooltip, Typography, Chip, styled, IconButton,
 } from "@mui/material";
-import { Send, AttachFile, DeleteSweep, CallSplit, Close } from "@mui/icons-material";
+import { Send, Stop, AttachFile, DeleteSweep, CallSplit, Close } from "@mui/icons-material";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
@@ -13,7 +14,36 @@ const HiddenInput = styled("input")({ display: "none" });
 
 const url = process.env.REACT_APP_RESTAI_API_URL || "";
 
+// Map a status code + optional server detail to user-friendly copy.
+// Called from both the streaming and non-streaming error paths so the
+// user sees consistent messaging regardless of transport. Translated
+// via `t()` so every locale can re-word these from `chat.error.*`.
+function formatChatError(t, status, detail) {
+  const d = (detail || "").toString().trim();
+  switch (status) {
+    case 401: return t("chat.error.sessionExpired");
+    case 402: return t("chat.error.budgetExhausted");
+    case 403: return d || t("chat.error.forbidden");
+    case 404: return t("chat.error.notFound");
+    case 413: return t("chat.error.tooLarge");
+    case 422: return d ? t("chat.error.invalidDetail", { detail: d }) : t("chat.error.invalid");
+    case 429:
+      if (d && d.toLowerCase().includes("quota"))
+        return t("chat.error.quotaReached", { detail: d });
+      return t("chat.error.rateLimit");
+    case 500: return t("chat.error.internal");
+    case 502:
+    case 503:
+      return t("chat.error.overloaded");
+    case 504: return t("chat.error.timeout");
+    default:
+      if (d) return t("chat.error.default", { detail: d });
+      return t("chat.error.generic");
+  }
+}
+
 export default function ChatPanel({ project, systemOverride, sharedQuestion, onQuestionSent, chatMode = false, compact = false, streaming = false, context = null }) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
@@ -25,6 +55,10 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const scrollRef = useRef(null);
+  // AbortController for the in-flight streaming fetch. Kept in a ref so
+  // the Stop button can access the live controller without triggering
+  // re-renders on each stream chunk.
+  const streamAbortRef = useRef(null);
 
   // Branching: each branch is { name: string, messages: array }
   // branches is empty when there's only one thread (no branching yet)
@@ -163,14 +197,38 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     let accumulated = "";
     let finalOutput = null;
 
+    // Captured by onopen when the upstream returns a non-2xx before the
+    // stream ever starts. Gets fed to formatChatError below so the
+    // error message matches the actual HTTP status.
+    let httpStatus = 0;
+    let httpDetail = "";
+
+    // Fresh abort controller per stream. handleStopStreaming() calls
+    // abort() on this; the onerror handler checks the `aborted` flag
+    // so we don't show an error bubble for an intentional cancel.
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+
     await fetchEventSource(url + `/projects/${project.id}/${endpoint}`, {
       method: "POST",
+      signal: controller.signal,
       headers: {
         "Accept": "text/event-stream",
         "Content-Type": "application/json",
         "Authorization": "Basic " + auth.user.token,
       },
       body: JSON.stringify(body),
+      async onopen(response) {
+        if (!response.ok) {
+          httpStatus = response.status;
+          try {
+            const data = await response.json();
+            httpDetail = typeof data.detail === "string" ? data.detail : "";
+          } catch {}
+          // Throwing here jumps to onerror with this exception.
+          throw new Error(`http ${response.status}`);
+        }
+      },
       onmessage(ev) {
         try {
           const data = JSON.parse(ev.data);
@@ -195,10 +253,10 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
             return updated;
           });
           if (finalOutput.guard) {
-            toast.warning("This question hit the prompt guard.", { position: "top-right" });
+            toast.warning(t("chat.guardHit"), { position: "top-right" });
           }
           if (project.type === "rag" && finalOutput.sources && finalOutput.sources.length === 0) {
-            toast.warning("No sources found. Try decreasing the score cutoff.", { position: "top-right" });
+            toast.warning(t("chat.ragNoSources"), { position: "top-right" });
           }
         } else if (accumulated) {
           setMessages(prev => {
@@ -217,18 +275,52 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         }
         setIsLoading(false);
         setFiles([]);
+        streamAbortRef.current = null;
         if (onQuestionSent) onQuestionSent();
       },
       onerror(err) {
         setStreamingText("");
+        // Intentional user abort — keep whatever text we accumulated
+        // as the final answer and exit quietly, no error bubble, no
+        // toast. Aborting via AbortController surfaces here as a
+        // DOMException with name "AbortError" (or the signal flagged).
+        const aborted = controller.signal.aborted || (err && err.name === "AbortError");
+        if (aborted) {
+          setMessages(prev => {
+            const updated = [...prev];
+            const prevId = updated.length > 1 ? updated[updated.length - 2]?.id : undefined;
+            const placeholder = updated[updated.length - 1] || {};
+            updated[updated.length - 1] = {
+              question: questionText,
+              answer: accumulated ? `${accumulated}\n\n_${t("chat.stoppedSuffix")}_` : `_${t("chat.stoppedSuffix")}_`,
+              sources: [],
+              id: prevId,
+              _files: placeholder._files,
+            };
+            return updated;
+          });
+          setIsLoading(false);
+          setFiles([]);
+          streamAbortRef.current = null;
+          throw err; // Stop fetchEventSource from retrying
+        }
+
+        const msg = formatChatError(t, httpStatus, httpDetail);
         setMessages(prev => {
           const updated = [...prev];
           const prevId = updated.length > 1 ? updated[updated.length - 2]?.id : undefined;
-          updated[updated.length - 1] = { question: questionText, answer: "Error: streaming failed.", sources: [], id: prevId };
+          updated[updated.length - 1] = { question: questionText, answer: msg, sources: [], id: prevId };
           return updated;
         });
+        // Toast for anything actionable (rate limit / budget / quota /
+        // auth). Leaves the inline bubble as the record of what went
+        // wrong for less-actionable cases (500/unknown).
+        if ([401, 402, 413, 429].includes(httpStatus)) {
+          toast.error(msg, { position: "top-right" });
+        }
         setIsLoading(false);
         setFiles([]);
+        streamAbortRef.current = null;
         throw err; // Stop reconnecting
       },
     });
@@ -294,17 +386,22 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         toast.warning("No sources found. Try decreasing the score cutoff.", { position: "top-right" });
       }
     } catch (e) {
+      // e is an ApiError (from api.js) — carries .status and .detail.
+      const msg = formatChatError(t, e && e.status, e && e.detail);
       setMessages(prev => {
         const updated = [...prev];
         const prevId = updated.length > 1 ? updated[updated.length - 2]?.id : undefined;
         updated[updated.length - 1] = {
           question: questionText,
-          answer: "Error: request failed.",
+          answer: msg,
           sources: [],
           id: prevId,
         };
         return updated;
       });
+      if ([401, 402, 413, 429].includes(e && e.status)) {
+        toast.error(msg, { position: "top-right" });
+      }
     } finally {
       setIsLoading(false);
       setFiles([]);
@@ -320,11 +417,24 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
+  // Stop the in-flight stream. onerror handles the aborted branch and
+  // keeps whatever text was accumulated. No-op when nothing's in flight.
+  const handleStopStreaming = () => {
+    const controller = streamAbortRef.current;
+    if (controller) {
+      try { controller.abort(); } catch {}
     }
+  };
+
+  const handleKeyDown = (e) => {
+    // `e.isComposing` (or keyCode 229) means an IME is mid-composition —
+    // typical for CJK input methods where Enter confirms the candidate
+    // character, NOT the message. Also bail on Shift+Enter (explicit
+    // newline per the Slack/Discord convention).
+    if (e.key !== "Enter" || e.shiftKey) return;
+    if (e.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    handleSend();
   };
 
   const MAX_FILE_MB = 20;
@@ -415,7 +525,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
                     ? systemOverride.substring(0, 200) + (systemOverride.length > 200 ? "..." : "")
                     : project.system
                       ? project.system.substring(0, 200) + (project.system.length > 200 ? "..." : "")
-                      : "Send a message to get started."}
+                      : t("chat.getStarted")}
                 </Typography>
                 {project.default_prompt && (
                   <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
@@ -481,19 +591,17 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         <TextField
           fullWidth
           size="small"
-          placeholder="Type a message..."
+          placeholder={t("chat.placeholder")}
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={handleKeyDown}
           multiline
-          maxRows={4}
+          maxRows={5}
           disabled={isLoading}
         />
         {showUpload && (
           <>
-            <Tooltip title={project.type === "agent"
-              ? "Attach files — images go to the vision model, the rest land in /home/user/uploads/ for the terminal tool"
-              : "Attach image"}>
+            <Tooltip title={project.type === "agent" ? t("chat.attachFiles") : t("chat.attachImage")}>
               <label htmlFor={`attach-${project.id}-${systemOverride ? "b" : "a"}`}>
                 <Fab color="default" size="small" component="span">
                   <AttachFile fontSize="small" />
@@ -509,19 +617,27 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
             />
           </>
         )}
-        <Tooltip title="Clear chat">
+        <Tooltip title={t("chat.clear")}>
           <Fab color="default" size="small" onClick={handleClear}>
             <DeleteSweep fontSize="small" />
           </Fab>
         </Tooltip>
-        <Fab
-          color="primary"
-          size="small"
-          onClick={handleSend}
-          disabled={isLoading && !inputText.trim() && files.length === 0}
-        >
-          <Send fontSize="small" />
-        </Fab>
+        {isLoading && streaming ? (
+          <Tooltip title={t("chat.stop")}>
+            <Fab color="error" size="small" onClick={handleStopStreaming}>
+              <Stop fontSize="small" />
+            </Fab>
+          </Tooltip>
+        ) : (
+          <Fab
+            color="primary"
+            size="small"
+            onClick={handleSend}
+            disabled={isLoading || (!inputText.trim() && files.length === 0)}
+          >
+            <Send fontSize="small" />
+          </Fab>
+        )}
       </Box>
     </Box>
   );

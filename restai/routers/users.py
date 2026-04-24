@@ -13,6 +13,7 @@ from restai.models.models import (
     ApiKeyCreate,
     ApiKeyCreatedResponse,
     ApiKeyResponse,
+    ApiKeyUpdate,
     TOTPSetupResponse,
     TOTPEnableRequest,
     TOTPDisableRequest,
@@ -262,6 +263,46 @@ async def route_list_user_apikeys(
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.patch("/users/{username}/apikeys/{key_id}", response_model=ApiKeyResponse)
+async def route_update_user_apikey(
+    body: ApiKeyUpdate,
+    username: str = Path(description="Username"),
+    key_id: int = Path(description="API key ID"),
+    _: User = Depends(get_current_username_user),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Update an API key's description or monthly token quota. Setting
+    ``token_quota_monthly`` to ``0`` or ``null`` clears the cap
+    (unlimited). ``reset_usage=true`` zeros the current-month counter
+    and pushes ``quota_reset_at`` forward one calendar month."""
+    from restai.models.databasemodels import ApiKeyDatabase
+    from restai.budget import _first_of_next_month
+    user = db_wrapper.get_user_by_username(username)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    key = (
+        db_wrapper.db.query(ApiKeyDatabase)
+        .filter(ApiKeyDatabase.id == key_id, ApiKeyDatabase.user_id == user.id)
+        .first()
+    )
+    if key is None:
+        raise HTTPException(status_code=404, detail="API key not found")
+
+    if body.description is not None:
+        key.description = body.description
+    if body.token_quota_monthly is not None:
+        # Zero or explicit null → clear the cap (unlimited).
+        key.token_quota_monthly = body.token_quota_monthly or None
+    if body.reset_usage:
+        from datetime import datetime, timezone
+        key.tokens_used_this_month = 0
+        key.quota_reset_at = _first_of_next_month(datetime.now(timezone.utc))
+
+    db_wrapper.db.commit()
+    db_wrapper.db.refresh(key)
+    return ApiKeyResponse.model_validate(key)
 
 
 @router.delete("/users/{username}/apikeys/{key_id}")

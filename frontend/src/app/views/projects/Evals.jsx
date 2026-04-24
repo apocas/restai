@@ -4,6 +4,7 @@ import useAuth from "app/hooks/useAuth";
 import ProjectEvals from "./components/ProjectEvals";
 import Breadcrumb from "app/components/Breadcrumb";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
@@ -18,6 +19,7 @@ const ContentBox = styled("div")(({ theme }) => ({
 }));
 
 export default function ProjectEvalsView() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [project, setProject] = useState({});
   const auth = useAuth();
@@ -33,17 +35,17 @@ export default function ProjectEvalsView() {
   }, [id]);
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Evals - " + id;
-  }, []);
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - " + t("projects.edit.tabs.evals") + " - " + id;
+  }, [id, t]);
 
   return (
     <Container>
       <Box className="breadcrumb">
         <Breadcrumb
           routeSegments={[
-            { name: "Projects", path: "/projects" },
+            { name: t("nav.projects"), path: "/projects" },
             { name: project.name || id, path: "/project/" + id },
-            { name: "Evals", path: "/project/" + id + "/evals" },
+            { name: t("projects.edit.tabs.evals"), path: "/project/" + id + "/evals" },
           ]}
         />
       </Box>

@@ -1919,11 +1919,72 @@ async def get_conversation_analytics(
     )
     top_users = [{"user_id": r.user_id, "username": r.username, "messages": r.messages} for r in top_user_rows]
 
+    # Status breakdown — success vs error/budget/quota/rate_limit. The
+    # `status` column is set by `helper._log_inference_error` when a
+    # check fails before the LLM runs, and "success" when it doesn't.
+    status_rows = (
+        db_wrapper.db.query(
+            OutputDatabase.status,
+            func.count(OutputDatabase.id).label("count"),
+        )
+        .filter(*base_filter)
+        .group_by(OutputDatabase.status)
+        .all()
+    )
+    status_breakdown = [{"status": (r.status or "success"), "count": r.count} for r in status_rows]
+
+    # Latency histogram — fixed buckets keyed by speed-of-light intuition.
+    # Anything <500ms feels instant; >10s is "the LLM is struggling".
+    LATENCY_BUCKETS = [
+        ("0-100ms", 0, 100),
+        ("100-500ms", 100, 500),
+        ("500ms-2s", 500, 2000),
+        ("2-10s", 2000, 10000),
+        ("10s+", 10000, None),
+    ]
+    latency_buckets = []
+    for label, lo, hi in LATENCY_BUCKETS:
+        q = db_wrapper.db.query(func.count(OutputDatabase.id)).filter(
+            *base_filter,
+            OutputDatabase.latency_ms.isnot(None),
+            OutputDatabase.latency_ms >= lo,
+        )
+        if hi is not None:
+            q = q.filter(OutputDatabase.latency_ms < hi)
+        latency_buckets.append({"bucket": label, "count": q.scalar() or 0})
+
+    # LLM split — useful for projects that rotated models or use a
+    # fallback chain. Most projects only show one row.
+    llm_rows = (
+        db_wrapper.db.query(
+            OutputDatabase.llm,
+            func.count(OutputDatabase.id).label("messages"),
+            func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens).label("tokens"),
+            func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost).label("cost"),
+        )
+        .filter(*base_filter, OutputDatabase.llm.isnot(None))
+        .group_by(OutputDatabase.llm)
+        .order_by(func.count(OutputDatabase.id).desc())
+        .all()
+    )
+    llm_breakdown = [
+        {
+            "llm": r.llm,
+            "messages": r.messages,
+            "tokens": int(r.tokens or 0),
+            "cost": round(float(r.cost or 0), 4),
+        }
+        for r in llm_rows
+    ]
+
     return {
         "summary": summary,
         "daily": daily,
         "hourly": hourly,
         "top_users": top_users,
+        "status_breakdown": status_breakdown,
+        "latency_buckets": latency_buckets,
+        "llm_breakdown": llm_breakdown,
     }
 
 
@@ -2608,7 +2669,59 @@ async def fire_routine(
     routine.updated_at = datetime.now(timezone.utc)
     db_wrapper.db.commit()
 
+    # Append a manual-fire row to the execution log so admins can see
+    # admin-triggered runs alongside scheduled ones. `manual=True`
+    # distinguishes them from cron fires.
+    try:
+        from restai.models.databasemodels import RoutineExecutionLogDatabase
+        db_wrapper.db.add(RoutineExecutionLogDatabase(
+            routine_id=routine.id, project_id=routine.project_id,
+            status="ok", result=(answer[:2000] if answer else None),
+            duration_ms=None, manual=True,
+            created_at=datetime.now(timezone.utc),
+        ))
+        db_wrapper.db.commit()
+    except Exception:
+        logging.exception("Failed to write routine execution log row for manual fire")
+
     return result
+
+
+@router.get("/projects/{projectID}/routines/{routineID}/history", tags=["Routines"])
+async def get_routine_history(
+    projectID: int = PathParam(description="Project ID"),
+    routineID: int = PathParam(description="Routine ID"),
+    limit: int = Query(50, ge=1, le=500),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Recent execution history for a routine, newest first. Includes
+    both cron-fired (manual=False) and admin-triggered (manual=True)
+    runs."""
+    from restai.models.databasemodels import RoutineExecutionLogDatabase
+    routine = db_wrapper.get_project_routine_by_id(routineID)
+    if not routine or routine.project_id != projectID:
+        raise HTTPException(status_code=404, detail="Routine not found")
+    rows = (
+        db_wrapper.db.query(RoutineExecutionLogDatabase)
+        .filter(RoutineExecutionLogDatabase.routine_id == routineID)
+        .order_by(RoutineExecutionLogDatabase.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return {
+        "runs": [
+            {
+                "id": r.id,
+                "status": r.status,
+                "result": r.result,
+                "duration_ms": r.duration_ms,
+                "manual": bool(r.manual),
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ],
+    }
 
 
 # ── Agent-created project tools ──────────────────────────────────────────

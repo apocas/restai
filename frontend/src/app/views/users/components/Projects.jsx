@@ -14,9 +14,11 @@ import { FlexBetween, FlexBox } from "app/components/FlexBox";
 import { convertHexToRGB } from "app/utils/utils";
 import useAuth from "app/hooks/useAuth";
 import BAvatar from "boring-avatars";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 export default function Preferences({ user, projects }) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [state, setState] = useState({});
 
@@ -79,7 +81,7 @@ export default function Preferences({ user, projects }) {
 
   return (
     <Card>
-      <H5 padding={3}>General Preferences</H5>
+      <H5 padding={3}>{t("users.userProjects.title")}</H5>
       <Divider />
 
       <Box margin={3}>
@@ -90,7 +92,7 @@ export default function Preferences({ user, projects }) {
                 select
                 size="small"
                 name="addproject"
-                label="Project"
+                label={t("users.userProjects.project")}
                 variant="outlined"
                 value={state.addproject ?? ''}
                 onChange={handleChange}
@@ -111,7 +113,7 @@ export default function Preferences({ user, projects }) {
                   onSubmitHandler();
                 }
               }}>
-                Associate
+                {t("users.userProjects.associate")}
               </Button>
             </Grid>
           </Grid>
@@ -137,7 +139,7 @@ export default function Preferences({ user, projects }) {
 
                   {auth.user.is_admin === true &&
                     <Box m={1} display="flex">
-                      <StyledButton size="small" onClick={() => { diassoc(project) }} >Dissociate</StyledButton>
+                      <StyledButton size="small" onClick={() => { diassoc(project) }} >{t("users.userProjects.dissociate")}</StyledButton>
                     </Box>
                   }
                 </FlexBetween>

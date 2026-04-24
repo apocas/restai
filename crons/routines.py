@@ -101,20 +101,37 @@ async def _run():
 
             logger.info("Firing routine '%s' (id=%d) for project '%s'", routine.name, routine.id, project.props.name)
 
+            import time as _time
+            start = _time.monotonic()
             try:
                 result = await asyncio.wait_for(
                     _fire_routine(brain, db, routine, project), timeout=300,
                 )
                 answer = result.get("answer", "") if isinstance(result, dict) else str(result)
+                duration_ms = int((_time.monotonic() - start) * 1000)
 
                 routine.last_run = datetime.now(timezone.utc)
                 routine.last_result = answer[:2000] if answer else None
                 routine.updated_at = datetime.now(timezone.utc)
                 db.db.commit()
 
+                # Append a success row to the execution log.
+                try:
+                    from restai.models.databasemodels import RoutineExecutionLogDatabase
+                    db.db.add(RoutineExecutionLogDatabase(
+                        routine_id=routine.id, project_id=routine.project_id,
+                        status="ok", result=(answer[:2000] if answer else None),
+                        duration_ms=duration_ms, manual=False,
+                        created_at=datetime.now(timezone.utc),
+                    ))
+                    db.db.commit()
+                except Exception:
+                    logger.exception("Failed to write routine execution log row")
+
                 fired += 1
                 cron.info(f"Fired '{routine.name}' for {project.props.name}")
             except Exception as e:
+                duration_ms = int((_time.monotonic() - start) * 1000)
                 logger.error("Routine '%s' failed: %s", routine.name, e)
                 cron.error(f"Routine '{routine.name}' failed: {e}")
                 try:
@@ -125,6 +142,27 @@ async def _run():
                     db.db.commit()
                 except Exception:
                     logger.warning("Failed to update routine '%s' after error", routine.name)
+                # Error row (best-effort, always runs).
+                try:
+                    from restai.models.databasemodels import RoutineExecutionLogDatabase
+                    db.db.add(RoutineExecutionLogDatabase(
+                        routine_id=routine.id, project_id=routine.project_id,
+                        status="error", result=str(e)[:2000],
+                        duration_ms=duration_ms, manual=False,
+                        created_at=datetime.now(timezone.utc),
+                    ))
+                    db.db.commit()
+                except Exception:
+                    logger.exception("Failed to write routine execution log row after error")
+                try:
+                    from restai.webhooks import emit_event_for_project_id
+                    emit_event_for_project_id(project.props.id, "routine_failed", {
+                        "routine_id": routine.id,
+                        "routine_name": routine.name,
+                        "error": str(e)[:500],
+                    })
+                except Exception:
+                    pass
 
         cron.finish(items_processed=fired)
     except Exception as e:

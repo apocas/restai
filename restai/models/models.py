@@ -711,6 +711,29 @@ class ProjectOptions(BaseModel):
     whatsapp_verify_token: Union[str, None] = Field(default=None, description="Admin-chosen string Meta echoes back during the initial GET subscription handshake. Encrypted at rest.")
     whatsapp_default_to: Union[str, None] = Field(default=None, description="Default recipient phone number (E.164, no '+') for the send_whatsapp builtin tool — typically your own phone for proactive notifications. Outbound is constrained to WhatsApp's 24h customer-service window unless using a pre-approved template (template messages are not supported by this tool).")
     whatsapp_allowed_phone_numbers: Union[str, None] = Field(default=None, description="Comma-separated allowlist of E.164 senders (no '+'). Empty = anyone with the bot's number can chat. Recommended for production — protects WhatsApp number quality rating from spam.")
+    # Outbound email (SMTP / SES / Mailgun / Postmark — anything that
+    # speaks SMTP). Used by the send_email builtin tool.
+    smtp_host: Union[str, None] = Field(default=None, description="SMTP server hostname (e.g. smtp.gmail.com, email-smtp.us-east-1.amazonaws.com).")
+    smtp_port: Union[int, None] = Field(default=587, ge=1, le=65535, description="SMTP server port. Defaults to 587 (STARTTLS). Use 465 for implicit TLS.")
+    smtp_user: Union[str, None] = Field(default=None, description="SMTP username (often the same as the From address, but provider-dependent).")
+    smtp_password: Union[str, None] = Field(default=None, description="SMTP password / API key. Encrypted at rest.")
+    smtp_from: Union[str, None] = Field(default=None, description="From address for outbound mail (e.g. 'Bot <bot@example.com>'). Must be authorized by the SMTP relay.")
+    email_default_to: Union[str, None] = Field(default=None, description="Default recipient address for the send_email builtin tool — typically your own inbox for proactive notifications.")
+    # Outbound SMS via Twilio's REST API. Pick Twilio specifically because
+    # the auth model is a single account-sid + auth-token pair, no OAuth
+    # dance, no webhook subscription. Other providers can be added later.
+    twilio_account_sid: Union[str, None] = Field(default=None, description="Twilio Account SID (starts with 'AC...').")
+    twilio_auth_token: Union[str, None] = Field(default=None, description="Twilio Auth Token. Encrypted at rest.")
+    twilio_from_number: Union[str, None] = Field(default=None, description="Twilio sender phone number in E.164 format (e.g. +15551234567). Must be a number you've provisioned in Twilio.")
+    sms_default_to: Union[str, None] = Field(default=None, description="Default recipient phone number (E.164) for the send_sms builtin tool.")
+    # Outbound event webhooks. Lets external systems (Zapier, n8n, custom CRM)
+    # react to project events without scraping the audit log.
+    webhook_url: Union[str, None] = Field(default=None, description="HTTPS endpoint that receives event POSTs from this project. Empty = webhooks disabled.")
+    webhook_secret: Union[str, None] = Field(default=None, description="Shared secret used to sign webhook payloads (HMAC-SHA256, sent in X-RESTai-Signature header). Encrypted at rest.")
+    webhook_events: Union[str, None] = Field(default=None, description="Comma-separated event types this project subscribes to. Supported: budget_exceeded, sync_completed, eval_completed, routine_failed. Empty = all events.")
+    # Content moderation (used by the moderate_content builtin tool).
+    moderation_blocklist: Union[str, None] = Field(default=None, description="Comma-separated terms that the moderate_content tool flags (and redacts when moderation_redact_pii is on). Case-insensitive substring match — keep literal, no regex.")
+    moderation_redact_pii: Union[bool, None] = Field(default=True, description="When true, moderate_content returns a SANITIZED copy of the input with PII/blocklist matches replaced by [REDACTED:<type>]. Default on.")
     blockly_workspace: Union[dict, None] = Field(default=None, description="Blockly workspace JSON for block projects")
     rate_limit: Union[int, None] = Field(default=None, ge=1, le=10000, description="Maximum requests per minute (None = unlimited)")
     guard_output: Union[str, None] = Field(default=None, description="Name of the guard project for output checking")
@@ -843,6 +866,11 @@ class ProjectInfo(ProjectModel):
 class UserOptions(BaseModel):
     """User-level configuration options."""
     preferred_team_id: Union[int, None] = Field(default=None, description="ID of the team whose branding to use")
+    # UI language preference. Stored per-user inside the options JSON
+    # blob so it follows the user across devices. Frontend falls back
+    # to localStorage when the user is unauthenticated (login screen)
+    # or the field is unset. Valid values: "en", "pt-PT", "zh-CN".
+    language: Union[str, None] = Field(default=None, max_length=10, description="UI language code (e.g. 'en', 'pt-PT', 'zh-CN'). Null = use browser / default.")
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -889,6 +917,9 @@ class ApiKeyResponse(BaseModel):
     created_at: datetime = Field(description="Timestamp when the API key was created")
     allowed_projects: Union[list[int], None] = Field(default=None, description="Project IDs this key can access, null means all")
     read_only: bool = Field(default=False, description="Whether this key is read-only")
+    token_quota_monthly: Union[int, None] = Field(default=None, description="Monthly token quota (null = unlimited)")
+    tokens_used_this_month: int = Field(default=0, description="Tokens consumed in the current quota window")
+    quota_reset_at: Union[datetime, None] = Field(default=None, description="Timestamp when the current quota window rolls over")
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator('allowed_projects', mode='before')
@@ -900,6 +931,14 @@ class ApiKeyResponse(BaseModel):
             except (json.JSONDecodeError, TypeError):
                 return None
         return v
+
+
+class ApiKeyUpdate(BaseModel):
+    """Patch an API key's quota / metadata. Only fields that are set get
+    applied — omitted fields are left untouched."""
+    description: Union[str, None] = Field(default=None, description="New description")
+    token_quota_monthly: Union[int, None] = Field(default=None, ge=0, description="New monthly token cap (0 or null = clear quota)")
+    reset_usage: bool = Field(default=False, description="Zero tokens_used_this_month and push quota_reset_at to the 1st of next month")
 
 
 class ApiKeyCreatedResponse(BaseModel):
@@ -929,6 +968,10 @@ class User(BaseModel):
     # API key scope — set during auth, excluded from serialization
     api_key_allowed_projects: Union[list[int], None] = Field(default=None, exclude=True)
     api_key_read_only: bool = Field(default=False, exclude=True)
+    # ID of the ApiKeyDatabase row that authenticated this request (None
+    # for basic / cookie auth). Used by the monthly token-quota check
+    # and the log_inference usage counter.
+    api_key_id: Union[int, None] = Field(default=None, exclude=True)
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator('options', mode='before')
@@ -1420,6 +1463,8 @@ class SettingsResponse(BaseModel):
     data_retention_days: int = Field(default=0, description="Auto-delete data older than this many days (0 = keep forever)")
     # 2FA
     enforce_2fa: bool = Field(default=False, description="Whether TOTP 2FA is enforced for all local users")
+    # Password rotation
+    password_max_age_days: int = Field(default=0, description="Soft warning shown on login when a user's password is older than this many days. 0 = disabled.")
 
 
 class SettingsUpdate(BaseModel):
@@ -1489,6 +1534,8 @@ class SettingsUpdate(BaseModel):
     data_retention_days: Optional[int] = Field(default=None, ge=0, description="Auto-delete data older than this many days (0 = keep forever)")
     # 2FA
     enforce_2fa: Optional[bool] = Field(default=None, description="Whether TOTP 2FA is enforced for all local users")
+    # Password rotation
+    password_max_age_days: Optional[int] = Field(default=None, ge=0, description="Soft warning shown on login when a user's password is older than this many days. 0 = disabled.")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "app_name": "My AI Platform",
@@ -1803,6 +1850,46 @@ class WidgetConfig(BaseModel):
     avatarUrl: str = Field(default="", max_length=500)
     stream: bool = Field(default=False)
     context_prefix: bool = Field(default=True, description="Auto-prepend user context block to system prompt")
+
+
+VALID_TEMPLATE_VISIBILITIES = ("private", "team", "public")
+
+
+class ProjectTemplatePublish(BaseModel):
+    """Snapshot the calling project into a new template."""
+    name: str = Field(min_length=1, max_length=255, description="Template display name")
+    description: Optional[str] = Field(default=None, max_length=2000, description="Short description shown in the library list")
+    visibility: Literal["private", "team", "public"] = Field(default="private", description="Who can see/use this template")
+
+
+class ProjectTemplateUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    visibility: Optional[Literal["private", "team", "public"]] = Field(default=None)
+
+
+class ProjectTemplateInstantiate(BaseModel):
+    """Create a fresh project from a template."""
+    name: str = Field(min_length=1, max_length=255)
+    team_id: int = Field(description="Target team for the new project")
+    llm: Optional[str] = Field(default=None, description="LLM to use; defaults to the template's suggested_llm if you have access")
+    embeddings: Optional[str] = Field(default=None, description="Embeddings model (RAG only)")
+
+
+class ProjectTemplateResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    project_type: str
+    suggested_llm: Optional[str] = None
+    suggested_embeddings: Optional[str] = None
+    visibility: str
+    creator_username: Optional[str] = None
+    team_id: Optional[int] = None
+    team_name: Optional[str] = None
+    created_at: datetime
+    use_count: int = 0
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WidgetCreate(BaseModel):

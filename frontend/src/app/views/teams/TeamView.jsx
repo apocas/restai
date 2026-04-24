@@ -25,6 +25,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
 import { Breadcrumb } from "app/components";
 import { toast } from 'react-toastify';
+import { useTranslation } from "react-i18next";
 import { Person, Settings, Delete, Group, Code, Psychology, AccountBalanceWallet, Receipt, AllInclusive, Image, Speaker } from "@mui/icons-material";
 import MUIDataTable from "mui-datatables";
 import ReactJson from '@microlink/react-json-view';
@@ -61,6 +62,7 @@ function TabPanel(props) {
 }
 
 export default function TeamView() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [team, setTeam] = useState(null);
   const [tabValue, setTabValue] = useState(0);
@@ -130,13 +132,13 @@ export default function TeamView() {
   };
 
   const handleRemoveUser = async (username) => {
-    if (!window.confirm(`Are you sure you want to remove ${username} from this team?`)) {
+    if (!window.confirm(t("teams.view.confirmRemove", { name: username }))) {
       return;
     }
 
     try {
       await api.delete(`/teams/${id}/users/${username}`, user.token);
-      toast.success(`${username} removed from team`);
+      toast.success(t("teams.view.removed", { name: username }));
       fetchTeam();
     } catch (error) {
       // errors auto-toasted
@@ -144,13 +146,13 @@ export default function TeamView() {
   };
 
   const handleRemoveAdmin = async (username) => {
-    if (!window.confirm(`Are you sure you want to remove admin privileges from ${username}?`)) {
+    if (!window.confirm(t("teams.view.confirmRemoveAdmin", { name: username }))) {
       return;
     }
 
     try {
       await api.delete(`/teams/${id}/admins/${username}`, user.token);
-      toast.success(`Admin privileges removed from ${username}`);
+      toast.success(t("teams.view.adminRemoved", { name: username }));
       fetchTeam();
     } catch (error) {
       // errors auto-toasted
@@ -158,13 +160,13 @@ export default function TeamView() {
   };
 
   const handleRemoveProject = async (projectId) => {
-    if (!window.confirm("Are you sure you want to remove this project from the team?")) {
+    if (!window.confirm(t("teams.view.confirmRemoveProject"))) {
       return;
     }
 
     try {
       await api.delete(`/teams/${id}/projects/${projectId}`, user.token);
-      toast.success("Project removed from team");
+      toast.success(t("teams.view.projectRemoved"));
       fetchTeam();
     } catch (error) {
       // errors auto-toasted
@@ -172,13 +174,13 @@ export default function TeamView() {
   };
 
   const handleRemoveLLM = async (llm) => {
-    if (!window.confirm(`Are you sure you want to remove ${llm.name} from this team?`)) {
+    if (!window.confirm(t("teams.view.confirmRemove", { name: llm.name }))) {
       return;
     }
 
     try {
       await api.delete(`/teams/${id}/llms/${llm.id}`, user.token);
-      toast.success(`${llm.name} removed from team`);
+      toast.success(t("teams.view.removed", { name: llm.name }));
       fetchTeam();
     } catch (error) {
       // errors auto-toasted
@@ -186,13 +188,13 @@ export default function TeamView() {
   };
 
   const handleRemoveEmbedding = async (embedding) => {
-    if (!window.confirm(`Are you sure you want to remove ${embedding.name} from this team?`)) {
+    if (!window.confirm(t("teams.view.confirmRemove", { name: embedding.name }))) {
       return;
     }
 
     try {
       await api.delete(`/teams/${id}/embeddings/${embedding.id}`, user.token);
-      toast.success(`${embedding.name} removed from team`);
+      toast.success(t("teams.view.removed", { name: embedding.name }));
       fetchTeam();
     } catch (error) {
       // errors auto-toasted
@@ -200,13 +202,13 @@ export default function TeamView() {
   };
 
   const handleRemoveImageGenerator = async (generatorName) => {
-    if (!window.confirm(`Are you sure you want to remove ${generatorName} from this team?`)) {
+    if (!window.confirm(t("teams.view.confirmRemove", { name: generatorName }))) {
       return;
     }
 
     try {
       await api.delete(`/teams/${id}/image_generators/${generatorName}`, user.token);
-      toast.success(`${generatorName} removed from team`);
+      toast.success(t("teams.view.removed", { name: generatorName }));
       fetchTeam();
     } catch (error) {
       // errors auto-toasted
@@ -214,13 +216,13 @@ export default function TeamView() {
   };
 
   const handleRemoveAudioGenerator = async (generatorName) => {
-    if (!window.confirm(`Are you sure you want to remove ${generatorName} from this team?`)) {
+    if (!window.confirm(t("teams.view.confirmRemove", { name: generatorName }))) {
       return;
     }
 
     try {
       await api.delete(`/teams/${id}/audio_generators/${generatorName}`, user.token);
-      toast.success(`${generatorName} removed from team`);
+      toast.success(t("teams.view.removed", { name: generatorName }));
       fetchTeam();
     } catch (error) {
       // errors auto-toasted
@@ -232,11 +234,11 @@ export default function TeamView() {
       <Container>
         <Box className="breadcrumb">
           <Breadcrumb routeSegments={[
-            { name: "Teams", path: "/teams" },
-            { name: "Loading...", path: `/teams/${id}` }
+            { name: t("nav.teams"), path: "/teams" },
+            { name: t("common.loading"), path: `/teams/${id}` }
           ]} />
         </Box>
-        <Typography>Loading team details...</Typography>
+        <Typography>{t("teams.view.loading")}</Typography>
       </Container>
     );
   }
@@ -246,11 +248,11 @@ export default function TeamView() {
       <Container>
         <Box className="breadcrumb">
           <Breadcrumb routeSegments={[
-            { name: "Teams", path: "/teams" },
-            { name: "Not Found", path: `/teams/${id}` }
+            { name: t("nav.teams"), path: "/teams" },
+            { name: t("teams.view.notFoundTitle"), path: `/teams/${id}` }
           ]} />
         </Box>
-        <Typography>Team not found or you don't have permission to view it.</Typography>
+        <Typography>{t("teams.view.notFound")}</Typography>
       </Container>
     );
   }
@@ -259,7 +261,7 @@ export default function TeamView() {
     <Container>
       <Box className="breadcrumb">
         <Breadcrumb routeSegments={[
-          { name: "Teams", path: "/teams" },
+          { name: t("nav.teams"), path: "/teams" },
           { name: team.name, path: `/teams/${id}` }
         ]} />
       </Box>
@@ -269,7 +271,7 @@ export default function TeamView() {
           <Box>
             <Typography variant="h4">{team.name}</Typography>
             <Typography variant="body1" color="textSecondary">
-              {team.description || "No description provided"}
+              {team.description || t("teams.view.noDescription")}
             </Typography>
             {team.budget >= 0 ? (() => {
               const spent = team.spending ?? 0;
@@ -282,11 +284,11 @@ export default function TeamView() {
                     <Box display="flex" alignItems="center" gap={0.5}>
                       <AccountBalanceWallet sx={{ fontSize: 16, color: "text.secondary" }} />
                       <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                        Spent (this month): ${spent.toFixed(2)} / ${budget.toFixed(2)}
+                        {t("teams.view.spent")} ${spent.toFixed(2)} / ${budget.toFixed(2)}
                       </Typography>
                     </Box>
                     <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                      ${(team.remaining ?? 0).toFixed(2)} left
+                      ${(team.remaining ?? 0).toFixed(2)} {t("teams.view.left")}
                     </Typography>
                   </Box>
                   <LinearProgress
@@ -301,7 +303,7 @@ export default function TeamView() {
               <Box display="flex" alignItems="center" gap={0.5} mt={1}>
                 <AllInclusive sx={{ fontSize: 16, color: "text.disabled" }} />
                 <Typography variant="caption" color="text.disabled" fontWeight={600}>
-                  Unlimited budget
+                  {t("teams.view.unlimited")}
                 </Typography>
               </Box>
             )}
@@ -313,18 +315,18 @@ export default function TeamView() {
               startIcon={<Settings />}
               onClick={handleEditTeam}
             >
-              Edit Team
+              {t("teams.view.edit")}
             </Button>
           )}
         </Box>
         
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={tabValue} onChange={handleTabChange} aria-label="team tabs">
-            <Tab label="Users" icon={<Group />} iconPosition="start" />
-            <Tab label="Projects" icon={<Code />} iconPosition="start" />
-            <Tab label="Models" icon={<Psychology />} iconPosition="start" />
+            <Tab label={t("teams.edit.tabs.users")} icon={<Group />} iconPosition="start" />
+            <Tab label={t("teams.edit.tabs.projects")} icon={<Code />} iconPosition="start" />
+            <Tab label={t("teams.edit.tabs.models")} icon={<Psychology />} iconPosition="start" />
             {isTeamAdmin && (
-              <Tab label="Transactions" icon={<Receipt />} iconPosition="start" />
+              <Tab label={t("teams.view.tabs.transactions")} icon={<Receipt />} iconPosition="start" />
             )}
           </Tabs>
         </Box>
@@ -332,14 +334,14 @@ export default function TeamView() {
         <TabPanel value={tabValue} index={0}>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" gutterBottom>Team Members</Typography>
+              <Typography variant="h6" gutterBottom>{t("teams.edit.members")}</Typography>
               <List>
                 {team.users?.length > 0 ? (
                   team.users.map((member) => (
                     <Fragment key={member.id}>
                       <ListItem secondaryAction={
                         isTeamAdmin && (
-                          <Tooltip title="Remove User">
+                          <Tooltip title={t("teams.view.removeUser")}>
                             <IconButton edge="end" onClick={() => handleRemoveUser(member.username)}>
                               <Delete />
                             </IconButton>
@@ -357,20 +359,20 @@ export default function TeamView() {
                     </Fragment>
                   ))
                 ) : (
-                  <Typography variant="body2" color="textSecondary">No team members</Typography>
+                  <Typography variant="body2" color="textSecondary">{t("teams.view.noMembers")}</Typography>
                 )}
               </List>
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" gutterBottom>Team Admins</Typography>
+              <Typography variant="h6" gutterBottom>{t("teams.edit.admins")}</Typography>
               <List>
                 {team.admins?.length > 0 ? (
                   team.admins.map((admin) => (
                     <Fragment key={admin.id}>
                       <ListItem secondaryAction={
                         isTeamAdmin && (
-                          <Tooltip title="Remove Admin Privileges">
+                          <Tooltip title={t("teams.view.removeAdmin")}>
                             <IconButton edge="end" onClick={() => handleRemoveAdmin(admin.username)}>
                               <Delete />
                             </IconButton>
@@ -384,14 +386,14 @@ export default function TeamView() {
                         </ListItemAvatar>
                         <ListItemText 
                           primary={admin.username} 
-                          secondary={admin.id === user.id ? "(You)" : ""}
+                          secondary={admin.id === user.id ? t("teams.view.you") : ""}
                         />
                       </ListItem>
                       <Divider variant="inset" component="li" />
                     </Fragment>
                   ))
                 ) : (
-                  <Typography variant="body2" color="textSecondary">No team admins</Typography>
+                  <Typography variant="body2" color="textSecondary">{t("teams.view.noAdmins")}</Typography>
                 )}
               </List>
             </Grid>
@@ -399,7 +401,7 @@ export default function TeamView() {
         </TabPanel>
         
         <TabPanel value={tabValue} index={1}>
-          <Typography variant="h6" gutterBottom>Team Projects</Typography>
+          <Typography variant="h6" gutterBottom>{t("teams.edit.projectsHeading")}</Typography>
           <List>
             {team.projects?.length > 0 ? (
               team.projects.map((project) => (
@@ -409,7 +411,7 @@ export default function TeamView() {
                     onClick={() => navigate(`/project/${project.id}`)}
                     secondaryAction={
                       isTeamAdmin && (
-                        <Tooltip title="Remove Project">
+                        <Tooltip title={t("teams.view.removeProject")}>
                           <IconButton edge="end" onClick={(e) => {
                             e.stopPropagation();
                             handleRemoveProject(project.id);
@@ -431,7 +433,7 @@ export default function TeamView() {
                 </Fragment>
               ))
             ) : (
-              <Typography variant="body2" color="textSecondary">No projects assigned to this team</Typography>
+              <Typography variant="body2" color="textSecondary">{t("teams.view.noProjects")}</Typography>
             )}
           </List>
         </TabPanel>
@@ -439,14 +441,14 @@ export default function TeamView() {
         <TabPanel value={tabValue} index={2}>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" gutterBottom>Team LLMs</Typography>
+              <Typography variant="h6" gutterBottom>{t("teams.edit.llms")}</Typography>
               <List>
                 {team.llms?.length > 0 ? (
                   team.llms.map((llm) => (
                     <Fragment key={llm.id}>
                       <ListItem secondaryAction={
                         isTeamAdmin && (
-                          <Tooltip title="Remove LLM">
+                          <Tooltip title={t("teams.view.removeLlm")}>
                             <IconButton edge="end" onClick={() => handleRemoveLLM(llm)}>
                               <Delete />
                             </IconButton>
@@ -464,20 +466,20 @@ export default function TeamView() {
                     </Fragment>
                   ))
                 ) : (
-                  <Typography variant="body2" color="textSecondary">No LLMs assigned to this team</Typography>
+                  <Typography variant="body2" color="textSecondary">{t("teams.view.noLlms")}</Typography>
                 )}
               </List>
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" gutterBottom>Team Embedding Models</Typography>
+              <Typography variant="h6" gutterBottom>{t("teams.edit.embeddings")}</Typography>
               <List>
                 {team.embeddings?.length > 0 ? (
                   team.embeddings.map((embedding) => (
                     <Fragment key={embedding.id}>
                       <ListItem secondaryAction={
                         isTeamAdmin && (
-                          <Tooltip title="Remove Embedding">
+                          <Tooltip title={t("teams.view.removeEmbedding")}>
                             <IconButton edge="end" onClick={() => handleRemoveEmbedding(embedding)}>
                               <Delete />
                             </IconButton>
@@ -495,20 +497,20 @@ export default function TeamView() {
                     </Fragment>
                   ))
                 ) : (
-                  <Typography variant="body2" color="textSecondary">No embedding models assigned to this team</Typography>
+                  <Typography variant="body2" color="textSecondary">{t("teams.view.noEmbeddings")}</Typography>
                 )}
               </List>
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" gutterBottom>Image Generators</Typography>
+              <Typography variant="h6" gutterBottom>{t("teams.edit.imageGen")}</Typography>
               <List>
                 {team.image_generators?.length > 0 ? (
                   team.image_generators.map((gen) => (
                     <Fragment key={gen}>
                       <ListItem secondaryAction={
                         isTeamAdmin && (
-                          <Tooltip title="Remove Image Generator">
+                          <Tooltip title={t("teams.view.removeImageGen")}>
                             <IconButton edge="end" onClick={() => handleRemoveImageGenerator(gen)}>
                               <Delete />
                             </IconButton>
@@ -526,20 +528,20 @@ export default function TeamView() {
                     </Fragment>
                   ))
                 ) : (
-                  <Typography variant="body2" color="textSecondary">No image generators assigned to this team</Typography>
+                  <Typography variant="body2" color="textSecondary">{t("teams.view.noImageGen")}</Typography>
                 )}
               </List>
             </Grid>
 
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" gutterBottom>Audio Generators</Typography>
+              <Typography variant="h6" gutterBottom>{t("teams.edit.audioGen")}</Typography>
               <List>
                 {team.audio_generators?.length > 0 ? (
                   team.audio_generators.map((gen) => (
                     <Fragment key={gen}>
                       <ListItem secondaryAction={
                         isTeamAdmin && (
-                          <Tooltip title="Remove Audio Generator">
+                          <Tooltip title={t("teams.view.removeAudioGen")}>
                             <IconButton edge="end" onClick={() => handleRemoveAudioGenerator(gen)}>
                               <Delete />
                             </IconButton>
@@ -557,7 +559,7 @@ export default function TeamView() {
                     </Fragment>
                   ))
                 ) : (
-                  <Typography variant="body2" color="textSecondary">No audio generators assigned to this team</Typography>
+                  <Typography variant="body2" color="textSecondary">{t("teams.view.noAudioGen")}</Typography>
                 )}
               </List>
             </Grid>
@@ -566,7 +568,7 @@ export default function TeamView() {
 
         <TabPanel value={tabValue} index={3}>
             <MUIDataTable
-              title="Transactions"
+              title={t("teams.view.transactions")}
               options={{
                 print: false,
                 selectableRows: "none",
@@ -585,7 +587,7 @@ export default function TeamView() {
                 serverSide: true,
                 textLabels: {
                   body: {
-                    noMatch: "No transactions found",
+                    noMatch: t("teams.view.tx.noTransactions"),
                   },
                 },
                 onTableChange: (action, tableState) => {
@@ -630,7 +632,7 @@ export default function TeamView() {
               ])}
               columns={[
                 {
-                  name: "Date",
+                  name: t("teams.view.tx.date"),
                   options: {
                     customHeadRender: ({ index, ...column }) => (
                       <TableCell key={index} style={{ width: "180px" }}>{column.label}</TableCell>
@@ -638,13 +640,13 @@ export default function TeamView() {
                     customBodyRender: (value) => new Date(value).toLocaleString(),
                   },
                 },
-                { name: "Project" },
-                { name: "User" },
-                { name: "LLM" },
-                { name: "Input Tokens", options: { customBodyRender: (value) => (value || 0).toLocaleString() } },
-                { name: "Output Tokens", options: { customBodyRender: (value) => (value || 0).toLocaleString() } },
+                { name: t("teams.view.tx.project") },
+                { name: t("teams.view.tx.user") },
+                { name: t("teams.view.tx.llm") },
+                { name: t("teams.view.tx.inTokens"), options: { customBodyRender: (value) => (value || 0).toLocaleString() } },
+                { name: t("teams.view.tx.outTokens"), options: { customBodyRender: (value) => (value || 0).toLocaleString() } },
                 {
-                  name: "Cost",
+                  name: t("teams.view.tx.cost"),
                   options: {
                     customBodyRender: (value) => (value || 0).toFixed(4),
                   },

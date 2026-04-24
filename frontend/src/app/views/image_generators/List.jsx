@@ -10,6 +10,7 @@ import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import DataList from "app/components/DataList";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
@@ -41,6 +42,7 @@ function emptyForm() {
 }
 
 export default function ImageGenerators() {
+  const { t } = useTranslation();
   const auth = useAuth();
   const navigate = useNavigate();
   const isAdmin = auth.user?.is_admin;
@@ -57,9 +59,10 @@ export default function ImageGenerators() {
   };
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Image Generators";
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - " + t("imageGen.title");
     fetchGenerators();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
 
   const openCreate = () => {
     setEditing(null);
@@ -101,7 +104,7 @@ export default function ImageGenerators() {
   const handleToggleEnabled = (row, value) => {
     api.patch(`/image_generators/${row.id}`, { enabled: value }, auth.user.token)
       .then(() => {
-        toast.success(`${row.name} ${value ? "enabled" : "disabled"}`);
+        toast.success(value ? t("imageGen.dialog.enabledToast", { name: row.name }) : t("imageGen.dialog.disabledToast", { name: row.name }));
         fetchGenerators();
       })
       .catch(() => {});
@@ -110,13 +113,13 @@ export default function ImageGenerators() {
   const handleDelete = (e, row) => {
     e.stopPropagation();
     if (row.class_name === "local") {
-      toast.warning("Local generators cannot be deleted. Disable instead.");
+      toast.warning(t("imageGen.dialog.localCannotDelete"));
       return;
     }
-    if (!window.confirm(`Delete image generator "${row.name}"?`)) return;
+    if (!window.confirm(t("imageGen.dialog.deleteConfirm", { name: row.name }))) return;
     api.delete(`/image_generators/${row.id}`, auth.user.token)
       .then(() => {
-        toast.success(`Deleted ${row.name}`);
+        toast.success(t("imageGen.dialog.deleted", { name: row.name }));
         fetchGenerators();
       })
       .catch(() => {});
@@ -137,7 +140,7 @@ export default function ImageGenerators() {
       }
       api.patch(`/image_generators/${editing.id}`, payload, auth.user.token)
         .then(() => {
-          toast.success(`Saved ${editing.name}`);
+          toast.success(t("imageGen.dialog.saved", { name: editing.name }));
           setDialogOpen(false);
           setEditing(null);
           fetchGenerators();
@@ -147,7 +150,7 @@ export default function ImageGenerators() {
     } else {
       api.post("/image_generators", form, auth.user.token)
         .then(() => {
-          toast.success(`Created ${form.name}`);
+          toast.success(t("imageGen.dialog.created", { name: form.name }));
           setDialogOpen(false);
           fetchGenerators();
         })
@@ -159,7 +162,7 @@ export default function ImageGenerators() {
   const columns = [
     {
       key: "name",
-      label: "Name",
+      label: t("imageGen.columns.name"),
       sortable: true,
       render: (row) => (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -178,7 +181,7 @@ export default function ImageGenerators() {
     },
     {
       key: "class_name",
-      label: "Provider",
+      label: t("imageGen.columns.provider"),
       sortable: true,
       render: (row) => (
         <Chip
@@ -190,7 +193,7 @@ export default function ImageGenerators() {
     },
     {
       key: "model",
-      label: "Model",
+      label: t("imageGen.columns.model"),
       render: (row) => (
         <Box sx={{ fontFamily: "monospace", fontSize: "0.85rem", color: "text.secondary" }}>
           {row.options?.model || (row.class_name === "local" ? "(worker)" : "—")}
@@ -199,7 +202,7 @@ export default function ImageGenerators() {
     },
     {
       key: "privacy",
-      label: "Privacy",
+      label: t("imageGen.columns.privacy"),
       sortable: true,
       render: (row) => (
         <Chip
@@ -215,7 +218,7 @@ export default function ImageGenerators() {
     },
     {
       key: "enabled",
-      label: "Enabled",
+      label: t("imageGen.columns.enabled"),
       sortable: true,
       align: "center",
       render: (row) => (
@@ -233,19 +236,19 @@ export default function ImageGenerators() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Image Generators", path: "/generators/image" }]} />
+        <Breadcrumb routeSegments={[{ name: t("imageGen.breadcrumb"), path: "/generators/image" }]} />
       </Box>
 
       <DataList
-        title="Image Generators"
-        subtitle="Local workers + external providers (OpenAI, Google) — admins manage credentials per row"
+        title={t("imageGen.title")}
+        subtitle={t("imageGen.subtitle")}
         data={generators}
         columns={columns}
         searchKeys={["name", "class_name", "description"]}
         filters={[
           {
             key: "class_name",
-            label: "Provider",
+            label: t("imageGen.columns.provider"),
             options: [
               { value: "local", label: "Local" },
               { value: "openai", label: "OpenAI" },
@@ -263,11 +266,11 @@ export default function ImageGenerators() {
               startIcon={<PlayArrow />}
               onClick={() => navigate("/image")}
             >
-              Playground
+              {t("imageGen.playground")}
             </Button>
             {isAdmin && (
               <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
-                New Generator
+                {t("imageGen.new")}
               </Button>
             )}
           </Box>
@@ -276,12 +279,12 @@ export default function ImageGenerators() {
           <>
             {isAdmin && (
               <>
-                <Tooltip title="Edit">
+                <Tooltip title={t("imageGen.actions.edit")}>
                   <IconButton size="small" onClick={() => openEdit(row)}>
                     <Edit fontSize="small" />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title={row.class_name === "local" ? "Local generators cannot be deleted" : "Delete"}>
+                <Tooltip title={row.class_name === "local" ? t("imageGen.actions.deleteLocal") : t("imageGen.actions.delete")}>
                   <span>
                     <IconButton
                       size="small"
@@ -297,35 +300,35 @@ export default function ImageGenerators() {
             )}
           </>
         )}
-        emptyMessage="No image generators configured."
+        emptyMessage={t("imageGen.empty")}
       />
 
       <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editing ? `Edit ${editing.name}` : "New Image Generator"}
+          {editing ? t("imageGen.dialog.editTitle", { name: editing.name }) : t("imageGen.dialog.newTitle")}
         </DialogTitle>
         <DialogContent>
           {editing?.class_name === "local" && (
             <Alert severity="info" sx={{ mb: 2 }}>
-              Local generator from <code>restai/image/workers/{editing.name}.py</code>. You can toggle <em>enabled</em>, set privacy + description, and assign to teams. Provider + options come from the worker module.
+              {t("imageGen.dialog.localInfo", { name: editing.name })}
             </Alert>
           )}
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
             <TextField
-              label="Name"
+              label={t("imageGen.dialog.name")}
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               disabled={!!editing}
               required
-              helperText={editing ? "" : "URL-safe identifier — letters, numbers, dots, hyphens, underscores"}
+              helperText={editing ? "" : t("imageGen.dialog.nameHelp")}
               fullWidth
             />
 
             {(!editing || editing.class_name !== "local") && (
               <TextField
                 select
-                label="Provider"
+                label={t("imageGen.dialog.provider")}
                 value={form.class_name}
                 onChange={(e) => handleClassChange(e.target.value)}
                 disabled={!!editing}
@@ -339,17 +342,17 @@ export default function ImageGenerators() {
 
             <TextField
               select
-              label="Privacy"
+              label={t("imageGen.dialog.privacy")}
               value={form.privacy}
               onChange={(e) => setForm((f) => ({ ...f, privacy: e.target.value }))}
               fullWidth
             >
-              <MenuItem value="public">Public (cloud-hosted)</MenuItem>
-              <MenuItem value="private">Private (self-hosted / local)</MenuItem>
+              <MenuItem value="public">{t("imageGen.dialog.privacyPublic")}</MenuItem>
+              <MenuItem value="private">{t("imageGen.dialog.privacyPrivate")}</MenuItem>
             </TextField>
 
             <TextField
-              label="Description"
+              label={t("imageGen.dialog.description")}
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               fullWidth
@@ -362,14 +365,14 @@ export default function ImageGenerators() {
                 checked={form.enabled}
                 onChange={(e) => setForm((f) => ({ ...f, enabled: e.target.checked }))}
               />
-              <Typography variant="body2">Enabled</Typography>
+              <Typography variant="body2">{t("imageGen.dialog.enabled")}</Typography>
             </Box>
 
             {(!editing || editing.class_name !== "local") && (
               <>
-                <Typography variant="subtitle2" sx={{ mt: 1 }}>Provider Options</Typography>
+                <Typography variant="subtitle2" sx={{ mt: 1 }}>{t("imageGen.dialog.providerOptions")}</Typography>
                 <TextField
-                  label="Model"
+                  label={t("imageGen.dialog.model")}
                   value={form.options?.model ?? ""}
                   onChange={(e) => setOption("model", e.target.value)}
                   required
@@ -381,22 +384,22 @@ export default function ImageGenerators() {
                   }
                 />
                 <TextField
-                  label="API Key"
+                  label={t("imageGen.dialog.apiKey")}
                   type="password"
                   value={form.options?.api_key ?? ""}
                   onChange={(e) => setOption("api_key", e.target.value)}
                   required={!editing}
                   fullWidth
-                  helperText={editing ? "Leave as ******** to keep the existing key" : ""}
+                  helperText={editing ? t("imageGen.dialog.apiKeyHelp") : ""}
                 />
                 {form.class_name === "openai" && (
                   <TextField
-                    label="Base URL (optional, for OpenAI-compatible providers)"
+                    label={t("imageGen.dialog.baseUrl")}
                     value={form.options?.base_url ?? ""}
                     onChange={(e) => setOption("base_url", e.target.value)}
                     fullWidth
                     placeholder="https://api.openai.com/v1"
-                    helperText="Leave empty for OpenAI proper. Set for Together / Groq / vLLM / self-hosted."
+                    helperText={t("imageGen.dialog.baseUrlHelp")}
                   />
                 )}
               </>
@@ -404,9 +407,9 @@ export default function ImageGenerators() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeDialog} disabled={saving}>Cancel</Button>
+          <Button onClick={closeDialog} disabled={saving}>{t("common.cancel")}</Button>
           <Button variant="contained" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : (editing ? "Save" : "Create")}
+            {saving ? t("imageGen.dialog.saving") : (editing ? t("imageGen.dialog.save") : t("imageGen.dialog.create"))}
           </Button>
         </DialogActions>
       </Dialog>

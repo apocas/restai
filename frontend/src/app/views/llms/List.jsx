@@ -5,8 +5,10 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
+import { useTranslation } from "react-i18next";
 import DataList from "app/components/DataList";
 import api from "app/utils/api";
+import { colors } from "app/utils/themeColors";
 
 const Container = styled("div")(({ theme }) => ({
   margin: "24px 48px",
@@ -16,6 +18,7 @@ const Container = styled("div")(({ theme }) => ({
 }));
 
 export default function LLMs() {
+  const { t } = useTranslation();
   const [llms, setLlms] = useState([]);
   const auth = useAuth();
   const navigate = useNavigate();
@@ -34,38 +37,62 @@ export default function LLMs() {
 
   const handleDelete = (e, llm) => {
     e.stopPropagation();
-    if (!window.confirm(`Delete LLM "${llm.name}"?`)) return;
+    if (!window.confirm(t("llms.info.deleteConfirm", { name: llm.name }))) return;
     api.delete("/llms/" + llm.id, auth.user.token)
       .then(() => {
-        toast.success(`Deleted ${llm.name}`);
+        toast.success(t("llms.info.deleted", { name: llm.name }));
         fetchLlms();
       })
       .catch(() => {});
   };
 
+  const formatCost = (v) => (v == null || v === 0 ? "—" : `$${Number(v).toFixed(4)}/1K`);
+  const llmTooltip = (row) => (
+    <Box sx={{ p: 0.5, maxWidth: 320 }}>
+      <Box sx={{ fontWeight: 600, mb: 0.5 }}>{row.name}</Box>
+      {row.description && (
+        <Box sx={{ mb: 0.75, fontSize: "0.8rem", color: "grey.100", lineHeight: 1.4 }}>
+          {row.description}
+        </Box>
+      )}
+      <Box sx={{ fontSize: "0.75rem", lineHeight: 1.5 }}>
+        <div><strong>{t("llms.tooltip.class")}:</strong> {row.class_name}</div>
+        <div><strong>{t("llms.tooltip.privacy")}:</strong> {row.privacy}</div>
+        {row.context_window && (
+          <div><strong>{t("llms.tooltip.context")}:</strong> {row.context_window.toLocaleString()} {t("llms.tooltip.tokens")}</div>
+        )}
+        {(row.input_cost != null || row.output_cost != null) && (
+          <div><strong>{t("llms.tooltip.cost")}:</strong> {t("llms.tooltip.costIn")} {formatCost(row.input_cost)}, {t("llms.tooltip.costOut")} {formatCost(row.output_cost)}</div>
+        )}
+      </Box>
+    </Box>
+  );
+
   const columns = [
     {
       key: "name",
-      label: "Name",
+      label: t("llms.columns.name"),
       sortable: true,
       render: (row) => (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Box
-            sx={{
-              width: 32, height: 32, borderRadius: "8px",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: (t) => t.palette.mode === "dark" ? "rgba(16,185,129,0.15)" : "rgba(16,185,129,0.1)",
-            }}
-          >
-            <Psychology sx={{ fontSize: 18, color: "#10b981" }} />
+        <Tooltip title={llmTooltip(row)} placement="right" arrow>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "help" }}>
+            <Box
+              sx={{
+                width: 32, height: 32, borderRadius: "8px",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: (t) => t.palette.mode === "dark" ? "rgba(16,185,129,0.15)" : "rgba(16,185,129,0.1)",
+              }}
+            >
+              <Psychology sx={{ fontSize: 18, color: colors.status.success }} />
+            </Box>
+            <Box sx={{ fontWeight: 500 }}>{row.name}</Box>
           </Box>
-          <Box sx={{ fontWeight: 500 }}>{row.name}</Box>
-        </Box>
+        </Tooltip>
       ),
     },
     {
       key: "class_name",
-      label: "Class",
+      label: t("llms.columns.class"),
       sortable: true,
       render: (row) => (
         <Box sx={{ fontFamily: "monospace", fontSize: "0.85rem", color: "text.secondary" }}>
@@ -75,7 +102,7 @@ export default function LLMs() {
     },
     {
       key: "context_window",
-      label: "Context",
+      label: t("llms.columns.context"),
       sortable: true,
       render: (row) => {
         if (!row.context_window) return "—";
@@ -85,7 +112,7 @@ export default function LLMs() {
     },
     {
       key: "privacy",
-      label: "Privacy",
+      label: t("llms.columns.privacy"),
       sortable: true,
       render: (row) => (
         <Chip
@@ -93,7 +120,7 @@ export default function LLMs() {
           size="small"
           sx={{
             backgroundColor: row.privacy === "private" ? "rgba(239,68,68,0.12)" : "rgba(16,185,129,0.12)",
-            color: row.privacy === "private" ? "#ef4444" : "#10b981",
+            color: row.privacy === "private" ? colors.status.error : colors.status.success,
             fontWeight: 600,
             fontSize: "0.72rem",
             textTransform: "uppercase",
@@ -107,22 +134,22 @@ export default function LLMs() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "LLMs", path: "/llms" }]} />
+        <Breadcrumb routeSegments={[{ name: t("nav.llms"), path: "/llms" }]} />
       </Box>
 
       <DataList
-        title="LLMs"
-        subtitle="Configured language models available to projects"
+        title={t("llms.title")}
+        subtitle={t("llms.subtitle")}
         data={llms}
         columns={columns}
         searchKeys={["name", "class_name"]}
         filters={[
           {
             key: "privacy",
-            label: "Privacy",
+            label: t("llms.columns.privacy"),
             options: [
-              { value: "private", label: "Private" },
-              { value: "public", label: "Public" },
+              { value: "private", label: t("common.private") },
+              { value: "public", label: t("common.public") },
             ],
           },
         ]}
@@ -132,25 +159,25 @@ export default function LLMs() {
         headerAction={
           isAdmin && (
             <Button variant="contained" startIcon={<Add />} onClick={() => navigate("/llms/new")}>
-              New LLM
+              {t("llms.newBreadcrumb")}
             </Button>
           )
         }
         actions={(row) => (
           <>
-            <Tooltip title="View">
+            <Tooltip title={t("llms.actions.view")}>
               <IconButton size="small" onClick={() => navigate(`/llm/${row.id}`)}>
                 <Visibility fontSize="small" />
               </IconButton>
             </Tooltip>
             {isAdmin && (
               <>
-                <Tooltip title="Edit">
+                <Tooltip title={t("llms.actions.edit")}>
                   <IconButton size="small" onClick={() => navigate(`/llm/${row.id}/edit`)}>
                     <Edit fontSize="small" />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Delete">
+                <Tooltip title={t("llms.actions.delete")}>
                   <IconButton size="small" color="error" onClick={(e) => handleDelete(e, row)}>
                     <Delete fontSize="small" />
                   </IconButton>
@@ -159,7 +186,15 @@ export default function LLMs() {
             )}
           </>
         )}
-        emptyMessage="No LLMs configured."
+        emptyState={{
+          icon: Psychology,
+          title: t("llms.emptyTitle"),
+          message: t("llms.emptyMessage"),
+          actionLabel: auth.user?.is_admin ? t("llms.new") : undefined,
+          actionIcon: <Add fontSize="small" />,
+          onAction: auth.user?.is_admin ? () => navigate("/llms/new") : undefined,
+        }}
+        emptyMessage={t("llms.noLlms")}
       />
     </Container>
   );

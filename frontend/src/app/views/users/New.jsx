@@ -9,9 +9,11 @@ import {
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import api from "app/utils/api";
+import { colors } from "app/utils/themeColors";
 
 const Container = styled("div")(({ theme }) => ({
   margin: "24px 48px",
@@ -98,6 +100,7 @@ const RequirementRow = styled(Box)(({ theme }) => ({
 }));
 
 export default function UserNewView() {
+  const { t } = useTranslation();
   const auth = useAuth();
   const navigate = useNavigate();
 
@@ -113,19 +116,22 @@ export default function UserNewView() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - New User";
-  }, []);
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - " + t("users.newPage.browserTitle");
+  }, [t]);
 
   const pwd = state.password;
   const requirements = [
-    { ok: pwd.length >= 8, label: "At least 8 characters" },
-    { ok: /[a-z]/.test(pwd), label: "One lowercase letter" },
-    { ok: /[A-Z]/.test(pwd), label: "One uppercase letter" },
-    { ok: /[0-9\W_]/.test(pwd), label: "One number or symbol" },
+    { ok: pwd.length >= 8, label: t("users.pwReq.chars") },
+    { ok: /[a-z]/.test(pwd), label: t("users.pwReq.lower") },
+    { ok: /[A-Z]/.test(pwd), label: t("users.pwReq.upper") },
+    { ok: /[0-9\W_]/.test(pwd), label: t("users.pwReq.digit") },
   ];
   const pwdStrength = requirements.filter((r) => r.ok).length;
-  const strengthLabel = ["Too weak", "Weak", "Fair", "Good", "Strong"][pwdStrength];
-  const strengthColor = ["#ef4444", "#f59e0b", "#f59e0b", "#10b981", "#10b981"][pwdStrength];
+  const strengthLabel = [t("users.pwReq.tooWeak"), t("users.pwReq.weak"), t("users.pwReq.fair"), t("users.pwReq.good"), t("users.pwReq.strong")][pwdStrength];
+  const strengthColor = [
+    colors.status.error, colors.status.warning, colors.status.warning,
+    colors.status.success, colors.status.success,
+  ][pwdStrength];
 
   const passwordsMatch = state.confirmPassword === "" || state.password === state.confirmPassword;
 
@@ -136,10 +142,10 @@ export default function UserNewView() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!state.username.trim()) return toast.error("Username is required");
-    if (!state.password) return toast.error("Password is required");
-    if (state.password !== state.confirmPassword) return toast.error("Passwords do not match");
-    if (state.password.length < 8) return toast.error("Password must be at least 8 characters");
+    if (!state.username.trim()) return toast.error(t("users.newPage.usernameRequired"));
+    if (!state.password) return toast.error(t("users.newPage.passwordRequired"));
+    if (state.password !== state.confirmPassword) return toast.error(t("users.newPage.passwordsMismatch"));
+    if (state.password.length < 8) return toast.error(t("users.newPage.passwordMin"));
 
     setLoading(true);
     try {
@@ -161,16 +167,16 @@ export default function UserNewView() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Users", path: "/users" }, { name: "New User" }]} />
+        <Breadcrumb routeSegments={[{ name: t("nav.users"), path: "/users" }, { name: t("users.new") }]} />
       </Box>
 
       <Hero>
         <Box sx={{ position: "relative", zIndex: 1 }}>
           <HeroTitle variant="h4" color="primary" sx={{ mb: 1 }}>
-            Create a new user
+            {t("users.newPage.title")}
           </HeroTitle>
           <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 520, mx: "auto" }}>
-            Add a user to the platform. Set their credentials and permission level.
+            {t("users.newPage.subtitle")}
           </Typography>
         </Box>
       </Hero>
@@ -180,7 +186,7 @@ export default function UserNewView() {
           <FormCard sx={{ mb: 3 }}>
             <SectionLabel>
               <Dot color="#6366f1" />
-              Account
+              {t("users.newPage.account")}
             </SectionLabel>
             <Grid container spacing={2.5}>
               <Grid item xs={12}>
@@ -190,10 +196,10 @@ export default function UserNewView() {
                   autoFocus
                   size="small"
                   name="username"
-                  label="Username"
+                  label={t("users.fields.username")}
                   value={state.username}
                   onChange={handleChange}
-                  placeholder="e.g. alice"
+                  placeholder={t("users.newPage.usernamePlaceholder")}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -203,7 +209,7 @@ export default function UserNewView() {
                   size="small"
                   type={showPassword ? "text" : "password"}
                   name="password"
-                  label="Password"
+                  label={t("users.fields.password")}
                   value={state.password}
                   onChange={handleChange}
                   InputProps={{
@@ -224,11 +230,11 @@ export default function UserNewView() {
                   size="small"
                   type={showPassword ? "text" : "password"}
                   name="confirmPassword"
-                  label="Confirm Password"
+                  label={t("users.fields.confirmPassword")}
                   value={state.confirmPassword}
                   onChange={handleChange}
                   error={!passwordsMatch}
-                  helperText={!passwordsMatch ? "Passwords do not match" : ""}
+                  helperText={!passwordsMatch ? t("users.newPage.passwordsMismatch") : ""}
                 />
               </Grid>
 
@@ -259,7 +265,7 @@ export default function UserNewView() {
                       <Grid item xs={12} sm={6} key={r.label}>
                         <RequirementRow>
                           {r.ok ? (
-                            <Check sx={{ fontSize: 16, color: "#10b981" }} />
+                            <Check sx={{ fontSize: 16, color: colors.status.success }} />
                           ) : (
                             <Close sx={{ fontSize: 16, color: "text.disabled" }} />
                           )}
@@ -280,20 +286,20 @@ export default function UserNewView() {
 
           <FormCard sx={{ mb: 3 }}>
             <SectionLabel>
-              <Dot color="#10b981" />
-              Permissions
+              <Dot color={colors.status.success} />
+              {t("users.newPage.permissions")}
             </SectionLabel>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
               <PermissionRow>
-                <IconWrap color="#ef4444">
-                  <AdminPanelSettings sx={{ fontSize: 22, color: "#ef4444" }} />
+                <IconWrap color={colors.status.error}>
+                  <AdminPanelSettings sx={{ fontSize: 22, color: colors.status.error }} />
                 </IconWrap>
                 <Box sx={{ flex: 1 }}>
                   <Typography variant="subtitle2" fontWeight={600}>
-                    Administrator
+                    {t("users.fields.isAdmin")}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Full access to all projects, users, teams, and platform settings.
+                    {t("users.newPage.adminHelp")}
                   </Typography>
                 </Box>
                 <Switch
@@ -304,15 +310,15 @@ export default function UserNewView() {
               </PermissionRow>
 
               <PermissionRow>
-                <IconWrap color="#f59e0b">
-                  <Shield sx={{ fontSize: 22, color: "#f59e0b" }} />
+                <IconWrap color={colors.status.warning}>
+                  <Shield sx={{ fontSize: 22, color: colors.status.warning }} />
                 </IconWrap>
                 <Box sx={{ flex: 1 }}>
                   <Typography variant="subtitle2" fontWeight={600}>
-                    Read-only access
+                    {t("users.fields.isRestricted")}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    User can only chat with existing projects. No creating, editing, ingesting, or direct access.
+                    {t("users.newPage.restrictedHelp")}
                   </Typography>
                 </Box>
                 <Switch
@@ -323,15 +329,15 @@ export default function UserNewView() {
               </PermissionRow>
 
               <PermissionRow>
-                <IconWrap color="#6366f1">
-                  <Lock sx={{ fontSize: 22, color: "#6366f1" }} />
+                <IconWrap color={colors.status.info}>
+                  <Lock sx={{ fontSize: 22, color: colors.status.info }} />
                 </IconWrap>
                 <Box sx={{ flex: 1 }}>
                   <Typography variant="subtitle2" fontWeight={600}>
-                    Local AI only
+                    {t("users.fields.isPrivate")}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Restrict this user to on-premise LLMs and embeddings — no external provider calls.
+                    {t("users.newPage.privateHelp")}
                   </Typography>
                 </Box>
                 <Switch
@@ -345,7 +351,7 @@ export default function UserNewView() {
 
           <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5 }}>
             <Button variant="outlined" onClick={() => navigate("/users")}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="submit"
@@ -353,7 +359,7 @@ export default function UserNewView() {
               disabled={loading}
               startIcon={<PersonAdd />}
             >
-              {loading ? "Creating..." : "Create User"}
+              {loading ? t("users.newPage.creating") : t("users.newPage.create")}
             </Button>
           </Box>
         </form>

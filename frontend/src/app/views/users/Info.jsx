@@ -2,6 +2,7 @@ import { useState, useEffect, Fragment } from "react";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 import {
   Box,
@@ -56,6 +57,7 @@ const Container = styled("div")(({ theme }) => ({
 
 
 export default function UserInfo() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [projects, setProjects] = useState([]);
   const [user, setUser] = useState({});
@@ -63,8 +65,19 @@ export default function UserInfo() {
   const auth = useAuth();
   const theme = useTheme();
   const [openDrawer, setOpenDrawer] = useState(false);
-  const [active, setActive] = useState("Basic Information");
+  const [active, setActive] = useState("basic");
   const downMd = useMediaQuery((theme) => theme.breakpoints.down("md"));
+
+  const tabList = [
+    { id: "basic", name: t("users.tabs.basic"), Icon: InfoIcon },
+    { id: "password", name: t("users.tabs.password"), Icon: HttpsIcon },
+    { id: "twoFactor", name: t("users.tabs.twoFactor"), Icon: SecurityIcon },
+    { id: "projects", name: t("users.tabs.projects"), Icon: ContentCopy },
+    { id: "teams", name: t("users.tabs.teams"), Icon: GroupsIcon },
+    { id: "apiKeys", name: t("users.tabs.apiKeys"), Icon: KeyIcon },
+    { id: "activity", name: t("users.tabs.activity"), Icon: TimelineIcon },
+    { id: "delete", name: t("users.tabs.delete"), Icon: DeleteForeverIcon }
+  ];
 
   const style = {
     color: theme.palette.primary.main,
@@ -87,9 +100,9 @@ export default function UserInfo() {
           <StyledButton
             key={id}
             startIcon={<Icon sx={{ color: "text.disabled" }} />}
-            sx={active === name ? style : { "&:hover": style }}
+            sx={active === id ? style : { "&:hover": style }}
             onClick={() => {
-              setActive(name);
+              setActive(id);
               setOpenDrawer(false);
             }}>
             {name}
@@ -136,7 +149,7 @@ export default function UserInfo() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Users", path: "/users"}, { name: id, path: "/user/" + id }]} />
+        <Breadcrumb routeSegments={[{ name: t("nav.users"), path: "/users"}, { name: id, path: "/user/" + id }]} />
       </Box>
 
       <Box p={4} pt={0}>
@@ -149,7 +162,7 @@ export default function UserInfo() {
                   <ContentCopy sx={{ color: "primary.main" }} />
                 </IconButton>
 
-                <H5>Show More</H5>
+                <H5>{t("users.showMore")}</H5>
               </FlexBox>
 
               <Drawer open={openDrawer} onClose={() => setOpenDrawer(false)}>
@@ -166,29 +179,18 @@ export default function UserInfo() {
         </Grid>
 
         <Grid item md={9} xs={12}>
-          {active === "Basic Information" && <BasicInformation user={user} />}
-          {active === "Password" && <Password user={user} />}
-          {active === "Two-Factor Auth" && <TwoFactorAuth user={user} />}
-          {active === "Projects" && <Projects user={user} projects={projects} />}
-          {active === "Teams" && <Teams user={user} />}
-          {active === "API Keys" && <ApiKeys user={user} />}
-          {active === "Activity" && user.id && <UserActivity user={user} />}
-          {active === "Delete account" && <DeleteAccount user={user} />}
+          {active === "basic" && <BasicInformation user={user} />}
+          {active === "password" && <Password user={user} />}
+          {active === "twoFactor" && <TwoFactorAuth user={user} />}
+          {active === "projects" && <Projects user={user} projects={projects} />}
+          {active === "teams" && <Teams user={user} />}
+          {active === "apiKeys" && <ApiKeys user={user} />}
+          {active === "activity" && user.id && <UserActivity user={user} />}
+          {active === "delete" && <DeleteAccount user={user} />}
         </Grid>
       </Grid>
     </Box>
     </Container>
   );
 }
-
-const tabList = [
-  { id: 1, name: "Basic Information", Icon: InfoIcon },
-  { id: 2, name: "Password", Icon: HttpsIcon },
-  { id: 15, name: "Two-Factor Auth", Icon: SecurityIcon },
-  { id: 3, name: "Projects", Icon: ContentCopy },
-  { id: 16, name: "Teams", Icon: GroupsIcon },
-  { id: 12, name: "API Keys", Icon: KeyIcon },
-  { id: 14, name: "Activity", Icon: TimelineIcon },
-  { id: 13, name: "Delete account", Icon: DeleteForeverIcon }
-];
 

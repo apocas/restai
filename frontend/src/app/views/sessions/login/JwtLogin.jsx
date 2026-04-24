@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Box, TextField, Button, Typography, Alert, Collapse,
   Checkbox, FormControlLabel, styled, keyframes,
@@ -246,6 +247,7 @@ const SSO_ICON_MAP = {
 };
 
 export default function JwtLogin() {
+  const { t } = useTranslation();
   const [type, setType] = useState(null);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -390,14 +392,14 @@ export default function JwtLogin() {
           <form onSubmit={handleTotpSubmit}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
               <LockIcon sx={{ color: "#79c0ff", fontSize: 20 }} />
-              <Typography sx={{ fontWeight: 600, fontSize: "1rem" }}>Two-Factor Authentication</Typography>
+              <Typography sx={{ fontWeight: 600, fontSize: "1rem" }}>{t("sessions.totpTitle")}</Typography>
             </Box>
             <Typography sx={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.4)", mb: 2.5 }}>
-              {useRecovery ? "Enter one of your recovery codes." : "Enter the 6-digit code from your authenticator app."}
+              {useRecovery ? t("sessions.totpRecoveryLabel") : t("sessions.totpSubtitle")}
             </Typography>
             <StyledInput
               fullWidth autoFocus
-              label={useRecovery ? "Recovery Code" : "Authentication Code"}
+              label={useRecovery ? t("sessions.totpRecoveryLabel") : t("sessions.totpCodeLabel")}
               value={totpCode}
               onChange={(e) => { setTotpCode(e.target.value); setError(""); }}
               placeholder={useRecovery ? "abcd1234" : "123456"}
@@ -409,15 +411,15 @@ export default function JwtLogin() {
               onClick={() => { setUseRecovery(!useRecovery); setTotpCode(""); }}
               sx={{ mb: 2, textTransform: "none", color: "#79c0ff", fontSize: "0.8rem", "&:hover": { backgroundColor: "rgba(99,102,241,0.06)" } }}
             >
-              {useRecovery ? "Use authenticator code" : "Use a recovery code"}
+              {useRecovery ? t("sessions.totpCodeLabel") : t("sessions.totpRecoveryToggle")}
             </Button>
-            <PrimaryButton type="submit" loading={loading} variant="contained" fullWidth>Verify</PrimaryButton>
+            <PrimaryButton type="submit" loading={loading} variant="contained" fullWidth>{t("sessions.totpVerify")}</PrimaryButton>
             <Button
               fullWidth size="small"
               onClick={() => { setType(null); setTotpToken(null); setTotpCode(""); setLoading(false); setError(""); }}
               sx={{ mt: 1.5, textTransform: "none", color: "rgba(255,255,255,0.3)", fontSize: "0.8rem", "&:hover": { color: "rgba(255,255,255,0.6)" } }}
             >
-              Back to login
+              {t("common.back")}
             </Button>
           </form>
         ) : (
@@ -425,9 +427,9 @@ export default function JwtLogin() {
             {/* Local Login */}
             {!authDisableLocal && (
               <form onSubmit={handleSubmit}>
-                <StyledInput fullWidth autoFocus name="email" label="Username or Email" onChange={handleChange} sx={{ mb: 2 }} />
+                <StyledInput fullWidth autoFocus name="email" label={t("sessions.username")} onChange={handleChange} sx={{ mb: 2 }} />
                 <Collapse in={type === "password"}>
-                  <StyledInput fullWidth name="password" type="password" label="Password" onChange={handleChange} sx={{ mb: 2 }} />
+                  <StyledInput fullWidth name="password" type="password" label={t("sessions.password")} onChange={handleChange} sx={{ mb: 2 }} />
                 </Collapse>
                 <Box sx={{ display: "flex", alignItems: "center", mb: 2.5 }}>
                   <FormControlLabel
@@ -436,11 +438,11 @@ export default function JwtLogin() {
                         sx={{ color: "rgba(255,255,255,0.15)", "&.Mui-checked": { color: "#79c0ff" } }}
                       />
                     }
-                    label={<Typography sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.35)" }}>Remember me</Typography>}
+                    label={<Typography sx={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.35)" }}>{t("sessions.rememberMe")}</Typography>}
                   />
                 </Box>
                 <PrimaryButton type="submit" loading={loading} variant="contained" fullWidth>
-                  {type === null ? "Continue" : "Sign In"}
+                  {type === null ? t("common.next") : t("sessions.signInAction")}
                 </PrimaryButton>
               </form>
             )}
@@ -451,7 +453,7 @@ export default function JwtLogin() {
                 {!authDisableLocal && (
                   <OrDivider>
                     <Typography sx={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.2)", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 500 }}>
-                      or
+                      {t("sessions.or")}
                     </Typography>
                   </OrDivider>
                 )}
@@ -462,7 +464,7 @@ export default function JwtLogin() {
                       onClick={handleSSOLogin(provider)}
                       startIcon={SSO_ICON_MAP[provider] || <VpnKeyIcon sx={{ fontSize: 18 }} />}
                     >
-                      Continue with {ssoProviderNames[provider] || provider.charAt(0).toUpperCase() + provider.slice(1)}
+                      {t("sessions.signInWith", { provider: ssoProviderNames[provider] || provider.charAt(0).toUpperCase() + provider.slice(1) })}
                     </SSOButton>
                   ))}
                 </Box>

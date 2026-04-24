@@ -1,9 +1,10 @@
-import { Box, Button, Card, Grid, styled } from "@mui/material";
+import { Box, Button, Card, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, styled } from "@mui/material";
 import { Info, Storage, Shield, Extension, Build, VpnKey } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
 import { useState, useEffect, useRef } from "react";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 import ProjectTabNav from "./ProjectTabNav";
 import ProjectEditGeneral from "./ProjectEditGeneral";
@@ -23,17 +24,25 @@ function parseHeadersText(text) {
   return h;
 }
 
+// Tab definitions. `key` stays stable (used internally for conditional
+// rendering); `name` is resolved via i18n at render time.
 const ALL_TABS = [
-  { name: "General", Icon: Info },
-  { name: "Knowledge", Icon: Storage, ragOnly: true },
-  { name: "Tools", Icon: Build, agentOnly: true },
-  { name: "Secrets", Icon: VpnKey, agentOnly: true },
-  { name: "Security", Icon: Shield },
-  { name: "Integrations", Icon: Extension },
+  { key: "General",       nameKey: "projects.edit.tabs.general",      Icon: Info },
+  { key: "Knowledge",     nameKey: "projects.edit.tabs.knowledge",    Icon: Storage, ragOnly: true },
+  { key: "Tools",         nameKey: "projects.edit.tabs.tools",        Icon: Build,   agentOnly: true },
+  { key: "Secrets",       nameKey: "projects.edit.tabs.secrets",      Icon: VpnKey,  agentOnly: true },
+  { key: "Security",      nameKey: "projects.edit.tabs.security",     Icon: Shield },
+  { key: "Integrations",  nameKey: "projects.edit.tabs.integrations", Icon: Extension },
 ];
 
 export default function ProjectEdit({ project, projects, info }) {
   const auth = useAuth();
+  const { t } = useTranslation();
+  // Tabs translated at render time so language switch re-renders them.
+  const translatedTabs = ALL_TABS.map((tab) => ({
+    ...tab,
+    name: t(tab.nameKey),
+  }));
   const [state, setState] = useState({});
   const [tools, setTools] = useState([]);
   const [users, setUsers] = useState([]);
@@ -43,10 +52,26 @@ export default function ProjectEdit({ project, projects, info }) {
   const [showVersions, setShowVersions] = useState(false);
   const [active, setActive] = useState("General");
   const navigate = useNavigate();
+  // Snapshot of the form state immediately after `setState(initialState)`
+  // runs in the load effect. Compared against `state` on every render to
+  // derive `dirty`. We intentionally compare via JSON.stringify rather
+  // than a deep-equals lib — the field set is small enough and avoids a
+  // dep, and any spurious reference change in `state.team` etc. would
+  // be reflected in the JSON anyway.
+  const baselineRef = useRef(null);
+  const [pendingNav, setPendingNav] = useState(null);
+  const dirty = baselineRef.current != null && JSON.stringify(state) !== baselineRef.current;
+  // fieldErrors: map of field name → message, populated from a 422
+  // response on save. Cleared when the user types in that field or
+  // when a save succeeds. Handed down to tab components via prop.
+  const [fieldErrors, setFieldErrors] = useState({});
 
-  const tabs = ALL_TABS.filter((t) => {
-    if (t.ragOnly && project.type !== "rag") return false;
-    if (t.agentOnly && project.type !== "agent") return false;
+  // Filter the *translated* tabs so the mobile drawer shows the right
+  // language in its per-tab label. Using a different variable name
+  // than `t` to avoid shadowing the i18n helper.
+  const tabs = translatedTabs.filter((tab) => {
+    if (tab.ragOnly && project.type !== "rag") return false;
+    if (tab.agentOnly && project.type !== "agent") return false;
     return true;
   });
 
@@ -207,6 +232,21 @@ export default function ProjectEdit({ project, projects, info }) {
     if (state.options.whatsapp_default_to !== undefined) opts.options.whatsapp_default_to = state.options.whatsapp_default_to || null;
     if (state.options.whatsapp_allowed_phone_numbers !== undefined) opts.options.whatsapp_allowed_phone_numbers = state.options.whatsapp_allowed_phone_numbers || null;
 
+    if (state.options.smtp_host !== undefined) opts.options.smtp_host = state.options.smtp_host || null;
+    if (state.options.smtp_port !== undefined) opts.options.smtp_port = state.options.smtp_port ? parseInt(state.options.smtp_port) : null;
+    if (state.options.smtp_user !== undefined) opts.options.smtp_user = state.options.smtp_user || null;
+    if (state.options.smtp_password !== undefined) opts.options.smtp_password = state.options.smtp_password || null;
+    if (state.options.smtp_from !== undefined) opts.options.smtp_from = state.options.smtp_from || null;
+    if (state.options.email_default_to !== undefined) opts.options.email_default_to = state.options.email_default_to || null;
+    if (state.options.twilio_account_sid !== undefined) opts.options.twilio_account_sid = state.options.twilio_account_sid || null;
+    if (state.options.twilio_auth_token !== undefined) opts.options.twilio_auth_token = state.options.twilio_auth_token || null;
+    if (state.options.twilio_from_number !== undefined) opts.options.twilio_from_number = state.options.twilio_from_number || null;
+    if (state.options.sms_default_to !== undefined) opts.options.sms_default_to = state.options.sms_default_to || null;
+
+    if (state.options.webhook_url !== undefined) opts.options.webhook_url = state.options.webhook_url || null;
+    if (state.options.webhook_secret !== undefined) opts.options.webhook_secret = state.options.webhook_secret || null;
+    if (state.options.webhook_events !== undefined) opts.options.webhook_events = state.options.webhook_events || null;
+
     opts.options.rate_limit = state.options.rate_limit ? parseInt(state.options.rate_limit) : null;
     opts.options.guard_output = state.options.guard_output || null;
     opts.options.guard_mode = state.options.guard_mode || "block";
@@ -236,8 +276,22 @@ export default function ProjectEdit({ project, projects, info }) {
     }
 
     api.patch("/projects/" + project.id, opts, auth.user.token)
-      .then(() => navigate("/project/" + project.id))
-      .catch(() => {});
+      .then(() => {
+        // Save succeeded — clear the dirty baseline so the navigate
+        // away doesn't trigger the unsaved-changes guard.
+        baselineRef.current = JSON.stringify(state);
+        setFieldErrors({});
+        navigate("/project/" + project.id);
+      })
+      .catch((err) => {
+        // Pydantic-422 errors arrive with a `fieldErrors` map from
+        // api.js — stash them so the tab components can show inline
+        // helper text. Switch to General tab if that's where the
+        // offending fields live (the ones most likely to 422 —
+        // numeric bounds on k / score / rate_limit).
+        const fe = err && err.fieldErrors ? err.fieldErrors : {};
+        setFieldErrors(fe);
+      });
   };
 
   // --- Change Handlers ---
@@ -299,6 +353,10 @@ export default function ProjectEdit({ project, projects, info }) {
     };
 
     setState(initialState);
+    // Record the baseline synchronously with the same state we're about
+    // to install. The `state` React commits will be equal-by-value to
+    // `initialState`, so JSON.stringify of either yields the same string.
+    baselineRef.current = JSON.stringify(initialState);
 
     api.get("/tools/agent", auth.user.token).then(setTools).catch(() => {});
     api.get("/users", auth.user.token).then((d) => setUsers(d.users)).catch(() => {});
@@ -323,8 +381,19 @@ export default function ProjectEdit({ project, projects, info }) {
       }));
       setMcpServers(servers);
 
+      // Stagger initial probes by 150ms each. A project with 10 MCP
+      // servers used to fire 10 parallel POSTs on mount — fine for a
+      // lab setup, noisy for a production deployment where each probe
+      // reaches out to a different remote. Also flips `loading` + fills
+      // `error` on failure so the new Retry button has state to show.
       servers.forEach((server, index) => {
-        if (server.host) {
+        if (!server.host) return;
+        setTimeout(() => {
+          setMcpServers((prev) => {
+            const next = [...prev];
+            if (next[index]) next[index] = { ...next[index], loading: true, error: null };
+            return next;
+          });
           const body = { host: server.host };
           if (server.args && server.args.length > 0) body.args = server.args;
           if (server.env && Object.keys(server.env).length > 0) body.env = server.env;
@@ -334,12 +403,31 @@ export default function ProjectEdit({ project, projects, info }) {
             .then((data) => {
               setMcpServers((prev) => {
                 const next = [...prev];
-                next[index] = { ...next[index], availableTools: data.tools || [] };
+                if (next[index]) {
+                  next[index] = {
+                    ...next[index],
+                    availableTools: data.tools || [],
+                    loading: false,
+                    error: null,
+                  };
+                }
                 return next;
               });
             })
-            .catch(() => {});
-        }
+            .catch((err) => {
+              setMcpServers((prev) => {
+                const next = [...prev];
+                if (next[index]) {
+                  next[index] = {
+                    ...next[index],
+                    loading: false,
+                    error: (err && err.detail) || (err && err.message) || "Probe failed",
+                  };
+                }
+                return next;
+              });
+            });
+        }, index * 150);
       });
     }
 
@@ -358,14 +446,47 @@ export default function ProjectEdit({ project, projects, info }) {
     }
   }, [users, project]);
 
+  // Browser-level guard: warns on tab close, refresh, or address-bar
+  // navigation while there are unsaved edits. The custom message is
+  // ignored by every modern browser (they show a generic prompt) but
+  // setting `returnValue` is what actually triggers the dialog.
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+      return "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  // Intercepts the Cancel button (and any other in-app navigation we
+  // route through here) so the user gets a confirm dialog instead of
+  // silently losing edits. When dirty=false this just navigates.
+  const requestNavigate = (path) => {
+    if (dirty) {
+      setPendingNav(path);
+    } else {
+      navigate(path);
+    }
+  };
+  const confirmDiscard = () => {
+    const path = pendingNav;
+    setPendingNav(null);
+    // Clear the baseline so the unmount doesn't fire beforeunload again.
+    baselineRef.current = JSON.stringify(state);
+    if (path) navigate(path);
+  };
+
   return (
     <form onSubmit={handleSubmit}>
       <Card elevation={3} sx={{ p: 2, mb: 2 }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <H4>Edit project - {project.name}</H4>
+          <H4>{t("projects.edit.title", { name: project.name })}</H4>
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button variant="outlined" onClick={() => navigate("/project/" + project.id)}>Cancel</Button>
-            <Button type="submit" variant="contained" color="primary">Save</Button>
+            <Button variant="outlined" onClick={() => requestNavigate("/project/" + project.id)}>{t("common.cancel")}</Button>
+            <Button type="submit" variant="contained" color="primary">{t("common.save")}{dirty ? "*" : ""}</Button>
           </Box>
         </Box>
       </Card>
@@ -383,12 +504,24 @@ export default function ProjectEdit({ project, projects, info }) {
                 project={project} info={info} users={users} teams={teams}
                 promptVersions={promptVersions} showVersions={showVersions}
                 setShowVersions={setShowVersions} handleTeamChange={handleTeamChange}
+                fieldErrors={fieldErrors}
+                clearFieldError={(k) => setFieldErrors((prev) => {
+                  if (!(k in prev)) return prev;
+                  const next = { ...prev };
+                  delete next[k];
+                  return next;
+                })}
               />
             )}
             {active === "Knowledge" && (
               <ProjectEditKnowledge
                 state={state} setState={setState} handleChange={handleChange}
                 project={project} auth={auth}
+                fieldErrors={fieldErrors}
+                clearFieldError={(k) => setFieldErrors((prev) => {
+                  if (!(k in prev)) return prev;
+                  const next = { ...prev }; delete next[k]; return next;
+                })}
               />
             )}
             {active === "Tools" && (
@@ -408,6 +541,11 @@ export default function ProjectEdit({ project, projects, info }) {
               <ProjectEditSecurity
                 state={state} setState={setState} handleChange={handleChange}
                 projects={projects}
+                fieldErrors={fieldErrors}
+                clearFieldError={(k) => setFieldErrors((prev) => {
+                  if (!(k in prev)) return prev;
+                  const next = { ...prev }; delete next[k]; return next;
+                })}
               />
             )}
             {active === "Secrets" && (
@@ -421,6 +559,19 @@ export default function ProjectEdit({ project, projects, info }) {
           </Card>
         </Grid>
       </Grid>
+
+      <Dialog open={pendingNav != null} onClose={() => setPendingNav(null)}>
+        <DialogTitle>{t("projects.unsavedChanges.title")}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t("projects.unsavedChanges.message")}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingNav(null)}>{t("common.keepEditing")}</Button>
+          <Button onClick={confirmDiscard} color="error" variant="contained">{t("common.discard")}</Button>
+        </DialogActions>
+      </Dialog>
     </form>
   );
 }

@@ -314,6 +314,13 @@ class Agent(ProjectBase):
         reasoning_buf: list = []
         # Pair tool calls with their results so the reasoning panel renders correctly
         pending_tool_calls: dict = {}
+        # Per-call timing + structured trace. Keyed by tool_use_id so we
+        # can compute latency = tool_result_ts - tool_use_ts. Flushed
+        # into `output["tool_trace"]` when we finalize — the log viewer
+        # renders this as a timeline.
+        import time as _time
+        tool_call_started_at: dict = {}
+        tool_trace: list = []
         # `draw_image` tool URLs collected from tool results — appended to the
         # final answer if the LLM didn't echo them (some models summarize tool
         # results instead of quoting them, which would silently swallow the
@@ -340,6 +347,7 @@ class Agent(ProjectBase):
                     for block in msg.content:
                         if isinstance(block, ToolUseBlock):
                             pending_tool_calls[block.id] = block
+                            tool_call_started_at[block.id] = _time.monotonic()
 
             elif event.type == "tool_result":
                 msg = event.message
@@ -350,6 +358,33 @@ class Agent(ProjectBase):
                         content = getattr(block, "content", "") or ""
                         if tool_call is not None:
                             self._record_step(steps, reasoning_buf, tool_call, content)
+                            # Per-tool trace row. Latency comes from the
+                            # assistant → tool_result gap. Status is
+                            # best-effort: the convention across our
+                            # builtin tools is to return `"ERROR: ..."`
+                            # or `"OK: ..."`, so a prefix check is good
+                            # enough without wrapping every tool.
+                            started = tool_call_started_at.pop(tool_use_id, None)
+                            latency_ms = (
+                                int((_time.monotonic() - started) * 1000) if started is not None else None
+                            )
+                            status = "error" if str(content).strip().startswith("ERROR:") else "ok"
+                            try:
+                                input_preview = json.dumps(tool_call.input, default=str)
+                            except Exception:
+                                input_preview = str(tool_call.input)
+                            if len(input_preview) > 500:
+                                input_preview = input_preview[:500] + "…"
+                            err_preview = None
+                            if status == "error":
+                                err_preview = str(content)[:500]
+                            tool_trace.append({
+                                "tool": tool_call.name,
+                                "args": input_preview,
+                                "latency_ms": latency_ms,
+                                "status": status,
+                                "error": err_preview,
+                            })
                             # Capture every image-cache URL the tool emitted so
                             # we can guarantee it ends up in front of the user.
                             for m in _image_url_re.finditer(content):
@@ -377,6 +412,11 @@ class Agent(ProjectBase):
                 output["answer"] = (answer + appendix).strip()
 
         self._finalize_reasoning(output, reasoning_buf, steps)
+
+        # Hand the tool trace off to log_inference via the output dict.
+        # Empty list → None so we don't bloat the DB with "[]" rows.
+        if tool_trace:
+            output["tool_trace"] = tool_trace
 
     async def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
         chat_id = chatModel.id or str(uuid4())

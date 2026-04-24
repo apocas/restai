@@ -16,6 +16,7 @@ import { Edit, Delete } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import ReactJson from '@microlink/react-json-view';
 import useAuth from "app/hooks/useAuth";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const ContentBox = styled(FlexBox)({
@@ -24,11 +25,12 @@ const ContentBox = styled(FlexBox)({
 });
 
 export default function LLMInfo({ llm, projects }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const auth = useAuth();
 
   const handleDeleteClick = () => {
-    if (window.confirm("Are you sure you to delete the llm " + llm.name + "?")) {
+    if (window.confirm(t("llms.info.confirmDelete", { name: llm.name }))) {
       api.delete("/llms/" + llm.id, auth.user.token)
         .then(() => {
           navigate("/llms");
@@ -55,32 +57,32 @@ export default function LLMInfo({ llm, projects }) {
       <Table>
         <TableBody>
           <TableRow>
-            <TableCell sx={{ pl: 2 }}>Class</TableCell>
+            <TableCell sx={{ pl: 2 }}>{t("llms.info.class")}</TableCell>
             <TableCell colSpan={4}>{llm.class_name}</TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={{ pl: 2 }}>Privacy</TableCell>
+            <TableCell sx={{ pl: 2 }}>{t("llms.info.privacy")}</TableCell>
             <TableCell colSpan={4}>{llm.privacy}</TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={{ pl: 2 }}>Options</TableCell>
+            <TableCell sx={{ pl: 2 }}>{t("llms.info.options")}</TableCell>
             <TableCell colSpan={4}>{llm.options && (<ReactJson src={llm.options} enableClipboard={true} name={false} />)}</TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={{ pl: 2 }}>Description</TableCell>
+            <TableCell sx={{ pl: 2 }}>{t("llms.info.description")}</TableCell>
             <TableCell colSpan={4}>{llm.description}</TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={{ pl: 2 }}>Input Cost (per Million Tokens)</TableCell>
+            <TableCell sx={{ pl: 2 }}>{t("llms.info.inputCost")}</TableCell>
             <TableCell colSpan={4}>{llm.input_cost}€</TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={{ pl: 2 }}>Output Cost (per Million Tokens)</TableCell>
+            <TableCell sx={{ pl: 2 }}>{t("llms.info.outputCost")}</TableCell>
             <TableCell colSpan={4}>{llm.output_cost}€</TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={{ pl: 2 }}>Context Window</TableCell>
-            <TableCell colSpan={4}>{llm.context_window || 4096} tokens</TableCell>
+            <TableCell sx={{ pl: 2 }}>{t("llms.info.contextWindow")}</TableCell>
+            <TableCell colSpan={4}>{llm.context_window || 4096} {t("llms.info.tokens")}</TableCell>
           </TableRow>
         </TableBody>
       </Table>
@@ -89,10 +91,10 @@ export default function LLMInfo({ llm, projects }) {
         {auth.user.is_admin === true &&
           <>
             <Button variant="outlined" onClick={() => { navigate("/llm/" + llm.id + "/edit") }} startIcon={<Edit fontSize="small" />}>
-              Edit
+              {t("common.edit")}
             </Button>
             <Button variant="outlined" color="error" onClick={handleDeleteClick} startIcon={<Delete fontSize="small" />}>
-              Delete
+              {t("common.delete")}
             </Button>
           </>
         }

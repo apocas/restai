@@ -6,6 +6,7 @@ import {
 import { ArrowBack, Search, CheckCircle } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useTranslation } from "react-i18next";
 import ReactJson from "@microlink/react-json-view";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
@@ -91,6 +92,7 @@ const Dot = styled("span")(({ theme, color }) => ({
 }));
 
 export default function NewInteractive() {
+  const { t } = useTranslation();
   const auth = useAuth();
   const navigate = useNavigate();
 
@@ -105,8 +107,8 @@ export default function NewInteractive() {
   const [optionsState, setOptionsState] = useState({});
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - New Embedding";
-  }, []);
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - " + t("embeddings.newBreadcrumb");
+  }, [t]);
 
   const handleSelectProvider = (providerKey) => {
     const provider = EMBEDDING_PROVIDER_CONFIG[providerKey];
@@ -143,7 +145,7 @@ export default function NewInteractive() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formState.name.trim()) {
-      toast.error("Name is required");
+      toast.error(t("embeddings.interactive.nameRequired"));
       return;
     }
     const options = {};
@@ -201,9 +203,9 @@ export default function NewInteractive() {
         <Box className="breadcrumb">
           <Breadcrumb
             routeSegments={[
-              { name: "Embeddings", path: "/embeddings" },
-              { name: "New Embedding", path: "/embeddings/new" },
-              { name: "Manual" },
+              { name: t("nav.embeddings"), path: "/embeddings" },
+              { name: t("embeddings.newBreadcrumb"), path: "/embeddings/new" },
+              { name: t("embeddings.manualCrumb") },
             ]}
           />
         </Box>
@@ -211,10 +213,10 @@ export default function NewInteractive() {
         <Hero>
           <Box sx={{ position: "relative", zIndex: 1 }}>
             <HeroTitle variant="h4" color="primary" sx={{ mb: 1 }}>
-              Choose a provider
+              {t("embeddings.interactive.title")}
             </HeroTitle>
             <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 520, mx: "auto" }}>
-              Pick the provider that hosts your embedding model. We'll configure the right fields automatically.
+              {t("embeddings.interactive.subtitle")}
             </Typography>
           </Box>
         </Hero>
@@ -222,7 +224,7 @@ export default function NewInteractive() {
         <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
           <TextField
             size="small"
-            placeholder="Search providers..."
+            placeholder={t("embeddings.interactive.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             sx={{ width: 360 }}
@@ -238,7 +240,7 @@ export default function NewInteractive() {
 
         {providers.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", py: 4 }}>
-            No providers match your search.
+            {t("embeddings.interactive.noProviders")}
           </Typography>
         ) : (
           <Grid container spacing={2.5}>
@@ -274,9 +276,9 @@ export default function NewInteractive() {
       <Box className="breadcrumb">
         <Breadcrumb
           routeSegments={[
-            { name: "Embeddings", path: "/embeddings" },
-            { name: "New Embedding", path: "/embeddings/new" },
-            { name: "Manual", path: "/embeddings/new/manual" },
+            { name: t("nav.embeddings"), path: "/embeddings" },
+            { name: t("embeddings.newBreadcrumb"), path: "/embeddings/new" },
+            { name: t("embeddings.manualCrumb"), path: "/embeddings/new/manual" },
             { name: provider.label },
           ]}
         />
@@ -284,7 +286,7 @@ export default function NewInteractive() {
 
       <Box sx={{ maxWidth: 960, mx: "auto" }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
-          <Tooltip title="Back to providers">
+          <Tooltip title={t("embeddings.interactive.back")}>
             <IconButton onClick={handleBack} sx={{ border: "1px solid", borderColor: "divider" }}>
               <ArrowBack />
             </IconButton>
@@ -292,7 +294,7 @@ export default function NewInteractive() {
           <Box sx={{ flex: 1 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
               <Typography variant="h5" fontWeight={700}>
-                New {provider.label}
+                {t("embeddings.interactive.newX", { provider: provider.label })}
               </Typography>
               <Chip
                 label={selectedProvider}
@@ -316,7 +318,7 @@ export default function NewInteractive() {
           <FormCard sx={{ mb: 3 }}>
             <SectionLabel>
               <Dot color="#6366f1" />
-              General
+              {t("embeddings.interactive.general")}
             </SectionLabel>
             <Grid container spacing={2.5}>
               <Grid item xs={12} sm={6}>
@@ -325,10 +327,10 @@ export default function NewInteractive() {
                   required
                   size="small"
                   name="name"
-                  label="Name"
+                  label={t("embeddings.interactive.name")}
                   value={formState.name}
                   onChange={handleFormChange}
-                  placeholder="Unique name for this embedding"
+                  placeholder={t("embeddings.interactive.namePlaceholder")}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -337,12 +339,12 @@ export default function NewInteractive() {
                   select
                   size="small"
                   name="privacy"
-                  label="Privacy"
+                  label={t("embeddings.edit.privacy")}
                   value={formState.privacy}
                   onChange={handleFormChange}
                 >
-                  <MenuItem value="private">Private</MenuItem>
-                  <MenuItem value="public">Public</MenuItem>
+                  <MenuItem value="private">{t("common.private")}</MenuItem>
+                  <MenuItem value="public">{t("common.public")}</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={8}>
@@ -350,10 +352,10 @@ export default function NewInteractive() {
                   fullWidth
                   size="small"
                   name="description"
-                  label="Description"
+                  label={t("embeddings.interactive.description")}
                   value={formState.description}
                   onChange={handleFormChange}
-                  placeholder="Optional short description"
+                  placeholder={t("embeddings.interactive.descPlaceholder")}
                 />
               </Grid>
               <Grid item xs={12} sm={4}>
@@ -361,7 +363,7 @@ export default function NewInteractive() {
                   fullWidth
                   size="small"
                   name="dimension"
-                  label="Dimension"
+                  label={t("embeddings.interactive.dimension")}
                   type="number"
                   value={formState.dimension}
                   onChange={(e) =>
@@ -370,7 +372,7 @@ export default function NewInteractive() {
                       dimension: e.target.value === "" ? "" : Number(e.target.value),
                     }))
                   }
-                  helperText="Vector size"
+                  helperText={t("embeddings.interactive.vectorSize")}
                 />
               </Grid>
             </Grid>
@@ -379,7 +381,7 @@ export default function NewInteractive() {
           <FormCard sx={{ mb: 3 }}>
             <SectionLabel>
               <Dot color="#10b981" />
-              {provider.label} Options
+              {t("embeddings.interactive.providerOptions", { provider: provider.label })}
             </SectionLabel>
             <Grid container spacing={2.5}>
               {provider.fields.map(renderField)}
@@ -389,10 +391,10 @@ export default function NewInteractive() {
           <FormCard sx={{ mb: 3 }}>
             <SectionLabel>
               <Dot color="#f59e0b" />
-              Raw Options (JSON)
+              {t("embeddings.interactive.rawOptions")}
             </SectionLabel>
             <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: "block" }}>
-              Auto-updated from the fields above. Click values to edit, or use +/- to add/remove custom options.
+              {t("embeddings.interactive.rawHelp")}
             </Typography>
             <Box
               sx={{
@@ -420,10 +422,10 @@ export default function NewInteractive() {
 
           <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5 }}>
             <Button variant="outlined" onClick={handleBack}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="submit" variant="contained" startIcon={<CheckCircle />}>
-              Create Embedding
+              {t("embeddings.interactive.createEmbedding")}
             </Button>
           </Box>
         </form>

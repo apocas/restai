@@ -16,6 +16,7 @@ import { Edit, Delete } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import ReactJson from '@microlink/react-json-view';
 import useAuth from "app/hooks/useAuth";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const ContentBox = styled(FlexBox)({
@@ -24,11 +25,12 @@ const ContentBox = styled(FlexBox)({
 });
 
 export default function EmbeddingInfo({ embedding, projects }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const auth = useAuth();
 
   const handleDeleteClick = () => {
-    if (window.confirm("Are you sure you to delete the embedding " + embedding.name + "?")) {
+    if (window.confirm(t("embeddings.info.confirmDelete", { name: embedding.name }))) {
       api.delete("/embeddings/" + embedding.id, auth.user.token)
         .then(() => {
           navigate("/embeddings");
@@ -55,23 +57,23 @@ export default function EmbeddingInfo({ embedding, projects }) {
       <Table>
         <TableBody>
           <TableRow>
-            <TableCell sx={{ pl: 2 }}>Class</TableCell>
+            <TableCell sx={{ pl: 2 }}>{t("embeddings.info.class")}</TableCell>
             <TableCell colSpan={4}>{embedding.class_name}</TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={{ pl: 2 }}>Privacy</TableCell>
+            <TableCell sx={{ pl: 2 }}>{t("embeddings.info.privacy")}</TableCell>
             <TableCell colSpan={4}>{embedding.privacy}</TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={{ pl: 2 }}>Options</TableCell>
+            <TableCell sx={{ pl: 2 }}>{t("embeddings.info.options")}</TableCell>
             <TableCell colSpan={4}>{embedding.options && (<ReactJson src={JSON.parse(embedding.options)} enableClipboard={true} name={false} />)}</TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={{ pl: 2 }}>Description</TableCell>
+            <TableCell sx={{ pl: 2 }}>{t("embeddings.info.description")}</TableCell>
             <TableCell colSpan={4}>{embedding.description}</TableCell>
           </TableRow>
           <TableRow>
-            <TableCell sx={{ pl: 2 }}>Dimension</TableCell>
+            <TableCell sx={{ pl: 2 }}>{t("embeddings.info.dimension")}</TableCell>
             <TableCell colSpan={4}>{embedding.dimension}</TableCell>
           </TableRow>
         </TableBody>
@@ -81,10 +83,10 @@ export default function EmbeddingInfo({ embedding, projects }) {
         {auth.user.is_admin === true &&
           <>
             <Button variant="outlined" onClick={() => { navigate("/embedding/" + embedding.id + "/edit") }} startIcon={<Edit fontSize="small" />}>
-              Edit
+              {t("common.edit")}
             </Button>
             <Button variant="outlined" color="error" onClick={handleDeleteClick} startIcon={<Delete fontSize="small" />}>
-              Delete
+              {t("common.delete")}
             </Button>
           </>
         }

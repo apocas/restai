@@ -7,14 +7,17 @@ import {
 import ScheduleIcon from "@mui/icons-material/Schedule";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import Breadcrumb from "app/components/Breadcrumb";
 import { H4 } from "app/components/Typography";
+import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
+import { toCsv, downloadCsv } from "app/utils/csvExport";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -38,6 +41,7 @@ const STATUS_COLORS = {
 const JOBS = ["sync", "telegram", "docker_cleanup", "routines"];
 
 export default function CronLogs() {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [entries, setEntries] = useState([]);
   const [total, setTotal] = useState(0);
@@ -65,9 +69,10 @@ export default function CronLogs() {
   };
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Cron Logs";
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - " + t("cron.title");
     fetchEntries();
-  }, [page, filterJob, filterStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filterJob, filterStatus, t]);
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -92,7 +97,7 @@ export default function CronLogs() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Cron Logs", path: "/admin/cron-logs" }]} />
+        <Breadcrumb routeSegments={[{ name: t("cron.title"), path: "/admin/cron-logs" }]} />
       </Box>
 
       <ContentBox>
@@ -100,9 +105,9 @@ export default function CronLogs() {
           <FlexBox justifyContent="space-between" sx={{ pr: 2 }}>
             <FlexBox>
               <ScheduleIcon sx={{ ml: 2 }} />
-              <H4 sx={{ p: 2 }}>Cron Logs</H4>
+              <H4 sx={{ p: 2 }}>{t("cron.title")}</H4>
               <Typography variant="caption" color="text.secondary">
-                {total} entries
+                {t("cron.entries", { count: total })}
               </Typography>
             </FlexBox>
             <FlexBox sx={{ gap: 1 }}>
@@ -113,7 +118,30 @@ export default function CronLogs() {
                 disabled={running}
                 onClick={handleRunNow}
               >
-                {running ? "Running..." : "Run Now"}
+                {running ? t("cron.running") : t("cron.runNow")}
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<FileDownloadIcon />}
+                disabled={entries.length === 0}
+                onClick={() => {
+                  // Exports the current page (filtered). Full-range
+                  // export would need a server-side stream; admins can
+                  // bump rowsPerPage for one-off bigger downloads.
+                  const csv = toCsv(entries, [
+                    { key: "date", header: t("cron.columns.date") },
+                    { key: "job", header: t("cron.columns.job") },
+                    { key: "status", header: t("cron.columns.status") },
+                    { key: "items_processed", header: t("cron.columns.itemsLong") },
+                    { key: "duration_ms", header: t("cron.columns.durationMs") },
+                    { key: "message", header: t("cron.columns.message") },
+                  ]);
+                  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+                  downloadCsv(`cron-logs-${stamp}.csv`, csv);
+                }}
+              >
+                {t("cron.exportCsv")}
               </Button>
               <Button
                 variant="outlined"
@@ -121,24 +149,24 @@ export default function CronLogs() {
                 color="error"
                 startIcon={<DeleteSweepIcon />}
                 onClick={() => {
-                  if (window.confirm("Purge all cron log entries?")) {
+                  if (window.confirm(t("cron.purgeConfirm"))) {
                     api.delete("/cron-logs", auth.user.token)
                       .then(() => { setPage(0); fetchEntries(); })
                       .catch(() => {});
                   }
                 }}
               >
-                Purge
+                {t("cron.purge")}
               </Button>
               <TextField
                 select
                 size="small"
-                label="Job"
+                label={t("cron.filterJob")}
                 value={filterJob}
                 onChange={(e) => { setFilterJob(e.target.value); setPage(0); }}
                 sx={{ width: 160 }}
               >
-                <MenuItem value="">All</MenuItem>
+                <MenuItem value="">{t("cron.filterAll")}</MenuItem>
                 {JOBS.map((j) => (
                   <MenuItem key={j} value={j}>{j}</MenuItem>
                 ))}
@@ -146,15 +174,15 @@ export default function CronLogs() {
               <TextField
                 select
                 size="small"
-                label="Status"
+                label={t("cron.filterStatus")}
                 value={filterStatus}
                 onChange={(e) => { setFilterStatus(e.target.value); setPage(0); }}
                 sx={{ width: 120 }}
               >
-                <MenuItem value="">All</MenuItem>
-                <MenuItem value="success">Success</MenuItem>
-                <MenuItem value="error">Error</MenuItem>
-                <MenuItem value="warning">Warning</MenuItem>
+                <MenuItem value="">{t("cron.filterAll")}</MenuItem>
+                <MenuItem value="success">{t("cron.filterSuccess")}</MenuItem>
+                <MenuItem value="error">{t("cron.filterError")}</MenuItem>
+                <MenuItem value="warning">{t("cron.filterWarning")}</MenuItem>
               </TextField>
             </FlexBox>
           </FlexBox>
@@ -164,19 +192,19 @@ export default function CronLogs() {
             <TableHead>
               <TableRow>
                 <TableCell sx={{ pl: 2, width: 40 }} />
-                <TableCell>Date</TableCell>
-                <TableCell>Job</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Message</TableCell>
-                <TableCell align="center">Items</TableCell>
-                <TableCell align="right" sx={{ pr: 2 }}>Duration</TableCell>
+                <TableCell>{t("cron.columns.date")}</TableCell>
+                <TableCell>{t("cron.columns.job")}</TableCell>
+                <TableCell>{t("cron.columns.status")}</TableCell>
+                <TableCell>{t("cron.columns.message")}</TableCell>
+                <TableCell align="center">{t("cron.columns.items")}</TableCell>
+                <TableCell align="right" sx={{ pr: 2 }}>{t("cron.columns.duration")}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {entries.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                    <Typography variant="body2" color="text.secondary">No cron log entries found</Typography>
+                    <Typography variant="body2" color="text.secondary">{t("cron.noEntries")}</Typography>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -216,7 +244,7 @@ export default function CronLogs() {
                       <TableCell colSpan={7} sx={{ py: 0, borderBottom: expandedId === e.id ? undefined : "none" }}>
                         <Collapse in={expandedId === e.id}>
                           <Box sx={{ p: 2 }}>
-                            <Typography variant="subtitle2" gutterBottom>Message</Typography>
+                            <Typography variant="subtitle2" gutterBottom>{t("cron.columns.message")}</Typography>
                             <Box
                               component="pre"
                               sx={{
@@ -230,11 +258,11 @@ export default function CronLogs() {
                                 wordBreak: "break-all",
                               }}
                             >
-                              {e.message || "No output"}
+                              {e.message || t("cron.noOutput")}
                             </Box>
                             {e.details && (
                               <Box sx={{ mt: 2 }}>
-                                <Typography variant="subtitle2" gutterBottom>Details</Typography>
+                                <Typography variant="subtitle2" gutterBottom>{t("cron.details")}</Typography>
                                 <Box
                                   component="pre"
                                   sx={{
@@ -268,7 +296,7 @@ export default function CronLogs() {
                 <ChevronLeftIcon />
               </IconButton>
               <Typography variant="body2">
-                Page {page + 1} of {totalPages}
+                {t("cron.page", { page: page + 1, total: totalPages })}
               </Typography>
               <IconButton onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} size="small">
                 <ChevronRightIcon />

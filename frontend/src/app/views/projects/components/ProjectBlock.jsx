@@ -1,5 +1,6 @@
 import { Card, Chip, Grid, Typography, styled } from "@mui/material";
 import ViewInArIcon from "@mui/icons-material/ViewInAr";
+import { useTranslation } from "react-i18next";
 
 const SectionTitle = styled(Typography)(({ theme }) => ({
   fontWeight: 600,
@@ -19,6 +20,7 @@ const DetailItem = ({ label, children }) => (
 );
 
 export default function ProjectBlock({ project }) {
+  const { t } = useTranslation();
   const workspace = project.options?.blockly_workspace;
   const blockCount = workspace?.blocks?.blocks?.length ?? 0;
   const variableCount = workspace?.variables?.length ?? 0;
@@ -26,16 +28,16 @@ export default function ProjectBlock({ project }) {
 
   return (
     <Card elevation={1} sx={{ p: 2.5 }}>
-      <SectionTitle><ViewInArIcon fontSize="small" /> Block Configuration</SectionTitle>
+      <SectionTitle><ViewInArIcon fontSize="small" /> {t("projects.knowledge.block.config")}</SectionTitle>
       <Grid container spacing={2}>
-        <DetailItem label="Status">
-          <Chip label={hasWorkspace ? "Configured" : "Not configured"} size="small"
+        <DetailItem label={t("projects.knowledge.block.status")}>
+          <Chip label={hasWorkspace ? t("projects.knowledge.block.configured") : t("projects.knowledge.block.notConfigured")} size="small"
             color={hasWorkspace ? "success" : "default"} variant="outlined" />
         </DetailItem>
-        <DetailItem label="Top-level Blocks">
+        <DetailItem label={t("projects.knowledge.block.topBlocks")}>
           <Typography variant="body2">{blockCount}</Typography>
         </DetailItem>
-        <DetailItem label="Variables">
+        <DetailItem label={t("projects.knowledge.block.variables")}>
           <Typography variant="body2">{variableCount}</Typography>
         </DetailItem>
       </Grid>

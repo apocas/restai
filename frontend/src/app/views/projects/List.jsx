@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Box, Button, Chip, IconButton, Tooltip, Avatar, styled } from "@mui/material";
-import { Add, SportsEsports, Visibility } from "@mui/icons-material";
+import { Add, SportsEsports, Visibility, Assignment } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import sha256 from "crypto-js/sha256";
 import BAvatar from "boring-avatars";
 import useAuth from "app/hooks/useAuth";
@@ -19,6 +20,7 @@ const Container = styled("div")(({ theme }) => ({
 }));
 
 export default function Projects() {
+  const { t } = useTranslation();
   const [projects, setProjects] = useState([]);
   const auth = useAuth();
   const navigate = useNavigate();
@@ -33,7 +35,7 @@ export default function Projects() {
   const columns = [
     {
       key: "name",
-      label: "Name",
+      label: t("common.name"),
       sortable: true,
       render: (row) => (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -49,21 +51,21 @@ export default function Projects() {
     },
     {
       key: "type",
-      label: "Type",
+      label: t("common.type"),
       sortable: true,
       render: (row) => <ProjectTypeChip type={row.type} />,
     },
     { key: "llm", label: "LLM", sortable: true },
     {
       key: "team",
-      label: "Team",
+      label: t("common.team"),
       sortable: true,
       sortValue: (row) => row.team?.name || "",
       render: (row) => row.team?.name || "—",
     },
     {
       key: "users",
-      label: "Users",
+      label: t("nav.users"),
       render: (row) => {
         const users = row.users || [];
         return (
@@ -92,23 +94,23 @@ export default function Projects() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Projects", path: "/projects" }]} />
+        <Breadcrumb routeSegments={[{ name: t("nav.projects"), path: "/projects" }]} />
       </Box>
 
       <DataList
-        title="Projects"
-        subtitle="Your AI projects — RAG, agents, and visual blocks"
+        title={t("projects.title")}
+        subtitle={t("projects.subtitle")}
         data={projects}
         columns={columns}
         searchKeys={["name", "llm", "team.name", "type"]}
         filters={[
           {
             key: "type",
-            label: "Type",
+            label: t("common.type"),
             options: [
-              { value: "rag", label: "RAG" },
-              { value: "agent", label: "Agent" },
-              { value: "block", label: "Block" },
+              { value: "rag", label: t("projects.type.rag") },
+              { value: "agent", label: t("projects.type.agent") },
+              { value: "block", label: t("projects.type.block") },
             ],
           },
         ]}
@@ -121,24 +123,32 @@ export default function Projects() {
             startIcon={<Add />}
             onClick={() => navigate("/projects/new")}
           >
-            New Project
+            {t("projects.newProject")}
           </Button>
         }
         actions={(row) => (
           <>
-            <Tooltip title="View">
+            <Tooltip title={t("projects.actions.open")}>
               <IconButton size="small" onClick={() => navigate(`/project/${row.id}`)}>
                 <Visibility fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Playground">
+            <Tooltip title={t("projects.actions.playground")}>
               <IconButton size="small" onClick={() => navigate(`/project/${row.id}/playground`)}>
                 <SportsEsports fontSize="small" color="primary" />
               </IconButton>
             </Tooltip>
           </>
         )}
-        emptyMessage="No projects yet. Create one to get started."
+        emptyState={{
+          icon: Assignment,
+          title: t("projects.emptyTitle"),
+          message: t("projects.emptyMessage"),
+          actionLabel: t("projects.newProject"),
+          actionIcon: <Add fontSize="small" />,
+          onAction: () => navigate("/projects/new"),
+        }}
+        emptyMessage={t("projects.emptyMessage")}
       />
     </Container>
   );

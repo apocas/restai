@@ -4,11 +4,13 @@ import {
   Table, TableBody, TableCell, TableHead, TableRow,
   TextField, MenuItem, Button, IconButton,
 } from "@mui/material";
-import { History, ChevronLeft, ChevronRight } from "@mui/icons-material";
+import { History, ChevronLeft, ChevronRight, FileDownload } from "@mui/icons-material";
 import Breadcrumb from "app/components/Breadcrumb";
 import { H4 } from "app/components/Typography";
+import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
+import { toCsv, downloadCsv } from "app/utils/csvExport";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -31,6 +33,7 @@ const ACTION_COLORS = {
 };
 
 export default function AuditLog() {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [entries, setEntries] = useState([]);
   const [total, setTotal] = useState(0);
@@ -56,16 +59,17 @@ export default function AuditLog() {
   };
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Audit Log";
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - " + t("audit.title");
     fetchEntries();
-  }, [page, filterUsername, filterAction]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filterUsername, filterAction, t]);
 
   const totalPages = Math.ceil(total / pageSize);
 
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Audit Log", path: "/audit" }]} />
+        <Breadcrumb routeSegments={[{ name: t("audit.title"), path: "/audit" }]} />
       </Box>
 
       <ContentBox>
@@ -73,15 +77,15 @@ export default function AuditLog() {
           <FlexBox justifyContent="space-between" sx={{ pr: 2 }}>
             <FlexBox>
               <History sx={{ ml: 2 }} />
-              <H4 sx={{ p: 2 }}>Audit Log</H4>
+              <H4 sx={{ p: 2 }}>{t("audit.title")}</H4>
               <Typography variant="caption" color="text.secondary">
-                {total} entries
+                {t("audit.entries", { count: total })}
               </Typography>
             </FlexBox>
             <FlexBox sx={{ gap: 1 }}>
               <TextField
                 size="small"
-                label="Username"
+                label={t("audit.filterUser")}
                 value={filterUsername}
                 onChange={(e) => { setFilterUsername(e.target.value); setPage(0); }}
                 sx={{ width: 150 }}
@@ -89,16 +93,39 @@ export default function AuditLog() {
               <TextField
                 select
                 size="small"
-                label="Action"
+                label={t("audit.filterAction")}
                 value={filterAction}
                 onChange={(e) => { setFilterAction(e.target.value); setPage(0); }}
                 sx={{ width: 120 }}
               >
-                <MenuItem value="">All</MenuItem>
+                <MenuItem value="">{t("audit.filterAll")}</MenuItem>
                 <MenuItem value="POST">POST</MenuItem>
                 <MenuItem value="PATCH">PATCH</MenuItem>
                 <MenuItem value="DELETE">DELETE</MenuItem>
               </TextField>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<FileDownload />}
+                disabled={entries.length === 0}
+                onClick={() => {
+                  // Exports the *current page* of entries. The server
+                  // paginates and full-range export would need a new
+                  // endpoint; admins can bump the page size first if
+                  // they need more rows in one download.
+                  const csv = toCsv(entries, [
+                    { key: "date", header: t("audit.columns.date") },
+                    { key: "username", header: t("audit.columns.user") },
+                    { key: "action", header: t("audit.columns.action") },
+                    { key: "resource", header: t("audit.columns.resource") },
+                    { key: "status_code", header: t("audit.columns.status") },
+                  ]);
+                  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+                  downloadCsv(`audit-log-${stamp}.csv`, csv);
+                }}
+              >
+                {t("audit.exportCsv")}
+              </Button>
             </FlexBox>
           </FlexBox>
           <Divider />
@@ -106,18 +133,18 @@ export default function AuditLog() {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell sx={{ pl: 2 }}>Date</TableCell>
-                <TableCell>User</TableCell>
-                <TableCell>Action</TableCell>
-                <TableCell>Resource</TableCell>
-                <TableCell align="center" sx={{ pr: 2 }}>Status</TableCell>
+                <TableCell sx={{ pl: 2 }}>{t("audit.columns.date")}</TableCell>
+                <TableCell>{t("audit.columns.user")}</TableCell>
+                <TableCell>{t("audit.columns.action")}</TableCell>
+                <TableCell>{t("audit.columns.resource")}</TableCell>
+                <TableCell align="center" sx={{ pr: 2 }}>{t("audit.columns.status")}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {entries.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                    <Typography variant="body2" color="text.secondary">No audit entries found</Typography>
+                    <Typography variant="body2" color="text.secondary">{t("audit.noEntries")}</Typography>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -159,7 +186,7 @@ export default function AuditLog() {
                 <ChevronLeft />
               </IconButton>
               <Typography variant="body2">
-                Page {page + 1} of {totalPages}
+                {t("audit.page", { page: page + 1, total: totalPages })}
               </Typography>
               <IconButton onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} size="small">
                 <ChevronRight />

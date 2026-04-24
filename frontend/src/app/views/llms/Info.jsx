@@ -4,6 +4,7 @@ import useAuth from "app/hooks/useAuth";
 import LLMInfo from "./components/LLMInfo";
 import Breadcrumb from "app/components/Breadcrumb";
 import { useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
@@ -18,6 +19,7 @@ const ContentBox = styled("div")(({ theme }) => ({
 }));
 
 export default function LLMViewInfo() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [projects, setProjects] = useState([]);
   const [llm, setLLM] = useState({});
@@ -58,7 +60,7 @@ export default function LLMViewInfo() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "LLMs", path: "/llms" }, { name: id, path: "/llm/" + id }]} />
+        <Breadcrumb routeSegments={[{ name: t("nav.llms"), path: "/llms" }, { name: id, path: "/llm/" + id }]} />
       </Box>
 
       <ContentBox className="analytics">

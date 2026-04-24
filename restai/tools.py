@@ -196,23 +196,39 @@ def load_tools() -> list[FunctionTool]:
             if inspect.isfunction(obj) and not name.startswith("_"):
                 tools.append(FunctionTool.from_defaults(fn=obj))
 
-    print(f"Loading userland tools...")
-    for importer, modname, _ in pkgutil.iter_modules(path=["./tools"]):
-        module = __import__(f"tools.{modname}", fromlist="dummy")
-        for name, obj in inspect.getmembers(module):
-            if inspect.isfunction(obj):
-                tool = FunctionTool.from_defaults(fn=obj)
-                replaced = False
-                for i, existing_tool in enumerate(tools):
-                    if existing_tool.metadata.name == tool.metadata.name:
-                        print(
-                            f"WARNING: Duplicate tool '{tool.metadata.name}' found in tools! OVERWRITTEN!"
-                        )
-                        tools[i] = tool
-                        replaced = True
-                        break
-                if not replaced:
-                    tools.append(tool)
+    # Userland tools live alongside the package, anchored to the install
+    # root (the parent of the `restai/` package directory) so the loader
+    # is independent of the process working directory. The previous
+    # cwd-relative `./tools` would silently load whatever a CWD switch
+    # exposed — turn that into deterministic behavior + a single place
+    # to lock down with filesystem permissions.
+    install_root = os.path.dirname(directory)  # parent of restai/
+    userland_path = os.path.join(install_root, "tools")
+    if os.path.isdir(userland_path):
+        print(f"Loading userland tools from {userland_path}...")
+        # Make sure `import tools.<modname>` resolves to *this* directory
+        # and not a same-named package elsewhere on sys.path.
+        import sys as _sys
+        if install_root not in _sys.path:
+            _sys.path.insert(0, install_root)
+        for importer, modname, _ in pkgutil.iter_modules(path=[userland_path]):
+            module = __import__(f"tools.{modname}", fromlist="dummy")
+            for name, obj in inspect.getmembers(module):
+                if inspect.isfunction(obj):
+                    tool = FunctionTool.from_defaults(fn=obj)
+                    replaced = False
+                    for i, existing_tool in enumerate(tools):
+                        if existing_tool.metadata.name == tool.metadata.name:
+                            print(
+                                f"WARNING: Duplicate tool '{tool.metadata.name}' found in tools! OVERWRITTEN!"
+                            )
+                            tools[i] = tool
+                            replaced = True
+                            break
+                    if not replaced:
+                        tools.append(tool)
+    else:
+        print(f"No userland tools directory at {userland_path} — skipping.")
 
     return tools
 
@@ -285,6 +301,12 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
     att_list = output.get("attachments") or []
     log_attachments = _json.dumps(att_list) if att_list and logging_enabled else None
 
+    # Tool trace (agent only). Same logging-toggle semantics as the other
+    # fields — if the admin turned off `logging`, we don't store internal
+    # execution details either.
+    trace_list = output.get("tool_trace") or None
+    log_tool_trace = _json.dumps(trace_list) if (trace_list and logging_enabled) else None
+
     if redact:
         log_question = _redact_secrets(log_question)
         log_answer = _redact_secrets(log_answer)
@@ -313,6 +335,7 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
         error=log_error,
         image=log_image,
         attachments=log_attachments,
+        tool_trace=log_tool_trace,
     )
 
     if "id" in output:
@@ -320,6 +343,18 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
 
     db.db.add(output_db_entry)
     db.db.commit()
+
+    # Bump the per-API-key monthly token counter when the request
+    # authenticated with a key. No-op for basic/cookie auth.
+    api_key_id = getattr(user, "api_key_id", None)
+    if api_key_id:
+        try:
+            from restai.budget import record_api_key_tokens
+            record_api_key_tokens(api_key_id, in_tokens + out_tokens, db)
+        except Exception:
+            # Never break the inference log flow on a quota accounting
+            # glitch — the 429 gate on the next request catches drift.
+            pass
 
 
 def log_retrieval_events(project, sources, db):

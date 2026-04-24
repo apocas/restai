@@ -12,6 +12,7 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { H4 } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
+import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const METRIC_COLORS = {
@@ -28,6 +29,7 @@ const STATUS_COLORS = {
 };
 
 export default function ProjectEvals({ project }) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [datasets, setDatasets] = useState([]);
   const [runs, setRuns] = useState([]);
@@ -94,7 +96,7 @@ export default function ProjectEvals({ project }) {
   };
 
   const handleDeleteDataset = (id) => {
-    if (!window.confirm("Delete this dataset and all its test cases?")) return;
+    if (!window.confirm(t("projects.knowledge.evals.confirmDeleteDataset"))) return;
     api.delete(`/projects/${project.id}/evals/datasets/${id}`, auth.user.token)
       .then(() => {
         fetchDatasets();
@@ -131,7 +133,7 @@ export default function ProjectEvals({ project }) {
   };
 
   const handleDeleteRun = (id) => {
-    if (!window.confirm("Delete this evaluation run?")) return;
+    if (!window.confirm(t("projects.knowledge.evals.confirmDeleteRun"))) return;
     api.delete(`/projects/${project.id}/evals/runs/${id}`, auth.user.token)
       .then(() => {
         fetchRuns();
@@ -165,29 +167,29 @@ export default function ProjectEvals({ project }) {
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 2 }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               <Science sx={{ ml: 2 }} />
-              <H4 sx={{ p: 2 }}>Datasets</H4>
+              <H4 sx={{ p: 2 }}>{t("projects.knowledge.evals.datasets")}</H4>
             </Box>
             <Button size="small" startIcon={<Add />} onClick={() => setCreateOpen(true)}>
-              New Dataset
+              {t("projects.knowledge.evals.newDataset")}
             </Button>
           </Box>
           <Divider />
           {!selectedDataset && datasets.length > 0 && (
             <Typography variant="caption" color="text.secondary" sx={{ px: 2, pt: 1, display: "block" }}>
-              Click a dataset to manage its test cases.
+              {t("projects.knowledge.evals.clickHint")}
             </Typography>
           )}
           {datasets.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-              No datasets yet. Create one to start evaluating.
+              {t("projects.knowledge.evals.noDatasets")}
             </Typography>
           ) : (
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ pl: 2 }}>Name</TableCell>
-                  <TableCell align="center">Cases</TableCell>
-                  <TableCell align="right" sx={{ pr: 2 }}>Actions</TableCell>
+                  <TableCell sx={{ pl: 2 }}>{t("projects.knowledge.evals.name")}</TableCell>
+                  <TableCell align="center">{t("projects.knowledge.evals.cases")}</TableCell>
+                  <TableCell align="right" sx={{ pr: 2 }}>{t("projects.knowledge.evals.actions")}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -226,27 +228,27 @@ export default function ProjectEvals({ project }) {
         {selectedDataset && (
           <Card elevation={3} sx={{ mt: 2 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 2 }}>
-              <H4 sx={{ p: 2 }}>{selectedDataset.name} — Test Cases</H4>
+              <H4 sx={{ p: 2 }}>{t("projects.knowledge.evals.testCases", { name: selectedDataset.name })}</H4>
               <Button size="small" startIcon={<Add />} onClick={() => setAddCaseOpen(true)}>
-                Add Case
+                {t("projects.knowledge.evals.addCase")}
               </Button>
             </Box>
             <Divider />
             {(!selectedDataset.test_cases || selectedDataset.test_cases.length === 0) ? (
               <Box sx={{ p: 2 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  No test cases yet. Add questions to evaluate your project.
+                  {t("projects.knowledge.evals.noCases")}
                 </Typography>
                 <Button size="small" variant="outlined" startIcon={<Add />} onClick={() => setAddCaseOpen(true)}>
-                  Add First Test Case
+                  {t("projects.knowledge.evals.addFirstCase")}
                 </Button>
               </Box>
             ) : (
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ pl: 2 }}>Question</TableCell>
-                    <TableCell>Expected Answer</TableCell>
+                    <TableCell sx={{ pl: 2 }}>{t("projects.knowledge.evals.question")}</TableCell>
+                    <TableCell>{t("projects.knowledge.evals.expectedAnswer")}</TableCell>
                     <TableCell align="right" sx={{ pr: 2 }}></TableCell>
                   </TableRow>
                 </TableHead>
@@ -278,20 +280,20 @@ export default function ProjectEvals({ project }) {
         <Card elevation={3}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <Science sx={{ ml: 2 }} />
-            <H4 sx={{ p: 2 }}>Evaluation Runs</H4>
+            <H4 sx={{ p: 2 }}>{t("projects.knowledge.evals.runs")}</H4>
           </Box>
           <Divider />
           {runs.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-              No runs yet. Select a dataset and click the play button to start.
+              {t("projects.knowledge.evals.noRuns")}
             </Typography>
           ) : (
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ pl: 2 }}>Run</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Scores</TableCell>
+                  <TableCell sx={{ pl: 2 }}>{t("projects.knowledge.evals.run")}</TableCell>
+                  <TableCell>{t("projects.knowledge.evals.status")}</TableCell>
+                  <TableCell>{t("projects.knowledge.evals.scores")}</TableCell>
                   <TableCell align="right" sx={{ pr: 2 }}></TableCell>
                 </TableRow>
               </TableHead>
@@ -341,7 +343,7 @@ export default function ProjectEvals({ project }) {
         {/* Score trend chart */}
         {chartData.length > 1 && (
           <Card elevation={3} sx={{ mt: 2 }}>
-            <H4 sx={{ p: 2 }}>Score Trend</H4>
+            <H4 sx={{ p: 2 }}>{t("projects.knowledge.evals.scoreTrend")}</H4>
             <Divider />
             <Box sx={{ p: 2 }}>
               <ResponsiveContainer width="100%" height={250}>
@@ -363,7 +365,7 @@ export default function ProjectEvals({ project }) {
         {/* Selected run results */}
         {selectedRun && selectedRun.results && (
           <Card elevation={3} sx={{ mt: 2 }}>
-            <H4 sx={{ p: 2 }}>Run #{selectedRun.id} Results</H4>
+            <H4 sx={{ p: 2 }}>{t("projects.knowledge.evals.runResults", { id: selectedRun.id })}</H4>
             <Divider />
             {selectedRun.error && (
               <Typography variant="body2" color="error" sx={{ p: 2 }}>{selectedRun.error}</Typography>
@@ -371,10 +373,10 @@ export default function ProjectEvals({ project }) {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ pl: 2 }}>Answer</TableCell>
-                  <TableCell>Metric</TableCell>
-                  <TableCell align="center">Score</TableCell>
-                  <TableCell>Reason</TableCell>
+                  <TableCell sx={{ pl: 2 }}>{t("projects.knowledge.evals.answer")}</TableCell>
+                  <TableCell>{t("projects.knowledge.evals.metric")}</TableCell>
+                  <TableCell align="center">{t("projects.knowledge.evals.score")}</TableCell>
+                  <TableCell>{t("projects.knowledge.evals.reason")}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -412,80 +414,80 @@ export default function ProjectEvals({ project }) {
 
       {/* Create Dataset Dialog */}
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>New Evaluation Dataset</DialogTitle>
+        <DialogTitle>{t("projects.knowledge.evals.newDatasetTitle")}</DialogTitle>
         <DialogContent>
           <TextField
-            autoFocus fullWidth margin="dense" label="Name"
+            autoFocus fullWidth margin="dense" label={t("projects.knowledge.evals.name")}
             value={newDataset.name}
             onChange={(e) => setNewDataset({ ...newDataset, name: e.target.value })}
           />
           <TextField
-            fullWidth margin="dense" label="Description" multiline rows={2}
+            fullWidth margin="dense" label={t("projects.knowledge.evals.description")} multiline rows={2}
             value={newDataset.description}
             onChange={(e) => setNewDataset({ ...newDataset, description: e.target.value })}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleCreateDataset} disabled={!newDataset.name}>Create</Button>
+          <Button onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
+          <Button variant="contained" onClick={handleCreateDataset} disabled={!newDataset.name}>{t("common.create")}</Button>
         </DialogActions>
       </Dialog>
 
       {/* Add Test Case Dialog */}
       <Dialog open={addCaseOpen} onClose={() => setAddCaseOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Test Case</DialogTitle>
+        <DialogTitle>{t("projects.knowledge.evals.addTestCase")}</DialogTitle>
         <DialogContent>
           <TextField
-            autoFocus fullWidth margin="dense" label="Question" multiline rows={3}
+            autoFocus fullWidth margin="dense" label={t("projects.knowledge.evals.question")} multiline rows={3}
             value={newCase.question}
             onChange={(e) => setNewCase({ ...newCase, question: e.target.value })}
           />
           <TextField
-            fullWidth margin="dense" label="Expected Answer (optional)" multiline rows={3}
+            fullWidth margin="dense" label={t("projects.knowledge.evals.expectedOptional")} multiline rows={3}
             value={newCase.expected_answer}
             onChange={(e) => setNewCase({ ...newCase, expected_answer: e.target.value })}
-            helperText="Provide a ground truth answer to enable the 'correctness' metric"
+            helperText={t("projects.knowledge.evals.expectedHelp")}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddCaseOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleAddCase} disabled={!newCase.question}>Add</Button>
+          <Button onClick={() => setAddCaseOpen(false)}>{t("common.cancel")}</Button>
+          <Button variant="contained" onClick={handleAddCase} disabled={!newCase.question}>{t("common.add")}</Button>
         </DialogActions>
       </Dialog>
 
       {/* Run Evaluation Dialog */}
       <Dialog open={runOpen} onClose={() => setRunOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Run Evaluation</DialogTitle>
+        <DialogTitle>{t("projects.knowledge.evals.runEval")}</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 2 }}>
-            Select which metrics to evaluate. Each test case will be scored per metric.
+            {t("projects.knowledge.evals.selectMetrics")}
           </Typography>
           <FormControl component="fieldset">
             <FormGroup>
               <FormControlLabel
                 control={<Checkbox checked={runMetrics.includes("answer_relevancy")} onChange={() => toggleMetric("answer_relevancy")} />}
-                label="Answer Relevancy — Is the answer relevant to the question?"
+                label={t("projects.knowledge.evals.answerRelevancy")}
               />
               <FormControlLabel
                 control={<Checkbox checked={runMetrics.includes("faithfulness")} onChange={() => toggleMetric("faithfulness")} />}
-                label="Faithfulness — Is the answer grounded in retrieved context? (RAG only)"
+                label={t("projects.knowledge.evals.faithfulness")}
               />
               <FormControlLabel
                 control={<Checkbox checked={runMetrics.includes("correctness")} onChange={() => toggleMetric("correctness")} />}
-                label="Correctness — Does the answer match the expected answer?"
+                label={t("projects.knowledge.evals.correctness")}
               />
             </FormGroup>
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRunOpen(false)}>Cancel</Button>
+          <Button onClick={() => setRunOpen(false)}>{t("common.cancel")}</Button>
           <Button
             variant="contained"
             onClick={handleStartRun}
             disabled={loading || runMetrics.length === 0}
             startIcon={loading ? <CircularProgress size={16} /> : <PlayArrow />}
           >
-            {loading ? "Starting..." : "Start"}
+            {loading ? t("projects.knowledge.evals.starting") : t("projects.knowledge.evals.start")}
           </Button>
         </DialogActions>
       </Dialog>

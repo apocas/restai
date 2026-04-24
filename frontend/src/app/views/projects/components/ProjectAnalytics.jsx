@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import { Analytics, ChevronLeft, ChevronRight } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
+import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 
@@ -20,6 +21,7 @@ const StatCard = styled(Card)(({ theme }) => ({
 }));
 
 export default function ProjectAnalytics({ project }) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [data, setData] = useState(null);
 
@@ -71,7 +73,7 @@ export default function ProjectAnalytics({ project }) {
       <FlexBox justifyContent="space-between">
         <FlexBox>
           <Analytics sx={{ ml: 2 }} />
-          <H4 sx={{ p: 2 }}>Conversation Analytics</H4>
+          <H4 sx={{ p: 2 }}>{t("projects.edit.analytics.title")}</H4>
         </FlexBox>
         <FlexBox sx={{ mr: 2 }}>
           <IconButton onClick={handlePrev} size="small"><ChevronLeft /></IconButton>
@@ -87,31 +89,31 @@ export default function ProjectAnalytics({ project }) {
           <Grid item xs={6} sm={3}>
             <StatCard elevation={1}>
               <Typography variant="h6">{s.total_conversations?.toLocaleString() || 0}</Typography>
-              <Typography variant="caption" color="text.secondary">Conversations</Typography>
+              <Typography variant="caption" color="text.secondary">{t("projects.edit.analytics.conversations")}</Typography>
             </StatCard>
           </Grid>
           <Grid item xs={6} sm={3}>
             <StatCard elevation={1}>
               <Typography variant="h6">{s.total_messages?.toLocaleString() || 0}</Typography>
-              <Typography variant="caption" color="text.secondary">Messages</Typography>
+              <Typography variant="caption" color="text.secondary">{t("projects.edit.analytics.messages")}</Typography>
             </StatCard>
           </Grid>
           <Grid item xs={6} sm={3}>
             <StatCard elevation={1}>
               <Typography variant="h6">{s.avg_messages_per_conversation || 0}</Typography>
-              <Typography variant="caption" color="text.secondary">Avg Msgs/Conv</Typography>
+              <Typography variant="caption" color="text.secondary">{t("projects.edit.analytics.avgMsgsPerConv")}</Typography>
             </StatCard>
           </Grid>
           <Grid item xs={6} sm={3}>
             <StatCard elevation={1}>
               <Typography variant="h6">{s.avg_latency_ms > 1000 ? `${(s.avg_latency_ms / 1000).toFixed(1)}s` : `${s.avg_latency_ms || 0}ms`}</Typography>
-              <Typography variant="caption" color="text.secondary">Avg Latency</Typography>
+              <Typography variant="caption" color="text.secondary">{t("projects.edit.analytics.avgLatency")}</Typography>
             </StatCard>
           </Grid>
         </Grid>
 
         {/* Daily conversations chart */}
-        <Typography variant="subtitle2" sx={{ mb: 1 }}>Daily Activity</Typography>
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("projects.edit.analytics.dailyActivity")}</Typography>
         <ResponsiveContainer width="100%" height={250}>
           <AreaChart data={filledDaily} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -124,7 +126,7 @@ export default function ProjectAnalytics({ project }) {
         </ResponsiveContainer>
 
         {/* Hourly distribution */}
-        <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Peak Hours</Typography>
+        <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>{t("projects.edit.analytics.peakHours")}</Typography>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={data.hourly || []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -138,7 +140,7 @@ export default function ProjectAnalytics({ project }) {
         {/* Top users */}
         {data.top_users && data.top_users.length > 0 && (
           <>
-            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Top Users</Typography>
+            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>{t("projects.edit.analytics.topUsers")}</Typography>
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -157,6 +159,64 @@ export default function ProjectAnalytics({ project }) {
             </Table>
           </>
         )}
+
+        {/* Drill-down: status / latency histogram / LLM split */}
+        <Grid container spacing={2} sx={{ mt: 2 }}>
+          {data.status_breakdown && data.status_breakdown.length > 0 && (
+            <Grid item xs={12} md={4}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("projects.edit.analytics.outcomeBreakdown")}</Typography>
+              <Table size="small">
+                <TableBody>
+                  {data.status_breakdown.map((row) => (
+                    <TableRow key={row.status}>
+                      <TableCell sx={{ pl: 2, textTransform: "capitalize" }}>
+                        {row.status.replace("_", " ")}
+                      </TableCell>
+                      <TableCell align="right" sx={{ pr: 2 }}>{row.count}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Grid>
+          )}
+          {data.latency_buckets && data.latency_buckets.some((b) => b.count > 0) && (
+            <Grid item xs={12} md={4}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("projects.edit.analytics.latencyDistribution")}</Typography>
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={data.latency_buckets} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="bucket" fontSize={11} />
+                  <YAxis fontSize={11} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#e67e22" name="Requests" />
+                </BarChart>
+              </ResponsiveContainer>
+            </Grid>
+          )}
+          {data.llm_breakdown && data.llm_breakdown.length > 0 && (
+            <Grid item xs={12} md={4}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("projects.edit.analytics.llmUsage")}</Typography>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ pl: 2 }}>LLM</TableCell>
+                    <TableCell align="right">Msgs</TableCell>
+                    <TableCell align="right" sx={{ pr: 2 }}>Tokens</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {data.llm_breakdown.map((row) => (
+                    <TableRow key={row.llm}>
+                      <TableCell sx={{ pl: 2 }}>{row.llm}</TableCell>
+                      <TableCell align="right">{row.messages}</TableCell>
+                      <TableCell align="right" sx={{ pr: 2 }}>{row.tokens.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Grid>
+          )}
+        </Grid>
       </Box>
     </Card>
   );

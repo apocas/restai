@@ -51,7 +51,10 @@ export default function PlatformProvider({ children }) {
           proxy_url: data.proxy_url || "",
           currency: data.currency || "USD",
           auth_disable_local: data.auth_disable_local || false,
-          mcp: data.mcp || false
+          mcp: data.mcp || false,
+          // `auth_secret_weak` used to live here but leaked pre-auth via
+          // /setup — it now comes from the authenticated /info endpoint
+          // and is consumed directly by the admin dashboard.
         });
       } else {
         console.error("Failed to fetch platform capabilities");

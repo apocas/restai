@@ -1,9 +1,22 @@
-import { Card, Grid, TextField, Button, MenuItem, Switch, Slider, Typography, IconButton, Divider, Box, Tooltip } from "@mui/material";
+import { Card, Chip, Grid, TextField, Button, MenuItem, Switch, Slider, Typography, IconButton, Divider, Box, Tooltip, Table, TableHead, TableBody, TableRow, TableCell } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { HelpOutline } from "@mui/icons-material";
 import FormControlLabel from "@mui/material/FormControlLabel";
-import { Fragment } from "react";
+import { Fragment, useState, useEffect, useCallback } from "react";
+import { toast } from "react-toastify";
 import api from "app/utils/api";
+import { useTranslation } from "react-i18next";
+import { makeErrorFor } from "./projectOptionValidators";
+
+// Status → chip color. Mirror of the server-side status enum in
+// BulkIngestJobDatabase (queued/processing/done/error).
+const BULK_STATUS_COLOR = {
+  queued: "default",
+  processing: "info",
+  done: "success",
+  error: "error",
+};
 
 const HelpTip = ({ text }) => (
   <Tooltip title={text} placement="top" arrow>
@@ -11,11 +24,124 @@ const HelpTip = ({ text }) => (
   </Tooltip>
 );
 
-export default function ProjectEditKnowledge({ state, setState, handleChange, project, auth }) {
+export default function ProjectEditKnowledge({ state, setState, handleChange, project, auth, fieldErrors = {}, clearFieldError = () => {} }) {
+  // All hooks must be called unconditionally (rules-of-hooks). Early
+  // returns for non-RAG happen AFTER this block.
+  const { t } = useTranslation();
+  const errorFor = makeErrorFor(fieldErrors, state);
+
+  // Bulk ingest job list + uploader state. Polled every 5s while the
+  // tab is mounted so the admin sees status flip from queued →
+  // processing → done without a manual reload.
+  const [bulkJobs, setBulkJobs] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
+  const refreshJobs = useCallback(() => {
+    if (!project?.id) return;
+    api.get(`/projects/${project.id}/ingest-bulk?limit=20`, auth.user.token, { silent: true })
+      .then((d) => setBulkJobs(d.jobs || []))
+      .catch(() => {});
+  }, [project?.id, auth.user.token]);
+
+  useEffect(() => {
+    // Only poll for RAG projects — other types never read this tab.
+    if (state.type !== "rag") return undefined;
+    refreshJobs();
+    const t = setInterval(refreshJobs, 5000);
+    return () => clearInterval(t);
+  }, [refreshJobs, state.type]);
+
   if (state.type !== "rag") return null;
+
+  const handleBulkUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0 || !project?.id) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      for (const f of files) form.append("files", f);
+      await api.post(
+        `/projects/${project.id}/ingest-bulk?method=auto&splitter=sentence&chunks=256`,
+        form,
+        auth.user.token,
+      );
+      toast.success(t("projects.edit.knowledge.queuedFiles", { count: files.length }), { position: "top-right" });
+      refreshJobs();
+    } catch (err) {
+      // api.js toasts already; no-op
+    } finally {
+      setUploading(false);
+      // Reset the input so re-uploading the same file works.
+      e.target.value = "";
+    }
+  };
+
+  const handleCancelJob = (jobId) => {
+    api.delete(`/projects/${project.id}/ingest-bulk/${jobId}`, auth.user.token)
+      .then(() => refreshJobs())
+      .catch(() => {});
+  };
 
   return (
     <Grid container spacing={3}>
+      {/* Bulk ingest queue */}
+      <Grid item sm={12} xs={12}>
+        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+          {t("projects.edit.knowledge.bulkIngest")}
+          <HelpTip text="Upload one or more files and the ingest cron will process them in the background. Poll the table below for status." />
+        </Typography>
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center", mb: 2, flexWrap: "wrap" }}>
+          <Button
+            variant="contained" size="small" startIcon={<CloudUploadIcon />}
+            component="label" disabled={uploading}
+          >
+            {uploading ? t("projects.edit.knowledge.uploading") : t("projects.edit.knowledge.uploadFiles")}
+            <input type="file" hidden multiple onChange={handleBulkUpload} />
+          </Button>
+          <Typography variant="caption" color="text.secondary">
+            {t("projects.edit.knowledge.ingestHelp")}
+          </Typography>
+        </Box>
+        {bulkJobs.length > 0 && (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>File</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="right">Docs</TableCell>
+                <TableCell align="right">Chunks</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {bulkJobs.map((job) => (
+                <TableRow key={job.id}>
+                  <TableCell>
+                    <Typography variant="body2">{job.filename}</Typography>
+                    {job.error_message && (
+                      <Typography variant="caption" color="error" sx={{ display: "block" }}>
+                        {job.error_message}
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Chip size="small" label={job.status} color={BULK_STATUS_COLOR[job.status] || "default"} />
+                  </TableCell>
+                  <TableCell align="right">{job.documents_count ?? "—"}</TableCell>
+                  <TableCell align="right">{job.chunks_count ?? "—"}</TableCell>
+                  <TableCell align="right">
+                    <IconButton size="small" onClick={() => handleCancelJob(job.id)} title="Delete row">
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <Divider sx={{ mt: 2 }} />
+      </Grid>
+
       <Grid item sm={12} xs={12}>
         <Divider sx={{ mb: 1 }} />
       </Grid>
@@ -40,10 +166,11 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
           fullWidth
           InputLabelProps={{ shrink: true }}
           name="score"
-          label="Cutoff Score"
-          helperText="Minimum relevance score (0-1) a chunk must have. Higher = stricter, may miss useful context"
+          label={t("projects.edit.knowledge.scoreHint").split(".")[0]}
+          helperText={errorFor("score") || "Minimum relevance score (0-1) a chunk must have. Higher = stricter, may miss useful context"}
+          error={!!errorFor("score")}
           variant="outlined"
-          onChange={handleChange}
+          onChange={(e) => { clearFieldError("score"); handleChange(e); }}
           value={state.options?.score ?? ''}
         />
       </Grid>

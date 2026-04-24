@@ -2,11 +2,13 @@ from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
+from restai.audit import _log_to_db as _audit_log
 from restai.auth import get_current_username_admin
 from restai.config import detect_gpu_info
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.models import SettingsResponse, SettingsUpdate
 from restai.settings import get_all_settings, mask_key, update_setting, reinit_oauth, _SECRET_KEYS
+from restai.utils.crypto import SETTINGS_ENCRYPTED_KEYS
 
 router = APIRouter()
 
@@ -41,12 +43,35 @@ async def patch_settings(
 
     updates = body.model_dump(exclude_none=True)
 
+    actor = getattr(user, "username", None) or "(admin)"
+
+    def _audit_change(key: str, new_str: str) -> None:
+        """Emit a per-key audit row. Resource carries the key + a status
+        marker; values are NEVER included for SETTINGS_ENCRYPTED_KEYS so
+        an attacker who reads the audit log can't recover secrets. For
+        non-secret keys we include a short fingerprint (length + first
+        chars) so an admin can confirm "yes that was the change I made"
+        without leaking the full value either."""
+        try:
+            old = db_wrapper.get_setting_value(key, "")
+        except Exception:
+            old = ""
+        if (old or "") == (new_str or ""):
+            # No actual change — don't pollute the audit log.
+            return
+        if key in SETTINGS_ENCRYPTED_KEYS or key in _SECRET_KEYS:
+            resource = f"settings/{key}:secret_changed"
+        else:
+            # Cap length for the column; small fingerprint for sanity.
+            preview = (new_str or "")[:32].replace("\n", " ")
+            resource = f"settings/{key}:{preview}"
+        _audit_log(actor, "SETTING", resource[:500], 200)
+
     # Handle proxy_enabled=False: clear proxy fields
     if updates.get("proxy_enabled") is False:
-        update_setting(db_wrapper, "proxy_enabled", "false")
-        update_setting(db_wrapper, "proxy_url", "")
-        update_setting(db_wrapper, "proxy_key", "")
-        update_setting(db_wrapper, "proxy_team_id", "")
+        for key, value in (("proxy_enabled", "false"), ("proxy_url", ""), ("proxy_key", ""), ("proxy_team_id", "")):
+            _audit_change(key, value)
+            update_setting(db_wrapper, key, value)
         updates.pop("proxy_enabled", None)
         updates.pop("proxy_url", None)
         updates.pop("proxy_key", None)
@@ -59,11 +84,13 @@ async def patch_settings(
                 continue
 
         if isinstance(value, bool):
-            update_setting(db_wrapper, key, "true" if value else "false")
+            new_str = "true" if value else "false"
         elif isinstance(value, int):
-            update_setting(db_wrapper, key, str(value))
+            new_str = str(value)
         else:
-            update_setting(db_wrapper, key, value)
+            new_str = value
+        _audit_change(key, new_str)
+        update_setting(db_wrapper, key, new_str)
 
     redis_fields = {"redis_host", "redis_port", "redis_password", "redis_database"}
     if redis_fields & updates.keys():

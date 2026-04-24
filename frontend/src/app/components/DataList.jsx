@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
 import {
-  Box, Card, Chip, IconButton, InputAdornment, MenuItem, Select,
+  Box, Button, Card, Checkbox, Chip, IconButton, InputAdornment, MenuItem, Select,
   Table, TableBody, TableCell, TableHead, TableRow, TablePagination,
   TableSortLabel, TextField, Tooltip, Typography, styled,
 } from "@mui/material";
-import { Search, Inbox } from "@mui/icons-material";
+import { Search, Inbox, Close, SearchOff } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 
 const StyledCard = styled(Card)(({ theme }) => ({
   borderRadius: 12,
@@ -30,6 +31,19 @@ const ToolbarRow = styled(Box)(({ theme }) => ({
   gap: theme.spacing(2),
   flexWrap: "wrap",
   borderBottom: `1px solid ${theme.palette.divider}`,
+}));
+
+// Shown above the table when one or more rows are selected (bulkActions
+// opt-in). Sits between the toolbar and the table so the selection
+// count + action buttons are unmistakable.
+const BulkActionBar = styled(Box)(({ theme }) => ({
+  padding: "10px 24px",
+  display: "flex",
+  alignItems: "center",
+  gap: theme.spacing(1.5),
+  backgroundColor: theme.palette.action.selected,
+  borderBottom: `1px solid ${theme.palette.divider}`,
+  flexWrap: "wrap",
 }));
 
 const StyledTableRow = styled(TableRow)(({ theme, clickable }) => ({
@@ -72,7 +86,15 @@ const EmptyState = styled(Box)(({ theme }) => ({
  *  - rowKey: (row) => string — default: row.id
  *  - actions: (row) => ReactNode — right-side action buttons per row
  *  - headerAction: ReactNode — right-side header button (e.g. "New")
- *  - emptyMessage: string
+ *  - emptyMessage: string — fallback text when `emptyState` is not provided
+ *  - emptyState: { icon, title, message, actionLabel, onAction } — rich
+ *    empty-state block (shown when data.length === 0). `icon` is a
+ *    component class (e.g. `Group`). Falls back to Inbox + emptyMessage
+ *    when the prop is omitted.
+ *  - bulkActions: [{ label, icon, color, onClick(selectedRows) }] — when
+ *    non-empty, renders a select-column + a bulk-action bar. Parent
+ *    handles the API calls; DataList just hands back selected rows and
+ *    clears the selection after each action.
  *  - defaultSort: { key, direction }
  *  - pageSize: default 10
  */
@@ -87,16 +109,24 @@ export default function DataList({
   rowKey = (row) => row.id,
   actions,
   headerAction,
-  emptyMessage = "No items found",
+  emptyMessage,
+  emptyState = null,
+  bulkActions = [],
   defaultSort = null,
   pageSize = 10,
 }) {
+  const { t } = useTranslation();
+  const effectiveEmptyMessage = emptyMessage ?? t("dataList.noResults");
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState(defaultSort?.key || null);
   const [sortDir, setSortDir] = useState(defaultSort?.direction || "asc");
   const [filterValues, setFilterValues] = useState({});
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(pageSize);
+  // Set of selected row keys. Stored as a Set so toggling is O(1) and
+  // the parent can read size via .size. Cleared whenever the filtered
+  // view changes so hidden rows don't silently stay selected.
+  const [selectedKeys, setSelectedKeys] = useState(() => new Set());
 
   const getNested = (obj, path) => {
     if (!obj || !path) return "";
@@ -159,7 +189,47 @@ export default function DataList({
     }
   };
 
+  // ── Bulk selection helpers ─────────────────────────────────────────
+  const bulkEnabled = bulkActions.length > 0;
+  const pagedKeys = useMemo(() => paged.map(rowKey), [paged, rowKey]);
+  const allPageSelected = pagedKeys.length > 0 && pagedKeys.every((k) => selectedKeys.has(k));
+  const somePageSelected = pagedKeys.some((k) => selectedKeys.has(k));
+
+  const toggleRow = (row) => {
+    const k = rowKey(row);
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    });
+  };
+  const toggleAllOnPage = () => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (allPageSelected) {
+        pagedKeys.forEach((k) => next.delete(k));
+      } else {
+        pagedKeys.forEach((k) => next.add(k));
+      }
+      return next;
+    });
+  };
+  const clearSelection = () => setSelectedKeys(new Set());
+
+  const runBulkAction = (action) => {
+    const selectedRows = data.filter((row) => selectedKeys.has(rowKey(row)));
+    if (selectedRows.length === 0) return;
+    // Hand rows to the consumer; they're responsible for API calls and
+    // refreshing `data`. Clear selection so stale keys don't linger on
+    // rows that the parent just deleted.
+    Promise.resolve(action.onClick(selectedRows)).finally(clearSelection);
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────
   const hasToolbar = searchKeys.length > 0 || filters.length > 0;
+  const selectedCount = selectedKeys.size;
+  const searching = search.length > 0;
+  const hasData = data.length > 0;
 
   return (
     <StyledCard elevation={0}>
@@ -182,7 +252,7 @@ export default function DataList({
           {searchKeys.length > 0 && (
             <TextField
               size="small"
-              placeholder="Search..."
+              placeholder={t("dataList.search")}
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
               sx={{ flex: 1, minWidth: 220 }}
@@ -192,6 +262,18 @@ export default function DataList({
                     <Search fontSize="small" color="action" />
                   </InputAdornment>
                 ),
+                endAdornment: searching ? (
+                  <InputAdornment position="end">
+                    <Tooltip title={t("dataList.clearSearch")}>
+                      <IconButton
+                        size="small" edge="end" aria-label={t("dataList.clearSearch")}
+                        onClick={() => { setSearch(""); setPage(0); }}
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </InputAdornment>
+                ) : null,
               }}
             />
           )}
@@ -207,27 +289,102 @@ export default function DataList({
               sx={{ minWidth: 160 }}
               displayEmpty
               renderValue={(selected) => {
-                if (!selected || selected === "__all__") return `${f.label}: All`;
+                if (!selected || selected === "__all__") return `${f.label}: ${t("common.all")}`;
                 const opt = f.options.find((o) => String(o.value) === String(selected));
                 return `${f.label}: ${opt?.label || selected}`;
               }}
             >
-              <MenuItem value="__all__">{f.label}: All</MenuItem>
+              <MenuItem value="__all__">{f.label}: {t("common.all")}</MenuItem>
               {f.options.map((opt) => (
                 <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
               ))}
             </Select>
           ))}
           <Box sx={{ flex: "0 0 auto", ml: "auto" }}>
-            <Chip label={`${sorted.length} result${sorted.length !== 1 ? "s" : ""}`} size="small" variant="outlined" />
+            <Chip label={t("common.resultCount", { count: sorted.length })} size="small" variant="outlined" />
           </Box>
         </ToolbarRow>
       )}
 
+      {bulkEnabled && selectedCount > 0 && (
+        <BulkActionBar>
+          <Typography variant="body2" fontWeight={600}>
+            {t("dataList.selected", { count: selectedCount })}
+          </Typography>
+          {bulkActions.map((a, i) => (
+            <Button
+              key={i}
+              size="small"
+              variant="outlined"
+              color={a.color || "primary"}
+              startIcon={a.icon}
+              onClick={() => runBulkAction(a)}
+            >
+              {a.label}
+            </Button>
+          ))}
+          <Button size="small" onClick={clearSelection} sx={{ ml: "auto" }}>
+            {t("dataList.clear")}
+          </Button>
+        </BulkActionBar>
+      )}
+
       {paged.length === 0 ? (
         <EmptyState>
-          <Inbox sx={{ fontSize: 48, opacity: 0.4 }} />
-          <Typography variant="body2">{emptyMessage}</Typography>
+          {/* Three distinct empty-states:
+              1. Searched, no matches → "no matches" + clear-search CTA.
+              2. Data present but no rich empty-state provided → plain text.
+              3. No data at all, rich empty-state provided → icon + title + action. */}
+          {searching && hasData ? (
+            <>
+              <SearchOff sx={{ fontSize: 48, opacity: 0.4 }} />
+              <Typography variant="body2">
+                {t("dataList.noMatches", { query: search })}
+              </Typography>
+              <Button size="small" onClick={() => { setSearch(""); setPage(0); }}>
+                {t("dataList.clearSearch")}
+              </Button>
+            </>
+          ) : !hasData && emptyState ? (
+            <>
+              {emptyState.icon ? (
+                <Box
+                  sx={{
+                    width: 72, height: 72, borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    backgroundColor: "action.hover", mb: 1,
+                  }}
+                >
+                  <emptyState.icon sx={{ fontSize: 36, color: "text.secondary" }} />
+                </Box>
+              ) : (
+                <Inbox sx={{ fontSize: 48, opacity: 0.4 }} />
+              )}
+              {emptyState.title && (
+                <Typography variant="subtitle1" fontWeight={600} sx={{ color: "text.primary" }}>
+                  {emptyState.title}
+                </Typography>
+              )}
+              <Typography variant="body2" sx={{ maxWidth: 360 }}>
+                {emptyState.message || effectiveEmptyMessage}
+              </Typography>
+              {emptyState.actionLabel && emptyState.onAction && (
+                <Button
+                  size="small" variant="contained"
+                  startIcon={emptyState.actionIcon}
+                  onClick={emptyState.onAction}
+                  sx={{ mt: 1 }}
+                >
+                  {emptyState.actionLabel}
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              <Inbox sx={{ fontSize: 48, opacity: 0.4 }} />
+              <Typography variant="body2">{effectiveEmptyMessage}</Typography>
+            </>
+          )}
         </EmptyState>
       ) : (
         <Box sx={{ overflowX: "auto" }}>
@@ -239,6 +396,20 @@ export default function DataList({
                   "& th:last-of-type": { paddingRight: "24px" },
                 }}
               >
+                {bulkEnabled && (
+                  <TableCell
+                    padding="checkbox"
+                    sx={{ backgroundColor: "action.hover", borderBottom: "1px solid", borderColor: "divider" }}
+                  >
+                    <Checkbox
+                      size="small"
+                      checked={allPageSelected}
+                      indeterminate={!allPageSelected && somePageSelected}
+                      onChange={toggleAllOnPage}
+                      inputProps={{ "aria-label": "select all on page" }}
+                    />
+                  </TableCell>
+                )}
                 {columns.map((col) => (
                   <TableCell
                     key={col.key}
@@ -272,28 +443,44 @@ export default function DataList({
               </TableRow>
             </TableHead>
             <TableBody>
-              {paged.map((row) => (
-                <StyledTableRow
-                  key={rowKey(row)}
-                  clickable={onRowClick ? "true" : "false"}
-                  onClick={onRowClick ? (e) => {
-                    // Don't fire row click on action button clicks
-                    if (e.target.closest("button, a")) return;
-                    onRowClick(row);
-                  } : undefined}
-                >
-                  {columns.map((col) => (
-                    <TableCell key={col.key} align={col.align || "left"}>
-                      {col.render ? col.render(row) : getNested(row, col.key)}
-                    </TableCell>
-                  ))}
-                  {actions && (
-                    <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
-                      {actions(row)}
-                    </TableCell>
-                  )}
-                </StyledTableRow>
-              ))}
+              {paged.map((row) => {
+                const k = rowKey(row);
+                const isSelected = selectedKeys.has(k);
+                return (
+                  <StyledTableRow
+                    key={k}
+                    clickable={onRowClick ? "true" : "false"}
+                    selected={isSelected}
+                    onClick={onRowClick ? (e) => {
+                      // Don't fire row click on action button clicks / checkbox clicks.
+                      if (e.target.closest("button, a, input")) return;
+                      onRowClick(row);
+                    } : undefined}
+                  >
+                    {bulkEnabled && (
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          size="small"
+                          checked={isSelected}
+                          onChange={() => toggleRow(row)}
+                          onClick={(e) => e.stopPropagation()}
+                          inputProps={{ "aria-label": `select row ${k}` }}
+                        />
+                      </TableCell>
+                    )}
+                    {columns.map((col) => (
+                      <TableCell key={col.key} align={col.align || "left"}>
+                        {col.render ? col.render(row) : getNested(row, col.key)}
+                      </TableCell>
+                    ))}
+                    {actions && (
+                      <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                        {actions(row)}
+                      </TableCell>
+                    )}
+                  </StyledTableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </Box>

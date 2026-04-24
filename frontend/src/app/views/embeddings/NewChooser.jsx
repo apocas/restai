@@ -3,6 +3,7 @@ import {
   CloudDownload, Tune, ArrowForward, Bolt, CheckCircle,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import Breadcrumb from "app/components/Breadcrumb";
 
 const Container = styled("div")(({ theme }) => ({
@@ -154,6 +155,7 @@ function Option({ accent, badge, badgeIcon, icon: Icon, title, description, feat
 }
 
 export default function NewChooser() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   return (
@@ -161,8 +163,8 @@ export default function NewChooser() {
       <Box className="breadcrumb">
         <Breadcrumb
           routeSegments={[
-            { name: "Embeddings", path: "/embeddings" },
-            { name: "New Embedding" },
+            { name: t("nav.embeddings"), path: "/embeddings" },
+            { name: t("embeddings.newBreadcrumb") },
           ]}
         />
       </Box>
@@ -175,15 +177,14 @@ export default function NewChooser() {
             color="primary"
             sx={{ mb: 1, letterSpacing: "-0.3px" }}
           >
-            Add a new Embedding
+            {t("embeddings.chooser.title")}
           </Typography>
           <Typography
             variant="body1"
             color="text.secondary"
             sx={{ maxWidth: 560, mx: "auto" }}
           >
-            Connect an embedding model to power your RAG knowledge retrieval. Pick the fastest path
-            based on where your model is hosted.
+            {t("embeddings.chooser.subtitle")}
           </Typography>
         </Box>
       </Hero>
@@ -202,16 +203,16 @@ export default function NewChooser() {
       >
         <Option
           accent="#10b981"
-          badge="Fastest"
+          badge={t("embeddings.chooser.fastest")}
           badgeIcon={<Bolt sx={{ fontSize: 12 }} />}
           icon={CloudDownload}
-          title="Import from Ollama"
-          description="Connect to a local or remote Ollama instance and pull its installed embedding models in one click."
+          title={t("embeddings.chooser.ollama")}
+          description={t("embeddings.chooser.ollamaDesc")}
           features={[
-            "Auto-detects embedding dimension",
-            "Detects model capability",
-            "Zero manual configuration",
-            "Bulk import supported",
+            t("embeddings.chooser.featAutoDim"),
+            t("embeddings.chooser.featCapability"),
+            t("embeddings.chooser.featZeroConfig"),
+            t("embeddings.chooser.featBulk"),
           ]}
           onClick={() => navigate("/llms/ollama")}
         />
@@ -219,13 +220,13 @@ export default function NewChooser() {
         <Option
           accent="#6366f1"
           icon={Tune}
-          title="Add manually"
-          description="Configure any supported embedding provider (HuggingFace, OpenAI, LangChain, Ollama, etc.)."
+          title={t("embeddings.chooser.manual")}
+          description={t("embeddings.chooser.manualDesc")}
           features={[
-            "Multiple provider integrations",
-            "HuggingFace, OpenAI, LangChain",
-            "Fine-grained options per model",
-            "Full control over credentials",
+            t("embeddings.chooser.featMulti"),
+            t("embeddings.chooser.featHf"),
+            t("embeddings.chooser.featFineGrain"),
+            t("embeddings.chooser.featCredentials"),
           ]}
           onClick={() => navigate("/embeddings/new/manual")}
         />

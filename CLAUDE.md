@@ -302,6 +302,92 @@ Accumulated fixes worth remembering:
 - **Salted API-key / recovery-code hashing** — `hash_api_key` / `hash_recovery_code` (`restai/utils/crypto.py`) now use PBKDF2-SHA256 + random 16-byte salt with `$pbkdf2$` prefix. `verify_*` accepts both new PBKDF2 hashes and legacy SHA256 for migration.
 - **Widget restricted-user block** — `get_widget_from_request` (`restai/auth.py`) rejects with 403 if the widget creator is restricted-and-not-admin.
 - **Frontend 401 handling** (`frontend/src/app/utils/api.js`) — on any 401 outside `/login`, sets `sessionStorage["session_expired"] = "1"` and redirects to `/admin/login`; the login page surfaces "Your session has expired. Please log in again." via `useEffect`.
+- **SSRF guard on `crawler_classic` tool + 10s timeout** — `restai/llms/tools/crawler_classic.py` now resolves the target hostname through `restai.helper._is_private_ip` before fetching and refuses loopback / RFC1918 / link-local destinations (closes the AWS IMDS exfil path). Same guard applied to `restai/sync.py:_sync_url` so admin-configured URL knowledge sources can't be pointed at internal services.
+- **Userland tool loader pinned to install root** — `restai/tools.py:load_tools` reads userland tools from `<install_root>/tools` (resolved from the package directory) instead of the cwd-relative `./tools`. Skips cleanly when the directory is missing. Closes a code-execution surface that triggered whenever the process was launched from an unexpected CWD.
+- **Per-key audit trail on settings mutations** — `restai/routers/settings.py:patch_settings` calls `audit._log_to_db(actor, "SETTING", "settings/<key>:<status>", 200)` for every key that actually changed. Secret keys (those in `SETTINGS_ENCRYPTED_KEYS` or `_SECRET_KEYS`) get the `:secret_changed` marker — values are NEVER recorded in the audit row. Non-secret keys include a 32-char fingerprint of the new value so an admin can confirm "yes that was the change I made" without leaking the full value.
+- **Password-age tracking** — `users.password_updated_at` is stamped on every `create_user`/`update_user` write (migration 041). The `password_max_age_days` admin setting (default 0 = disabled) controls a soft warning surfaced in the `/auth/login` response (`password_warning` field with `password_age_days`, `password_max_age_days`, `message`). Soft only — never blocks login, since forced rotation creates worse outcomes than nudging it. Legacy rows pre-migration have NULL timestamps and never warn (right default — we don't know the age, so we can't honestly assert staleness).
+- **Per-API-key monthly token quotas** — `api_keys.token_quota_monthly` (NULL = unlimited), `tokens_used_this_month`, `quota_reset_at` (migration 042). `restai/budget.py:check_api_key_quota` raises HTTP 429 when the cap is hit; the counter rolls over lazily on the first check after `quota_reset_at` lapses (1st-of-next-month UTC). `record_api_key_tokens` in `log_inference` bumps the counter by `in_tokens + out_tokens`. Lets SMBs resell API access with per-customer isolation — one key per customer, isolated quota. Admin manages via `PATCH /users/{u}/apikeys/{id}` (`token_quota_monthly`, `reset_usage`).
+- **API errors carry field-level metadata** — `frontend/src/app/utils/api.js:ApiError` now exposes `fieldErrors` (map of field → message), parsed from FastAPI's 422 `detail` array via `_extractFieldErrors`. Forms can mark the offending TextField with `error` + `helperText` instead of just toasting the joined string. `ProjectEdit.jsx` plumbs the map down to `ProjectEditGeneral` via `fieldErrors` + `clearFieldError` props; `memory_bank_max_tokens` is the wired demo. `ApiError.fieldErrors` is also accepted as `options.<name>` so nested locs (`["body", "options", "k"]`) light up the right field without callers stripping the prefix.
+- **Contextual chat error messages** — `ChatPanel.jsx:formatChatError(status, detail)` maps HTTP status codes to user-friendly copy: 402 → "budget exhausted", 429 → "rate limit exceeded" (plus quota-specific copy when detail mentions quota), 413 → "too large", 503/502 → "overloaded", etc. Used by both the streaming path (`onopen` captures status before stream begins, hands it to `onerror`) and the non-streaming `catch (e)` (consumes `e.status` + `e.detail` from `ApiError`). Actionable statuses (401/402/413/429) also fire a top-right toast in addition to the inline bubble.
+- **JWT signing-secret strength check** — at app startup `main.py` logs a WARNING when `RESTAI_AUTH_SECRET` is empty, under 32 chars, or matches a known-weak default (`secret`, `changeme`, etc.). The result lands on `fs_app.state.auth_secret_weak` and is surfaced to the UI via the `auth_secret_weak` field in `/setup`, so admins see it without reading logs. `_ensure_env_secret` already writes a 64-byte urlsafe default on first boot — this check catches legacy installs and copy-pasted dev envs.
+- **Client-side form validation on project edit numerics** — `frontend/src/app/views/projects/components/projectOptionValidators.js` exports `clientValidators` (rate_limit / k / score / memory_bank_max_tokens / cache_threshold) and `makeErrorFor(fieldErrors, state)`. The ProjectEditGeneral / Security / Knowledge tabs consume it so a typo on a numeric bound lights up the field inline without a 422 round-trip. Server-side `ApiError.fieldErrors` still wins once a save is attempted — client bounds are UX sugar, not authoritative.
+
+### Project Template Library
+
+Separate from the existing project-to-project clone flow. Lets users publish a project's state (system prompt + options + Blockly workspace) as a **template** with three-tier visibility: **private** (creator only), **team** (members of the template's team_id), **public** (any logged-in user).
+
+- **Table**: `project_templates` (`restai/models/databasemodels.py:ProjectTemplateDatabase`, migration 043). Fields: `name`, `description`, `project_type`, `suggested_llm`, `suggested_embeddings`, `system_prompt`, `options_json`, `blockly_workspace`, `visibility`, `creator_id`, `team_id`, `created_at`, `use_count`.
+- **Router**: `restai/routers/templates.py`. Endpoints: `POST /projects/{id}/publish-template`, `GET /templates` (visibility-filtered), `GET /templates/{id}`, `PATCH /templates/{id}` (owner-only), `DELETE /templates/{id}` (owner-only), `POST /templates/{id}/instantiate`.
+- **Instantiation**: the caller picks the target `team_id` + `llm` + `embeddings` (since LLM access is team-scoped, the template's `suggested_llm` may not be available). New project is created via the existing `DBWrapper.create_project` + options/system-prompt replay; `use_count` is incremented on success.
+- **Frontend**: `Library.jsx` now has a "Community Templates" section alongside the existing shared-projects grid, with a **Use Template** dialog that picks target team + LLM. `ProjectInfo.jsx` adds a **Save as template** icon next to **Clone** — dialog collects name + description + visibility and POSTs to `/projects/{id}/publish-template`.
+- **Visibility vs. clone**: clone copies an entire live project (eval datasets, prompt versions, etc.). Templates are a lightweight config snapshot — decoupled from the live project so the creator can share a "starter pack" without exposing their real data.
+
+### Inline Content Moderation Tool
+
+Agent-callable builtin: `moderate_content(text, policy="default")` (`restai/llms/tools/moderate_content.py`). Different from `guard_output` (which runs a whole guard project on the final response) — this is mid-flow so the agent can decide to retry/rephrase/abort.
+
+- **Detection** — regex-based, no external deps: credit card / email / phone / US SSN / IPv4 / API-key shapes (`sk-...`, `xox[baprs]-...`, `AKIA...`, `gh[pousr]_...`). Plus a short "possible prompt injection" check (phrases like "ignore previous instructions", "system prompt", "you are now").
+- **Per-project options** — `moderation_blocklist` (CSV of literal substring terms, case-insensitive) + `moderation_redact_pii` (bool, default `true`). When redaction is on, flagged spans are replaced with `[REDACTED:<type>]` in the returned `SANITIZED:` block.
+- **Return shape** — `"OK: no issues found"` or `"FLAGGED: <reasons>\nSANITIZED: <text>"`. String, not JSON, so a small LLM can react with a simple grep.
+- **Degrades gracefully** — works without project context (default policy applies, no DB call). A DB hiccup never raises into the agent — moderation is advisory, and blocking the turn is worse than best-effort.
+
+### Bulk File Ingest Queue
+
+RAG-only — uploads are decoupled from the request/response cycle so a 500-page PDF doesn't time out the admin.
+
+- **Table**: `bulk_ingest_jobs` (migration 044). Fields: project_id, filename, mime_type, size_bytes, file_path, method/splitter/chunks, status (`queued`/`processing`/`done`/`error`), error_message, documents_count, chunks_count, created_at/started_at/completed_at.
+- **Staging dir**: `$TMPDIR/restai_bulk_ingest/` (created lazily). Each upload is a tempfile with the project id prefixed so an admin inspecting the dir can correlate. Cleaned up on job completion or delete.
+- **Router** (`restai/routers/bulk_ingest.py`): `POST /projects/{id}/ingest-bulk` (multipart, 202 Accepted + queued ids), `GET /projects/{id}/ingest-bulk`, `DELETE /projects/{id}/ingest-bulk/{jobID}`.
+- **Cron** (`crons/bulk_ingest.py`): claims one queued row at a time (`status=queued` → `processing` in a single txn), dispatches to the same auto_ingest → markitdown → docling → classic fallback chain as the synchronous endpoint, finalizes with a fresh DB session so long-running ingests don't wedge state. Tempfile deleted regardless of outcome.
+- **UI**: `ProjectEditKnowledge.jsx` adds a "Bulk File Ingest" section at the top of the Knowledge tab with a multi-file uploader and a status table that polls every 5s.
+- **Scope**: queued jobs with a missing staged file auto-error on the next cron tick ("staged file missing"). Agent / block projects reject with 400.
+
+### Routine Execution Log
+
+Per-fire history table (`routine_execution_log`, migration 045) sitting alongside `ProjectRoutineDatabase`. The legacy `last_result` field is a single string — it can't show a flaky-routine pattern. The new table keeps `status` (ok/error), `result` (truncated answer or error), `duration_ms`, `manual` (true for admin-triggered, false for cron), `created_at`. Cascade-deletes with the parent routine.
+
+- **Cron** (`crons/routines.py`): writes one row per fire, success or error. Best-effort — failure to write the log row never breaks the cron tick.
+- **Manual fires** (`POST /projects/{id}/routines/{routineID}/fire`): also writes a log row with `manual=true`.
+- **History endpoint**: `GET /projects/{id}/routines/{routineID}/history?limit=50` (newest first, both kinds).
+- **UI**: `ProjectEditRoutines.jsx` adds a History icon button that opens a dialog with a per-fire table (when, status chip, source, duration, truncated result).
+
+### Agent Tool-Call Trace
+
+Per-tool-call timeline captured during `agent._drive_runtime` and persisted to `OutputDatabase.tool_trace` (migration 046). JSON list of `{tool, args, latency_ms, status, error?}` rows — one per tool invocation. Latency is measured between the LLM's `assistant` event (containing the `ToolUseBlock`) and the matching `tool_result` event. Status is best-effort: tools that follow the `"ERROR: ..."` / `"OK: ..."` convention auto-classify; everything else defaults to `ok`.
+
+- **Persistence**: `tools.py:log_inference` writes `tool_trace` if present, gated by the same `logging` toggle as the rest of the inference log fields.
+- **UI**: `ProjectLogs.jsx` renders a Tool Trace panel under each expanded log row — one row per call with the tool name as a chip, args (truncated), error block (when present), and latency on the right. Error rows get a subtle red wash.
+- **Empty trace**: agents that didn't use tools (or non-agent projects) leave `tool_trace=NULL` — the panel is omitted entirely, no clutter.
+
+### Per-Project Analytics Drill-Down
+
+`GET /projects/{id}/analytics/conversations` (in `restai/routers/projects.py`) already returned summary + daily + hourly + top_users; it now also returns:
+
+- `status_breakdown` — list of `{status, count}` grouped by `OutputDatabase.status` (success / error / budget / quota / rate_limit / etc.)
+- `latency_buckets` — fixed-bucket histogram (`0-100ms`, `100-500ms`, `500ms-2s`, `2-10s`, `10s+`)
+- `llm_breakdown` — per-LLM `{llm, messages, tokens, cost}` (useful for projects that rotated models or use a fallback chain)
+
+Frontend `ProjectAnalytics.jsx` renders the three as a Grid row at the bottom of the analytics card (outcome mini-table + latency bar chart + LLM table).
+
+### Project Event Webhooks
+
+Per-project outbound HTTP webhooks for the events SMBs typically wire into Zapier / n8n / custom CRMs. One shared shape: HTTPS POST with JSON body, `X-RESTai-Event` header for routing, optional `X-RESTai-Signature: sha256=<hex>` (HMAC-SHA256 of the raw body keyed on a per-project secret).
+
+- **Per-project options** (`ProjectOptions`): `webhook_url`, `webhook_secret` (encrypted via `PROJECT_SENSITIVE_KEYS`), `webhook_events` (CSV mask; empty = all events).
+- **Supported events** (`restai/webhooks.py:SUPPORTED_EVENTS`): `budget_exceeded`, `sync_completed`, `eval_completed`, `routine_failed`, `test`.
+- **Hook points**: `restai/budget.py:check_budget` fires before raising 402; `crons/sync.py` fires after each per-source sync (status ok/error); `crons/routines.py` fires when a routine raises; `restai/eval.py` fires after an eval run completes (status completed/failed). Every emit is wrapped in `try/except` so a webhook failure can NEVER crash inference / cron / eval flows.
+- **SSRF guard** — same `restai/helper.py:_is_private_ip` check applied to `crawler_classic` and `_sync_url` is also applied to webhook URLs. Loopback / RFC1918 / link-local destinations are refused (admin needs a tunnel for localhost testing).
+- **Fire-and-forget** — POSTs run in a daemon thread with a 10s timeout. Non-2xx responses are logged but never raised.
+- **Admin Test endpoint** — `POST /projects/{id}/webhooks/test` (mounted via `restai/routers/webhooks.py`) fires a synthetic `test` event so admins can verify their receiver before going live. Surfaced in the project edit page Integrations tab as a "Send Test Event" button alongside the URL/secret/events fields.
+
+### WhatsApp Business Integration extras (Email + SMS)
+
+Two more outbound-notification builtin tools live next to `send_telegram` / `send_whatsapp`:
+
+- **`send_email`** (`restai/llms/tools/send_email.py`) — uses stdlib `smtplib`. Project options: `smtp_host`, `smtp_port` (default 587 STARTTLS, 465 → implicit TLS), `smtp_user`, `smtp_password` (encrypted via `PROJECT_SENSITIVE_KEYS`), `smtp_from`, `email_default_to`. Falls through to plaintext if the relay doesn't advertise STARTTLS (rare; admins choose the host knowingly).
+- **`send_sms`** (`restai/llms/tools/send_sms.py`) — Twilio REST API (`/Accounts/{sid}/Messages.json`), basic-auth with sid+token. Project options: `twilio_account_sid`, `twilio_auth_token` (encrypted), `twilio_from_number`, `sms_default_to`. Splits at 1600-char Twilio body limit.
+
+Both pull config from the project's encrypted options blob and surface the relay/provider error verbatim to the agent on failure (no exceptions leak — same convention as `send_telegram`/`send_whatsapp`). Surfaced in the project edit page's Integrations tab below the WhatsApp section.
 
 ### Custom Team Branding
 

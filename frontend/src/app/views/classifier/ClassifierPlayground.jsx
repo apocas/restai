@@ -8,6 +8,7 @@ import Breadcrumb from "app/components/Breadcrumb";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { toast } from "react-toastify";
+import { Trans, useTranslation } from "react-i18next";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -23,6 +24,7 @@ const ContentBox = styled("div")(({ theme }) => ({
 const COLORS = ["#42a5f5", "#66bb6a", "#ffa726", "#ef5350", "#ab47bc", "#26c6da", "#5c6bc0", "#ec407a"];
 
 export default function ClassifierPlayground() {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [sequence, setSequence] = useState("");
   const [labelsText, setLabelsText] = useState("");
@@ -33,7 +35,7 @@ export default function ClassifierPlayground() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Classifier";
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - " + t("classifier.title");
     api.get("/tools/classifiers", auth.user.token)
       .then((data) => {
         setClassifiers(data.classifiers || []);
@@ -41,12 +43,13 @@ export default function ClassifierPlayground() {
         setSelectedModel(data.default || "");
       })
       .catch(() => {});
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
 
   const handleClassify = () => {
     const labels = labelsText.split(",").map((l) => l.trim()).filter(Boolean);
     if (!sequence.trim() || labels.length === 0) {
-      toast.warning("Enter text and at least one label");
+      toast.warning(t("classifier.enterBoth"));
       return;
     }
 
@@ -63,7 +66,7 @@ export default function ClassifierPlayground() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Classifier", path: "/classifier" }]} />
+        <Breadcrumb routeSegments={[{ name: t("classifier.breadcrumb"), path: "/classifier" }]} />
       </Box>
 
       <ContentBox>
@@ -72,17 +75,17 @@ export default function ClassifierPlayground() {
           <Grid item xs={12} md={6}>
             <Card elevation={1} sx={{ p: 3 }}>
               <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
-                <Category fontSize="small" /> Classifier Playground
+                <Category fontSize="small" /> {t("classifier.playgroundTitle")}
               </Typography>
 
               <TextField
                 fullWidth
                 select
-                label="Model"
+                label={t("classifier.model")}
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
                 sx={{ mb: 2 }}
-                helperText="Zero-shot classification model"
+                helperText={t("classifier.modelHelp")}
               >
                 {classifiers.map((c) => (
                   <MenuItem key={c.id} value={c.id}>
@@ -95,8 +98,8 @@ export default function ClassifierPlayground() {
                 fullWidth
                 multiline
                 rows={4}
-                label="Text to classify"
-                placeholder="Enter the text you want to classify..."
+                label={t("classifier.textLabel")}
+                placeholder={t("classifier.textPlaceholder")}
                 value={sequence}
                 onChange={(e) => setSequence(e.target.value)}
                 sx={{ mb: 2 }}
@@ -104,9 +107,9 @@ export default function ClassifierPlayground() {
 
               <TextField
                 fullWidth
-                label="Labels"
-                placeholder="billing, technical, sales, general"
-                helperText="Comma-separated list of candidate labels"
+                label={t("classifier.labels")}
+                placeholder={t("classifier.labelsPlaceholder")}
+                helperText={t("classifier.labelsHelp")}
                 value={labelsText}
                 onChange={(e) => setLabelsText(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleClassify(); }}
@@ -119,7 +122,7 @@ export default function ClassifierPlayground() {
                 disabled={loading || !sequence.trim() || !labelsText.trim()}
                 fullWidth
               >
-                {loading ? "Classifying..." : "Classify"}
+                {loading ? t("classifier.classifying") : t("classifier.classify")}
               </Button>
             </Card>
           </Grid>
@@ -128,7 +131,7 @@ export default function ClassifierPlayground() {
           <Grid item xs={12} md={6}>
             <Card elevation={1} sx={{ p: 3 }}>
               <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-                Results
+                {t("classifier.results")}
               </Typography>
 
               {loading && <LinearProgress sx={{ mb: 2 }} />}
@@ -136,20 +139,20 @@ export default function ClassifierPlayground() {
               {!results && !loading && (
                 <Box sx={{ textAlign: "center", py: 6, color: "text.secondary" }}>
                   <Category sx={{ fontSize: 48, opacity: 0.2, mb: 1 }} />
-                  <Typography variant="body2">Enter text and labels, then click Classify</Typography>
+                  <Typography variant="body2">{t("classifier.inputHint")}</Typography>
                 </Box>
               )}
 
               {results && (
                 <Box>
                   <Box sx={{ mb: 3, p: 2, bgcolor: "action.hover", borderRadius: 1 }}>
-                    <Typography variant="caption" color="text.secondary">Input</Typography>
+                    <Typography variant="caption" color="text.secondary">{t("classifier.input")}</Typography>
                     <Typography variant="body2" sx={{ fontStyle: "italic" }}>
                       {results.sequence}
                     </Typography>
                     {results.model && (
                       <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-                        Model: {results.model}
+                        {t("classifier.modelLabel", { model: results.model })}
                       </Typography>
                     )}
                   </Box>
@@ -196,7 +199,11 @@ export default function ClassifierPlayground() {
                   {results.labels.length > 0 && (
                     <Box sx={{ mt: 3, p: 2, bgcolor: COLORS[0] + "10", borderRadius: 1, border: `1px solid ${COLORS[0]}30` }}>
                       <Typography variant="body2" color="text.secondary">
-                        Best match: <strong style={{ color: COLORS[0] }}>{results.labels[0]}</strong> ({(results.scores[0] * 100).toFixed(1)}%)
+                        <Trans
+                          i18nKey="classifier.bestMatch"
+                          values={{ label: results.labels[0], pct: (results.scores[0] * 100).toFixed(1) }}
+                          components={{ strong: <strong style={{ color: COLORS[0] }} /> }}
+                        />
                       </Typography>
                     </Box>
                   )}

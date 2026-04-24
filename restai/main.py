@@ -82,12 +82,15 @@ async def lifespan(fs_app: FastAPI):
     ensure_settings_table(db_engine)
 
     # Auto-create new association tables for generators, eval tables, and migrate output table
-    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase, TeamInvitationDatabase, ImageGeneratorDatabase, SpeechToTextDatabase, ProjectSecretDatabase
+    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase, TeamInvitationDatabase, ImageGeneratorDatabase, SpeechToTextDatabase, ProjectSecretDatabase, ProjectTemplateDatabase, BulkIngestJobDatabase, RoutineExecutionLogDatabase
     TeamImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     TeamAudioGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     ImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     SpeechToTextDatabase.__table__.create(db_engine, checkfirst=True)
     ProjectSecretDatabase.__table__.create(db_engine, checkfirst=True)
+    ProjectTemplateDatabase.__table__.create(db_engine, checkfirst=True)
+    BulkIngestJobDatabase.__table__.create(db_engine, checkfirst=True)
+    RoutineExecutionLogDatabase.__table__.create(db_engine, checkfirst=True)
     EvalDatasetDatabase.__table__.create(db_engine, checkfirst=True)
     EvalTestCaseDatabase.__table__.create(db_engine, checkfirst=True)
     EvalRunDatabase.__table__.create(db_engine, checkfirst=True)
@@ -142,6 +145,33 @@ async def lifespan(fs_app: FastAPI):
 
     if not RESTAI_URL:
       logging.warning("RESTAI_URL env var missing. OAUTH auth schemes may not work properly.")
+
+    # JWT signing secret strength check. Loud warning so a legacy install
+    # or a copy-pasted dev .env doesn't silently sign tokens with a
+    # guessable secret. Defaults written by `_ensure_env_secret` are
+    # 64 url-safe base64 chars, so a healthy install will pass.
+    _weak_secrets = {"secret", "changeme", "change-me", "default", "password", "restai", "dev"}
+    secret_val = (RESTAI_AUTH_SECRET or "").strip()
+    fs_app.state.auth_secret_weak = False
+    if not secret_val:
+        logging.error(
+            "SECURITY: RESTAI_AUTH_SECRET is empty. JWTs will fail to sign. "
+            "Set a long random value in .env (at least 32 bytes)."
+        )
+        fs_app.state.auth_secret_weak = True
+    elif len(secret_val) < 32:
+        logging.warning(
+            "SECURITY: RESTAI_AUTH_SECRET is %d chars (recommended ≥32). "
+            "Generate a stronger value with `python -c \"import secrets; print(secrets.token_urlsafe(64))\"` "
+            "and rotate it.", len(secret_val),
+        )
+        fs_app.state.auth_secret_weak = True
+    elif secret_val.lower() in _weak_secrets:
+        logging.warning(
+            "SECURITY: RESTAI_AUTH_SECRET matches a known-weak default (%r). "
+            "Rotate to a long random value before going to production.", secret_val,
+        )
+        fs_app.state.auth_secret_weak = True
 
     @fs_app.get("/", tags=["Health"])
     async def get():
@@ -270,6 +300,11 @@ async def lifespan(fs_app: FastAPI):
             "auth_disable_local": _sv("auth_disable_local", "false").lower() in ("true", "1"),
             "mcp": config.RESTAI_MCP,
             "enforce_2fa": _sv("enforce_2fa", "false").lower() in ("true", "1"),
+            # Intentionally NOT exposing `auth_secret_weak` here — this
+            # endpoint is unauthenticated (used by the pre-login UI to
+            # show SSO providers) and the weak-secret signal is a
+            # reconnaissance aid for an attacker. Admins read it from
+            # the authenticated /info endpoint instead.
         }
 
     @fs_app.get("/info", tags=["Health"])
@@ -287,6 +322,9 @@ async def lifespan(fs_app: FastAPI):
             "llms": [],
             "vectorstores": get_available_vectorstores(),
             "system_llm_configured": bool(getattr(db_wrapper.get_setting("system_llm"), "value", None)),
+            # Admin-only security signal. Non-admins always see False here
+            # — they shouldn't know whether the instance is misconfigured.
+            "auth_secret_weak": bool(getattr(fs_app.state, "auth_secret_weak", False)) if user.is_admin else False,
         }
 
         # Filter LLMs and embeddings by team access for non-admin users
@@ -370,11 +408,14 @@ async def lifespan(fs_app: FastAPI):
 
     fs_app.include_router(llms.router, tags=["LLMs"])
     fs_app.include_router(embeddings.router, tags=["Embeddings"])
-    from restai.routers import image_generators, speech_to_text, secrets, whatsapp_webhook
+    from restai.routers import image_generators, speech_to_text, secrets, whatsapp_webhook, webhooks as webhooks_router, templates as templates_router, bulk_ingest as bulk_ingest_router
     fs_app.include_router(image_generators.router, tags=["Image Generators"])
     fs_app.include_router(speech_to_text.router, tags=["Speech-to-Text"])
     fs_app.include_router(secrets.router, tags=["Project Secrets"])
     fs_app.include_router(whatsapp_webhook.router, tags=["WhatsApp"])
+    fs_app.include_router(webhooks_router.router, tags=["Webhooks"])
+    fs_app.include_router(templates_router.router)
+    fs_app.include_router(bulk_ingest_router.router)
     fs_app.include_router(projects.router)
     fs_app.include_router(tools.router, tags=["Tools"])
     fs_app.include_router(users.router, tags=["Users"])
