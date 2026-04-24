@@ -1321,7 +1321,48 @@
     "searchPlaceholder": "搜索工具…",
     "noMatch": "没有工具匹配您的搜索。",
     "noTools": "没有可用的工具。",
-    "requiresDocker": "需要 Docker"
+    "requiresDocker": "需要 Docker",
+    "categories": {
+      "browser": {
+        "title": "浏览器自动化",
+        "subtitle": "驱动按聊天隔离的 Chromium + Playwright 容器。管理员必须在设置中启用智能体浏览器。"
+      },
+      "routines": {
+        "title": "计划任务",
+        "subtitle": "允许智能体在宿主项目上创建、列出和删除自己的计划消息。"
+      },
+      "agentControl": {
+        "title": "智能体控制",
+        "subtitle": "沙箱终端与运行时工具创建。两者均需要 Docker。"
+      },
+      "communication": {
+        "title": "通讯",
+        "subtitle": "外发消息：邮件（SMTP）、短信（Twilio）、Telegram、WhatsApp Cloud API。"
+      },
+      "web": {
+        "title": "网络与搜索",
+        "subtitle": "抓取 URL、搜索网络、查询域名或主题信息。"
+      },
+      "data": {
+        "title": "数据与文件",
+        "subtitle": "解析上传的文档并根据文本提示生成图像。"
+      },
+      "utility": {
+        "title": "实用工具",
+        "subtitle": "通用助手：数学、时间、内容审核、随机数、地理定位。"
+      }
+    },
+    "reqs": {
+      "requiresDocker": "需要 Docker",
+      "usesDocker": "使用 Docker",
+      "usesBrowser": "需要浏览器容器",
+      "adminOptIn": "管理员启用",
+      "needsSmtp": "需 SMTP 配置",
+      "needsTwilio": "需 Twilio 配置",
+      "needsTelegram": "Telegram 机器人",
+      "needsWhatsApp": "需 WhatsApp 配置",
+      "perProject": "按项目"
+    }
   },
   "imageGen": {
     "title": "图像生成器",

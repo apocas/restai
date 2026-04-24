@@ -1323,7 +1323,48 @@
     "searchPlaceholder": "Søg værktøjer…",
     "noMatch": "Ingen værktøjer matcher din søgning.",
     "noTools": "Ingen værktøjer tilgængelige.",
-    "requiresDocker": "Kræver Docker"
+    "requiresDocker": "Kræver Docker",
+    "categories": {
+      "browser": {
+        "title": "BROWSERAUTOMATION",
+        "subtitle": "Styrer en Chromium + Playwright-container pr. chat. Administrator skal aktivere Agent-browseren i Indstillinger."
+      },
+      "routines": {
+        "title": "PLANLAGTE RUTINER",
+        "subtitle": "Lad agenten oprette, liste og fjerne sine egne planlagte beskeder på værtsprojektet."
+      },
+      "agentControl": {
+        "title": "AGENTKONTROL",
+        "subtitle": "Sandboxed terminal og runtime-værktøjsoprettelse. Begge kræver Docker."
+      },
+      "communication": {
+        "title": "KOMMUNIKATION",
+        "subtitle": "Udgående beskeder: e-mail (SMTP), SMS (Twilio), Telegram, WhatsApp Cloud API."
+      },
+      "web": {
+        "title": "WEB OG SØGNING",
+        "subtitle": "Hent URL'er, søg på nettet og slå domæne- eller emneoplysninger op."
+      },
+      "data": {
+        "title": "DATA OG FILER",
+        "subtitle": "Parse uploadede dokumenter og generer billeder fra tekstprompts."
+      },
+      "utility": {
+        "title": "HJÆLPEVÆRKTØJER",
+        "subtitle": "Generelle hjælpere: matematik, tid, moderation, tilfældighed, geolokation."
+      }
+    },
+    "reqs": {
+      "requiresDocker": "Kræver Docker",
+      "usesDocker": "Bruger Docker",
+      "usesBrowser": "Kræver browsercontainer",
+      "adminOptIn": "Admin-tilvalg",
+      "needsSmtp": "SMTP-konfiguration",
+      "needsTwilio": "Twilio-konfiguration",
+      "needsTelegram": "Telegram-bot",
+      "needsWhatsApp": "WhatsApp-opsætning",
+      "perProject": "Pr. projekt"
+    }
   },
   "imageGen": {
     "title": "Billedgeneratorer",

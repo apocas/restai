@@ -1323,7 +1323,48 @@
     "searchPlaceholder": "Buscar herramientas…",
     "noMatch": "Ninguna herramienta coincide con su búsqueda.",
     "noTools": "No hay herramientas disponibles.",
-    "requiresDocker": "Requiere Docker"
+    "requiresDocker": "Requiere Docker",
+    "categories": {
+      "browser": {
+        "title": "AUTOMATIZACIÓN DE NAVEGADOR",
+        "subtitle": "Controla un contenedor Chromium + Playwright por chat. El administrador debe activar el Navegador Agente en Ajustes."
+      },
+      "routines": {
+        "title": "RUTINAS PROGRAMADAS",
+        "subtitle": "Permite al agente crear, listar y eliminar sus propios mensajes programados en el proyecto anfitrión."
+      },
+      "agentControl": {
+        "title": "CONTROL DEL AGENTE",
+        "subtitle": "Terminal aislado y creación de herramientas en tiempo de ejecución. Ambos requieren Docker."
+      },
+      "communication": {
+        "title": "COMUNICACIÓN",
+        "subtitle": "Envío de mensajes: correo (SMTP), SMS (Twilio), Telegram, WhatsApp Cloud API."
+      },
+      "web": {
+        "title": "WEB Y BÚSQUEDA",
+        "subtitle": "Obtener URLs, buscar en la web y consultar información de dominio o temas."
+      },
+      "data": {
+        "title": "DATOS Y ARCHIVOS",
+        "subtitle": "Analizar documentos cargados y generar imágenes a partir de prompts de texto."
+      },
+      "utility": {
+        "title": "UTILIDADES",
+        "subtitle": "Asistentes generales: matemáticas, hora, moderación, aleatoriedad, geolocalización."
+      }
+    },
+    "reqs": {
+      "requiresDocker": "Requiere Docker",
+      "usesDocker": "Usa Docker",
+      "usesBrowser": "Requiere contenedor de navegador",
+      "adminOptIn": "Opt-in de admin",
+      "needsSmtp": "Configuración SMTP",
+      "needsTwilio": "Configuración Twilio",
+      "needsTelegram": "Bot de Telegram",
+      "needsWhatsApp": "Configuración WhatsApp",
+      "perProject": "Por proyecto"
+    }
   },
   "imageGen": {
     "title": "Generadores de imagen",

@@ -1323,7 +1323,48 @@
     "searchPlaceholder": "Rechercher des outils…",
     "noMatch": "Aucun outil ne correspond à votre recherche.",
     "noTools": "Aucun outil disponible.",
-    "requiresDocker": "Nécessite Docker"
+    "requiresDocker": "Nécessite Docker",
+    "categories": {
+      "browser": {
+        "title": "AUTOMATISATION DU NAVIGATEUR",
+        "subtitle": "Pilote un conteneur Chromium + Playwright par conversation. L'administrateur doit activer le Navigateur Agent dans les Paramètres."
+      },
+      "routines": {
+        "title": "ROUTINES PLANIFIÉES",
+        "subtitle": "Permet à l'agent de créer, lister et supprimer ses propres messages planifiés sur le projet hôte."
+      },
+      "agentControl": {
+        "title": "CONTRÔLE DE L'AGENT",
+        "subtitle": "Terminal isolé et création d'outils à l'exécution. Les deux nécessitent Docker."
+      },
+      "communication": {
+        "title": "COMMUNICATION",
+        "subtitle": "Messages sortants : e-mail (SMTP), SMS (Twilio), Telegram, WhatsApp Cloud API."
+      },
+      "web": {
+        "title": "WEB ET RECHERCHE",
+        "subtitle": "Récupérer des URL, chercher sur le web et consulter des informations de domaine ou de sujet."
+      },
+      "data": {
+        "title": "DONNÉES ET FICHIERS",
+        "subtitle": "Analyser les documents téléversés et générer des images à partir de prompts texte."
+      },
+      "utility": {
+        "title": "UTILITAIRES",
+        "subtitle": "Aides génériques : mathématiques, heure, modération, aléatoire, géolocalisation."
+      }
+    },
+    "reqs": {
+      "requiresDocker": "Nécessite Docker",
+      "usesDocker": "Utilise Docker",
+      "usesBrowser": "Nécessite un conteneur navigateur",
+      "adminOptIn": "Activation admin",
+      "needsSmtp": "Config. SMTP",
+      "needsTwilio": "Config. Twilio",
+      "needsTelegram": "Bot Telegram",
+      "needsWhatsApp": "Config. WhatsApp",
+      "perProject": "Par projet"
+    }
   },
   "imageGen": {
     "title": "Générateurs d'images",

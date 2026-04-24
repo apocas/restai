@@ -1323,7 +1323,48 @@
     "searchPlaceholder": "Tools zoeken…",
     "noMatch": "Geen tools komen overeen met uw zoekopdracht.",
     "noTools": "Geen tools beschikbaar.",
-    "requiresDocker": "Vereist Docker"
+    "requiresDocker": "Vereist Docker",
+    "categories": {
+      "browser": {
+        "title": "BROWSER-AUTOMATISERING",
+        "subtitle": "Stuurt een Chromium + Playwright-container per chat aan. De beheerder moet de Agent-browser inschakelen in Instellingen."
+      },
+      "routines": {
+        "title": "GEPLANDE ROUTINES",
+        "subtitle": "Laat de agent eigen geplande berichten op het hostproject aanmaken, opsommen en verwijderen."
+      },
+      "agentControl": {
+        "title": "AGENTBEDIENING",
+        "subtitle": "Sandbox-terminal en runtime-tool-creatie. Beide vereisen Docker."
+      },
+      "communication": {
+        "title": "COMMUNICATIE",
+        "subtitle": "Uitgaande berichten: e-mail (SMTP), SMS (Twilio), Telegram, WhatsApp Cloud API."
+      },
+      "web": {
+        "title": "WEB EN ZOEKEN",
+        "subtitle": "URL's ophalen, op het web zoeken en domein- of onderwerpsinformatie opzoeken."
+      },
+      "data": {
+        "title": "DATA EN BESTANDEN",
+        "subtitle": "Geüploade documenten parsen en afbeeldingen genereren uit tekstprompts."
+      },
+      "utility": {
+        "title": "HULPMIDDELEN",
+        "subtitle": "Algemene helpers: wiskunde, tijd, moderatie, willekeur, geolocatie."
+      }
+    },
+    "reqs": {
+      "requiresDocker": "Vereist Docker",
+      "usesDocker": "Gebruikt Docker",
+      "usesBrowser": "Vereist browsercontainer",
+      "adminOptIn": "Admin-opt-in",
+      "needsSmtp": "SMTP-configuratie",
+      "needsTwilio": "Twilio-configuratie",
+      "needsTelegram": "Telegram-bot",
+      "needsWhatsApp": "WhatsApp-instelling",
+      "perProject": "Per project"
+    }
   },
   "imageGen": {
     "title": "Beeldgeneratoren",

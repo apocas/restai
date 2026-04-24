@@ -1323,7 +1323,48 @@
     "searchPlaceholder": "Werkzeuge suchen…",
     "noMatch": "Keine Werkzeuge entsprechen Ihrer Suche.",
     "noTools": "Keine Werkzeuge verfügbar.",
-    "requiresDocker": "Erfordert Docker"
+    "requiresDocker": "Erfordert Docker",
+    "categories": {
+      "browser": {
+        "title": "BROWSER-AUTOMATISIERUNG",
+        "subtitle": "Steuert einen Chromium + Playwright-Container pro Chat. Der Administrator muss den Agent-Browser in den Einstellungen aktivieren."
+      },
+      "routines": {
+        "title": "GEPLANTE ROUTINEN",
+        "subtitle": "Lässt den Agenten eigene geplante Nachrichten im Host-Projekt anlegen, auflisten und entfernen."
+      },
+      "agentControl": {
+        "title": "AGENTENSTEUERUNG",
+        "subtitle": "Sandbox-Terminal und Laufzeit-Werkzeugerstellung. Beide erfordern Docker."
+      },
+      "communication": {
+        "title": "KOMMUNIKATION",
+        "subtitle": "Ausgehende Nachrichten: E-Mail (SMTP), SMS (Twilio), Telegram, WhatsApp Cloud API."
+      },
+      "web": {
+        "title": "WEB UND SUCHE",
+        "subtitle": "URLs abrufen, im Web suchen sowie Domain- oder Themeninformationen nachschlagen."
+      },
+      "data": {
+        "title": "DATEN UND DATEIEN",
+        "subtitle": "Hochgeladene Dokumente analysieren und Bilder aus Text-Prompts generieren."
+      },
+      "utility": {
+        "title": "HILFSWERKZEUGE",
+        "subtitle": "Allzweckhelfer: Mathematik, Zeit, Moderation, Zufallswerte, Geolokalisierung."
+      }
+    },
+    "reqs": {
+      "requiresDocker": "Benötigt Docker",
+      "usesDocker": "Nutzt Docker",
+      "usesBrowser": "Benötigt Browser-Container",
+      "adminOptIn": "Admin-Aktivierung",
+      "needsSmtp": "SMTP-Konfiguration",
+      "needsTwilio": "Twilio-Konfiguration",
+      "needsTelegram": "Telegram-Bot",
+      "needsWhatsApp": "WhatsApp-Einrichtung",
+      "perProject": "Pro Projekt"
+    }
   },
   "imageGen": {
     "title": "Bildgeneratoren",

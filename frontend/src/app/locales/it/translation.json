@@ -1323,7 +1323,48 @@
     "searchPlaceholder": "Cerca strumenti…",
     "noMatch": "Nessuno strumento corrisponde alla ricerca.",
     "noTools": "Nessuno strumento disponibile.",
-    "requiresDocker": "Richiede Docker"
+    "requiresDocker": "Richiede Docker",
+    "categories": {
+      "browser": {
+        "title": "AUTOMAZIONE BROWSER",
+        "subtitle": "Pilota un container Chromium + Playwright per chat. L'amministratore deve abilitare il Browser Agente nelle Impostazioni."
+      },
+      "routines": {
+        "title": "ROUTINE PIANIFICATE",
+        "subtitle": "Permette all'agente di creare, elencare e rimuovere i propri messaggi pianificati sul progetto ospitante."
+      },
+      "agentControl": {
+        "title": "CONTROLLO AGENTE",
+        "subtitle": "Terminale isolato e creazione di strumenti a runtime. Entrambi richiedono Docker."
+      },
+      "communication": {
+        "title": "COMUNICAZIONE",
+        "subtitle": "Messaggi in uscita: email (SMTP), SMS (Twilio), Telegram, WhatsApp Cloud API."
+      },
+      "web": {
+        "title": "WEB E RICERCA",
+        "subtitle": "Recuperare URL, cercare sul web e consultare informazioni su domini o argomenti."
+      },
+      "data": {
+        "title": "DATI E FILE",
+        "subtitle": "Analizzare documenti caricati e generare immagini da prompt testuali."
+      },
+      "utility": {
+        "title": "UTILITÀ",
+        "subtitle": "Strumenti generici: matematica, ora, moderazione, casualità, geolocalizzazione."
+      }
+    },
+    "reqs": {
+      "requiresDocker": "Richiede Docker",
+      "usesDocker": "Usa Docker",
+      "usesBrowser": "Richiede container browser",
+      "adminOptIn": "Opt-in admin",
+      "needsSmtp": "Config. SMTP",
+      "needsTwilio": "Config. Twilio",
+      "needsTelegram": "Bot Telegram",
+      "needsWhatsApp": "Config. WhatsApp",
+      "perProject": "Per progetto"
+    }
   },
   "imageGen": {
     "title": "Generatori di immagini",

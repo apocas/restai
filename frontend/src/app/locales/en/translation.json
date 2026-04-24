@@ -1323,7 +1323,48 @@
     "searchPlaceholder": "Search tools…",
     "noMatch": "No tools match your search.",
     "noTools": "No tools available.",
-    "requiresDocker": "Requires Docker"
+    "requiresDocker": "Requires Docker",
+    "categories": {
+      "browser": {
+        "title": "BROWSER AUTOMATION",
+        "subtitle": "Drive a per-chat Chromium + Playwright container. Admin must enable the Agentic Browser in Settings."
+      },
+      "routines": {
+        "title": "SCHEDULED ROUTINES",
+        "subtitle": "Let the agent create, list, and remove its own scheduled messages on the host project."
+      },
+      "agentControl": {
+        "title": "AGENT CONTROL",
+        "subtitle": "Sandboxed terminal and runtime tool-creation. Both require Docker."
+      },
+      "communication": {
+        "title": "COMMUNICATION",
+        "subtitle": "Outbound messaging: email (SMTP), SMS (Twilio), Telegram, WhatsApp Cloud API."
+      },
+      "web": {
+        "title": "WEB & SEARCH",
+        "subtitle": "Fetch URLs, search the web, and look up domain or topic information."
+      },
+      "data": {
+        "title": "DATA & FILES",
+        "subtitle": "Parse uploaded documents and generate images from text prompts."
+      },
+      "utility": {
+        "title": "UTILITIES",
+        "subtitle": "General-purpose helpers: math, time, moderation, randomness, geolocation."
+      }
+    },
+    "reqs": {
+      "requiresDocker": "Needs Docker",
+      "usesDocker": "Uses Docker",
+      "usesBrowser": "Needs browser container",
+      "adminOptIn": "Admin opt-in",
+      "needsSmtp": "SMTP config",
+      "needsTwilio": "Twilio config",
+      "needsTelegram": "Telegram bot",
+      "needsWhatsApp": "WhatsApp setup",
+      "perProject": "Per-project"
+    }
   },
   "imageGen": {
     "title": "Image Generators",

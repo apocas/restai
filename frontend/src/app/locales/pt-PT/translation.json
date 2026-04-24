@@ -1323,7 +1323,48 @@
     "searchPlaceholder": "Procurar ferramentas…",
     "noMatch": "Nenhuma ferramenta corresponde à pesquisa.",
     "noTools": "Sem ferramentas disponíveis.",
-    "requiresDocker": "Requer Docker"
+    "requiresDocker": "Requer Docker",
+    "categories": {
+      "browser": {
+        "title": "AUTOMAÇÃO DE NAVEGADOR",
+        "subtitle": "Controla um contentor Chromium + Playwright por chat. O administrador tem de ativar o Navegador Agente nas Definições."
+      },
+      "routines": {
+        "title": "ROTINAS AGENDADAS",
+        "subtitle": "Permite ao agente criar, listar e remover mensagens agendadas no próprio projeto."
+      },
+      "agentControl": {
+        "title": "CONTROLO DO AGENTE",
+        "subtitle": "Terminal isolado e criação de ferramentas em runtime. Ambos requerem Docker."
+      },
+      "communication": {
+        "title": "COMUNICAÇÃO",
+        "subtitle": "Envio de mensagens: email (SMTP), SMS (Twilio), Telegram, WhatsApp Cloud API."
+      },
+      "web": {
+        "title": "WEB E PESQUISA",
+        "subtitle": "Obter URLs, pesquisar na web e consultar informação de domínios ou tópicos."
+      },
+      "data": {
+        "title": "DADOS E FICHEIROS",
+        "subtitle": "Processar documentos carregados e gerar imagens a partir de prompts."
+      },
+      "utility": {
+        "title": "UTILITÁRIOS",
+        "subtitle": "Auxiliares genéricos: matemática, hora, moderação, aleatoriedade, geolocalização."
+      }
+    },
+    "reqs": {
+      "requiresDocker": "Requer Docker",
+      "usesDocker": "Usa Docker",
+      "usesBrowser": "Requer contentor de navegador",
+      "adminOptIn": "Opt-in de admin",
+      "needsSmtp": "Config. SMTP",
+      "needsTwilio": "Config. Twilio",
+      "needsTelegram": "Bot Telegram",
+      "needsWhatsApp": "Config. WhatsApp",
+      "perProject": "Por projeto"
+    }
   },
   "imageGen": {
     "title": "Geradores de imagem",
