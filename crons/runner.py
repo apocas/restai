@@ -96,32 +96,69 @@ def run_all():
     if not jobs:
         return
 
-    # Wait phase: collect results from all jobs
+    # Wait phase: collect results in *completion order*, not declaration
+    # order. Previously this loop awaited jobs[0] to completion before
+    # touching jobs[1], which meant the runner held every lock for the
+    # duration of the slowest job — even subprocesses that had already
+    # exited keep their lockfile pinned by the runner's open FD. Result
+    # was the next minute's tick logging "Cron X is already running,
+    # skipping" for jobs whose actual subprocesses had exited a minute
+    # ago. Now we poll all jobs each cycle and release each lock the
+    # instant its subprocess returns.
     deadline = time.monotonic() + JOB_TIMEOUT
+    pending = list(jobs)
 
-    for name, proc, lock_fp in jobs:
-        remaining = max(0, deadline - time.monotonic())
-        try:
-            stdout, stderr = proc.communicate(timeout=remaining)
+    while pending:
+        if time.monotonic() >= deadline:
+            for name, proc, lock_fp in pending:
+                try:
+                    proc.kill()
+                    proc.wait(timeout=5)
+                except Exception:
+                    pass
+                logger.error("Cron %s timed out after %ds, killed", name, JOB_TIMEOUT)
+                try:
+                    fcntl.flock(lock_fp, fcntl.LOCK_UN)
+                except Exception:
+                    pass
+                lock_fp.close()
+            break
+
+        still_pending = []
+        for name, proc, lock_fp in pending:
+            rc = proc.poll()
+            if rc is None:
+                still_pending.append((name, proc, lock_fp))
+                continue
+
+            try:
+                stdout, stderr = proc.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                stdout, stderr = "", ""
 
             if stdout:
                 for line in stdout.strip().splitlines():
                     logger.info("[%s] %s", name, line)
-            if proc.returncode != 0:
-                logger.error("Cron %s exited with code %d", name, proc.returncode)
+            if rc != 0:
+                logger.error("Cron %s exited with code %d", name, rc)
                 if stderr:
                     for line in stderr.strip().splitlines()[-10:]:
                         logger.error("[%s] %s", name, line)
             else:
                 logger.info("Cron %s finished", name)
 
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
-            logger.error("Cron %s timed out after %ds, killed", name, JOB_TIMEOUT)
-        finally:
-            fcntl.flock(lock_fp, fcntl.LOCK_UN)
+            try:
+                fcntl.flock(lock_fp, fcntl.LOCK_UN)
+            except Exception:
+                pass
             lock_fp.close()
+
+        pending = still_pending
+        if pending:
+            # Short sleep so we don't busy-loop while subprocesses run.
+            # Resolution of 0.5s is plenty given crons fire every minute
+            # and most jobs take seconds, not milliseconds.
+            time.sleep(0.5)
 
 
 if __name__ == "__main__":
