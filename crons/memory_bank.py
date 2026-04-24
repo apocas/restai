@@ -11,6 +11,7 @@ Usage:
 """
 
 import logging
+import time
 import traceback
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -22,6 +23,16 @@ from restai.database import get_db_wrapper, engine as db_engine
 from restai.brain import Brain
 from restai.cron_log import CronLogger
 from restai import memory_bank
+
+
+# Hard cap on how many conversations one cron tick will summarize. With
+# the System LLM being remote (Ollama / OpenAI / etc.), each summary is
+# ~1-5s best case and up to ~120s worst case (Ollama's request timeout).
+# At 25 chats × worst case that's still under the runner's 600s job
+# timeout — meaning the cron always reports back instead of getting
+# silently killed and looking "stuck" to the admin. Backlog beyond this
+# rolls over to subsequent ticks.
+MAX_CHATS_PER_TICK = 25
 
 
 def _run():
@@ -45,6 +56,12 @@ def _run():
     try:
         summarized = 0
         compressed_projects = 0
+        # Per-tick global budget. Once exhausted we still keep iterating
+        # projects to run their compression step (cheap, no LLM calls
+        # unless a project is over budget) — only the summarizer loop is
+        # gated. Remaining chats roll into the next minute's run.
+        budget_left = MAX_CHATS_PER_TICK
+        deferred_total = 0
 
         import json
         for proj in memory_bank.list_enabled_projects(db):
@@ -55,17 +72,44 @@ def _run():
             max_tokens = int(opts.get("memory_bank_max_tokens") or 2000)
 
             chat_ids = memory_bank.chat_ids_needing_refresh(db, proj.id)
-            for chat_id in chat_ids:
-                try:
-                    written = memory_bank.summarize_conversation(brain, db, proj.id, chat_id)
-                    if written is not None:
-                        summarized += 1
-                except Exception as e:
-                    logger.warning(
-                        "memory_bank: summarize_conversation failed (project=%s chat=%s): %s",
-                        proj.id, chat_id, e,
+            if chat_ids:
+                # Cap to whatever budget remains for this tick. Anything over
+                # gets logged so the admin can see the backlog draining over
+                # subsequent ticks instead of wondering why nothing changes.
+                to_process = chat_ids[:budget_left]
+                deferred = len(chat_ids) - len(to_process)
+                if deferred > 0:
+                    deferred_total += deferred
+                    logger.info(
+                        "memory_bank: project=%s — processing %d/%d chats this tick, %d deferred to next run",
+                        proj.id, len(to_process), len(chat_ids), deferred,
                     )
-                    db.db.rollback()
+                else:
+                    logger.info(
+                        "memory_bank: project=%s — processing %d chat(s) this tick",
+                        proj.id, len(to_process),
+                    )
+                for idx, chat_id in enumerate(to_process, 1):
+                    t0 = time.monotonic()
+                    try:
+                        written = memory_bank.summarize_conversation(brain, db, proj.id, chat_id)
+                        if written is not None:
+                            summarized += 1
+                            elapsed = time.monotonic() - t0
+                            logger.info(
+                                "memory_bank: project=%s chat=%s summarized in %.1fs (%d/%d)",
+                                proj.id, chat_id[:12], elapsed, idx, len(to_process),
+                            )
+                    except Exception as e:
+                        logger.warning(
+                            "memory_bank: summarize_conversation failed (project=%s chat=%s): %s",
+                            proj.id, chat_id, e,
+                        )
+                        db.db.rollback()
+                    budget_left -= 1
+                    if budget_left <= 0:
+                        deferred_total += len(chat_ids) - idx
+                        break
 
             try:
                 memory_bank.compress_entries(brain, db, proj.id, max_tokens)
@@ -76,9 +120,17 @@ def _run():
                 )
                 db.db.rollback()
 
-        cron.info(
-            f"Summarized {summarized} conversation(s); compressed {compressed_projects} project(s)."
-        )
+            if budget_left <= 0:
+                # Don't summarize more chats this tick, but we already
+                # ran compression for this project. Keep iterating
+                # remaining projects to record their deferred totals
+                # and run their compression (which is cheap).
+                continue
+
+        msg = f"Summarized {summarized} conversation(s); compressed {compressed_projects} project(s)."
+        if deferred_total > 0:
+            msg += f" {deferred_total} chat(s) deferred to next tick."
+        cron.info(msg)
         cron.finish(items_processed=summarized)
     except Exception as e:
         cron.error(f"Memory bank runner crashed: {e}", details=traceback.format_exc())
