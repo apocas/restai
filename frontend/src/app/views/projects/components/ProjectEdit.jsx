@@ -200,6 +200,13 @@ export default function ProjectEdit({ project, projects, info }) {
     if (state.options.slack_bot_token !== undefined) opts.options.slack_bot_token = state.options.slack_bot_token;
     if (state.options.slack_app_token !== undefined) opts.options.slack_app_token = state.options.slack_app_token;
 
+    if (state.options.whatsapp_phone_number_id !== undefined) opts.options.whatsapp_phone_number_id = state.options.whatsapp_phone_number_id || null;
+    if (state.options.whatsapp_access_token !== undefined) opts.options.whatsapp_access_token = state.options.whatsapp_access_token || null;
+    if (state.options.whatsapp_app_secret !== undefined) opts.options.whatsapp_app_secret = state.options.whatsapp_app_secret || null;
+    if (state.options.whatsapp_verify_token !== undefined) opts.options.whatsapp_verify_token = state.options.whatsapp_verify_token || null;
+    if (state.options.whatsapp_default_to !== undefined) opts.options.whatsapp_default_to = state.options.whatsapp_default_to || null;
+    if (state.options.whatsapp_allowed_phone_numbers !== undefined) opts.options.whatsapp_allowed_phone_numbers = state.options.whatsapp_allowed_phone_numbers || null;
+
     opts.options.rate_limit = state.options.rate_limit ? parseInt(state.options.rate_limit) : null;
     opts.options.guard_output = state.options.guard_output || null;
     opts.options.guard_mode = state.options.guard_mode || "block";
@@ -408,7 +415,7 @@ export default function ProjectEdit({ project, projects, info }) {
             )}
             {active === "Integrations" && (
               <ProjectEditIntegrations
-                state={state} setState={setState} handleChange={handleChange}
+                state={state} setState={setState} handleChange={handleChange} project={project}
               />
             )}
           </Card>

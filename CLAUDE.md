@@ -171,6 +171,18 @@ Slack is now a cron-friendly poller (`crons/slack.py`, uses `slack_sdk.WebClient
 
 Telegram is also cron-driven (`crons/telegram.py`, long-poll-then-exit each minute). The legacy `TelegramPoller` daemon in `restai/telegram.py` is dead code (no callers). Each project's bot also responds to `/chatid` (or `/myid`) by replying with the current chat's id — gives admins a one-shot way to fill in `telegram_default_chat_id` (the destination used by the `send_telegram` builtin tool, since Telegram bots can't initiate conversations).
 
+### WhatsApp Business Integration
+
+Per-project WhatsApp Cloud API integration. Unlike Telegram/Slack this is **webhook-driven, not cron-driven** — Meta POSTs inbound messages to a public URL we expose, so there's nothing to poll. One shared webhook URL serves the whole instance: `${RESTAI_URL}/webhooks/whatsapp` (`restai/routers/whatsapp_webhook.py`). Routing happens via `entry[0].changes[0].value.metadata.phone_number_id` in the payload — the project whose `whatsapp_phone_number_id` matches owns the message.
+
+- **Per-project options** (`ProjectOptions`): `whatsapp_phone_number_id`, `whatsapp_access_token` (encrypted), `whatsapp_app_secret` (encrypted), `whatsapp_verify_token` (encrypted), `whatsapp_default_to`, `whatsapp_allowed_phone_numbers` (CSV allowlist of E.164 senders).
+- **Signature verification** (`restai/whatsapp.py:verify_signature`): HMAC-SHA256 of the raw request bytes keyed on the project's `whatsapp_app_secret`, constant-time compared against the `X-Hub-Signature-256` header. Bad sig → 401 (and a warning log — that's an attacker probe). The signature must be computed on raw bytes *before* JSON parsing because any whitespace/key-order difference breaks the digest.
+- **Webhook ack timing**: always returns 200 within the request — heavy work goes to `BackgroundTasks`. Meta retries aggressively on any non-2xx or any response taking more than ~10s.
+- **Built-in tool** `send_whatsapp` (`restai/llms/tools/send_whatsapp.py`): mirrors `send_telegram`. Pulls `whatsapp_default_to` for the recipient. **Constrained by Meta's 24h customer-service window** — free-form messages only land if the recipient messaged the bot in the last 24 hours; outside that window Meta requires pre-approved templates (out of scope, returns the API error verbatim).
+- **Public URL required**: local dev needs a tunnel (`cloudflared tunnel run`, `ngrok http 9000`, etc.) so Meta can reach the webhook.
+- **Cost & quality rating**: Meta gives 1k free conversations/mo, then $0.005–$0.10 per conversation depending on country/category. The allowlist is a meaningful protection against spam — strongly recommended in production, and exposed in the project edit page.
+- **Out of scope (v2)**: inbound media (image/audio/document), pre-approved templates for cold outbound, status callbacks (delivered/read/failed), group chats (Cloud API doesn't support inbound groups today).
+
 ### Project Routines
 
 `ProjectRoutineDatabase` (`restai/models/databasemodels.py:445`) — scheduled messages that auto-fire on a project via the normal chat/question pipeline. Fields: `name`, `message`, `schedule_minutes`, `enabled`, `last_run`, `last_result`.

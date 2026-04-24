@@ -412,12 +412,13 @@ A full-featured WordPress plugin that turns any RESTai instance into the AI engi
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/wordpress4.png" width="49%" alt="RESTai WordPress plugin — Front-end widget"/>
 </div>
 
-### Telegram & Slack Integration
+### Telegram, Slack & WhatsApp Integration
 
-Connect any project to **Telegram** or **Slack** — messages are processed through the project's chat pipeline and responses are sent back automatically. No public URL required.
+Connect any project to **Telegram**, **Slack**, or **WhatsApp** — messages are processed through the project's chat pipeline and responses are sent back automatically.
 
-- **Telegram** — Paste your [BotFather](https://t.me/BotFather) token in the project settings
+- **Telegram** — Paste your [BotFather](https://t.me/BotFather) token in the project settings. No public URL required.
 - **Slack** — Create a Slack app at [api.slack.com](https://api.slack.com), add the standard message/history scopes, install it to your workspace, and paste the Bot Token (xoxb-...) in the project settings. Polled by the cron runner — no public URL or daemon required.
+- **WhatsApp Business Cloud API** — First-party Meta integration (no Twilio middleman, ~1k free conversations/month). Webhook-driven: paste the auto-generated webhook URL into Meta Business Suite → WhatsApp → Configuration → Webhooks, configure phone-number id + access token + app secret + verify token in the project's Integrations tab, and the bot is live. Per-project allowlist of E.164 senders protects your number's quality rating from spam. Includes a `send_whatsapp` built-in tool for outbound notifications (constrained by Meta's 24-hour customer-service window). **Requires a public URL** — local dev needs a tunnel like ngrok or Cloudflare Tunnel.
 
 ### Project Routines
 
