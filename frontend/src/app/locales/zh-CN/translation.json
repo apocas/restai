@@ -133,6 +133,29 @@
     "title": "首页",
     "greeting": "仪表盘",
     "subtitle": "RESTai 平台概览",
+    "hero": {
+      "tagline": "RESTai · AIaaS 平台",
+      "subtitle": "你的模型、你的数据、你的规则。实时查看平台上正在发生的一切。",
+      "operational": "一切运行正常",
+      "modelsOnline_one": "{{count}} 个模型在线",
+      "modelsOnline_other": "{{count}} 个模型在线",
+      "tokensToday": "今日 {{value}} tokens",
+      "sinceOpen": "打开后 +{{value}}",
+      "latency": "p50 延迟 {{value}}",
+      "totalTokens": "总计 {{value}}",
+      "vsYesterday": "较昨日 {{pct}}%",
+      "greetMorning": "早上好",
+      "greetAfternoon": "下午好",
+      "greetEvening": "晚上好",
+      "greetLate": "夜深了"
+    },
+    "fleet": {
+      "title": "模型舰队",
+      "subtitle_one": "{{count}} 个模型在团队中运行",
+      "subtitle_other": "{{count}} 个模型在团队中运行",
+      "tokens": "Tokens",
+      "requests": "请求数"
+    },
     "stats": {
       "projects": "项目",
       "users": "用户",

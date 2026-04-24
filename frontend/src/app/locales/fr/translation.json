@@ -134,6 +134,29 @@
     "title": "Accueil",
     "greeting": "Tableau de bord",
     "subtitle": "Aperçu de votre plateforme RESTai",
+    "hero": {
+      "tagline": "RESTai · Plateforme AIaaS",
+      "subtitle": "Vos modèles, vos données, vos règles. Vue en temps réel de ce qui se passe sur la plateforme.",
+      "operational": "Tous les systèmes opérationnels",
+      "modelsOnline_one": "{{count}} modèle en ligne",
+      "modelsOnline_other": "{{count}} modèles en ligne",
+      "tokensToday": "{{value}} tokens aujourd'hui",
+      "sinceOpen": "+{{value}} depuis l'ouverture",
+      "latency": "latence p50 {{value}}",
+      "totalTokens": "{{value}} au total",
+      "vsYesterday": "{{pct}}% vs hier",
+      "greetMorning": "Bonjour",
+      "greetAfternoon": "Bon après-midi",
+      "greetEvening": "Bonsoir",
+      "greetLate": "Il se fait tard"
+    },
+    "fleet": {
+      "title": "FLOTTE DE MODÈLES",
+      "subtitle_one": "{{count}} modèle actif dans vos équipes",
+      "subtitle_other": "{{count}} modèles actifs dans vos équipes",
+      "tokens": "Tokens",
+      "requests": "Requêtes"
+    },
     "stats": {
       "projects": "Projets",
       "users": "Utilisateurs",

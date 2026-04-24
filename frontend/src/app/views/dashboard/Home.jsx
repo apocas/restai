@@ -3,17 +3,17 @@ import { Alert, Button, Card, Grid, styled, Box, Typography, Divider } from "@mu
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import AddBoxOutlinedIcon from "@mui/icons-material/AddBoxOutlined";
+import AIHero from "./shared/AIHero";
 import ProjectsStats from "./shared/ProjectsStats";
 import ProjectsTypesChart from "./shared/ProjectsTypesChart";
-import ProjectsLLMsChart from "./shared/ProjectsLLMsChart";
 import TopProjectsTable from "./shared/TopProjectsTable";
 import DailyTokensChart from "./shared/DailyTokensChart";
 import ActivityPulse from "./shared/ActivityPulse";
+import ModelFleet from "./shared/ModelFleet";
 import TopLLMsChart from "./shared/TopLLMsChart";
 import ProjectsTable from "./shared/ProjectsTable";
 import OnboardingChecklist from "./shared/OnboardingChecklist";
 import useAuth from "app/hooks/useAuth";
-import Breadcrumb from "app/components/Breadcrumb";
 import api from "app/utils/api";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 
@@ -93,10 +93,6 @@ export default function Analytics() {
   return (
     <Container>
       <Box sx={{ my: 3 }}>
-        <Box className="breadcrumb">
-          <Breadcrumb routeSegments={[{ name: t("breadcrumb.home"), path: "/home" }]} />
-        </Box>
-
         <ContentBox>
           {passwordWarning && (
             <Alert
@@ -115,10 +111,17 @@ export default function Analytics() {
             </Alert>
           )}
 
+          {/* AI hero banner replaces the old breadcrumb+title */}
+          <AIHero
+            summary={summary}
+            dailyTokens={dailyTokens}
+            modelsCount={topLLMs.length}
+          />
+
           {/* Onboarding (only shows on fresh installs) */}
           <OnboardingChecklist />
 
-          {/* Section 1: Stats */}
+          {/* Telemetry stat row with embedded sparklines */}
           <ProjectsStats
             projects={projects}
             summary={summary}
@@ -126,7 +129,14 @@ export default function Analytics() {
             currency={currency}
           />
 
-          {/* Section 2: Token & Cost Charts */}
+          {/* Model Fleet — AI-specific replacement for the old distribution row */}
+          {topLLMs.length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <ModelFleet llms={topLLMs} />
+            </Box>
+          )}
+
+          {/* Activity: token throughput + pulse */}
           {dailyTokens.length > 0 && (
             <>
               <SectionTitle>{t("dashboard.activity")}</SectionTitle>
@@ -141,32 +151,28 @@ export default function Analytics() {
             </>
           )}
 
-          {/* Section 3: Distribution Row */}
+          {/* Project-mix donut + Top LLMs bar */}
           {(projects.length > 0 || topLLMs.length > 0) && (
             <>
               <SectionTitle>{t("dashboard.distribution")}</SectionTitle>
               <Grid container spacing={3} sx={{ mb: 3 }}>
-                <Grid item xs={12} md={4}>
-                  <Card elevation={0} sx={chartCardSx}>
-                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
-                      {t("dashboard.projectTypes")}
-                    </Typography>
-                    <ProjectsTypesChart projects={projects} height="280px" />
-                  </Card>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <Card elevation={0} sx={chartCardSx}>
-                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
-                      {t("dashboard.llmUsage")}
-                    </Typography>
-                    <ProjectsLLMsChart projects={projects} height="280px" />
-                  </Card>
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <Card elevation={0} sx={chartCardSx}>
-                    <TopLLMsChart data={topLLMs} />
-                  </Card>
-                </Grid>
+                {projects.length > 0 && (
+                  <Grid item xs={12} md={6}>
+                    <Card elevation={0} sx={chartCardSx}>
+                      <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                        {t("dashboard.projectTypes")}
+                      </Typography>
+                      <ProjectsTypesChart projects={projects} height="280px" />
+                    </Card>
+                  </Grid>
+                )}
+                {topLLMs.length > 0 && (
+                  <Grid item xs={12} md={6}>
+                    <Card elevation={0} sx={chartCardSx}>
+                      <TopLLMsChart data={topLLMs} />
+                    </Card>
+                  </Grid>
+                )}
               </Grid>
             </>
           )}

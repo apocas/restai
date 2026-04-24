@@ -134,6 +134,29 @@
     "title": "Home",
     "greeting": "Dashboard",
     "subtitle": "Overview of your RESTai platform",
+    "hero": {
+      "tagline": "RESTai · AIaaS Platform",
+      "subtitle": "Your models, your data, your rules. Real-time view of what's happening across the platform.",
+      "operational": "All systems operational",
+      "modelsOnline_one": "{{count}} model online",
+      "modelsOnline_other": "{{count}} models online",
+      "tokensToday": "{{value}} tokens today",
+      "sinceOpen": "+{{value}} since page open",
+      "latency": "{{value}} p50 latency",
+      "totalTokens": "{{value}} total",
+      "vsYesterday": "{{pct}}% vs yesterday",
+      "greetMorning": "Good morning",
+      "greetAfternoon": "Good afternoon",
+      "greetEvening": "Good evening",
+      "greetLate": "Burning the midnight oil"
+    },
+    "fleet": {
+      "title": "MODEL FLEET",
+      "subtitle_one": "{{count}} model live across your teams",
+      "subtitle_other": "{{count}} models live across your teams",
+      "tokens": "Tokens",
+      "requests": "Requests"
+    },
     "stats": {
       "projects": "Projects",
       "users": "Users",

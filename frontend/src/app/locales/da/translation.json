@@ -134,6 +134,29 @@
     "title": "Hjem",
     "greeting": "Dashboard",
     "subtitle": "Oversigt over din RESTai-platform",
+    "hero": {
+      "tagline": "RESTai · AIaaS-platform",
+      "subtitle": "Dine modeller, dine data, dine regler. Realtids­overblik over hvad der sker på platformen.",
+      "operational": "Alle systemer kører",
+      "modelsOnline_one": "{{count}} model online",
+      "modelsOnline_other": "{{count}} modeller online",
+      "tokensToday": "{{value}} tokens i dag",
+      "sinceOpen": "+{{value}} siden sideåbning",
+      "latency": "{{value}} p50-latens",
+      "totalTokens": "{{value}} i alt",
+      "vsYesterday": "{{pct}}% i forhold til i går",
+      "greetMorning": "Godmorgen",
+      "greetAfternoon": "Goddag",
+      "greetEvening": "Godaften",
+      "greetLate": "Stadig oppe"
+    },
+    "fleet": {
+      "title": "MODELFLÅDE",
+      "subtitle_one": "{{count}} model aktiv i dine teams",
+      "subtitle_other": "{{count}} modeller aktive i dine teams",
+      "tokens": "Tokens",
+      "requests": "Anmodninger"
+    },
     "stats": {
       "projects": "Projekter",
       "users": "Brugere",

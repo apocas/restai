@@ -134,6 +134,29 @@
     "title": "Home",
     "greeting": "Pannello",
     "subtitle": "Panoramica della tua piattaforma RESTai",
+    "hero": {
+      "tagline": "RESTai · Piattaforma AIaaS",
+      "subtitle": "I tuoi modelli, i tuoi dati, le tue regole. Vista in tempo reale di ciò che accade sulla piattaforma.",
+      "operational": "Tutti i sistemi operativi",
+      "modelsOnline_one": "{{count}} modello online",
+      "modelsOnline_other": "{{count}} modelli online",
+      "tokensToday": "{{value}} token oggi",
+      "sinceOpen": "+{{value}} dall'apertura",
+      "latency": "latenza p50 {{value}}",
+      "totalTokens": "{{value}} totali",
+      "vsYesterday": "{{pct}}% vs ieri",
+      "greetMorning": "Buongiorno",
+      "greetAfternoon": "Buon pomeriggio",
+      "greetEvening": "Buonasera",
+      "greetLate": "È tardi"
+    },
+    "fleet": {
+      "title": "FLOTTA DI MODELLI",
+      "subtitle_one": "{{count}} modello attivo nei tuoi team",
+      "subtitle_other": "{{count}} modelli attivi nei tuoi team",
+      "tokens": "Token",
+      "requests": "Richieste"
+    },
     "stats": {
       "projects": "Progetti",
       "users": "Utenti",
