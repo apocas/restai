@@ -172,5 +172,9 @@ uploads/*
 pytest.ini
 .local
 restai.db
-frontend
 restai_prod
+# Keep `frontend/` source in the build context — the frontend-builder
+# stage needs it to npm install + npm run build. Only the bulky generated
+# subdirs need to stay out so the build context doesn't balloon.
+frontend/node_modules
+frontend/build

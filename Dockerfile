@@ -17,7 +17,14 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-group gpu --no-group dev --no-editable
+# `--no-install-project` skips building the local workspace package
+# (restai-core). Without it uv would try to build a wheel here and
+# hatchling would need README.md + the package source — but we only
+# copied pyproject.toml + uv.lock at this point on purpose, so we keep
+# the dependency-install layer cacheable across source changes. The
+# runtime runs `python main.py` directly from /app, so the package
+# never needs to be importable as an installed dist anyway.
+RUN uv sync --frozen --no-group gpu --no-group dev --no-install-project
 
 COPY . /app
 
