@@ -42,6 +42,10 @@ def get_llm_class(llm_class_name: str):
             from llama_index.llms.ollama import Ollama
 
             return Ollama, {"request_timeout": 120.0}
+        case "OllamaCloud":
+            from restai.llms.ollama_cloud import OllamaCloud
+
+            return OllamaCloud, {"request_timeout": 120.0}
         case "OllamaMultiModal":
             from llama_index.multi_modal_llms.ollama import OllamaMultiModal
 

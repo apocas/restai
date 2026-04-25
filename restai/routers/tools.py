@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from restai import config
 from restai.auth import get_current_username, get_current_username_admin
 from restai.database import DBWrapper, get_db_wrapper
-from restai.models.models import ClassifierModel, ClassifierResponse, MCPProbeRequest, OllamaInstanceModel, OllamaModelInfo, OllamaModelPullRequest, OllamaModelPullResponse, Tool, User
+from restai.models.models import ClassifierModel, ClassifierResponse, MCPProbeRequest, OllamaCloudInstanceModel, OllamaInstanceModel, OllamaModelInfo, OllamaModelPullRequest, OllamaModelPullResponse, Tool, User
 
 logging.basicConfig(level=config.LOG_LEVEL)
 
@@ -253,6 +253,83 @@ async def get_ollama_models(
         raise HTTPException(
             status_code=500, 
             detail=f"Failed to connect to Ollama instance at {ollama_instance.host}:{ollama_instance.port}: {str(e)}"
+        )
+
+
+@router.post("/tools/ollama/cloud/models", response_model=List[OllamaModelInfo])
+async def get_ollama_cloud_models(
+    cloud_instance: OllamaCloudInstanceModel,
+    _: User = Depends(get_current_username),
+):
+    """List models available on Ollama Cloud (https://ollama.com).
+
+    Authenticates via Bearer token. The same `Client.list()` call works
+    against the cloud endpoint as against a local Ollama daemon, so we
+    reuse the local-instance response shape — frontend renders both with
+    the same table.
+
+    Cloud-only models are returned with a `:cloud` suffix
+    (e.g. `gpt-oss:120b-cloud`). `client.show(model)` is skipped for cloud
+    listings: the cloud catalog is large enough that one show() call per
+    model would balloon a single page render to dozens of round-trips,
+    and the cloud API doesn't surface per-model `embedding_length` /
+    `capabilities` reliably anyway. The frontend's heuristic naming check
+    (`name.includes('embed')`) covers the only place that matters.
+    """
+    try:
+        from ollama import Client
+
+        host = cloud_instance.host or "https://ollama.com"
+        client = Client(
+            host=host,
+            headers={"Authorization": f"Bearer {cloud_instance.api_key}"},
+        )
+
+        models_response = client.list()
+
+        models_info = []
+        for model in models_response.get("models", []):
+            details = model.get("details", {})
+            if details and not isinstance(details, dict):
+                if hasattr(details, "model_dump"):
+                    details = details.model_dump()
+                elif hasattr(details, "__dict__"):
+                    details = {k: v for k, v in details.__dict__.items() if not k.startswith("_")}
+                else:
+                    details = {"raw_info": str(details)}
+
+            modified_at = model.get("modified_at", "")
+            if modified_at and not isinstance(modified_at, str):
+                modified_at = modified_at.isoformat() if hasattr(modified_at, "isoformat") else str(modified_at)
+
+            model_name = model.get("name", "") or model.get("model", "")
+
+            models_info.append(
+                OllamaModelInfo(
+                    name=model_name,
+                    size=model.get("size", 0),
+                    digest=model.get("digest", ""),
+                    modified_at=modified_at,
+                    details=details,
+                    capabilities=None,
+                    embedding_length=None,
+                )
+            )
+
+        return models_info
+    except ImportError:
+        raise HTTPException(
+            status_code=500,
+            detail="Ollama Python package is not installed. Please install it using 'pip install ollama'."
+        )
+    except Exception as e:
+        logging.error(e)
+        traceback.print_tb(e.__traceback__)
+        # Surface the underlying error verbatim — most failures here are
+        # auth (401) or network, both of which the admin needs to see.
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to connect to Ollama Cloud at {cloud_instance.host}: {str(e)}"
         )
 
 

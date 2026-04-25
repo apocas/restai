@@ -11,9 +11,9 @@ from restai import config
 _SAFE_NAME_RE = re.compile(r'^[a-zA-Z0-9._:-]+$')
 
 VALID_LLM_CLASSES = {
-    "Ollama", "OllamaMultiModal", "OllamaMultiModal2", "OpenAI", "OpenAILike",
-    "Grok", "Anthropic", "LiteLLM", "vLLM", "GeminiMultiModal",
-    "Gemini", "AzureOpenAI", "Bedrock",
+    "Ollama", "OllamaCloud", "OllamaMultiModal", "OllamaMultiModal2",
+    "OpenAI", "OpenAILike", "Grok", "Anthropic", "LiteLLM", "vLLM",
+    "GeminiMultiModal", "Gemini", "AzureOpenAI", "Bedrock",
 }
 
 VALID_EMBEDDING_CLASSES = {
@@ -1362,6 +1362,12 @@ class OllamaInstanceModel(BaseModel):
     """Ollama instance connection details."""
     host: str = Field(default="localhost", description="Ollama server hostname or IP address")
     port: int = Field(default=11434, description="Ollama server port")
+
+
+class OllamaCloudInstanceModel(BaseModel):
+    """Ollama Cloud connection details — Bearer-authenticated, no local install."""
+    api_key: str = Field(description="Ollama Cloud API key (https://ollama.com/settings/keys)")
+    host: str = Field(default="https://ollama.com", description="Override the cloud base URL — usually leave default")
 
 
 class OllamaModelInfo(BaseModel):

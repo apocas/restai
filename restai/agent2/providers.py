@@ -728,14 +728,18 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
         )
         return OpenAIProvider(cfg), cfg
 
-    if class_name in ("Ollama", "OllamaMultiModal", "OllamaMultiModal2"):
-        # Ollama exposes an OpenAI-compatible /v1 endpoint
-        ollama_base = base_url or "http://localhost:11434"
+    if class_name in ("Ollama", "OllamaCloud", "OllamaMultiModal", "OllamaMultiModal2"):
+        # Ollama exposes an OpenAI-compatible /v1 endpoint. For cloud the
+        # base_url defaults to https://ollama.com and the stored api_key
+        # is the real Bearer token; for self-hosted we use the placeholder
+        # "ollama" string the local daemon ignores.
+        is_cloud = class_name == "OllamaCloud"
+        ollama_base = base_url or ("https://ollama.com" if is_cloud else "http://localhost:11434")
         if not ollama_base.rstrip("/").endswith("/v1"):
             ollama_base = ollama_base.rstrip("/") + "/v1"
         cfg = ProviderConfig(
             model=model,
-            api_key="ollama",
+            api_key=api_key if is_cloud else "ollama",
             base_url=ollama_base,
             max_output_tokens=max_tokens,
             temperature=temperature,
