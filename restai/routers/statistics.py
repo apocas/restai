@@ -108,6 +108,7 @@ async def get_statistics_summary(
         token_query = db_wrapper.db.query(
             func.coalesce(func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens), 0).label("total_tokens"),
             func.coalesce(func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost), 0).label("total_cost"),
+            func.avg(OutputDatabase.latency_ms).label("avg_latency_ms"),
         )
         if not user.is_admin:
             token_query = token_query.filter(_user_project_filter(user, db_wrapper))
@@ -133,6 +134,7 @@ async def get_statistics_summary(
         return {
             "total_tokens": token_stats.total_tokens,
             "total_cost": token_stats.total_cost,
+            "avg_latency_ms": round(token_stats.avg_latency_ms) if token_stats.avg_latency_ms else 0,
             "total_projects": total_projects,
             "total_users": total_users,
             "total_teams": total_teams,
@@ -161,6 +163,7 @@ async def get_daily_tokens(
                 func.sum(OutputDatabase.output_tokens).label("output_tokens"),
                 func.sum(OutputDatabase.input_cost).label("input_cost"),
                 func.sum(OutputDatabase.output_cost).label("output_cost"),
+                func.avg(OutputDatabase.latency_ms).label("avg_latency_ms"),
             )
             .filter(OutputDatabase.date >= start_date)
         )
@@ -182,6 +185,10 @@ async def get_daily_tokens(
                     "output_tokens": row.output_tokens or 0,
                     "input_cost": row.input_cost or 0,
                     "output_cost": row.output_cost or 0,
+                    # Float, not int. The dashboard sparkline + hero chip
+                    # expect a number that can be 0; null would force callers
+                    # to do extra defensive checks for empty days.
+                    "avg_latency_ms": round(row.avg_latency_ms) if row.avg_latency_ms else 0,
                 }
                 for row in daily
             ]

@@ -295,17 +295,26 @@ export default function ProjectsStats({
   const { t } = useTranslation();
   const currencySymbol = CURRENCY_SYMBOLS[currency] || "$";
 
-  // Build per-metric sparkline sources from dailyTokens
+  // Build per-metric sparkline sources from dailyTokens.
+  // Backend returns input_cost/output_cost (separate columns), not a
+  // pre-summed `cost` field — the old `d.cost || 0` always evaluated to 0,
+  // so the cost sparkline was rendering as a flat line.
   const tokenSeries = dailyTokens.map((d) => (d.input_tokens || 0) + (d.output_tokens || 0));
-  const costSeries = dailyTokens.map((d) => d.cost || 0);
+  const costSeries = dailyTokens.map((d) => (d.input_cost || 0) + (d.output_cost || 0));
+  // Per-day average latency (ms). Filter out zeros so quiet days don't pull
+  // the sparkline floor down to a meaningless baseline.
   const latencySeries = dailyTokens
     .map((d) => d.avg_latency_ms || 0)
     .filter((v) => v > 0);
 
+  // Prefer the platform-wide rolling average from /statistics/summary —
+  // averaging per-day averages would weight a 1-request day the same as a
+  // 10k-request day. Fall back to the per-day mean if summary is missing.
   const avgLatency =
-    latencySeries.length > 0
+    summary?.avg_latency_ms ||
+    (latencySeries.length > 0
       ? latencySeries.reduce((s, v) => s + v, 0) / latencySeries.length
-      : null;
+      : null);
 
   // Blue-family palette anchored on the theme's primary #1976d2.
   // Cost keeps a red/rose accent — semantically money-coded — so it

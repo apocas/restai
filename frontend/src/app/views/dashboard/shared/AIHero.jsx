@@ -103,31 +103,39 @@ export default function AIHero({ summary, dailyTokens, modelsCount }) {
   const { t } = useTranslation();
   const auth = useAuth();
 
-  // Derived live-ish stats
-  const today = dailyTokens?.[dailyTokens.length - 1];
-  const yesterday = dailyTokens?.[dailyTokens.length - 2];
+  // Backend groups daily-tokens rows by `func.date(OutputDatabase.date)` (UTC),
+  // and the response only contains rows for days with activity. Looking up
+  // by index ("last entry == today") was wrong on quiet days — when nothing
+  // happened today, the last entry is whichever older day actually had
+  // traffic, and it would get rendered as "today". Match by ISO date string
+  // against UTC so empty days correctly fall back to 0.
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const yesterdayKey = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const today = dailyTokens?.find((d) => d.date === todayKey);
+  const yesterday = dailyTokens?.find((d) => d.date === yesterdayKey);
   const todayTokens = today ? (today.input_tokens || 0) + (today.output_tokens || 0) : 0;
   const yesterdayTokens = yesterday
     ? (yesterday.input_tokens || 0) + (yesterday.output_tokens || 0)
     : 0;
-  const avgLatency = dailyTokens?.length
-    ? (dailyTokens
-        .filter((d) => d.avg_latency_ms)
-        .reduce((s, d) => s + (d.avg_latency_ms || 0), 0) /
-        (dailyTokens.filter((d) => d.avg_latency_ms).length || 1))
-    : null;
+  // Prefer the platform-wide rolling average from /statistics/summary —
+  // a single number is cheaper to reason about than averaging per-day
+  // averages (which would weight quiet days the same as busy ones).
+  const avgLatency = summary?.avg_latency_ms || null;
 
-  // The tiny rolling counter is just ergonomic sugar — gives the hero
-  // the feel of a live system without polling anything. It increments
-  // a pretend "tokens since page load" number based on today's average.
+  // Rolling "tokens since you opened the page" counter. Pace is derived
+  // from today's actual throughput (today's tokens / seconds elapsed since
+  // 00:00 UTC). If today has no activity yet, we don't fake a pace —
+  // pretending 200 tok/s when the system is quiet is misleading.
   const [liveTicker, setLiveTicker] = useState(0);
   const startRef = useRef(Date.now());
   useEffect(() => {
+    setLiveTicker(0);
+    startRef.current = Date.now();
     if (!todayTokens) return;
-    // tokens per second = today's total / seconds elapsed so far today
     const now = new Date();
+    // Use UTC seconds-into-day to match backend's UTC date grouping.
     const secondsIntoDay =
-      now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+      now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds();
     const tps = secondsIntoDay > 0 ? todayTokens / secondsIntoDay : 0;
     if (tps <= 0) return;
     const id = setInterval(() => {
@@ -201,7 +209,7 @@ export default function AIHero({ summary, dailyTokens, modelsCount }) {
               <Box component="span" sx={{ color: "#7dd3fc" }}>⚡</Box>
               <span>
                 {t("dashboard.hero.tokensToday", {
-                  value: formatCompact(todayTokens + liveTicker * 0), // keep display stable; liveTicker below
+                  value: formatCompact(todayTokens),
                 })}
               </span>
             </StatChip>
@@ -236,7 +244,10 @@ export default function AIHero({ summary, dailyTokens, modelsCount }) {
             </StatChip>
           )}
 
-          {yesterdayTokens > 0 && (
+          {/* Need both sides to compare. Showing "↘ -100%" on a quiet morning
+              when nothing has been logged yet today is technically true but
+              contextually misleading — the day isn't over. */}
+          {yesterdayTokens > 0 && todayTokens > 0 && (
             <StatChip>
               <Box
                 component="span"
@@ -249,13 +260,9 @@ export default function AIHero({ summary, dailyTokens, modelsCount }) {
               </Box>
               <span>
                 {t("dashboard.hero.vsYesterday", {
-                  pct:
-                    yesterdayTokens > 0
-                      ? Math.round(
-                          ((todayTokens - yesterdayTokens) / yesterdayTokens) *
-                            100
-                        )
-                      : 0,
+                  pct: Math.round(
+                    ((todayTokens - yesterdayTokens) / yesterdayTokens) * 100
+                  ),
                 })}
               </span>
             </StatChip>
