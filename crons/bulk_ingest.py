@@ -24,16 +24,13 @@ logger = logging.getLogger("restai.bulk_ingest")
 
 
 def main():
-    from restai.settings import ensure_settings_table, load_settings
+    from restai.settings import ensure_settings_table
     from restai.database import engine as db_engine, get_db_wrapper
     from restai.models.databasemodels import BulkIngestJobDatabase, ProjectDatabase
     from restai.brain import Brain
     from restai.cron_log import CronLogger
 
     ensure_settings_table(db_engine)
-    settings_db = get_db_wrapper()
-    load_settings(settings_db)
-    settings_db.db.close()
 
     # Auto-create the new table when running against a pre-migration
     # DB — mirrors the lifespan pattern in main.py.

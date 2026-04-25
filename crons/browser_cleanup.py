@@ -14,16 +14,13 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("restai.browser_cleanup")
 
 from restai import config  # noqa: F401 — env load side effect
-from restai.settings import load_settings, ensure_settings_table
+from restai.settings import ensure_settings_table
 from restai.database import get_db_wrapper, engine as db_engine
 from restai.cron_log import CronLogger
 
 
 def main():
     ensure_settings_table(db_engine)
-    db = get_db_wrapper()
-    load_settings(db)
-    db.db.close()
 
     cron = CronLogger("browser_cleanup")
     removed = 0

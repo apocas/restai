@@ -1,3 +1,27 @@
+"""Process-wide configuration.
+
+Two kinds of config live here:
+
+1. **Boot-only env vars** (POSTGRES_HOST, RESTAI_FERNET_KEY, RESTAI_DEV, etc.)
+   are bound as module-level attributes from `os.environ` at import time.
+   These are needed before the DB is reachable, so they have to be env-var-only.
+
+2. **GUI-managed settings** (DOCKER_*, BROWSER_*, PROXY_*, REDIS_*, OAuth, GPU,
+   MCP, system LLM, retention, 2FA, branding, etc.) live in the `settings` DB
+   table. They are NOT bound as module attributes. Instead, `__getattr__` at
+   the bottom of this file reads them from the DB on every access.
+
+   This is the only multi-worker-safe approach. Earlier versions mirrored the
+   DB onto module-level attributes via `setattr(config, ...)` after each
+   PATCH /settings; that mutation only landed in the worker that handled the
+   request, so other workers acted on stale (or missing) values. Read-through
+   on every access is a few hundred microseconds at most against the
+   connection pool — cheap compared to the bug it prevents.
+
+   Env-var support for GUI keys was dropped at the same time. Admins set these
+   in the platform Settings page; existing deployments already have the
+   env-var-derived values in their DB from earlier seeding.
+"""
 import os
 import secrets
 
@@ -46,15 +70,14 @@ def _generate_fernet_key():
 
 _ensure_env_secret("RESTAI_FERNET_KEY", generator=_generate_fernet_key)
 
-RESTAI_FERNET_KEY = os.environ.get("RESTAI_FERNET_KEY")
+# ---- Boot-only env vars (cannot live in the DB; needed before DB is up) ----
 
-RESTAI_NAME = os.environ.get("RESTAI_NAME") or "RESTai"
+RESTAI_FERNET_KEY = os.environ.get("RESTAI_FERNET_KEY")
 
 RESTAI_URL = os.environ.get("RESTAI_URL")
 
 RESTAI_PORT = os.environ.get("RESTAI_PORT") or 9000
 RESTAI_AUTH_SECRET = os.environ.get("RESTAI_AUTH_SECRET")
-RESTAI_AUTH_DISABLE_LOCAL = os.environ.get("RESTAI_AUTH_DISABLE_LOCAL", "").lower() in ("true", "1")
 RESTAI_DEV = (
     True if os.environ.get("RESTAI_DEV", "").lower() in ("true", "1") else False
 )
@@ -91,29 +114,26 @@ SQLITE_PATH = os.environ.get("SQLITE_PATH")
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
 
-REDIS_HOST = os.environ.get("REDIS_HOST")
-REDIS_PORT = os.environ.get("REDIS_PORT")
-REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD")
-REDIS_DATABASE = os.environ.get("REDIS_DATABASE")
-
-
 def build_redis_url():
-    """Construct a redis:// URL from the live REDIS_* config attrs.
+    """Construct a redis:// URL from the live REDIS_* settings.
 
-    Returns None when REDIS_HOST is unset. Reads the module attributes at call
-    time so the admin Settings GUI can update them in-process and the next
-    caller picks up the new value.
+    Returns None when REDIS_HOST is unset. Goes through `_cfg.X` attribute
+    access so this module's `__getattr__` resolves each value from the DB on
+    every call — admin Settings changes are picked up immediately by every
+    worker without any process-local mirror. (Bare-name lookups like
+    `REDIS_HOST` would NOT trigger `__getattr__` — Python looks bare names up
+    in module globals, not via descriptor.)
     """
-    if not REDIS_HOST:
+    import restai.config as _cfg
+    host = _cfg.REDIS_HOST
+    if not host:
         return None
-    auth = f":{REDIS_PASSWORD}@" if REDIS_PASSWORD else ""
-    db = (
-        f"/{REDIS_DATABASE}"
-        if REDIS_DATABASE and REDIS_DATABASE != "0"
-        else ""
-    )
-    port = REDIS_PORT or "6379"
-    return f"redis://{auth}{REDIS_HOST}:{port}{db}"
+    pwd = _cfg.REDIS_PASSWORD
+    port = _cfg.REDIS_PORT or "6379"
+    raw_db = _cfg.REDIS_DATABASE
+    auth = f":{pwd}@" if pwd else ""
+    db = f"/{raw_db}" if raw_db and raw_db != "0" else ""
+    return f"redis://{auth}{host}:{port}{db}"
 
 CHROMADB_HOST = os.environ.get("CHROMADB_HOST")
 CHROMADB_PORT = os.environ.get("CHROMADB_PORT")
@@ -213,33 +233,7 @@ def detect_gpu_info():
         gpus.append(gpu)
     return gpus
 
-_gpu_env = os.environ.get("RESTAI_GPU", "").lower()
-if _gpu_env in ("true", "1"):
-    RESTAI_GPU = True
-elif _gpu_env in ("false", "0"):
-    RESTAI_GPU = False
-else:
-    RESTAI_GPU = detect_gpu()
 RESTAI_DEFAULT_DEVICE = os.environ.get("RESTAI_DEFAULT_DEVICE")
-GPU_WORKER_DEVICES = os.environ.get("GPU_WORKER_DEVICES", "")
-
-RESTAI_MCP = os.environ.get("MCP_SERVER", "").lower() in ("true", "1")
-
-DOCKER_ENABLED = False
-SYSTEM_LLM = os.environ.get("SYSTEM_LLM", "")
-
-DOCKER_URL = os.environ.get("DOCKER_URL", "")
-DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE", "python:3.12-slim")
-DOCKER_TIMEOUT = int(os.environ.get("DOCKER_TIMEOUT", "900"))
-DOCKER_NETWORK = os.environ.get("DOCKER_NETWORK", "none")
-
-# Agentic Browser — Playwright + Chromium per-chat container.
-BROWSER_ENABLED = False
-BROWSER_IMAGE = os.environ.get("BROWSER_IMAGE", "mcr.microsoft.com/playwright/python:v1.48.0-jammy")
-BROWSER_NETWORK = os.environ.get("BROWSER_NETWORK", "bridge")
-BROWSER_TIMEOUT = int(os.environ.get("BROWSER_TIMEOUT", "900"))
-
-DATA_RETENTION_DAYS = 0
 
 EMBEDDINGS_PATH = os.environ.get("EMBEDDINGS_PATH")
 
@@ -248,8 +242,6 @@ DB_POOL_SIZE = int(os.environ.get("DB_POOL_SIZE") or 100)
 DB_MAX_OVERFLOW = int(os.environ.get("DB_MAX_OVERFLOW") or 300)
 DB_POOL_RECYCLE = int(os.environ.get("DB_POOL_RECYCLE") or 300)
 
-
-MAX_AUDIO_UPLOAD_SIZE = int(os.environ.get("MAX_AUDIO_UPLOAD_SIZE") or 10)
 
 MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE_MB") or 100) * 1024 * 1024  # Default 100MB
 
@@ -266,42 +258,8 @@ LDAP_USE_TLS = os.environ.get("LDAP_USE_TLS")
 LDAP_CA_CERT_FILE = os.environ.get("LDAP_CA_CERT_FILE")
 LDAP_CIPHERS = os.environ.get("LDAP_CIPHERS")
 
-HIDE_BRANDING = os.environ.get("RESTAI_HIDE", "").lower() in ("true", "1")
-
-CURRENCY = os.environ.get("CURRENCY", "EUR")
-
-PROXY_URL = os.environ.get("PROXY_URL")
-PROXY_KEY = os.environ.get("PROXY_KEY")
-PROXY_TEAM_ID = os.environ.get("PROXY_TEAM_ID")
-
-
 OAUTH_PROVIDERS = {}
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_OAUTH_SCOPE = os.environ.get("GOOGLE_OAUTH_SCOPE", "openid email profile")
-GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "")
-MICROSOFT_CLIENT_ID = os.environ.get("MICROSOFT_CLIENT_ID", "")
-MICROSOFT_CLIENT_SECRET = os.environ.get("MICROSOFT_CLIENT_SECRET", "")
-MICROSOFT_CLIENT_TENANT_ID = os.environ.get("MICROSOFT_CLIENT_TENANT_ID", "")
-MICROSOFT_OAUTH_SCOPE = os.environ.get("MICROSOFT_OAUTH_SCOPE", "openid email profile")
-MICROSOFT_REDIRECT_URI = os.environ.get("MICROSOFT_REDIRECT_URI", "")
-GITHUB_CLIENT_ID = os.environ.get("GITHUB_CLIENT_ID", "")
-GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET", "")
-GITHUB_CLIENT_SCOPE = os.environ.get("GITHUB_CLIENT_SCOPE", "user:email")
-GITHUB_CLIENT_REDIRECT_URI = os.environ.get("GITHUB_CLIENT_REDIRECT_URI", "")
-OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID", "")
-OAUTH_CLIENT_SECRET = os.environ.get("OAUTH_CLIENT_SECRET", "")
-OPENID_PROVIDER_URL = os.environ.get("OPENID_PROVIDER_URL", "")
-OPENID_REDIRECT_URI = os.environ.get("OPENID_REDIRECT_URI", "")
-OAUTH_SCOPES = os.environ.get("OAUTH_SCOPES", "openid email profile")
-OAUTH_PROVIDER_NAME = os.environ.get("OAUTH_PROVIDER_NAME", "SSO")
-OAUTH_EMAIL_CLAIM = os.environ.get("OAUTH_EMAIL_CLAIM", "email")
-OAUTH_ALLOWED_DOMAINS = [
-    domain.strip() for domain in os.environ.get("OAUTH_ALLOWED_DOMAINS", "*").split(",")
-]
-AUTO_CREATE_USER = os.environ.get("AUTO_CREATE_USER", "False").lower() == "true"
-SSO_AUTO_RESTRICTED = True
-SSO_AUTO_TEAM_ID = None
+
 SESSION_COOKIE_SAME_SITE = os.environ.get("SESSION_COOKIE_SAME_SITE", "lax")
 SESSION_COOKIE_SECURE = (
     os.environ.get("SESSION_COOKIE_SECURE", "false" if RESTAI_DEV else "true").lower() == "true"
@@ -309,9 +267,127 @@ SESSION_COOKIE_SECURE = (
 SSO_SECRET_KEY = os.environ.get("SSO_SECRET_KEY", os.environ.get("SECRET_KEY"))
 
 
+# ---------------------------------------------------------------------------
+# GUI-managed settings — DB-backed, read on every access via __getattr__
+# ---------------------------------------------------------------------------
+#
+# Mapping shape: <module attr name> -> (db_key, type_, default).
+# type_ is one of: str, bool, int, "csv-list".
+# Setting `default=None` on RESTAI_GPU is a sentinel meaning "auto-detect".
+#
+_GUI_SETTING_ATTRS = {
+    "RESTAI_NAME": ("app_name", str, "RESTai"),
+    "HIDE_BRANDING": ("hide_branding", bool, False),
+    "RESTAI_AUTH_DISABLE_LOCAL": ("auth_disable_local", bool, False),
+    "PROXY_URL": ("proxy_url", str, None),
+    "PROXY_KEY": ("proxy_key", str, None),
+    "PROXY_TEAM_ID": ("proxy_team_id", str, None),
+    "MAX_AUDIO_UPLOAD_SIZE": ("max_audio_upload_size", int, 10),
+    "CURRENCY": ("currency", str, "EUR"),
+    "REDIS_HOST": ("redis_host", str, None),
+    "REDIS_PORT": ("redis_port", str, None),
+    "REDIS_PASSWORD": ("redis_password", str, None),
+    "REDIS_DATABASE": ("redis_database", str, None),
+    "AUTO_CREATE_USER": ("sso_auto_create_user", bool, False),
+    "OAUTH_ALLOWED_DOMAINS": ("sso_allowed_domains", "csv-list", ["*"]),
+    "SSO_AUTO_RESTRICTED": ("sso_auto_restricted", bool, True),
+    "SSO_AUTO_TEAM_ID": ("sso_auto_team_id", str, None),
+    "GOOGLE_CLIENT_ID": ("sso_google_client_id", str, ""),
+    "GOOGLE_CLIENT_SECRET": ("sso_google_client_secret", str, ""),
+    "GOOGLE_REDIRECT_URI": ("sso_google_redirect_uri", str, ""),
+    "GOOGLE_OAUTH_SCOPE": ("sso_google_scope", str, "openid email profile"),
+    "MICROSOFT_CLIENT_ID": ("sso_microsoft_client_id", str, ""),
+    "MICROSOFT_CLIENT_SECRET": ("sso_microsoft_client_secret", str, ""),
+    "MICROSOFT_CLIENT_TENANT_ID": ("sso_microsoft_tenant_id", str, ""),
+    "MICROSOFT_REDIRECT_URI": ("sso_microsoft_redirect_uri", str, ""),
+    "MICROSOFT_OAUTH_SCOPE": ("sso_microsoft_scope", str, "openid email profile"),
+    "GITHUB_CLIENT_ID": ("sso_github_client_id", str, ""),
+    "GITHUB_CLIENT_SECRET": ("sso_github_client_secret", str, ""),
+    "GITHUB_CLIENT_REDIRECT_URI": ("sso_github_redirect_uri", str, ""),
+    "GITHUB_CLIENT_SCOPE": ("sso_github_scope", str, "user:email"),
+    "OAUTH_CLIENT_ID": ("sso_oidc_client_id", str, ""),
+    "OAUTH_CLIENT_SECRET": ("sso_oidc_client_secret", str, ""),
+    "OPENID_PROVIDER_URL": ("sso_oidc_provider_url", str, ""),
+    "OPENID_REDIRECT_URI": ("sso_oidc_redirect_uri", str, ""),
+    "OAUTH_SCOPES": ("sso_oidc_scopes", str, "openid email profile"),
+    "OAUTH_PROVIDER_NAME": ("sso_oidc_provider_name", str, "SSO"),
+    "OAUTH_EMAIL_CLAIM": ("sso_oidc_email_claim", str, "email"),
+    "RESTAI_GPU": ("gpu_enabled", bool, None),  # None sentinel => auto-detect
+    "GPU_WORKER_DEVICES": ("gpu_worker_devices", str, ""),
+    "RESTAI_MCP": ("mcp_enabled", bool, False),
+    "SYSTEM_LLM": ("system_llm", str, ""),
+    "DOCKER_ENABLED": ("docker_enabled", bool, False),
+    "DOCKER_URL": ("docker_url", str, ""),
+    "DOCKER_IMAGE": ("docker_image", str, "python:3.12-slim"),
+    "DOCKER_TIMEOUT": ("docker_timeout", int, 900),
+    "DOCKER_NETWORK": ("docker_network", str, "none"),
+    "DOCKER_READ_ONLY": ("docker_read_only", bool, True),
+    "BROWSER_ENABLED": ("browser_enabled", bool, False),
+    "BROWSER_IMAGE": ("browser_image", str, "mcr.microsoft.com/playwright/python:v1.48.0-jammy"),
+    "BROWSER_NETWORK": ("browser_network", str, "bridge"),
+    "BROWSER_TIMEOUT": ("browser_timeout", int, 900),
+    "DATA_RETENTION_DAYS": ("data_retention_days", int, 0),
+    "ENFORCE_2FA": ("enforce_2fa", bool, False),
+}
+
+
+def _coerce_setting(raw: str, type_, default):
+    if not raw:
+        return default
+    if type_ is bool:
+        return raw.lower() in ("true", "1", "yes")
+    if type_ is int:
+        try:
+            return int(raw)
+        except (ValueError, TypeError):
+            return default
+    if type_ == "csv-list":
+        parts = [s.strip() for s in raw.split(",") if s.strip()]
+        return parts or default
+    return raw
+
+
+def __getattr__(name):
+    """Read GUI-managed settings from the DB on demand.
+
+    Module-level __getattr__ fires only when an attribute is NOT defined on the
+    module. Boot-only env vars are bound at import time above and don't go
+    through here. Anything in `_GUI_SETTING_ATTRS` is resolved per-access from
+    the `settings` table, so multi-worker uvicorn deployments see the live
+    value without any in-process mirroring.
+
+    DB failures (e.g. very early bootstrap before the schema exists) fall back
+    to the declared default; for RESTAI_GPU the fallback is `detect_gpu()`.
+    """
+    spec = _GUI_SETTING_ATTRS.get(name)
+    if spec is None:
+        raise AttributeError(f"module 'restai.config' has no attribute {name!r}")
+    db_key, type_, default = spec
+
+    try:
+        from restai.database import DBWrapper
+        wrapper = DBWrapper()
+        try:
+            raw = wrapper.get_setting_value(db_key, "")
+        finally:
+            wrapper.db.close()
+    except Exception:
+        raw = ""
+
+    if name == "RESTAI_GPU" and default is None and not raw:
+        return detect_gpu()
+
+    return _coerce_setting(raw, type_, default)
+
+
 def load_oauth_providers():
-    """Build OAUTH_PROVIDERS from current module-level attributes."""
-    # Import ourselves so we always read the latest attribute values
+    """Build OAUTH_PROVIDERS from current GUI-managed OAuth settings.
+
+    Each provider's register callback closes over the values *at call time of
+    the callback*, not at registration, so authlib gets the current DB values
+    when it actually invokes them. Called once at startup and again from
+    `reinit_oauth(app)` after a settings PATCH.
+    """
     import restai.config as _cfg
 
     OAUTH_PROVIDERS.clear()
@@ -394,4 +470,7 @@ def load_oauth_providers():
         }
 
 
-load_oauth_providers()
+# Note: load_oauth_providers() is NOT called at import time anymore — the DB
+# may not be reachable yet during early bootstrap. main.py's lifespan calls it
+# after seed_defaults runs, and routers/settings.py:patch_settings calls it
+# again whenever an OAuth setting changes.

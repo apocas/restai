@@ -77,7 +77,7 @@ async def lifespan(fs_app: FastAPI):
     except Exception:
         fs_app.state.manager = None
 
-    from restai.settings import ensure_settings_table, seed_defaults, load_settings
+    from restai.settings import ensure_settings_table, seed_defaults
     from restai.database import engine as db_engine
     ensure_settings_table(db_engine)
 
@@ -102,7 +102,6 @@ async def lifespan(fs_app: FastAPI):
     TeamInvitationDatabase.__table__.create(db_engine, checkfirst=True)
     settings_db_wrapper = get_db_wrapper()
     seed_defaults(settings_db_wrapper)
-    load_settings(settings_db_wrapper)
 
     fs_app.state.brain = Brain()
 

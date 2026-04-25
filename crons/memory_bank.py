@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("restai.memory_bank_cron")
 
 from restai import config  # noqa: F401  — side effect: env loaded
-from restai.settings import load_settings, ensure_settings_table
+from restai.settings import ensure_settings_table
 from restai.database import get_db_wrapper, engine as db_engine
 from restai.brain import Brain
 from restai.cron_log import CronLogger
@@ -37,9 +37,6 @@ MAX_CHATS_PER_TICK = 25
 
 def _run():
     ensure_settings_table(db_engine)
-    settings_db = get_db_wrapper()
-    load_settings(settings_db)
-    settings_db.db.close()
 
     brain = Brain(lightweight=True)
     db = get_db_wrapper()
