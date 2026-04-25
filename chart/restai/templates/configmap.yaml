@@ -5,20 +5,18 @@ metadata:
   labels:
     {{- include "restai.labels" . | nindent 4 }}
 data:
-  # Core
+  # ----- Boot-only env vars -----
+  # Anything else (proxy, OAuth, Redis, MCP, app branding, GPU,
+  # Docker/browser sandboxes, retention, 2FA, etc.) is read from the
+  # `settings` DB table at runtime via the GUI. Don't add entries here
+  # for those — they'd be silently ignored.
   RESTAI_PORT: {{ .Values.config.port | quote }}
   LOG_LEVEL: {{ .Values.config.logLevel | quote }}
   RESTAI_DEV: {{ .Values.config.dev | quote }}
-  RESTAI_GPU: {{ .Values.config.gpu | quote }}
-  MCP_SERVER: {{ .Values.config.mcpServer | quote }}
-  AGENT_MAX_ITERATIONS: {{ .Values.config.agentMaxIterations | quote }}
-  MAX_AUDIO_UPLOAD_SIZE: {{ .Values.config.maxAudioUploadSize | quote }}
-  EMBEDDINGS_PATH: {{ .Values.config.embeddingsPath | quote }}
-  RESTAI_NAME: {{ .Values.config.appName | quote }}
-  RESTAI_HIDE: {{ .Values.config.hideBranding | quote }}
   ANONYMIZED_TELEMETRY: {{ .Values.config.anonymizedTelemetry | quote }}
+  EMBEDDINGS_PATH: {{ .Values.config.embeddingsPath | quote }}
 
-  # Database
+  # ----- Database connection (boot-only, can't live in DB itself) -----
   {{- if eq .Values.config.database.type "postgresql" }}
   POSTGRES_HOST: {{ .Values.config.database.postgres.host | quote }}
   POSTGRES_PORT: {{ .Values.config.database.postgres.port | quote }}
@@ -30,106 +28,14 @@ data:
   MYSQL_DB: {{ .Values.config.database.mysql.database | quote }}
   MYSQL_USER: {{ .Values.config.database.mysql.user | quote }}
   {{- end }}
+  {{- if eq .Values.config.database.type "sqlite" }}
+  SQLITE_PATH: {{ .Values.config.database.sqlite.path | quote }}
+  {{- end }}
   DB_POOL_SIZE: {{ .Values.config.database.poolSize | quote }}
   DB_MAX_OVERFLOW: {{ .Values.config.database.maxOverflow | quote }}
   DB_POOL_RECYCLE: {{ .Values.config.database.poolRecycle | quote }}
 
-  # Redis
-  {{- if .Values.config.redis.enabled }}
-  REDIS_HOST: {{ .Values.config.redis.host | quote }}
-  REDIS_PORT: {{ .Values.config.redis.port | quote }}
-  {{- end }}
-
-  # Vector stores
-  {{- with .Values.config.vectorStore.chromadb }}
-  {{- if .host }}
-  CHROMADB_HOST: {{ .host | quote }}
-  CHROMADB_PORT: {{ .port | quote }}
-  {{- end }}
-  {{- end }}
-  {{- with .Values.config.vectorStore.pgvector }}
-  {{- if .host }}
-  PGVECTOR_HOST: {{ .host | quote }}
-  PGVECTOR_PORT: {{ .port | quote }}
-  PGVECTOR_USER: {{ .user | quote }}
-  PGVECTOR_DB: {{ .database | quote }}
-  {{- end }}
-  {{- end }}
-  {{- with .Values.config.vectorStore.weaviate }}
-  {{- if .host }}
-  WEAVIATE_HOST: {{ .host | quote }}
-  WEAVIATE_PORT: {{ .port | quote }}
-  WEAVIATE_GRPC_PORT: {{ .grpcPort | quote }}
-  {{- end }}
-  {{- end }}
-  {{- with .Values.config.vectorStore.pinecone }}
-  {{- if .index }}
-  PINECONE_INDEX: {{ .index | quote }}
-  {{- end }}
-  {{- end }}
-
-  # LDAP
-  {{- if .Values.config.ldap.enabled }}
-  ENABLE_LDAP: "true"
-  LDAP_SERVER_HOST: {{ .Values.config.ldap.serverHost | quote }}
-  LDAP_SERVER_PORT: {{ .Values.config.ldap.serverPort | quote }}
-  LDAP_SEARCH_BASE: {{ .Values.config.ldap.searchBase | quote }}
-  LDAP_SEARCH_FILTERS: {{ .Values.config.ldap.searchFilters | quote }}
-  LDAP_ATTRIBUTE_FOR_MAIL: {{ .Values.config.ldap.attributeForMail | quote }}
-  LDAP_ATTRIBUTE_FOR_USERNAME: {{ .Values.config.ldap.attributeForUsername | quote }}
-  LDAP_APP_DN: {{ .Values.config.ldap.appDn | quote }}
-  LDAP_USE_TLS: {{ .Values.config.ldap.useTls | quote }}
-  LDAP_CA_CERT_FILE: {{ .Values.config.ldap.caCertFile | quote }}
-  LDAP_CIPHERS: {{ .Values.config.ldap.ciphers | quote }}
-  {{- end }}
-
-  # OAuth
-  {{- with .Values.config.oauth.google }}
-  {{- if .clientId }}
-  GOOGLE_CLIENT_ID: {{ .clientId | quote }}
-  GOOGLE_OAUTH_SCOPE: {{ .scope | quote }}
-  GOOGLE_REDIRECT_URI: {{ .redirectUri | quote }}
-  {{- end }}
-  {{- end }}
-  {{- with .Values.config.oauth.microsoft }}
-  {{- if .clientId }}
-  MICROSOFT_CLIENT_ID: {{ .clientId | quote }}
-  MICROSOFT_CLIENT_TENANT_ID: {{ .tenantId | quote }}
-  MICROSOFT_OAUTH_SCOPE: {{ .scope | quote }}
-  MICROSOFT_REDIRECT_URI: {{ .redirectUri | quote }}
-  {{- end }}
-  {{- end }}
-  {{- with .Values.config.oauth.github }}
-  {{- if .clientId }}
-  GITHUB_CLIENT_ID: {{ .clientId | quote }}
-  GITHUB_CLIENT_SCOPE: {{ .scope | quote }}
-  GITHUB_CLIENT_REDIRECT_URI: {{ .redirectUri | quote }}
-  {{- end }}
-  {{- end }}
-  {{- with .Values.config.oauth.oidc }}
-  {{- if .clientId }}
-  OAUTH_CLIENT_ID: {{ .clientId | quote }}
-  OPENID_PROVIDER_URL: {{ .providerUrl | quote }}
-  OPENID_REDIRECT_URI: {{ .redirectUri | quote }}
-  OAUTH_SCOPES: {{ .scopes | quote }}
-  OAUTH_PROVIDER_NAME: {{ .providerName | quote }}
-  OAUTH_EMAIL_CLAIM: {{ .emailClaim | quote }}
-  {{- end }}
-  {{- end }}
-  OAUTH_ALLOWED_DOMAINS: {{ .Values.config.oauth.allowedDomains | quote }}
-  AUTO_CREATE_USER: {{ .Values.config.oauth.autoCreateUser | quote }}
-  SESSION_COOKIE_SAME_SITE: {{ .Values.config.oauth.sessionCookieSameSite | quote }}
-  SESSION_COOKIE_SECURE: {{ .Values.config.oauth.sessionCookieSecure | quote }}
-
-  # Proxy
-  {{- with .Values.config.proxy }}
-  {{- if .url }}
-  PROXY_URL: {{ .url | quote }}
-  PROXY_TEAM_ID: {{ .teamId | quote }}
-  {{- end }}
-  {{- end }}
-
-  # Misc
+  # ----- Misc boot-only -----
   {{- if .Values.config.restaiUrl }}
   RESTAI_URL: {{ .Values.config.restaiUrl | quote }}
   {{- end }}

@@ -34,7 +34,14 @@ FROM python:3.12-slim AS runtime
 RUN apt-get update && apt-get install --no-install-recommends -y postgresql-client ffmpeg \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
-RUN useradd --user-group --system --create-home --no-log-init user \
+    # `--uid 1000` (not `--system`) so the runtime uid matches the
+    # widely-used non-root convention. The Helm chart's
+    # `securityContext.runAsUser: 1000` then matches the image USER, so
+    # /app (chowned to user:user below) stays writable when the chart's
+    # explicit runAsUser overrides the Dockerfile's USER directive.
+    # Auto-picked system uids (~999) caused permission-denied on /app
+    # writes inside K8s pods.
+RUN useradd --user-group --uid 1000 --create-home --no-log-init user \
     && mkdir -p /home/user/.cache /home/user/.local/share \
     && chown -R user:user /home/user
 

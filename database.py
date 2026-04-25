@@ -12,6 +12,7 @@ from restai.config import (
     POSTGRES_HOST,
     POSTGRES_URL,
     RESTAI_DEFAULT_PASSWORD,
+    SQLITE_PATH,
 )
 from restai.models.databasemodels import (
     ApiKeyDatabase,
@@ -38,9 +39,10 @@ elif POSTGRES_HOST:
                            max_overflow=100,
                            pool_recycle=900)
 else:
-    print("Using sqlite database.")
+    sqlite_path = SQLITE_PATH or "./restai.db"
+    print(f"Using sqlite database at {sqlite_path}")
     engine = create_engine(
-        "sqlite:///./restai.db",
+        f"sqlite:///{sqlite_path}",
         connect_args={
             "check_same_thread": False},
         pool_size=30,
@@ -59,6 +61,20 @@ SessionLocal = sessionmaker(
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def _stamp_alembic_head():
+    # After a fresh `create_all`, the schema already matches HEAD. If we
+    # leave the `alembic_version` table empty, the next `migrate.py
+    # upgrade` will replay every migration from 000 against that
+    # already-current schema — and the first column-drop migration
+    # explodes with KeyError because the column was never created.
+    # Stamping head writes the current revision into alembic_version so
+    # subsequent upgrades start from the right baseline.
+    from alembic.config import Config
+    from alembic import command
+    cfg = Config("alembic.ini")
+    command.stamp(cfg, "head")
+
 
 if os.getenv("RESTAI_DB_SCHEMA"):
     Base.metadata.create_all(bind=engine)
@@ -127,6 +143,7 @@ else:
         
         dbi.commit()
         dbi.close()
+        _stamp_alembic_head()
         print("Database initialized.")
         print("Default LLMs initialized.")
         print("Default admin user created (admin:" + default_password + ").")

@@ -60,9 +60,14 @@ elif POSTGRES_HOST:
         pool_recycle=config.DB_POOL_RECYCLE,
     )
 else:
-    _db_logger.info("Using sqlite database.")
+    # SQLITE_PATH (env var, also exposed as config.SQLITE_PATH) lets K8s
+    # deployments mount a PVC at a known path so the DB survives pod
+    # restarts. Defaults to a CWD-relative file for the docker-run /
+    # local-dev case.
+    _sqlite_path = config.SQLITE_PATH or "./restai.db"
+    _db_logger.info("Using sqlite database at %s.", _sqlite_path)
     engine = create_engine(
-        "sqlite:///./restai.db",
+        f"sqlite:///{_sqlite_path}",
         connect_args={"check_same_thread": False},
         pool_size=config.DB_POOL_SIZE,
         max_overflow=config.DB_POOL_RECYCLE,

@@ -12,7 +12,7 @@ import argparse
 from alembic.config import Config
 from alembic import command
 
-from restai.config import POSTGRES_URL, MYSQL_URL, POSTGRES_HOST, MYSQL_HOST
+from restai.config import POSTGRES_URL, MYSQL_URL, POSTGRES_HOST, MYSQL_HOST, SQLITE_PATH
 
 
 def get_database_url():
@@ -21,7 +21,12 @@ def get_database_url():
     elif MYSQL_HOST:
         return MYSQL_URL
     else:
-        return "sqlite:///./restai.db"
+        # Honor SQLITE_PATH so K8s deployments using a PVC mount end up
+        # operating on the *same* file that database.py just initialized.
+        # Hardcoding `./restai.db` here meant alembic ran against an
+        # empty file in the cwd while database.py wrote to the PVC, and
+        # migration 027's batch_alter_table('llms') exploded.
+        return f"sqlite:///{SQLITE_PATH or './restai.db'}"
 
 
 def _alembic_cfg():

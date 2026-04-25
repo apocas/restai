@@ -28,23 +28,27 @@ spec:
       serviceAccountName: {{ include "restai.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      initContainers:
-        - name: init-db
-          image: {{ include "restai.image" . }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: [".venv/bin/python", "database.py"]
-          envFrom:
-            - configMapRef:
-                name: {{ include "restai.configMapName" . }}
-            - secretRef:
-                name: {{ include "restai.secretName" . }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
       containers:
         - name: {{ .Chart.Name }}
           image: {{ include "restai.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: [".venv/bin/python", "main.py"]
+          # Bootstrap the schema, run any pending migrations, then start
+          # the server. All three are idempotent:
+          #   - database.py only seeds when the `users` table is missing
+          #   - migrate.py upgrade is no-op past `head`
+          #   - main.py is the long-running uvicorn server
+          # The earlier chart shape used an initContainer for database.py,
+          # but each K8s container has its own writable layer — the init
+          # container's writes never reached the main container's /app,
+          # so on sqlite the DB was always empty and login 500'd. Doing
+          # everything inside the same container avoids that footgun.
+          command:
+            - sh
+            - -c
+            - >-
+              .venv/bin/python database.py &&
+              .venv/bin/python migrate.py upgrade &&
+              .venv/bin/python main.py
           ports:
             - name: http
               containerPort: {{ .Values.config.port }}
@@ -54,6 +58,11 @@ spec:
                 name: {{ include "restai.configMapName" . }}
             - secretRef:
                 name: {{ include "restai.secretName" . }}
+          {{- if and (eq .Values.config.database.type "sqlite") .Values.persistence.enabled }}
+          volumeMounts:
+            - name: sqlite-data
+              mountPath: {{ dir .Values.config.database.sqlite.path | quote }}
+          {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
@@ -70,6 +79,12 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+      {{- if and (eq .Values.config.database.type "sqlite") .Values.persistence.enabled }}
+      volumes:
+        - name: sqlite-data
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim | default (printf "%s-sqlite" (include "restai.fullname" .)) }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -17,18 +17,24 @@ serviceAccount:
   name: ""
 
 # -- RESTai application configuration (non-sensitive, stored in ConfigMap)
+#
+# Only env vars that the app reads at boot live here. Almost everything
+# admins might want to tune at runtime — proxy URL, OAuth providers,
+# Redis address, MCP toggle, app name, branding, GPU flag, audio limits,
+# Docker sandbox, agentic browser, retention, 2FA enforcement — is
+# DB-managed via the platform Settings page (config module __getattr__
+# resolves these from the `settings` table on every access). Setting
+# them via env here would be silently ignored and create drift between
+# what the chart says and what the running platform actually uses.
+#
+# That's why this block is small. Don't grow it without confirming the
+# key is read at *boot* and not via the GUI-managed settings DB.
 config:
   port: 9000
   logLevel: "INFO"
   dev: false
-  gpu: false
-  mcpServer: false
-  agentMaxIterations: 20
-  maxAudioUploadSize: 10
-  embeddingsPath: "/app/embeddings/"
-  appName: "RESTai"
-  hideBranding: false
   anonymizedTelemetry: false
+  embeddingsPath: "/app/embeddings/"
 
   # Database — one of: postgresql, mysql, sqlite
   database:
@@ -42,132 +48,70 @@ config:
       host: ""
       database: "restai"
       user: "restai"
+    sqlite:
+      # Where the sqlite file lives inside the pod. Combined with
+      # `persistence.enabled` below, this is the path on the mounted PVC
+      # so the DB survives pod restarts. Ignored when database.type is
+      # postgresql or mysql.
+      path: "/app/data/restai.db"
     poolSize: 100
     maxOverflow: 300
     poolRecycle: 300
 
-  # Redis (optional — enables persistent chat store)
-  redis:
-    enabled: false
-    host: ""
-    port: "6379"
-
-  # Vector store (configure the one you use)
-  vectorStore:
-    chromadb:
-      host: ""
-      port: "8000"
-    pgvector:
-      host: ""
-      port: ""
-      user: ""
-      database: "restai_vectors"
-    weaviate:
-      host: ""
-      port: "8080"
-      grpcPort: "50051"
-    pinecone:
-      index: ""
-
-  # LDAP authentication
-  ldap:
-    enabled: false
-    serverHost: ""
-    serverPort: ""
-    searchBase: ""
-    searchFilters: ""
-    attributeForMail: ""
-    attributeForUsername: ""
-    appDn: ""
-    useTls: ""
-    caCertFile: ""
-    ciphers: ""
-
-  # OAuth / SSO providers (client IDs are non-sensitive)
-  oauth:
-    google:
-      clientId: ""
-      scope: "openid email profile"
-      redirectUri: ""
-    microsoft:
-      clientId: ""
-      tenantId: ""
-      scope: "openid email profile"
-      redirectUri: ""
-    github:
-      clientId: ""
-      scope: "user:email"
-      redirectUri: ""
-    oidc:
-      clientId: ""
-      providerUrl: ""
-      redirectUri: ""
-      scopes: "openid email profile"
-      providerName: "SSO"
-      emailClaim: "email"
-    allowedDomains: "*"
-    autoCreateUser: false
-    sessionCookieSameSite: "lax"
-    sessionCookieSecure: false
-
-  # Proxy mode
-  proxy:
-    url: ""
-    teamId: ""
-
-  # Base URL for OAuth callbacks
+  # Base URL for OAuth callbacks and absolute links. Boot-only because
+  # FastAPI uses it before the DB is reachable.
   restaiUrl: ""
   defaultDevice: ""
 
-# -- Sensitive values (stored in K8s Secret)
-# IMPORTANT: For production/multi-replica deployments, you MUST set authSecret,
-# ssoSecretKey, and fernetKey to fixed values. If left empty, each pod generates
-# random values which breaks JWT validation and encryption across pods/restarts.
+# -- Sensitive values (stored in K8s Secret).
+#
+# Only boot-only secrets here for the same reason values.yaml is slim.
+# Provider API keys (OpenAI/Anthropic/Google/etc.), OAuth client
+# secrets, proxy keys, Redis password, etc. live in the DB and are
+# entered via the platform Settings or the per-LLM/embedding form.
 secrets:
-  # Application secrets (MUST be set for production)
+  # IMPORTANT: For production/multi-replica deployments you MUST set
+  # authSecret + ssoSecretKey + fernetKey to fixed values. If left
+  # empty, each pod auto-generates random values which breaks JWT
+  # validation and Fernet decryption across pods/restarts.
   authSecret: ""
   ssoSecretKey: ""
   fernetKey: ""
 
-  # Admin password
+  # Admin user password (used on first install only — the row is created
+  # when the `users` table is empty; later rotations happen in the UI).
   defaultPassword: "admin"
 
-  # Database passwords
+  # Database passwords — boot-only because we connect before any GUI
+  # could possibly tell us where the DB is.
   postgresPassword: ""
   mysqlPassword: ""
 
-  # LLM API keys
-  openaiApiKey: ""
-  anthropicApiKey: ""
-  groqApiKey: ""
-  googleApiKey: ""
-  xaiApiKey: ""
-  hfToken: ""
-
-  # Vector store secrets
-  weaviateApiKey: ""
-  pineconeApiKey: ""
-
-  # LDAP
-  ldapAppPassword: ""
-
-  # OAuth client secrets
-  googleClientSecret: ""
-  microsoftClientSecret: ""
-  githubClientSecret: ""
-  oidcClientSecret: ""
-
-  # Proxy
-  proxyKey: ""
-
-  # Monitoring
+  # Sentry DSN — boot-only because sentry_sdk.init runs before the DB.
   sentryDsn: ""
 
 # -- Use an existing K8s Secret instead of chart-managed secrets.
 # When set, the chart will NOT create a Secret resource and will reference
-# this secret name in envFrom. Your secret must contain the expected env var
-# keys (e.g. RESTAI_AUTH_SECRET, POSTGRES_PASSWORD, OPENAI_API_KEY, etc.)
+# this secret name in envFrom. Your secret must contain at least
+# RESTAI_AUTH_SECRET, RESTAI_FERNET_KEY, SSO_SECRET_KEY,
+# RESTAI_DEFAULT_PASSWORD; plus POSTGRES_PASSWORD or MYSQL_PASSWORD
+# depending on database.type.
 existingSecret: ""
+
+# -- Persistent storage for SQLite.
+#
+# Only relevant when `config.database.type == "sqlite"`. When enabled,
+# the chart creates a PVC and mounts it at the directory of
+# `config.database.sqlite.path` so the DB survives pod restarts.
+# Postgres/MySQL deployments don't need this.
+persistence:
+  enabled: false
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  # Use an existing PVC instead of creating one. When set, chart does
+  # not create a PVC and just mounts the named claim.
+  existingClaim: ""
 
 # -- Service
 service:
@@ -234,7 +178,7 @@ startupProbe:
   initialDelaySeconds: 10
   periodSeconds: 10
   timeoutSeconds: 5
-  # 30 * 10s = 5 min startup window (Brain init can be slow)
+  # 30 * 10s = 5 min startup window (Brain init + migrations can be slow)
   failureThreshold: 30
 
 nodeSelector: {}
@@ -246,4 +190,6 @@ podSecurityContext:
 
 securityContext:
   runAsNonRoot: true
+  # Matches the Dockerfile's `useradd --uid 1000 user`. Don't change
+  # without rebuilding the image — uid 1000 owns /app and the venv.
   runAsUser: 1000

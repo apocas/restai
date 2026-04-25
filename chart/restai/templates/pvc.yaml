@@ -1,0 +1,23 @@
+{{/*
+PVC for the SQLite database file. Only rendered when the operator
+explicitly opts into persistence on a sqlite deployment AND isn't
+bringing their own claim. Postgres/MySQL deployments don't need this —
+their data lives outside the pod.
+*/}}
+{{- if and (eq .Values.config.database.type "sqlite") .Values.persistence.enabled (not .Values.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "restai.fullname" . }}-sqlite
+  labels:
+    {{- include "restai.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.persistence.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size | quote }}
+  {{- if .Values.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass | quote }}
+  {{- end }}
+{{- end }}
