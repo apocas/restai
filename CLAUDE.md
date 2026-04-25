@@ -75,6 +75,14 @@ SQLite by default (`restai.db`), PostgreSQL via `POSTGRES_HOST`, MySQL via `MYSQ
 
 **Init flow** (`database.py`): creates tables → admin user (password from `RESTAI_DEFAULT_PASSWORD`) → default LLMs/embeddings from `restai/tools.py`.
 
+**Migration portability — REQUIRED.** Every Alembic migration MUST run cleanly on **SQLite, MySQL, and PostgreSQL**. SQLite is permissive enough that backend-specific bugs only surface in production on MySQL/Postgres, where they tend to leave the schema permanently inconsistent. Hard rules:
+
+- **No `server_default` on `sa.Text()` / TEXT / BLOB columns.** MySQL pre-8.0.13 rejects them (`ER_BLOB_CANT_HAVE_DEFAULT`). Set the default in application code on insert, or leave the column nullable. `server_default='0'` on integers is fine on all three backends.
+- **Backtick-quote MySQL reserved words in raw SQL.** Most common landmine: `key` (also `order`, `group`, `rank`, `limit`, `read`). Use ``DELETE FROM settings WHERE `key` = '...'``, not the bare form. Prefer parameter-bound `op.execute(sa.text(...))` over string interpolation.
+- **Never wrap `op.create_table` (or any structural op) in a broad try/except that swallows the error.** That pattern caused migrations 035/036/038/039 to silently advance `alembic_version` past their failures on MySQL, leaving four tables missing at version 046. If you genuinely need idempotency (e.g. heal-forward), use `sa.inspect(op.get_bind()).has_table('foo')` to gate creation — see `migrations/versions/047_heal_silent_migration_failures.py` for the canonical pattern.
+- **Avoid SQLite-only DDL.** SQLite tolerates `ALTER TABLE ... ADD COLUMN` with almost any clause but rejects `DROP COLUMN`/`ALTER COLUMN` outright on older versions; if you need either, use `op.batch_alter_table` so SQLite gets a copy-rebuild while MySQL/Postgres get the native ALTER.
+- **Test on at least two backends before merging.** SQLite + one of MySQL/Postgres is the floor. A passing test on SQLite alone is not evidence of portability.
+
 ### Auth (`restai/auth.py`)
 
 Three methods checked in order: JWT cookie (`restai_token`), Bearer API key, Basic auth. OAuth (Google, Microsoft, GitHub, OIDC) configured via env vars in `restai/config.py`. Key dependency functions: `get_current_username`, `get_current_username_admin`, `get_current_username_project`.

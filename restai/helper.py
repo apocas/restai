@@ -246,54 +246,96 @@ async def create_streaming_response_with_logging(
 
     async def stream_with_logging():
         final_output = None
+        completed = False
 
         try:
-            async for chunk in generator:
-                if isinstance(chunk, dict):
-                    # Safety: if the generator yields a dict (e.g. error fallback),
-                    # wrap it as an SSE data line instead of yielding raw.
-                    final_output = chunk
-                    yield "data: " + json.dumps(chunk) + "\n"
-                    continue
-                if isinstance(chunk, str) and chunk.startswith("data: "):
-                    try:
-                        data = json.loads(chunk.replace("data: ", ""))
-                        if "answer" in data and "type" in data:
-                            final_output = data
-                    except:
-                        pass
-                yield chunk
-        except Exception as e:
-            # Error mid-stream: record it, send a final SSE dict the
-            # frontend can render, and stop iterating.
-            logging.exception("Streaming inference failed: %s", e)
-            err_output = {
-                "question": question or "",
-                "answer": f"Internal error: {e}",
-                "tokens": {"input": 0, "output": 0},
-                "type": project.props.type,
-                "status": "error",
-                "error": str(e),
-                "image": image,
-                "attachments": attachments or [],
-            }
-            final_output = err_output
-            yield "data: " + json.dumps({"text": err_output["answer"]}) + "\n\n"
-            yield "data: " + json.dumps(err_output) + "\n"
+            try:
+                async for chunk in generator:
+                    if isinstance(chunk, dict):
+                        # Safety: if the generator yields a dict (e.g. error fallback),
+                        # wrap it as an SSE data line instead of yielding raw.
+                        final_output = chunk
+                        yield "data: " + json.dumps(chunk) + "\n"
+                        continue
+                    if isinstance(chunk, str) and chunk.startswith("data: "):
+                        try:
+                            data = json.loads(chunk.replace("data: ", ""))
+                            if "answer" in data and "type" in data:
+                                final_output = data
+                        except:
+                            pass
+                    yield chunk
+                completed = True
+            except Exception as e:
+                # Error mid-stream: record it, send a final SSE dict the
+                # frontend can render, and stop iterating.
+                logging.exception("Streaming inference failed: %s", e)
+                err_output = {
+                    "question": question or "",
+                    "answer": f"Internal error: {e}",
+                    "tokens": {"input": 0, "output": 0},
+                    "type": project.props.type,
+                    "status": "error",
+                    "error": str(e),
+                    "image": image,
+                    "attachments": attachments or [],
+                }
+                final_output = err_output
+                # The yields below can themselves fail with ClientDisconnect /
+                # CancelledError if the client already left — swallow so the
+                # finally block below still runs the log write.
+                try:
+                    yield "data: " + json.dumps({"text": err_output["answer"]}) + "\n\n"
+                    yield "data: " + json.dumps(err_output) + "\n"
+                except Exception:
+                    pass
 
-        # Ensure the stream always ends with event: close so the frontend
-        # stops waiting (critical for block projects which yield a single dict)
-        yield "event: close\n\n"
-
-        if final_output:
-            # Guarantee image + attachments make it into the log even when
-            # the inner generator didn't copy them into the output dict.
-            if image and not final_output.get("image"):
-                final_output["image"] = image
-            if attachments and not final_output.get("attachments"):
-                final_output["attachments"] = attachments
-            latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-            background_tasks.add_task(log_inference, project, user, final_output, db, latency_ms=latency_ms, system_prompt=system_prompt, context=context)
+            # Best-effort close marker. Wrapped because yielding from a
+            # generator the runtime is trying to cancel can re-raise — and
+            # we don't want that to skip the finally block that does the
+            # actual log write.
+            try:
+                yield "event: close\n\n"
+            except Exception:
+                pass
+        finally:
+            # Run log_inference SYNCHRONOUSLY here instead of via
+            # background_tasks.add_task. BackgroundTasks only fire after the
+            # response body finishes sending, so a client that disconnects
+            # mid-stream (CancelledError / GeneratorExit propagates into
+            # this generator) skips them entirely — losing the audit row,
+            # the cost attribution, and the per-API-key quota counter.
+            # The finally block runs regardless of how the generator exited
+            # (success, mid-stream error, client cancel, server cancel),
+            # so logging is guaranteed for any inference that actually
+            # consumed model tokens.
+            try:
+                if final_output:
+                    if image and not final_output.get("image"):
+                        final_output["image"] = image
+                    if attachments and not final_output.get("attachments"):
+                        final_output["attachments"] = attachments
+                    latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
+                    log_inference(
+                        project, user, final_output, db,
+                        latency_ms=latency_ms, system_prompt=system_prompt, context=context,
+                    )
+                elif not completed:
+                    # Client disconnected before the model finished — record
+                    # a stub so the call still appears in the inference log
+                    # (tokens are not known here; kept zero on purpose so we
+                    # don't double-count cost vs whatever the model actually
+                    # consumed before being cut off).
+                    _log_inference_error(
+                        project, user, db,
+                        question=question, image=image, attachments=attachments,
+                        status="disconnected",
+                        error="Client disconnected before stream completed",
+                        system_prompt=system_prompt, context=context,
+                        start_time=start_time,
+                    )
+            except Exception:
+                logging.exception("log_inference failed in stream_with_logging finally")
 
     return StreamingResponse(
         stream_with_logging(),
@@ -408,7 +450,15 @@ async def chat_main(
                     line["image"] = _image
                 if _attachments and not line.get("attachments"):
                     line["attachments"] = _attachments
-                background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms, system_prompt=_sys, context=_ctx)
+                # Log synchronously, NOT via background_tasks.add_task —
+                # those only fire after the response body has been
+                # successfully written, so a client disconnect between
+                # `return line` and serialization would skip them and
+                # silently lose audit / cost / quota counting.
+                log_inference(
+                    project, user, line, db,
+                    latency_ms=latency_ms, system_prompt=_sys, context=_ctx,
+                )
                 return line
             return None
     except HTTPException as e:
@@ -496,7 +546,12 @@ async def question_main(
             cached["image"] = _image
         if _attachments and not cached.get("attachments"):
             cached["attachments"] = _attachments
-        background_tasks.add_task(log_inference, project, user, cached, db, latency_ms=latency_ms, system_prompt=_sys, context=_ctx)
+        # Sync log — see note in chat_main: BackgroundTasks fire only
+        # after the body is sent, so client disconnect would lose this.
+        log_inference(
+            project, user, cached, db,
+            latency_ms=latency_ms, system_prompt=_sys, context=_ctx,
+        )
         return cached
 
     result = None
@@ -584,7 +639,12 @@ async def question_rag(
                     line["image"] = _image
                 if _attachments and not line.get("attachments"):
                     line["attachments"] = _attachments
-                background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms, system_prompt=system_prompt, context=context)
+                # Sync log — see chat_main note. BackgroundTasks would lose
+                # this row on client disconnect.
+                log_inference(
+                    project, user, line, db,
+                    latency_ms=latency_ms, system_prompt=system_prompt, context=context,
+                )
                 return line
     except HTTPException as e:
         _log_inference_error(
@@ -678,7 +738,12 @@ async def question_agent(
                     line["image"] = _image
                 if _attachments and not line.get("attachments"):
                     line["attachments"] = _attachments
-                background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms, system_prompt=system_prompt, context=context)
+                # Sync log — see chat_main note. BackgroundTasks would lose
+                # this row on client disconnect.
+                log_inference(
+                    project, user, line, db,
+                    latency_ms=latency_ms, system_prompt=system_prompt, context=context,
+                )
                 return line
 
     except HTTPException as e:
@@ -735,7 +800,12 @@ async def question_block(
                 line["image"] = _image
             if _attachments and not line.get("attachments"):
                 line["attachments"] = _attachments
-            background_tasks.add_task(log_inference, project, user, line, db, latency_ms=latency_ms, system_prompt=system_prompt, context=context)
+            # Sync log — see chat_main note. BackgroundTasks would lose
+            # this row on client disconnect.
+            log_inference(
+                project, user, line, db,
+                latency_ms=latency_ms, system_prompt=system_prompt, context=context,
+            )
             return line
 
     except HTTPException as e:
