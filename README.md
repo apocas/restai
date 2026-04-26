@@ -531,12 +531,10 @@ Default credentials: `admin` / `admin` (configurable via `RESTAI_DEFAULT_PASSWOR
 **Prebuilt image** (recommended — no build, no toolchain):
 
 ```bash
-docker run -d --name restai -p 9000:9000 \
-  -v restai-data:/app/data \
-  apocas/restai:latest
+docker run -d --name restai -p 9000:9000 apocas/restai:latest
 ```
 
-Pass an env file to inject configuration (API keys, DB host, etc.):
+Pass an env file to inject configuration (API keys, DB host, etc.) and a volume to persist the SQLite DB / uploads across restarts:
 
 ```bash
 docker run -d --name restai -p 9000:9000 --env-file .env \
