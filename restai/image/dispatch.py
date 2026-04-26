@@ -28,6 +28,19 @@ class GeneratorDisabledError(Exception):
     """Raised when a matching generator exists but `enabled=False`."""
 
 
+class ImageProviderError(Exception):
+    """Raised when a provider's upstream API returns a non-2xx response.
+
+    Carries the upstream HTTP status so the router can forward it to the
+    caller cleanly (e.g. 403 from OpenAI for an unverified org becomes a
+    403 from us, not a generic 500 + traceback)."""
+
+    def __init__(self, status_code: int, message: str):
+        super().__init__(message)
+        self.status_code = status_code
+        self.message = message
+
+
 def _load_options(row: ImageGeneratorDatabase) -> dict:
     """Parse + decrypt the row's options blob. Safe to call repeatedly."""
     from restai.utils.crypto import decrypt_sensitive_options, LLM_SENSITIVE_KEYS

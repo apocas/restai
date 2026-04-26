@@ -51,7 +51,7 @@ export default function ProjectIDEView() {
   }, [id]);
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - " + t("projects.knowledge.ide.title") + " - " + id;
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - " + t("projects.edit.knowledge.ide.title") + " - " + id;
     fetchProjects();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -73,7 +73,7 @@ export default function ProjectIDEView() {
     };
     api.patch("/projects/" + project.id, opts, auth.user.token)
       .then(() => {
-        toast.success(t("projects.knowledge.ide.workspaceSaved"));
+        toast.success(t("projects.edit.knowledge.ide.workspaceSaved"));
         fetchProject(id);
       })
       .catch(() => {});
@@ -87,7 +87,7 @@ export default function ProjectIDEView() {
         if (loadWorkspaceRef.current) {
           loadWorkspaceRef.current(data.workspace);
         }
-        toast.success(t("projects.knowledge.ide.workspaceGenerated"));
+        toast.success(t("projects.edit.knowledge.ide.workspaceGenerated"));
         setAiOpen(false);
         setAiPrompt("");
       })
@@ -102,16 +102,16 @@ export default function ProjectIDEView() {
           routeSegments={[
             { name: t("nav.projects"), path: "/projects" },
             { name: id, path: "/project/" + id },
-            { name: t("projects.knowledge.ide.title") },
+            { name: t("projects.edit.knowledge.ide.title") },
           ]}
         />
       </Box>
 
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2, gap: 2, flexWrap: "wrap" }}>
         <Box>
-          <Typography variant="h5" fontWeight={700}>{t("projects.knowledge.ide.title")}</Typography>
+          <Typography variant="h5" fontWeight={700}>{t("projects.edit.knowledge.ide.title")}</Typography>
           <Typography variant="body2" color="text.secondary">
-            {systemLlmConfigured ? t("projects.knowledge.ide.subtitleWithAi") : t("projects.knowledge.ide.subtitle")}
+            {systemLlmConfigured ? t("projects.edit.knowledge.ide.subtitleWithAi") : t("projects.edit.knowledge.ide.subtitle")}
           </Typography>
         </Box>
         {systemLlmConfigured && (
@@ -120,7 +120,7 @@ export default function ProjectIDEView() {
             startIcon={<AutoAwesome />}
             onClick={() => setAiOpen(true)}
           >
-            {t("projects.knowledge.ide.generateAi")}
+            {t("projects.edit.knowledge.ide.generateAi")}
           </Button>
         )}
       </Box>
@@ -139,23 +139,23 @@ export default function ProjectIDEView() {
       </Grid>
 
       <Dialog open={aiOpen} onClose={() => !aiLoading && setAiOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{t("projects.knowledge.ide.dialogTitle")}</DialogTitle>
+        <DialogTitle>{t("projects.edit.knowledge.ide.dialogTitle")}</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {t("projects.knowledge.ide.dialogHelp")}
+            {t("projects.edit.knowledge.ide.dialogHelp")}
           </Typography>
           <TextField
             autoFocus
             fullWidth
             multiline
             minRows={4}
-            placeholder={t("projects.knowledge.ide.placeholder")}
+            placeholder={t("projects.edit.knowledge.ide.placeholder")}
             value={aiPrompt}
             onChange={(e) => setAiPrompt(e.target.value)}
             disabled={aiLoading}
           />
           <Alert severity="warning" sx={{ mt: 2 }}>
-            {t("projects.knowledge.ide.warning")}
+            {t("projects.edit.knowledge.ide.warning")}
           </Alert>
         </DialogContent>
         <DialogActions>
@@ -166,7 +166,7 @@ export default function ProjectIDEView() {
             disabled={aiLoading || !aiPrompt.trim()}
             startIcon={aiLoading ? <CircularProgress size={16} /> : <AutoAwesome />}
           >
-            {aiLoading ? t("projects.knowledge.ide.generating") : t("projects.knowledge.ide.generate")}
+            {aiLoading ? t("projects.edit.knowledge.ide.generating") : t("projects.edit.knowledge.ide.generate")}
           </Button>
         </DialogActions>
       </Dialog>

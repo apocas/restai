@@ -17,10 +17,28 @@ from __future__ import annotations
 
 import base64
 
-import requests
-from openai import OpenAI
+import logging
 
+import requests
+from openai import APIStatusError, OpenAI
+
+from restai.image.dispatch import ImageProviderError
 from restai.models.models import ImageModel
+
+logger = logging.getLogger(__name__)
+
+
+def _extract_openai_message(err: APIStatusError) -> str:
+    """OpenAI proper returns `{"error": {"message": "..."}}`; compat
+    servers often return something else. Fall back gracefully."""
+    body = getattr(err, "body", None)
+    if isinstance(body, dict):
+        inner = body.get("error")
+        if isinstance(inner, dict) and isinstance(inner.get("message"), str):
+            return inner["message"]
+        if isinstance(body.get("message"), str):
+            return body["message"]
+    return getattr(err, "message", None) or str(err) or "OpenAI image API error"
 
 
 def generate(options: dict, image_model: ImageModel) -> tuple[bytes, str]:
@@ -45,7 +63,17 @@ def generate(options: dict, image_model: ImageModel) -> tuple[bytes, str]:
     if options.get("quality"):
         call_kwargs["quality"] = options["quality"]
 
-    result = client.images.generate(**call_kwargs)
+    try:
+        result = client.images.generate(**call_kwargs)
+    except APIStatusError as e:
+        message = _extract_openai_message(e)
+        upstream = e.status_code or 502
+        # Forward 4xx (caller config / auth / quota issue), translate 5xx
+        # to 502 since the failure is upstream, not ours.
+        status = upstream if 400 <= upstream < 500 else 502
+        logger.warning("OpenAI image generation failed (%s): %s", upstream, message)
+        raise ImageProviderError(status, f"OpenAI image API: {message}") from e
+
     data = result.data[0]
 
     # gpt-image-* defaults to b64_json; dall-e-3 returns a URL. Handle both.

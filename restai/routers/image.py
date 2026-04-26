@@ -20,6 +20,7 @@ from restai.database import get_db_wrapper, DBWrapper
 from restai.direct_access import resolve_team_for_image_generator, log_direct_usage
 from restai.image.dispatch import (
     GeneratorDisabledError,
+    ImageProviderError,
     UnknownGeneratorError,
     generate_image,
     list_available_generators,
@@ -60,6 +61,8 @@ def _generate(generator: str, image_model: ImageModel, brain, db_wrapper) -> byt
         raise HTTPException(status_code=400, detail=f"Unknown image generator '{generator}'")
     except GeneratorDisabledError:
         raise HTTPException(status_code=403, detail=f"Image generator '{generator}' is disabled")
+    except ImageProviderError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
