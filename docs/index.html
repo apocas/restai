@@ -542,11 +542,9 @@ restai serve
       <div class="quickstart">
         <div style="font-weight:600;margin-bottom:.8rem;color:var(--accent3);font-size:.9rem">Docker (prebuilt image)</div>
         <pre><span class="comment"># Pull and run — multi-arch (amd64/arm64)</span>
-docker run -p 9000:9000 \
-  --env-file .env \
-  apocas/restai:latest
+docker run -p 9000:9000 apocas/restai:latest
 
-<span class="comment"># Or pin a release</span>
+<span class="comment"># Or pin a release (with env file)</span>
 docker run -p 9000:9000 \
   --env-file .env \
   apocas/restai:6.2.13

@@ -63,7 +63,7 @@ make dev  # → http://localhost:9000/admin (admin / admin)
 Pull the official prebuilt image (multi-arch — `linux/amd64` and `linux/arm64`):
 
 ```bash
-docker run -p 9000:9000 --env-file .env apocas/restai:latest
+docker run -p 9000:9000 apocas/restai:latest
 # → http://localhost:9000/admin (admin / admin)
 ```
 
@@ -531,9 +531,17 @@ Default credentials: `admin` / `admin` (configurable via `RESTAI_DEFAULT_PASSWOR
 **Prebuilt image** (recommended — no build, no toolchain):
 
 ```bash
-docker run -d --name restai -p 9000:9000 --env-file .env \
+docker run -d --name restai -p 9000:9000 \
   -v restai-data:/app/data \
   apocas/restai:latest
+```
+
+Pass an env file to inject configuration (API keys, DB host, etc.):
+
+```bash
+docker run -d --name restai -p 9000:9000 --env-file .env \
+  -v restai-data:/app/data \
+  apocas/restai:6.2.13
 ```
 
 Published on every release to both registries — pick whichever you prefer:
