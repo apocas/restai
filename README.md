@@ -60,6 +60,17 @@ make dev  # → http://localhost:9000/admin (admin / admin)
 
 ### Docker
 
+Pull the official prebuilt image (multi-arch — `linux/amd64` and `linux/arm64`):
+
+```bash
+docker run -p 9000:9000 --env-file .env apocas/restai:latest
+# → http://localhost:9000/admin (admin / admin)
+```
+
+Also published to GitHub Container Registry as `ghcr.io/apocas/restai:latest`. Pin a version with `:6.2.13` (or `:6.2`, `:6`) instead of `:latest`.
+
+Or build locally with the bundled compose stack:
+
 ```bash
 docker compose --env-file .env up --build
 ```
@@ -516,6 +527,25 @@ make start      # Production server (4 workers, port 9000)
 Default credentials: `admin` / `admin` (configurable via `RESTAI_DEFAULT_PASSWORD`).
 
 ### Docker
+
+**Prebuilt image** (recommended — no build, no toolchain):
+
+```bash
+docker run -d --name restai -p 9000:9000 --env-file .env \
+  -v restai-data:/app/data \
+  apocas/restai:latest
+```
+
+Published on every release to both registries — pick whichever you prefer:
+
+| Registry | Image |
+|----------|-------|
+| Docker Hub | `apocas/restai:latest` · `apocas/restai:6.2.13` · `apocas/restai:6.2` · `apocas/restai:6` |
+| GitHub Container Registry | `ghcr.io/apocas/restai:latest` (same tag scheme) |
+
+Built for `linux/amd64` and `linux/arm64` (Apple Silicon / Graviton). Pin a specific version in production (`:6.2.13`) rather than `:latest`. The publishing workflow lives in [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml) — releases auto-build, or trigger manually with a tag input.
+
+**Build locally with compose** (for development):
 
 ```bash
 # Edit .env with your configuration, then:

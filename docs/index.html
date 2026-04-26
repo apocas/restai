@@ -540,6 +540,21 @@ restai serve
       </div>
 
       <div class="quickstart">
+        <div style="font-weight:600;margin-bottom:.8rem;color:var(--accent3);font-size:.9rem">Docker (prebuilt image)</div>
+        <pre><span class="comment"># Pull and run — multi-arch (amd64/arm64)</span>
+docker run -p 9000:9000 \
+  --env-file .env \
+  apocas/restai:latest
+
+<span class="comment"># Or pin a release</span>
+docker run -p 9000:9000 \
+  --env-file .env \
+  apocas/restai:6.2.13
+
+<span class="comment"># Also on GHCR: ghcr.io/apocas/restai</span></pre>
+      </div>
+
+      <div class="quickstart">
         <div style="font-weight:600;margin-bottom:.8rem;color:var(--accent3);font-size:.9rem">From Source</div>
         <pre><span class="comment"># Clone and install</span>
 git clone https://github.com/apocas/restai
@@ -553,7 +568,7 @@ cd restai && make install
     <p class="reveal" style="color:var(--text2)">
       With env file: <code style="background:var(--bg2);padding:.3rem .6rem;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.85rem">restai serve -e .env -p 8080 -w 4</code>
       &nbsp;&middot;&nbsp;
-      Docker: <code style="background:var(--bg2);padding:.3rem .6rem;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.85rem">docker compose --env-file .env up --build</code>
+      Compose: <code style="background:var(--bg2);padding:.3rem .6rem;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.85rem">docker compose --env-file .env up --build</code>
     </p>
 
     <div class="reveal" style="margin-top:2rem;display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
