@@ -193,3 +193,28 @@ securityContext:
   # Matches the Dockerfile's `useradd --uid 1000 user`. Don't change
   # without rebuilding the image — uid 1000 owns /app and the venv.
   runAsUser: 1000
+
+# -- Cron runner (knowledge-base sync, project routines, memory bank
+# compression, bulk file ingest, docker/browser cleanup, cron-log writes,
+# Slack/Telegram polling, ...).
+#
+# The base image does NOT bake in cron, and the Deployment only runs the
+# web server, so without this CronJob every scheduled feature is dark.
+# Disable only if you trigger crons/runner.py from outside the cluster.
+cron:
+  enabled: true
+  schedule: "* * * * *"
+  # Drop missed schedules older than 200s — avoids a backfill storm after
+  # a maintenance window or control-plane outage.
+  startingDeadlineSeconds: 200
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  # 10-min hard ceiling per tick (matches runner.py's per-job timeout).
+  activeDeadlineSeconds: 600
+  resources: {}
+    # requests:
+    #   cpu: 100m
+    #   memory: 256Mi
+    # limits:
+    #   cpu: 500m
+    #   memory: 1Gi

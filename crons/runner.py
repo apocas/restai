@@ -84,9 +84,17 @@ def run_all():
 
         logger.info("Starting cron: %s", name)
 
+        # PYTHONPATH=ROOT so child can `import restai.X` regardless of
+        # whether the workspace package is editably installed in the
+        # venv. `uv run` on a dev box installs it; the Dockerfile uses
+        # `--no-install-project` and doesn't, so without this the docker
+        # / helm cron paths every-job-fails with ModuleNotFoundError.
+        child_env = {**os.environ, "PYTHONPATH": ROOT + os.pathsep + os.environ.get("PYTHONPATH", "")}
+
         proc = subprocess.Popen(
             [sys.executable, script_path],
             cwd=ROOT,
+            env=child_env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,

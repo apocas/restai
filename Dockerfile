@@ -52,6 +52,12 @@ COPY --from=frontend-builder /frontend/build /app/frontend/build
 COPY --from=backend-builder --chown=user:user /app/.venv /app/.venv
 COPY --chown=user:user . /app
 
+# Pre-create the SQLite data dir owned by `user`. When compose / k8s
+# mount a named volume here, Docker initialises the empty volume from
+# the image — so it inherits 1000:1000 instead of root:root, which is
+# what the runtime user can actually write to.
+RUN mkdir -p /app/data
+
 EXPOSE 9000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \

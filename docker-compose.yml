@@ -1,9 +1,63 @@
 ---
+# Shared env for restai + cron. The cron runner connects to the same DB
+# and uses the same secrets/Fernet key, so any drift between the two
+# blocks would silently corrupt encrypted columns or seed a parallel
+# DB. Anchor it in one place.
+x-restai-env: &restai-env
+  RESTAI_PORT: ${RESTAI_PORT:-9000}
+  RESTAI_DEV: ${RESTAI_DEV:-false}
+  RESTAI_DEFAULT_PASSWORD: ${RESTAI_DEFAULT_PASSWORD:-admin}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  # LLM API keys
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+  GROQ_API_KEY: ${GROQ_API_KEY}
+  GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+  XAI_API_KEY: ${XAI_API_KEY}
+  HF_TOKEN: ${HF_TOKEN}
+  # Database (defaults to SQLite if none set)
+  POSTGRES_HOST: ${POSTGRES_HOST}
+  POSTGRES_DB: ${POSTGRES_DB:-restai}
+  POSTGRES_USER: ${POSTGRES_USER:-restai}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+  MYSQL_HOST: ${MYSQL_HOST}
+  MYSQL_DB: ${MYSQL_DB:-restai}
+  MYSQL_USER: ${MYSQL_USER:-restai}
+  MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+  # /app/data is a shared named volume mounted into both the restai
+  # and cron services (see below) — keeps the SQLite file in one place
+  # so the cron sidecar and the web server hit the same DB. Override
+  # by setting SQLITE_PATH in the host env (or use Postgres/MySQL).
+  SQLITE_PATH: ${SQLITE_PATH:-/app/data/restai.db}
+  DB_POOL_SIZE: ${DB_POOL_SIZE}
+  DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW}
+  DB_POOL_RECYCLE: ${DB_POOL_RECYCLE}
+  # Redis (optional — enables persistent chat memory)
+  REDIS_HOST: ${REDIS_HOST}
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
+  REDIS_DATABASE: ${REDIS_DATABASE}
+  # ChromaDB (optional — remote vector store)
+  CHROMADB_HOST: ${CHROMADB_HOST}
+  CHROMADB_PORT: ${CHROMADB_PORT:-8000}
+  # Security
+  RESTAI_AUTH_SECRET: ${RESTAI_AUTH_SECRET}
+  RESTAI_FERNET_KEY: ${RESTAI_FERNET_KEY}
+  SSO_SECRET_KEY: ${SSO_SECRET_KEY}
+  # Agent settings
+  AGENT_MAX_ITERATIONS: ${AGENT_MAX_ITERATIONS}
+  MCP_SERVER: ${MCP_SERVER}
+  # GPU (auto-detected, override if needed)
+  RESTAI_GPU: ${RESTAI_GPU}
+  SENTRY_DSN: ${SENTRY_DSN}
+
 services:
   restai:
     build:
       context: .
       dockerfile: Dockerfile
+    image: restai:local
     deploy:
       restart_policy:
         condition: on-failure
@@ -14,50 +68,36 @@ services:
       - ${RESTAI_PORT:-9000}:${RESTAI_PORT:-9000}
     volumes:
       - local_cache:/home/user/.cache
-    environment:
-      RESTAI_PORT: ${RESTAI_PORT:-9000}
-      RESTAI_DEV: ${RESTAI_DEV:-false}
-      RESTAI_DEFAULT_PASSWORD: ${RESTAI_DEFAULT_PASSWORD:-admin}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      # LLM API keys
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      GROQ_API_KEY: ${GROQ_API_KEY}
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
-      XAI_API_KEY: ${XAI_API_KEY}
-      HF_TOKEN: ${HF_TOKEN}
-      # Database (defaults to SQLite if none set)
-      POSTGRES_HOST: ${POSTGRES_HOST}
-      POSTGRES_DB: ${POSTGRES_DB:-restai}
-      POSTGRES_USER: ${POSTGRES_USER:-restai}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
-      MYSQL_HOST: ${MYSQL_HOST}
-      MYSQL_DB: ${MYSQL_DB:-restai}
-      MYSQL_USER: ${MYSQL_USER:-restai}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      SQLITE_PATH: ${SQLITE_PATH}
-      DB_POOL_SIZE: ${DB_POOL_SIZE}
-      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW}
-      DB_POOL_RECYCLE: ${DB_POOL_RECYCLE}
-      # Redis (optional — enables persistent chat memory)
-      REDIS_HOST: ${REDIS_HOST}
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      REDIS_DATABASE: ${REDIS_DATABASE}
-      # ChromaDB (optional — remote vector store)
-      CHROMADB_HOST: ${CHROMADB_HOST}
-      CHROMADB_PORT: ${CHROMADB_PORT:-8000}
-      # Security
-      RESTAI_AUTH_SECRET: ${RESTAI_AUTH_SECRET}
-      RESTAI_FERNET_KEY: ${RESTAI_FERNET_KEY}
-      SSO_SECRET_KEY: ${SSO_SECRET_KEY}
-      # Agent settings
-      AGENT_MAX_ITERATIONS: ${AGENT_MAX_ITERATIONS}
-      MCP_SERVER: ${MCP_SERVER}
-      # GPU (auto-detected, override if needed)
-      RESTAI_GPU: ${RESTAI_GPU}
-      SENTRY_DSN: ${SENTRY_DSN}
+      - sqlite_data:/app/data
+    environment: *restai-env
+
+  # Cron runner — knowledge-base sync, project routines, memory bank
+  # compression, bulk file ingest, docker/browser cleanup, cron-log
+  # writes, Slack/Telegram polling, ... The base image doesn't bake in
+  # cron, so without this service all of those features stay dark.
+  # Reuses the image built by `restai` (no second build).
+  cron:
+    image: restai:local
+    depends_on:
+      restai:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - local_cache:/home/user/.cache
+      - sqlite_data:/app/data
+    environment: *restai-env
+    # 60s loop instead of a real cron daemon — runner.py already
+    # parallelizes jobs, takes per-job flocks, and enforces a 10-min
+    # per-job timeout, so this is functionally equivalent to
+    # `* * * * *` from the host crontab.
+    command:
+      - sh
+      - -c
+      - >-
+        while true; do
+          .venv/bin/python crons/runner.py || true;
+          sleep 60;
+        done
 
   # Optional services — enable with: docker compose --profile redis up
   redis:
@@ -107,6 +147,7 @@ services:
 
 volumes:
   local_cache:
+  sqlite_data:
   pgdata:
   mysqldata:
   redis_data:

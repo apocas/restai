@@ -1,0 +1,83 @@
+{{- if .Values.cron.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "restai.fullname" . }}-cron
+  labels:
+    {{- include "restai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cron
+spec:
+  schedule: {{ .Values.cron.schedule | quote }}
+  # Forbid: if the previous tick is still running, skip this one rather
+  # than piling up parallel runners. crons/runner.py already takes a
+  # per-job flock so jobs can't overlap, but this avoids spawning a
+  # whole second pod that would only block on the lock.
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: {{ .Values.cron.startingDeadlineSeconds }}
+  successfulJobsHistoryLimit: {{ .Values.cron.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cron.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      # Outer ceiling — runner.py already enforces a 10-min per-job
+      # subprocess timeout; this kills the whole tick if something
+      # wedges below that layer (e.g. a deadlocked DB client).
+      activeDeadlineSeconds: {{ .Values.cron.activeDeadlineSeconds }}
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            {{- include "restai.labels" . | nindent 12 }}
+            app.kubernetes.io/component: cron
+        spec:
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "restai.serviceAccountName" . }}
+          restartPolicy: Never
+          securityContext:
+            {{- toYaml .Values.podSecurityContext | nindent 12 }}
+          containers:
+            - name: cron
+              image: {{ include "restai.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                - .venv/bin/python
+                - crons/runner.py
+              envFrom:
+                - configMapRef:
+                    name: {{ include "restai.configMapName" . }}
+                - secretRef:
+                    name: {{ include "restai.secretName" . }}
+              {{- if and (eq .Values.config.database.type "sqlite") .Values.persistence.enabled }}
+              # SQLite + cron needs the same PVC the Deployment uses,
+              # otherwise the cron writes to an empty DB. RWO PVCs require
+              # the cron pod to land on the same node as the app pod —
+              # use Postgres/MySQL for any non-toy install with crons.
+              volumeMounts:
+                - name: sqlite-data
+                  mountPath: {{ dir .Values.config.database.sqlite.path | quote }}
+              {{- end }}
+              resources:
+                {{- toYaml .Values.cron.resources | nindent 16 }}
+              securityContext:
+                {{- toYaml .Values.securityContext | nindent 16 }}
+          {{- if and (eq .Values.config.database.type "sqlite") .Values.persistence.enabled }}
+          volumes:
+            - name: sqlite-data
+              persistentVolumeClaim:
+                claimName: {{ .Values.persistence.existingClaim | default (printf "%s-sqlite" (include "restai.fullname" .)) }}
+          {{- end }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
