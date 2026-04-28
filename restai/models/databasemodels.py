@@ -649,7 +649,8 @@ class RoutineExecutionLogDatabase(Base):
     status = Column(String(16), nullable=False, default="ok")  # ok / error
     result = Column(Text, nullable=True)  # truncated answer on ok, error text on error
     duration_ms = Column(Integer, nullable=True)
-    manual = Column(Boolean, nullable=False, default=False)  # true for admin-triggered retries
+    # `manual` is quoted to avoid MySQL reserved-word parsing issues.
+    manual = Column("manual", Boolean, nullable=False, default=False, quote=True)  # true for admin-triggered retries
     created_at = Column(DateTime, nullable=False, index=True)
 
     routine = relationship("ProjectRoutineDatabase")
