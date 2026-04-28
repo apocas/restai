@@ -5,7 +5,8 @@ from sqlalchemy import create_engine, select
 from restai.config import MYSQL_URL, SQLITE_PATH
 from restai.models.databasemodels import Base
 
-engine_lite = create_engine("sqlite:///" + SQLITE_PATH)
+sqlite_path = SQLITE_PATH or "./restai.db"
+engine_lite = create_engine(f"sqlite:///{sqlite_path}")
 
 engine_mysql = create_engine(MYSQL_URL)
 
@@ -28,3 +29,4 @@ with engine_lite.connect() as conn_lite:
 cfg = Config("alembic.ini")
 cfg.set_main_option("sqlalchemy.url", MYSQL_URL)
 command.stamp(cfg, "head")
+
