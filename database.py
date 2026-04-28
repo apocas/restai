@@ -6,6 +6,7 @@ import bcrypt
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 
+from restai import config
 from restai.config import (
     MYSQL_HOST,
     MYSQL_URL,
@@ -29,15 +30,19 @@ from restai.tools import DEFAULT_LLMS, DEFAULT_EMBEDDINGS
 if MYSQL_HOST:
     print("Using MySQL database")
     engine = create_engine(MYSQL_URL,
-                           pool_size=30,
-                           max_overflow=100,
-                           pool_recycle=900)
+                           pool_size=config.DB_POOL_SIZE,
+                           max_overflow=config.DB_MAX_OVERFLOW,
+                           pool_recycle=config.DB_POOL_RECYCLE,
+                           pool_pre_ping=True,
+                           pool_use_lifo=True)
 elif POSTGRES_HOST:
     print("Using PostgreSQL database")
     engine = create_engine(POSTGRES_URL,
-                           pool_size=30,
-                           max_overflow=100,
-                           pool_recycle=900)
+                           pool_size=config.DB_POOL_SIZE,
+                           max_overflow=config.DB_MAX_OVERFLOW,
+                           pool_recycle=config.DB_POOL_RECYCLE,
+                           pool_pre_ping=True,
+                           pool_use_lifo=True)
 else:
     sqlite_path = SQLITE_PATH or "./restai.db"
     print(f"Using sqlite database at {sqlite_path}")

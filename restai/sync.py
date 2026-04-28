@@ -8,7 +8,7 @@ import threading
 from collections import defaultdict
 from datetime import datetime, timezone
 
-from restai.database import get_db_wrapper
+from restai.database import get_db_wrapper, open_db_wrapper
 
 logger = logging.getLogger(__name__)
 
@@ -525,7 +525,7 @@ def run_sync_now(project_id: int, brain):
     def _run():
         from restai.models.databasemodels import ProjectDatabase
 
-        db = get_db_wrapper()
+        db = open_db_wrapper()
         try:
             project = brain.find_project(project_id, db)
             if not project or project.props.type != "rag":

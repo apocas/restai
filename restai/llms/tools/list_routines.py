@@ -14,9 +14,9 @@ def list_routines(**kwargs) -> str:
     if project_id is None:
         return "ERROR: list_routines requires a project context."
 
-    from restai.database import get_db_wrapper
+    from restai.database import open_db_wrapper
 
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         routines = db.get_project_routines(int(project_id))
     finally:

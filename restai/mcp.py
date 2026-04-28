@@ -7,7 +7,7 @@ from typing import Optional
 from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_request
 
-from restai.database import get_db_wrapper
+from restai.database import get_db_wrapper, open_db_wrapper
 from restai.models.models import QuestionModel, User
 from restai.models.databasemodels import ProjectDatabase
 
@@ -32,7 +32,7 @@ def _authenticate():
         raise PermissionError("Missing or invalid Authorization header. Use: Bearer <api_key>")
 
     token = auth_header[7:]  # Strip "Bearer "
-    db_wrapper = get_db_wrapper()
+    db_wrapper = open_db_wrapper()
     user_db, api_key_row = db_wrapper.get_user_by_apikey(token)
     if user_db is None:
         db_wrapper.db.close()

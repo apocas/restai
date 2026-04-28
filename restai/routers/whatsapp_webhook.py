@@ -27,7 +27,7 @@ from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, HTTPException, Query
 
 from restai.auth import get_current_username_project
-from restai.database import DBWrapper, get_db_wrapper
+from restai.database import DBWrapper, get_db_wrapper, open_db_wrapper
 from restai.models.databasemodels import ProjectDatabase
 from restai.models.models import ChatModel, User
 from restai.utils.crypto import decrypt_field
@@ -94,7 +94,7 @@ async def verify_webhook(
     if hub_mode != "subscribe" or not hub_challenge or not hub_verify_token:
         raise HTTPException(status_code=400, detail="missing required hub.* params")
 
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         proj = _find_project_by_verify_token(db, hub_verify_token)
         if proj is None:
@@ -123,7 +123,7 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
     if payload.get("object") != "whatsapp_business_account":
         return {"status": "ignored", "reason": "unexpected object"}
 
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         for entry in payload.get("entry", []) or []:
             for change in entry.get("changes", []) or []:
@@ -241,7 +241,7 @@ async def _run_agent(project_id: int, text: str, from_phone: str) -> Optional[st
     from fastapi import BackgroundTasks as _BG
 
     brain = Brain(lightweight=True)
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         project = brain.find_project(project_id, db)
         if project is None:
