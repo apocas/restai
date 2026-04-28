@@ -34,8 +34,8 @@ def _browser_ctx(kwargs: dict):
             "in Settings → Agentic Browser."
         )
 
-    from restai.database import get_db_wrapper
-    db = get_db_wrapper()
+    from restai.database import open_db_wrapper
+    db = open_db_wrapper()
     try:
         project = db.get_project_by_id(int(project_id))
     except Exception:

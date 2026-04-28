@@ -50,6 +50,8 @@ if MYSQL_HOST:
         pool_size=config.DB_POOL_SIZE,
         max_overflow=config.DB_MAX_OVERFLOW,
         pool_recycle=config.DB_POOL_RECYCLE,
+        pool_pre_ping=True,
+        pool_use_lifo=True,
     )
 elif POSTGRES_HOST:
     _db_logger.info("Using PostgreSQL database.")
@@ -58,6 +60,8 @@ elif POSTGRES_HOST:
         pool_size=config.DB_POOL_SIZE,
         max_overflow=config.DB_MAX_OVERFLOW,
         pool_recycle=config.DB_POOL_RECYCLE,
+        pool_pre_ping=True,
+        pool_use_lifo=True,
     )
 else:
     # SQLITE_PATH (env var, also exposed as config.SQLITE_PATH) lets K8s
@@ -87,6 +91,9 @@ class DBWrapper:
 
     def __init__(self):
         self.db: Session = SessionLocal()
+
+    def close(self):
+        self.db.close()
 
     def create_user(
         self,
@@ -1472,9 +1479,13 @@ class DBWrapper:
         return query.offset(start).limit(end - start).all()
 
 
+def open_db_wrapper() -> DBWrapper:
+    return DBWrapper()
+
+
 def get_db_wrapper() -> DBWrapper:
     wrapper: DBWrapper = DBWrapper()
     try:
-        return wrapper
+        yield wrapper
     finally:
-        wrapper.db.close()
+        wrapper.close()

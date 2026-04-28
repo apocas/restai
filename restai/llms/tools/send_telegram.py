@@ -18,11 +18,11 @@ def send_telegram(text: str, **kwargs) -> str:
     if not brain or project_id is None:
         return "ERROR: send_telegram requires a project context — it can only be used by an agent project."
 
-    from restai.database import get_db_wrapper
+    from restai.database import open_db_wrapper
     from restai.utils.crypto import decrypt_field
     from restai.telegram import send_message
 
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         proj = db.get_project_by_id(int(project_id))
         if proj is None:

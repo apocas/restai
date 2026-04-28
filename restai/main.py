@@ -14,7 +14,7 @@ from fastmcp import FastMCP
 from restai import config
 import sentry_sdk
 from contextlib import asynccontextmanager
-from restai.database import get_db_wrapper
+from restai.database import get_db_wrapper, open_db_wrapper
 from restai.oauth import OAuthManager
 from starlette.middleware.sessions import SessionMiddleware
 from restai.config import (
@@ -100,7 +100,7 @@ async def lifespan(fs_app: FastAPI):
     RetrievalEventDatabase.__table__.create(db_engine, checkfirst=True)
     AuditLogDatabase.__table__.create(db_engine, checkfirst=True)
     TeamInvitationDatabase.__table__.create(db_engine, checkfirst=True)
-    settings_db_wrapper = get_db_wrapper()
+    settings_db_wrapper = open_db_wrapper()
     seed_defaults(settings_db_wrapper)
 
     fs_app.state.brain = Brain()
@@ -128,7 +128,7 @@ async def lifespan(fs_app: FastAPI):
 
     from restai.oauth import OAuthManager
     config.load_oauth_providers()
-    fs_app.state.oauth_manager = OAuthManager(fs_app, db_wrapper=get_db_wrapper())
+    fs_app.state.oauth_manager = OAuthManager(fs_app, db_wrapper=open_db_wrapper())
 
     # Run data retention cleanup on startup
     from restai.retention import run_retention_cleanup
@@ -240,7 +240,7 @@ async def lifespan(fs_app: FastAPI):
         health = {"status": "ok"}
         try:
             from sqlalchemy import text
-            db_check = get_db_wrapper()
+            db_check = open_db_wrapper()
             db_check.db.execute(text("SELECT 1"))
             db_check.db.close()
             health["database"] = "ok"

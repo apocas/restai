@@ -155,10 +155,10 @@ def emit_event_for_project_id(project_id: int, event_type: str, data: Any) -> bo
     don't already hold a project handle. Returns True/False like
     ``emit_event``."""
     try:
-        from restai.database import get_db_wrapper
+        from restai.database import open_db_wrapper
     except Exception:
         return False
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         proj = db.get_project_by_id(int(project_id))
         if proj is None:

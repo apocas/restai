@@ -16,7 +16,8 @@ depends_on = None
 
 
 def upgrade():
-    try:
+    bind = op.get_bind()
+    if not sa.inspect(bind).has_table('routine_execution_log'):
         op.create_table(
             'routine_execution_log',
             sa.Column('id', sa.Integer(), primary_key=True, index=True),
@@ -25,15 +26,12 @@ def upgrade():
             sa.Column('status', sa.String(16), nullable=False, server_default='ok'),
             sa.Column('result', sa.Text(), nullable=True),
             sa.Column('duration_ms', sa.Integer(), nullable=True),
-            sa.Column('manual', sa.Boolean(), nullable=False, server_default=sa.false()),
+            sa.Column('manual', sa.Boolean(), nullable=False, server_default=sa.false(), quote=True),
             sa.Column('created_at', sa.DateTime(), nullable=False, index=True),
         )
-    except Exception:
-        pass
 
 
 def downgrade():
-    try:
+    bind = op.get_bind()
+    if sa.inspect(bind).has_table('routine_execution_log'):
         op.drop_table('routine_execution_log')
-    except Exception:
-        pass

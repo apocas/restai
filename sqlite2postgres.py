@@ -5,7 +5,8 @@ from sqlalchemy import create_engine, select, text
 from restai.config import POSTGRES_URL, SQLITE_PATH
 from restai.models.databasemodels import Base
 
-engine_lite = create_engine("sqlite:///" + SQLITE_PATH)
+sqlite_path = SQLITE_PATH or "./restai.db"
+engine_lite = create_engine(f"sqlite:///{sqlite_path}")
 
 engine_pg = create_engine(POSTGRES_URL)
 

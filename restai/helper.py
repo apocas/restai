@@ -219,6 +219,15 @@ def _log_inference_error(
         "image": image,
         "attachments": attachments or [],
     }
+    # The session may already be in a failed state (e.g. the request blew
+    # up mid-transaction or the DB connection dropped). SQLAlchemy refuses
+    # any further work on it until rollback() is called, so do that first
+    # — without it, the log write itself raises PendingRollbackError and
+    # the original error never reaches the client cleanly.
+    try:
+        db.db.rollback()
+    except Exception:
+        pass
     try:
         log_inference(
             project, user, output, db,
@@ -228,6 +237,10 @@ def _log_inference_error(
         )
     except Exception:
         logging.exception("Failed to write error row to inference log")
+        try:
+            db.db.rollback()
+        except Exception:
+            pass
 
 
 async def create_streaming_response_with_logging(
