@@ -625,7 +625,22 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
         method: "POST",
         headers: { "Authorization": "Basic " + token, "Accept": "application/json" },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // Try to surface the FastAPI `detail` field — much friendlier than
+        // "HTTP 502" when the LLM provider hiccups or the proxy times out.
+        let detail = "";
+        try {
+          const body = await res.json();
+          detail = body?.detail || "";
+        } catch {
+          /* body wasn't JSON — fall through to status code */
+        }
+        const reason = res.status === 502 ? "AI reviewer unreachable"
+          : res.status === 504 ? "AI reviewer timed out"
+          : res.status === 429 ? "AI reviewer rate-limited"
+          : `HTTP ${res.status}`;
+        throw new Error(detail ? `${reason}: ${detail}` : reason);
+      }
       const body = await res.json();
       setValidation({ running: false, result: body });
       return body;

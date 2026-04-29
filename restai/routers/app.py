@@ -1987,8 +1987,34 @@ async def route_app_validate(
     try:
         result = llm.llm.complete(full_prompt)
     except Exception as e:
-        logger.exception("validate: LLM call failed")
-        raise HTTPException(status_code=502, detail=f"LLM call failed: {e}")
+        # Degrade gracefully: LLM hiccups (timeouts, 5xx from the provider,
+        # quota errors) shouldn't black-hole the runtime evidence we already
+        # collected. Return what we have so the wizard can still show it
+        # and the auto-fix loop can act on the runtime/test failures.
+        logger.exception("validate: LLM call failed; returning runtime evidence only")
+        clean_issues = []
+        seen: set[tuple[str, str]] = set()
+        for it in runtime_issues:
+            path = str(it.get("path", "") or "")[:200]
+            message = str(it.get("message", "") or "")[:1000]
+            if (path, message) in seen:
+                continue
+            seen.add((path, message))
+            clean_issues.append({
+                "path": path,
+                "severity": str(it.get("severity", "high") or "high").lower(),
+                "message": message,
+            })
+        return {
+            "ok": False,
+            "summary": (
+                f"AI reviewer unreachable ({type(e).__name__}). "
+                f"{len(clean_issues)} runtime issue(s) reported below — "
+                "auto-fix will still target these."
+            ),
+            "issues": clean_issues,
+            "ai_error": str(e)[:500],
+        }
 
     raw = (result.text if hasattr(result, "text") else str(result)) or ""
     raw = raw.strip()
