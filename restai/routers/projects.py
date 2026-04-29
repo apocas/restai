@@ -2723,7 +2723,7 @@ async def fire_routine(
         db_wrapper.db.add(RoutineExecutionLogDatabase(
             routine_id=routine.id, project_id=routine.project_id,
             status="ok", result=(answer[:2000] if answer else None),
-            duration_ms=None, manual=True,
+            duration_ms=None, is_manual=True,
             created_at=datetime.now(timezone.utc),
         ))
         db_wrapper.db.commit()
@@ -2762,7 +2762,7 @@ async def get_routine_history(
                 "status": r.status,
                 "result": r.result,
                 "duration_ms": r.duration_ms,
-                "manual": bool(r.manual),
+                "manual": bool(r.is_manual),
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             }
             for r in rows

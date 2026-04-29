@@ -118,7 +118,7 @@ async def _run():
                     db.db.add(RoutineExecutionLogDatabase(
                         routine_id=routine.id, project_id=routine.project_id,
                         status="ok", result=(answer[:2000] if answer else None),
-                        duration_ms=duration_ms, manual=False,
+                        duration_ms=duration_ms, is_manual=False,
                         created_at=datetime.now(timezone.utc),
                     ))
                     db.db.commit()
@@ -145,7 +145,7 @@ async def _run():
                     db.db.add(RoutineExecutionLogDatabase(
                         routine_id=routine.id, project_id=routine.project_id,
                         status="error", result=str(e)[:2000],
-                        duration_ms=duration_ms, manual=False,
+                        duration_ms=duration_ms, is_manual=False,
                         created_at=datetime.now(timezone.utc),
                     ))
                     db.db.commit()
