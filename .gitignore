@@ -190,3 +190,6 @@ stable.patch
 .cron-*.lock
 /android/.gradle
 /android/app/release
+
+apps/*
+!apps/.gitkeep

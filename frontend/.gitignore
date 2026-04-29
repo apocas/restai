@@ -12,6 +12,9 @@
 # production
 /build
 
+# Monaco editor assets (copied from node_modules by `npm run monaco:copy`)
+/public/monaco
+
 # misc
 .eslintcache
 .DS_Store

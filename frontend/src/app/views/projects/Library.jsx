@@ -3,7 +3,7 @@ import {
   Box, Button, Card, Chip, Dialog, DialogTitle, DialogContent, DialogActions,
   Divider, Grid, MenuItem, Select, styled, TextField, Typography,
 } from "@mui/material";
-import { SportsEsports, ContentCopy, Bookmark, AddCircle } from "@mui/icons-material";
+import { SportsEsports, Code, ContentCopy, Bookmark, AddCircle } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
@@ -213,14 +213,26 @@ export default function Library() {
 
                   {/* Actions */}
                   <Box sx={{ display: "flex", gap: 1, mt: "auto", pt: 1 }}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      startIcon={<SportsEsports />}
-                      onClick={() => navigate("/project/" + project.id + "/playground")}
-                    >
-                      {t("projects.actions.playground")}
-                    </Button>
+                    {project.type !== "app" && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<SportsEsports />}
+                        onClick={() => navigate("/project/" + project.id + "/playground")}
+                      >
+                        {t("projects.actions.playground")}
+                      </Button>
+                    )}
+                    {project.type === "app" && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<Code />}
+                        onClick={() => navigate("/project/" + project.id + "/builder")}
+                      >
+                        {t("projects.app.title", "App Builder")}
+                      </Button>
+                    )}
                     <Button
                       size="small"
                       variant="contained"

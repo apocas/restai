@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, HTTPException, Request, Depends, status, Response
 from fastapi import Path as PathParam
 import logging
+import re
 import sys
 
 from fastmcp import FastMCP
@@ -299,6 +300,7 @@ async def lifespan(fs_app: FastAPI):
             "auth_disable_local": _sv("auth_disable_local", "false").lower() in ("true", "1"),
             "mcp": config.RESTAI_MCP,
             "enforce_2fa": _sv("enforce_2fa", "false").lower() in ("true", "1"),
+            "app_builder": _sv("app_docker_enabled", "false").lower() in ("true", "1"),
             # Intentionally NOT exposing `auth_secret_weak` here — this
             # endpoint is unauthenticated (used by the pre-login UI to
             # show SSO providers) and the weak-secret signal is a
@@ -415,6 +417,9 @@ async def lifespan(fs_app: FastAPI):
     fs_app.include_router(webhooks_router.router, tags=["Webhooks"])
     fs_app.include_router(templates_router.router)
     fs_app.include_router(bulk_ingest_router.router)
+    from restai.routers import app as app_router, app_preview as app_preview_router
+    fs_app.include_router(app_router.router)
+    fs_app.include_router(app_preview_router.router)
     fs_app.include_router(projects.router)
     fs_app.include_router(tools.router, tags=["Tools"])
     fs_app.include_router(users.router, tags=["Users"])
@@ -454,6 +459,7 @@ async def lifespan(fs_app: FastAPI):
     # Shutdown: clean up Docker containers
     fs_app.state.brain.shutdown_docker_manager()
     fs_app.state.brain.shutdown_browser_manager()
+    fs_app.state.brain.shutdown_app_manager()
 
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -589,11 +595,25 @@ _ADMIN_SECURITY_HEADERS = {
         "default-src 'self'; "
         "img-src 'self' data: blob: https:; "
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+        # Monaco's language workers (TypeScript, JSON, CSS, HTML) are
+        # spawned from blob: URIs at runtime; without this they crash
+        # silently and the editor falls back to plain text.
+        "worker-src 'self' blob:; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' data: https://fonts.gstatic.com; "
         "connect-src 'self'; "
         "frame-ancestors 'none'"
     ),
+}
+# App Builder preview proxy — same-origin iframe embed needs softened
+# headers (otherwise frame-ancestors 'none' / X-Frame-Options: DENY block
+# the embed). The generated app's own CSP, if any, applies inside the
+# iframe; what we set here is just the outer envelope so the admin SPA
+# can host the iframe.
+_PREVIEW_PATH_RE = re.compile(r"^/projects/\d+/app/preview(?:/|$)")
+_PREVIEW_SECURITY_HEADERS = {
+    "X-Frame-Options": "SAMEORIGIN",
+    "Content-Security-Policy": "frame-ancestors 'self'",
 }
 
 
@@ -621,10 +641,18 @@ async def cors_middleware(request: Request, call_next):
         for k, v in _CORS_HEADERS.items():
             response.headers[k] = v
 
-    # Security headers — applied to all responses, with stricter rules for non-widget paths
+    # Security headers — applied to all responses, with stricter rules for non-widget paths.
     for k, v in _SECURITY_HEADERS.items():
         response.headers.setdefault(k, v)
-    if not is_widget:
+    if is_widget:
+        pass  # widget paths exempt from frame-ancestors / CSP entirely
+    elif _PREVIEW_PATH_RE.match(path):
+        # App-builder live preview iframe: same-origin embed allowed.
+        # Force-set (not setdefault) to override any header the proxy
+        # forwarded from the upstream PHP server.
+        for k, v in _PREVIEW_SECURITY_HEADERS.items():
+            response.headers[k] = v
+    else:
         for k, v in _ADMIN_SECURITY_HEADERS.items():
             response.headers.setdefault(k, v)
 

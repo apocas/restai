@@ -78,7 +78,7 @@ import calendar
 import tempfile
 import shutil
 
-_SENSITIVE_OPTION_KEYS = ("telegram_token", "slack_bot_token", "connection")
+_SENSITIVE_OPTION_KEYS = ("telegram_token", "slack_bot_token", "connection", "ftp_password")
 
 def _mask_sync_sources(options: dict):
     """Mask sensitive credentials inside sync_sources list."""
@@ -403,6 +403,20 @@ async def route_delete_project(
 
         db_wrapper.delete_project(db_wrapper.get_project_by_id(projectID))
 
+        # Wipe app-builder source tree (no-op if not an app project).
+        # IMPORTANT: stop the running preview container FIRST. The container
+        # holds /var/www open via bind mount and racing the wipe leaves an
+        # empty `public/` directory behind.
+        if proj.props.type == "app":
+            from restai.app.storage import delete_project_root
+            mgr = getattr(request.app.state.brain, "app_manager", None)
+            if mgr is not None:
+                try:
+                    mgr._remove(projectID)  # noqa: SLF001 — internal but stable
+                except Exception:
+                    logging.exception("Failed to stop app container before wipe (project=%s)", projectID)
+            delete_project_root(projectID)
+
         return {"project": projectID}
 
     except Exception as e:
@@ -566,6 +580,25 @@ async def route_create_project(
             status_code=403, detail="User does not have access to this team"
         )
 
+    # App-builder projects require a local Docker socket — bind mounts
+    # don't traverse a tcp:// daemon. Refuse fast so the user doesn't end
+    # up with a phantom project they can't preview.
+    if projectModel.type == "app":
+        docker_url = (getattr(config, "DOCKER_URL", "") or "").strip()
+        # Empty docker_url is fine — the IDE still works for editing files
+        # and downloading the zip; only the live preview will be unavailable
+        # and the IDE shows that explicitly. Reject only the genuinely
+        # unsupported case: a remote daemon that would silently break.
+        if docker_url.startswith("tcp://"):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "App Builder projects require a local Docker socket "
+                    "(unix://). Remote tcp:// daemons cannot bind-mount the "
+                    "host filesystem and the live preview would not work."
+                ),
+            )
+
     # Block projects don't require an LLM
     if projectModel.type != "block":
         # Validate LLM exists
@@ -647,6 +680,19 @@ async def route_create_project(
                     project.props.embeddings, db_wrapper
                 ),
             )
+
+        # Seed the on-disk source tree for app-builder projects so the IDE
+        # has something to edit on first load.
+        if projectModel.type == "app":
+            from restai.app.storage import seed_hello_world
+            try:
+                seed_hello_world(project_db.id, projectModel.human_name or projectModel.name)
+            except Exception:
+                # Don't roll back the project — user can re-seed by editing
+                # any file in the IDE; we'd rather have an empty tree than
+                # a phantom project.
+                logging.exception("app seed failed for project %s", project_db.id)
+
         return {"project": project.props.id}
     except Exception as e:
         if isinstance(e, HTTPException):

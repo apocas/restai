@@ -24,15 +24,18 @@ import {
 import { H4 } from "app/components/Typography";
 import api from "app/utils/api";
 import BAvatar from "boring-avatars";
+import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 
 const Form = styled("form")(() => ({ padding: "16px" }));
 
 export default function ProjectNew({ projects, info, template }) {
-  const typeList = ["agent", "rag", "block"];
+  const { platformCapabilities } = usePlatformCapabilities();
+  const typeList = ["agent", "rag", "block", ...(platformCapabilities?.app_builder ? ["app"] : [])];
   const typeDescriptions = {
     agent: "Direct LLM interaction for chat, completion, and multimodal tasks. Optionally attach built-in tools or MCP servers in the Tools tab to turn it into a tool-using agent. The most common project type.",
     rag: "Retrieval-Augmented Generation. Interact with your own knowledge base fed by uploaded documents.",
     block: "Visual logic builder. Chain multiple projects and implement custom logic using a graphical block-based IDE. No LLM required.",
+    app: "App builder. Describe an app and the LLM scaffolds a vanilla TypeScript + PHP + SQLite project, edited in an in-browser IDE with live preview. Output is fully standalone — no RESTai dependency — and deployable via FTP/SFTP or ZIP.",
   };
   var vectorstoreList = info.vectorstores || ["chroma"];
   const auth = useAuth();
@@ -142,7 +145,12 @@ export default function ProjectNew({ projects, info, template }) {
             // Template settings failed — project is created, user can fix in edit
           }
         }
-        navigate("/project/" + response.project);
+        // App-builder projects land on the builder, not the generic info page.
+        if (state.projecttype === "app") {
+          navigate("/project/" + response.project + "/builder");
+        } else {
+          navigate("/project/" + response.project);
+        }
       }).catch(() => {});
   };
 

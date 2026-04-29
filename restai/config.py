@@ -111,6 +111,14 @@ RESTAI_DEFAULT_PASSWORD = os.environ.get("RESTAI_DEFAULT_PASSWORD") or "admin"
 SQLITE_PATH = os.environ.get("SQLITE_PATH")
 
 
+# Root directory for app-builder project file trees. Each `app` project gets
+# a subdirectory `<RESTAI_APPS_PATH>/<project_id>/` bind-mounted into its
+# preview container. Defaults to `<install_root>/apps`. Set this env var
+# (and mount it on a persistent volume) when running in Docker / k8s so the
+# generated source survives pod restarts.
+RESTAI_APPS_PATH = os.environ.get("RESTAI_APPS_PATH")
+
+
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
 
@@ -326,6 +334,13 @@ _GUI_SETTING_ATTRS = {
     "BROWSER_IMAGE": ("browser_image", str, "mcr.microsoft.com/playwright/python:v1.48.0-jammy"),
     "BROWSER_NETWORK": ("browser_network", str, "bridge"),
     "BROWSER_TIMEOUT": ("browser_timeout", int, 900),
+    # App Builder runtime — per-project PHP+TS preview container. Defaults
+    # to the bundled image (`docker build -t restai/app-runtime:1
+    # docker/app-runtime`). Idle eviction is by `app_last_activity`, NOT
+    # raw container age — active edits should keep the container alive.
+    "APP_DOCKER_ENABLED": ("app_docker_enabled", bool, False),
+    "APP_DOCKER_IMAGE": ("app_docker_image", str, "restai/app-runtime:1"),
+    "APP_DOCKER_IDLE_TIMEOUT": ("app_docker_idle_timeout", int, 1800),
     "DATA_RETENTION_DAYS": ("data_retention_days", int, 0),
     "ENFORCE_2FA": ("enforce_2fa", bool, False),
 }

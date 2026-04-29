@@ -38,6 +38,7 @@ class Brain:
         self._agent2_sessions: dict[str, list[dict]] = {}
         self.docker_manager = None
         self.browser_manager = None
+        self.app_manager = None
 
         # Tools are lazy-loaded when first requested via get_tools(). The
         # full app sets them eagerly below so the first chat is fast; cron
@@ -56,6 +57,7 @@ class Brain:
             self.reinit_chat_store()
             self.init_docker_manager()
             self.init_browser_manager()
+            self.init_app_manager()
 
     def init_docker_manager(self):
         """Create or recreate the Docker manager from current config."""
@@ -122,6 +124,52 @@ class Brain:
         if self.browser_manager is not None:
             self.browser_manager.shutdown()
             self.browser_manager = None
+
+    def init_app_manager(self):
+        """Create or recreate the App-Builder runtime manager from current config.
+
+        Bind-mount-based — the host filesystem must be the same as the
+        Docker daemon's filesystem. A remote `tcp://` daemon will silently
+        bind an empty volume, so we refuse to enable the manager in that
+        case (the project create endpoint also rejects new app projects
+        with a 400 — see `restai/routers/projects.py`).
+        """
+        if self.app_manager is not None:
+            self.app_manager.shutdown()
+            self.app_manager = None
+
+        if not getattr(config, "APP_DOCKER_ENABLED", False):
+            return
+
+        docker_url = getattr(config, "DOCKER_URL", "") or ""
+        if not docker_url.strip():
+            return
+
+        # Local-socket guard. Bind mounts on a remote daemon resolve against
+        # *that* host's filesystem, not ours — the container would mount an
+        # empty path and the user would stare at a 404.
+        if docker_url.startswith("tcp://"):
+            logging.warning(
+                "App Builder requires a local Docker socket (DOCKER_URL=%s is remote); skipping AppManager init",
+                docker_url,
+            )
+            return
+
+        try:
+            from restai.app.manager import AppManager
+            self.app_manager = AppManager(
+                docker_url=docker_url,
+                image=getattr(config, "APP_DOCKER_IMAGE", "restai/app-runtime:1"),
+                idle_timeout=int(getattr(config, "APP_DOCKER_IDLE_TIMEOUT", 1800)),
+            )
+        except Exception as e:
+            logging.warning("Failed to initialize App manager: %s", e)
+            self.app_manager = None
+
+    def shutdown_app_manager(self):
+        if self.app_manager is not None:
+            self.app_manager.shutdown()
+            self.app_manager = None
 
     # ------------------------------------------------------------------
     # Tool-generated image cache (Redis when available, in-memory fallback)

@@ -128,15 +128,24 @@ export default function ProjectInfo({ project }) {
               <Edit fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title={t("projects.actions.playground")}>
-            <IconButton size="small" onClick={() => navigate("/project/" + project.id + "/playground")}>
-              <SportsEsports fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          {project.type !== "app" && (
+            <Tooltip title={t("projects.actions.playground")}>
+              <IconButton size="small" onClick={() => navigate("/project/" + project.id + "/playground")}>
+                <SportsEsports fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
           {project.type === "block" && (
             <Tooltip title="IDE">
               <IconButton size="small" onClick={() => navigate("/project/" + project.id + "/ide")}>
                 <ViewInAr fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          {project.type === "app" && (
+            <Tooltip title={t("projects.app.title", "App Builder")}>
+              <IconButton size="small" onClick={() => navigate("/project/" + project.id + "/builder")}>
+                <Code fontSize="small" />
               </IconButton>
             </Tooltip>
           )}

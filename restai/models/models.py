@@ -726,6 +726,16 @@ class ProjectOptions(BaseModel):
     twilio_auth_token: Union[str, None] = Field(default=None, description="Twilio Auth Token. Encrypted at rest.")
     twilio_from_number: Union[str, None] = Field(default=None, description="Twilio sender phone number in E.164 format (e.g. +15551234567). Must be a number you've provisioned in Twilio.")
     sms_default_to: Union[str, None] = Field(default=None, description="Default recipient phone number (E.164) for the send_sms builtin tool.")
+    # App Builder FTP/SFTP deploy. Only meaningful for `app` projects;
+    # ignored on every other type. The deploy endpoint refuses if `ftp_host`
+    # is empty. Password is encrypted at rest (PROJECT_SENSITIVE_KEYS).
+    ftp_protocol: Union[Literal["sftp", "ftp"], None] = Field(default="sftp", description="Deploy protocol for app-builder projects. SFTP is strongly preferred (FTP transmits credentials in cleartext).")
+    ftp_host: Union[str, None] = Field(default=None, description="Hostname or IP of the deploy target (no scheme, no port). Empty = deploy disabled.")
+    ftp_port: Union[int, None] = Field(default=None, ge=1, le=65535, description="Deploy port. Defaults to 22 for SFTP and 21 for FTP.")
+    ftp_user: Union[str, None] = Field(default=None, description="Deploy username.")
+    ftp_password: Union[str, None] = Field(default=None, description="Deploy password. Encrypted at rest.")
+    ftp_path: Union[str, None] = Field(default="/", description="Remote directory the app is uploaded into (must already exist on the host). Trailing slash optional.")
+    ftp_use_passive: Union[bool, None] = Field(default=True, description="FTP only: use passive (PASV) mode. Most NAT-traversed connections require this. Ignored for SFTP.")
     # Outbound event webhooks. Lets external systems (Zapier, n8n, custom CRM)
     # react to project events without scraping the audit log.
     webhook_url: Union[str, None] = Field(default=None, description="HTTPS endpoint that receives event POSTs from this project. Empty = webhooks disabled.")
@@ -774,7 +784,7 @@ class ProjectBaseModel(BaseModel):
     name: str = Field(description="URL-friendly project name (used in API paths)")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model used for this project")
     llm: Union[str, None] = Field(default=None, description="Name of the LLM used for this project")
-    type: str = Field(description="Project type: 'rag', 'agent', or 'block'")
+    type: str = Field(description="Project type: 'rag', 'agent', 'block', or 'app'")
     system: Union[str, None] = Field(default=None, description="System prompt for the LLM")
     censorship: Union[str, None] = Field(default=None, description="Censorship message returned when the guard rejects a query")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")
@@ -819,7 +829,7 @@ class ProjectModelCreate(BaseModel):
     name: str = Field(description="URL-friendly project name (must be unique)")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model (required for RAG projects)")
     llm: Union[str, None] = Field(default=None, description="Name of the LLM to use (not required for block projects)")
-    type: Literal["rag", "agent", "block"] = Field(description="Project type: 'rag', 'agent', or 'block'")
+    type: Literal["rag", "agent", "block", "app"] = Field(description="Project type: 'rag', 'agent', 'block', or 'app'")
     human_name: Union[str, None] = Field(default=None, max_length=200, description="Human-readable display name")
     human_description: Union[str, None] = Field(default=None, max_length=2000, description="Human-readable project description")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")
@@ -1465,6 +1475,10 @@ class SettingsResponse(BaseModel):
     browser_image: Optional[str] = Field(default="mcr.microsoft.com/playwright/python:v1.48.0-jammy", description="Docker image used for browser containers (pre-baked Playwright + Chromium)")
     browser_network: Optional[str] = Field(default="bridge", description="Docker network mode for browser containers (needs outbound — 'bridge' by default)")
     browser_timeout: int = Field(default=900, description="Idle timeout in seconds before a browser container is auto-removed")
+    # App Builder
+    app_docker_enabled: bool = Field(default=False, description="Whether the App Builder feature is enabled. When off, the 'app' project type is hidden from project creation and existing app projects' preview returns 503.")
+    app_docker_image: Optional[str] = Field(default="restai/app-runtime:1", description="Docker image for App Builder per-project preview containers (PHP + Node + esbuild)")
+    app_docker_idle_timeout: int = Field(default=1800, description="Idle timeout in seconds before an App Builder preview container is auto-removed")
     # Retention
     data_retention_days: int = Field(default=0, description="Auto-delete data older than this many days (0 = keep forever)")
     # 2FA
@@ -1536,6 +1550,10 @@ class SettingsUpdate(BaseModel):
     browser_image: Optional[str] = Field(default=None, description="Docker image used for browser containers")
     browser_network: Optional[str] = Field(default=None, description="Docker network mode for browser containers")
     browser_timeout: Optional[int] = Field(default=None, ge=60, description="Idle timeout in seconds before browser container removal")
+    # App Builder
+    app_docker_enabled: Optional[bool] = Field(default=None, description="Whether the App Builder feature is enabled")
+    app_docker_image: Optional[str] = Field(default=None, description="Docker image for App Builder preview containers")
+    app_docker_idle_timeout: Optional[int] = Field(default=None, ge=60, description="Idle timeout in seconds before App Builder container removal")
     # Retention
     data_retention_days: Optional[int] = Field(default=None, ge=0, description="Auto-delete data older than this many days (0 = keep forever)")
     # 2FA

@@ -86,6 +86,9 @@ export default function SettingsPage() {
     browser_image: "mcr.microsoft.com/playwright/python:v1.48.0-jammy",
     browser_network: "bridge",
     browser_timeout: 900,
+    app_docker_enabled: false,
+    app_docker_image: "restai/app-runtime:1",
+    app_docker_idle_timeout: 1800,
     system_llm: "",
     enforce_2fa: false,
   });
@@ -175,6 +178,7 @@ export default function SettingsPage() {
     body.max_audio_upload_size = parseInt(body.max_audio_upload_size, 10) || 10;
     body.data_retention_days = parseInt(body.data_retention_days, 10) || 0;
     body.docker_timeout = parseInt(body.docker_timeout, 10) || 900;
+    body.app_docker_idle_timeout = parseInt(body.app_docker_idle_timeout, 10) || 1800;
 
     api.patch("/settings", body, auth.user.token)
       .then((data) => {
@@ -460,6 +464,48 @@ export default function SettingsPage() {
                             value={form.browser_timeout ?? 900}
                             onChange={handleChange("browser_timeout")}
                             helperText={t("settings.helpers.browserTimeout")}
+                          />
+                        </Grid>
+                      </>
+                    )}
+                  </Grid>
+                </Card>
+              </Grid>
+
+              {/* App Builder — per-project PHP+TS+SQLite preview container */}
+              <Grid item xs={12}>
+                <Card elevation={1} sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.appBuilder")}</Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={<Switch checked={!!form.app_docker_enabled} onChange={handleChange("app_docker_enabled")} />}
+                        label={t("settings.fields.enableAppBuilder")}
+                      />
+                      <FormHelperText sx={{ mt: -0.5, ml: 4 }}>
+                        {t("settings.helpers.appBuilder")}
+                      </FormHelperText>
+                    </Grid>
+                    {form.app_docker_enabled && (
+                      <>
+                        <Grid item xs={12} md={8}>
+                          <TextField
+                            fullWidth
+                            label={t("settings.fields.appBuilderImage")}
+                            value={form.app_docker_image ?? "restai/app-runtime:1"}
+                            onChange={handleChange("app_docker_image")}
+                            helperText={t("settings.helpers.appBuilderImage")}
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                          <TextField
+                            fullWidth
+                            type="number"
+                            label={t("settings.fields.appBuilderIdleTimeout")}
+                            inputProps={{ min: 60 }}
+                            value={form.app_docker_idle_timeout ?? 1800}
+                            onChange={handleChange("app_docker_idle_timeout")}
+                            helperText={t("settings.helpers.appBuilderIdleTimeout")}
                           />
                         </Grid>
                       </>

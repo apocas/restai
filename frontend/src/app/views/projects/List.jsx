@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Box, Button, Chip, IconButton, Tooltip, Avatar, styled } from "@mui/material";
-import { Add, SportsEsports, Visibility, Assignment } from "@mui/icons-material";
+import { Add, Code, SportsEsports, Visibility, Assignment } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import sha256 from "crypto-js/sha256";
@@ -133,11 +133,20 @@ export default function Projects() {
                 <Visibility fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title={t("projects.actions.playground")}>
-              <IconButton size="small" onClick={() => navigate(`/project/${row.id}/playground`)}>
-                <SportsEsports fontSize="small" color="primary" />
-              </IconButton>
-            </Tooltip>
+            {row.type !== "app" && (
+              <Tooltip title={t("projects.actions.playground")}>
+                <IconButton size="small" onClick={() => navigate(`/project/${row.id}/playground`)}>
+                  <SportsEsports fontSize="small" color="primary" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {row.type === "app" && (
+              <Tooltip title={t("projects.app.title", "App Builder")}>
+                <IconButton size="small" onClick={() => navigate(`/project/${row.id}/builder`)}>
+                  <Code fontSize="small" color="primary" />
+                </IconButton>
+              </Tooltip>
+            )}
           </>
         )}
         emptyState={{
