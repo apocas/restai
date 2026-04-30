@@ -495,6 +495,82 @@ def _is_allowed_npm_import(spec: str) -> bool:
     return False
 
 
+def _js_string_and_comment_ranges(text: str) -> list[tuple[int, int]]:
+    """Return ``[(start, end), ...]`` byte ranges covering every JS/TS
+    string literal, template literal, line comment, and block comment.
+    Used by the static-architecture check to discriminate between a real
+    ``require('x')`` call and a docs page that contains an EXAMPLE of
+    `require('x')` inside a string / JSX text / comment.
+
+    Crude state machine — handles single/double quotes, backticks,
+    backslash escapes, ``//`` line comments, and ``/* */`` block comments.
+    Doesn't fully understand JSX text (which isn't quote-delimited), so
+    callers should also anchor patterns to JS-operator prefixes.
+    """
+    ranges: list[tuple[int, int]] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        # Line comment.
+        if ch == "/" and i + 1 < n and text[i + 1] == "/":
+            j = text.find("\n", i)
+            if j < 0:
+                j = n
+            ranges.append((i, j))
+            i = j
+            continue
+        # Block comment.
+        if ch == "/" and i + 1 < n and text[i + 1] == "*":
+            j = text.find("*/", i + 2)
+            if j < 0:
+                ranges.append((i, n))
+                break
+            ranges.append((i, j + 2))
+            i = j + 2
+            continue
+        # String / template literal.
+        if ch in ("'", '"', "`"):
+            quote = ch
+            j = i + 1
+            while j < n:
+                cj = text[j]
+                if cj == "\\" and j + 1 < n:
+                    j += 2
+                    continue
+                if cj == quote:
+                    break
+                j += 1
+            ranges.append((i, j + 1))
+            i = j + 1
+            continue
+        i += 1
+    return ranges
+
+
+def _pos_in_ranges(pos: int, ranges: list[tuple[int, int]]) -> bool:
+    """True when ``pos`` falls inside any of the half-open ranges."""
+    for start, end in ranges:
+        if start <= pos < end:
+            return True
+    return False
+
+
+# Matches an opening JSX/HTML tag like `<pre>`, `<code>`, `<Box>`, `<Box sx={...}>`.
+_JSX_OPEN_TAG_RE = re.compile(r'<[a-zA-Z][^<>]*>')
+
+
+def _is_inside_jsx_text(text: str, pos: int) -> bool:
+    """Cheap heuristic: a require/import keyword at ``pos`` is inside
+    JSX text content if there's an opening JSX tag on the same line
+    before it. Doesn't catch every case (e.g. multi-line JSX text), but
+    handles the common `<pre>const x = require('dockerode')</pre>`
+    documentation pattern that was producing false positives."""
+    line_start = text.rfind("\n", 0, pos) + 1
+    pre = text[line_start:pos]
+    return bool(_JSX_OPEN_TAG_RE.search(pre))
+
+
 def static_architecture_checks(path: str, content: str) -> list[str]:
     """Cheap pre-write checks that catch architecture violations BEFORE
     the file lands on disk. Returns a list of human-readable problems
@@ -546,10 +622,26 @@ def static_architecture_checks(path: str, content: str) -> list[str]:
     # (/opt/restai-app-deps/node_modules). Anything else is rejected so the
     # generated bundle can't pull in arbitrary deps that won't resolve at
     # build time and bloat the deployed JS.
+    #
+    # Scan a copy of the source with string + template-literal content
+    # stripped, otherwise a docs page that contains an EXAMPLE of an npm
+    # import inside a code-sample string ("const Docker = require('dockerode')")
+    # would trip the check.
     if ext in (".ts", ".tsx", ".js", ".jsx", ".mjs"):
-        for m in re.finditer(r'^\s*import\s+(?:[^"\']*?\s+from\s+)?["\']([^"\']+)["\']',
+        # Find string-literal + comment ranges so we can skip "code shown
+        # as documentation" — e.g. a docs page that shows
+        # `const docker = require('dockerode')` inside a string or JSX
+        # text shouldn't trip the npm-allowlist check.
+        skip_ranges = _js_string_and_comment_ranges(content)
+
+        for m in re.finditer(r'^\s*(import)\s+(?:[^"\']*?\s+from\s+)?["\']([^"\']+)["\']',
                              content, re.MULTILINE):
-            spec = m.group(1)
+            kw_pos = m.start(1)
+            if _pos_in_ranges(kw_pos, skip_ranges):
+                continue
+            if _is_inside_jsx_text(content, kw_pos):
+                continue
+            spec = m.group(2)
             if not _is_allowed_npm_import(spec):
                 issues.append(
                     f"Imports `{spec}` — not in the allowlist. The bundle ships "
@@ -557,8 +649,21 @@ def static_architecture_checks(path: str, content: str) -> list[str]:
                     "and Emotion (@emotion/react, @emotion/styled). Use relative "
                     "imports for project files."
                 )
-        for m in re.finditer(r'\brequire\(\s*["\']([^"\']+)["\']\s*\)', content):
-            spec = m.group(1)
+        # `require(...)` — also skip when the keyword sits inside JSX
+        # text like `<code>const docker = require('dockerode')</code>`
+        # which isn't quote-delimited but is still documentation, not a
+        # real JS call.
+        for m in re.finditer(
+            r'(?:^|[\s=,;:\[\{(!&|?])(require)\(\s*["\']([^"\']+)["\']\s*\)',
+            content,
+            re.MULTILINE,
+        ):
+            kw_pos = m.start(1)
+            if _pos_in_ranges(kw_pos, skip_ranges):
+                continue
+            if _is_inside_jsx_text(content, kw_pos):
+                continue
+            spec = m.group(2)
             if not _is_allowed_npm_import(spec):
                 issues.append(
                     f"Calls `require('{spec}')` — not in the allowlist. Same rules "
