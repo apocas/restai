@@ -1477,7 +1477,7 @@ class SettingsResponse(BaseModel):
     browser_timeout: int = Field(default=900, description="Idle timeout in seconds before a browser container is auto-removed")
     # App Builder
     app_docker_enabled: bool = Field(default=False, description="Whether the App Builder feature is enabled. When off, the 'app' project type is hidden from project creation and existing app projects' preview returns 503.")
-    app_docker_image: Optional[str] = Field(default="restai/app-runtime:1", description="Docker image for App Builder per-project preview containers (PHP + Node + esbuild)")
+    app_docker_image: Optional[str] = Field(default="restai/app-runtime:2", description="Docker image for App Builder per-project preview containers (PHP + Node + esbuild)")
     app_docker_idle_timeout: int = Field(default=1800, description="Idle timeout in seconds before an App Builder preview container is auto-removed")
     # Retention
     data_retention_days: int = Field(default=0, description="Auto-delete data older than this many days (0 = keep forever)")

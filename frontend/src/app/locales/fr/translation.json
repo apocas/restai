@@ -643,7 +643,8 @@
         "autoFixWorking": "en cours…",
         "autoFixSucceeded": "Résolu par auto-correction après {{n}} itération(s).",
         "autoFixHalted": "Auto-correction arrêtée à {{n}} itération(s).",
-        "autoFixGaveUp": "Auto-correction a tenté {{n}} itération(s) sans tout résoudre — affinez par chat ou corrigez manuellement."
+        "autoFixGaveUp": "Auto-correction a tenté {{n}} itération(s) sans tout résoudre — affinez par chat ou corrigez manuellement.",
+        "approved": "Déjà construit"
       },
       "modeCode": "Code",
       "modeDb": "Base de données",
@@ -1664,7 +1665,7 @@
       "saveSettings": "Enregistrer les paramètres",
       "saving": "Enregistrement…",
       "appBuilder": "Conteneur d'aperçu par projet avec PHP, Node, esbuild et l'IDE dans le navigateur. Réutilise le démon Docker configuré ci-dessus. Désactivé, le type de projet 'app' est masqué de la création de projets.",
-      "appBuilderImage": "Image construite avec PHP-S, Node, esbuild et un utilisateur non-root. Par défaut : restai/app-runtime:1 (construite depuis docker/app-runtime/Dockerfile).",
+      "appBuilderImage": "Image construite avec PHP-S, Node, esbuild et un utilisateur non-root. Par défaut : restai/app-runtime:2 (construite depuis docker/app-runtime/Dockerfile).",
       "appBuilderIdleTimeout": "Les conteneurs inactifs plus longtemps que cela sont supprimés par le job cron de nettoyage."
     },
     "status": {

@@ -107,7 +107,32 @@ function stripPlanFence(text) {
 const dropTestIssues = (issues) =>
   (issues || []).filter((i) => !(i?.path || "").startsWith("tests/"));
 
-function PlanCard({ plan, overwrite, onOverwriteChange, onApprove, disabled, projectId, token }) {
+// Stable fingerprint of a plan, derived from its summary + every file
+// path. Used to remember "this plan was already Approved & Built" across
+// dialog close/reopen — see `approvedPlans` in the wizard. Resilient
+// to the chat being re-hydrated (message indexes might shift).
+function planFingerprint(plan) {
+  if (!plan || typeof plan !== "object") return "";
+  const phases = Array.isArray(plan.phases) ? plan.phases : [];
+  const flatFiles = phases.flatMap((ph) =>
+    Array.isArray(ph?.files) ? ph.files.map((f) => f?.path || "") : []
+  );
+  // Legacy flat-files shape (no phases).
+  const legacy = Array.isArray(plan.files)
+    ? plan.files.map((f) => f?.path || "")
+    : [];
+  const paths = [...flatFiles, ...legacy].sort().join("|");
+  const summary = (plan.summary || "").trim();
+  // djb2 hash — short, no deps, plenty unique for our scale.
+  const s = summary + "::" + paths;
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  }
+  return `${(h >>> 0).toString(36)}-${paths.length}`;
+}
+
+function PlanCard({ plan, overwrite, onOverwriteChange, onApprove, disabled, approved, projectId, token }) {
   const { t } = useTranslation();
   const [showDiff, setShowDiff] = useState(false);
   const [diff, setDiff] = useState(null);
@@ -399,9 +424,11 @@ function PlanCard({ plan, overwrite, onOverwriteChange, onApprove, disabled, pro
             color="primary"
             startIcon={<PlayArrow />}
             onClick={onApprove}
-            disabled={disabled}
+            disabled={disabled || approved}
           >
-            {t("projects.app.gen.approve", "Approve & Build")}
+            {approved
+              ? t("projects.app.gen.approved", "Already built")
+              : t("projects.app.gen.approve", "Approve & Build")}
           </Button>
         </Box>
       </Stack>
@@ -435,6 +462,29 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
   const [streamingReply, setStreamingReply] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [overwrite, setOverwrite] = useState(true);
+  // Track which plan messages have already been Approved & Built so the
+  // button stays disabled when the user revisits the wizard with an old
+  // plan card visible. We key by a stable content fingerprint, not by
+  // message index, because chat hydrates from the server and indexes
+  // could shift if anything ever inserts a message. Persisted to
+  // localStorage per project so close+reopen of the dialog keeps the
+  // disabled state.
+  const approvedStorageKey = `restai.app.${projectId}.approvedPlans`;
+  const [approvedPlans, setApprovedPlans] = useState(() => {
+    try {
+      const raw = window.localStorage.getItem(approvedStorageKey);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch {
+      return new Set();
+    }
+  });
+  const persistApprovedPlans = useCallback((next) => {
+    try {
+      window.localStorage.setItem(approvedStorageKey, JSON.stringify([...next]));
+    } catch {
+      /* quota / disabled storage — degrade silently, in-memory still works */
+    }
+  }, [approvedStorageKey]);
   const abortRef = useRef(null);
   const scrollRef = useRef(null);
 
@@ -654,6 +704,20 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
   // ---- Approve & Build ----
   const startExecute = useCallback(async () => {
     if (!latestPlan) return;
+    // Mark this plan as consumed so re-opening the wizard with the
+    // already-built plan card visible doesn't let the user accidentally
+    // re-trigger the build. Fingerprinted by content (not message
+    // index) so it survives chat re-hydration; persisted to localStorage
+    // so it survives dialog close/reopen.
+    const fp = planFingerprint(latestPlan.plan);
+    if (fp) {
+      setApprovedPlans((prev) => {
+        const next = new Set(prev);
+        next.add(fp);
+        persistApprovedPlans(next);
+        return next;
+      });
+    }
     setStep("executing");
     // Flatten phases into a single file list for the progress sidebar.
     // Each entry carries phase metadata so the UI can group/highlight.
@@ -1034,6 +1098,11 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
       setMessages([INITIAL_GREETING(t)]);
       setInput("");
       setStreamingReply("");
+      // Wipe the approved-plans memory too — the plans those fingerprints
+      // referred to are gone now, and a future identical-shaped plan
+      // shouldn't inherit the disabled state from a deleted ancestor.
+      setApprovedPlans(new Set());
+      try { window.localStorage.removeItem(approvedStorageKey); } catch {}
       toast.success(t("projects.app.gen.resetDone", "Chat cleared"));
     } catch (e) {
       toast.error(e?.message || "reset failed");
@@ -1145,6 +1214,7 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
                             onOverwriteChange={setOverwrite}
                             onApprove={startExecute}
                             disabled={streaming || (latestPlan && latestPlan.index !== i)}
+                            approved={approvedPlans.has(planFingerprint(m.plan))}
                             projectId={projectId}
                             token={token}
                           />

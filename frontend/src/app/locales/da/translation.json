@@ -643,7 +643,8 @@
         "autoFixWorking": "arbejder…",
         "autoFixSucceeded": "Løst af auto-rettelse efter {{n}} iteration(er).",
         "autoFixHalted": "Auto-rettelse stoppet ved {{n}} iteration(er).",
-        "autoFixGaveUp": "Auto-rettelse forsøgte {{n}} iteration(er) og løste ikke alt — juster via chat eller ret manuelt."
+        "autoFixGaveUp": "Auto-rettelse forsøgte {{n}} iteration(er) og løste ikke alt — juster via chat eller ret manuelt.",
+        "approved": "Allerede bygget"
       },
       "modeCode": "Kode",
       "modeDb": "Database",
@@ -1664,7 +1665,7 @@
       "saveSettings": "Gem indstillinger",
       "saving": "Gemmer…",
       "appBuilder": "Pr.-projekt forhåndsvisningscontainer med PHP, Node, esbuild og IDE i browseren. Genbruger Docker-dæmonen konfigureret ovenfor. Når slukket skjules projekttypen 'app' fra projektoprettelse.",
-      "appBuilderImage": "Image bygget med PHP-S, Node, esbuild og en ikke-root bruger. Standard: restai/app-runtime:1 (bygget fra docker/app-runtime/Dockerfile).",
+      "appBuilderImage": "Image bygget med PHP-S, Node, esbuild og en ikke-root bruger. Standard: restai/app-runtime:2 (bygget fra docker/app-runtime/Dockerfile).",
       "appBuilderIdleTimeout": "Containere som er inaktive længere end dette fjernes af cron-oprydningsjobbet."
     },
     "status": {

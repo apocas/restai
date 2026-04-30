@@ -643,7 +643,8 @@
         "autoFixWorking": "arbeite…",
         "autoFixSucceeded": "Durch Auto-Fix nach {{n}} Iteration(en) gelöst.",
         "autoFixHalted": "Auto-Fix bei {{n}} Iteration(en) gestoppt.",
-        "autoFixGaveUp": "Auto-Fix versuchte {{n}} Iteration(en) und konnte nicht alles lösen — verfeinere via Chat oder behebe es manuell."
+        "autoFixGaveUp": "Auto-Fix versuchte {{n}} Iteration(en) und konnte nicht alles lösen — verfeinere via Chat oder behebe es manuell.",
+        "approved": "Bereits gebaut"
       },
       "modeCode": "Code",
       "modeDb": "Datenbank",
@@ -1664,7 +1665,7 @@
       "saveSettings": "Einstellungen speichern",
       "saving": "Wird gespeichert…",
       "appBuilder": "Pro-Projekt-Vorschaucontainer mit PHP, Node, esbuild und dem Browser-IDE. Verwendet den oben konfigurierten Docker-Daemon erneut. Wenn aus, wird der Projekttyp 'app' aus der Projekterstellung ausgeblendet.",
-      "appBuilderImage": "Image gebaut mit PHP-S, Node, esbuild und einem Nicht-Root-Benutzer. Standard: restai/app-runtime:1 (aus docker/app-runtime/Dockerfile gebaut).",
+      "appBuilderImage": "Image gebaut mit PHP-S, Node, esbuild und einem Nicht-Root-Benutzer. Standard: restai/app-runtime:2 (aus docker/app-runtime/Dockerfile gebaut).",
       "appBuilderIdleTimeout": "Container, die länger inaktiv sind, werden vom Cron-Cleanup-Job entfernt."
     },
     "status": {

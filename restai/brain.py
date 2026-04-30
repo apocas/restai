@@ -159,7 +159,7 @@ class Brain:
             from restai.app.manager import AppManager
             self.app_manager = AppManager(
                 docker_url=docker_url,
-                image=getattr(config, "APP_DOCKER_IMAGE", "restai/app-runtime:1"),
+                image=getattr(config, "APP_DOCKER_IMAGE", "restai/app-runtime:2"),
                 idle_timeout=int(getattr(config, "APP_DOCKER_IDLE_TIMEOUT", 1800)),
             )
         except Exception as e:

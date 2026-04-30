@@ -643,7 +643,8 @@
         "autoFixWorking": "trabajando…",
         "autoFixSucceeded": "Resuelto por auto-corrección tras {{n}} iteración(es).",
         "autoFixHalted": "Auto-corrección detenida en {{n}} iteración(es).",
-        "autoFixGaveUp": "Auto-corrección intentó {{n}} iteración(es) y no resolvió todo — refina por chat o corrige manualmente."
+        "autoFixGaveUp": "Auto-corrección intentó {{n}} iteración(es) y no resolvió todo — refina por chat o corrige manualmente.",
+        "approved": "Ya construido"
       },
       "modeCode": "Código",
       "modeDb": "Base de datos",
@@ -1664,7 +1665,7 @@
       "saveSettings": "Guardar ajustes",
       "saving": "Guardando…",
       "appBuilder": "Contenedor de vista previa por proyecto con PHP, Node, esbuild y el IDE en el navegador. Reutiliza el daemon Docker configurado arriba. Cuando se desactiva, el tipo de proyecto 'app' se oculta de la creación de proyectos.",
-      "appBuilderImage": "Imagen con PHP-S, Node, esbuild y un usuario no root. Por defecto: restai/app-runtime:1 (construida desde docker/app-runtime/Dockerfile).",
+      "appBuilderImage": "Imagen con PHP-S, Node, esbuild y un usuario no root. Por defecto: restai/app-runtime:2 (construida desde docker/app-runtime/Dockerfile).",
       "appBuilderIdleTimeout": "Los contenedores inactivos más tiempo que esto son eliminados por el cron de limpieza."
     },
     "status": {

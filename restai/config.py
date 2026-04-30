@@ -335,11 +335,11 @@ _GUI_SETTING_ATTRS = {
     "BROWSER_NETWORK": ("browser_network", str, "bridge"),
     "BROWSER_TIMEOUT": ("browser_timeout", int, 900),
     # App Builder runtime — per-project PHP+TS preview container. Defaults
-    # to the bundled image (`docker build -t restai/app-runtime:1
+    # to the bundled image (`docker build -t restai/app-runtime:2
     # docker/app-runtime`). Idle eviction is by `app_last_activity`, NOT
     # raw container age — active edits should keep the container alive.
     "APP_DOCKER_ENABLED": ("app_docker_enabled", bool, False),
-    "APP_DOCKER_IMAGE": ("app_docker_image", str, "restai/app-runtime:1"),
+    "APP_DOCKER_IMAGE": ("app_docker_image", str, "restai/app-runtime:2"),
     "APP_DOCKER_IDLE_TIMEOUT": ("app_docker_idle_timeout", int, 1800),
     "DATA_RETENTION_DAYS": ("data_retention_days", int, 0),
     "ENFORCE_2FA": ("enforce_2fa", bool, False),

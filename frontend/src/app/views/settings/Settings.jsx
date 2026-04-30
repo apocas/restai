@@ -87,7 +87,7 @@ export default function SettingsPage() {
     browser_network: "bridge",
     browser_timeout: 900,
     app_docker_enabled: false,
-    app_docker_image: "restai/app-runtime:1",
+    app_docker_image: "restai/app-runtime:2",
     app_docker_idle_timeout: 1800,
     system_llm: "",
     enforce_2fa: false,
@@ -492,7 +492,7 @@ export default function SettingsPage() {
                           <TextField
                             fullWidth
                             label={t("settings.fields.appBuilderImage")}
-                            value={form.app_docker_image ?? "restai/app-runtime:1"}
+                            value={form.app_docker_image ?? "restai/app-runtime:2"}
                             onChange={handleChange("app_docker_image")}
                             helperText={t("settings.helpers.appBuilderImage")}
                           />

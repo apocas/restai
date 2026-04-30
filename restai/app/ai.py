@@ -67,6 +67,18 @@ MAX_PLAN_TOTAL_BYTES = 200 * 1024  # estimated by counting purpose strings
 # small JSON; a single file content shouldn't exceed MAX_FILE_BYTES.
 MAX_LLM_RESPONSE_BYTES = 512 * 1024
 
+# Dynamic-context caps that bound per-LLM-call prompt size. These ride
+# every per-file generation + every chat planning turn — every byte here
+# is paid as inference latency on local LLMs. Tuned to keep the dynamic
+# slice of any single prompt under ~25 KB (~6K tokens).
+PROMPT_RELEVANT_FILES_MAX = 4         # how many sibling files to attach
+PROMPT_RELEVANT_PER_FILE_BYTES = 3000  # per-file truncation cap
+PROMPT_RELEVANT_TOTAL_BYTES = 12000    # combined budget across siblings
+PROMPT_TARGET_FILE_BYTES = 6000        # cap on the CURRENT-file block when
+                                       # the file already exists on disk
+PROMPT_SNAPSHOT_PER_FILE_BYTES = 3000  # planner snapshot per shared-infra file
+PROMPT_SNAPSHOT_TOTAL_BYTES = 9000     # planner snapshot combined budget
+
 # Editable extensions for files the generator may write. Extra-tight on
 # purpose: any binary asset must be added by the user manually.
 GENERATION_ALLOWED_EXTENSIONS = {
@@ -82,134 +94,80 @@ GENERATION_ALLOWED_EXTENSIONS = {
 # System prompts
 # ---------------------------------------------------------------------------
 
-_PLAN_SYSTEM = """You are an expert full-stack engineer planning a small
-self-contained web app. The deployed app must run on any cheap shared PHP
-host (PHP 8 + PDO SQLite, no Composer, no Node, no other dependencies).
+_PLAN_SYSTEM = """You plan small self-contained web apps that run on any
+cheap shared PHP host (PHP 8 + PDO SQLite, no Composer, no Node, no
+other deps at deploy time). Per-file generation handles syntax/style
+later — your job is structure: which files, in which phases.
 
-ARCHITECTURE — every plan you propose MUST follow this contract:
+ARCHITECTURE — every plan MUST conform:
 
-1. Backend = PHP JSON API ONLY (and ONLY if the app needs persistence).
-   - PHP is OPTIONAL. Many apps (calculators, static landing pages, games,
-     anything that fits in localStorage) need NO backend at all. If the
-     user's request doesn't clearly need server-side persistence, omit
-     the `database`, `api`, and any PHP files entirely. This is the
-     simpler, faster, more deployable choice — favour it.
-   - When you DO need a backend:
-     * All PHP files live under `public/api/`.
-     * Each PHP file:
-       - Sets `header('Content-Type: application/json; charset=utf-8');`
-       - Reads request body via `json_decode(file_get_contents('php://input'), true)`
-         for POST/PUT.
-       - Uses PDO with prepared statements (NEVER string-concat SQL).
-       - Returns a JSON object on success, or `{"error": "..."}` with the
-         right HTTP status on failure.
-       - NEVER emits HTML. NEVER contains `<?= ... ?>` HTML interpolation.
-     * A shared `public/api/_db.php` opens the SQLite database (path:
-       `__DIR__ . '/../../database.sqlite'`) and runs `CREATE TABLE IF NOT
-       EXISTS ...` on every request (idempotent schema bootstrap). All
-       other API files `require_once __DIR__ . '/_db.php';`.
-   - Optional: `public/index.php` may exist ONLY as a thin SPA fallback
-     router (5 lines max) that serves `index.html` for non-/api/ paths
-     when the host doesn't have URL rewriting. NEVER as a content page.
+1. Backend = PHP JSON API, OPTIONAL.
+   - Backendless is the preferred default (calculators, games,
+     localStorage apps). Omit `database`/`api`/PHP files entirely
+     unless server-side persistence is genuinely required.
+   - When present: all PHP under `public/api/`, JSON-only, PDO with
+     prepared statements, NEVER emit HTML or `<?= ... ?>`. Shared
+     `public/api/_db.php` does PDO bootstrap + idempotent
+     `CREATE TABLE IF NOT EXISTS` + demo seed; other API files
+     `require_once __DIR__ . '/_db.php'`. Optional `public/index.php`
+     may be a 5-line SPA-fallback router only.
 
-2. Frontend = TypeScript SPA, rendered entirely in the browser.
-   - `public/index.html` is the single SPA shell:
-     * `<head>` links `styles.css`.
-     * `<body>` has `<div id="app"></div>` and
-       `<script type="module" src="dist/app.js"></script>`.
-     * NO server-rendered content. NO PHP includes. Pure HTML.
-   - `src/app.ts` is the SPA entry: for multi-view apps, a hash router
-     (`window.location.hash`) that mounts views into `#app` based on
-     `#/products`, `#/cart`, etc. For a single-view app, just render
-     directly into `#app`.
-   - `src/api.ts` exports typed `fetch()` wrappers for each `api/*.php`
-     endpoint — but ONLY when there's a backend. Skip it for backendless apps.
-   - **All fetch URLs MUST be RELATIVE** — write `fetch('api/items.php')`
-     NOT `fetch('/api/items.php')`. The dev preview iframes the app under
-     `/projects/<id>/app/preview/`, so a leading slash escapes the mount
-     and 404s. Relative URLs work in both dev preview and any FTP deploy
-     (root or subdirectory).
-   - `src/views/<Name>.ts` exports a `render(root: HTMLElement)` function
-     for each page (multi-view apps only). Use `document.createElement` /
-     `element.append` — never `innerHTML` with user data. For user data,
-     use `textContent`.
-   - NO React, NO Vue, NO build dependencies beyond esbuild (which is
-     handled by the dev container automatically).
+2. Frontend = React 18 + MUI v5, bundled by esbuild into a single
+   `public/dist/app.js`. Required files for any non-trivial app:
+   - `public/index.html`: SPA shell with `<div id="root">` +
+     `<script type="module" src="dist/app.js">`. Pure HTML, no PHP.
+   - `public/styles.css`: body reset ONLY (margin: 0; box-sizing). MUI
+     handles component styling.
+   - `src/main.tsx`: React entry, `createRoot` + `<ThemeProvider>` +
+     `<CssBaseline />` + `<App />`.
+   - `src/App.tsx`: top-level layout (`<AppBar>` + `<Container>`) plus
+     a tiny `useHashRouter` hook that switches between view components.
+   - `src/theme.ts`: `createTheme({ palette, typography, shape })` —
+     pick a colour scheme that matches the app's domain (florist →
+     pinks/greens, finance → navy/teal, etc.). Don't ship default blue.
+   - `src/api.ts` (only if there's a backend): typed `fetch()` wrappers.
+   - `src/views/<Name>.tsx`: one default-export React component per page.
 
-3. Database = SQLite (only when needed).
-   - When used, schema lives in `public/api/_db.php` with `CREATE TABLE IF
-     NOT EXISTS` and seeds a few demo rows on first run (idempotent).
-   - All foreign keys explicit (`FOREIGN KEY ... REFERENCES ...`).
-   - For backendless apps, omit the `database` array entirely.
+3. Database = SQLite (only when needed). Schema in `_db.php`, foreign
+   keys explicit. Omit the `database` array entirely for backendless.
 
-4. Styling = plain CSS in `public/styles.css`. No framework.
+INVARIANTS the planner MUST respect:
+- **Allowed npm imports** — STRICT ALLOWLIST: `react`, `react-dom`,
+  `react-dom/client`, `@mui/material/*`, `@mui/icons-material/*`,
+  `@mui/system`, `@emotion/react`, `@emotion/styled`. No router libs,
+  no axios, no lodash, no date-fns — write inline equivalents.
+- **All fetch URLs RELATIVE**: `fetch('api/items.php')` NOT
+  `fetch('/api/items.php')` (the dev preview iframes the app under
+  `/projects/<id>/app/preview/`; a leading slash escapes the mount).
+- Function components + hooks only — NO `class` components.
 
-══════════════════════════════════════════════════════════════════════
-PHASED EXECUTION — your plan MUST split work into ordered phases.
+PHASED EXECUTION — split work into ordered phases (1-5 files each, 2-6
+phases typical, hard caps 8 files/phase and 10 phases). Each phase has
+one responsibility (don't mix backend + frontend). Earlier phases lay
+foundations later ones depend on. Per-file generation runs as a
+separate focused LLM call per file.
 
-A phase is a small group of related files (typically 1-5) that make
-sense to write together — e.g. "Foundation" for the SPA shell + entry
-point, "Backend API" for the PHP endpoints, "Frontend views" for the TS
-view modules. The execute step processes one phase at a time, with each
-file's content generated in its own focused LLM call. This dramatically
-improves quality because the LLM only thinks about a handful of related
-files at once instead of trying to emit an entire app in one shot.
+Typical phases:
+  1 "Foundation" — index.html, styles.css, main.tsx, App.tsx, theme.ts
+  2 "Database"   — public/api/_db.php (only if backend)
+  3 "Backend"    — public/api/<name>.php × N (only if backend)
+  4 "API client" — src/api.ts (only if backend)
+  5 "Views"      — src/views/<Name>.tsx × N
 
-Choose phases that:
-- Have a clear single responsibility (a phase shouldn't span both
-  backend and frontend, for example).
-- Build on each other: earlier phases lay foundations later ones depend
-  on. Foundation first, then schema, then API, then frontend.
-- Are small: 1-5 files per phase is ideal, hard cap 8.
-- Are minimal: 2-6 phases for a typical app, hard cap 10.
+TWO MODES:
 
-A typical app:
-  Phase 1 "Foundation"     — public/index.html, public/styles.css, src/app.ts
-  Phase 2 "Database"       — public/api/_db.php (schema + seed)
-  Phase 3 "Backend API"    — public/api/<name>.php × N
-  Phase 4 "Frontend client"— src/api.ts (typed fetch wrappers)
-  Phase 5 "Frontend views" — src/views/<Name>.ts × N
+MODE A — INITIAL SCAFFOLD (new app, no prior Approve & Build):
+- Emit the FULL phased plan, 3-15 files across 2-6 phases.
+- Always include the 5 Foundation files. Add backend phases only if
+  persistence is needed.
 
-A backendless app:
-  Phase 1 "Foundation"     — public/index.html, public/styles.css, src/app.ts
-  Phase 2 "Logic"          — src/<feature>.ts × few
-
-══════════════════════════════════════════════════════════════════════
-TWO MODES — pick the right one based on the conversation:
-
-MODE A — INITIAL SCAFFOLD (when the user is describing a new app, OR no
-previous Approve & Build has happened in this thread):
-- Emit the FULL phased plan. Aim for 3-15 total files across 2-6 phases.
-- Hard caps: 30 total files, 10 phases.
-- Always include `public/index.html`, `public/styles.css`, `src/app.ts`
-  (typically in a "Foundation" phase).
-- Add backend phases only if the app needs persistence.
-
-MODE B — INCREMENTAL CHANGE (when the user is asking to fix, tweak, or
-extend an already-built app — e.g. "the cart button is misaligned",
-"add a price column", "fix the typo in the header", or any auto-fix
-prompt that lists reviewer issues):
-- Emit ONE phase named "Fix" (or "Add admin page", etc.) containing
-  ONLY the files that need to change OR new files that need to be
-  CREATED. Do NOT relist files that are already correct.
-- Typically 1-5 files in the single phase.
-- Adding new files IS a valid incremental change. If a file is referenced
-  but missing (e.g. esbuild "Could not resolve" error, a TypeScript
-  import that points at a non-existent module, an HTML form posting to
-  a missing PHP endpoint), the fix is to CREATE the missing file with
-  the right contents — NOT to remove the import. The importer is almost
-  always correct; the missing dependency is what you're being asked to
-  add.
-- For PHP HTTP 500 errors, fix the syntax / logic in that PHP file. Do
-  NOT delete the file.
-- For broken SPA shells (missing #app mount or missing dist/app.js
-  script), rewrite public/index.html.
-- Still include the full `database`/`api`/`frontend` arrays for context
-  if you reference them, but they're advisory — only `phases[].files`
-  triggers writes on Approve & Build.
-- This is the DEFAULT for any chat turn after the first build. Resist
-  the urge to regenerate everything when the user asks for a small fix.
-══════════════════════════════════════════════════════════════════════
+MODE B — INCREMENTAL CHANGE (refinement, fix, or auto-fix prompt) —
+DEFAULT for any chat turn after the first build:
+- Emit ONE phase containing ONLY files that change or need to be
+  created. Don't relist correct files. Typically 1-5 files.
+- Missing-file errors mean CREATE the missing file (not remove the
+  importer). PHP 500s mean fix the file's syntax/logic. Resist
+  regenerating everything when the user asks for a small fix.
 
 OUTPUT FORMAT — your reply has TWO parts:
 
@@ -245,11 +203,13 @@ Part 2 shape — exactly this, no comments inside the JSON:
   "phases": [
     {
       "name": "Foundation",
-      "description": "SPA shell, styles, and entry point — the static frame the app mounts into.",
+      "description": "SPA shell, theme, entry point + top-level App component.",
       "files": [
-        {"path": "public/index.html", "purpose": "SPA shell with #app mount and dist/app.js script tag"},
-        {"path": "public/styles.css", "purpose": "Plain CSS for typography, layout, buttons"},
-        {"path": "src/app.ts", "purpose": "Hash router + initial mount of the Home view"}
+        {"path": "public/index.html", "purpose": "SPA shell with #root mount + dist/app.js script tag"},
+        {"path": "public/styles.css", "purpose": "Body reset only; MUI handles component styling"},
+        {"path": "src/theme.ts", "purpose": "createTheme({ palette, typography, shape }) — pick a colour scheme that matches the app's vibe"},
+        {"path": "src/main.tsx", "purpose": "ReactDOM.createRoot + ThemeProvider + CssBaseline + render <App />"},
+        {"path": "src/App.tsx", "purpose": "Top-level layout with AppBar + Container + tiny hash-router that switches the active view"}
       ]
     },
     {
@@ -268,10 +228,10 @@ Part 2 shape — exactly this, no comments inside the JSON:
     },
     {
       "name": "Frontend integration",
-      "description": "Typed fetch wrappers + the Home view that calls them and renders the grid.",
+      "description": "Typed fetch wrappers + Home view that fetches items and renders an MUI list with an add-form Card.",
       "files": [
-        {"path": "src/api.ts", "purpose": "fetchItems(), addItem(name) — typed wrappers around /api/items.php"},
-        {"path": "src/views/Home.ts", "purpose": "render(root) builds the item list + add form, calls api.ts"}
+        {"path": "src/api.ts", "purpose": "fetchItems(), addItem(name) — typed wrappers around api/items.php (RELATIVE URLs)"},
+        {"path": "src/views/Home.tsx", "purpose": "Default-export React component using <Container>, <Card>, <List>, <TextField>, <Button>; useEffect to fetch on mount"}
       ]
     }
   ]
@@ -313,14 +273,23 @@ was designed to fit it, do NOT deviate):
 
 - Backend: PHP under `public/api/`, JSON-only, parameter-bound SQL,
   schema in `public/api/_db.php`.
-- Frontend: TypeScript renders all UI via DOM APIs, hash router in
-  `src/app.ts`, typed fetch wrappers in `src/api.ts`, views in
-  `src/views/`.
-- HTML: ONLY in `public/index.html` (SPA shell, no server-rendered
-  content). Optional `public/index.php` as a 5-line SPA-fallback router
-  (allowed only at that exact path).
+- Frontend: React 18 + MUI v5 SPA. Entry `src/main.tsx` →
+  `<ThemeProvider theme={{theme}}><CssBaseline /><App /></ThemeProvider>`.
+  `src/App.tsx` is the top-level layout (AppBar + Container) plus a tiny
+  hash-router that switches between view components in `src/views/*.tsx`.
+  Typed fetch wrappers in `src/api.ts`. Theme in `src/theme.ts`.
+- npm imports — STRICT ALLOWLIST: `react`, `react-dom`, `react-dom/client`,
+  `@mui/material/...`, `@mui/icons-material/...`, `@mui/system`,
+  `@emotion/react`, `@emotion/styled`. No router libs, no axios, no lodash.
+- HTML: ONLY in `public/index.html` (SPA shell, has `<div id="root">` +
+  dist/app.js script tag). Optional `public/index.php` as a 5-line
+  SPA-fallback router. NO inline JSX in HTML.
+- Styling: MUI `sx` prop and theme tokens. `public/styles.css` holds
+  ONLY a body reset (margin: 0; min-height: 100vh; background colour).
+  All component styling lives inside React.
 - SQLite: PDO, file at the project root, schema bootstrapped on first
-  request by `public/api/_db.php`.
+  request by `public/api/_db.php`. All fetch URLs RELATIVE
+  (`fetch('api/items.php')` not `'/api/items.php'`).
 
 THE FULL PLAN (all phases):
 {plan_json}
@@ -371,15 +340,17 @@ def _role_guidance_for(path: str) -> str:
         return (
             "- Plain HTML5. <head> includes `<meta charset>`, viewport, "
             "title, and `<link rel=\"stylesheet\" href=\"styles.css\">`.\n"
-            "- <body> contains exactly one `<div id=\"app\"></div>` and "
+            "- <body> contains exactly one `<div id=\"root\"></div>` and "
             "ends with `<script type=\"module\" src=\"dist/app.js\"></script>`.\n"
             "- NO inline JS, NO PHP, NO server-rendered content."
         )
     if p == "public/styles.css":
         return (
-            "- Plain modern CSS. No preprocessor.\n"
-            "- Mobile-first; readable typography; subtle borders/spacing.\n"
-            "- No external font/image imports."
+            "- Body reset ONLY. MUI handles component styling — do NOT "
+            "duplicate it here. Typical content:\n"
+            "    `body { margin: 0; min-height: 100vh; background: #fafafa; }`\n"
+            "    `*, *::before, *::after { box-sizing: border-box; }`\n"
+            "- No font imports (MUI's Roboto fallback is fine), no preprocessor."
         )
     if p == "public/index.php":
         return (
@@ -414,42 +385,78 @@ def _role_guidance_for(path: str) -> str:
             "- On success: `echo json_encode($payload);` (numeric keys preserved as JSON arrays).\n"
             "- NEVER `echo` anything that isn't JSON."
         )
-    if p == "src/app.ts":
+    if p == "src/main.tsx":
         return (
-            "- Hash router. On `window.addEventListener('hashchange', ...)` "
-            "and `DOMContentLoaded`, read `location.hash`, dispatch to a view.\n"
-            "- Default route (`#` or empty) → first view (typically Home).\n"
-            "- Mount root: `document.getElementById('app')!`.\n"
-            "- Import each view's `render` function from `./views/<Name>`.\n"
-            "- A view's `render(root)` clears `root.innerHTML = ''` then builds DOM.\n"
-            "- NO frameworks. NO npm imports."
+            "- Entry point. Imports React, `createRoot` from 'react-dom/client', "
+            "ThemeProvider + CssBaseline from '@mui/material', `theme` from './theme', "
+            "and `App` from './App'.\n"
+            "- `const root = document.getElementById('root'); "
+            "if (!root) throw new Error('#root not found');`\n"
+            "- `createRoot(root).render(<React.StrictMode><ThemeProvider theme={theme}>"
+            "<CssBaseline /><App /></ThemeProvider></React.StrictMode>);`\n"
+            "- Keep it tiny — all logic lives in App.tsx and the views."
+        )
+    if p == "src/App.tsx":
+        return (
+            "- Top-level component (default export). Holds the route state via a "
+            "tiny inline `useHashRouter` hook (≈8 lines: `useState` of "
+            "`location.hash.slice(1) || 'home'` + `useEffect` adding "
+            "`hashchange` listener).\n"
+            "- Wrap content in `<Box sx={{ minHeight: '100vh' }}>`. Render "
+            "`<AppBar position=\"static\"><Toolbar><Typography variant=\"h6\">"
+            "{appName}</Typography>...nav links via <Button color=\"inherit\" "
+            "href=\"#shop\">Shop</Button></Toolbar></AppBar>`.\n"
+            "- Then `<Container maxWidth=\"lg\" sx={{ py: 4 }}>{viewElement}</Container>`.\n"
+            "- Switch on the route to import + render the matching view component "
+            "from `./views/<Name>`.\n"
+            "- Use named imports from `@mui/material` (Tree-shaken by esbuild)."
+        )
+    if p == "src/theme.ts":
+        return (
+            "- `import { createTheme } from '@mui/material/styles';`\n"
+            "- Export a `theme` constant with at minimum: `palette: { mode, primary, "
+            "secondary, background }`, `typography: { fontFamily, h1, h4, body1 }`, "
+            "`shape: { borderRadius }`, `components: { MuiButton: { defaultProps: "
+            "{ disableElevation: true } } }` (or similar) for opinionated defaults.\n"
+            "- Pick colours that MATCH THE APP'S DOMAIN (e.g. florist → soft pinks/"
+            "greens; finance → navy/teal; calculator → cool greys). Don't ship the "
+            "default blue."
         )
     if p == "src/api.ts":
         return (
             "- Export typed fetch wrappers for each `api/*.php` endpoint listed in the plan.\n"
             "- Define interfaces for request/response shapes.\n"
-            "- Generic helper: `async function jsonFetch<T>(url, init?): Promise<T>` "
-            "that throws if `!res.ok` (with the JSON `error` field included in the message).\n"
+            "- Generic helper: `async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T>` "
+            "that throws if `!res.ok` (include the JSON `error` field in the message).\n"
             "- All requests `Content-Type: application/json`.\n"
             "- All paths RELATIVE — write `'api/products.php'` NOT `'/api/products.php'`. "
             "The dev preview iframes the app under `/projects/<id>/app/preview/`; a "
-            "leading slash escapes the mount and 404s. Relative also keeps FTP-deploy "
-            "working under any docroot."
+            "leading slash escapes the mount and 404s."
         )
     if p.startswith("src/views/"):
         return (
-            "- Default-export NOT used. Named export: `export function render(root: HTMLElement): void`.\n"
-            "- Inside, clear `root.innerHTML = ''`, then build DOM via `document.createElement` "
-            "and `element.append(...)`.\n"
-            "- For dynamic data from the API, use `element.textContent = data.field` (NEVER innerHTML "
-            "with user data — XSS).\n"
-            "- Import the typed fetch wrappers from `../api`.\n"
-            "- For interactive bits (buttons), `element.addEventListener('click', async () => { ... })`."
+            "- DEFAULT export — a React function component. e.g. "
+            "`export default function Home() { ... }`.\n"
+            "- Use MUI primitives: `<Container>`, `<Box>`, `<Stack>`, `<Grid>`, "
+            "`<Card>`/`<CardContent>`, `<Typography>`, `<Button>`, `<TextField>`, "
+            "`<List>`/`<ListItem>`, `<CircularProgress>`, `<Alert>`. Icons from "
+            "`@mui/icons-material` (named imports).\n"
+            "- Data fetching: `const [data, setData] = useState<T|null>(null); "
+            "const [loading, setLoading] = useState(true); const [error, setError] "
+            "= useState<string|null>(null); useEffect(() => { fetchX().then(setData)"
+            ".catch(e => setError(e.message)).finally(() => setLoading(false)); }, []);`.\n"
+            "- Render `loading ? <CircularProgress /> : error ? <Alert severity=\"error\">"
+            "{error}</Alert> : <ActualContent />`.\n"
+            "- Forms: controlled `<TextField>` with `useState`, validate inline, "
+            "submit via `onSubmit` of an enclosing `<Box component=\"form\">`.\n"
+            "- Import wrappers from `../api`. NEVER reach into `document.*` directly."
         )
     if p.startswith("src/"):
         return (
-            "- TypeScript module. Default to named exports.\n"
-            "- DOM APIs only; no npm imports."
+            "- TypeScript module. Default to named exports unless it's a React "
+            "component (those are default exports).\n"
+            "- Allowlist for npm imports: react, react-dom, @mui/material/*, "
+            "@mui/icons-material/*, @emotion/react, @emotion/styled."
         )
     if p == "README.md":
         return (
@@ -463,6 +470,29 @@ def _role_guidance_for(path: str) -> str:
 # ---------------------------------------------------------------------------
 # Validators
 # ---------------------------------------------------------------------------
+
+
+# Curated allowlist of npm imports the runtime image bakes into
+# /opt/restai-app-deps/node_modules. Subpath imports (e.g.
+# `@mui/material/Button`, `react-dom/client`) match by prefix.
+_ALLOWED_NPM_IMPORTS = (
+    "react",
+    "react-dom",
+    "@mui/material",
+    "@mui/icons-material",
+    "@mui/system",
+    "@emotion/react",
+    "@emotion/styled",
+)
+
+
+def _is_allowed_npm_import(spec: str) -> bool:
+    if spec.startswith(".") or spec.startswith("/"):
+        return True
+    for pkg in _ALLOWED_NPM_IMPORTS:
+        if spec == pkg or spec.startswith(pkg + "/"):
+            return True
+    return False
 
 
 def static_architecture_checks(path: str, content: str) -> list[str]:
@@ -511,27 +541,28 @@ def static_architecture_checks(path: str, content: str) -> list[str]:
                 "in this app builder; use only stdlib PHP + PDO."
             )
 
-    # TypeScript / JavaScript files: no npm runtime imports, no React, no
-    # frameworks. Only relative imports OR built-in browser globals.
+    # TypeScript / JavaScript files: only relative imports + the curated
+    # allowlist of npm packages baked into the runtime image
+    # (/opt/restai-app-deps/node_modules). Anything else is rejected so the
+    # generated bundle can't pull in arbitrary deps that won't resolve at
+    # build time and bloat the deployed JS.
     if ext in (".ts", ".tsx", ".js", ".jsx", ".mjs"):
-        # `import ... from "react"` etc. — anything that isn't a relative
-        # path (`./...` or `../...`) is forbidden. Match the import
-        # specifier loosely.
         for m in re.finditer(r'^\s*import\s+(?:[^"\']*?\s+from\s+)?["\']([^"\']+)["\']',
                              content, re.MULTILINE):
             spec = m.group(1)
-            if not spec.startswith(".") and not spec.startswith("/"):
+            if not _is_allowed_npm_import(spec):
                 issues.append(
-                    f"Imports `{spec}` (npm-style). The bundle has no npm runtime "
-                    "dependencies — only relative imports (./ or ../) are allowed."
+                    f"Imports `{spec}` — not in the allowlist. The bundle ships "
+                    "only React 18, MUI v5 (@mui/material, @mui/icons-material), "
+                    "and Emotion (@emotion/react, @emotion/styled). Use relative "
+                    "imports for project files."
                 )
-        # `require(...)` calls — same rule via CommonJS.
         for m in re.finditer(r'\brequire\(\s*["\']([^"\']+)["\']\s*\)', content):
             spec = m.group(1)
-            if not spec.startswith(".") and not spec.startswith("/"):
+            if not _is_allowed_npm_import(spec):
                 issues.append(
-                    f"Calls `require('{spec}')` (npm-style). The bundle has no npm "
-                    "runtime dependencies — use only relative imports."
+                    f"Calls `require('{spec}')` — not in the allowlist. Same rules "
+                    "as `import`: React + MUI + Emotion + relative paths only."
                 )
 
     # HTML files: must be pure HTML — no PHP, no server-rendered content.
@@ -543,15 +574,18 @@ def static_architecture_checks(path: str, content: str) -> list[str]:
             )
         # If this is the SPA shell, sanity-check it has the mount + script.
         if p == "public/index.html":
-            if "<div" not in content or 'id="app"' not in content and "id='app'" not in content:
+            # `createRoot()` works on any element type; HTML5 also allows
+            # unquoted attribute values. Match `id="root"`, `id='root'`,
+            # or bare `id=root` on any element, case-insensitive.
+            if not re.search(r'\bid\s*=\s*["\']?root["\']?[\s/>]', content, re.IGNORECASE):
                 issues.append(
-                    "Missing `<div id=\"app\">` mount point. The TypeScript SPA "
-                    "needs this element to render into."
+                    "Missing `id=\"root\"` mount point. React's createRoot() "
+                    "needs an element with id=\"root\" (typically a `<div>`)."
                 )
             if "dist/app.js" not in content:
                 issues.append(
-                    "Missing `<script ... src=\"dist/app.js\">`. The TypeScript "
-                    "bundle won't load without it."
+                    "Missing `<script ... src=\"dist/app.js\">`. The bundled "
+                    "React + MUI app won't load without it."
                 )
 
     return issues
@@ -900,11 +934,10 @@ def _pick_relevant_files(
     """Choose which already-written files to attach to the prompt as
     full content. Heuristics, in priority order:
 
-    1. ALWAYS include shared infra files: `src/api.ts`,
-       `public/api/_db.php`, `public/index.html`. The TS file we're
-       writing almost certainly imports api.ts; PHP API files almost
-       certainly require_once _db.php; references to index.html are
-       common.
+    1. ALWAYS include shared infra files: `src/App.tsx`, `src/theme.ts`,
+       `src/api.ts`, `public/api/_db.php`, `public/index.html`. View
+       components import from App / theme / api; PHP API files
+       require_once _db.php; references to index.html are common.
     2. Include files in the same directory as the target.
     3. Fill remaining slots with most-recent (end of list) candidates.
 
@@ -919,7 +952,7 @@ def _pick_relevant_files(
         chosen.append(p)
 
     # 1) Shared infra
-    for shared in ("src/api.ts", "public/api/_db.php", "public/index.html"):
+    for shared in ("src/App.tsx", "src/theme.ts", "src/api.ts", "public/api/_db.php", "public/index.html"):
         if len(chosen) >= max_files:
             break
         _add(shared)
@@ -949,7 +982,9 @@ def _pick_relevant_files(
 _PLANNER_SHARED_INFRA = (
     "public/index.html",
     "public/styles.css",
-    "src/app.ts",
+    "src/main.tsx",
+    "src/App.tsx",
+    "src/theme.ts",
     "src/api.ts",
     "public/api/_db.php",
 )
@@ -992,7 +1027,8 @@ def _build_project_snapshot(project_id: int) -> str:
     if shared_present:
         contents = _read_file_contents_for_prompt(
             project_id, shared_present,
-            per_file_cap=8000, total_cap=24000,
+            per_file_cap=PROMPT_SNAPSHOT_PER_FILE_BYTES,
+            total_cap=PROMPT_SNAPSHOT_TOTAL_BYTES,
         )
         if contents:
             parts.append(
@@ -1383,7 +1419,8 @@ def inline_fix_files(
     # actually fixing instead of guessing.
     current = _read_file_contents_for_prompt(
         project_id, target_paths,
-        per_file_cap=8000, total_cap=24000,
+        per_file_cap=PROMPT_RELEVANT_PER_FILE_BYTES,
+        total_cap=PROMPT_RELEVANT_TOTAL_BYTES,
     )
 
     parts: list[str] = [_INLINE_FIX_SYSTEM, ""]
@@ -1513,8 +1550,8 @@ def stream_file_content(
             except OSError:
                 existing = None
             if existing:
-                if len(existing) > 16000:
-                    existing = existing[:16000] + "\n/* [truncated for prompt budget] */"
+                if len(existing) > PROMPT_TARGET_FILE_BYTES:
+                    existing = existing[:PROMPT_TARGET_FILE_BYTES] + "\n/* [truncated for prompt budget] */"
                 current_target_block = (
                     "\nTHIS FILE ALREADY EXISTS — its current content is shown below.\n"
                     "MODIFY it to satisfy the purpose above. PRESERVE every existing "
@@ -1531,9 +1568,13 @@ def stream_file_content(
     if already_written:
         relevant_files: dict[str, str] = {}
         if project_id is not None:
-            picked = _pick_relevant_files(path, already_written, max_files=6)
+            picked = _pick_relevant_files(path, already_written, max_files=PROMPT_RELEVANT_FILES_MAX)
             if picked:
-                relevant_files = _read_file_contents_for_prompt(project_id, picked)
+                relevant_files = _read_file_contents_for_prompt(
+                    project_id, picked,
+                    per_file_cap=PROMPT_RELEVANT_PER_FILE_BYTES,
+                    total_cap=PROMPT_RELEVANT_TOTAL_BYTES,
+                )
         if relevant_files:
             blocks = [
                 "FILES ALREADY WRITTEN IN EARLIER STEPS — full content of the most relevant ones is shown below; rely on these (paths, function signatures, table schemas) instead of guessing:\n"

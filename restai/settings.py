@@ -81,7 +81,7 @@ SETTINGS_DEFAULTS = {
     "browser_timeout": "900",
     # App Builder (per-project PHP+Node+esbuild preview container)
     "app_docker_enabled": "false",
-    "app_docker_image": "restai/app-runtime:1",
+    "app_docker_image": "restai/app-runtime:2",
     "app_docker_idle_timeout": "1800",
     # Retention
     "data_retention_days": "0",
@@ -204,7 +204,7 @@ def get_all_settings(db_wrapper) -> dict:
         "browser_timeout": int(rows.get("browser_timeout", "900") or "900"),
         # App Builder
         "app_docker_enabled": _to_bool(rows.get("app_docker_enabled", "false")),
-        "app_docker_image": rows.get("app_docker_image", "restai/app-runtime:1"),
+        "app_docker_image": rows.get("app_docker_image", "restai/app-runtime:2"),
         "app_docker_idle_timeout": int(rows.get("app_docker_idle_timeout", "1800") or "1800"),
         # Retention
         "data_retention_days": int(rows.get("data_retention_days", "0") or "0"),

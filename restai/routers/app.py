@@ -1748,11 +1748,18 @@ def _runtime_probes(request: Request, project_id: int) -> list[dict]:
                 "severity": "high",
                 "message": f"GET / returned HTTP {r.status_code} — the SPA shell isn't being served. Check that public/index.html exists.",
             })
-        elif "<div id=\"app\"" not in r.text and "<div id='app'" not in r.text:
+        # The new React contract uses `<div id="root">`; legacy vanilla
+        # projects used `<div id="app">`. Accept either (and any quoting /
+        # unquoted form) so the probe doesn't report a phantom "missing
+        # mount" issue when the page is actually fine — that issue used
+        # to drive the auto-fix loop to wreck working React apps by
+        # renaming `#root` → `#app`.
+        elif not re.search(r'\bid\s*=\s*["\']?(?:root|app)["\']?[\s/>]',
+                           r.text, re.IGNORECASE):
             issues.append({
                 "path": "public/index.html",
                 "severity": "high",
-                "message": "GET / served a page with no <div id=\"app\"> mount point — the TypeScript SPA can't render.",
+                "message": "GET / served a page with no `id=\"root\"` (or `id=\"app\"`) mount element — the SPA can't render.",
             })
         if "<script type=\"module\" src=\"dist/app.js\"" not in r.text and "src=\"dist/app.js\"" not in r.text and "dist/app.js" not in r.text and r.status_code < 400:
             issues.append({
@@ -1853,30 +1860,38 @@ def _runtime_probes(request: Request, project_id: int) -> list[dict]:
     return issues
 
 
-_VALIDATE_SYSTEM = """You are a code reviewer for a tiny self-contained
-PHP+TypeScript+SQLite web app. You may be shown two things:
+_VALIDATE_SYSTEM = """You are a code reviewer for a tiny React + MUI +
+PHP + SQLite web app. The runtime is bundled by esbuild into one JS
+file; the deploy needs only PHP + the bundle. You may be shown:
 
 1. RUNTIME EVIDENCE — concrete failures observed by actually hitting the
    live preview (HTTP status codes, PHP error messages, esbuild build
-   logs). These are FACTS, not guesses. If present, your review MUST
-   address every one — your `issues` array must contain a fix-pointing
-   entry for each runtime failure listed.
+   log). These are FACTS, not guesses. If present, every runtime
+   failure must map to an entry in your `issues` array.
 
-2. The full project source (or as much as fits the budget). Look for:
-   - Obvious bugs (typos, off-by-one, missing await, null deref, dangling
-     refs to functions/files that don't exist, wrong API path, etc.).
-   - Wiring problems (e.g. `src/app.ts` imports a view that isn't in the
-     files list, an HTML form that posts to a path with no PHP file
-     behind it, a TypeScript fetch call to an endpoint that doesn't
-     exist).
-   - Architecture violations (PHP that emits HTML, JS bundles that
-     import npm modules, SQL that isn't parameter-bound).
-   - Missing files that the others depend on.
+2. The full project source. Look ONLY for things that would actually
+   break the deployed app:
+   - Dangling refs to files/functions/exports that genuinely don't exist
+     in the file list.
+   - An HTML form / fetch call pointing at an `api/<x>.php` that has no
+     matching file.
+   - PHP that emits HTML or uses string-concat SQL.
+   - SPA shell missing `<div id="root">` or `<script src="dist/app.js">`.
 
-Be strict but fair. If RUNTIME EVIDENCE is empty AND the source looks
-plausible, say so. Do NOT comment on stylistic preferences, code
-organisation, or "could be better" suggestions — only on things that
-would actually break the deployed app.
+NPM IMPORT ALLOWLIST — these are LEGITIMATE, do NOT flag them:
+  react, react-dom, react-dom/client, @mui/material/*,
+  @mui/icons-material/*, @mui/system, @emotion/react, @emotion/styled.
+Flag ONLY `import x from "<other-package>"` (e.g. axios, react-router,
+lodash). Relative imports (./ or ../) are always fine.
+
+INNOCENT UNTIL PROVEN GUILTY — bias hard against false positives:
+- If you can't point at a SPECIFIC line that breaks the deployed app,
+  say `ok: true`. Stylistic preferences, "could be more idiomatic",
+  "should add error handling", "could split into smaller components",
+  unused imports, missing TypeScript types — NONE of these are issues.
+- The user's last build was working. A false-positive issue triggers an
+  auto-fix loop that often WRECKS the working app to address phantom
+  problems. When in doubt, return `ok: true`.
 
 OUTPUT FORMAT — exactly this JSON, no prose, no fences:
 
@@ -1954,6 +1969,18 @@ async def route_app_validate(
             runtime_issues.extend(test_issues)
     except Exception:
         logger.exception("validate: test runner crashed")
+
+    # FAST PATH: when runtime probes + test runner found NOTHING, the app
+    # is observably working. Skip the LLM "static review" entirely — it's
+    # a known source of false positives that wreck working apps via the
+    # auto-fix loop. Real bugs surface as runtime evidence on the next
+    # validate run anyway.
+    if not runtime_issues:
+        return {
+            "ok": True,
+            "summary": "Runtime probes + test runner clean — app is observably working.",
+            "issues": [],
+        }
 
     # Build the user prompt: runtime evidence first (highest signal),
     # then file tree + each file's content.

@@ -275,7 +275,8 @@
         "autoFixWorking": "处理中…",
         "autoFixSucceeded": "经过 {{n}} 次自动修复后已解决。",
         "autoFixHalted": "自动修复在第 {{n}} 次后停止。",
-        "autoFixGaveUp": "自动修复尝试了 {{n}} 次但未完全解决 — 请通过聊天细化或手动修复。"
+        "autoFixGaveUp": "自动修复尝试了 {{n}} 次但未完全解决 — 请通过聊天细化或手动修复。",
+        "approved": "已构建"
       },
       "modeCode": "代码",
       "modeDb": "数据库",
@@ -1657,7 +1658,7 @@
       "browserImage": "Playwright 镜像。需要预装 Chromium + playwright.sync_api。",
       "browserTimeout": "未使用的容器将在此时间后被回收。",
       "appBuilder": "每个项目的预览容器，包含 PHP、Node、esbuild 和浏览器内 IDE。复用上方配置的 Docker 守护进程。关闭时，'app' 项目类型将从项目创建中隐藏。",
-      "appBuilderImage": "包含 PHP-S、Node、esbuild 和非 root 用户的镜像。默认值：restai/app-runtime:1（从 docker/app-runtime/Dockerfile 构建）。",
+      "appBuilderImage": "包含 PHP-S、Node、esbuild 和非 root 用户的镜像。默认值：restai/app-runtime:2（从 docker/app-runtime/Dockerfile 构建）。",
       "appBuilderIdleTimeout": "空闲超过此时间的容器将被定时清理任务回收。",
       "allowedDomains": "以逗号分隔的邮箱域名，或 * 表示全部",
       "oidcProviderUrl": "OpenID Connect 发现 URL",

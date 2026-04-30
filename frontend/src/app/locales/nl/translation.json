@@ -643,7 +643,8 @@
         "autoFixWorking": "bezig…",
         "autoFixSucceeded": "Opgelost door auto-fix na {{n}} iteratie(s).",
         "autoFixHalted": "Auto-fix gestopt bij {{n}} iteratie(s).",
-        "autoFixGaveUp": "Auto-fix probeerde {{n}} iteratie(s) en loste niet alles op — verfijn via chat of repareer handmatig."
+        "autoFixGaveUp": "Auto-fix probeerde {{n}} iteratie(s) en loste niet alles op — verfijn via chat of repareer handmatig.",
+        "approved": "Al gebouwd"
       },
       "modeCode": "Code",
       "modeDb": "Database",
@@ -1664,7 +1665,7 @@
       "saveSettings": "Instellingen opslaan",
       "saving": "Opslaan…",
       "appBuilder": "Per-project voorvertoningscontainer met PHP, Node, esbuild en het in-browser IDE. Hergebruikt de hierboven geconfigureerde Docker-daemon. Als uitgeschakeld, wordt het projecttype 'app' verborgen bij het aanmaken van projecten.",
-      "appBuilderImage": "Image met PHP-S, Node, esbuild en een non-root gebruiker. Standaard: restai/app-runtime:1 (gebouwd vanuit docker/app-runtime/Dockerfile).",
+      "appBuilderImage": "Image met PHP-S, Node, esbuild en een non-root gebruiker. Standaard: restai/app-runtime:2 (gebouwd vanuit docker/app-runtime/Dockerfile).",
       "appBuilderIdleTimeout": "Containers die langer inactief zijn dan dit worden verwijderd door de cron-opruimtaak."
     },
     "status": {
