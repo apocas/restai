@@ -141,6 +141,45 @@ INVARIANTS the planner MUST respect:
   `/projects/<id>/app/preview/`; a leading slash escapes the mount).
 - Function components + hooks only — NO `class` components.
 
+DESIGN DNA — INVENT a deliberate visual identity for THIS app. Don't
+pick from a fixed list — describe the look you want and the per-file
+generation will follow it. The goal is for two apps the user builds
+back-to-back to look genuinely different.
+
+For inspiration only — feel free to invent something else entirely:
+  monochrome editorial · soft pastel boutique · brutalist wireframe ·
+  glassmorphism dashboard · 80s arcade neon · botanical hand-drawn ·
+  Swiss grid · zine collage · cyberpunk terminal · luxury hotel ·
+  kid-friendly cartoon · medical clinical · fintech dense · gallery
+  hush · daily-news front page · craft brewery rustic …
+
+What to commit to in the `design` block:
+  - `register`: a short label (≤32 chars) — your own coined name,
+    e.g. "soft-pastel-boutique" or "brutalist-wireframe".
+  - `primary` / `secondary` / `background`: hex colours that match.
+    Avoid the default MUI blue (#1976d2) unless the app genuinely
+    needs corporate blue.
+  - `fontFamily`: a real CSS font stack (web-safe — system fonts are
+    fine; if you reference web fonts you'll also need to add the
+    `<link>` to `public/index.html`).
+  - `borderRadius`: pick deliberately (0 for sharp, 4-8 for subtle,
+    12-24 for soft, 28+ for pill).
+  - `density`: `compact` / `normal` / `spacious`.
+  - `layout`: how the app SHELL is structured — `appbar`, `sidebar`,
+    `hero-first`, `full-bleed`, `centered`, or your own (e.g.
+    `bottom-tabs`, `split-screen`). The per-file generation will
+    interpret it as a hint, not a strict recipe.
+  - `vibe`: 1-2 sentences capturing the feeling. This is what the
+    per-file generation reads to make composition decisions.
+
+ESCAPE THE MUI DEFAULT — the most common quality regression is the
+generated app looking like a vanilla MUI demo. Counter-moves:
+  - Skip `<AppBar>` unless the design genuinely calls for it.
+  - Skip `<Card>` when `<Box>` + spacing/border would compose better.
+  - Skip `<Container maxWidth="lg">` for full-bleed designs.
+  - Use `sx` heavily for spacing/colour overrides; the theme
+    establishes the system, sx does the per-instance polish.
+
 PHASED EXECUTION — split work into ordered phases (1-5 files each, 2-6
 phases typical, hard caps 8 files/phase and 10 phases). Each phase has
 one responsibility (don't mix backend + frontend). Earlier phases lay
@@ -158,8 +197,16 @@ TWO MODES:
 
 MODE A — INITIAL SCAFFOLD (new app, no prior Approve & Build):
 - Emit the FULL phased plan, 3-15 files across 2-6 phases.
-- Always include the 5 Foundation files. Add backend phases only if
-  persistence is needed.
+- Required: an SPA shell (`public/index.html`), a body-reset stylesheet
+  (`public/styles.css`), an esbuild entry (`src/main.tsx`), and at
+  least one view component. Beyond that, structure the project however
+  fits — `src/App.tsx` and `src/theme.ts` are recommended but you can
+  inline them into `main.tsx` for a small app, split a big view into
+  sub-components in `src/components/`, add a `src/lib/` for shared
+  utilities, etc. Backend only if the app needs server-side persistence.
+- **Always include a `design` block** — invent a deliberate register
+  name + tokens that fit the app's domain. Don't reuse a register name
+  you've used before in this thread.
 
 MODE B — INCREMENTAL CHANGE (refinement, fix, or auto-fix prompt) —
 DEFAULT for any chat turn after the first build:
@@ -191,6 +238,17 @@ Part 2 shape — exactly this, no comments inside the JSON:
 ```json
 {
   "summary": "1-2 sentence description of the change (or app, for initial)",
+  "design": {
+    "register": "playful",
+    "primary": "#ff6b9d",
+    "secondary": "#5b8cff",
+    "background": "#fffdf7",
+    "fontFamily": "\"Fraunces\", \"Georgia\", serif",
+    "borderRadius": 18,
+    "density": "spacious",
+    "layout": "hero-first",
+    "vibe": "Soft pastel boutique with rounded shapes and serif headers."
+  },
   "database": [
     {"table": "items", "columns": [{"name": "id", "type": "INTEGER PRIMARY KEY"}, {"name": "name", "type": "TEXT NOT NULL"}]}
   ],
@@ -331,7 +389,41 @@ is fully standalone.
 Output: ONLY the new file contents. No code fences."""
 
 
-def _role_guidance_for(path: str) -> str:
+def _design_block_summary(design: Optional[dict]) -> str:
+    """Render the chosen design DNA as a short bullet list for the
+    per-file prompt. Empty string when no design block is set (older
+    builds without DNA, or Mode-B fixes that didn't carry it)."""
+    if not design:
+        return ""
+    bits: list[str] = []
+    if design.get("register"):
+        bits.append(f"  - Register: {design['register']}")
+    if design.get("primary"):
+        bits.append(f"  - Primary colour: {design['primary']}")
+    if design.get("secondary"):
+        bits.append(f"  - Secondary colour: {design['secondary']}")
+    if design.get("background"):
+        bits.append(f"  - Background: {design['background']}")
+    if design.get("fontFamily"):
+        bits.append(f"  - Font family: {design['fontFamily']}")
+    if design.get("borderRadius") is not None:
+        bits.append(f"  - Border radius (px): {design['borderRadius']}")
+    if design.get("density"):
+        bits.append(f"  - Density: {design['density']}")
+    if design.get("layout"):
+        bits.append(f"  - Layout pattern: {design['layout']}")
+    if design.get("vibe"):
+        bits.append(f"  - Vibe: {design['vibe']}")
+    if not bits:
+        return ""
+    return (
+        "\nDESIGN DNA — every visual choice in this file MUST conform to "
+        "this register. Don't fall back to default MUI colours, fonts, "
+        "or layouts:\n" + "\n".join(bits) + "\n"
+    )
+
+
+def _role_guidance_for(path: str, design: Optional[dict] = None) -> str:
     """Return a short, file-type-specific guidance block that gets
     interpolated into _FILE_SYSTEM_TEMPLATE. Keep it tight — generic
     rules already live in the contract."""
@@ -345,10 +437,11 @@ def _role_guidance_for(path: str) -> str:
             "- NO inline JS, NO PHP, NO server-rendered content."
         )
     if p == "public/styles.css":
+        bg = (design or {}).get("background") or "#fafafa"
         return (
             "- Body reset ONLY. MUI handles component styling — do NOT "
             "duplicate it here. Typical content:\n"
-            "    `body { margin: 0; min-height: 100vh; background: #fafafa; }`\n"
+            f"    `body {{ margin: 0; min-height: 100vh; background: {bg}; }}`\n"
             "    `*, *::before, *::after { box-sizing: border-box; }`\n"
             "- No font imports (MUI's Roboto fallback is fine), no preprocessor."
         )
@@ -396,32 +489,53 @@ def _role_guidance_for(path: str) -> str:
             "<CssBaseline /><App /></ThemeProvider></React.StrictMode>);`\n"
             "- Keep it tiny — all logic lives in App.tsx and the views."
         )
-    if p == "src/App.tsx":
-        return (
+    if p == "src/app.tsx":
+        layout_hint = (design or {}).get("layout")
+        out = (
             "- Top-level component (default export). Holds the route state via a "
             "tiny inline `useHashRouter` hook (≈8 lines: `useState` of "
             "`location.hash.slice(1) || 'home'` + `useEffect` adding "
             "`hashchange` listener).\n"
-            "- Wrap content in `<Box sx={{ minHeight: '100vh' }}>`. Render "
-            "`<AppBar position=\"static\"><Toolbar><Typography variant=\"h6\">"
-            "{appName}</Typography>...nav links via <Button color=\"inherit\" "
-            "href=\"#shop\">Shop</Button></Toolbar></AppBar>`.\n"
-            "- Then `<Container maxWidth=\"lg\" sx={{ py: 4 }}>{viewElement}</Container>`.\n"
+            "- Build the SHELL (nav + main area) however the DESIGN DNA below "
+            "calls for. Don't reach for `<AppBar>` and `<Container maxWidth=\"lg\">` "
+            "by reflex — they're often the wrong shape. Common alternatives:\n"
+            "    sidebar nav (`<Box sx={{ display: 'flex' }}>` + 240px left pane),\n"
+            "    floating nav over a hero section,\n"
+            "    no chrome at all (everything inside the active view),\n"
+            "    a thin top link bar with no background,\n"
+            "    bottom-tabs for mobile-feeling apps.\n"
             "- Switch on the route to import + render the matching view component "
             "from `./views/<Name>`.\n"
-            "- Use named imports from `@mui/material` (Tree-shaken by esbuild)."
         )
+        if layout_hint:
+            out += f"- The plan suggests layout '{layout_hint}'. Treat as a hint, not a recipe — interpret it through the vibe.\n"
+        out += "- Use named imports from `@mui/material` (tree-shaken by esbuild)."
+        out += _design_block_summary(design)
+        return out
     if p == "src/theme.ts":
-        return (
+        out = (
             "- `import { createTheme } from '@mui/material/styles';`\n"
-            "- Export a `theme` constant with at minimum: `palette: { mode, primary, "
-            "secondary, background }`, `typography: { fontFamily, h1, h4, body1 }`, "
-            "`shape: { borderRadius }`, `components: { MuiButton: { defaultProps: "
-            "{ disableElevation: true } } }` (or similar) for opinionated defaults.\n"
-            "- Pick colours that MATCH THE APP'S DOMAIN (e.g. florist → soft pinks/"
-            "greens; finance → navy/teal; calculator → cool greys). Don't ship the "
-            "default blue."
+            "- Export a `theme` constant. The MINIMUM is a palette and a "
+            "borderRadius; everything else (typography overrides per heading "
+            "level, components defaults for elevation/density/shape, custom "
+            "shadow palette, transitions) is yours to compose so the app "
+            "doesn't look like the MUI demo.\n"
+            "- Wire DESIGN DNA → theme: `palette.primary.main` from "
+            "`design.primary`, `palette.background.default` from "
+            "`design.background`, `typography.fontFamily` from `design.fontFamily`, "
+            "`shape.borderRadius` from `design.borderRadius`, `palette.mode = "
+            "'dark'` when the design calls for it.\n"
+            "- For serif / monospace fontFamily: override "
+            "`typography.h1..h6.fontFamily` to that family + a fallback "
+            "(otherwise MUI uses Roboto for headings regardless).\n"
+            "- Use `components` to set deliberate defaults: e.g. "
+            "`MuiButton: { defaultProps: { disableElevation: true, size: 'large' } }`, "
+            "`MuiPaper: { defaultProps: { variant: 'outlined' } }`, "
+            "`MuiAppBar: { defaultProps: { elevation: 0 } }` — pick what fits "
+            "the vibe; the goal is a coherent system, not generic MUI."
         )
+        out += _design_block_summary(design)
+        return out
     if p == "src/api.ts":
         return (
             "- Export typed fetch wrappers for each `api/*.php` endpoint listed in the plan.\n"
@@ -434,23 +548,30 @@ def _role_guidance_for(path: str) -> str:
             "leading slash escapes the mount and 404s."
         )
     if p.startswith("src/views/"):
-        return (
+        out = (
             "- DEFAULT export — a React function component. e.g. "
             "`export default function Home() { ... }`.\n"
-            "- Use MUI primitives: `<Container>`, `<Box>`, `<Stack>`, `<Grid>`, "
-            "`<Card>`/`<CardContent>`, `<Typography>`, `<Button>`, `<TextField>`, "
-            "`<List>`/`<ListItem>`, `<CircularProgress>`, `<Alert>`. Icons from "
-            "`@mui/icons-material` (named imports).\n"
-            "- Data fetching: `const [data, setData] = useState<T|null>(null); "
-            "const [loading, setLoading] = useState(true); const [error, setError] "
-            "= useState<string|null>(null); useEffect(() => { fetchX().then(setData)"
-            ".catch(e => setError(e.message)).finally(() => setLoading(false)); }, []);`.\n"
-            "- Render `loading ? <CircularProgress /> : error ? <Alert severity=\"error\">"
-            "{error}</Alert> : <ActualContent />`.\n"
+            "- COMPOSE FREELY through the design DNA below. The MUI catalog "
+            "is wide — `<Container>`, `<Box>`, `<Stack>`, `<Grid>`, `<Paper>`, "
+            "`<Card>`, `<Table>`, `<List>`, `<Tabs>`, `<Drawer>`, `<Chip>`, "
+            "`<Avatar>`, `<Badge>`, `<Tooltip>`, `<Menu>`, `<Popover>`, "
+            "`<Skeleton>`, `<LinearProgress>`, `<Stepper>`, `<Accordion>`. "
+            "Pick the primitives that fit the vibe; don't fall back to "
+            "`Container > Card > List` by reflex.\n"
+            "- Use `sx` heavily for spacing, colour, and one-off layout. "
+            "The theme establishes the system; sx does the per-instance polish.\n"
+            "- Data fetching: `useEffect` + `useState` for loading/error/data. "
+            "Render with `<CircularProgress />` / `<Alert severity=\"error\">` / "
+            "`<Skeleton />` in the loading slots — pick what suits the design.\n"
             "- Forms: controlled `<TextField>` with `useState`, validate inline, "
             "submit via `onSubmit` of an enclosing `<Box component=\"form\">`.\n"
-            "- Import wrappers from `../api`. NEVER reach into `document.*` directly."
+            "- Import wrappers from `../api`. NEVER reach into `document.*` directly.\n"
+            "- Make THIS view feel different from a default MUI demo: deliberate "
+            "spacing, a hero/header that fits the vibe, gradients/colour-blocks/"
+            "borders/illustrations where they earn their keep."
         )
+        out += _design_block_summary(design)
+        return out
     if p.startswith("src/"):
         return (
             "- TypeScript module. Default to named exports unless it's a React "
@@ -558,6 +679,85 @@ def _pos_in_ranges(pos: int, ranges: list[tuple[int, int]]) -> bool:
 
 # Matches an opening JSX/HTML tag like `<pre>`, `<code>`, `<Box>`, `<Box sx={...}>`.
 _JSX_OPEN_TAG_RE = re.compile(r'<[a-zA-Z][^<>]*>')
+
+
+# Lines that LOOK LIKE the first line of real code per file type.
+# A small LLM sometimes writes "Sure! Here's the file:" before the code,
+# or "Hope this helps!" after — we strip that prose before write so it
+# doesn't break the bundle.
+_CODE_LINE_RE = {
+    "js": re.compile(
+        r'^\s*('
+        r'import\b|export\b|const\b|let\b|var\b|function\b|class\b|interface\b|'
+        r'type\s+\w|enum\b|namespace\b|declare\b|async\b|await\b|return\b|'
+        r'if\b|for\b|while\b|switch\b|do\b|try\b|throw\b|new\b|'
+        r'use\s+strict|//|/\*|\*|\(|\{|\[|<\w|\)\s*=>'
+        r')'
+    ),
+    "php": re.compile(r'^\s*(<\?php|<\?=)'),
+    "html": re.compile(r'^\s*(<!|<html|<head|<body|<div|<script|<link|<meta|<\w)', re.IGNORECASE),
+    "css": re.compile(
+        r'^\s*('
+        r'[.#@\w*:][^{]*\{|'      # selector + brace, @rule
+        r'/\*|\*|--\w'             # comment, custom property
+        r')'
+    ),
+    "json": re.compile(r'^\s*[\{\[]'),
+}
+
+
+def _strip_prose_from_code(content: str, ext: str) -> str:
+    """Strip prose preamble + trailing remarks from LLM-emitted file
+    content. Small models occasionally ignore the "no prose" instruction
+    and lead with "Here's the file:" or trail with "Let me know if you
+    need changes." That junk turns into syntax errors at build time.
+
+    Heuristic: find the FIRST line that matches a known code-line shape
+    for the file's extension; everything before it is dropped. Same for
+    the tail in reverse. Returns the original content unchanged when
+    the file is already code-only or when we don't have a pattern for
+    the extension.
+    """
+    pat = None
+    if ext in (".ts", ".tsx", ".js", ".jsx", ".mjs"):
+        pat = _CODE_LINE_RE["js"]
+    elif ext in (".php", ".phtml"):
+        pat = _CODE_LINE_RE["php"]
+    elif ext in (".html", ".htm"):
+        pat = _CODE_LINE_RE["html"]
+    elif ext in (".css", ".scss"):
+        pat = _CODE_LINE_RE["css"]
+    elif ext == ".json":
+        pat = _CODE_LINE_RE["json"]
+    else:
+        return content
+    lines = content.splitlines(keepends=True)
+    if not lines:
+        return content
+    head = 0
+    for i, line in enumerate(lines):
+        if not line.strip():
+            continue
+        if pat.match(line):
+            head = i
+            break
+    else:
+        # No code-shaped line found — return original (don't blow it up).
+        return content
+    # Trailing prose: walk back from the end, drop lines that look like
+    # English sentences (start with a capital letter, end with `.`/`!`/`?`).
+    tail = len(lines)
+    trailing_prose_re = re.compile(r'^\s*[A-Z][\w\s\',-]*[.!?]\s*$')
+    for j in range(len(lines) - 1, head, -1):
+        line = lines[j]
+        if not line.strip():
+            tail = j + 1
+            continue
+        if trailing_prose_re.match(line):
+            continue
+        tail = j + 1
+        break
+    return "".join(lines[head:tail])
 
 
 def _is_inside_jsx_text(text: str, pos: int) -> bool:
@@ -741,6 +941,12 @@ MAX_PLAN_PHASES = 10
 MAX_FILES_PER_PHASE = 8
 
 
+# NOTE: design tokens (register / density / layout) used to be enum-locked
+# but the LLM was too constrained — apps within a register all looked
+# alike. The validator now only enforces shape (string lengths, hex
+# format, numeric ranges). The LLM coins its own register name.
+
+
 def validate_plan(plan: Any) -> dict:
     """Strict plan-schema validation. Returns the cleaned plan with phases
     normalised (every phase has ``name``, ``description``, ``files``).
@@ -840,7 +1046,52 @@ def validate_plan(plan: Any) -> dict:
     # Drop the legacy top-level files array if present, so downstream
     # consumers always see the canonical phased shape.
     cleaned.pop("files", None)
+
+    # Optional design-DNA block. Valid → keep; invalid → drop silently
+    # (better to ship without design hints than to fail the whole build
+    # because the LLM picked an off-list register).
+    design = plan.get("design")
+    cleaned["design"] = _clean_design(design) if design else None
     return cleaned
+
+
+def _clean_design(design: Any) -> Optional[dict]:
+    """Validate + normalise the optional `design` block. The block is
+    intentionally permissive — the LLM coins its own register name and
+    layout pattern; we only enforce shape (string lengths, hex-colour
+    format, sensible numeric ranges) so a malformed block can't blow
+    up the prompt template."""
+    if not isinstance(design, dict):
+        return None
+    out: dict = {}
+    register = design.get("register")
+    if isinstance(register, str) and 0 < len(register.strip()) <= 64:
+        out["register"] = register.strip()
+    primary = design.get("primary")
+    if isinstance(primary, str) and re.match(r"^#[0-9a-fA-F]{3,8}$", primary.strip()):
+        out["primary"] = primary.strip()
+    secondary = design.get("secondary")
+    if isinstance(secondary, str) and re.match(r"^#[0-9a-fA-F]{3,8}$", secondary.strip()):
+        out["secondary"] = secondary.strip()
+    background = design.get("background")
+    if isinstance(background, str) and re.match(r"^#[0-9a-fA-F]{3,8}$", background.strip()):
+        out["background"] = background.strip()
+    font = design.get("fontFamily")
+    if isinstance(font, str) and 0 < len(font.strip()) <= 200:
+        out["fontFamily"] = font.strip()
+    radius = design.get("borderRadius")
+    if isinstance(radius, (int, float)) and 0 <= radius <= 64:
+        out["borderRadius"] = int(radius)
+    density = design.get("density")
+    if isinstance(density, str) and 0 < len(density.strip()) <= 32:
+        out["density"] = density.strip().lower()
+    layout = design.get("layout")
+    if isinstance(layout, str) and 0 < len(layout.strip()) <= 32:
+        out["layout"] = layout.strip().lower()
+    vibe = design.get("vibe")
+    if isinstance(vibe, str) and 0 < len(vibe.strip()) <= 400:
+        out["vibe"] = vibe.strip()
+    return out or None
 
 
 # ---------------------------------------------------------------------------
@@ -1596,7 +1847,10 @@ def inline_fix_files(
             continue
         if len(c.encode("utf-8", errors="ignore")) > MAX_FILE_BYTES:
             continue
-        out[normalized] = c
+        # Strip prose preamble/postamble — same defense as stream_file_content.
+        ext_dot = normalized.rfind(".")
+        ext_here = normalized[ext_dot:].lower() if ext_dot >= 0 else ""
+        out[normalized] = _strip_prose_from_code(c, ext_here).strip() or c
 
     in_tokens = _estimate_tokens(brain, prompt)
     out_tokens = _estimate_tokens(brain, text)
@@ -1635,7 +1889,7 @@ def stream_file_content(
     llm = _resolve_llm(brain, db, project_llm_name)
     path = validate_file_path(file_spec["path"])
     purpose = file_spec.get("purpose", "")
-    role_guidance = _role_guidance_for(path)
+    role_guidance = _role_guidance_for(path, design=plan.get("design") if isinstance(plan, dict) else None)
     plan_json = json.dumps(plan, indent=2)
     phase_name = (phase or {}).get("name") or "Build"
     phase_desc = (phase or {}).get("description") or ""
@@ -1729,6 +1983,15 @@ def stream_file_content(
     fence = _FENCE_RE.search(raw)
     if fence and len(fence.group(1)) > 0:
         raw = fence.group(1).strip()
+    # Strip natural-language preamble/postamble. Small models sometimes
+    # write "Here's the file:" before the code (which becomes an
+    # unterminated-string syntax error). The stripper is a no-op for
+    # already-clean output.
+    raw_ext = ""
+    dot = path.rfind(".")
+    if dot >= 0:
+        raw_ext = path[dot:].lower()
+    raw = _strip_prose_from_code(raw, raw_ext).strip()
     if not raw:
         raise ValueError("LLM returned empty content")
     if len(raw.encode("utf-8", errors="ignore")) > MAX_FILE_BYTES:
@@ -1785,6 +2048,11 @@ def fix_file_with_ai(
     fence = _FENCE_RE.search(new_content)
     if fence and len(fence.group(1)) > 0:
         new_content = fence.group(1).strip()
+    fix_ext = ""
+    fix_dot = path.rfind(".")
+    if fix_dot >= 0:
+        fix_ext = path[fix_dot:].lower()
+    new_content = _strip_prose_from_code(new_content, fix_ext).strip()
     if not new_content:
         raise ValueError("LLM returned an empty file")
     if len(new_content.encode("utf-8", errors="ignore")) > MAX_FILE_BYTES:
