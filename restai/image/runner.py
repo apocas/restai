@@ -43,17 +43,21 @@ def generate(manager, worker, imageModel, options: dict = None, venv_python: str
             if config.GPU_WORKER_DEVICES:
                 env["CUDA_VISIBLE_DEVICES"] = config.GPU_WORKER_DEVICES
 
+            # Inherit parent stdout/stderr so diffusers progress bars and
+            # tracebacks land in the API console live. We used to capture
+            # output and only surface it on failure, which left the admin
+            # staring at a silent terminal for 30+ s while the model ran.
             result = subprocess.run([
                 venv_python,
                 os.path.join(os.path.dirname(__file__), "worker_entry.py"),
                 worker_module,
                 sharedmem.get("prompt", ""),
                 sharedmem_file.name
-            ], capture_output=True, text=True, env=env)
+            ], env=env)
             if result.returncode != 0:
                 import logging
-                logging.error(f"Image worker {worker_module} failed (exit {result.returncode}):\n{result.stderr}")
-                raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout, result.stderr)
+                logging.error(f"Image worker {worker_module} failed (exit {result.returncode}) — traceback above.")
+                raise subprocess.CalledProcessError(result.returncode, result.args)
 
         # Load sharedmem back
         with open(sharedmem_file.name, "rb") as f:
