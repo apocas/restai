@@ -43,6 +43,16 @@ def generate(manager, worker, imageModel, options: dict = None, venv_python: str
             if config.GPU_WORKER_DEVICES:
                 env["CUDA_VISIBLE_DEVICES"] = config.GPU_WORKER_DEVICES
 
+            # When the parent's stdout isn't a terminal (systemd, docker,
+            # k8s) the carriage-return + ANSI escapes that tqdm /
+            # huggingface_hub use for progress bars get logged by
+            # journald as `[NNN blob data]` lines. Disable progress bars
+            # in the worker subprocess so journald sees plain text.
+            # Interactive runs (TTY) keep the bars.
+            if not sys.stdout.isatty():
+                env.setdefault("TQDM_DISABLE", "1")
+                env.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+
             # Inherit parent stdout/stderr so diffusers progress bars and
             # tracebacks land in the API console live. We used to capture
             # output and only surface it on failure, which left the admin

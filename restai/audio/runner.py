@@ -65,6 +65,14 @@ def generate(
             if config.GPU_WORKER_DEVICES:
                 env["CUDA_VISIBLE_DEVICES"] = config.GPU_WORKER_DEVICES
 
+            # Suppress tqdm / huggingface_hub progress bars when the
+            # parent's stdout isn't a terminal — under systemd/docker
+            # the carriage-return + ANSI escapes get logged as
+            # `[NNN blob data]` lines. Interactive runs keep the bars.
+            if not sys.stdout.isatty():
+                env.setdefault("TQDM_DISABLE", "1")
+                env.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+
             if hasattr(module, "get_environment_variables"):
                 env_vars = module.get_environment_variables()
                 if isinstance(env_vars, dict):
