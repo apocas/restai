@@ -3,10 +3,44 @@ import {
   Box, Chip, Collapse, IconButton, Typography, styled, Tooltip,
   Accordion, AccordionSummary, AccordionDetails,
 } from "@mui/material";
-import { ContentCopy, ExpandMore, Shield, Cached, Speed, TerminalOutlined, CallSplit, AttachFile } from "@mui/icons-material";
+import { ContentCopy, ExpandMore, Shield, Cached, Speed, TerminalOutlined, CallSplit, AttachFile, Psychology } from "@mui/icons-material";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Terminal from "./Terminal";
+
+// Pull `<think>...</think>` blocks out of a streaming or final answer
+// so we can render them in a separate dim panel (like `ollama run` does).
+//
+// During streaming we may see `<think>` opened but `</think>` not yet
+// arrived — `openThought` carries that partial chunk so the UI can show
+// "thinking…" content live and replace it with a closed segment once
+// `</think>` lands.
+function splitThinking(text) {
+  if (!text || typeof text !== "string") {
+    return { thoughts: [], answer: text || "", openThought: null };
+  }
+  const thoughts = [];
+  let answer = "";
+  let openThought = null;
+  let i = 0;
+  while (i < text.length) {
+    const open = text.indexOf("<think>", i);
+    if (open === -1) {
+      answer += text.slice(i);
+      break;
+    }
+    answer += text.slice(i, open);
+    const close = text.indexOf("</think>", open + 7);
+    if (close === -1) {
+      // Unterminated — streaming partial. Treat the rest as live thought.
+      openThought = text.slice(open + 7);
+      break;
+    }
+    thoughts.push(text.slice(open + 7, close).trim());
+    i = close + 8;
+  }
+  return { thoughts, answer, openThought };
+}
 
 const QuestionBubble = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.primary.main,
@@ -134,15 +168,83 @@ export default function MessageBubble({ message, onBranch }) {
       )}
 
       {/* Answer */}
-      {message.answer !== null && message.answer !== undefined && (
+      {message.answer !== null && message.answer !== undefined && (() => {
+        // Pull <think> content out of the answer for a separate panel.
+        // Live during streaming (openThought), collapsed once closed.
+        const { thoughts, answer: answerText, openThought } = splitThinking(message.answer);
+        const hasLiveThought = openThought !== null && openThought.trim().length > 0;
+        // Final-message path: post_processing_reasoning has already
+        // moved <think> blocks into reasoning.steps[*].action="reasoning".
+        // Pick those up so we render thoughts even when message.answer
+        // no longer carries them.
+        const reasoningSteps = (message.reasoning && message.reasoning.steps) || [];
+        const thoughtSteps = reasoningSteps.filter((s) =>
+          (s.actions || []).some((a) => a.action === "reasoning"));
+        const toolSteps = reasoningSteps.filter((s) =>
+          (s.actions || []).some((a) => a.action !== "reasoning"));
+        const persistedThoughts = thoughtSteps.flatMap((s) =>
+          (s.actions || []).filter((a) => a.action === "reasoning").map((a) => a.output));
+        // Combine streaming-time thoughts + post-stream persisted ones.
+        // De-dupe in case the same content comes through both paths.
+        const allThoughts = [...thoughts];
+        for (const p of persistedThoughts) {
+          if (p && !allThoughts.includes(p)) allThoughts.push(p);
+        }
+        return (
         <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
           <Box sx={{ maxWidth: "80%" }}>
             <AnswerBubble>
+              {/* Live thinking panel — dim italic, auto-expand while
+                  streaming an unterminated <think> block; collapsed
+                  after the model closes it. Mirrors `ollama run`. */}
+              {(allThoughts.length > 0 || hasLiveThought) && (
+                <Accordion
+                  disableGutters
+                  elevation={0}
+                  defaultExpanded={hasLiveThought}
+                  sx={{
+                    mb: answerText ? 1 : 0,
+                    backgroundColor: "transparent",
+                    "&:before": { display: "none" },
+                  }}
+                >
+                  <AccordionSummary
+                    expandIcon={<ExpandMore />}
+                    sx={{ minHeight: 28, px: 0, "& .MuiAccordionSummary-content": { my: 0 } }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <Psychology fontSize="small" color="action" />
+                      <Typography variant="caption" color="text.secondary">
+                        {hasLiveThought ? "Thinking…" : `${allThoughts.length} thought${allThoughts.length !== 1 ? "s" : ""}`}
+                      </Typography>
+                    </Box>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ px: 0, pt: 0 }}>
+                    <Box
+                      sx={{
+                        fontStyle: "italic",
+                        color: "text.secondary",
+                        fontSize: "0.85rem",
+                        whiteSpace: "pre-wrap",
+                        borderLeft: (theme) => `2px solid ${theme.palette.divider}`,
+                        pl: 1.5,
+                      }}
+                    >
+                      {allThoughts.map((t, i) => (
+                        <Box key={i} sx={{ mb: i < allThoughts.length - 1 || hasLiveThought ? 1 : 0 }}>{t}</Box>
+                      ))}
+                      {hasLiveThought && <Box>{openThought}</Box>}
+                    </Box>
+                  </AccordionDetails>
+                </Accordion>
+              )}
               <Typography variant="body2" component="div">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.answer}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{answerText}</ReactMarkdown>
               </Typography>
-              {/* Agent reasoning — collapsed inside the bubble */}
-              {message.reasoning && message.reasoning.steps && message.reasoning.steps.length > 0 && (
+              {/* Tool calls — separate accordion from thinking. Reuses
+                  the existing terminal renderer with a filtered view of
+                  reasoning.steps (action !== "reasoning"). */}
+              {toolSteps.length > 0 && (
                 <Accordion
                   disableGutters
                   elevation={0}
@@ -153,12 +255,12 @@ export default function MessageBubble({ message, onBranch }) {
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       <TerminalOutlined fontSize="small" />
                       <Typography variant="caption" color="text.secondary">
-                        {message.reasoning.steps.length} reasoning step{message.reasoning.steps.length !== 1 ? "s" : ""}
+                        {toolSteps.length} tool call{toolSteps.length !== 1 ? "s" : ""}
                       </Typography>
                     </Box>
                   </AccordionSummary>
                   <AccordionDetails sx={{ px: 0, pt: 0 }}>
-                    <Terminal message={message} />
+                    <Terminal message={{ reasoning: { steps: toolSteps } }} />
                   </AccordionDetails>
                 </Accordion>
               )}
@@ -234,7 +336,8 @@ export default function MessageBubble({ message, onBranch }) {
             </Box>
           </Box>
         </Box>
-      )}
+        );
+      })()}
 
       {/* Loading state */}
       {message.answer === null && (

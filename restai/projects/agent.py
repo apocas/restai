@@ -413,6 +413,19 @@ class Agent(ProjectBase):
 
         self._finalize_reasoning(output, reasoning_buf, steps)
 
+        # Some models (especially Ollama-served thinking variants) call a
+        # tool, receive the result, and then EOS without producing any
+        # final-answer tokens — the inline `final` branch above only
+        # covers the explicit `max_turns` case, so without this the user
+        # gets a blank bubble while the tool-call panel shows the work.
+        # Surface a friendly fallback so the empty answer is never silent.
+        if not (output.get("answer") or "").strip() and steps:
+            output["answer"] = (
+                project.props.censorship
+                or "The model used tools but didn't produce a final answer. "
+                   "Check the tool-call panel for what was retrieved, then try rephrasing."
+            )
+
         # Hand the tool trace off to log_inference via the output dict.
         # Empty list → None so we don't bloat the DB with "[]" rows.
         if tool_trace:

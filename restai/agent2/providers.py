@@ -182,14 +182,37 @@ class OpenAIProvider(Provider):
         # OpenAI streams tool_calls fragmented by `index`; we accumulate
         # name + arguments per index and assemble ToolUseBlocks at the end.
         tool_acc: dict[int, dict] = {}
+        # Ollama 0.4+, OpenAI o1-series, OpenRouter and Anthropic-via-
+        # OpenAI-compat all surface chain-of-thought through a separate
+        # `reasoning_content` field (some builds use `reasoning`). We
+        # wrap that stream in `<think>…</think>` and inject it into the
+        # same text stream so the UI's existing splitThinking parser
+        # picks it up and renders the live "Thinking…" panel — no SSE
+        # protocol change, no per-provider branching downstream.
+        thinking_open = False
 
         stream = await self._client.chat.completions.create(**kwargs)
         async for chunk in stream:
             if not chunk.choices:
                 continue
             delta = chunk.choices[0].delta
+            reasoning = (
+                getattr(delta, "reasoning_content", None)
+                or getattr(delta, "reasoning", None)
+            )
+            if reasoning:
+                if not thinking_open:
+                    text_parts.append("<think>")
+                    yield "<think>"
+                    thinking_open = True
+                text_parts.append(reasoning)
+                yield reasoning
             text = getattr(delta, "content", None)
             if text:
+                if thinking_open:
+                    text_parts.append("</think>")
+                    yield "</think>"
+                    thinking_open = False
                 text_parts.append(text)
                 yield text
 
@@ -204,6 +227,15 @@ class OpenAIProvider(Provider):
                         slot["name"] += fn.name
                     if getattr(fn, "arguments", None):
                         slot["arguments"] += fn.arguments
+
+        # Stream ended while still inside a thinking block (e.g. model
+        # produced thoughts followed only by a tool call, no content
+        # text). Close the tag so downstream parsers see a balanced
+        # block and `_record_step` / post_processing_reasoning find it.
+        if thinking_open:
+            text_parts.append("</think>")
+            yield "</think>"
+            thinking_open = False
 
         blocks: list = []
         if text_parts:
