@@ -218,6 +218,73 @@ async def run_crons(
     return {"status": "started"}
 
 
+@router.get("/admin/routines", tags=["Routines"])
+async def list_all_routines(
+    _=Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Cross-project routine inventory for the admin Routines page.
+    Joins each routine to its parent project so the UI doesn't have to
+    fan out N project lookups."""
+    from restai.models.databasemodels import ProjectRoutineDatabase, ProjectDatabase
+
+    rows = (
+        db_wrapper.db.query(ProjectRoutineDatabase, ProjectDatabase)
+        .join(ProjectDatabase, ProjectRoutineDatabase.project_id == ProjectDatabase.id)
+        .order_by(ProjectDatabase.name, ProjectRoutineDatabase.name)
+        .all()
+    )
+    return {
+        "routines": [
+            {
+                "id": r.id,
+                "name": r.name,
+                "schedule_minutes": r.schedule_minutes,
+                "enabled": bool(r.enabled),
+                "last_run": r.last_run.isoformat() if r.last_run else None,
+                "project_id": p.id,
+                "project_name": p.name,
+                "project_type": p.type,
+            }
+            for r, p in rows
+        ]
+    }
+
+
+@router.patch("/admin/routines/{routineID}", tags=["Routines"])
+async def admin_toggle_routine(
+    routineID: int,
+    body: dict,
+    user=Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Admin-only toggle for any routine, regardless of project membership.
+    The per-project PATCH already exists at `/projects/{id}/routines/{rid}`
+    but requires the caller to be in the project's team — admins managing
+    the global Routines page need to flip rows they don't own."""
+    from datetime import datetime, timezone
+    from restai.models.databasemodels import ProjectRoutineDatabase
+
+    routine = db_wrapper.db.query(ProjectRoutineDatabase).filter(
+        ProjectRoutineDatabase.id == routineID
+    ).first()
+    if not routine:
+        raise HTTPException(status_code=404, detail="Routine not found")
+
+    if "enabled" in body:
+        routine.enabled = bool(body["enabled"])
+    routine.updated_at = datetime.now(timezone.utc)
+    db_wrapper.db.commit()
+
+    _audit_log(
+        user.username if hasattr(user, "username") else str(user),
+        "ROUTINE",
+        f"admin/routines/{routineID}:enabled={bool(routine.enabled)}",
+        200,
+    )
+    return {"id": routine.id, "enabled": bool(routine.enabled)}
+
+
 @router.get("/cron-logs", tags=["Settings"])
 async def get_cron_logs(
     start: int = 0,

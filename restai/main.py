@@ -378,24 +378,16 @@ async def lifespan(fs_app: FastAPI):
                 StaticFiles(directory=str(FRONTEND_BUILD_DIR / "assets")),
                 name="static_images",
             )
-
-            # SPA catch-all route for /admin/* - must be defined after static mounts
-            @fs_app.get("/admin/{full_path:path}")
-            async def serve_spa(full_path: str):
-                """Serve static files if they exist, otherwise index.html for SPA routing."""
-                # Serve actual files (manifest.json, favicon.ico, etc.)
-                file_path = (FRONTEND_BUILD_DIR / full_path).resolve()
-                build_root = FRONTEND_BUILD_DIR.resolve()
-                # Prevent directory traversal — resolved path must stay inside build dir
-                if full_path and str(file_path).startswith(str(build_root) + "/") and file_path.is_file():
-                    return FileResponse(str(file_path))
-                index_file = build_root / "index.html"
-                if index_file.exists():
-                    return FileResponse(str(index_file))
-                return JSONResponse(status_code=404, content={"detail": "Frontend not found"})
+            # SPA catch-all is registered further down, AFTER all
+            # `include_router` calls. Starlette matches routes in
+            # registration order, so registering the catch-all first
+            # would shadow any API endpoint under `/admin/...` (e.g.
+            # `/admin/routines`).
+            _SPA_BUILD_DIR = FRONTEND_BUILD_DIR
     except Exception as e:
         print(e)
         print("Admin frontend not available.")
+        _SPA_BUILD_DIR = None
 
     # Widget JS endpoint
     WIDGET_DIR = Path(__file__).parent / "widget"
@@ -453,6 +445,24 @@ async def lifespan(fs_app: FastAPI):
         mcp_server = create_mcp_server(fs_app)
         fs_app.mount("/mcp", mcp_server.http_app(transport="sse"))
         logging.info("MCP server enabled at /mcp/sse")
+
+    # SPA catch-all — registered LAST so explicit API endpoints under
+    # /admin/... (e.g. /admin/routines) win the route match. The
+    # `_SPA_BUILD_DIR` was set up earlier alongside the static mounts;
+    # falsy means the frontend build wasn't found and we silently skip.
+    if _SPA_BUILD_DIR is not None:
+        @fs_app.get("/admin/{full_path:path}")
+        async def serve_spa(full_path: str):
+            """Serve static files if they exist, otherwise index.html for SPA routing."""
+            file_path = (_SPA_BUILD_DIR / full_path).resolve()
+            build_root = _SPA_BUILD_DIR.resolve()
+            # Prevent directory traversal — resolved path must stay inside build dir
+            if full_path and str(file_path).startswith(str(build_root) + "/") and file_path.is_file():
+                return FileResponse(str(file_path))
+            index_file = build_root / "index.html"
+            if index_file.exists():
+                return FileResponse(str(index_file))
+            return JSONResponse(status_code=404, content={"detail": "Frontend not found"})
 
     yield
 

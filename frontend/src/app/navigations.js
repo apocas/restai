@@ -85,6 +85,12 @@ export const defaultNavigations = [
     auth: authRoles.admin,
   },
   {
+    name: "Routines", nameKey: "nav.routines",
+    icon: "alarm",
+    path: "/admin/routines",
+    auth: authRoles.admin,
+  },
+  {
     name: "Permissions", nameKey: "nav.permissionMatrix",
     icon: "lock",
     path: "/admin/permissions",

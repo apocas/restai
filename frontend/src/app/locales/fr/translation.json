@@ -74,6 +74,7 @@
     "generators": "Générateurs",
     "admin": "Administration",
     "cronLogs": "Journaux Cron",
+    "routines": "Routines",
     "auditLog": "Journal d'audit",
     "permissionMatrix": "Matrice des permissions",
     "settings": "Paramètres",
@@ -1390,6 +1391,21 @@
     "legendRestricted": "Utilisateur restreint",
     "adminAccess": "{{user}} → {{project}} (admin)",
     "directAccess": "{{user}} → {{project}}"
+  },
+  "routines": {
+    "title": "Routines",
+    "entries": "{{count}} routines",
+    "loading": "Chargement…",
+    "empty": "Aucune routine configurée dans aucun projet.",
+    "refresh": "Actualiser",
+    "openProject": "Ouvrir le projet",
+    "columns": {
+      "project": "Projet",
+      "name": "Nom",
+      "interval": "Intervalle",
+      "lastRun": "Dernière exécution",
+      "enabled": "Activée"
+    }
   },
   "cron": {
     "title": "Journaux Cron",

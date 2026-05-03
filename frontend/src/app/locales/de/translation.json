@@ -74,6 +74,7 @@
     "generators": "Generatoren",
     "admin": "Administration",
     "cronLogs": "Cron-Protokolle",
+    "routines": "Routinen",
     "auditLog": "Audit-Protokoll",
     "permissionMatrix": "Berechtigungsmatrix",
     "settings": "Einstellungen",
@@ -1390,6 +1391,21 @@
     "legendRestricted": "Eingeschränkter Benutzer",
     "adminAccess": "{{user}} → {{project}} (Administrator)",
     "directAccess": "{{user}} → {{project}}"
+  },
+  "routines": {
+    "title": "Routinen",
+    "entries": "{{count}} Routinen",
+    "loading": "Wird geladen…",
+    "empty": "In keinem Projekt sind Routinen konfiguriert.",
+    "refresh": "Aktualisieren",
+    "openProject": "Projekt öffnen",
+    "columns": {
+      "project": "Projekt",
+      "name": "Name",
+      "interval": "Intervall",
+      "lastRun": "Letzter Lauf",
+      "enabled": "Aktiviert"
+    }
   },
   "cron": {
     "title": "Cron-Protokolle",

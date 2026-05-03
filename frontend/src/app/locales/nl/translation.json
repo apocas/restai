@@ -74,6 +74,7 @@
     "generators": "Generatoren",
     "admin": "Beheer",
     "cronLogs": "Cron-logs",
+    "routines": "Routines",
     "auditLog": "Auditlog",
     "permissionMatrix": "Rechtenmatrix",
     "settings": "Instellingen",
@@ -1390,6 +1391,21 @@
     "legendRestricted": "Beperkte gebruiker",
     "adminAccess": "{{user}} → {{project}} (beheerder)",
     "directAccess": "{{user}} → {{project}}"
+  },
+  "routines": {
+    "title": "Routines",
+    "entries": "{{count}} routines",
+    "loading": "Laden…",
+    "empty": "Geen routines geconfigureerd in enig project.",
+    "refresh": "Vernieuwen",
+    "openProject": "Project openen",
+    "columns": {
+      "project": "Project",
+      "name": "Naam",
+      "interval": "Interval",
+      "lastRun": "Laatst uitgevoerd",
+      "enabled": "Ingeschakeld"
+    }
   },
   "cron": {
     "title": "Cron-logs",

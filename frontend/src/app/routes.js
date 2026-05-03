@@ -54,6 +54,7 @@ const Settings = Loadable(lazy(() => import("app/views/settings/Settings")));
 const GpuInfo = Loadable(lazy(() => import("app/views/settings/GpuInfo")));
 const AuditLog = Loadable(lazy(() => import("app/views/audit/AuditLog")));
 const CronLogs = Loadable(lazy(() => import("app/views/admin/CronLogs")));
+const AdminRoutines = Loadable(lazy(() => import("app/views/admin/Routines")));
 const InvitationsPage = Loadable(lazy(() => import("app/views/invitations/Invitations")));
 
 const routes = [
@@ -281,6 +282,11 @@ const routes = [
       {
         path: "/admin/cron-logs",
         element: <CronLogs />,
+        auth: authRoles.admin
+      },
+      {
+        path: "/admin/routines",
+        element: <AdminRoutines />,
         auth: authRoles.admin
       },
       {

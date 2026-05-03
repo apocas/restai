@@ -74,6 +74,7 @@
     "generators": "生成器",
     "admin": "管理",
     "cronLogs": "定时任务日志",
+    "routines": "例行任务",
     "auditLog": "审计日志",
     "permissionMatrix": "权限矩阵",
     "settings": "设置",
@@ -1390,6 +1391,21 @@
     "legendRestricted": "受限用户",
     "adminAccess": "{{user}} → {{project}}（管理员）",
     "directAccess": "{{user}} → {{project}}"
+  },
+  "routines": {
+    "title": "例行任务",
+    "entries": "{{count}} 个例行任务",
+    "loading": "加载中…",
+    "empty": "尚未在任何项目中配置例行任务。",
+    "refresh": "刷新",
+    "openProject": "打开项目",
+    "columns": {
+      "project": "项目",
+      "name": "名称",
+      "interval": "间隔",
+      "lastRun": "上次运行",
+      "enabled": "已启用"
+    }
   },
   "cron": {
     "title": "定时任务日志",

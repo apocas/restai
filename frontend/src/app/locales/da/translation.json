@@ -74,6 +74,7 @@
     "generators": "Generatorer",
     "admin": "Administration",
     "cronLogs": "Cron-logs",
+    "routines": "Rutiner",
     "auditLog": "Revisionslog",
     "permissionMatrix": "Rettighedsmatrix",
     "settings": "Indstillinger",
@@ -1390,6 +1391,21 @@
     "legendRestricted": "Begrænset bruger",
     "adminAccess": "{{user}} → {{project}} (administrator)",
     "directAccess": "{{user}} → {{project}}"
+  },
+  "routines": {
+    "title": "Rutiner",
+    "entries": "{{count}} rutiner",
+    "loading": "Indlæser…",
+    "empty": "Ingen rutiner er konfigureret i nogen projekter.",
+    "refresh": "Opdater",
+    "openProject": "Åbn projekt",
+    "columns": {
+      "project": "Projekt",
+      "name": "Navn",
+      "interval": "Interval",
+      "lastRun": "Seneste kørsel",
+      "enabled": "Aktiveret"
+    }
   },
   "cron": {
     "title": "Cron-logs",
