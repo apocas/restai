@@ -42,6 +42,15 @@ const ContentBox = styled("div")(({ theme }) => ({
 
 const OLLAMA_CLOUD_HOST = "https://ollama.com";
 
+// Ollama tag names occasionally include characters our backend rejects
+// (`validate_safe_name` allows only `[A-Za-z0-9._:-]`). Ollama Cloud /
+// HF-mirrored tags can show up as `hf.co/library/foo` or `user/model:tag`
+// — the slash blows up the `/llms` POST. Replace illegal chars with `_`
+// for the RESTai-side identifier; the upstream Ollama identifier (the
+// `model` field inside `options`) keeps the original so Ollama can still
+// find the model.
+const sanitizeRestaiName = (s) => (s || "").replace(/[^A-Za-z0-9._:-]/g, "_");
+
 export default function OllamaModels() {
   const navigate = useNavigate();
   const auth = useAuth();
@@ -207,6 +216,10 @@ export default function OllamaModels() {
         ? "Ollama Cloud"
         : `${ollamaConfig.host}:${ollamaConfig.port}`;
 
+      const upstreamName = addingModel.name;
+      const restaiName = sanitizeRestaiName(upstreamName);
+      const renamed = restaiName !== upstreamName;
+
       if (isEmbeddingModel(addingModel)) {
         // Cloud embeddings aren't a thing today (Ollama Cloud only ships
         // LLMs), so block this path until/unless that changes — silently
@@ -217,14 +230,14 @@ export default function OllamaModels() {
           return;
         }
         const options = {
-          model_name: addingModel.name,
+          model_name: upstreamName,
           base_url: baseUrl,
           keep_alive: 0,
           mirostat: 0,
         };
 
         const embeddingData = {
-          name: addingModel.name,
+          name: restaiName,
           class_name: "OllamaEmbeddings",
           options: JSON.stringify(options),
           dimension: addingModel.embedding_length || 1536,
@@ -233,15 +246,19 @@ export default function OllamaModels() {
 
         await api.post("/embeddings", embeddingData, auth.user.token);
 
-        toast.success(`Successfully added embedding ${addingModel.name} to the system`);
+        toast.success(
+          renamed
+            ? `Added embedding "${restaiName}" (renamed from "${upstreamName}" — illegal chars replaced)`
+            : `Successfully added embedding ${restaiName} to the system`
+        );
         setAddingModel(null);
-        navigate(`/embedding/${addingModel.name}`);
+        navigate(`/embedding/${restaiName}`);
         return;
       }
 
       // LLM flow
       const options = {
-        model: addingModel.name,
+        model: upstreamName,
         temperature: 0.1,
         keep_alive: 0,
         request_timeout: 120,
@@ -253,23 +270,27 @@ export default function OllamaModels() {
       // it's encrypted at rest.
       if (isCloud) options.api_key = cloudApiKey.trim();
 
-      const isMultiModal = addingModel.name.includes('llava') || addingModel.details?.families?.includes('clip');
+      const isMultiModal = upstreamName.includes('llava') || addingModel.details?.families?.includes('clip');
       let className;
       if (isCloud) className = "OllamaCloud";
       else if (isMultiModal) className = "OllamaMultiModal2";
       else className = "Ollama";
 
       const modelData = {
-        name: addingModel.name,
+        name: restaiName,
         class_name: className,
         options: JSON.stringify(options),
         privacy: "private",
-        description: `Ollama model ${addingModel.name} from ${sourceLabel}`
+        description: `Ollama model ${upstreamName} from ${sourceLabel}`
       };
 
       await api.post("/llms", modelData, auth.user.token);
 
-      toast.success(`Successfully added model ${addingModel.name} to the system`);
+      toast.success(
+        renamed
+          ? `Added LLM "${restaiName}" (renamed from "${upstreamName}" — illegal chars replaced)`
+          : `Successfully added model ${restaiName} to the system`
+      );
       setAddingModel(null);
     } catch (error) {
       console.error('Error adding model to the system:', error);
