@@ -82,15 +82,14 @@ def transcribe_audio(
         return _t(options, audio_bytes, filename, language)
 
     if row.class_name == "local":
-        manager = getattr(brain, "audio_manager", None) or getattr(brain, "image_manager", None)
+        # Lightweight `Brain` (cron) never loads audio generators, so
+        # `get_audio_generators` returns empty there and we bail before
+        # touching the multiprocessing manager.
         generators = brain.get_audio_generators([name]) if hasattr(brain, "get_audio_generators") else []
         if not generators:
             raise UnknownModelError(name)
-        if manager is None:
-            raise RuntimeError(
-                f"Local STT model '{name}' needs the torch multiprocessing manager "
-                "(GPU mode). Start the API with RESTAI_GPU=true."
-            )
+        from restai.multiprocessing import get_manager
+        manager = get_manager()
         # The legacy runner expects a FastAPI UploadFile. Wrap the file
         # path in a minimal stand-in so we don't have to rewrite it.
         from restai.audio.runner import generate as _runner

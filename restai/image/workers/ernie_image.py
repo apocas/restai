@@ -1,0 +1,75 @@
+"""Baidu ERNIE-Image — 8B-parameter DiT image generator.
+
+Loaded straight from ``baidu/ERNIE-Image`` in bf16 via diffusers'
+`ErnieImagePipeline`. Designed for 24 GB consumer GPUs;
+`enable_model_cpu_offload` cycles text encoder / transformer / VAE so
+peak VRAM stays well below the sum of components.
+
+The repo ships two checkpoints:
+- **ERNIE-Image** (default here): SFT, ~50 inference steps, CFG ~4.0.
+- **ERNIE-Image-Turbo**: RL-distilled, ~8 inference steps. Set
+  ``sharedmem["repo"] = "baidu/ERNIE-Image-Turbo"`` and lower
+  ``num_inference_steps``/``guidance_scale`` accordingly via the
+  Image Generators panel.
+
+Picks up automatically: `restai/image/registry.py:seed_local_generators`
+walks `image/workers/*.py` on every boot and creates a DB row.
+
+Shares `.venv-zimage` with the Z-Image family — both need a bleeding-
+edge `diffusers` (the `ErnieImagePipeline` class only landed in
+late-2025 releases).
+"""
+import os
+
+
+def get_python_executable():
+    current_file_path = os.path.abspath(__file__)
+    project_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file_path))))
+    return os.path.join(project_path, ".venvs/.venv-zimage/bin/python")
+
+
+def flush():
+    import gc
+    import torch
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.reset_max_memory_allocated()
+        torch.cuda.reset_peak_memory_stats()
+
+
+_DEFAULT_REPO = "baidu/ERNIE-Image"
+
+
+def worker(prompt, sharedmem):
+    import base64
+    import io
+    import torch
+    from diffusers import ErnieImagePipeline
+
+    repo = sharedmem.get("repo") or _DEFAULT_REPO
+    torch_dtype = torch.bfloat16
+
+    pipe = ErnieImagePipeline.from_pretrained(repo, torch_dtype=torch_dtype)
+    if (sharedmem.get("offload") or "model").lower() == "sequential":
+        pipe.enable_sequential_cpu_offload()
+    else:
+        pipe.enable_model_cpu_offload()
+
+    image = pipe(
+        prompt=prompt,
+        height=int(sharedmem.get("height") or 1024),
+        width=int(sharedmem.get("width") or 1024),
+        num_inference_steps=int(sharedmem.get("num_inference_steps") or 50),
+        guidance_scale=float(sharedmem.get("guidance_scale") or 4.0),
+        use_pe=bool(sharedmem.get("use_pe", True)),  # built-in prompt enhancer
+        generator=torch.Generator(device="cuda:0").manual_seed(
+            int(sharedmem.get("seed") or 0)
+        ),
+    ).images[0]
+
+    buf = io.BytesIO()
+    image.save(buf, format="JPEG", quality=92)
+    sharedmem["image"] = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+    flush()

@@ -86,20 +86,15 @@ def generate_image(name: str, image_model: ImageModel, brain, db_wrapper) -> tup
 
     if row.class_name == "local":
         # Local workers live in `restai/image/workers/*.py`. `name` matches
-        # the module basename. The actual runner uses torch multiprocessing
-        # and needs the `manager` on `brain.image_manager` — only the
-        # main API process (non-lightweight) has it.
-        manager = getattr(brain, "image_manager", None)
+        # the module basename. Lightweight `Brain` (cron) never loads
+        # generators, so `get_generators` returns empty there and we bail
+        # before touching the multiprocessing manager.
         generators = brain.get_generators([name]) if hasattr(brain, "get_generators") else []
         if not generators:
             raise UnknownGeneratorError(name)
-        if manager is None:
-            raise RuntimeError(
-                f"Local generator '{name}' needs the torch multiprocessing manager "
-                "(GPU mode). Start the API with RESTAI_GPU=true."
-            )
+        from restai.multiprocessing import get_manager
         from restai.image.runner import generate as _runner
-        b64 = _runner(manager, generators[0], image_model)
+        b64 = _runner(get_manager(), generators[0], image_model)
         import base64 as _b64
         return _b64.b64decode(b64), "image/png"
 
