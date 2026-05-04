@@ -362,24 +362,41 @@ class Brain:
         return self.get_llm(name, db)
 
     def post_processing_reasoning(self, output):
-        think_content = None
+        # Pull every <think>…</think> block out of the answer (multi-block
+        # is common when the model thought multiple times in one turn or
+        # when accumulated turn text was preserved). Each becomes a
+        # separate reasoning step. Even when the agent already populated
+        # `output["reasoning"]` from tool calls, we still need to record
+        # the thoughts as steps so the UI's "Thinking" panel shows them
+        # and the empty-answer fallback in agent.py can detect that real
+        # work happened.
         think_pattern = re.compile(r"<think>(.*?)</think>", re.DOTALL)
-        match = think_pattern.search(output["answer"])
-        if match:
-            think_content = match.group(1).strip()
-            output["answer"] = think_pattern.sub("", output["answer"]).strip()
-            if think_content and "reasoning" not in output:
-                output["reasoning"] = {
-                    "output": think_content,
-                    "steps": [
-                        {
-                            "actions": [
-                                {"output": think_content, "action": "reasoning"}
-                            ],
-                            "output": think_content,
-                        }
-                    ],
-                }
+        thoughts = [m.group(1).strip() for m in think_pattern.finditer(output.get("answer") or "")]
+        thoughts = [t for t in thoughts if t]
+        if not thoughts:
+            return output
+
+        output["answer"] = think_pattern.sub("", output["answer"]).strip()
+        joined = "\n\n".join(thoughts)
+        thought_steps = [
+            {
+                "actions": [{"output": t, "action": "reasoning"}],
+                "output": t,
+            }
+            for t in thoughts
+        ]
+
+        if "reasoning" in output and isinstance(output["reasoning"], dict):
+            # Tool steps already recorded — prepend thought steps so the
+            # rendered timeline reads chronologically (thoughts → tools).
+            existing_steps = output["reasoning"].get("steps") or []
+            output["reasoning"]["steps"] = thought_steps + existing_steps
+            existing_out = output["reasoning"].get("output") or ""
+            output["reasoning"]["output"] = (
+                joined + ("\n\n" + existing_out if existing_out else "")
+            )
+        else:
+            output["reasoning"] = {"output": joined, "steps": thought_steps}
         return output
 
     def post_processing_counting(self, output):
@@ -523,9 +540,23 @@ class Brain:
         if len(names) > 0:
             for tool in self.tools:
                 if tool.metadata.name in names:
-                    # Skip terminal tool when Docker is not configured
+                    # We used to silently drop the terminal tool when
+                    # Docker wasn't configured, but that left the agent
+                    # with no idea why its tool call vanished — the model
+                    # would then improvise (e.g. emit text-only Qwen-style
+                    # `<tool_code>print(bash("date"))</tool_code>` blocks
+                    # that the runtime can't parse, leaving the user with
+                    # mysterious empty output). Now we register the tool
+                    # in either case; `terminal()` itself returns a clear
+                    # `ERROR: Docker is not configured…` string when
+                    # invoked without a docker_manager, so the model sees
+                    # a real failure and can surface it to the user.
                     if tool.metadata.name == "terminal" and self.docker_manager is None:
-                        continue
+                        logging.warning(
+                            "Terminal tool requested by an agent project but Docker is not "
+                            "configured — calls will return an ERROR string. Enable Docker "
+                            "in Settings to make it functional."
+                        )
                     _tools.append(tool)
         else:
             _tools = self.tools

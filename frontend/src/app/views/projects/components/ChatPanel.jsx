@@ -59,6 +59,14 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
   // the Stop button can access the live controller without triggering
   // re-renders on each stream chunk.
   const streamAbortRef = useRef(null);
+  // Session chat_id captured from the FIRST `final` event the backend
+  // sends, then reused for every subsequent POST in this playground
+  // session. Without this, an interrupted/cancelled request never sets
+  // an id on the assistant placeholder, the next POST has no body.id,
+  // the backend mints a fresh uuid, and (worse) DockerManager spins up
+  // a new terminal container for every retry — defeating the whole
+  // per-conversation container reuse model.
+  const sessionChatIdRef = useRef(null);
 
   // Branching: each branch is { name: string, messages: array }
   // branches is empty when there's only one thread (no branching yet)
@@ -177,9 +185,14 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     if (context) body.context = context;
 
     const endpoint = chatMode ? "chat" : "question";
-    if (chatMode && messages.length > 0) {
-      const lastMsg = messages[messages.length - 1];
-      if (lastMsg.id) body.id = lastMsg.id;
+    if (chatMode) {
+      // Reuse the session chat_id captured from the first successful
+      // `final` event — survives cancelled/interrupted previous turns
+      // so the backend doesn't mint a new uuid (and DockerManager
+      // doesn't spawn a fresh container) on every retry.
+      const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+      const carriedId = (lastMsg && lastMsg.id) || sessionChatIdRef.current;
+      if (carriedId) body.id = carriedId;
     }
 
     // Preview refs for the chat log. Keep the image dataUrl inline, but strip
@@ -235,6 +248,14 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
           if (data.answer !== undefined && data.type !== undefined) {
             // Final output with full metadata
             finalOutput = data;
+            // Pin the session chat_id the FIRST time we see one — every
+            // subsequent POST in this playground session reuses it so
+            // the backend keeps the same DockerManager container, MCP
+            // session, etc. (without this, an interrupted retry would
+            // mint a fresh uuid and orphan the prior container).
+            if (data.id && !sessionChatIdRef.current) {
+              sessionChatIdRef.current = data.id;
+            }
           } else if (data.text !== undefined) {
             accumulated += data.text;
             setStreamingText(accumulated);
@@ -490,6 +511,10 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     setFiles([]);
     setBranches([]);
     setActiveBranchIdx(-1);
+    // Reset the pinned session id so the next conversation starts a
+    // fresh chat_id (and a fresh DockerManager container) on the
+    // backend rather than resuming the prior session.
+    sessionChatIdRef.current = null;
   };
 
   const showUpload = project.type === "agent" || project.type === "block";

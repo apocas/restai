@@ -330,6 +330,16 @@ class Agent(ProjectBase):
             r"!\[[^\]]*\]\((https?://[^)\s]+/image/cache/[A-Fa-f0-9]+\.[A-Za-z0-9]+|/image/cache/[A-Fa-f0-9]+\.[A-Za-z0-9]+)\)"
         )
 
+        # Mirror every text_delta into a local buffer. The "final" event
+        # is the canonical source for output["answer"], but if the
+        # runtime is interrupted (timeout, abort, upstream EOS without
+        # final_text) we'd otherwise lose everything the user already
+        # saw streaming — including thinking content. Falling back to
+        # the streamed buffer lets `_finalize_reasoning` still extract
+        # `<think>…</think>` blocks so the persisted message keeps the
+        # thoughts the user watched in the live panel.
+        streamed_text_buf: list[str] = []
+
         async for event in runtime.run_iter(
             prompt,
             session=session,
@@ -339,6 +349,7 @@ class Agent(ProjectBase):
             if event.type == "text_delta":
                 delta = event.data.get("text", "")
                 if delta:
+                    streamed_text_buf.append(delta)
                     yield delta
 
             elif event.type == "assistant":
@@ -394,11 +405,11 @@ class Agent(ProjectBase):
 
             elif event.type == "final":
                 output["answer"] = event.data.get("final_text", "") or ""
-                if event.data.get("stop_reason") == "max_turns" and not output["answer"]:
-                    output["answer"] = (
-                        project.props.censorship
-                        or "I'm sorry, I tried my best but couldn't reach a final answer."
-                    )
+                # Capture stop_reason for the post-loop max-turns
+                # handling — we used to overwrite answer with the
+                # fallback string here, which clobbered any thinking
+                # the model had streamed before hitting the cap.
+                output["_stop_reason"] = event.data.get("stop_reason")
 
         # If the LLM dropped a draw_image URL on its way to writing the final
         # answer, splice it back in. Most models echo the markdown verbatim
@@ -411,15 +422,84 @@ class Agent(ProjectBase):
                 appendix = "\n\n" + "\n\n".join(f"![]({u})" for u in missing)
                 output["answer"] = (answer + appendix).strip()
 
+        stop_reason = output.pop("_stop_reason", None)
+
+        # Recover everything the user saw streaming. Two distinct cases:
+        #   (a) Runtime exited without a `final` event (interrupted,
+        #       upstream EOS, timeout) → output["answer"] is empty.
+        #   (b) Runtime hit max_turns. `final_text` is set to ONLY the
+        #       LAST turn's text, but the buffer has every turn's text
+        #       including earlier `<think>…</think>` blocks. Without
+        #       this, multi-turn thoughts get silently dropped.
+        # `_finalize_reasoning` then extracts the `<think>` blocks into
+        # reasoning.steps via post_processing_reasoning.
+        buffer_text = "".join(streamed_text_buf)
+        if buffer_text and (not (output.get("answer") or "") or stop_reason == "max_turns"):
+            output["answer"] = buffer_text
+
+        # If the runtime hit max_turns, surface a notice so the user
+        # knows why the agent stopped and can ask to continue. Append
+        # rather than overwrite — partial work (thinking + tool output)
+        # the model produced should remain visible.
+        if stop_reason == "max_turns":
+            cap = getattr(project.props.options, "max_iterations", None) or "max"
+            notice = (
+                f"\n\n_⚠ Reached the {cap}-iteration tool-call cap before producing a final answer. "
+                f"Reply **\"continue\"** (or give a more focused next step) and I'll keep working from here._"
+            )
+            current = (output.get("answer") or "").rstrip()
+            output["answer"] = (current + notice).lstrip()
+
         self._finalize_reasoning(output, reasoning_buf, steps)
 
-        # Some models (especially Ollama-served thinking variants) call a
-        # tool, receive the result, and then EOS without producing any
-        # final-answer tokens — the inline `final` branch above only
-        # covers the explicit `max_turns` case, so without this the user
-        # gets a blank bubble while the tool-call panel shows the work.
-        # Surface a friendly fallback so the empty answer is never silent.
-        if not (output.get("answer") or "").strip() and steps:
+        # Capture thoughts from EARLIER turns too. The runtime's
+        # `final_text` only carries the last turn's text, so any
+        # `<think>…</think>` blocks emitted in turns 1..N-1 would be
+        # invisible to post_processing_reasoning. We pull them out of
+        # the streamed buffer (which has every delta the user saw),
+        # dedupe against thoughts already recorded, and prepend them
+        # to reasoning.steps so the panel shows the full chain in
+        # chronological order.
+        if buffer_text:
+            think_re = _re.compile(r"<think>(.*?)</think>", _re.DOTALL)
+            buffer_thoughts = [m.group(1).strip() for m in think_re.finditer(buffer_text)]
+            buffer_thoughts = [t for t in buffer_thoughts if t]
+            if buffer_thoughts:
+                existing = output.setdefault("reasoning", {"output": "", "steps": []})
+                if not isinstance(existing.get("steps"), list):
+                    existing["steps"] = []
+                already = {
+                    a.get("output", "")
+                    for s in existing["steps"]
+                    for a in (s.get("actions") or [])
+                    if a.get("action") == "reasoning"
+                }
+                new_thoughts = [t for t in buffer_thoughts if t not in already]
+                if new_thoughts:
+                    new_steps = [
+                        {"actions": [{"output": t, "action": "reasoning"}], "output": t}
+                        for t in new_thoughts
+                    ]
+                    # Prepend so timeline reads thoughts → tools → final.
+                    existing["steps"] = new_steps + existing["steps"]
+                    joined_new = "\n\n".join(new_thoughts)
+                    existing["output"] = (
+                        joined_new + ("\n\n" + existing.get("output", "") if existing.get("output") else "")
+                    )
+
+        # Only fire the "didn't produce a final answer" notice when we
+        # genuinely have nothing — no answer text AND no captured
+        # thoughts. Without this guard, a model that produced lots of
+        # thinking but got interrupted before the final answer would
+        # see its thoughts persisted into reasoning yet have the bubble
+        # body clobbered by the fallback string.
+        reasoning_steps_now = (output.get("reasoning") or {}).get("steps") or []
+        has_thoughts = any(
+            (a.get("action") == "reasoning")
+            for s in reasoning_steps_now
+            for a in (s.get("actions") or [])
+        )
+        if not (output.get("answer") or "").strip() and steps and not has_thoughts:
             output["answer"] = (
                 project.props.censorship
                 or "The model used tools but didn't produce a final answer. "
