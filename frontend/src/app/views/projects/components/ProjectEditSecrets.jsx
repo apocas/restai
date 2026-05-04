@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent,
+  Alert, Box, Button, Card, Chip, Dialog, DialogActions, DialogContent,
   DialogTitle, IconButton, List, ListItem, ListItemText, TextField,
   Tooltip, Typography,
 } from "@mui/material";
@@ -104,7 +104,7 @@ export default function ProjectEditSecrets({ project }) {
   };
 
   return (
-    <Box>
+    <Card elevation={1} sx={{ p: 3 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
         <Box>
           <Typography variant="h6" fontWeight={600}>{t("projects.edit.secrets.title")}</Typography>
@@ -198,6 +198,6 @@ export default function ProjectEditSecrets({ project }) {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </Card>
   );
 }

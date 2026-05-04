@@ -698,6 +698,7 @@ class ProjectOptions(BaseModel):
     score: float = Field(default=0.0, description="Minimum similarity score threshold for retrieved documents")
     k: int = Field(default=4, ge=0, le=100, description="Number of documents to retrieve from the knowledge base")
     max_iterations: int = Field(default=10, ge=1, le=100, description="Maximum iterations for agent project execution")
+    auto_plan: bool = Field(default=False, description="Plan-and-execute: before the first turn, run a one-shot planner LLM call. If the request is multi-step, the agent runs each subtask as its own bounded iteration loop (with shared session) and synthesizes a final answer at the end. Avoids hitting max_iterations on big tasks like 'audit this repo'.")
     connection: Union[str, None] = Field(default=None, max_length=2000, description="Database connection string for natural language to SQL queries")
     mcp_servers: Union[list[MCPServer], None] = Field(default=None, description="List of MCP server configurations for agent projects")
     telegram_token: Union[str, None] = Field(default=None, description="Telegram bot token for Telegram integration")

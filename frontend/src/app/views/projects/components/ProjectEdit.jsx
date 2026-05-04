@@ -1,5 +1,5 @@
-import { Box, Button, Card, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, styled } from "@mui/material";
-import { Info, Storage, Shield, Extension, Build, VpnKey } from "@mui/icons-material";
+import { Box, Button, Card, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid } from "@mui/material";
+import { Info, Storage, Shield, Extension } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
 import { useState, useEffect, useRef } from "react";
 import useAuth from "app/hooks/useAuth";
@@ -11,26 +11,17 @@ import ProjectEditGeneral from "./ProjectEditGeneral";
 import ProjectEditKnowledge from "./ProjectEditKnowledge";
 import ProjectEditSecurity from "./ProjectEditSecurity";
 import ProjectEditIntegrations from "./ProjectEditIntegrations";
-import ProjectEditTools from "./ProjectEditTools";
-import ProjectEditSecrets from "./ProjectEditSecrets";
-
-function parseHeadersText(text) {
-  const h = {};
-  if (!text) return h;
-  text.split("\n").forEach(line => {
-    const i = line.indexOf(":");
-    if (i > 0) { const k = line.substring(0, i).trim(); const v = line.substring(i + 1).trim(); if (k) h[k] = v; }
-  });
-  return h;
-}
 
 // Tab definitions. `key` stays stable (used internally for conditional
 // rendering); `name` is resolved via i18n at render time.
+//
+// The Tools tab moved to the project Info page (`ProjectInfoTools.jsx`).
+// All built-in tools, MCP servers, agent loop settings, and agent-created
+// tools live there now — single place to inspect and edit them, instead
+// of having "view tools" on Info and "edit tools" on Edit.
 const ALL_TABS = [
   { key: "General",       nameKey: "projects.edit.tabs.general",      Icon: Info },
   { key: "Knowledge",     nameKey: "projects.edit.tabs.knowledge",    Icon: Storage, ragOnly: true },
-  { key: "Tools",         nameKey: "projects.edit.tabs.tools",        Icon: Build,   agentOnly: true },
-  { key: "Secrets",       nameKey: "projects.edit.tabs.secrets",      Icon: VpnKey,  agentOnly: true },
   { key: "Security",      nameKey: "projects.edit.tabs.security",     Icon: Shield },
   { key: "Integrations",  nameKey: "projects.edit.tabs.integrations", Icon: Extension },
 ];
@@ -44,10 +35,8 @@ export default function ProjectEdit({ project, projects, info }) {
     name: t(tab.nameKey),
   }));
   const [state, setState] = useState({});
-  const [tools, setTools] = useState([]);
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
-  const [mcpServers, setMcpServers] = useState([]);
   const [promptVersions, setPromptVersions] = useState([]);
   const [showVersions, setShowVersions] = useState(false);
   const [active, setActive] = useState("General");
@@ -75,97 +64,8 @@ export default function ProjectEdit({ project, projects, info }) {
     return true;
   });
 
-  // --- MCP Server Handlers ---
-  const handleAddMcpServer = () => {
-    setMcpServers([...mcpServers, { host: "", args: [], env: {}, tools: null, availableTools: [], loading: false, error: null }]);
-  };
-
-  const handleRemoveMcpServer = (index) => {
-    setMcpServers(mcpServers.filter((_, i) => i !== index));
-  };
-
-  const handleMcpServerFieldChange = (index, field, value) => {
-    const updated = [...mcpServers];
-    updated[index] = { ...updated[index], [field]: value };
-    setMcpServers(updated);
-  };
-
-  const mcpServersRef = useRef(mcpServers);
-  mcpServersRef.current = mcpServers;
-
-  const handleProbeMcpServer = (index) => {
-    const server = mcpServersRef.current[index];
-    setMcpServers(prev => {
-      const next = [...prev];
-      next[index] = { ...next[index], loading: true, error: null };
-      return next;
-    });
-
-    const body = { host: server.host };
-    if (server.args && server.args.length > 0) body.args = server.args;
-    if (server.env && Object.keys(server.env).length > 0) body.env = server.env;
-    const headers = parseHeadersText(server.headersText);
-    if (Object.keys(headers).length > 0) body.headers = headers;
-    api.post("/tools/mcp/probe", body, auth.user.token)
-      .then((data) => {
-        if (data.type === "gateway") {
-          setMcpServers(prev => {
-            const next = [...prev];
-            next[index] = { ...next[index], gateway: data, loading: false, error: null };
-            return next;
-          });
-        } else {
-          setMcpServers(prev => {
-            const next = [...prev];
-            next[index] = { ...next[index], availableTools: data.tools || [], gateway: null, loading: false, error: null };
-            return next;
-          });
-        }
-      })
-      .catch((err) => {
-        setMcpServers(prev => {
-          const next = [...prev];
-          next[index] = { ...next[index], loading: false, error: err.message };
-          return next;
-        });
-      });
-  };
-
-  const handleAddGatewayServices = (index, selectedServices) => {
-    const server = mcpServers[index];
-    const baseUrl = server.host.replace(/\/+$/, "");
-    // Extract base URL without the gateway path
-    const urlObj = new URL(baseUrl);
-    const baseOrigin = urlObj.origin;
-
-    const headersText = server.headersText || "";
-    const newServers = selectedServices.map(service => ({
-      host: baseOrigin + service,
-      args: [],
-      env: {},
-      headersText: headersText,
-      tools: null,
-      availableTools: [],
-      loading: false,
-      error: null,
-    }));
-
-    setMcpServers(prev => {
-      const next = [...prev];
-      next.splice(index, 1, ...newServers); // Replace gateway entry with individual servers
-      return next;
-    });
-  };
-
-  const handleMcpToolsChange = (index, selectedToolNames) => {
-    const updated = [...mcpServers];
-    updated[index] = { ...updated[index], tools: selectedToolNames.length > 0 ? selectedToolNames.join(",") : null };
-    setMcpServers(updated);
-  };
-
-  const isStdioServer = (host) => {
-    return host && !host.startsWith("http://") && !host.startsWith("https://");
-  };
+  // (Tools / MCP server handlers used to live here; they moved to
+  // ProjectInfoTools.jsx along with the rest of the Tools tab.)
 
   // --- Form Submission ---
   const handleSubmit = (event) => {
@@ -203,21 +103,11 @@ export default function ProjectEdit({ project, projects, info }) {
       opts.system = state.system;
     }
 
-    if (project.type === "agent") {
-      opts.options.tools = state.options.tools;
-      opts.options.agent_mode = state.options.agent_mode || "auto";
-      const filteredMcpServers = mcpServers
-        .filter((s) => s.host.trim() !== "")
-        .map((s) => {
-          const entry = { host: s.host, tools: s.tools || null };
-          if (s.args && s.args.length > 0) entry.args = s.args;
-          if (s.env && Object.keys(s.env).length > 0) entry.env = s.env;
-          const h = parseHeadersText(s.headersText);
-          if (Object.keys(h).length > 0) entry.headers = h;
-          return entry;
-        });
-      opts.options.mcp_servers = filteredMcpServers.length > 0 ? filteredMcpServers : null;
-    }
+    // Tools / agent_mode / max_iterations / auto_plan / mcp_servers
+    // are persisted from ProjectInfoTools' own Save button now. We
+    // intentionally don't touch those keys here — `state.options` was
+    // hydrated from the project on mount and preserves any values that
+    // were already set, so the Save on this page won't wipe them.
 
     if (state.options.telegram_token !== undefined) opts.options.telegram_token = state.options.telegram_token;
     if (state.options.telegram_default_chat_id !== undefined) opts.options.telegram_default_chat_id = state.options.telegram_default_chat_id || null;
@@ -358,7 +248,6 @@ export default function ProjectEdit({ project, projects, info }) {
     // `initialState`, so JSON.stringify of either yields the same string.
     baselineRef.current = JSON.stringify(initialState);
 
-    api.get("/tools/agent", auth.user.token).then(setTools).catch(() => {});
     api.get("/users", auth.user.token).then((d) => setUsers(d.users)).catch(() => {});
     api.get("/teams", auth.user.token).then((d) => setTeams(d.teams || [])).catch(() => {});
 
@@ -368,68 +257,8 @@ export default function ProjectEdit({ project, projects, info }) {
         .catch(() => {});
     }
 
-    if (project.type === "agent" && project.options?.mcp_servers) {
-      const servers = project.options.mcp_servers.map((s) => ({
-        host: s.host,
-        args: s.args || [],
-        env: s.env || {},
-        headersText: Object.entries(s.headers || {}).map(([k, v]) => `${k}: ${v}`).join("\n"),
-        tools: s.tools || null,
-        availableTools: s.tools ? s.tools.split(",").map((t) => ({ name: t.trim(), description: "", schema: "" })) : [],
-        loading: false,
-        error: null,
-      }));
-      setMcpServers(servers);
-
-      // Stagger initial probes by 150ms each. A project with 10 MCP
-      // servers used to fire 10 parallel POSTs on mount — fine for a
-      // lab setup, noisy for a production deployment where each probe
-      // reaches out to a different remote. Also flips `loading` + fills
-      // `error` on failure so the new Retry button has state to show.
-      servers.forEach((server, index) => {
-        if (!server.host) return;
-        setTimeout(() => {
-          setMcpServers((prev) => {
-            const next = [...prev];
-            if (next[index]) next[index] = { ...next[index], loading: true, error: null };
-            return next;
-          });
-          const body = { host: server.host };
-          if (server.args && server.args.length > 0) body.args = server.args;
-          if (server.env && Object.keys(server.env).length > 0) body.env = server.env;
-          const h = parseHeadersText(server.headersText);
-          if (Object.keys(h).length > 0) body.headers = h;
-          api.post("/tools/mcp/probe", body, auth.user.token, { silent: true })
-            .then((data) => {
-              setMcpServers((prev) => {
-                const next = [...prev];
-                if (next[index]) {
-                  next[index] = {
-                    ...next[index],
-                    availableTools: data.tools || [],
-                    loading: false,
-                    error: null,
-                  };
-                }
-                return next;
-              });
-            })
-            .catch((err) => {
-              setMcpServers((prev) => {
-                const next = [...prev];
-                if (next[index]) {
-                  next[index] = {
-                    ...next[index],
-                    loading: false,
-                    error: (err && err.detail) || (err && err.message) || "Probe failed",
-                  };
-                }
-                return next;
-              });
-            });
-        }, index * 150);
-      });
-    }
+    // (Tool catalog fetch + MCP server hydration / probe loop moved to
+    // ProjectInfoTools.jsx — that's where the Tools tab lives now.)
 
     if (project?.team?.id) {
       api.get("/teams/" + project.team.id, auth.user.token, { silent: true })
@@ -524,19 +353,6 @@ export default function ProjectEdit({ project, projects, info }) {
                 })}
               />
             )}
-            {active === "Tools" && (
-              <ProjectEditTools
-                state={state} setState={setState} handleChange={handleChange}
-                project={project} mcpServers={mcpServers} setMcpServers={setMcpServers}
-                tools={tools} handleAddMcpServer={handleAddMcpServer}
-                handleRemoveMcpServer={handleRemoveMcpServer}
-                handleMcpServerFieldChange={handleMcpServerFieldChange}
-                handleProbeMcpServer={handleProbeMcpServer}
-                handleMcpToolsChange={handleMcpToolsChange}
-                handleAddGatewayServices={handleAddGatewayServices}
-                isStdioServer={isStdioServer}
-              />
-            )}
             {active === "Security" && (
               <ProjectEditSecurity
                 state={state} setState={setState} handleChange={handleChange}
@@ -547,9 +363,6 @@ export default function ProjectEdit({ project, projects, info }) {
                   const next = { ...prev }; delete next[k]; return next;
                 })}
               />
-            )}
-            {active === "Secrets" && (
-              <ProjectEditSecrets project={project} />
             )}
             {active === "Integrations" && (
               <ProjectEditIntegrations

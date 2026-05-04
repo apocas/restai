@@ -1,7 +1,7 @@
 import {
   Grid, TextField, Button, Autocomplete, Typography, IconButton, Divider, Box,
   CircularProgress, MenuItem, Chip, Accordion, AccordionSummary, AccordionDetails,
-  Dialog, DialogTitle, DialogContent, DialogActions,
+  Dialog, DialogTitle, DialogContent, DialogActions, Switch, FormControlLabel,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -376,6 +376,29 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
             <MenuItem value="function_calling">Function Calling (native only)</MenuItem>
             <MenuItem value="react">ReAct (text-based prompting)</MenuItem>
           </TextField>
+        </Grid>
+        <Grid item xs={12}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={!!state.options?.auto_plan}
+                onChange={(e) => setState({
+                  ...state,
+                  options: { ...state.options, auto_plan: e.target.checked }
+                })}
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2">Auto-plan multi-step tasks</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Before the first turn, run a one-shot planner LLM call. If the request needs multiple steps,
+                  the agent runs each subtask as its own bounded iteration loop (shared session) and synthesizes
+                  a final answer at the end. Avoids hitting Max Iterations on big tasks like "audit this repo".
+                </Typography>
+              </Box>
+            }
+          />
         </Grid>
         </>
       )}

@@ -3,7 +3,7 @@ import {
   Box, Chip, Collapse, IconButton, Typography, styled, Tooltip,
   Accordion, AccordionSummary, AccordionDetails,
 } from "@mui/material";
-import { ContentCopy, ExpandMore, Shield, Cached, Speed, TerminalOutlined, CallSplit, AttachFile, Psychology } from "@mui/icons-material";
+import { ContentCopy, ExpandMore, Shield, Cached, Speed, TerminalOutlined, CallSplit, AttachFile, Psychology, CheckCircle, RadioButtonUnchecked, Loop } from "@mui/icons-material";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Terminal from "./Terminal";
@@ -194,6 +194,98 @@ export default function MessageBubble({ message, onBranch }) {
         <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
           <Box sx={{ maxWidth: "80%" }}>
             <AnswerBubble>
+              {/* Plan-and-execute progress — only present when the
+                  backend's auto_plan emitted a multi-step plan. Each
+                  entry shows a status icon (pending/running/done) and
+                  the step name. The synthesis turn is the last entry.
+                  Auto-expanded while the run is still in progress
+                  (any step !== "done"). */}
+              {(() => {
+                const planNames = Array.isArray(message.plan) ? message.plan : null;
+                if (!planNames || planNames.length === 0) return null;
+                const stepStates = Array.isArray(message.step_summaries) ? message.step_summaries : [];
+                // Two shapes can arrive here:
+                // 1) Live streaming: stepStates already carries
+                //    {name, status, summary?} from the SSE events.
+                // 2) Persisted final message: the backend stores
+                //    [{name, result}] — treat all as "done" since the
+                //    run completed by the time the bubble renders.
+                const isStreamingShape = stepStates.length > 0 && "status" in stepStates[0];
+                let rows;
+                if (isStreamingShape) {
+                  rows = stepStates;
+                } else {
+                  rows = [
+                    ...planNames.map((name, i) => ({
+                      name,
+                      status: "done",
+                      summary: stepStates[i]?.result || "",
+                    })),
+                    { name: "Synthesize final answer", status: "done", synthetic: true },
+                  ];
+                }
+                const anyRunning = rows.some((r) => r.status === "running" || r.status === "pending");
+                return (
+                  <Accordion
+                    disableGutters
+                    elevation={0}
+                    defaultExpanded={anyRunning}
+                    sx={{ mb: 1, backgroundColor: "transparent", "&:before": { display: "none" } }}
+                  >
+                    <AccordionSummary
+                      expandIcon={<ExpandMore />}
+                      sx={{ minHeight: 28, px: 0, "& .MuiAccordionSummary-content": { my: 0 } }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        {anyRunning ? <Loop fontSize="small" color="primary" sx={{ animation: "spin 2s linear infinite", "@keyframes spin": { "100%": { transform: "rotate(360deg)" } } }} />
+                                    : <CheckCircle fontSize="small" color="success" />}
+                        <Typography variant="caption" color="text.secondary">
+                          Plan · {rows.filter((r) => r.status === "done").length} / {rows.length} steps
+                        </Typography>
+                      </Box>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ px: 0, pt: 0 }}>
+                      <Box component="ol" sx={{ m: 0, pl: 0, listStyle: "none" }}>
+                        {rows.map((step, i) => {
+                          const icon = step.status === "done"
+                            ? <CheckCircle fontSize="inherit" color="success" />
+                            : step.status === "running"
+                              ? <Loop fontSize="inherit" color="primary" sx={{ animation: "spin 2s linear infinite", "@keyframes spin": { "100%": { transform: "rotate(360deg)" } } }} />
+                              : <RadioButtonUnchecked fontSize="inherit" color="action" />;
+                          return (
+                            <Box
+                              key={i}
+                              component="li"
+                              sx={{
+                                display: "flex",
+                                alignItems: "flex-start",
+                                gap: 1,
+                                py: 0.5,
+                                fontSize: "0.85rem",
+                                opacity: step.status === "pending" ? 0.55 : 1,
+                              }}
+                            >
+                              <Box sx={{ display: "flex", alignItems: "center", pt: "2px", fontSize: "1rem" }}>
+                                {icon}
+                              </Box>
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="body2" sx={{ fontWeight: step.status === "running" ? 600 : 400 }}>
+                                  {step.name}
+                                </Typography>
+                                {step.summary && (
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25, whiteSpace: "pre-wrap" }}>
+                                    {step.summary}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    </AccordionDetails>
+                  </Accordion>
+                );
+              })()}
               {/* Live thinking panel — dim italic, auto-expand while
                   streaming an unterminated <think> block; collapsed
                   after the model closes it. Mirrors `ollama run`. */}

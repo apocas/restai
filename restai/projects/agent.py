@@ -9,8 +9,10 @@ Agent projects without any tools configured behave like a plain LLM chat —
 the runtime exits after one turn with no extra overhead. Add tools or MCP
 servers in the project's Tools tab to turn them into actual agents.
 """
+import asyncio
 import json
 import logging
+import re
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -216,6 +218,189 @@ def _wrap_image_error(err: Exception, has_image: bool) -> Exception:
 
 
 class Agent(ProjectBase):
+
+    # ---------------- Plan-and-execute (auto_plan) ----------------
+
+    async def _run_planner(
+        self, project, prompt: str, db: DBWrapper
+    ) -> list[str] | None:
+        """One-shot LLM call that decides if `prompt` should be split into
+        subtasks. Returns a list of 2-6 short subtask names if multi-step,
+        or None to skip planning. Failures fall back to None (no plan)
+        so a planner glitch never breaks the chat.
+        """
+        llm_wrapper = self.brain.get_llm(project.props.llm, db)
+        if llm_wrapper is None or not hasattr(llm_wrapper, "llm"):
+            return None
+
+        # Per-step iteration budget shown to the planner so it can size
+        # the plan: total work-loops will be len(plan) * max_iterations.
+        cap = int(getattr(project.props.options, "max_iterations", 10) or 10)
+        planner_prompt = (
+            "You are a task planner. Decide if the user's request needs multiple distinct steps.\n\n"
+            "Respond with STRICT JSON, one of:\n"
+            '  {"plan": ["short step name 1", "short step name 2", ...]}  (2-6 steps)\n'
+            '  {"plan": null}\n\n'
+            "Plan when the request requires multiple coherent phases of work — e.g. "
+            '"clone repo and audit security" → {"plan": ["Clone the repo", "Map the codebase", '
+            '"Audit auth and input validation", "Audit secrets handling", "Compile final report"]}.\n\n'
+            "Do NOT plan for simple questions, lookups, single-tool calls, or chit-chat — return "
+            '{"plan": null}. Each step gets up to '
+            f"{cap} tool-call iterations on its own, so prefer a smaller plan over a longer one. "
+            "Step names must be short and action-oriented.\n\n"
+            f"User request:\n{prompt}\n\nJSON:"
+        )
+
+        try:
+            result = await asyncio.to_thread(llm_wrapper.llm.complete, planner_prompt)
+            text = (result.text if hasattr(result, "text") else str(result)).strip()
+        except Exception as e:
+            logging.warning("Planner LLM call failed (skipping plan): %s", e)
+            return None
+
+        # Strip <think>…</think> blocks (Qwen3, deepseek-r1, …) and any
+        # fenced markdown wrappers before parsing JSON.
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+        if text.startswith("```"):
+            text = text.strip("`").strip()
+            if text.lower().startswith("json"):
+                text = text[4:].strip()
+        # Some models emit prose around the JSON; grab the first {…} block.
+        m = re.search(r"\{.*\}", text, re.DOTALL)
+        if m:
+            text = m.group(0)
+
+        try:
+            data = json.loads(text)
+        except Exception as e:
+            logging.warning("Planner output wasn't valid JSON (skipping plan): %s | %r", e, text[:200])
+            return None
+
+        plan = data.get("plan")
+        if not isinstance(plan, list):
+            return None
+        plan = [s.strip() for s in plan if isinstance(s, str) and s.strip()]
+        if not (2 <= len(plan) <= 6):
+            return None
+        return plan
+
+    async def _chat_planned_stream(
+        self,
+        project: Project,
+        original_prompt: str,
+        plan: list[str],
+        session,
+        runtime,
+        image_block,
+        stream: bool,
+        output: dict,
+    ):
+        """Run a multi-step plan: each subtask is its own bounded
+        `_drive_runtime` invocation against a SHARED session, then a
+        synthesis turn produces the final answer. Yields fully-formatted
+        SSE strings (the caller just passes them through to the wire).
+
+        Aggregates reasoning steps, tool traces, and a per-step summary
+        log into `output` so the frontend can render the checklist + the
+        usual thoughts/tools panels.
+        """
+        output["plan"] = plan
+        output["step_summaries"] = []
+        aggregated_reasoning_steps: list = []
+        aggregated_tool_trace: list = []
+
+        if stream:
+            yield "data: " + json.dumps({"plan": plan}) + "\n\n"
+
+        for idx, step_name in enumerate(plan):
+            if stream:
+                yield "data: " + json.dumps(
+                    {"step_start": {"index": idx, "name": step_name}}
+                ) + "\n\n"
+
+            if idx == 0:
+                step_prompt = (
+                    f"Here is the user's overall request:\n\n{original_prompt}\n\n"
+                    f"We'll tackle it as a {len(plan)}-step plan:\n"
+                    + "\n".join(f"  {i+1}. {s}" for i, s in enumerate(plan))
+                    + f"\n\n**Now do step 1/{len(plan)}: {step_name}**\n"
+                    "Focus only on this step. Use as many tool calls as needed. "
+                    "When you're done with this step, write a brief one-paragraph summary of what you found/did and stop."
+                )
+            else:
+                step_prompt = (
+                    f"**Now do step {idx+1}/{len(plan)}: {step_name}**\n"
+                    "Focus only on this step. When done, write a brief summary and stop."
+                )
+
+            step_output: dict = {}
+            async for delta in self._drive_runtime(
+                runtime,
+                prompt=step_prompt,
+                session=session,
+                image_block=image_block if idx == 0 else None,
+                stream=stream,
+                project=project,
+                output=step_output,
+            ):
+                if stream:
+                    yield "data: " + json.dumps({"text": delta}) + "\n\n"
+
+            step_text = (step_output.get("answer") or "").strip()
+            output["step_summaries"].append({"name": step_name, "result": step_text[:1000]})
+            aggregated_reasoning_steps.extend(
+                (step_output.get("reasoning") or {}).get("steps") or []
+            )
+            aggregated_tool_trace.extend(step_output.get("tool_trace") or [])
+
+            if stream:
+                yield "data: " + json.dumps(
+                    {"step_done": {"index": idx, "summary": step_text[:300]}}
+                ) + "\n\n"
+
+        # Final synthesis: index = len(plan) so the UI shows it as a
+        # virtual extra step at the bottom of the checklist.
+        if stream:
+            yield "data: " + json.dumps(
+                {"step_start": {"index": len(plan), "name": "Synthesize final answer"}}
+            ) + "\n\n"
+
+        synth_prompt = (
+            "All planned steps are done. Write a complete, well-structured final answer "
+            "to the user's original request, drawing on everything you found across the steps. "
+            "Don't ask clarifying questions and don't recap the plan — just give the answer."
+        )
+        final_output: dict = {}
+        async for delta in self._drive_runtime(
+            runtime,
+            prompt=synth_prompt,
+            session=session,
+            image_block=None,
+            stream=stream,
+            project=project,
+            output=final_output,
+        ):
+            if stream:
+                yield "data: " + json.dumps({"text": delta}) + "\n\n"
+
+        if stream:
+            yield "data: " + json.dumps(
+                {"step_done": {"index": len(plan), "summary": "synthesis complete"}}
+            ) + "\n\n"
+
+        output["answer"] = final_output.get("answer") or ""
+        final_steps = (final_output.get("reasoning") or {}).get("steps") or []
+        output["reasoning"] = {
+            "output": "\n\n".join(
+                a.get("output", "")
+                for s in (aggregated_reasoning_steps + final_steps)
+                for a in (s.get("actions") or [])
+            ),
+            "steps": aggregated_reasoning_steps + final_steps,
+        }
+        merged_trace = aggregated_tool_trace + (final_output.get("tool_trace") or [])
+        if merged_trace:
+            output["tool_trace"] = merged_trace
 
     def _build_runtime(
         self,
@@ -573,18 +758,44 @@ class Agent(ProjectBase):
                 )
                 image_block = ImageBlock.from_data_url(image_url) if image_url else None
 
+                # Plan-and-execute (opt-in). Only kicks in on the first
+                # turn of a fresh session — follow-up messages run as
+                # normal single-loop chat so the user can refine without
+                # paying the planner cost again.
+                use_plan = (
+                    bool(getattr(project.props.options, "auto_plan", False))
+                    and not getattr(session, "messages", None)
+                )
+                plan = None
+                if use_plan:
+                    plan = await self._run_planner(project, prompt_text, db)
+
                 try:
-                    async for delta in self._drive_runtime(
-                        runtime,
-                        prompt=prompt_text,
-                        session=session,
-                        image_block=image_block,
-                        stream=chatModel.stream,
-                        project=project,
-                        output=output,
-                    ):
-                        streamed_any_text = True
-                        yield "data: " + json.dumps({"text": delta}) + "\n\n"
+                    if plan:
+                        async for sse_line in self._chat_planned_stream(
+                            project=project,
+                            original_prompt=prompt_text,
+                            plan=plan,
+                            session=session,
+                            runtime=runtime,
+                            image_block=image_block,
+                            stream=chatModel.stream,
+                            output=output,
+                        ):
+                            streamed_any_text = True
+                            yield sse_line
+                    else:
+                        async for delta in self._drive_runtime(
+                            runtime,
+                            prompt=prompt_text,
+                            session=session,
+                            image_block=image_block,
+                            stream=chatModel.stream,
+                            project=project,
+                            output=output,
+                        ):
+                            streamed_any_text = True
+                            yield "data: " + json.dumps({"text": delta}) + "\n\n"
 
                     await save_session(self.brain, chat_id, session)
                     self._count_tokens(output)

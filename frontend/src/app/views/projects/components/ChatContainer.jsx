@@ -16,6 +16,10 @@ export default function ChatContainer({ project }) {
   const [mode, setMode] = useState(0); // 0 = chat, 1 = compare
   const [chatMode, setChatMode] = useState(true);
   const [streaming, setStreaming] = useState(true);
+  // Auto-scroll on (default). Off lets the user scroll up to read older
+  // turns while the model is still streaming without getting yanked back
+  // to the bottom on every new chunk.
+  const [autoScroll, setAutoScroll] = useState(true);
   const [showContext, setShowContext] = useState(false);
   const [contextText, setContextText] = useState("{}");
   const [contextError, setContextError] = useState(false);
@@ -62,6 +66,10 @@ export default function ChatContainer({ project }) {
               <FormControlLabel
                 control={<Switch size="small" checked={streaming} onChange={(e) => setStreaming(e.target.checked)} />}
                 label={<Typography variant="caption">Stream</Typography>}
+              />
+              <FormControlLabel
+                control={<Switch size="small" checked={autoScroll} onChange={(e) => setAutoScroll(e.target.checked)} />}
+                label={<Typography variant="caption">Auto-scroll</Typography>}
               />
               <Tooltip title="Inject context variables into the system prompt">
                 <IconButton
@@ -110,7 +118,7 @@ export default function ChatContainer({ project }) {
       {/* Body */}
       <Box sx={{ flex: 1, minHeight: 0, p: mode === 1 ? 2 : 0 }}>
         {mode === 0 && (
-          <ChatPanel project={project} chatMode={chatMode} streaming={streaming} context={parsedContext} />
+          <ChatPanel project={project} chatMode={chatMode} streaming={streaming} context={parsedContext} autoScroll={autoScroll} />
         )}
         {mode === 1 && (
           <CompareMode project={project} />

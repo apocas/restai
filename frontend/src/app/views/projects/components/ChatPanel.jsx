@@ -42,7 +42,7 @@ function formatChatError(t, status, detail) {
   }
 }
 
-export default function ChatPanel({ project, systemOverride, sharedQuestion, onQuestionSent, chatMode = false, compact = false, streaming = false, context = null }) {
+export default function ChatPanel({ project, systemOverride, sharedQuestion, onQuestionSent, chatMode = false, compact = false, streaming = false, context = null, autoScroll = true }) {
   const { t } = useTranslation();
   const auth = useAuth();
   const [messages, setMessages] = useState([]);
@@ -54,6 +54,11 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
   const [files, setFiles] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
+  // Live plan-and-execute progress for the current streaming turn.
+  // Cleared when the stream ends (final message carries it persisted).
+  // Shape: { plan: [name, ...], steps: [{name, status, summary?}] }
+  // status ∈ "pending" | "running" | "done"
+  const [streamingPlan, setStreamingPlan] = useState(null);
   const scrollRef = useRef(null);
   // AbortController for the in-flight streaming fetch. Kept in a ref so
   // the Stop button can access the live controller without triggering
@@ -148,12 +153,16 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     });
   }, [activeBranchIdx]);
 
-  // Auto-scroll on new messages
+  // Auto-scroll on new messages. Opt-out via the parent's `autoScroll`
+  // prop (toolbar switch in ChatContainer). When disabled, the user can
+  // scroll up to read older content while the model is still streaming;
+  // re-enabling snaps back to the bottom on the next chunk.
   useEffect(() => {
+    if (!autoScroll) return;
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, streamingText]);
+  }, [messages, streamingText, autoScroll]);
 
   // Handle shared question from compare mode
   useEffect(() => {
@@ -206,6 +215,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       _files: fileRefs.length ? fileRefs : null,
     }]);
     setStreamingText("");
+    setStreamingPlan(null);
 
     let accumulated = "";
     let finalOutput = null;
@@ -248,17 +258,43 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
           if (data.answer !== undefined && data.type !== undefined) {
             // Final output with full metadata
             finalOutput = data;
-            // Pin the session chat_id the FIRST time we see one — every
-            // subsequent POST in this playground session reuses it so
-            // the backend keeps the same DockerManager container, MCP
-            // session, etc. (without this, an interrupted retry would
-            // mint a fresh uuid and orphan the prior container).
             if (data.id && !sessionChatIdRef.current) {
               sessionChatIdRef.current = data.id;
             }
           } else if (data.text !== undefined) {
             accumulated += data.text;
             setStreamingText(accumulated);
+          } else if (Array.isArray(data.plan)) {
+            // auto_plan: backend emitted the plan checklist. Seed the
+            // live progress panel; the synthesis turn is shown as a
+            // virtual extra step at the bottom (index === plan.length).
+            setStreamingPlan({
+              plan: data.plan,
+              steps: [
+                ...data.plan.map((name) => ({ name, status: "pending" })),
+                { name: "Synthesize final answer", status: "pending", synthetic: true },
+              ],
+            });
+          } else if (data.step_start) {
+            const { index, name } = data.step_start;
+            setStreamingPlan((cur) => {
+              if (!cur) return cur;
+              const steps = cur.steps.slice();
+              if (steps[index]) {
+                steps[index] = { ...steps[index], name: name || steps[index].name, status: "running" };
+              }
+              return { ...cur, steps };
+            });
+          } else if (data.step_done) {
+            const { index, summary } = data.step_done;
+            setStreamingPlan((cur) => {
+              if (!cur) return cur;
+              const steps = cur.steps.slice();
+              if (steps[index]) {
+                steps[index] = { ...steps[index], status: "done", summary: summary || "" };
+              }
+              return { ...cur, steps };
+            });
           }
         } catch (e) {
           // Non-JSON chunk, ignore
@@ -266,6 +302,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       },
       onclose() {
         setStreamingText("");
+        setStreamingPlan(null);
         if (finalOutput) {
           setMessages(prev => {
             const updated = [...prev];
@@ -301,6 +338,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       },
       onerror(err) {
         setStreamingText("");
+        setStreamingPlan(null);
         // Intentional user abort — keep whatever text we accumulated
         // as the final answer and exit quietly, no error bubble, no
         // toast. Aborting via AbortController surfaces here as a
@@ -508,6 +546,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
   const handleClear = () => {
     setMessages([]);
     setStreamingText("");
+    setStreamingPlan(null);
     setFiles([]);
     setBranches([]);
     setActiveBranchIdx(-1);
@@ -566,8 +605,16 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
                 onBranch={chatMode && msg.answer ? () => handleBranch(i) : undefined}
               />
             ))}
-            {streamingText && (
-              <MessageBubble message={{ question: null, answer: streamingText, sources: [] }} />
+            {(streamingText || streamingPlan) && (
+              <MessageBubble
+                message={{
+                  question: null,
+                  answer: streamingText,
+                  sources: [],
+                  plan: streamingPlan ? streamingPlan.plan : undefined,
+                  step_summaries: streamingPlan ? streamingPlan.steps : undefined,
+                }}
+              />
             )}
           </Box>
       </Box>
