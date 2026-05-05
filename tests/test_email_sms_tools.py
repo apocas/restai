@@ -6,7 +6,7 @@ agent gets a clear ERROR string instead of an unhandled exception when
 an admin forgets a field.
 
 The tools do their `import smtplib` / `import requests` / `from
-restai.database import get_db_wrapper` *inside* the function (so the
+restai.database import open_db_wrapper` *inside* the function (so the
 import cost is paid only when the tool is actually invoked). Tests
 therefore patch the canonical module paths, not the tool module.
 """
@@ -45,7 +45,7 @@ def test_send_email_requires_project_context():
 def test_send_email_missing_smtp_config():
     from restai.llms.tools.send_email import send_email
     db = _fake_db(_fake_project({}))
-    with patch("restai.database.get_db_wrapper", return_value=db):
+    with patch("restai.database.open_db_wrapper", return_value=db):
         out = send_email("hello", "body", _brain=object(), _project_id=42)
     assert out.startswith("ERROR:")
     assert "not configured" in out
@@ -54,7 +54,7 @@ def test_send_email_missing_smtp_config():
 def test_send_email_missing_recipient():
     from restai.llms.tools.send_email import send_email
     db = _fake_db(_fake_project({"smtp_host": "smtp.example.com", "smtp_from": "bot@x"}))
-    with patch("restai.database.get_db_wrapper", return_value=db):
+    with patch("restai.database.open_db_wrapper", return_value=db):
         out = send_email("hi", "body", _brain=object(), _project_id=42)
     assert out.startswith("ERROR:")
     assert "recipient" in out
@@ -85,7 +85,7 @@ def test_send_email_happy_path():
         def login(self, u, p): sent.append({"login": (u, p)})
         def send_message(self, msg): sent.append({"send": msg["To"]})
 
-    with patch("restai.database.get_db_wrapper", return_value=db), \
+    with patch("restai.database.open_db_wrapper", return_value=db), \
          patch("smtplib.SMTP", _FakeSMTP):
         out = send_email("subj", "body", _brain=object(), _project_id=1)
 
@@ -120,7 +120,7 @@ def test_send_email_implicit_tls_path():
         def __init__(self, *a, **kw):
             raise AssertionError("plain SMTP must not be used on port 465")
 
-    with patch("restai.database.get_db_wrapper", return_value=db), \
+    with patch("restai.database.open_db_wrapper", return_value=db), \
          patch("smtplib.SMTP_SSL", _FakeSSL), \
          patch("smtplib.SMTP", _FakePlainSMTP):
         out = send_email("subj", "body", _brain=object(), _project_id=1)
@@ -142,7 +142,7 @@ def test_send_email_smtp_failure_returns_error_string():
     def _raise(*a, **kw):
         raise smtplib.SMTPException("relay refused")
 
-    with patch("restai.database.get_db_wrapper", return_value=db), \
+    with patch("restai.database.open_db_wrapper", return_value=db), \
          patch("smtplib.SMTP", _raise):
         out = send_email("subj", "body", _brain=object(), _project_id=1)
     assert out.startswith("ERROR:"), out
@@ -161,7 +161,7 @@ def test_send_sms_requires_project_context():
 def test_send_sms_missing_config():
     from restai.llms.tools.send_sms import send_sms
     db = _fake_db(_fake_project({}))
-    with patch("restai.database.get_db_wrapper", return_value=db):
+    with patch("restai.database.open_db_wrapper", return_value=db):
         out = send_sms("hi", _brain=object(), _project_id=1)
     assert out.startswith("ERROR:")
     assert "not configured" in out
@@ -174,7 +174,7 @@ def test_send_sms_missing_recipient():
         "twilio_auth_token": encrypt_field("tok"),
         "twilio_from_number": "+15551234567",
     }))
-    with patch("restai.database.get_db_wrapper", return_value=db):
+    with patch("restai.database.open_db_wrapper", return_value=db):
         out = send_sms("hi", _brain=object(), _project_id=1)
     assert out.startswith("ERROR:")
     assert "recipient" in out
@@ -197,7 +197,7 @@ def test_send_sms_happy_path():
         captured.update({"url": url, "auth": auth, "data": data, "timeout": timeout})
         return _FakeResp()
 
-    with patch("restai.database.get_db_wrapper", return_value=db), \
+    with patch("restai.database.open_db_wrapper", return_value=db), \
          patch("requests.post", fake_post):
         out = send_sms("hi from agent", _brain=object(), _project_id=1)
 
@@ -226,7 +226,7 @@ def test_send_sms_chunks_long_messages():
         calls.append(len(data["Body"]))
         return _FakeResp()
 
-    with patch("restai.database.get_db_wrapper", return_value=db), \
+    with patch("restai.database.open_db_wrapper", return_value=db), \
          patch("requests.post", fake_post):
         out = send_sms("x" * 3500, _brain=object(), _project_id=1)
     assert out.startswith("OK:")
@@ -247,7 +247,7 @@ def test_send_sms_twilio_error_surfaces():
         status_code = 400
         text = '{"message": "from number not owned"}'
         def json(self): return {"message": "from number not owned", "code": 21603}
-    with patch("restai.database.get_db_wrapper", return_value=db), \
+    with patch("restai.database.open_db_wrapper", return_value=db), \
          patch("requests.post", lambda *a, **kw: _FakeResp()):
         out = send_sms("hi", _brain=object(), _project_id=1)
     assert out.startswith("ERROR:")

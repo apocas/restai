@@ -69,7 +69,7 @@ def test_blocklist_from_project_options():
     db = _fake_db(_fake_project({
         "moderation_blocklist": "proprietary,internal-only",
     }))
-    with patch("restai.database.get_db_wrapper", return_value=db):
+    with patch("restai.database.open_db_wrapper", return_value=db):
         out = mod.moderate_content(
             "This contains proprietary data.",
             _brain=object(), _project_id=1,
@@ -82,7 +82,7 @@ def test_blocklist_from_project_options():
 def test_redact_off_skips_sanitization():
     from restai.llms.tools import moderate_content as mod
     db = _fake_db(_fake_project({"moderation_redact_pii": False}))
-    with patch("restai.database.get_db_wrapper", return_value=db):
+    with patch("restai.database.open_db_wrapper", return_value=db):
         out = mod.moderate_content(
             "email me at a@b.com",
             _brain=object(), _project_id=1,
