@@ -16,7 +16,7 @@ logger = logging.getLogger("restai.docker_cleanup")
 
 from restai import config
 from restai.settings import ensure_settings_table
-from restai.database import get_db_wrapper, engine as db_engine
+from restai.database import open_db_wrapper, engine as db_engine
 
 
 def main():

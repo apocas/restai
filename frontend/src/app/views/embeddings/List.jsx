@@ -147,7 +147,7 @@ export default function Embeddings() {
         ]}
         onRowClick={(row) => navigate(`/embedding/${row.id}`)}
         rowKey={(row) => row.id}
-        defaultSort={{ key: "name", direction: "asc" }}
+        defaultSort={{ key: "id", direction: "desc" }}
         headerAction={
           isAdmin && (
             <Button variant="contained" startIcon={<Add />} onClick={() => navigate("/embeddings/new")}>

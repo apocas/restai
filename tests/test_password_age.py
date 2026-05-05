@@ -16,7 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from restai.config import RESTAI_DEFAULT_PASSWORD
-from restai.database import get_db_wrapper
+from restai.database import open_db_wrapper
 from restai.main import app
 from restai.models.databasemodels import UserDatabase
 
@@ -41,7 +41,7 @@ def stale_user(client):
     assert r.status_code in (200, 201), r.text
 
     # Backdate password_updated_at to something definitely-stale.
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         u = db.db.query(UserDatabase).filter(UserDatabase.username == username).first()
         assert u is not None
@@ -65,7 +65,7 @@ def _reset_login_rate_limit():
     """The test client uses one IP — without this, ~5 logins blow the
     `_LOGIN_MAX_ATTEMPTS=10` cap and subsequent tests in the module 429."""
     from restai.models.databasemodels import LoginAttemptDatabase
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         db.db.query(LoginAttemptDatabase).delete()
         db.db.commit()
@@ -129,7 +129,7 @@ def test_password_change_resets_timestamp(client, stale_user):
     r = client.patch(f"/users/{username}", json={"password": new_password}, auth=ADMIN)
     assert r.status_code in (200, 201)
 
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         u = db.db.query(UserDatabase).filter(UserDatabase.username == username).first()
         assert u.password_updated_at is not None

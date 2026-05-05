@@ -19,7 +19,7 @@ logger = logging.getLogger("restai.slack")
 
 from restai import config
 from restai.settings import ensure_settings_table
-from restai.database import get_db_wrapper, engine as db_engine
+from restai.database import open_db_wrapper, engine as db_engine
 from restai.models.databasemodels import ProjectDatabase
 from restai.brain import Brain
 
@@ -28,7 +28,7 @@ def main():
     ensure_settings_table(db_engine)
 
     brain = Brain(lightweight=True)
-    db = get_db_wrapper()
+    db = open_db_wrapper()
 
     from restai.cron_log import CronLogger
     cron = CronLogger("slack")

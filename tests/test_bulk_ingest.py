@@ -14,7 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from restai.config import RESTAI_DEFAULT_PASSWORD
-from restai.database import get_db_wrapper
+from restai.database import open_db_wrapper
 from restai.main import app
 from restai.models.databasemodels import BulkIngestJobDatabase
 
@@ -83,7 +83,7 @@ def test_enqueue_creates_queued_rows(client, rag_project):
 
     try:
         # Verify both rows are queued and have a tempfile on disk
-        db = get_db_wrapper()
+        db = open_db_wrapper()
         try:
             rows = (
                 db.db.query(BulkIngestJobDatabase)
@@ -114,7 +114,7 @@ def test_delete_removes_tempfile_and_row(client, rag_project):
     r = client.post(f"/projects/{rag_project}/ingest-bulk", files=files, auth=ADMIN)
     jid = r.json()["queued"][0]
 
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         row = db.db.query(BulkIngestJobDatabase).filter(BulkIngestJobDatabase.id == jid).first()
         staged_path = row.file_path
@@ -126,7 +126,7 @@ def test_delete_removes_tempfile_and_row(client, rag_project):
     assert r.status_code == 200
 
     # Row gone, file gone
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         row = db.db.query(BulkIngestJobDatabase).filter(BulkIngestJobDatabase.id == jid).first()
         assert row is None

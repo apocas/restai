@@ -24,7 +24,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from restai.config import RESTAI_DEFAULT_PASSWORD
-from restai.database import get_db_wrapper
+from restai.database import open_db_wrapper
 from restai.main import app
 from restai.utils.crypto import encrypt_field
 
@@ -83,7 +83,7 @@ def project_id(client):
 
     # Write WhatsApp options directly: secrets must be encrypted at rest
     # because the webhook handler decrypts them on the way out.
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         from restai.models.databasemodels import ProjectDatabase
         proj = db.db.query(ProjectDatabase).filter(ProjectDatabase.id == pid).first()

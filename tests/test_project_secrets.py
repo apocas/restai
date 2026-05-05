@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from restai.config import RESTAI_DEFAULT_PASSWORD
-from restai.database import get_db_wrapper
+from restai.database import open_db_wrapper
 from restai.main import app
 
 
@@ -83,7 +83,7 @@ def test_secret_crud_roundtrip(client, project_id):
         assert names["test_api_key"]["value"] == "********"
 
         # Resolve via DB helper — plaintext must match the original
-        db = get_db_wrapper()
+        db = open_db_wrapper()
         try:
             plaintext = db.resolve_project_secret(project_id, "test_api_key")
         finally:
@@ -97,7 +97,7 @@ def test_secret_crud_roundtrip(client, project_id):
             auth=AUTH,
         )
         assert r.status_code == 200, r.text
-        db = get_db_wrapper()
+        db = open_db_wrapper()
         try:
             assert db.resolve_project_secret(project_id, "test_api_key") == "super-secret-plaintext"
         finally:
@@ -110,7 +110,7 @@ def test_secret_crud_roundtrip(client, project_id):
             auth=AUTH,
         )
         assert r.status_code == 200
-        db = get_db_wrapper()
+        db = open_db_wrapper()
         try:
             assert db.resolve_project_secret(project_id, "test_api_key") == "rotated-value"
         finally:
@@ -129,7 +129,7 @@ def test_secret_crud_roundtrip(client, project_id):
 
 
 def test_resolve_missing_secret_returns_none(client, project_id):
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         assert db.resolve_project_secret(project_id, "definitely_does_not_exist_xyz") is None
     finally:

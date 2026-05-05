@@ -392,14 +392,29 @@ export default function DataList({
             <TableHead>
               <TableRow
                 sx={{
-                  "& th:first-of-type": { paddingLeft: "24px" },
+                  // When the checkbox column is rendered, IT becomes the
+                  // first-of-type cell. Forcing 24px on it parks the
+                  // checkbox right under the page title's left edge,
+                  // making it look like the checkbox is "on top" of the
+                  // title text. Apply 24px only when there's no
+                  // checkbox column.
+                  ...(bulkEnabled
+                    ? { "& th:nth-of-type(2)": { paddingLeft: "16px" } }
+                    : { "& th:first-of-type": { paddingLeft: "24px" } }),
                   "& th:last-of-type": { paddingRight: "24px" },
                 }}
               >
                 {bulkEnabled && (
                   <TableCell
                     padding="checkbox"
-                    sx={{ backgroundColor: "action.hover", borderBottom: "1px solid", borderColor: "divider" }}
+                    sx={{
+                      backgroundColor: "action.hover",
+                      borderBottom: "1px solid",
+                      borderColor: "divider",
+                      // Push the checkbox a bit off the gutter so it
+                      // doesn't visually align with the page title.
+                      pl: 1,
+                    }}
                   >
                     <Checkbox
                       size="small"

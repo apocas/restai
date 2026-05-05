@@ -19,7 +19,7 @@ def draw_image(generator: str, prompt: str, **kwargs) -> str:
     if not prompt or not prompt.strip():
         return "ERROR: prompt is required."
 
-    from restai.database import get_db_wrapper
+    from restai.database import open_db_wrapper
     from restai.image.dispatch import (
         GeneratorDisabledError,
         UnknownGeneratorError,
@@ -28,7 +28,7 @@ def draw_image(generator: str, prompt: str, **kwargs) -> str:
     )
     from restai.models.models import ImageModel
 
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         chosen = (generator or "").strip()
         if not chosen:

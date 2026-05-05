@@ -31,9 +31,9 @@ def create_routine(name: str, message: str, schedule_minutes: int, enabled: bool
     if sched < 1:
         return "ERROR: schedule_minutes must be at least 1."
 
-    from restai.database import get_db_wrapper
+    from restai.database import open_db_wrapper
 
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         routine = db.create_project_routine(
             project_id=int(project_id),

@@ -176,7 +176,7 @@ export default function Users() {
         ]}
         onRowClick={(row) => navigate(`/user/${row.username}`)}
         rowKey={(row) => row.username}
-        defaultSort={{ key: "username", direction: "asc" }}
+        defaultSort={{ key: "id", direction: "desc" }}
         headerAction={
           isAdmin && (
             <Button

@@ -155,7 +155,7 @@ export default function LLMs() {
         ]}
         onRowClick={(row) => navigate(`/llm/${row.id}`)}
         rowKey={(row) => row.id}
-        defaultSort={{ key: "name", direction: "asc" }}
+        defaultSort={{ key: "id", direction: "desc" }}
         headerAction={
           isAdmin && (
             <Button variant="contained" startIcon={<Add />} onClick={() => navigate("/llms/new")}>

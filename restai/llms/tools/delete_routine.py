@@ -18,9 +18,9 @@ def delete_routine(routine_id: int, **kwargs) -> str:
     except (TypeError, ValueError):
         return "ERROR: routine_id must be an integer."
 
-    from restai.database import get_db_wrapper
+    from restai.database import open_db_wrapper
 
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         routine = db.get_project_routine_by_id(rid)
         if routine is None:

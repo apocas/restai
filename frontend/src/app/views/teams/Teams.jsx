@@ -138,7 +138,7 @@ export default function Teams() {
         searchKeys={["name", "description"]}
         onRowClick={(row) => navigate(`/team/${row.id}`)}
         rowKey={(row) => row.id}
-        defaultSort={{ key: "name", direction: "asc" }}
+        defaultSort={{ key: "id", direction: "desc" }}
         headerAction={
           isAdmin && (
             <Button variant="contained" startIcon={<Add />} onClick={() => navigate("/teams/new")}>

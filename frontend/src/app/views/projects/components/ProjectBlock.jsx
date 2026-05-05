@@ -28,16 +28,16 @@ export default function ProjectBlock({ project }) {
 
   return (
     <Card elevation={1} sx={{ p: 2.5 }}>
-      <SectionTitle><ViewInArIcon fontSize="small" /> {t("projects.knowledge.block.config")}</SectionTitle>
+      <SectionTitle><ViewInArIcon fontSize="small" /> {t("projects.edit.knowledge.block.config")}</SectionTitle>
       <Grid container spacing={2}>
-        <DetailItem label={t("projects.knowledge.block.status")}>
-          <Chip label={hasWorkspace ? t("projects.knowledge.block.configured") : t("projects.knowledge.block.notConfigured")} size="small"
+        <DetailItem label={t("projects.edit.knowledge.block.status")}>
+          <Chip label={hasWorkspace ? t("projects.edit.knowledge.block.configured") : t("projects.edit.knowledge.block.notConfigured")} size="small"
             color={hasWorkspace ? "success" : "default"} variant="outlined" />
         </DetailItem>
-        <DetailItem label={t("projects.knowledge.block.topBlocks")}>
+        <DetailItem label={t("projects.edit.knowledge.block.topBlocks")}>
           <Typography variant="body2">{blockCount}</Typography>
         </DetailItem>
-        <DetailItem label={t("projects.knowledge.block.variables")}>
+        <DetailItem label={t("projects.edit.knowledge.block.variables")}>
           <Typography variant="body2">{variableCount}</Typography>
         </DetailItem>
       </Grid>

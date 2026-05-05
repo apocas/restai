@@ -63,9 +63,9 @@ def routine(client, routine_project):
     # (requires `PRAGMA foreign_keys=ON`). A prior test run's orphaned
     # history rows can collide with this test's newly-issued routine id
     # and break the "empty initially" assumption. Scrub explicitly.
-    from restai.database import get_db_wrapper
+    from restai.database import open_db_wrapper
     from restai.models.databasemodels import RoutineExecutionLogDatabase
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         db.db.query(RoutineExecutionLogDatabase).filter(
             RoutineExecutionLogDatabase.routine_id == rid,

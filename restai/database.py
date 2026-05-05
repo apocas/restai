@@ -50,6 +50,16 @@ if MYSQL_HOST:
         pool_size=config.DB_POOL_SIZE,
         max_overflow=config.DB_MAX_OVERFLOW,
         pool_recycle=config.DB_POOL_RECYCLE,
+        # Test the connection liveness on each checkout. MySQL closes
+        # idle connections after `wait_timeout` (default 8h) and the
+        # client only finds out on the next query — pre-ping catches the
+        # death and transparently reconnects, so the dreaded "MySQL has
+        # gone away" never bubbles up to the user.
+        pool_pre_ping=True,
+        # LIFO checkout: hand back the most recently returned connection
+        # first so the cold ones stay cold and get reaped by
+        # `pool_recycle`. Net win whenever there's spare pool capacity.
+        pool_use_lifo=True,
     )
 elif POSTGRES_HOST:
     _db_logger.info("Using PostgreSQL database.")
@@ -58,6 +68,8 @@ elif POSTGRES_HOST:
         pool_size=config.DB_POOL_SIZE,
         max_overflow=config.DB_MAX_OVERFLOW,
         pool_recycle=config.DB_POOL_RECYCLE,
+        pool_pre_ping=True,
+        pool_use_lifo=True,
     )
 else:
     # SQLITE_PATH (env var, also exposed as config.SQLITE_PATH) lets K8s
@@ -87,6 +99,10 @@ class DBWrapper:
 
     def __init__(self):
         self.db: Session = SessionLocal()
+
+    def close(self):
+        """Release the underlying session back to the connection pool."""
+        self.db.close()
 
     def create_user(
         self,
@@ -1472,9 +1488,30 @@ class DBWrapper:
         return query.offset(start).limit(end - start).all()
 
 
-def get_db_wrapper() -> DBWrapper:
+def get_db_wrapper():
+    """FastAPI dependency: open a DB wrapper for one request and close
+    it when the request is done. The previous version used `return`
+    inside `try/finally`, which runs `finally` BEFORE the function
+    returns to the caller — meaning the session was closed before any
+    route ever saw it. SQLAlchemy was forgiving (closed sessions lazily
+    grab a new connection), so it appeared to work but every request
+    was thrashing the pool. Yielding makes FastAPI's `Depends()`
+    treat this as a generator dep with proper lifecycle.
+
+    Non-FastAPI callers (background tasks, telemetry, agent tools,
+    crons, ...) must use `open_db_wrapper()` instead — calling a
+    generator function from non-FastAPI code returns a generator
+    object, not a wrapper.
+    """
     wrapper: DBWrapper = DBWrapper()
     try:
-        return wrapper
+        yield wrapper
     finally:
-        wrapper.db.close()
+        wrapper.close()
+
+
+def open_db_wrapper() -> DBWrapper:
+    """Plain factory for non-FastAPI callers. Caller is responsible
+    for closing — typical pattern is `db = open_db_wrapper(); try: ...
+    finally: db.close()`."""
+    return DBWrapper()

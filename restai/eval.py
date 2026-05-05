@@ -148,10 +148,10 @@ async def run_evaluation(run_id: int, app):
         run_id: ID of the EvalRunDatabase record to execute.
         app: FastAPI app instance (for accessing brain via app.state.brain).
     """
-    from restai.database import get_db_wrapper
+    from restai.database import open_db_wrapper
     from restai.models.models import User
 
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         run = db.db.query(EvalRunDatabase).filter(EvalRunDatabase.id == run_id).first()
         if run is None:

@@ -192,10 +192,10 @@ def test_webhook_test_endpoint_no_url_configured(client, project_id):
     may have stamped webhook_url into the options. Clear it explicitly
     so this test asserts the precondition it actually depends on."""
     from restai.config import RESTAI_DEFAULT_PASSWORD
-    from restai.database import get_db_wrapper
+    from restai.database import open_db_wrapper
     from restai.models.databasemodels import ProjectDatabase
 
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         proj = db.db.query(ProjectDatabase).filter(ProjectDatabase.id == project_id).first()
         opts = json.loads(proj.options or "{}")
@@ -219,13 +219,13 @@ def test_webhook_test_endpoint_fires_when_configured(client, project_id):
     """Writing a webhook_url + flipping the test endpoint should queue
     a POST. We patch requests.post so no real network call happens."""
     from restai.config import RESTAI_DEFAULT_PASSWORD
-    from restai.database import get_db_wrapper
+    from restai.database import open_db_wrapper
     from restai.models.databasemodels import ProjectDatabase
 
     auth = ("admin", RESTAI_DEFAULT_PASSWORD)
 
     # Configure a webhook URL directly in the DB (bypasses model validation).
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         proj = db.db.query(ProjectDatabase).filter(ProjectDatabase.id == project_id).first()
         opts = json.loads(proj.options or "{}")

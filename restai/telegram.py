@@ -153,12 +153,12 @@ class TelegramPoller:
                 pass
 
     async def _process_message(self, text: str, chat_id: int) -> str | None:
-        from restai.database import get_db_wrapper
+        from restai.database import open_db_wrapper
         from restai.helper import chat_main
         from restai.models.models import ChatModel, User
         from fastapi import BackgroundTasks, Request
 
-        db_wrapper = get_db_wrapper()
+        db_wrapper = open_db_wrapper()
         brain = self.app.state.brain
 
         project = brain.find_project(self.project_id, db_wrapper)

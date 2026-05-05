@@ -170,10 +170,10 @@ def test_guard_events_empty(client):
 
 def test_guard_log_and_query(client):
     """Manually log guard events and verify they appear in analytics."""
-    from restai.database import get_db_wrapper
+    from restai.database import open_db_wrapper
     from restai.models.databasemodels import GuardEventDatabase
 
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         # Insert test events
         for action in ["block", "pass", "block", "warn"]:
@@ -246,10 +246,10 @@ def test_guard_log_and_query(client):
 def test_guard_teardown(client):
     """Clean up resources."""
     # Clean up guard events first
-    from restai.database import get_db_wrapper
+    from restai.database import open_db_wrapper
     from restai.models.databasemodels import GuardEventDatabase
 
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         db.db.query(GuardEventDatabase).filter(
             GuardEventDatabase.project_id == project_id

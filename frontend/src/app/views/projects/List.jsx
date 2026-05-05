@@ -116,7 +116,7 @@ export default function Projects() {
         ]}
         onRowClick={(row) => navigate(`/project/${row.id}`)}
         rowKey={(row) => row.id}
-        defaultSort={{ key: "name", direction: "asc" }}
+        defaultSort={{ key: "id", direction: "desc" }}
         headerAction={
           <Button
             variant="contained"

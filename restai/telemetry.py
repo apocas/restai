@@ -130,13 +130,13 @@ async def send_telemetry(payload: dict) -> bool:
 
 async def telemetry_loop():
     """Background loop: collect and send telemetry every 24 hours."""
-    from restai.database import get_db_wrapper
+    from restai.database import open_db_wrapper
 
     await asyncio.sleep(STARTUP_DELAY_SECONDS)
 
     while True:
         try:
-            db_wrapper = get_db_wrapper()
+            db_wrapper = open_db_wrapper()
             payload = collect_telemetry(db_wrapper)
             await send_telemetry(payload)
             db_wrapper.db.close()

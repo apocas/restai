@@ -41,8 +41,8 @@ def moderate_content(text: str, policy: str = "default", **kwargs) -> str:
     redact_pii = True
     if brain and project_id is not None:
         try:
-            from restai.database import get_db_wrapper
-            db = get_db_wrapper()
+            from restai.database import open_db_wrapper
+            db = open_db_wrapper()
             try:
                 proj = db.get_project_by_id(int(project_id))
                 if proj and proj.options:

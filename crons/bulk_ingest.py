@@ -45,7 +45,7 @@ def main():
 
     try:
         while True:
-            db = get_db_wrapper()
+            db = open_db_wrapper()
             try:
                 # Claim one job atomically: SELECT + UPDATE in a single
                 # transaction. Loop so we drain the queue each tick.
@@ -147,7 +147,7 @@ def main():
             # Re-open the session and update the row with the final
             # status. Using a fresh session avoids stale-state issues
             # after long-running ingestion.
-            db2 = get_db_wrapper()
+            db2 = open_db_wrapper()
             try:
                 j = db2.db.query(BulkIngestJobDatabase).filter(BulkIngestJobDatabase.id == job_id).first()
                 if j is not None:

@@ -26,7 +26,7 @@ from restai.budget import (
     record_api_key_tokens,
 )
 from restai.config import RESTAI_DEFAULT_PASSWORD
-from restai.database import get_db_wrapper
+from restai.database import open_db_wrapper
 from restai.main import app
 from restai.models.databasemodels import ApiKeyDatabase
 
@@ -68,7 +68,7 @@ def test_check_api_key_quota_noop_without_api_key_id():
 
 def test_check_api_key_quota_noop_when_unlimited(api_key):
     """token_quota_monthly=NULL is unlimited — skip the cap check."""
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         key = db.db.query(ApiKeyDatabase).filter(ApiKeyDatabase.id == api_key).first()
         assert key.token_quota_monthly is None
@@ -81,7 +81,7 @@ def test_check_api_key_quota_noop_when_unlimited(api_key):
 
 
 def test_check_api_key_quota_raises_when_exceeded(api_key):
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         key = db.db.query(ApiKeyDatabase).filter(ApiKeyDatabase.id == api_key).first()
         key.token_quota_monthly = 1000
@@ -101,7 +101,7 @@ def test_check_api_key_quota_raises_when_exceeded(api_key):
 def test_check_api_key_quota_rolls_over_on_lapsed_reset(api_key):
     """quota_reset_at in the past → counter zeros, new reset date set,
     NO 429."""
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         key = db.db.query(ApiKeyDatabase).filter(ApiKeyDatabase.id == api_key).first()
         key.token_quota_monthly = 10
@@ -124,7 +124,7 @@ def test_check_api_key_quota_rolls_over_on_lapsed_reset(api_key):
 
 
 def test_record_api_key_tokens_bumps_counter(api_key):
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         key = db.db.query(ApiKeyDatabase).filter(ApiKeyDatabase.id == api_key).first()
         key.tokens_used_this_month = 100
@@ -137,7 +137,7 @@ def test_record_api_key_tokens_bumps_counter(api_key):
 
 
 def test_record_api_key_tokens_silent_on_unknown_id():
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         # Shouldn't raise — key may have been deleted between auth and log.
         record_api_key_tokens(999_999_999, 10, db)
@@ -186,7 +186,7 @@ def test_patch_clears_quota_with_zero(client, api_key):
 
 def test_patch_reset_usage(client, api_key):
     # Stamp some usage directly.
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     try:
         key = db.db.query(ApiKeyDatabase).filter(ApiKeyDatabase.id == api_key).first()
         key.tokens_used_this_month = 12345

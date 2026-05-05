@@ -62,10 +62,10 @@ def _extract_username(request: Request) -> tuple:
 def _log_to_db(username, action, resource, status_code):
     """Write audit entry to database in a background thread."""
     try:
-        from restai.database import get_db_wrapper
+        from restai.database import open_db_wrapper
         from restai.models.databasemodels import AuditLogDatabase
 
-        db = get_db_wrapper()
+        db = open_db_wrapper()
         try:
             entry = AuditLogDatabase(
                 username=username,

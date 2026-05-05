@@ -46,9 +46,17 @@ class DockerManager:
             logger.error("Docker manager failed to connect to %s: %s", docker_url, e)
             raise
 
-    def exec_command(self, chat_id: str, command: str) -> str:
+    def exec_command(self, chat_id: str, command: str, env: dict | None = None) -> str:
         """Execute a command in the container for this chat_id.
-        Creates a new container if one doesn't exist."""
+        Creates a new container if one doesn't exist.
+
+        `env` is a per-exec environment overlay — used by the terminal
+        tool's `secret_refs` plumbing to inject resolved project secrets
+        (e.g. `HA_TOKEN`) without ever materialising the plaintext in
+        the command string. The caller is expected to write `$HA_TOKEN`
+        in the shell command; we hand the resolved value to the kernel
+        via Docker's exec env and the LLM never sees it.
+        """
         if not chat_id:
             chat_id = "ephemeral"
 
@@ -61,10 +69,15 @@ class DockerManager:
                 info.last_activity = time.time()
 
         try:
+            exec_kwargs = {
+                "demux": True,
+                "workdir": "/home/user",
+            }
+            if env:
+                exec_kwargs["environment"] = env
             exec_result = container.exec_run(
                 ["sh", "-c", command],
-                demux=True,
-                workdir="/home/user",
+                **exec_kwargs,
             )
             stdout = (exec_result.output[0] or b"").decode("utf-8", errors="replace")
             stderr = (exec_result.output[1] or b"").decode("utf-8", errors="replace")

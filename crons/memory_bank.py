@@ -19,7 +19,7 @@ logger = logging.getLogger("restai.memory_bank_cron")
 
 from restai import config  # noqa: F401  — side effect: env loaded
 from restai.settings import ensure_settings_table
-from restai.database import get_db_wrapper, engine as db_engine
+from restai.database import open_db_wrapper, engine as db_engine
 from restai.brain import Brain
 from restai.cron_log import CronLogger
 from restai import memory_bank
@@ -39,7 +39,7 @@ def _run():
     ensure_settings_table(db_engine)
 
     brain = Brain(lightweight=True)
-    db = get_db_wrapper()
+    db = open_db_wrapper()
     cron = CronLogger("memory_bank")
 
     if brain.get_system_llm(db) is None:
