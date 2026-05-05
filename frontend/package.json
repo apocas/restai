@@ -44,7 +44,7 @@
     "@reduxjs/toolkit": "^2.11.2",
     "@uiw/react-codemirror": "^4.25.9",
     "autosuggest-highlight": "^3.3.4",
-    "axios": "^1.15.0",
+    "axios": "^1.16.0",
     "blockly": "^12.5.1",
     "boring-avatars": "^2.0.4",
     "clsx": "^2.1.1",
