@@ -588,6 +588,61 @@ class Agent(ProjectBase):
                                 if url not in image_urls:
                                     image_urls.append(url)
 
+                # /artifacts/ injection. After every tool_result event,
+                # drain Brain's pending-artifact tray for this chat and
+                # append the bytes as a synthetic user message before the
+                # next LLM turn happens. Images become ImageBlocks (the
+                # only multimodal block both Anthropic and OpenAI-compat
+                # providers serialize uniformly today); other types fall
+                # back to a text mention so the model still knows the
+                # file exists. Errors here are best-effort — never let
+                # an artifact-injection bug kill the chat.
+                try:
+                    from restai.agent2 import artifacts as _artifacts
+                    chat_id_now = getattr(runtime, "_chat_id", None) or ""
+                    pending = _artifacts.consume(chat_id_now)
+                except Exception:
+                    pending = []
+                if pending:
+                    try:
+                        from restai.agent2.types import (
+                            ImageBlock as _ImgBlk,
+                            TextBlock as _TxtBlk,
+                            Message as _Msg,
+                        )
+                        import base64 as _b64
+                        blocks: list = []
+                        intro_lines = ["[artifacts] Files saved to /artifacts/:"]
+                        for a in pending:
+                            mime = a.get("mime") or "application/octet-stream"
+                            name = a.get("name") or "file"
+                            size = a.get("size") or 0
+                            data = a.get("bytes")
+                            kb = max(1, size // 1024)
+                            if a.get("truncated") or not data:
+                                intro_lines.append(
+                                    f"  - {name} ({mime}, {kb} KB) — too large to attach, only mentioned"
+                                )
+                                continue
+                            if mime.startswith("image/"):
+                                intro_lines.append(f"  - {name} ({mime}, {kb} KB) — attached below as image")
+                                try:
+                                    data_url = f"data:{mime};base64,{_b64.b64encode(data).decode('ascii')}"
+                                    blocks.append(_ImgBlk.from_data_url(data_url))
+                                except Exception:
+                                    intro_lines.append(f"    (attach failed; treating as text mention)")
+                            else:
+                                intro_lines.append(f"  - {name} ({mime}, {kb} KB)")
+                        # Lead with the text manifest so the model has
+                        # explicit context for what each image is.
+                        msg_blocks = [_TxtBlk(text="\n".join(intro_lines))] + blocks
+                        try:
+                            session.messages.append(_Msg(role="user", content=msg_blocks))
+                        except Exception:
+                            pass
+                    except Exception:
+                        logging.exception("Failed to inject /artifacts/ into next turn")
+
             elif event.type == "final":
                 output["answer"] = event.data.get("final_text", "") or ""
                 # Capture stop_reason for the post-loop max-turns

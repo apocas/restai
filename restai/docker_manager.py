@@ -37,6 +37,18 @@ class DockerManager:
         self._read_only = read_only
         self._containers: dict[str, ContainerInfo] = {}
         self._lock = threading.Lock()
+        # Per-chat high-water mark for the /artifacts/ scanner. The
+        # agent's "save anything you want me to see into /artifacts/
+        # and I'll see it next turn" convention; the dict tracks the
+        # epoch we last picked artifacts up so each scan only returns
+        # what was modified since the previous tool call.
+        self._artifact_cursors: dict[str, float] = {}
+        # Per-artifact and per-scan size caps. Pulled out so they're
+        # discoverable / easy to bump without code surgery. Anything
+        # larger gets reported with a "(too large)" mention instead of
+        # being base64-piped to the LLM.
+        self._artifact_max_bytes_per_file = 10 * 1024 * 1024   # 10 MiB
+        self._artifact_max_bytes_per_scan = 50 * 1024 * 1024   # 50 MiB
 
         # Verify connectivity
         try:
@@ -354,3 +366,135 @@ class DockerManager:
     def active_container_count(self) -> int:
         with self._lock:
             return len(self._containers)
+
+    # ── /artifacts/ convention ───────────────────────────────────────
+    # The agent has a `terminal` tool whose container persists across a
+    # conversation. To let the agent put rich content (camera snapshots,
+    # PDFs, anything) in front of its own LLM eyes on the *next* turn,
+    # we reserve a directory inside the container — `/artifacts/` —
+    # that the framework polls between LLM turns. Everything that lands
+    # there since the last poll is pulled out (base64-piped via
+    # `exec_run`), mime-sniffed, and handed to the agent runtime which
+    # injects it as a multimodal block in the next user message.
+    #
+    # Why a directory and not a tool: one mental model for the model
+    # ("save it to /artifacts/, then I'll see it"), works for images
+    # today and PDFs/audio tomorrow as multimodal LLMs add support,
+    # and rides on the existing `terminal` tool — no new builtin to
+    # discover or train against.
+
+    ARTIFACTS_DIR = "/artifacts"
+
+    def collect_new_artifacts(self, chat_id: str) -> list[dict]:
+        """List + read everything that was created in /artifacts/ since
+        the previous call for this chat_id. Returns a list of
+        ``{name, path, mime, size, bytes}`` dicts (size in bytes; bytes
+        is None when the file exceeded the per-file cap, in which case
+        a `truncated=True` flag is set so callers can still mention it
+        to the model).
+
+        Does NOT raise on missing dir — first call lazily ensures it
+        exists. Caps bytes returned per scan so a runaway
+        ``dd if=/dev/urandom of=/artifacts/x bs=1M count=1024`` can't
+        OOM the API process or torch the LLM context budget.
+        """
+        if not chat_id:
+            chat_id = "ephemeral"
+
+        info = self._containers.get(chat_id)
+        if info is None:
+            return []
+        try:
+            container = self._client.containers.get(info.container_id)
+        except Exception:
+            return []
+
+        cursor = self._artifact_cursors.get(chat_id, 0.0)
+
+        # Make sure the dir exists; -newermt accepts UTC seconds when
+        # prefixed with `@`. Using a single `find` to (a) print path,
+        # mtime and size for new files, then (b) we shell out per-file
+        # to base64 the contents — keeps the protocol dirt-simple and
+        # avoids a full-tree dump if no new artifacts exist.
+        ensure = container.exec_run(
+            ["sh", "-c", f"mkdir -p {self.ARTIFACTS_DIR} && chmod 0777 {self.ARTIFACTS_DIR} 2>/dev/null; true"],
+            workdir="/home/user",
+        )
+        _ = ensure  # ignore status; absent dir is the only common cause of failure
+
+        listing = container.exec_run(
+            [
+                "sh", "-c",
+                # Print: <mtime_epoch> <size_bytes> <relative_path>
+                # for each file modified after `cursor`. NUL-separated
+                # to survive spaces in filenames.
+                f"find {self.ARTIFACTS_DIR} -type f "
+                f"-newermt @{int(cursor)} -printf '%T@ %s %P\\0' 2>/dev/null"
+            ],
+            workdir="/home/user",
+        )
+        raw = (listing.output or b"").decode("utf-8", errors="replace") if isinstance(listing.output, bytes) else ""
+        # Some docker SDK versions return (stdout, stderr) tuple — handle both
+        if isinstance(listing.output, tuple):
+            raw = (listing.output[0] or b"").decode("utf-8", errors="replace")
+        entries: list[tuple[float, int, str]] = []
+        for chunk in raw.split("\0"):
+            if not chunk.strip():
+                continue
+            try:
+                ts_str, size_str, name = chunk.split(" ", 2)
+                entries.append((float(ts_str), int(size_str), name))
+            except Exception:
+                continue
+        if not entries:
+            self._artifact_cursors[chat_id] = max(cursor, time.time())
+            return []
+
+        import base64
+        import mimetypes
+        artifacts: list[dict] = []
+        total = 0
+        # Stable ordering: oldest first, so the model sees them in the
+        # order they were created.
+        entries.sort(key=lambda e: e[0])
+        max_total = self._artifact_max_bytes_per_scan
+        max_per = self._artifact_max_bytes_per_file
+        for mtime, size, rel in entries:
+            full = f"{self.ARTIFACTS_DIR}/{rel}"
+            mime, _ = mimetypes.guess_type(full)
+            mime = mime or "application/octet-stream"
+            if size > max_per:
+                artifacts.append({
+                    "name": rel, "path": full, "mime": mime, "size": size,
+                    "bytes": None, "truncated": True,
+                })
+                continue
+            if total + size > max_total:
+                artifacts.append({
+                    "name": rel, "path": full, "mime": mime, "size": size,
+                    "bytes": None, "truncated": True,
+                })
+                continue
+            # Pull bytes out via base64 so we don't fight binary-safe stdout.
+            ex = container.exec_run(
+                ["sh", "-c", f"base64 -w0 {full!r}"],
+                workdir="/home/user",
+                demux=False,
+            )
+            payload = ex.output or b""
+            if isinstance(payload, tuple):
+                payload = payload[0] or b""
+            try:
+                data = base64.b64decode(payload, validate=False)
+            except Exception:
+                data = b""
+            if not data:
+                continue
+            total += len(data)
+            artifacts.append({
+                "name": rel, "path": full, "mime": mime, "size": size,
+                "bytes": data, "truncated": False,
+            })
+
+        self._artifact_cursors[chat_id] = max(cursor, time.time())
+        return artifacts

@@ -13,9 +13,25 @@ def terminal(command: str, secret_refs=None, **kwargs) -> str:
         secret_refs=["HA_TOKEN"]
         command='curl -fsS -H "Authorization: Bearer $HA_TOKEN" http://192.168.1.120:8123/api/'
 
+    Looking at images / PDFs / other rich content:
+        Save the file into the special directory `/artifacts/` and on
+        your NEXT turn it will be visible to you as a multimodal block
+        (vision input for images, document for PDFs, mention for other
+        types). One mental model — no separate tool to call.
+
+        Example: download a camera snapshot and look at it next turn:
+            terminal(
+                secret_refs=["HA_TOKEN"],
+                command='mkdir -p /artifacts && '
+                        'curl -fsS -H "Authorization: Bearer $HA_TOKEN" '
+                        'http://192.168.1.120:8123/api/camera_proxy/camera.front '
+                        '-o /artifacts/snap.jpg'
+            )
+
     Args:
         command (str): Shell command to execute. Use `$NAME` to reference any
-            secret listed in `secret_refs`.
+            secret listed in `secret_refs`. Save artifacts you want to view
+            next turn into `/artifacts/`.
         secret_refs (list[str] | str): One secret name, or a list of secret
             names, to inject as environment variables. Names must match
             entries in the project's Secrets tab.
@@ -76,4 +92,28 @@ def terminal(command: str, secret_refs=None, **kwargs) -> str:
         finally:
             db.close()
 
-    return brain.docker_manager.exec_command(chat_id or "ephemeral", command, env=env or None)
+    output = brain.docker_manager.exec_command(chat_id or "ephemeral", command, env=env or None)
+
+    # /artifacts/ convention: anything new in /artifacts/ since the
+    # last call gets pulled out, staged on `brain` keyed by chat_id,
+    # and the agent loop will inject the resulting blocks (image,
+    # document, etc.) into the next user message. We append a short
+    # notice to the tool result so the model knows the artifact will
+    # be visible — without echoing the bytes themselves.
+    try:
+        new_artifacts = brain.docker_manager.collect_new_artifacts(chat_id or "ephemeral")
+    except Exception:
+        new_artifacts = []
+    if new_artifacts:
+        from restai.agent2 import artifacts as _artifacts
+        _artifacts.stage(chat_id or "ephemeral", new_artifacts)
+        notices = []
+        for a in new_artifacts:
+            kb = max(1, (a.get("size") or 0) // 1024)
+            tag = " (too large — only mentioned, not attached)" if a.get("truncated") else ""
+            notices.append(f"  - {a['name']} ({a['mime']}, ~{kb} KB){tag}")
+        output = (output or "") + (
+            "\n\n[artifacts] New files in /artifacts/ — visible to you next turn:\n"
+            + "\n".join(notices)
+        )
+    return output
