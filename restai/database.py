@@ -757,19 +757,36 @@ class DBWrapper:
         self.db.commit()
         return True
 
+    @staticmethod
+    def _decrypt_secret_row(row) -> Optional[str]:
+        if row is None or not row.value:
+            return None
+        from restai.utils.crypto import decrypt_field
+        try:
+            return decrypt_field(row.value)
+        except Exception:
+            return None
+
     def resolve_project_secret(self, project_id: int, name: str) -> Optional[str]:
         """Server-side plaintext resolution — only called from inside a tool
         (e.g. `browser_fill`). Returns None when the secret doesn't exist.
         The plaintext never crosses back into LLM context because callers
         pass it directly to the micro-server, not back to the agent."""
-        from restai.utils.crypto import decrypt_field
-        row = self.get_project_secret_by_name(project_id, name)
-        if row is None or not row.value:
-            return None
-        try:
-            return decrypt_field(row.value)
-        except Exception:
-            return None
+        return self._decrypt_secret_row(self.get_project_secret_by_name(project_id, name))
+
+    def resolve_all_project_secrets(self, project_id: int) -> dict[str, str]:
+        """All decrypted project secrets, ``{name: plaintext}``. Same
+        plaintext-never-leaks-to-LLM-context guarantee as
+        `resolve_project_secret` — values go straight to the kernel
+        via Docker's exec env."""
+        out: dict[str, str] = {}
+        for row in self.get_project_secrets(project_id):
+            if not row.name:
+                continue
+            plaintext = self._decrypt_secret_row(row)
+            if plaintext is not None:
+                out[row.name] = plaintext
+        return out
 
     # ─────────────────────────────────────────────────────────────────────
 

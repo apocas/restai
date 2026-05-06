@@ -558,8 +558,14 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
 
   const showUpload = project.type === "agent" || project.type === "block";
 
+  // Fill the parent's height when stretchable; fall back to a fixed
+  // floor when embedded (CompareMode etc. give us no parent height).
+  const COMPACT_HEIGHT = 500;
+  const rootHeight = compact ? COMPACT_HEIGHT : "100%";
+  const rootMinHeight = compact ? COMPACT_HEIGHT : 400;
+
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: compact ? 500 : 600 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: rootHeight, minHeight: rootMinHeight }}>
       {/* Branch tabs */}
       {branches.length > 0 && (
         <Box sx={{ display: "flex", gap: 0.5, px: 2, py: 1, borderBottom: 1, borderColor: "divider", flexWrap: "wrap", alignItems: "center" }}>

@@ -63,11 +63,8 @@ class DockerManager:
         Creates a new container if one doesn't exist.
 
         `env` is a per-exec environment overlay — used by the terminal
-        tool's `secret_refs` plumbing to inject resolved project secrets
-        (e.g. `HA_TOKEN`) without ever materialising the plaintext in
-        the command string. The caller is expected to write `$HA_TOKEN`
-        in the shell command; we hand the resolved value to the kernel
-        via Docker's exec env and the LLM never sees it.
+        tool to inject project secrets so the LLM never sees the
+        plaintext.
         """
         if not chat_id:
             chat_id = "ephemeral"

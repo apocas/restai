@@ -5,13 +5,25 @@ import Breadcrumb from "app/components/Breadcrumb";
 import { useParams } from "react-router-dom";
 import { MatxSidenavContent } from "app/components/MatxSidenav";
 import { MatxSidenavContainer } from "app/components/MatxSidenav";
+import { topBarHeight } from "app/utils/constant";
 import ChatContainer from "./components/ChatContainer";
 import api from "app/utils/api";
 
+// Anchor a real pixel height so the chat panel chain (all `height: 100%`)
+// has something to stretch into. Header + footer + breadcrumb/margins.
+const CHROME_OFFSET = topBarHeight * 2 + 50;
+
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
-  [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
+  display: "flex",
+  flexDirection: "column",
+  height: `calc(100vh - ${CHROME_OFFSET}px)`,
+  [theme.breakpoints.down("sm")]: { margin: 16, height: `calc(100vh - ${CHROME_OFFSET + 12}px)` },
+  "& .breadcrumb": {
+    marginBottom: 30,
+    flex: "0 0 auto",
+    [theme.breakpoints.down("sm")]: { marginBottom: 16 },
+  },
 }));
 
 
@@ -61,7 +73,7 @@ export default function Playground() {
                 <Breadcrumb routeSegments={[{ name: "Projects", path: "/projects" }, { name: id, path: "/project/" + id }, { name: "Playground", path: "/project/" + id + "/playground" }]} />
       </Box>
 
-      <Card elevation={6}>
+      <Card elevation={6} sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
         <MatxSidenavContainer>
           <MatxSidenavContent>
             <ChatContainer project={project}/>
