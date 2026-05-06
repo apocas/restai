@@ -353,14 +353,42 @@ class DockerManager:
             pass
 
     def shutdown(self):
-        """Remove all managed containers. Called on app shutdown."""
+        """Remove all managed containers — both this worker's tracked
+        ones AND any orphans left by other workers or previous process
+        lifecycles. The orphan sweep is what makes settings reinit
+        actually take effect: `_get_or_create_container` adopts any
+        running `restai.managed=true` container by chat_id, so without
+        a global purge the next chat would attach to the stale
+        container (still carrying the old `read_only` / `network_mode`
+        flags) instead of creating a fresh one with the new config.
+        Without it, admins had to restart restai for a setting flip to
+        bite — exactly the bug this fixes.
+        """
         with self._lock:
             chat_ids = list(self._containers.keys())
-
         for chat_id in chat_ids:
             self._remove_container(chat_id)
 
-        logger.info("Docker manager shut down, removed %d containers", len(chat_ids))
+        # Also kill anything labelled by an earlier instance / sibling
+        # worker. Best-effort; don't let a single bad container stop
+        # the rest from being cleaned up.
+        orphans = 0
+        try:
+            for c in self._client.containers.list(
+                all=True, filters={"label": "restai.managed=true"}
+            ):
+                try:
+                    c.remove(force=True)
+                    orphans += 1
+                except Exception as e:
+                    logger.warning("Failed to remove orphan container %s: %s", c.short_id, e)
+        except Exception as e:
+            logger.warning("Orphan sweep failed: %s", e)
+
+        logger.info(
+            "Docker manager shut down, removed %d tracked + %d orphan containers",
+            len(chat_ids), orphans,
+        )
 
     @property
     def active_container_count(self) -> int:
