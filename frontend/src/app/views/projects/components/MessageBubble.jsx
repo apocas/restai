@@ -331,7 +331,27 @@ export default function MessageBubble({ message, onBranch }) {
                 </Accordion>
               )}
               <Typography variant="body2" component="div">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{answerText}</ReactMarkdown>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    img: ({ node, ...props }) => (
+                      <Box
+                        component="img"
+                        {...props}
+                        sx={{
+                          display: "block",
+                          maxWidth: "100%",
+                          maxHeight: 480,
+                          height: "auto",
+                          borderRadius: 1,
+                          my: 1,
+                        }}
+                      />
+                    ),
+                  }}
+                >
+                  {answerText}
+                </ReactMarkdown>
               </Typography>
               {/* Tool calls — separate accordion from thinking. Reuses
                   the existing terminal renderer with a filtered view of

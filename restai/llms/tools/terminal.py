@@ -63,13 +63,31 @@ def terminal(command: str, **kwargs) -> str:
     if new_artifacts:
         from restai.agent2 import artifacts as _artifacts
         _artifacts.stage(chat_id or "ephemeral", new_artifacts)
+        # Image artifacts get the same display path as `draw_image`: stash
+        # bytes in Brain's image cache and emit `![](…/image/cache/…)` so
+        # the chat UI renders them inline. `_drive_runtime` mirrors the
+        # markdown into the final answer if the LLM forgets to echo it.
+        from restai import config as _config
+        public_url = (getattr(_config, "RESTAI_URL", None) or "").rstrip("/")
         notices = []
+        image_lines = []
         for a in new_artifacts:
             kb = max(1, (a.get("size") or 0) // 1024)
             tag = " (too large — only mentioned, not attached)" if a.get("truncated") else ""
             notices.append(f"  - {a['name']} ({a['mime']}, ~{kb} KB){tag}")
+            mime = (a.get("mime") or "").lower()
+            data = a.get("bytes")
+            if not a.get("truncated") and mime.startswith("image/") and data:
+                try:
+                    filename = brain.cache_image(data, mime_type=mime)
+                except Exception:
+                    continue
+                url = f"{public_url}/image/cache/{filename}" if public_url else f"/image/cache/{filename}"
+                image_lines.append(f"![{a['name']}]({url})")
         output = (output or "") + (
             "\n\n[artifacts] New files in /artifacts/ — visible to you next turn:\n"
             + "\n".join(notices)
         )
+        if image_lines:
+            output += "\n\n" + "\n".join(image_lines)
     return output
