@@ -47,6 +47,21 @@ def _is_image_attachment(f) -> bool:
     return name.endswith(_IMAGE_EXTS)
 
 
+def _prepend_current_time(base_system_prompt: str | None) -> str | None:
+    """Stamp the current UTC time at the top of the system prompt so
+    time-sensitive reasoning ('how recent is this snapshot', 'what day
+    is it', 'is the maintenance window still open') has a ground truth.
+    Without this the model falls back to its training-cutoff date, which
+    is the root cause of countless 'is this stale?' confusions in
+    tool-using agents."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    stamp = f"[Current time: {now.strftime('%Y-%m-%d %H:%M UTC (%A)')}]"
+    if base_system_prompt:
+        return f"{stamp}\n\n{base_system_prompt}"
+    return stamp
+
+
 def _augment_system_prompt_with_memory_bank(project, db, base_system_prompt: str | None) -> str | None:
     """When the project has memory_bank_enabled, prepend the rendered memory
     bank block to the system prompt. Cheap on the no-bank-yet path: a single
@@ -787,6 +802,7 @@ class Agent(ProjectBase):
                     sys_prompt = _augment_system_prompt_with_memory_bank(
                         project, db, project.props.system,
                     )
+                    sys_prompt = _prepend_current_time(sys_prompt)
                     runtime = self._build_runtime(
                         project, db, sys_prompt, extra_tools=mcp_tools
                     )
@@ -920,6 +936,7 @@ class Agent(ProjectBase):
 
         system_prompt = questionModel.system or project.props.system
         system_prompt = _augment_system_prompt_with_memory_bank(project, db, system_prompt)
+        system_prompt = _prepend_current_time(system_prompt)
 
         async with MCPSessionPool() as mcp_pool:
             try:
