@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Fade, Grid } from "@mui/material";
-import { Info, Storage, Shield, BarChart, ChatBubble, Widgets, Hub, Build, Schedule, PhoneAndroid, VpnKey } from "@mui/icons-material";
+import { Info, Storage, Shield, BarChart, ChatBubble, Widgets, Hub, Build, Schedule, PhoneAndroid, VpnKey, Memory } from "@mui/icons-material";
 
 import ProjectInfo from "./ProjectInfo";
 import ProjectTabNav from "./ProjectTabNav";
@@ -15,6 +15,7 @@ import ProjectInfoTools from "./ProjectInfoTools";
 import ProjectEditRoutines from "./ProjectEditRoutines";
 import ProjectEditMobile from "./ProjectEditMobile";
 import ProjectEditSecrets from "./ProjectEditSecrets";
+import ProjectEditMemoryBank from "./ProjectEditMemoryBank";
 
 const ALL_TABS = [
   { name: "General", Icon: Info },
@@ -22,6 +23,7 @@ const ALL_TABS = [
   { name: "Knowledge Graph", Icon: Hub, ragOnly: true, kgOnly: true },
   { name: "Tools", Icon: Build, agentOnly: true },
   { name: "Secrets", Icon: VpnKey, agentOnly: true },
+  { name: "Memory Bank", Icon: Memory, memoryBankOnly: true },
   { name: "Routines", Icon: Schedule },
   { name: "Security", Icon: Shield },
   { name: "Analytics", Icon: BarChart },
@@ -37,6 +39,7 @@ export default function ProjectDetails({ project, projects, info }) {
     if (t.ragOnly && project.type !== "rag") return false;
     if (t.kgOnly && !project.options?.enable_knowledge_graph) return false;
     if (t.agentOnly && project.type !== "agent") return false;
+    if (t.memoryBankOnly && !project.options?.memory_bank_enabled) return false;
     return true;
   });
 
@@ -58,6 +61,7 @@ export default function ProjectDetails({ project, projects, info }) {
             {active === "Knowledge Graph" && <ProjectInfoKnowledgeGraph project={project} />}
             {active === "Tools" && <ProjectInfoTools project={project} />}
             {active === "Secrets" && <ProjectEditSecrets project={project} />}
+            {active === "Memory Bank" && <ProjectEditMemoryBank project={project} />}
             {active === "Routines" && <ProjectEditRoutines project={project} />}
             {active === "Security" && <ProjectInfoSecurity project={project} />}
             {active === "Analytics" && <ProjectInfoAnalytics project={project} />}
