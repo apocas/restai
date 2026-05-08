@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 
 from restai import config
-from restai.auth import get_current_username, get_current_username_admin
+from restai.auth import get_current_username, get_current_username_admin, check_user_can_use_mcp_host
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.models import ClassifierModel, ClassifierResponse, MCPProbeRequest, OllamaCloudInstanceModel, OllamaInstanceModel, OllamaModelInfo, OllamaModelPullRequest, OllamaModelPullResponse, Tool, User
 
@@ -87,10 +87,16 @@ def _validate_mcp_host(host: str, args: list = None):
 @router.post("/tools/mcp/probe")
 async def probe_mcp_server(
     probe_request: MCPProbeRequest,
-    _: User = Depends(get_current_username),
+    user: User = Depends(get_current_username),
 ):
     """Probe an MCP server or gateway to discover available tools/services."""
     _validate_mcp_host(probe_request.host, probe_request.args)
+    # Stdio MCP transport spawns a subprocess on this server with the
+    # user-supplied `host` as the executable. Restrict it to platform
+    # admins; non-admins must use http(s)/sse transports. Without
+    # this gate, any authenticated user (including SSO-auto-provisioned
+    # accounts) gets RCE as the RESTai service account.
+    check_user_can_use_mcp_host(user, probe_request.host)
     try:
         # Detect MCP gateway (returns a services list instead of being a direct MCP server)
         if probe_request.host.startswith("http"):

@@ -20,7 +20,7 @@ from restai.settings import ensure_settings_table
 from restai.database import open_db_wrapper, engine as db_engine
 from restai.models.databasemodels import ProjectDatabase
 from restai.brain import Brain
-from restai.telegram import get_updates, send_message
+from restai.telegram import get_updates, send_message, delete_webhook
 
 
 def main():
@@ -71,7 +71,36 @@ def main():
 
             updates, err = get_updates(token, offset=0, timeout=1)
             if err is not None:
-                logger.warning(f"Telegram API error for project {proj.name} (id={proj.id}): {err}")
+                # Telegram-409 ("Conflict: terminated by other getUpdates
+                # request") is a real configuration problem — log it as
+                # such, with the actionable hints, and try to self-heal
+                # the webhook-was-set variant before giving up.
+                if "409" in err or "Conflict" in err:
+                    if "webhook" in err.lower():
+                        ok, herr = delete_webhook(token)
+                        if ok:
+                            logger.warning(
+                                "Telegram conflict for project %s (id=%s): a webhook was set, "
+                                "which blocks getUpdates. Cleared it — next tick should work.",
+                                proj.name, proj.id,
+                            )
+                        else:
+                            logger.warning(
+                                "Telegram conflict for project %s (id=%s): a webhook was set, "
+                                "and clearing it failed (%s). Clear it manually via "
+                                "https://api.telegram.org/bot<TOKEN>/deleteWebhook",
+                                proj.name, proj.id, herr,
+                            )
+                    else:
+                        logger.warning(
+                            "Telegram conflict for project %s (id=%s): another instance is "
+                            "polling the same bot token. Likely causes: a second restai "
+                            "instance on a different host, a leftover dev process, or a "
+                            "scaled-out replica without leader-election. Stop the other poller.",
+                            proj.name, proj.id,
+                        )
+                else:
+                    logger.warning(f"Telegram API error for project {proj.name} (id={proj.id}): {err}")
                 continue
             if not updates:
                 logger.info(f"No new Telegram updates for project '{proj.name}'")

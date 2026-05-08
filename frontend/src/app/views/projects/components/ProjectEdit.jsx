@@ -74,6 +74,7 @@ export default function ProjectEdit({ project, projects, info }) {
     var opts = {
       name: project.name,
       llm: state.llm,
+      embeddings: state.embeddings || "",
       human_description: state.human_description,
       human_name: state.human_name,
       guard: state.guard || "",
@@ -145,6 +146,7 @@ export default function ProjectEdit({ project, projects, info }) {
     if (project.type === "agent") {
       opts.options.memory_bank_enabled = state.options.memory_bank_enabled || false;
       opts.options.memory_bank_max_tokens = parseInt(state.options.memory_bank_max_tokens) || 2000;
+      opts.options.memory_search_enabled = state.options.memory_search_enabled || false;
       opts.options.browser_allowed_domains = state.options.browser_allowed_domains || null;
       opts.options.browser_allow_eval = !!state.options.browser_allow_eval;
     }
@@ -188,7 +190,7 @@ export default function ProjectEdit({ project, projects, info }) {
   const handleChange = (event) => {
     if (event && event.persist) event.persist();
 
-    if (["logging", "redact_inference_logs", "cache", "llm_rerank", "colbert_rerank", "enable_knowledge_graph", "memory_bank_enabled", "browser_allow_eval"].includes(event.target.name)) {
+    if (["logging", "redact_inference_logs", "cache", "llm_rerank", "colbert_rerank", "enable_knowledge_graph", "memory_bank_enabled", "memory_search_enabled", "browser_allow_eval"].includes(event.target.name)) {
       setState({ ...state, options: { ...state.options, [event.target.name]: event.target.checked } });
     } else if (event.target.name === "cache_threshold") {
       setState({ ...state, options: { ...state.options, cache_threshold: event.target.value / 100 } });
@@ -238,6 +240,7 @@ export default function ProjectEdit({ project, projects, info }) {
         tools: null,
         memory_bank_enabled: false,
         memory_bank_max_tokens: 2000,
+        memory_search_enabled: false,
         ...project.options,
       },
     };

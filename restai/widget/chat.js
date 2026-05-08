@@ -185,6 +185,50 @@
   const ICON_SEND = '<svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
   const ICON_BOT = '<svg viewBox="0 0 24 24"><path d="M12 2a2 2 0 012 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 017 7h1a1 1 0 011 1v3a1 1 0 01-1 1h-1v1a2 2 0 01-2 2H6a2 2 0 01-2-2v-1H3a1 1 0 01-1-1v-3a1 1 0 011-1h1a7 7 0 017-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 012-2zM9 14a1 1 0 100 2 1 1 0 000-2zm6 0a1 1 0 100 2 1 1 0 000-2z"/></svg>';
 
+  // --- Avatar URL hardening ---
+  // The avatar URL ends up in `<img src="...">` on every embedding
+  // page. Two layers of defense, applied here on top of the
+  // server-side scheme allowlist in `WidgetConfig.avatarUrl`:
+  //
+  //   1. `safeAvatarUrl(u)` — runtime scheme check. Only `http(s)://`
+  //      and `data:image/...` pass; anything else (a `javascript:`
+  //      URL, an attribute-breakout payload smuggled past the
+  //      server, a typo) returns "" so the default bot icon renders
+  //      instead. Defense in depth: even if the server validator is
+  //      bypassed or weakened in a future patch, the client refuses
+  //      to render a hostile URL.
+  //
+  //   2. `escapeAttr(s)` — escape the (now scheme-validated) URL
+  //      before splicing it into the `src` attribute. Closes the
+  //      attribute-breakout class entirely (a `"` in a valid URL
+  //      would otherwise let the value escape the attribute).
+  function safeAvatarUrl(u) {
+    if (typeof u !== "string" || !u) return "";
+    var s = u.trim();
+    if (!s) return "";
+    var lo = s.toLowerCase();
+    if (lo.indexOf("http://") === 0 || lo.indexOf("https://") === 0) return s;
+    if (lo.indexOf("data:image/") === 0) return s;
+    return "";
+  }
+  function escapeAttr(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+  function avatarImgHtml(sizePx) {
+    var safe = safeAvatarUrl(cfg.avatarUrl);
+    if (safe) return '<img src="' + escapeAttr(safe) + '" alt="">';
+    var px = sizePx || 20;
+    return ICON_BOT.replace(
+      "viewBox",
+      'style="width:' + px + 'px;height:' + px + 'px;fill:' + escapeAttr(cfg.textColor) + '" viewBox'
+    );
+  }
+
   // --- Markdown-lite ---
   function renderMarkdown(text) {
     let html = text
@@ -216,9 +260,7 @@
   const panel = document.createElement("div");
   panel.className = "restai-panel";
 
-  const avatarHtml = cfg.avatarUrl
-    ? `<img src="${cfg.avatarUrl}" alt="">`
-    : ICON_BOT.replace('viewBox', 'style="width:20px;height:20px;fill:' + cfg.textColor + '" viewBox');
+  const avatarHtml = avatarImgHtml(20);
 
   panel.innerHTML = `
     <div class="restai-header">
@@ -253,9 +295,7 @@
     // Update avatar
     const avatarEl = panel.querySelector(".restai-header-avatar");
     if (avatarEl) {
-      avatarEl.innerHTML = cfg.avatarUrl
-        ? `<img src="${cfg.avatarUrl}" alt="">`
-        : ICON_BOT.replace('viewBox', 'style="width:20px;height:20px;fill:' + cfg.textColor + '" viewBox');
+      avatarEl.innerHTML = avatarImgHtml(20);
     }
     // Update colors by rebuilding the style
     style.textContent = buildStyles();
@@ -317,7 +357,7 @@
     for (const msg of messages) {
       const isBot = msg.role === "bot";
       const avatarContent = isBot
-        ? (cfg.avatarUrl ? `<img src="${cfg.avatarUrl}" alt="">` : ICON_BOT.replace('viewBox', 'style="width:14px;height:14px;fill:' + cfg.textColor + '" viewBox'))
+        ? avatarImgHtml(14)
         : '<span style="font-size:12px">You</span>';
       html += `<div class="restai-msg ${msg.role}">
         <div class="restai-msg-avatar">${avatarContent}</div>
@@ -325,7 +365,7 @@
       </div>`;
     }
     if (showTyping || streamingText) {
-      const avatarContent = cfg.avatarUrl ? `<img src="${cfg.avatarUrl}" alt="">` : ICON_BOT.replace('viewBox', 'style="width:14px;height:14px;fill:' + cfg.textColor + '" viewBox');
+      const avatarContent = avatarImgHtml(14);
       html += `<div class="restai-msg bot">
         <div class="restai-msg-avatar">${avatarContent}</div>
         <div class="restai-msg-content">${streamingText ? renderMarkdown(streamingText) : '<div class="restai-typing"><span></span><span></span><span></span></div>'}</div>

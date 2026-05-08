@@ -43,6 +43,29 @@ def send_typing_action(token: str, chat_id: int):
         pass
 
 
+def delete_webhook(token: str) -> tuple[bool, str | None]:
+    """Clear any webhook configured on the bot. Telegram refuses
+    `getUpdates` while a webhook is active (it's an either/or model),
+    so the cron self-heals by calling this on a 409 that mentions
+    'webhook'. Idempotent — does nothing if no webhook is set.
+
+    Returns ``(ok, error_or_none)``.
+    """
+    try:
+        resp = requests.post(
+            f"{TELEGRAM_API_BASE.format(token=token)}/deleteWebhook",
+            json={"drop_pending_updates": False},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if data.get("ok"):
+            return True, None
+        return False, data.get("description") or "unknown error"
+    except Exception as e:
+        return False, f"{type(e).__name__}: {e}"
+
+
 def get_updates(token: str, offset: int = 0, timeout: int = 30):
     """Returns ``(updates, error)``.
 

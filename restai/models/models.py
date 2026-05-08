@@ -767,6 +767,10 @@ class ProjectOptions(BaseModel):
         le=10000,
         description="Token budget for the rendered memory bank block. Older entries get rolled up into coarser time buckets when this is exceeded."
     )
+    memory_search_enabled: bool = Field(
+        default=False,
+        description="Agent projects only. When enabled, every conversation turn (OutputDatabase row) is indexed into a per-project ChromaDB collection so the `search_memories` builtin tool can semantically retrieve past Q/A from anywhere in this project's history. Independent of `memory_bank_enabled` — the bank broadcasts a fixed slice into every system prompt, while this powers on-demand retrieval. Requires the project to have an embedding configured."
+    )
     # Agentic Browser — the browser_* builtin tools.
     browser_allowed_domains: Union[str, None] = Field(
         default=None,
@@ -904,6 +908,23 @@ class TOTPEnableRequest(BaseModel):
 class TOTPDisableRequest(BaseModel):
     """Disable TOTP (requires password confirmation)."""
     password: str = Field(description="Current password for confirmation")
+
+
+class TOTPSetupRequest(BaseModel):
+    """Step-up auth required to (re)generate a TOTP secret.
+
+    Always requires `password` so a session-only attacker can't
+    silently rotate the second factor. If 2FA is currently enabled,
+    `code` is also required and must verify against the EXISTING
+    secret before that secret is overwritten — otherwise the attacker
+    could lock the legitimate user out by replacing the seed.
+    """
+    password: str = Field(description="Current password for confirmation")
+    code: Optional[str] = Field(
+        default=None,
+        max_length=20,
+        description="Current TOTP code (or recovery code), required only when 2FA is already enabled",
+    )
 
 
 class ApiKeyCreate(BaseModel):
@@ -1875,6 +1896,43 @@ class WidgetConfig(BaseModel):
     avatarUrl: str = Field(default="", max_length=500)
     stream: bool = Field(default=False)
     context_prefix: bool = Field(default=True, description="Auto-prepend user context block to system prompt")
+
+    @field_validator("avatarUrl")
+    @classmethod
+    def _validate_avatar_url(cls, v: str) -> str:
+        """Avatar URL ends up in the widget's `<img src=...>` rendered
+        on every embedding site. The widget runtime additionally
+        attribute-escapes the value, but server-side scheme allowlist
+        is the durable defense — we don't want to ship a malicious URL
+        to clients in the first place. Allowed:
+
+          - empty / None (use default bot icon)
+          - `http://...` and `https://...`
+          - `data:image/...` (inline base64 — widely used for
+            self-contained branded widgets)
+
+        Anything else (`javascript:`, attribute-breakout payloads,
+        unknown schemes) is rejected.
+        """
+        if v is None or v == "":
+            return ""
+        s = str(v).strip()
+        if not s:
+            return ""
+        # Reject control characters and quotes that could break out of
+        # the attribute even with a benign-looking scheme prefix.
+        if any(c in s for c in ('"', "'", "<", ">", "\r", "\n", "\t")):
+            raise ValueError(
+                "avatarUrl contains disallowed characters (quotes / angle brackets / whitespace control)"
+            )
+        lo = s.lower()
+        if lo.startswith("http://") or lo.startswith("https://"):
+            return s
+        if lo.startswith("data:image/"):
+            return s
+        raise ValueError(
+            "avatarUrl must use http(s):// or data:image/... ; other schemes are not allowed"
+        )
 
 
 VALID_TEMPLATE_VISIBILITIES = ("private", "team", "public")

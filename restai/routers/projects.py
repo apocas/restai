@@ -28,6 +28,7 @@ from restai.auth import (
     get_current_username_project,
     get_current_username_project_public,
     check_not_restricted,
+    check_user_can_use_mcp_host,
 )
 from restai.database import get_db_wrapper, DBWrapper
 from restai.helper import chat_main, question_main
@@ -62,6 +63,7 @@ import uuid
 import secrets
 from restai.utils.crypto import encrypt_api_key, hash_api_key, encrypt_field
 from restai.brain import Brain
+from restai.project import Project
 from restai.vectordb import tools
 from restai.knowledge_graph import extract_and_persist_safe
 from restai.vectordb.tools import (
@@ -513,6 +515,15 @@ async def route_edit_project(
                 status_code=403, detail="User not allowed to use public models"
             )
 
+    # MCP servers added through this PATCH path are spawned by the
+    # agent runtime on every chat. A non-admin who can sneak a stdio
+    # transport (`host="/bin/sh"`, args=["-c", "..."]) into
+    # `options.mcp_servers` gets the same RCE primitive as
+    # `/tools/mcp/probe`. Same gate applies: stdio is admin-only.
+    if projectModelUpdate.options and projectModelUpdate.options.mcp_servers:
+        for srv in projectModelUpdate.options.mcp_servers:
+            check_user_can_use_mcp_host(user, srv.host)
+
     # Handle masked tokens — preserve existing values
     if projectModelUpdate.options:
         existing_opts = json.loads(project.options) if project.options else {}
@@ -532,6 +543,18 @@ async def route_edit_project(
 
     # Attach user ID for prompt version tracking
     projectModelUpdate._user_id = user.id
+
+    # Embedding swap is a vectordb side-effect, not a SQL one — drop
+    # the memory_search collection synchronously so the cron rebuilds
+    # from scratch on the next tick (instead of letting users see
+    # stale results for one minute). Detection uses the pre-fetched
+    # `project` row; equality with the incoming value short-circuits
+    # the case where the client PATCHes the same value back.
+    if (
+        projectModelUpdate.embeddings is not None
+        and projectModelUpdate.embeddings != project.embeddings
+    ):
+        Project.reset_memory_index(projectID)
 
     try:
         if db_wrapper.edit_project(projectID, projectModelUpdate):
@@ -2852,6 +2875,50 @@ async def preview_memory_bank(
         "tokens": tokens_from_string(block) if block else 0,
         "max_tokens": max_tokens,
     }
+
+
+# ── Memory Search (per-project conversation-history vector index) ────────
+
+
+@router.post("/projects/{projectID}/memory-search", tags=["Memory Search"])
+async def memory_search_query(
+    request: Request,
+    body: dict,
+    projectID: int = PathParam(description="Project ID"),
+    user: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Run the same `search_memories` builtin tool the agent calls and
+    return the raw text result. The Memory tab in the project edit UI
+    uses this to show admins exactly what an LLM sees when it invokes
+    the tool — no formatting drift, no second rendering path.
+
+    Body: ``{"query": "...", "k": 5}``. ``k`` is clamped to [1, 20] by
+    the tool itself; this endpoint just forwards.
+    """
+    project = db_wrapper.get_project_by_id(projectID)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    query = (body.get("query") or "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="query is required")
+    try:
+        k = int(body.get("k") or 5)
+    except Exception:
+        k = 5
+
+    # Same code path the agent runtime executes → guaranteed identical
+    # output (errors, header line, per-hit blocks, char cap, etc.).
+    from restai.llms.tools.search_memories import search_memories
+    brain = request.app.state.brain
+    result = search_memories(
+        query=query,
+        k=k,
+        _brain=brain,
+        _project_id=projectID,
+    )
+    return {"result": result}
 
 
 @router.post("/projects/{projectID}/memory-bank/clear", tags=["Memory Bank"])

@@ -21,6 +21,9 @@ from restai.auth import (
     get_current_username_team_admin,
     get_current_username_team_member,
     check_not_restricted,
+    check_user_can_attach_project,
+    check_user_can_attach_llm,
+    check_user_can_attach_embedding,
 )
 from restai.constants import ERROR_MESSAGES
 
@@ -118,8 +121,9 @@ async def create_team(
         
         # Process team relationships (users, admins, LLMs, embeddings, projects)
         # Since TeamModelCreate and TeamModelUpdate have the same fields for these relationships,
-        # we can reuse the update_team_members method
-        db_wrapper.update_team_members(team, TeamModelUpdate(**team_data))
+        # we can reuse the update_team_members method. Caller is a platform admin
+        # here (auth dep) so the per-resource attach gates short-circuit.
+        db_wrapper.update_team_members(team, TeamModelUpdate(**team_data), caller=user)
         
         # Get the refreshed team with all relationships
         team = db_wrapper.get_team_by_id(team.id)
@@ -156,8 +160,10 @@ async def update_team(
         # Update base team properties
         db_wrapper.update_team(team, team_update)
         
-        # Update team members and resources
-        db_wrapper.update_team_members(team, team_update)
+        # Update team members and resources. Pass `caller` so the per-
+        # resource attach gates fire — without this, a team admin could
+        # PATCH `{llms: [team-B-llm]}` and bypass the per-endpoint guards.
+        db_wrapper.update_team_members(team, team_update, caller=user)
         
         return TeamModel.model_validate(db_wrapper.get_team_by_id(team_id))
     except Exception as e:
@@ -326,7 +332,9 @@ async def add_project_to_team(
         project = db_wrapper.get_project_by_id(project_id)
         if project is None:
             raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
-            
+
+        check_user_can_attach_project(user, project)
+
         db_wrapper.add_project_to_team(team, project)
         return {"added_project": project.name, "team": team.name}
     except Exception as e:
@@ -380,6 +388,7 @@ async def add_llm_to_team(
         llm = db_wrapper.get_llm_by_id(llm_id)
         if llm is None:
             raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
+        check_user_can_attach_llm(user, llm)
         db_wrapper.add_llm_to_team(team, llm)
         return {"added_llm": llm.name, "team": team.name}
     except Exception as e:
@@ -428,6 +437,7 @@ async def add_embedding_to_team(
         embedding = db_wrapper.get_embedding_by_id(embedding_id)
         if embedding is None:
             raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
+        check_user_can_attach_embedding(user, embedding)
         db_wrapper.add_embedding_to_team(team, embedding)
         return {"added_embedding": embedding.name, "team": team.name}
     except Exception as e:

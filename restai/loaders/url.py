@@ -33,9 +33,18 @@ class SeleniumWebReader(BaseReader):
             executable_path: Optional[str] = None,
             headless: bool = True,
             arguments: object = None,
+            page_load_timeout: Optional[float] = None,
     ) -> None:
-        
-        """Load a list of URLs using Selenium and unstructured."""
+
+        """Load a list of URLs using Selenium and unstructured.
+
+        page_load_timeout: when set, every driver created by this
+        reader has Selenium's `set_page_load_timeout` applied so a
+        slow / hung page can't pin the agent forever. Selenium's
+        default is "no timeout"; callers handling untrusted URLs
+        (e.g. the agent's `crawler_selenium` tool) should always
+        pass an explicit value.
+        """
         if arguments is None:
             arguments = []
         try:
@@ -60,6 +69,7 @@ class SeleniumWebReader(BaseReader):
         self.executable_path = executable_path
         self.headless = headless
         self.arguments = arguments
+        self.page_load_timeout = page_load_timeout
 
     def _get_driver(self) -> Union["Chrome", "Firefox"]:
         """Create and return a WebDriver instance based on the specified browser.
@@ -162,6 +172,14 @@ class SeleniumWebReader(BaseReader):
             pass
         return metadata
 
+    # Scheme allowlist applied inside `load_data` so every consumer
+    # (crawler tool, URL-ingest router, sync cron) is uniformly
+    # protected. Without this, headless Chrome / Firefox happily
+    # render `file:///etc/passwd`, the contents land in the
+    # vector store, and the embeddings retrieval path becomes a
+    # generic local-file-read primitive.
+    _ALLOWED_SCHEMES = ("http://", "https://")
+
     def load_data(
         self,
         urls: list[str],
@@ -174,8 +192,33 @@ class SeleniumWebReader(BaseReader):
 
         docs: List[Document] = list()
         driver = self._get_driver()
+        if self.page_load_timeout is not None:
+            try:
+                driver.set_page_load_timeout(self.page_load_timeout)
+            except Exception:
+                # Older drivers may not support it; better to lose the
+                # bound than fail the whole call.
+                pass
 
         for url in urls:
+            # Refuse anything that isn't a public web URL — file://,
+            # data:, javascript:, chrome://, view-source:, etc. The
+            # check is at the loader so a future caller can't bypass
+            # it by skipping a router-level guard.
+            try:
+                lo = (url or "").strip().lower()
+            except Exception:
+                lo = ""
+            if not any(lo.startswith(s) for s in self._ALLOWED_SCHEMES):
+                logger.warning(
+                    "SeleniumWebReader refused non-http(s) URL: %r", url
+                )
+                if self.continue_on_failure:
+                    continue
+                raise ValueError(
+                    f"only http(s) URLs are allowed (got: {url!r})"
+                )
+
             try:
                 driver.get(url)
                 page_content = driver.page_source

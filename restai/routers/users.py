@@ -17,6 +17,7 @@ from restai.models.models import (
     TOTPSetupResponse,
     TOTPEnableRequest,
     TOTPDisableRequest,
+    TOTPSetupRequest,
     User,
     UserCreate,
     UserLogin,
@@ -62,6 +63,20 @@ async def ldap_auth(request: Request, form_data: UserLogin, db_wrapper: DBWrappe
 
     if not ENABLE_LDAP:
         raise HTTPException(400, detail="LDAP authentication is not enabled")
+
+    # Refuse empty / whitespace-only passwords BEFORE any LDAP call.
+    # Many AD / OpenLDAP deployments default to performing an
+    # *anonymous bind* when the password is the empty string, which
+    # the server returns as a successful bind — even though no
+    # credential was verified. The handler used to treat that
+    # success as authentication and mint a JWT for the resolved
+    # user, giving an attacker a full session with no password at
+    # all. Rejecting an empty password here closes the bypass even
+    # if the LDAP server itself is misconfigured to allow anonymous
+    # bind. Same shape of error the failed-bind path returns below
+    # so we don't leak whether the username exists.
+    if not form_data.password or not form_data.password.strip():
+        raise HTTPException(400, f"Authentication failed for {form_data.user}")
 
     try:
         tls = Tls(
@@ -415,16 +430,28 @@ async def route_update_user(
         if not user.is_admin and user_update.is_admin is True:
             raise HTTPException(status_code=403, detail="Insuficient permissions")
 
+        # `is_private` gates access to public LLM / image endpoints.
+        # Allowed to flip:
+        #   - Platform admins.
+        #   - Team admins, but ONLY for OTHER users in a team they
+        #     administer. A team admin must NOT be able to flip
+        #     their own `is_private` — they're in their own team's
+        #     admins list, which used to let them self-bypass the
+        #     privacy boundary by going through the team-admin
+        #     branch. Self-flip is reserved for platform admins.
         if user_update.is_private is not None and user_update.is_private != user_to_update.is_private:
             can_change = user.is_admin
-            if not can_change:
+            if not can_change and user.username != user_to_update.username:
                 caller_db = db_wrapper.get_user_by_username(user.username)
                 for team in caller_db.admin_teams:
                     if user_to_update in team.users or user_to_update in team.admins:
                         can_change = True
                         break
             if not can_change:
-                raise HTTPException(status_code=403, detail="Only platform admins or team admins can modify user privacy setting")
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only platform admins or team admins (managing other team members) can modify user privacy setting",
+                )
 
         if not user.is_admin and user_update.is_restricted is not None:
             raise HTTPException(status_code=403, detail="Only admins can modify restriction settings")
@@ -501,19 +528,65 @@ async def totp_status(
 
 @router.post("/users/{username}/totp/setup", response_model=TOTPSetupResponse)
 async def totp_setup(
+    body: TOTPSetupRequest,
     username: str = Path(description="Username"),
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Generate a new TOTP secret and recovery codes. Does NOT enable 2FA yet — call /enable with a valid code to activate."""
+    """Generate a new TOTP secret and recovery codes. Does NOT enable
+    2FA yet — call /enable with a valid code to activate.
+
+    Step-up auth required:
+      - Always: current password.
+      - If 2FA is currently enabled: also a valid current TOTP code
+        (or recovery code) — without this, a session-only attacker
+        could overwrite the legitimate user's secret with one they
+        control, locking the user out and pivoting to persistent
+        ATO. Mirrors what `/totp/enable` and `/totp/disable` already
+        do for their own mutations.
+    """
     import pyotp
     import json
+    from restai.database import verify_password
 
     if not user.is_admin and user.username != username:
         raise HTTPException(status_code=403, detail="Access denied")
     user_db = db_wrapper.get_user_by_username(username)
     if user_db is None:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # Step-up: password (always)
+    if not verify_password(body.password, user_db.hashed_password or ""):
+        raise HTTPException(status_code=403, detail="Invalid password")
+
+    # Step-up: current TOTP code, ONLY if 2FA is already enabled.
+    # Accept either a 6-digit live TOTP code OR a recovery code so a
+    # user who has lost their authenticator can still rotate the
+    # secret legitimately.
+    if user_db.totp_enabled and user_db.totp_secret:
+        if not body.code:
+            raise HTTPException(
+                status_code=400,
+                detail="Current TOTP code (or recovery code) is required to rotate the second factor.",
+            )
+        existing_secret = decrypt_totp_secret(user_db.totp_secret)
+        ok = pyotp.TOTP(existing_secret).verify(body.code, valid_window=1)
+        if not ok:
+            # Try the recovery-code path. Mirrors `/auth/verify-totp`.
+            try:
+                stored_codes = json.loads(user_db.totp_recovery_codes or "[]")
+            except Exception:
+                stored_codes = []
+            from restai.utils.crypto import verify_recovery_code
+            for hashed in list(stored_codes):
+                if verify_recovery_code(body.code, hashed):
+                    ok = True
+                    # Recovery codes are single-use; consume it.
+                    stored_codes.remove(hashed)
+                    user_db.totp_recovery_codes = json.dumps(stored_codes)
+                    break
+        if not ok:
+            raise HTTPException(status_code=400, detail="Invalid TOTP code")
 
     # Generate secret and recovery codes
     secret = pyotp.random_base32()

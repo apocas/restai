@@ -205,6 +205,105 @@ def test_instantiate_creates_new_project(client, source_project):
         client.delete(f"/templates/{tid}", auth=ADMIN)
 
 
+def test_template_publish_strips_secrets_from_options(client, source_project):
+    """Publishing a template MUST scrub credential-bearing fields out
+    of the source project's options. Otherwise any logged-in user
+    who picks up the public template via /templates/{id}/instantiate
+    inherits the publisher's outbound-channel credentials and can
+    send messages from their verified WhatsApp / SMTP / Twilio
+    sender identities.
+    """
+    # Stamp realistic secrets onto the source project.
+    secrets_blob = {
+        "whatsapp_access_token": "EAA_real_token_redacted",
+        "whatsapp_app_secret": "appsecret_redacted",
+        "whatsapp_verify_token": "verify_redacted",
+        "smtp_password": "redacted_smtp",
+        "twilio_auth_token": "redacted_twilio",
+        "webhook_secret": "whsec_redacted",
+        "telegram_token": "5555:AAH-redacted",
+        "slack_bot_token": "xoxb-redacted",
+        "ftp_password": "redacted_ftp",
+        # benign, MUST survive
+        "smtp_host": "smtp.acme.com",
+        "smtp_from": "support@acme.com",
+        "twilio_from_number": "+15557654321",
+        "webhook_url": "https://hooks.acme.com/restai",
+    }
+    pr = client.patch(
+        f"/projects/{source_project['id']}",
+        json={"options": secrets_blob},
+        auth=ADMIN,
+    )
+    assert pr.status_code == 200, pr.text
+
+    tpl = client.post(
+        f"/projects/{source_project['id']}/publish-template",
+        json={"name": f"secret-leak-test-{random.randint(0,999999)}", "visibility": "public"},
+        auth=ADMIN,
+    ).json()
+    tid = tpl["id"]
+
+    new_pid = None
+    try:
+        # Instantiate as the same user (admin); secrets must STILL be
+        # gone — the threat is that any logged-in user can do this.
+        r = client.post(
+            f"/templates/{tid}/instantiate",
+            json={
+                "name": f"leak_test_inst_{random.randint(0,999999)}",
+                "team_id": source_project["team_id"],
+                "llm": source_project["llm"],
+            },
+            auth=ADMIN,
+        )
+        assert r.status_code == 201, r.text
+        new_pid = r.json()["id"]
+
+        proj = client.get(f"/projects/{new_pid}", auth=ADMIN).json()
+        opts = proj.get("options") or {}
+
+        # Every secret-bearing field must either be absent or have
+        # been reset to None/empty — Pydantic's ProjectOptions schema
+        # serializes all keys with their defaults so absence isn't
+        # the signal; the actual security check is "the publisher's
+        # value didn't transplant".
+        leaked_values = {
+            "whatsapp_access_token": "EAA_real_token_redacted",
+            "whatsapp_app_secret": "appsecret_redacted",
+            "whatsapp_verify_token": "verify_redacted",
+            "smtp_password": "redacted_smtp",
+            "twilio_auth_token": "redacted_twilio",
+            "webhook_secret": "whsec_redacted",
+            "telegram_token": "5555:AAH-redacted",
+            "slack_bot_token": "xoxb-redacted",
+            "ftp_password": "redacted_ftp",
+        }
+        for k, original in leaked_values.items():
+            v = opts.get(k)
+            assert not v or v != original, (
+                f"SECRET LEAK: '{k}' value '{original}' transplanted onto "
+                f"instantiated project (got {v!r})"
+            )
+
+        # Benign config should round-trip — the template still serves
+        # its purpose as a configuration blueprint.
+        assert opts.get("smtp_host") == "smtp.acme.com"
+        assert opts.get("smtp_from") == "support@acme.com"
+        assert opts.get("twilio_from_number") == "+15557654321"
+        assert opts.get("webhook_url") == "https://hooks.acme.com/restai"
+    finally:
+        if new_pid:
+            client.delete(f"/projects/{new_pid}", auth=ADMIN)
+        client.delete(f"/templates/{tid}", auth=ADMIN)
+        # Restore source project options to a clean state for other tests.
+        client.patch(
+            f"/projects/{source_project['id']}",
+            json={"options": {}},
+            auth=ADMIN,
+        )
+
+
 def test_instantiate_rejects_duplicate_name(client, source_project):
     tpl = client.post(
         f"/projects/{source_project['id']}/publish-template",

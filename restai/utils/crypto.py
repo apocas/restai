@@ -1,4 +1,5 @@
 import hashlib
+import json as _json
 import os
 import secrets
 import string
@@ -121,6 +122,79 @@ PROJECT_SENSITIVE_KEYS = {
     "ftp_password",
 }
 LLM_SENSITIVE_KEYS = {"api_key", "key", "password", "secret"}
+
+# Sub-structures inside `project.options` that carry their own
+# credentials (separate from the top-level PROJECT_SENSITIVE_KEYS).
+# Used by `strip_sensitive_project_options` and by the masking logic
+# in `routers/projects.py:route_edit_project`.
+_SYNC_SOURCE_SECRET_KEYS = (
+    "s3_access_key",
+    "s3_secret_key",
+    "confluence_api_token",
+    "sharepoint_client_secret",
+    "gdrive_service_account_json",
+)
+
+
+def strip_sensitive_project_options(options_blob):
+    """Return a copy of `options_blob` with every credential-bearing
+    field removed. Used by template publish + template instantiate so
+    secrets configured by a project owner can never be transplanted
+    onto a project owned by someone else.
+
+    Strips:
+      - top-level keys in `PROJECT_SENSITIVE_KEYS` (telegram_token,
+        smtp_password, twilio_auth_token, webhook_secret, …)
+      - per-source credentials inside `sync_sources[]`
+      - `env` and `headers` on every entry of `mcp_servers[]` (may
+        contain bearer tokens or arbitrary API keys)
+
+    Accepts a JSON string OR a dict; returns the same shape it got so
+    the caller doesn't have to second-guess what `project.options`
+    looks like at the call site (the column is sometimes a JSON
+    string, sometimes a parsed dict depending on the path)."""
+    if not options_blob:
+        return options_blob
+
+    if isinstance(options_blob, str):
+        try:
+            opts = _json.loads(options_blob)
+        except Exception:
+            # Unparseable — safer to wipe the whole thing than to
+            # ship potentially-credential-bearing bytes.
+            return "{}"
+        was_str = True
+    elif isinstance(options_blob, dict):
+        opts = dict(options_blob)
+        was_str = False
+    else:
+        return options_blob
+
+    if not isinstance(opts, dict):
+        return options_blob
+
+    for k in PROJECT_SENSITIVE_KEYS:
+        opts.pop(k, None)
+
+    sync_sources = opts.get("sync_sources")
+    if isinstance(sync_sources, list):
+        for src in sync_sources:
+            if isinstance(src, dict):
+                for k in _SYNC_SOURCE_SECRET_KEYS:
+                    src.pop(k, None)
+
+    mcp_servers = opts.get("mcp_servers")
+    if isinstance(mcp_servers, list):
+        for srv in mcp_servers:
+            if isinstance(srv, dict):
+                # Drop the entire env/headers blobs — both can carry
+                # arbitrary bearer tokens / API keys / OAuth refresh
+                # tokens. The instantiator must reconfigure these.
+                srv.pop("env", None)
+                srv.pop("headers", None)
+
+    return _json.dumps(opts) if was_str else opts
+
 
 # Settings table keys that must be encrypted at rest
 SETTINGS_ENCRYPTED_KEYS = {

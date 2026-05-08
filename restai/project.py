@@ -41,3 +41,28 @@ class Project:
             self.vector.delete()
         if self.cache:
             self.cache.delete()
+
+    @classmethod
+    def reset_memory_index(cls, project_id: int) -> None:
+        """Drop the project's per-project memory_search Chroma
+        collection. Used when the project's embedding model changes —
+        existing vectors were computed with the old model and aren't
+        comparable to anything the new one produces, so the only
+        honest answer is to rebuild from scratch on the next cron
+        tick. Best-effort; a missing collection is fine.
+
+        Classmethod (not instance method) because the caller — the
+        edit-project router — has the SQLAlchemy row, not a runtime
+        Project instance, and instantiating one just to call this
+        would force a vectorstore load the swap is about to
+        invalidate.
+        """
+        try:
+            from restai import memory_search
+            memory_search.reset_collection(int(project_id))
+        except Exception:
+            import logging
+            logging.warning(
+                "Project.reset_memory_index: memory_search reset failed",
+                exc_info=True,
+            )

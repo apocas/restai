@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Fade, Grid } from "@mui/material";
-import { Info, Storage, Shield, BarChart, ChatBubble, Widgets, Hub, Build, Schedule, PhoneAndroid, VpnKey, Memory } from "@mui/icons-material";
+import { Info, Storage, Shield, BarChart, ChatBubble, Widgets, Hub, Build, Schedule, PhoneAndroid, VpnKey, Memory, TravelExplore } from "@mui/icons-material";
 
 import ProjectInfo from "./ProjectInfo";
 import ProjectTabNav from "./ProjectTabNav";
@@ -16,6 +16,7 @@ import ProjectEditRoutines from "./ProjectEditRoutines";
 import ProjectEditMobile from "./ProjectEditMobile";
 import ProjectEditSecrets from "./ProjectEditSecrets";
 import ProjectEditMemoryBank from "./ProjectEditMemoryBank";
+import ProjectEditMemorySearch from "./ProjectEditMemorySearch";
 
 const ALL_TABS = [
   { name: "General", Icon: Info },
@@ -24,6 +25,7 @@ const ALL_TABS = [
   { name: "Tools", Icon: Build, agentOnly: true },
   { name: "Secrets", Icon: VpnKey, agentOnly: true },
   { name: "Memory Bank", Icon: Memory, memoryBankOnly: true },
+  { name: "Memory", Icon: TravelExplore, memorySearchOnly: true },
   { name: "Routines", Icon: Schedule },
   { name: "Security", Icon: Shield },
   { name: "Analytics", Icon: BarChart },
@@ -40,6 +42,7 @@ export default function ProjectDetails({ project, projects, info }) {
     if (t.kgOnly && !project.options?.enable_knowledge_graph) return false;
     if (t.agentOnly && project.type !== "agent") return false;
     if (t.memoryBankOnly && !project.options?.memory_bank_enabled) return false;
+    if (t.memorySearchOnly && !project.options?.memory_search_enabled) return false;
     return true;
   });
 
@@ -62,6 +65,7 @@ export default function ProjectDetails({ project, projects, info }) {
             {active === "Tools" && <ProjectInfoTools project={project} />}
             {active === "Secrets" && <ProjectEditSecrets project={project} />}
             {active === "Memory Bank" && <ProjectEditMemoryBank project={project} />}
+            {active === "Memory" && <ProjectEditMemorySearch project={project} />}
             {active === "Routines" && <ProjectEditRoutines project={project} />}
             {active === "Security" && <ProjectInfoSecurity project={project} />}
             {active === "Analytics" && <ProjectInfoAnalytics project={project} />}

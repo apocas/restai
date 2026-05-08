@@ -25,7 +25,7 @@ logger = logging.getLogger("restai.bulk_ingest")
 
 def main():
     from restai.settings import ensure_settings_table
-    from restai.database import engine as db_engine, get_db_wrapper
+    from restai.database import engine as db_engine, open_db_wrapper
     from restai.models.databasemodels import BulkIngestJobDatabase, ProjectDatabase
     from restai.brain import Brain
     from restai.cron_log import CronLogger

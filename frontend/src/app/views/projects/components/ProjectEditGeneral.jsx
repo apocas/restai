@@ -205,6 +205,53 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
         </Grid>
       )}
 
+      {state.type !== "block" && (
+        <Grid item sm={6} xs={12}>
+          <TextField
+            fullWidth
+            select
+            name="embeddings"
+            label="Embeddings"
+            variant="outlined"
+            onChange={(e) => setState({ ...state, embeddings: e.target.value })}
+            value={state.embeddings ?? ''}
+            helperText="Embedding model used for RAG retrieval (RAG projects) and conversation memory search (agent projects with Memory Search on)."
+            InputLabelProps={{ shrink: true }}
+            SelectProps={{ displayEmpty: true }}
+          >
+            <MenuItem value=""><em>None</em></MenuItem>
+            {(info.embeddings || [])
+              .filter(item => {
+                if (!state.team) return true;
+                const teamEmbeddings = state.team.embeddings || [];
+                const teamEmbeddingNames = teamEmbeddings.map(e => typeof e === 'string' ? e : e.name);
+                return teamEmbeddingNames.includes(item.name);
+              })
+              .map((item) => (
+                <MenuItem value={item.name} key={item.name}>
+                  {item.name}
+                </MenuItem>
+              ))}
+          </TextField>
+        </Grid>
+      )}
+      {/* Warn when the user picks a different embedding from what's saved on
+          the server. Existing vectors are tied to the previous model and
+          can't be compared against vectors produced by the new one — the
+          memory_search collection is dropped on save and re-indexed by the
+          cron over the next few minutes. RAG projects pay the same cost
+          (their stored vectors become unusable). */}
+      {state.type !== "block"
+        && project?.embeddings
+        && state.embeddings !== undefined
+        && state.embeddings !== project.embeddings && (
+          <Grid item sm={12} xs={12}>
+            <Alert severity="warning" variant="outlined">
+              <strong>Embedding change detected.</strong> Switching from <code>{project.embeddings || "(none)"}</code> to <code>{state.embeddings || "(none)"}</code> will <strong>discard all previously-computed embeddings</strong> for this project — the conversation memory index will be wiped and rebuilt from scratch on the next cron tick{state.type === "rag" && ", and the RAG knowledge base will need to be re-ingested before retrieval works again"}.
+            </Alert>
+          </Grid>
+        )}
+
       {(state.type === "rag" || state.type === "agent") && (
         <Fragment>
           <Grid item sm={12} xs={12}>
@@ -399,6 +446,34 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
             <Grid item sm={12} xs={12}>
               <Alert severity="warning" variant="outlined">
                 <strong>Privacy notice.</strong> The Memory Bank shares a compressed summary of every conversation in this project with every other conversation. Any user with access to this project will see the agent reference summarized context derived from other users' chats. Do not enable this option for projects that handle confidential per-user data.
+              </Alert>
+            </Grid>
+          )}
+
+          <Grid item sm={6} xs={12}>
+            <FormControlLabel
+              label={<span>Memory Search<HelpTip text="Indexes every conversation turn into a per-project ChromaDB collection so the `search_memories` builtin tool can semantically retrieve past Q/A on demand. Independent of Memory Bank — the bank broadcasts a fixed slice into every system prompt; this powers targeted recall. Requires an embedding configured on the project." /></span>}
+              control={
+                <Switch
+                  checked={state.options?.memory_search_enabled ?? false}
+                  name="memory_search_enabled"
+                  inputProps={{ "aria-label": "memory search checkbox" }}
+                  onChange={handleChange}
+                />
+              }
+            />
+          </Grid>
+          {state.options?.memory_search_enabled && !state.embeddings && (
+            <Grid item sm={12} xs={12}>
+              <Alert severity="warning" variant="outlined">
+                <strong>Embedding required.</strong> Memory Search needs an embedding configured on this project to index conversations. Pick one in the <strong>Embeddings</strong> field above, otherwise the indexer will skip every tick and the <code>search_memories</code> tool will return an error when called.
+              </Alert>
+            </Grid>
+          )}
+          {state.options?.memory_search_enabled && (
+            <Grid item sm={12} xs={12}>
+              <Alert severity="warning" variant="outlined">
+                <strong>Privacy notice.</strong> Memory Search makes the full conversation history of every user retrievable to every other user with access to this project. Do not enable for projects that handle confidential per-user data.
               </Alert>
             </Grid>
           )}

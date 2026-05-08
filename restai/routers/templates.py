@@ -117,6 +117,15 @@ async def publish_template(
     if body.visibility == "team" and not src.team_id:
         raise HTTPException(status_code=400, detail="Cannot publish team-visibility template — source project has no team")
 
+    # Scrub credential-bearing fields out of the snapshot before
+    # persistence. Templates are config blueprints, not credential
+    # vaults — without this, a publisher's WhatsApp / SMTP / Twilio /
+    # webhook secrets would transplant onto every instantiator's
+    # project and let attackers send messages from the publisher's
+    # verified sender identities.
+    from restai.utils.crypto import strip_sensitive_project_options
+    scrubbed_options = strip_sensitive_project_options(src.options)
+
     template = ProjectTemplateDatabase(
         name=body.name,
         description=body.description,
@@ -124,7 +133,7 @@ async def publish_template(
         suggested_llm=src.llm,
         suggested_embeddings=src.embeddings,
         system_prompt=src.system,
-        options_json=src.options,  # raw JSON blob, will round-trip on instantiate
+        options_json=scrubbed_options,
         blockly_workspace=None,  # block projects store this inside options
         visibility=body.visibility,
         creator_id=user.id,
@@ -268,7 +277,14 @@ async def instantiate_template(
 
     new_project.system = t.system_prompt
     if t.options_json:
-        new_project.options = t.options_json
+        # Belt-and-suspenders: scrub on read too, so any template row
+        # that was written before this fix landed in the codebase
+        # (i.e. while still carrying secrets) can't leak them to a
+        # new project at instantiation time. Idempotent — calling
+        # `strip_sensitive_project_options` on an already-clean blob
+        # is a no-op.
+        from restai.utils.crypto import strip_sensitive_project_options
+        new_project.options = strip_sensitive_project_options(t.options_json)
     db_wrapper.db.commit()
 
     t.use_count = (t.use_count or 0) + 1

@@ -1133,6 +1133,23 @@ class BlockInterpreter:
             logger.warning("Call Project: project '%s' not found", project_name)
             return ""
 
+        # Re-apply the same access rule the API router uses for
+        # `/projects/{id}/...`. The Block project's auth dep only
+        # validated access to the *entry* project (the Block one);
+        # without this check, anyone with edit access to a Block
+        # could wire `restai_call_project` to a confidential
+        # project they have no membership in (different team or
+        # tenant) and exfiltrate its chat / RAG output. Refuse
+        # silently — `""` matches the "project not found" path so
+        # the attacker can't enumerate which names exist.
+        from restai.auth import user_can_access_project
+        if not user_can_access_project(self.user, project_db.id, self.db):
+            logger.warning(
+                "Call Project: user '%s' not authorized for target project '%s'",
+                getattr(self.user, "username", "?"), project_name,
+            )
+            return ""
+
         project = self.brain.find_project(project_db.id, self.db)
         if project is None:
             logger.warning("Call Project: project '%s' could not be loaded", project_name)

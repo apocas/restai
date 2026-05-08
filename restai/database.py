@@ -871,8 +871,18 @@ class DBWrapper:
         return db_project
 
     def delete_project(self, project: ProjectDatabase) -> bool:
+        # Snapshot the id before we cascade-delete, then drop the
+        # per-project memory search index off-DB. Wrapped because a
+        # missing index dir (project never indexed) shouldn't block
+        # the SQL delete.
+        project_id = int(project.id)
         self.db.delete(project)
         self.db.commit()
+        try:
+            from restai import memory_search
+            memory_search.delete_project(project_id)
+        except Exception as e:
+            logging.warning("delete_project: memory_search cleanup failed: %s", e)
         return True
 
     def edit_project(self, id: int, projectModel: ProjectModelUpdate) -> bool:
@@ -958,16 +968,22 @@ class DBWrapper:
                 embedding_db = self.get_embedding_by_name(projectModel.embeddings)
                 if embedding_db is None:
                     return False
-                    
+
                 embedding_access = False
                 for team in teams_with_project:
                     if embedding_db in team.embeddings:
                         embedding_access = True
                         break
-                        
+
                 if not embedding_access:
                     return False  # No team has access to this embedding model
-            
+
+            # Note: the memory_search vectordb collection is also
+            # invalidated on embedding swap, but that's a non-SQL
+            # side effect handled by the router (see
+            # `route_edit_project` → `Project.reset_memory_index`).
+            # Keeping it out of this CRUD function keeps the SQL
+            # layer pure.
             proj_db.embeddings = projectModel.embeddings
             changed = True
 
@@ -1214,52 +1230,112 @@ class DBWrapper:
         ).scalar()
         return float(result)
 
-    def update_team_members(self, team: TeamDatabase, team_update: TeamModelUpdate) -> bool:
-        changed = False
-        
-        # Update users
+    def update_team_members(
+        self,
+        team: TeamDatabase,
+        team_update: TeamModelUpdate,
+        caller=None,
+    ) -> bool:
+        """Rebuild the team's M2M sets from name lists in `team_update`.
+
+        `caller` is the `User` initiating the change. When supplied AND
+        not a platform admin, the caller is gated through the same
+        per-resource attach checks the dedicated endpoints use — this
+        plugs the parallel privilege-escalation hole where a team admin
+        could pass a name list referring to another team's resources.
+
+        Validation happens before mutation: if any check fails the team
+        is left untouched (no half-rebuilt allow-list). Missing-by-name
+        rows are silently skipped — same legacy behavior as before.
+
+        `caller=None` keeps the method backward-compatible for callers
+        that have already authorized the action (e.g. internal tasks),
+        but the user-facing router path always passes `caller`.
+        """
+        from restai.auth import (
+            check_user_can_attach_project,
+            check_user_can_attach_llm,
+            check_user_can_attach_embedding,
+        )
+
+        # ── Phase 1: resolve names → DB rows for every section the
+        # update touches. Skips rows that don't exist (legacy behavior).
+        resolved_users = None
+        resolved_admins = None
+        resolved_projects = None
+        resolved_llms = None
+        resolved_embeddings = None
+
         if team_update.users is not None:
-            team.users = []
-            for username in team_update.users:
-                user_db = self.get_user_by_username(username)
-                if user_db is not None:
-                    team.users.append(user_db)
-            changed = True
-            
-        # Update admins
+            resolved_users = [
+                u for u in (self.get_user_by_username(n) for n in team_update.users)
+                if u is not None
+            ]
         if team_update.admins is not None:
-            team.admins = []
-            for username in team_update.admins:
-                user_db = self.get_user_by_username(username)
-                if user_db is not None:
-                    team.admins.append(user_db)
-            changed = True
-            
-        # Update projects
+            resolved_admins = [
+                u for u in (self.get_user_by_username(n) for n in team_update.admins)
+                if u is not None
+            ]
         if team_update.projects is not None:
-            team.projects = []
-            for project_name in team_update.projects:
-                project_db = self.get_project_by_name(project_name)
-                if project_db is not None:
-                    team.projects.append(project_db)
-            changed = True
-            
-        # Update LLMs
+            resolved_projects = [
+                p for p in (self.get_project_by_name(n) for n in team_update.projects)
+                if p is not None
+            ]
         if team_update.llms is not None:
-            team.llms = []
-            for llm_name in team_update.llms:
-                llm_db = self.get_llm_by_name(llm_name)
-                if llm_db is not None:
-                    team.llms.append(llm_db)
-            changed = True
-            
-        # Update embeddings
+            resolved_llms = [
+                l for l in (self.get_llm_by_name(n) for n in team_update.llms)
+                if l is not None
+            ]
         if team_update.embeddings is not None:
-            team.embeddings = []
-            for embedding_name in team_update.embeddings:
-                embedding_db = self.get_embedding_by_name(embedding_name)
-                if embedding_db is not None:
-                    team.embeddings.append(embedding_db)
+            resolved_embeddings = [
+                e for e in (self.get_embedding_by_name(n) for n in team_update.embeddings)
+                if e is not None
+            ]
+
+        # ── Phase 2: validate every newly-attached resource through the
+        # caller's attach permissions. Raises 403 on first denial, leaves
+        # the team untouched. Platform admins (`caller.is_admin`) and
+        # internal callers (`caller is None`) skip the gate.
+        if caller is not None and not getattr(caller, "is_admin", False):
+            existing_project_ids = {p.id for p in (team.projects or [])}
+            for project in resolved_projects or []:
+                if project.id in existing_project_ids:
+                    continue  # already attached → not a new grant
+                check_user_can_attach_project(caller, project)
+
+            existing_llm_ids = {l.id for l in (team.llms or [])}
+            for llm in resolved_llms or []:
+                if llm.id in existing_llm_ids:
+                    continue
+                check_user_can_attach_llm(caller, llm)
+
+            existing_embedding_ids = {e.id for e in (team.embeddings or [])}
+            for emb in resolved_embeddings or []:
+                if emb.id in existing_embedding_ids:
+                    continue
+                check_user_can_attach_embedding(caller, emb)
+
+        # ── Phase 3: mutate. Order matches the legacy implementation.
+        changed = False
+
+        if resolved_users is not None:
+            team.users = list(resolved_users)
+            changed = True
+
+        if resolved_admins is not None:
+            team.admins = list(resolved_admins)
+            changed = True
+
+        if resolved_projects is not None:
+            team.projects = list(resolved_projects)
+            changed = True
+
+        if resolved_llms is not None:
+            team.llms = list(resolved_llms)
+            changed = True
+
+        if resolved_embeddings is not None:
+            team.embeddings = list(resolved_embeddings)
             changed = True
 
         # Update image generators

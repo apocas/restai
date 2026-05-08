@@ -7,7 +7,12 @@ import pyotp
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response
 from fastapi.responses import RedirectResponse
 from restai import config
-from restai.auth import create_access_token, get_current_username, get_current_username_admin
+from restai.auth import (
+    create_access_token,
+    get_current_username,
+    get_current_username_admin,
+    get_current_username_for_login,
+)
 from restai.config import RESTAI_AUTH_SECRET
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.models import User, TOTPVerifyRequest
@@ -98,7 +103,7 @@ async def login(
     request: Request,
     response: Response,
     _rl=Depends(_rate_limit_dependency),
-    user: User = Depends(get_current_username),
+    user: User = Depends(get_current_username_for_login),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Authenticate and receive a session cookie. If 2FA is enabled, returns a temporary token instead."""
@@ -235,12 +240,23 @@ async def impersonate_user(
     if target is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Save admin's current token
-    admin_token = request.cookies.get("restai_token")
-    if admin_token:
+    # Mint a *purposed* restore token instead of copying admin's
+    # session JWT directly. The `purpose=impersonation_restore` claim
+    # locks this token to a single use case: the exit-impersonation
+    # endpoint. `get_current_username` rejects any cookie with a
+    # `purpose` claim, so even if `restai_token_admin` somehow got
+    # swapped into `restai_token` (browser quirk, hostile JS, manual
+    # devtools edit), it cannot authenticate as the admin user.
+    # Short expiry — impersonation is supposed to be brief.
+    admin_session_token = request.cookies.get("restai_token")
+    if admin_session_token:
+        restore_token = create_access_token(
+            data={"username": user.username, "purpose": "impersonation_restore"},
+            expires_delta=timedelta(minutes=30),
+        )
         response.set_cookie(
             key="restai_token_admin",
-            value=admin_token,
+            value=restore_token,
             samesite="strict",
             max_age=1800,
             httponly=True,
@@ -277,10 +293,17 @@ async def exit_impersonation(
     if not admin_token:
         raise HTTPException(status_code=400, detail="Not currently impersonating")
 
-    # Validate the admin token is a valid JWT
+    # Validate the admin token is a valid JWT carrying the
+    # impersonation-restore purpose claim. A token without that
+    # claim — including a regular session JWT or anything an
+    # attacker might have synthesized from elsewhere — is rejected.
     try:
         data = jwt.decode(admin_token, RESTAI_AUTH_SECRET, algorithms=["HS512"])
     except jwt.PyJWTError:
+        response.delete_cookie(key="restai_token_admin")
+        raise HTTPException(status_code=400, detail="Invalid admin token")
+
+    if data.get("purpose") != "impersonation_restore":
         response.delete_cookie(key="restai_token_admin")
         raise HTTPException(status_code=400, detail="Invalid admin token")
 
@@ -290,10 +313,16 @@ async def exit_impersonation(
         response.delete_cookie(key="restai_token_admin")
         raise HTTPException(status_code=400, detail="Invalid admin token")
 
-    # Restore admin token
+    # Mint a fresh, *non-purposed* session token for the admin —
+    # the purpose-bearing restore token must never end up in the
+    # session slot, where it'd be rejected by `get_current_username`.
+    admin_session_token = create_access_token(
+        data={"username": admin_user.username},
+        expires_delta=timedelta(minutes=1440),
+    )
     response.set_cookie(
         key="restai_token",
-        value=admin_token,
+        value=admin_session_token,
         samesite="strict",
         expires=86400,
         httponly=True,
@@ -310,7 +339,17 @@ async def exit_impersonation(
 async def logout(
     request: Request, response: Response, user: User = Depends(get_current_username)
 ):
-    """Clear the session cookie and log out."""
+    """Clear the session cookie and log out.
+
+    Both `restai_token` (current session) AND `restai_token_admin`
+    (the saved admin token used by the impersonation flow) are
+    deleted. Without clearing the admin cookie, an admin who
+    impersonates someone and then logs out leaves a dangling
+    admin-scoped JWT in the browser; whoever picks up the device
+    next can call `POST /auth/exit-impersonation` to swap that
+    cookie back into `restai_token` and become admin.
+    """
     response.delete_cookie(key="restai_token")
+    response.delete_cookie(key="restai_token_admin")
 
     return {"message": "Logged out successfully."}

@@ -82,18 +82,66 @@ def _augment_system_prompt_with_memory_bank(project, db, base_system_prompt: str
     return block
 
 
+def _project_tool_names(project) -> set[str]:
+    """Lowercased set of tool names enabled on the project."""
+    try:
+        raw = (getattr(project.props.options, "tools", None) or "")
+    except Exception:
+        raw = ""
+    return {t.strip().lower() for t in raw.split(",") if t.strip()}
+
+
 def _project_has_terminal(project) -> bool:
     """True iff the project has the `terminal` tool enabled. Only that tool
     (the Docker-sandbox shell) reads files from `/home/user/uploads/` — for
     projects without it, pushing attachments into a container is dead weight
     and can even fail loudly (container creation, tar size limits), so we
     short-circuit the upload entirely."""
+    return "terminal" in _project_tool_names(project)
+
+
+def _augment_system_prompt_with_memory_search_hint(
+    project, base_system_prompt: str | None
+) -> str | None:
+    """Prepend a short directive block telling the LLM to use the
+    `search_memories` tool when the user references prior context.
+
+    Tool docstrings live inside the tool-call schema — the model uses
+    them to figure out HOW to call a tool but rarely proactively
+    decides WHEN. Without an explicit nudge in the system prompt the
+    model defaults to "I don't have access to previous conversations"
+    or guesses from the (lossy) memory bank summary even when targeted
+    recall would be the better answer. This block bias-shifts toward
+    active retrieval on ambiguous queries.
+
+    Gated on BOTH:
+      - `memory_search_enabled` is on for the project, AND
+      - `search_memories` is actually in the project's tool list. If
+        the tool isn't listed, the hint would reference something the
+        model can't call — worse than no hint at all.
+
+    Failures degrade silently (return `base_system_prompt` unchanged).
+    """
     try:
-        raw = (getattr(project.props.options, "tools", None) or "")
+        if not getattr(project.props.options, "memory_search_enabled", False):
+            return base_system_prompt
+        if "search_memories" not in _project_tool_names(project):
+            return base_system_prompt
     except Exception:
-        raw = ""
-    names = {t.strip().lower() for t in raw.split(",") if t.strip()}
-    return "terminal" in names
+        return base_system_prompt
+
+    hint = (
+        "[Memory Search]\n"
+        "You have a `search_memories` tool that semantically searches every "
+        "past conversation in this project. When the user references something "
+        "that might have come up before — \"have we discussed X\", \"what did "
+        "we decide about Y\", \"remind me of Z\", \"did we ever try W\" — call "
+        "`search_memories` BEFORE answering. Don't guess at history when a "
+        "search will tell you the truth."
+    )
+    if base_system_prompt:
+        return f"{hint}\n\n{base_system_prompt}"
+    return hint
 
 
 def _route_attachments(files, chat_id, prompt, brain, existing_image=None, project=None):
@@ -802,6 +850,9 @@ class Agent(ProjectBase):
                     sys_prompt = _augment_system_prompt_with_memory_bank(
                         project, db, project.props.system,
                     )
+                    sys_prompt = _augment_system_prompt_with_memory_search_hint(
+                        project, sys_prompt,
+                    )
                     sys_prompt = _prepend_current_time(sys_prompt)
                     runtime = self._build_runtime(
                         project, db, sys_prompt, extra_tools=mcp_tools
@@ -936,6 +987,7 @@ class Agent(ProjectBase):
 
         system_prompt = questionModel.system or project.props.system
         system_prompt = _augment_system_prompt_with_memory_bank(project, db, system_prompt)
+        system_prompt = _augment_system_prompt_with_memory_search_hint(project, system_prompt)
         system_prompt = _prepend_current_time(system_prompt)
 
         async with MCPSessionPool() as mcp_pool:

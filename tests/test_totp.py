@@ -54,11 +54,30 @@ def test_totp_status_initially_disabled(client):
     assert data["enabled"] is False
 
 
+def test_totp_setup_requires_password(client):
+    """Step-up auth: setup without a password (or with the wrong one)
+    must be refused, even though the session is valid. Closes the
+    "session-only attacker rotates the second factor" pivot."""
+    r1 = client.post(
+        f"/users/{test_username}/totp/setup",
+        json={},  # no password — schema rejects with 422
+        auth=(test_username, test_password),
+    )
+    assert r1.status_code in (400, 422), r1.text
+
+    r2 = client.post(
+        f"/users/{test_username}/totp/setup",
+        json={"password": "definitely-not-the-right-password"},
+        auth=(test_username, test_password),
+    )
+    assert r2.status_code == 403, r2.text
+
+
 def test_totp_setup(client):
     global totp_secret, recovery_codes
     response = client.post(
         f"/users/{test_username}/totp/setup",
-        json={},
+        json={"password": test_password},
         auth=(test_username, test_password),
     )
     assert response.status_code == 200
@@ -113,6 +132,64 @@ def test_totp_status_after_enable(client):
     assert response.json()["enabled"] is True
 
 
+def test_totp_setup_blocked_without_current_code_when_enabled(client):
+    """The reported attack: an attacker with a valid session calls
+    /totp/setup and silently overwrites the legitimate user's secret.
+    Closed by requiring step-up — when 2FA is currently enabled,
+    /totp/setup must also receive a valid current TOTP (or recovery)
+    code BEFORE rotating the secret."""
+    # Password alone, no `code` field — must 400.
+    r1 = client.post(
+        f"/users/{test_username}/totp/setup",
+        json={"password": test_password},
+        auth=(test_username, test_password),
+    )
+    assert r1.status_code == 400, r1.text
+    assert "totp" in r1.json()["detail"].lower()
+
+    # Wrong code — must 400.
+    r2 = client.post(
+        f"/users/{test_username}/totp/setup",
+        json={"password": test_password, "code": "000000"},
+        auth=(test_username, test_password),
+    )
+    assert r2.status_code == 400, r2.text
+    assert "invalid totp" in r2.json()["detail"].lower()
+
+    # Existing secret must NOT have been rotated by the failed attempts.
+    # Compute the current valid code against `totp_secret` (set during
+    # test_totp_setup) — if rotation had succeeded, this code wouldn't
+    # match the stored secret on /enable any more.
+    code = pyotp.TOTP(totp_secret).now()
+    # Pass step-up successfully — this rotates and returns NEW codes,
+    # which we keep so subsequent tests can use them.
+    global recovery_codes
+    r3 = client.post(
+        f"/users/{test_username}/totp/setup",
+        json={"password": test_password, "code": code},
+        auth=(test_username, test_password),
+    )
+    assert r3.status_code == 200, r3.text
+    new_secret = r3.json()["secret"]
+    new_codes = r3.json()["recovery_codes"]
+    assert new_secret != totp_secret, (
+        "secret should rotate when step-up succeeds"
+    )
+
+    # Re-enable with the freshly minted secret so the rest of the
+    # suite (which assumes 2FA is on with `totp_secret`) keeps
+    # working. Re-stash `totp_secret` and `recovery_codes` for them.
+    new_code = pyotp.TOTP(new_secret).now()
+    r_enable = client.post(
+        f"/users/{test_username}/totp/enable",
+        json={"code": new_code, "password": test_password},
+        auth=(test_username, test_password),
+    )
+    assert r_enable.status_code == 200, r_enable.text
+    globals()["totp_secret"] = new_secret
+    recovery_codes = new_codes
+
+
 def test_login_requires_totp_when_enabled():
     with TestClient(app) as c:
         response = c.post(
@@ -123,6 +200,29 @@ def test_login_requires_totp_when_enabled():
         data = response.json()
         assert data["requires_totp"] is True
         assert "totp_token" in data
+
+
+def test_totp_token_rejected_as_session_cookie():
+    """The temp `totp_token` JWT issued by /auth/login (purpose=
+    'totp_verify') must NOT authenticate a session if pasted into
+    `restai_token`. Otherwise, an attacker who has the password but
+    not the second factor could see the totp_token in the login
+    response, drop it into the cookie jar, and get a 5-minute
+    fully-authenticated session — bypassing 2FA.
+    """
+    with TestClient(app) as c:
+        login_resp = c.post("/auth/login", auth=(test_username, test_password))
+        assert login_resp.status_code == 200
+        assert login_resp.json().get("requires_totp") is True
+        totp_token = login_resp.json()["totp_token"]
+
+        # Paste the purpose=totp_verify JWT into the session slot.
+        # `/auth/whoami` is the simplest "am I logged in?" endpoint.
+        r = c.get("/auth/whoami", cookies={"restai_token": totp_token})
+        assert r.status_code == 401, (
+            f"totp_token leaked into session: status={r.status_code} "
+            f"body={r.text[:200]}"
+        )
 
 
 def test_verify_totp_invalid_code():
@@ -220,20 +320,49 @@ def test_login_normal_after_disable():
 
 
 def test_totp_setup_overwrites_previous(client):
-    global totp_secret
-    # Setup twice
-    resp1 = client.post(f"/users/{test_username}/totp/setup", json={}, auth=(test_username, test_password))
+    """Two consecutive successful setups produce different secrets.
+    Each setup requires step-up auth (password + current code while
+    2FA is enabled), so this also exercises the recovery path of
+    rotating using a freshly-minted code."""
+    global totp_secret, recovery_codes
+
+    code1 = pyotp.TOTP(totp_secret).now()
+    resp1 = client.post(
+        f"/users/{test_username}/totp/setup",
+        json={"password": test_password, "code": code1},
+        auth=(test_username, test_password),
+    )
+    assert resp1.status_code == 200, resp1.text
     secret1 = resp1.json()["secret"]
-    resp2 = client.post(f"/users/{test_username}/totp/setup", json={}, auth=(test_username, test_password))
+
+    code2 = pyotp.TOTP(secret1).now()
+    resp2 = client.post(
+        f"/users/{test_username}/totp/setup",
+        json={"password": test_password, "code": code2},
+        auth=(test_username, test_password),
+    )
+    assert resp2.status_code == 200, resp2.text
     secret2 = resp2.json()["secret"]
+
     assert secret1 != secret2
+
+    # Re-enable with the latest secret so subsequent tests still see
+    # 2FA as on and `totp_secret` matches the stored one.
+    new_code = pyotp.TOTP(secret2).now()
+    r_enable = client.post(
+        f"/users/{test_username}/totp/enable",
+        json={"code": new_code, "password": test_password},
+        auth=(test_username, test_password),
+    )
+    assert r_enable.status_code == 200, r_enable.text
     totp_secret = secret2
+    recovery_codes = resp2.json()["recovery_codes"]
 
 
 def test_non_admin_cannot_setup_other_user(client):
     response = client.post(
         "/users/admin/totp/setup",
-        json={},
+        json={"password": "any"},
         auth=(test_username, test_password),
     )
     assert response.status_code == 403

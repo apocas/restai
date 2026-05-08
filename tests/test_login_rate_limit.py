@@ -38,14 +38,23 @@ def test_login_wrong_password():
 def test_login_rate_limit_triggers():
     """After 10 attempts, subsequent requests get 429."""
     _clear_login_attempts()
-    with TestClient(app) as client:
-        for i in range(10):
-            client.post("/auth/login", auth=("admin", "bad"))
 
-        # 11th attempt should be rate limited
-        resp = client.post("/auth/login", auth=("admin", "bad"))
-        assert resp.status_code == 429
-        assert "Too many" in resp.json()["detail"]
+    # The conftest shim disables the login rate limiter globally so
+    # cross-module test runs don't blow the bucket. Re-enable it just
+    # for this test, then turn it back off.
+    import restai.routers.auth as _auth_router
+    _auth_router._rate_limit_enabled_for_tests = True
+    try:
+        with TestClient(app) as client:
+            for i in range(10):
+                client.post("/auth/login", auth=("admin", "bad"))
+
+            # 11th attempt should be rate limited
+            resp = client.post("/auth/login", auth=("admin", "bad"))
+            assert resp.status_code == 429
+            assert "Too many" in resp.json()["detail"]
+    finally:
+        _auth_router._rate_limit_enabled_for_tests = False
 
     _clear_login_attempts()
 
