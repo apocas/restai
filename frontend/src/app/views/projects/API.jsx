@@ -52,7 +52,7 @@ function replaceVars(code, project) {
   const question = project.default_prompt || "What can you help me with?";
   return code
     .replaceAll("<URL>", url)
-    .replaceAll("<PROJECT>", project.name || "my-project")
+    .replaceAll("<PROJECT>", project.id || "1")
     .replaceAll("<QUESTION>", question);
 }
 
