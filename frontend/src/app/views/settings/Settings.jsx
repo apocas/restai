@@ -15,10 +15,12 @@ import { H4 } from "app/components/Typography";
 import ProjectTabNav from "app/views/projects/components/ProjectTabNav";
 import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
 
+// Match the margin pattern of the rest of the modernized pages so the
+// hero and content share the same horizontal frame.
 const Container = styled("div")(({ theme }) => ({
-  margin: 10,
+  margin: "24px 48px",
+  [theme.breakpoints.down("md")]: { margin: "24px 32px" },
   [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
 }));
 
 const FlexBox = styled(Box)({

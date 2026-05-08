@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
 import {
   Box, Button, Card, Chip, Dialog, DialogTitle, DialogContent, DialogActions,
-  Divider, Grid, MenuItem, Select, styled, TextField, Typography,
+  Divider, Grid, MenuItem, Select, styled, TextField, Tooltip, Typography,
 } from "@mui/material";
 import { SportsEsports, Code, ContentCopy, Bookmark, AddCircle } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import BAvatar from "boring-avatars";
 import useAuth from "app/hooks/useAuth";
 import PageHero from "app/components/page/PageHero";
 import api from "app/utils/api";
 import ProjectTypeChip from "app/components/ProjectTypeChip";
-import { forensicCardSx } from "./components/forensic/styles";
+import { PROJECT_TYPE_COLORS } from "app/utils/constant";
+import { FONT_MONO, sweep } from "app/components/page/pageStyles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -23,20 +25,72 @@ const ContentBox = styled("div")(({ theme }) => ({
   [theme.breakpoints.down("sm")]: { margin: "16px" }
 }));
 
-const ProjectCard = styled(Card)(({ theme }) => ({
-  ...forensicCardSx,
-  padding: theme.spacing(2.5),
+// Type-coded card. Each project type owns an accent (rag indigo, agent
+// emerald, block grey, app cyan). At rest the card is a plain white
+// surface; on hover the border picks up the accent, the rail brightens,
+// and a soft type-tinted glow lifts the card -3px. Same vocabulary as
+// the AIHero (cyan sweep, restrained motion) — but applied per card so
+// the grid reads as a small map of project types.
+const ProjectCard = styled(Card, {
+  shouldForwardProp: (p) => p !== "accent",
+})(({ accent }) => ({
+  position: "relative",
   height: "100%",
   display: "flex",
   flexDirection: "column",
-  transition: "all 0.2s ease",
+  borderRadius: 14,
+  border: "1px solid",
+  borderColor: "rgba(15,23,42,0.08)",
+  backgroundColor: "#ffffff",
+  overflow: "hidden",
+  transition: "transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease",
+  // Top accent rail — 4px coloured stripe with a faint cyan sweep that
+  // becomes visible on hover. Positioned so it sits flush at the top
+  // edge.
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    left: 0, right: 0, top: 0, height: 4,
+    background: accent,
+    opacity: 0.85,
+    pointerEvents: "none",
+    zIndex: 2,
+  },
+  "&::after": {
+    content: '""',
+    position: "absolute",
+    left: 0, right: 0, top: 0, height: 4,
+    background:
+      "linear-gradient(90deg, transparent, rgba(255,255,255,0.85), transparent)",
+    transform: "translateX(-100%)",
+    opacity: 0,
+    pointerEvents: "none",
+    zIndex: 3,
+  },
   "&:hover": {
     transform: "translateY(-3px)",
-    boxShadow: "0 1px 0 rgba(255,255,255,0.9) inset, 0 12px 36px rgba(34,42,69,0.10)",
+    borderColor: `${accent}66`,
+    boxShadow: `0 18px 36px ${accent}1f, 0 4px 10px rgba(15,23,42,0.06)`,
+  },
+  "&:hover::after": {
+    animation: `${sweep} 1.6s ease-out`,
   },
 }));
 
-const TYPE_FILTERS = ["all", "agent", "rag", "block"];
+const TYPE_FILTERS = ["all", "agent", "rag", "block", "app"];
+
+// Boring-avatars colour palettes per type — same hue family as the
+// rail / glow so the avatar reads as part of the type identity.
+const AVATAR_PALETTES = {
+  rag:   ["#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd", "#1e1b4b"],
+  agent: ["#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#064e3b"],
+  block: ["#6b7280", "#9ca3af", "#d1d5db", "#e5e7eb", "#1f2937"],
+  app:   ["#0891b2", "#22d3ee", "#67e8f9", "#a5f3fc", "#164e63"],
+};
+
+function getAccent(type) {
+  return PROJECT_TYPE_COLORS[type]?.color || "#475569";
+}
 
 export default function Library() {
   const { t } = useTranslation();
@@ -153,86 +207,199 @@ export default function Library() {
           <Grid container spacing={3}>
             {filtered.map((project) => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={project.id}>
-                <ProjectCard elevation={2}>
-                  {/* Header */}
-                  <Box sx={{ mb: 1 }}>
-                    <Typography
-                      variant="h6"
-                      sx={{ cursor: "pointer", "&:hover": { color: "primary.main" } }}
-                      onClick={() => navigate("/project/" + project.id)}
-                    >
-                      {project.human_name || project.name}
-                    </Typography>
-                    <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
+                <ProjectCard elevation={0} accent={getAccent(project.type)}>
+                  {/* Body — title row with avatar + chip strip + descrip */}
+                  <Box sx={{ p: 2.25, pt: 2.5, pb: 1.5, flex: 1, display: "flex", flexDirection: "column", gap: 1.25 }}>
+                    <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+                      <Box sx={{ flexShrink: 0, mt: 0.25 }}>
+                        <BAvatar
+                          name={project.name || String(project.id)}
+                          size={42}
+                          variant="pixel"
+                          colors={AVATAR_PALETTES[project.type] || AVATAR_PALETTES.block}
+                          square
+                        />
+                      </Box>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Tooltip title={project.human_name || project.name} placement="top-start">
+                          <Typography
+                            variant="subtitle1"
+                            sx={{
+                              fontWeight: 700,
+                              lineHeight: 1.25,
+                              color: "text.primary",
+                              cursor: "pointer",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              "&:hover": { color: getAccent(project.type) },
+                              transition: "color 0.15s ease",
+                            }}
+                            onClick={() => navigate("/project/" + project.id)}
+                          >
+                            {project.human_name || project.name}
+                          </Typography>
+                        </Tooltip>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "text.disabled",
+                            fontFamily: FONT_MONO,
+                            fontSize: "0.65rem",
+                            letterSpacing: "0.05em",
+                          }}
+                        >
+                          PROJECT/{String(project.id).padStart(4, "0")}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Type + LLM strip */}
+                    <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", alignItems: "center" }}>
                       <ProjectTypeChip type={project.type} />
                       {project.llm && (
-                        <Chip label={project.llm} size="small" variant="outlined" />
+                        <Chip
+                          label={project.llm}
+                          size="small"
+                          variant="outlined"
+                          sx={{
+                            height: 22,
+                            fontSize: "0.7rem",
+                            fontFamily: FONT_MONO,
+                            fontWeight: 500,
+                            borderColor: "rgba(15,23,42,0.12)",
+                            color: "text.secondary",
+                            "& .MuiChip-label": { px: 1 },
+                          }}
+                        />
                       )}
                     </Box>
-                  </Box>
 
-                  {/* Description */}
-                  {project.human_description && (
+                    {/* Description (or muted placeholder so cards line up) */}
                     <Typography
                       variant="body2"
-                      color="text.secondary"
                       sx={{
-                        mb: 1,
+                        color: project.human_description ? "text.secondary" : "text.disabled",
+                        fontStyle: project.human_description ? "normal" : "italic",
                         display: "-webkit-box",
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: "vertical",
                         overflow: "hidden",
+                        minHeight: "2.6em",
+                        lineHeight: 1.45,
                       }}
                     >
-                      {project.human_description}
+                      {project.human_description || "No description provided."}
                     </Typography>
-                  )}
 
-                  {/* System prompt preview */}
-                  {project.system && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{
-                        fontStyle: "italic",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                        mb: 1,
-                        flexGrow: 1,
-                      }}
-                    >
-                      {project.system}
-                    </Typography>
-                  )}
+                    {/* System prompt — terminal-style mini-block */}
+                    {project.system ? (
+                      <Box
+                        sx={{
+                          mt: 0.5,
+                          flex: 1,
+                          minHeight: 64,
+                          background: `linear-gradient(180deg, ${getAccent(project.type)}0a, rgba(15,23,42,0.025))`,
+                          border: `1px solid ${getAccent(project.type)}22`,
+                          borderRadius: 1.5,
+                          p: 1.25,
+                          position: "relative",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            position: "absolute",
+                            top: 4,
+                            right: 6,
+                            fontFamily: FONT_MONO,
+                            fontSize: "0.55rem",
+                            letterSpacing: "0.18em",
+                            color: getAccent(project.type),
+                            opacity: 0.7,
+                            fontWeight: 600,
+                          }}
+                        >
+                          PROMPT
+                        </Typography>
+                        <Box
+                          sx={{
+                            display: "-webkit-box",
+                            WebkitLineClamp: 3,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                            fontFamily: FONT_MONO,
+                            fontSize: "0.72rem",
+                            lineHeight: 1.55,
+                            color: "text.secondary",
+                            mt: 1.5,
+                            "&::before": {
+                              content: '"> "',
+                              color: getAccent(project.type),
+                              fontWeight: 700,
+                            },
+                          }}
+                        >
+                          {project.system.replace(/\s+/g, " ").trim()}
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Box sx={{ flex: 1, minHeight: 0 }} />
+                    )}
+                  </Box>
 
-                  {!project.system && !project.human_description && (
-                    <Box sx={{ flexGrow: 1 }} />
-                  )}
-
-                  {/* Actions */}
-                  <Box sx={{ display: "flex", gap: 1, mt: "auto", pt: 1 }}>
-                    {project.type !== "app" && (
+                  {/* Footer — actions strip */}
+                  <Box
+                    sx={{
+                      px: 2.25,
+                      py: 1.25,
+                      borderTop: "1px solid rgba(15,23,42,0.06)",
+                      backgroundColor: "rgba(15,23,42,0.015)",
+                      display: "flex",
+                      gap: 1,
+                      alignItems: "center",
+                    }}
+                  >
+                    {project.type !== "app" ? (
                       <Button
                         size="small"
                         variant="outlined"
                         startIcon={<SportsEsports />}
                         onClick={() => navigate("/project/" + project.id + "/playground")}
+                        sx={{
+                          textTransform: "none",
+                          fontWeight: 600,
+                          color: getAccent(project.type),
+                          borderColor: `${getAccent(project.type)}55`,
+                          "&:hover": {
+                            borderColor: getAccent(project.type),
+                            backgroundColor: `${getAccent(project.type)}0c`,
+                          },
+                        }}
                       >
                         {t("projects.actions.playground")}
                       </Button>
-                    )}
-                    {project.type === "app" && (
+                    ) : (
                       <Button
                         size="small"
                         variant="outlined"
                         startIcon={<Code />}
                         onClick={() => navigate("/project/" + project.id + "/builder")}
+                        sx={{
+                          textTransform: "none",
+                          fontWeight: 600,
+                          color: getAccent(project.type),
+                          borderColor: `${getAccent(project.type)}55`,
+                          "&:hover": {
+                            borderColor: getAccent(project.type),
+                            backgroundColor: `${getAccent(project.type)}0c`,
+                          },
+                        }}
                       >
                         {t("projects.app.title", "App Builder")}
                       </Button>
                     )}
+                    <Box sx={{ flex: 1 }} />
                     <Button
                       size="small"
                       variant="contained"
@@ -241,6 +408,17 @@ export default function Library() {
                         setCloneTarget(project);
                         setCloneName((project.name || "") + "-clone");
                         setCloneOpen(true);
+                      }}
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: 600,
+                        backgroundColor: getAccent(project.type),
+                        boxShadow: "none",
+                        "&:hover": {
+                          backgroundColor: getAccent(project.type),
+                          opacity: 0.9,
+                          boxShadow: `0 4px 12px ${getAccent(project.type)}55`,
+                        },
                       }}
                     >
                       {t("projects.actions.clone")}
@@ -271,43 +449,144 @@ export default function Library() {
                 .filter((tpl2) => typeFilter === "all" || tpl2.project_type === typeFilter)
                 .map((tpl) => (
                 <Grid item xs={12} sm={6} md={4} key={tpl.id}>
-                  <ProjectCard elevation={1}>
-                    <Box sx={{ mb: 1 }}>
-                      <Typography variant="subtitle1" fontWeight={600}>{tpl.name}</Typography>
-                      <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap" }}>
+                  <ProjectCard elevation={0} accent={getAccent(tpl.project_type)}>
+                    {/* Body */}
+                    <Box sx={{ p: 2.25, pt: 2.5, pb: 1.5, flex: 1, display: "flex", flexDirection: "column", gap: 1.25 }}>
+                      <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+                        <Box sx={{ flexShrink: 0, mt: 0.25 }}>
+                          <BAvatar
+                            name={tpl.name || String(tpl.id)}
+                            size={42}
+                            variant="pixel"
+                            colors={AVATAR_PALETTES[tpl.project_type] || AVATAR_PALETTES.block}
+                            square
+                          />
+                        </Box>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Tooltip title={tpl.name} placement="top-start">
+                            <Typography
+                              variant="subtitle1"
+                              sx={{
+                                fontWeight: 700,
+                                lineHeight: 1.25,
+                                color: "text.primary",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {tpl.name}
+                            </Typography>
+                          </Tooltip>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "text.disabled",
+                              fontFamily: FONT_MONO,
+                              fontSize: "0.65rem",
+                              letterSpacing: "0.05em",
+                            }}
+                          >
+                            TEMPLATE/{String(tpl.id).padStart(4, "0")}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {/* Type + visibility + uses */}
+                      <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", alignItems: "center" }}>
                         <ProjectTypeChip type={tpl.project_type} />
-                        <Chip label={tpl.visibility} size="small" variant="outlined" />
+                        <Chip
+                          label={tpl.visibility}
+                          size="small"
+                          variant="outlined"
+                          sx={{
+                            height: 22, fontSize: "0.7rem", fontWeight: 500,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                            borderColor: "rgba(15,23,42,0.12)",
+                            color: "text.secondary",
+                            "& .MuiChip-label": { px: 1 },
+                          }}
+                        />
                         {tpl.use_count > 0 && (
-                          <Chip label={t("projects.library.uses", { count: tpl.use_count })} size="small" variant="outlined" />
+                          <Chip
+                            label={t("projects.library.uses", { count: tpl.use_count })}
+                            size="small"
+                            variant="outlined"
+                            sx={{
+                              height: 22, fontSize: "0.7rem", fontWeight: 500,
+                              fontFamily: FONT_MONO,
+                              borderColor: `${getAccent(tpl.project_type)}55`,
+                              color: getAccent(tpl.project_type),
+                              "& .MuiChip-label": { px: 1 },
+                            }}
+                          />
                         )}
                       </Box>
-                    </Box>
-                    {tpl.description && (
+
+                      {/* Description */}
                       <Typography
                         variant="body2"
-                        color="text.secondary"
                         sx={{
-                          mb: 1, flexGrow: 1,
+                          color: tpl.description ? "text.secondary" : "text.disabled",
+                          fontStyle: tpl.description ? "normal" : "italic",
                           display: "-webkit-box",
                           WebkitLineClamp: 3,
                           WebkitBoxOrient: "vertical",
                           overflow: "hidden",
+                          flex: 1,
+                          lineHeight: 1.45,
+                          minHeight: "3.9em",
                         }}
                       >
-                        {tpl.description}
+                        {tpl.description || "No description provided."}
                       </Typography>
-                    )}
-                    {!tpl.description && <Box sx={{ flexGrow: 1 }} />}
-                    {tpl.creator_username && (
-                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
-                        {t("projects.library.by", { author: tpl.creator_username })}
-                      </Typography>
-                    )}
-                    <Box sx={{ display: "flex", gap: 1, mt: "auto", pt: 1 }}>
+
+                      {/* Author byline */}
+                      {tpl.creator_username && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "text.disabled",
+                            fontFamily: FONT_MONO,
+                            fontSize: "0.65rem",
+                            letterSpacing: "0.05em",
+                          }}
+                        >
+                          {t("projects.library.by", { author: tpl.creator_username })}
+                        </Typography>
+                      )}
+                    </Box>
+
+                    {/* Footer */}
+                    <Box
+                      sx={{
+                        px: 2.25, py: 1.25,
+                        borderTop: "1px solid rgba(15,23,42,0.06)",
+                        backgroundColor: "rgba(15,23,42,0.015)",
+                        display: "flex",
+                        gap: 1,
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                      }}
+                    >
                       <Button
-                        size="small" variant="contained" startIcon={<AddCircle />}
+                        size="small"
+                        variant="contained"
+                        startIcon={<AddCircle />}
                         onClick={() => openInstantiate(tpl)}
                         disabled={teams.length === 0}
+                        sx={{
+                          textTransform: "none",
+                          fontWeight: 600,
+                          backgroundColor: getAccent(tpl.project_type),
+                          boxShadow: "none",
+                          "&:hover": {
+                            backgroundColor: getAccent(tpl.project_type),
+                            opacity: 0.9,
+                            boxShadow: `0 4px 12px ${getAccent(tpl.project_type)}55`,
+                          },
+                        }}
                       >
                         {t("projects.actions.useTemplate")}
                       </Button>
