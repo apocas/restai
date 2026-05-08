@@ -5,6 +5,7 @@ import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
+import { forensicCardSx } from "app/views/projects/components/forensic/styles";
 
 export default function DeleteAccount({user}) {
   const { t } = useTranslation();
@@ -23,7 +24,7 @@ export default function DeleteAccount({user}) {
   };
 
   return (
-    <Card sx={{ pb: 3 }}>
+    <Card elevation={0} sx={{ ...forensicCardSx, pb: 3 }}>
       <Box padding={3}>
         <H5 mb={1}>{t("users.deleteAccount.title")}</H5>
         <Paragraph lineHeight={1.7} maxWidth={600}>

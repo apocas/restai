@@ -10,6 +10,8 @@ import {
 } from "@mui/material";
 
 import { H4, Small } from "app/components/Typography";
+import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
+import { useEffect } from "react";
 import { FlexBetween, FlexBox } from "app/components/FlexBox";
 import QRCode from "react-qr-code";
 import { Edit, Delete } from "@mui/icons-material";
@@ -38,8 +40,10 @@ export default function EmbeddingInfo({ embedding, projects }) {
     }
   };
 
+  useEffect(() => { loadFonts(); }, []);
+
   return (
-    <Card sx={{ pt: 3 }} elevation={3}>
+    <Card elevation={0} sx={{ ...forensicCardSx, pt: 3 }}>
       <ContentBox mb={3} alignContent="center">
         <QRCode
           size={256}

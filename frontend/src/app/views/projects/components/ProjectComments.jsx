@@ -1,28 +1,20 @@
 import { useState, useEffect } from "react";
 import {
-  Avatar, Box, Button, Card, Divider, Grid, IconButton, TextField,
+  Avatar, Box, Button, Card, Grid, IconButton, TextField,
   Tooltip, Typography, styled,
 } from "@mui/material";
-import { Edit, Delete, Send, Close, Check } from "@mui/icons-material";
+import { Edit, Delete, Send, Close, Check, ChatBubble } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import sha256 from "crypto-js/sha256";
+import ContentCard from "app/components/page/ContentCard";
+import { PALETTE } from "./forensic/styles";
 
-const SectionTitle = styled(Typography)(({ theme }) => ({
-  fontWeight: 600,
-  fontSize: "0.9rem",
+const CommentCard = styled(Box)(() => ({
   display: "flex",
-  alignItems: "center",
-  gap: theme.spacing(0.5),
-  color: theme.palette.text.secondary,
-  marginBottom: theme.spacing(1),
-}));
-
-const CommentCard = styled(Box)(({ theme }) => ({
-  display: "flex",
-  gap: theme.spacing(1.5),
-  padding: theme.spacing(2),
-  borderBottom: `1px solid ${theme.palette.divider}`,
+  gap: 12,
+  padding: 16,
+  borderBottom: `1px solid ${PALETTE.edge}`,
   "&:last-child": { borderBottom: "none" },
 }));
 
@@ -82,6 +74,11 @@ export default function ProjectComments({ project }) {
   };
 
   return (
+    <ContentCard
+      icon={<ChatBubble />}
+      title="Comments"
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · THREAD`}
+    >
     <Grid container spacing={3}>
       {/* Post new comment */}
       <Grid item xs={12}>
@@ -185,5 +182,6 @@ export default function ProjectComments({ project }) {
         )}
       </Grid>
     </Grid>
+    </ContentCard>
   );
 }

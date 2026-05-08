@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import {
   Box, Card, Chip, IconButton, Tab, Tabs, Tooltip, Typography, styled,
 } from "@mui/material";
-import { ContentCopy, Check } from "@mui/icons-material";
-import Breadcrumb from "app/components/Breadcrumb";
+import { ContentCopy, Check, Code } from "@mui/icons-material";
+import PageHero from "app/components/page/PageHero";
 import { useParams } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
@@ -450,15 +450,17 @@ export default function ProjectAPI() {
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb
-          routeSegments={[
-            { name: "Projects", path: "/projects" },
-            { name: projectName, path: "/project/" + id },
-            { name: "API" },
-          ]}
-        />
-      </Box>
+      <PageHero
+        icon={<Code sx={{ color: "#fff" }} />}
+        eyebrow={`PROJECT/${String(id).padStart(4, "0")}`}
+        title="API"
+        subtitle={`Programmatic access to ${projectName}.`}
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: project.name || "—" },
+          { glyph: "⚡", color: "#7dd3fc", label: project.type || "—" },
+        ]}
+        compact
+      />
 
       <Box>
         <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>

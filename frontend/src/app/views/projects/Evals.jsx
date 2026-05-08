@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Grid, styled, Box } from "@mui/material";
+import { Grid, styled } from "@mui/material";
+import { Science } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import ProjectEvals from "./components/ProjectEvals";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
@@ -40,15 +41,17 @@ export default function ProjectEvalsView() {
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb
-          routeSegments={[
-            { name: t("nav.projects"), path: "/projects" },
-            { name: project.name || id, path: "/project/" + id },
-            { name: t("projects.edit.tabs.evals"), path: "/project/" + id + "/evals" },
-          ]}
-        />
-      </Box>
+      <PageHero
+        icon={<Science sx={{ color: "#fff" }} />}
+        eyebrow={`PROJECT/${String(id).padStart(4, "0")}`}
+        title="Evals"
+        subtitle="Run evaluations against datasets and watch metric trends."
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: project.name || "—" },
+          { glyph: "⚡", color: "#7dd3fc", label: project.type || "—" },
+        ]}
+        compact
+      />
 
       <ContentBox>
         <Grid container spacing={3}>

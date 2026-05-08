@@ -12,6 +12,11 @@ const StyledCard = styled(Card)(({ theme }) => ({
   border: "1px solid",
   borderColor: theme.palette.divider,
   overflow: "hidden",
+  transition: "box-shadow 0.25s ease, border-color 0.25s ease",
+  "&:hover": {
+    borderColor: "rgba(25,118,210,0.30)",
+    boxShadow: "0 12px 28px rgba(15,23,42,0.06), 0 2px 6px rgba(15,23,42,0.04)",
+  },
 }));
 
 const Header = styled(Box)(({ theme }) => ({

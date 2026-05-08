@@ -8,6 +8,7 @@ import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { toast } from "react-toastify";
 import { useTranslation } from "react-i18next";
+import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
 
 const RecoveryBox = styled(Box)(({ theme }) => ({
   display: "grid",
@@ -85,8 +86,10 @@ export default function TwoFactorAuth({ user }) {
     }
   };
 
+  useEffect(() => { loadFonts(); }, []);
+
   return (
-    <Card sx={{ p: 3 }}>
+    <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
       <Typography variant="h6" gutterBottom>{t("users.twoFactor.title")}</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         {t("users.twoFactor.description")}

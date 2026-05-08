@@ -1,13 +1,14 @@
 import { Card, Chip, Grid, TextField, Button, MenuItem, Switch, Slider, Typography, IconButton, Divider, Box, Tooltip, Table, TableHead, TableBody, TableRow, TableCell } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import { HelpOutline } from "@mui/icons-material";
+import { HelpOutline, Storage } from "@mui/icons-material";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import { Fragment, useState, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
 import api from "app/utils/api";
 import { useTranslation } from "react-i18next";
 import { makeErrorFor } from "./projectOptionValidators";
+import ContentCard from "app/components/page/ContentCard";
 
 // Status → chip color. Mirror of the server-side status enum in
 // BulkIngestJobDatabase (queued/processing/done/error).
@@ -83,6 +84,11 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
   };
 
   return (
+    <ContentCard
+      icon={<Storage />}
+      title="Knowledge"
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · INDEX · INGEST · RETRIEVAL`}
+    >
     <Grid container spacing={3}>
       {/* Bulk ingest queue */}
       <Grid item sm={12} xs={12}>
@@ -538,5 +544,6 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
         </>
       )}
     </Grid>
+    </ContentCard>
   );
 }

@@ -4,7 +4,6 @@ import {
   Card,
   Drawer,
   Button,
-  useTheme,
   useMediaQuery,
   styled,
 } from "@mui/material";
@@ -19,30 +18,41 @@ const StyledButton = styled(Button)(({ theme }) => ({
   position: "relative",
   whiteSpace: "nowrap",
   textOverflow: "ellipsis",
-  padding: "0.6rem 1.5rem",
+  padding: "0.7rem 1.25rem",
   justifyContent: "flex-start",
-  color: theme.palette.text.primary,
+  color: theme.palette.text.secondary,
+  fontSize: "0.85rem",
+  fontWeight: 500,
+  textTransform: "none",
+  letterSpacing: 0,
+  transition: "all 0.2s ease",
+  borderBottom: `1px solid ${theme.palette.divider}`,
+  "&:last-of-type": { borderBottom: "none" },
 }));
 
 export default function ProjectTabNav({ tabs, active, setActive }) {
-  const theme = useTheme();
   const { t } = useTranslation();
   const [openDrawer, setOpenDrawer] = useState(false);
   const downMd = useMediaQuery((theme) => theme.breakpoints.down("md"));
 
-  const style = {
+  const activeStyle = (theme) => ({
     color: theme.palette.primary.main,
-    backgroundColor: theme.palette.grey[100],
+    backgroundColor: theme.palette.action.selected,
     "&::before": {
       left: 0,
-      width: 4,
+      width: 3,
       content: '""',
       height: "100%",
       position: "absolute",
       transition: "all 0.3s",
       backgroundColor: theme.palette.primary.main,
     },
-  };
+  });
+
+  const hoverStyle = (theme) => ({
+    color: theme.palette.text.primary,
+    backgroundColor: theme.palette.action.hover,
+  });
 
   function TabListContent() {
     return (
@@ -55,11 +65,14 @@ export default function ProjectTabNav({ tabs, active, setActive }) {
           // still work unchanged.
           const { name, Icon, key } = tab;
           const selectionId = key || name;
+          const isActive = active === selectionId;
           return (
             <StyledButton
               key={index}
-              startIcon={<Icon sx={{ color: "text.disabled" }} />}
-              sx={active === selectionId ? style : { "&:hover": style }}
+              startIcon={<Icon sx={{ fontSize: 18 }} />}
+              sx={(theme) =>
+                isActive ? activeStyle(theme) : { "&:hover": hoverStyle(theme) }
+              }
               onClick={() => {
                 setActive(selectionId);
                 setOpenDrawer(false);
@@ -105,7 +118,17 @@ export default function ProjectTabNav({ tabs, active, setActive }) {
   }
 
   return (
-    <Card sx={{ padding: "1rem 0" }}>
+    <Card
+      elevation={0}
+      sx={{
+        py: 0.5,
+        borderRadius: 3,
+        border: "1px solid",
+        borderColor: "divider",
+        backgroundColor: "background.paper",
+        overflow: "hidden",
+      }}
+    >
       <TabListContent />
     </Card>
   );

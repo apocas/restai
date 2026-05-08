@@ -3,6 +3,7 @@ import {
   Box, Card, Divider, Grid, Typography, styled,
   Table, TableBody, TableCell, TableHead, TableRow,
 } from "@mui/material";
+import { forensicCardSx } from "app/views/projects/components/forensic/styles";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -42,7 +43,7 @@ export default function UserActivity({ user }) {
   const s = data.summary || {};
 
   return (
-    <Card elevation={3}>
+    <Card elevation={0} sx={forensicCardSx}>
       <FlexBox>
         <Timeline sx={{ ml: 2 }} />
         <H4 sx={{ p: 2 }}>{t("users.userActivity.title")}</H4>

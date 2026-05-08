@@ -2,7 +2,7 @@ import {
   Grid, TextField, MenuItem, Switch, Slider, Autocomplete, Divider, Typography, Button, Box, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress, Alert,
 } from "@mui/material";
-import { HelpOutline, AutoAwesome } from "@mui/icons-material";
+import { HelpOutline, AutoAwesome, Settings } from "@mui/icons-material";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import { Fragment, useState } from "react";
 import { toast } from "react-toastify";
@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { makeErrorFor } from "./projectOptionValidators";
+import ContentCard from "app/components/page/ContentCard";
 
 const HelpTip = ({ text }) => (
   <Tooltip title={text} placement="top" arrow>
@@ -47,7 +48,11 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
   };
 
   return (
-    <Fragment>
+    <ContentCard
+      icon={<Settings />}
+      title="General"
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · MODEL · PROMPT · CONFIG`}
+    >
     <Grid container spacing={3}>
       <Grid item sm={6} xs={12}>
         <TextField
@@ -554,6 +559,6 @@ export default function ProjectEditGeneral({ state, setState, handleChange, proj
         </Button>
       </DialogActions>
     </Dialog>
-    </Fragment>
+    </ContentCard>
   );
 }

@@ -1,15 +1,13 @@
 import { useState, useEffect } from "react";
-import { styled, Box } from "@mui/material";
+import { styled } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
 import ProjectDetails from "./components/ProjectDetails";
-import Breadcrumb from "app/components/Breadcrumb";
 import { useParams } from "react-router-dom";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
   [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
 }));
 
 const ContentBox = styled("div")(({ theme }) => ({
@@ -59,10 +57,6 @@ export default function ProjectInfo() {
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Projects", path: "/projects" }, { name: id, path: "/project/" + id }]} />
-      </Box>
-
       <ContentBox className="analytics">
         <ProjectDetails project={project} projects={projects} info={info} />
       </ContentBox>

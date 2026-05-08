@@ -1,5 +1,6 @@
-import { styled, Box } from "@mui/material";
-import Breadcrumb from "app/components/Breadcrumb";
+import { styled } from "@mui/material";
+import { Speaker } from "@mui/icons-material";
+import PageHero from "app/components/page/PageHero";
 import AudioChatContainer from "./components/AudioChatContainer";
 import useAuth from "app/hooks/useAuth";
 import { useState, useEffect } from "react";
@@ -29,9 +30,16 @@ export default function Audio() {
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Audio", path: "/audio" }]} />
-      </Box>
+      <PageHero
+        icon={<Speaker sx={{ color: "#fff" }} />}
+        eyebrow="PLAYGROUND"
+        title="Audio Playground"
+        subtitle="Transcribe and generate audio."
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${generators.length} engine${generators.length === 1 ? "" : "s"}` },
+        ]}
+        compact
+      />
 
       <ContentBox>
         <AudioChatContainer generators={generators} />

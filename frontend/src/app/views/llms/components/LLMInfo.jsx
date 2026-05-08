@@ -8,6 +8,8 @@ import {
   TableCell,
   Button
 } from "@mui/material";
+import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
+import { useEffect } from "react";
 
 import { H4, Small } from "app/components/Typography";
 import { FlexBetween, FlexBox } from "app/components/FlexBox";
@@ -38,8 +40,10 @@ export default function LLMInfo({ llm, projects }) {
     }
   };
 
+  useEffect(() => { loadFonts(); }, []);
+
   return (
-    <Card sx={{ pt: 3 }} elevation={3}>
+    <Card elevation={0} sx={{ ...forensicCardSx, pt: 3 }}>
       <ContentBox mb={3} alignContent="center">
         <QRCode
           size={256}

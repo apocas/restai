@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import {
   Box, Button, Card, Divider, Grid, styled, Typography,
 } from "@mui/material";
-import { Check, Close, Groups, AccountTree } from "@mui/icons-material";
-import Breadcrumb from "app/components/Breadcrumb";
+import { Check, Close, Groups, AccountTree, MoveToInbox } from "@mui/icons-material";
+import PageHero from "app/components/page/PageHero";
 import { H4 } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { toast } from "react-toastify";
 import { useTranslation } from "react-i18next";
+import { forensicCardSx, PALETTE } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -26,7 +27,7 @@ const FlexBox = styled(Box)({ display: "flex", alignItems: "center" });
 function InvitationCard({ inv, label, onAccept, onDecline }) {
   const { t } = useTranslation();
   return (
-    <Card variant="outlined" sx={{ p: 2 }}>
+    <Card variant="outlined" sx={{ p: 2, borderColor: PALETTE.edge, background: "rgba(255,255,255,0.6)" }}>
       <Typography variant="h6" gutterBottom>{label}</Typography>
       <Typography variant="body2" color="text.secondary">
         {t("invitations.invitedBy", { username: inv.invited_by })}
@@ -48,7 +49,7 @@ function InvitationCard({ inv, label, onAccept, onDecline }) {
 
 function InvitationSection({ icon: Icon, title, emptyText, invites, nameField, onAccept, onDecline, sx }) {
   return (
-    <Card elevation={3} sx={sx}>
+    <Card elevation={0} sx={{ ...forensicCardSx, ...sx }}>
       <FlexBox>
         <Icon sx={{ ml: 2 }} />
         <H4 sx={{ p: 2 }}>{title}</H4>
@@ -134,12 +135,22 @@ export default function Invitations() {
 
   const teamInvites = invitations.filter((inv) => inv.type !== "project");
   const projectInvites = invitations.filter((inv) => inv.type === "project");
+  const pendingCount = invitations.length;
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: t("nav.invitations"), path: "/invitations" }]} />
-      </Box>
+      <PageHero
+        icon={<MoveToInbox sx={{ color: "#fff" }} />}
+        eyebrow="INVITATIONS"
+        title="Invitations"
+        subtitle="Pending invites to join teams or collaborate on projects."
+        showStatusDot={pendingCount > 0}
+        statusLabel={pendingCount > 0 ? `${pendingCount} pending` : undefined}
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${teamInvites.length} team` },
+          { glyph: "⌬", color: "#7dd3fc", label: `${projectInvites.length} project` },
+        ]}
+      />
 
       <ContentBox>
         <InvitationSection

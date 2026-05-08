@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { Box, Button, Chip, IconButton, Tooltip, Avatar, styled } from "@mui/material";
-import { Add, Code, SportsEsports, Visibility, Assignment } from "@mui/icons-material";
+import { Add, Code, SportsEsports, Visibility, Assignment, LibraryBooks } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import sha256 from "crypto-js/sha256";
 import BAvatar from "boring-avatars";
 import useAuth from "app/hooks/useAuth";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import DataList from "app/components/DataList";
 import api from "app/utils/api";
 import { PROJECT_TYPE_COLORS } from "app/utils/constant";
@@ -91,15 +91,60 @@ export default function Projects() {
     },
   ];
 
+  // Type breakdown — pick the top 3 non-zero types so the hero stats
+  // line stays compact even if a deployment skews heavily to one type.
+  const typeCounts = projects.reduce((acc, p) => {
+    const k = p.type || "other";
+    acc[k] = (acc[k] || 0) + 1;
+    return acc;
+  }, {});
+  const TYPE_GLYPH = {
+    rag: { glyph: "⌬", color: "#7dd3fc", label: t("projects.type.rag") },
+    agent: { glyph: "◈", color: "#93c5fd", label: t("projects.type.agent") },
+    block: { glyph: "⊞", color: "#fcd34d", label: t("projects.type.block") },
+    app: { glyph: "◆", color: "#fca5a5", label: "App" },
+  };
+  const topTypeStats = Object.entries(typeCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([type, count]) => {
+      const meta = TYPE_GLYPH[type] || { glyph: "◇", color: "#cbd5f5", label: type };
+      return { glyph: meta.glyph, color: meta.color, label: `${count} ${meta.label}` };
+    });
+
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: t("nav.projects"), path: "/projects" }]} />
-      </Box>
+      <PageHero
+        icon={<SportsEsports sx={{ color: "#fff" }} />}
+        eyebrow="PROJECTS"
+        title={t("projects.title") || "Projects"}
+        subtitle={t("projects.subtitle")}
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${projects.length} total` },
+          ...topTypeStats,
+        ]}
+        actions={
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              variant="outlined"
+              startIcon={<LibraryBooks />}
+              onClick={() => navigate("/projects/library")}
+              sx={{ color: "#fff", borderColor: "rgba(255,255,255,0.4)", "&:hover": { borderColor: "#fff", background: "rgba(255,255,255,0.08)" } }}
+            >
+              {t("nav.library", "Library")}
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => navigate("/projects/new")}
+            >
+              {t("projects.newProject")}
+            </Button>
+          </Box>
+        }
+      />
 
       <DataList
-        title={t("projects.title")}
-        subtitle={t("projects.subtitle")}
         data={projects}
         columns={columns}
         searchKeys={["name", "llm", "team.name", "type"]}
@@ -117,15 +162,6 @@ export default function Projects() {
         onRowClick={(row) => navigate(`/project/${row.id}`)}
         rowKey={(row) => row.id}
         defaultSort={{ key: "id", direction: "desc" }}
-        headerAction={
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => navigate("/projects/new")}
-          >
-            {t("projects.newProject")}
-          </Button>
-        }
         actions={(row) => (
           <>
             <Tooltip title={t("projects.actions.open")}>

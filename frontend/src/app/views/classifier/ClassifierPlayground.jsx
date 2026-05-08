@@ -9,6 +9,7 @@ import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { toast } from "react-toastify";
 import { Trans, useTranslation } from "react-i18next";
+import { forensicCardSx } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -73,7 +74,7 @@ export default function ClassifierPlayground() {
         <Grid container spacing={3}>
           {/* Input */}
           <Grid item xs={12} md={6}>
-            <Card elevation={1} sx={{ p: 3 }}>
+            <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
               <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
                 <Category fontSize="small" /> {t("classifier.playgroundTitle")}
               </Typography>
@@ -129,7 +130,7 @@ export default function ClassifierPlayground() {
 
           {/* Results */}
           <Grid item xs={12} md={6}>
-            <Card elevation={1} sx={{ p: 3 }}>
+            <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
               <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
                 {t("classifier.results")}
               </Typography>

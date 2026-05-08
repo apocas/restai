@@ -9,6 +9,7 @@ import { toast } from "react-toastify";
 import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
+import ContentCard from "app/components/page/ContentCard";
 
 
 function emptyForm() {
@@ -104,18 +105,19 @@ export default function ProjectEditSecrets({ project }) {
   };
 
   return (
-    <Card elevation={1} sx={{ p: 3 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-        <Box>
-          <Typography variant="h6" fontWeight={600}>{t("projects.edit.secrets.title")}</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Credentials and tokens used by agentic tools (e.g. <code>browser_fill(secret_ref=...)</code>).
-            Values are encrypted at rest and never leave the server — they are typed into the
-            browser directly without entering the agent's context.
-          </Typography>
-        </Box>
-        <Button variant="contained" startIcon={<Add />} onClick={openCreate}>{t("projects.edit.secrets.add")}</Button>
-      </Box>
+    <ContentCard
+      icon={<VpnKey />}
+      title="Secrets"
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · VAULT · ENCRYPTED`}
+      actions={
+        <Button variant="contained" size="small" startIcon={<Add />} onClick={openCreate}>{t("projects.edit.secrets.add")}</Button>
+      }
+    >
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Credentials and tokens used by agentic tools (e.g. <code>browser_fill(secret_ref=...)</code>).
+        Values are encrypted at rest and never leave the server — they are typed into the
+        browser directly without entering the agent's context.
+      </Typography>
 
       {loading ? (
         <Typography variant="body2" color="text.secondary">{t("common.loading")}</Typography>
@@ -198,6 +200,6 @@ export default function ProjectEditSecrets({ project }) {
           </Button>
         </DialogActions>
       </Dialog>
-    </Card>
+    </ContentCard>
   );
 }

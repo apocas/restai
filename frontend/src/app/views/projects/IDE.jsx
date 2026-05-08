@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  Box, Button, Dialog, DialogActions, DialogContent, DialogTitle,
+  Button, Dialog, DialogActions, DialogContent, DialogTitle,
   Grid, TextField, Typography, CircularProgress, Alert, styled,
 } from "@mui/material";
-import { AutoAwesome } from "@mui/icons-material";
+import { AutoAwesome, ViewInAr } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
 import BlocklyEditor from "./components/BlocklyEditor";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
@@ -97,33 +97,32 @@ export default function ProjectIDEView() {
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb
-          routeSegments={[
-            { name: t("nav.projects"), path: "/projects" },
-            { name: id, path: "/project/" + id },
-            { name: t("projects.edit.knowledge.ide.title") },
-          ]}
-        />
-      </Box>
-
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2, gap: 2, flexWrap: "wrap" }}>
-        <Box>
-          <Typography variant="h5" fontWeight={700}>{t("projects.edit.knowledge.ide.title")}</Typography>
-          <Typography variant="body2" color="text.secondary">
-            {systemLlmConfigured ? t("projects.edit.knowledge.ide.subtitleWithAi") : t("projects.edit.knowledge.ide.subtitle")}
-          </Typography>
-        </Box>
-        {systemLlmConfigured && (
+      <PageHero
+        icon={<ViewInAr sx={{ color: "#fff" }} />}
+        eyebrow={`PROJECT/${String(id).padStart(4, "0")}`}
+        title="Block IDE"
+        subtitle="Visual builder for block projects."
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: project.name || "—" },
+          { glyph: "⚡", color: "#7dd3fc", label: project.type || "—" },
+        ]}
+        actions={systemLlmConfigured ? (
           <Button
             variant="contained"
             startIcon={<AutoAwesome />}
             onClick={() => setAiOpen(true)}
+            sx={{
+              background: "rgba(255,255,255,0.12)",
+              color: "#fff",
+              border: "1px solid rgba(255,255,255,0.22)",
+              "&:hover": { background: "rgba(255,255,255,0.2)" },
+            }}
           >
             {t("projects.edit.knowledge.ide.generateAi")}
           </Button>
-        )}
-      </Box>
+        ) : null}
+        compact
+      />
 
       <Grid container spacing={3}>
         <Grid item lg={12} md={12} sm={12} xs={12}>

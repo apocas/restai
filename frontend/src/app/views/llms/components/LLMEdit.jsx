@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { JsonEditor } from 'json-edit-react';
 import { PROVIDER_CONFIG } from '../providerConfig';
 import api from "app/utils/api";
+import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
 
 const OPENAI_COMPAT_CLASSES = new Set([
   "OpenAI", "OpenAILike", "LiteLLM", "vLLM", "Grok", "Gemini", "GeminiMultiModal",
@@ -88,8 +89,10 @@ export default function LLMEdit({ llm }) {
     setState(llm);
   }, [llm]);
 
+  useEffect(() => { loadFonts(); }, []);
+
   return (
-    <Card elevation={3}>
+    <Card elevation={0} sx={forensicCardSx}>
       <H4 p={2}>{t("llms.edit.title", { name: llm.name })}</H4>
 
       <Divider sx={{ mb: 1 }} />

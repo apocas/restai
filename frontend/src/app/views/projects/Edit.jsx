@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Grid, styled, Box } from "@mui/material";
+import { Grid, styled } from "@mui/material";
+import { Edit } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import ProjectEdit from "./components/ProjectEdit";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import { useParams } from "react-router-dom";
 import api from "app/utils/api";
 
@@ -62,9 +63,17 @@ export default function ProjectNewView() {
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Projects", path: "/projects"}, { name: id, path: "/project/" + id }, { name: "Edit" }]} />
-      </Box>
+      <PageHero
+        icon={<Edit sx={{ color: "#fff" }} />}
+        eyebrow={`PROJECT/${String(id).padStart(4, "0")}`}
+        title="Edit Project"
+        subtitle={project.human_name || project.name || "—"}
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: project.name || "—" },
+          { glyph: "⚡", color: "#7dd3fc", label: project.type || "—" },
+        ]}
+        compact
+      />
 
       <ContentBox className="analytics">
         <Grid container spacing={3}>

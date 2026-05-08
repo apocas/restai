@@ -8,7 +8,7 @@ import { Add, Edit, Delete, Image as ImageIcon, PlayArrow } from "@mui/icons-mat
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import DataList from "app/components/DataList";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
@@ -233,15 +233,39 @@ export default function ImageGenerators() {
     },
   ];
 
+  const enabledCount = generators.filter((g) => g.enabled).length;
+
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: t("imageGen.breadcrumb"), path: "/generators/image" }]} />
-      </Box>
+      <PageHero
+        icon={<ImageIcon sx={{ color: "#fff" }} />}
+        eyebrow="IMAGE GENERATORS"
+        title="Image Generators"
+        subtitle={t("imageGen.subtitle")}
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${generators.length} configured` },
+          { glyph: "★", color: "#7dd3fc", label: `${enabledCount} enabled` },
+        ]}
+        actions={
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              variant="outlined"
+              startIcon={<PlayArrow />}
+              onClick={() => navigate("/image")}
+              sx={{ color: "#fff", borderColor: "rgba(255,255,255,0.4)", "&:hover": { borderColor: "#fff", background: "rgba(255,255,255,0.08)" } }}
+            >
+              {t("imageGen.playground")}
+            </Button>
+            {isAdmin && (
+              <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
+                {t("imageGen.new")}
+              </Button>
+            )}
+          </Box>
+        }
+      />
 
       <DataList
-        title={t("imageGen.title")}
-        subtitle={t("imageGen.subtitle")}
         data={generators}
         columns={columns}
         searchKeys={["name", "class_name", "description"]}
@@ -259,22 +283,6 @@ export default function ImageGenerators() {
         onRowClick={(row) => isAdmin && openEdit(row)}
         rowKey={(row) => row.id}
         defaultSort={{ key: "name", direction: "asc" }}
-        headerAction={
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
-              variant="outlined"
-              startIcon={<PlayArrow />}
-              onClick={() => navigate("/image")}
-            >
-              {t("imageGen.playground")}
-            </Button>
-            {isAdmin && (
-              <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
-                {t("imageGen.new")}
-              </Button>
-            )}
-          </Box>
-        }
         actions={(row) => (
           <>
             {isAdmin && (

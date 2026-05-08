@@ -33,6 +33,7 @@ import useAuth from "app/hooks/useAuth";
 import { toast } from 'react-toastify';
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
+import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
 
 export default function ApiKeys({ user }) {
   const { t } = useTranslation();
@@ -123,7 +124,7 @@ export default function ApiKeys({ user }) {
 
   return (
     <>
-      <Card>
+      <Card elevation={0} sx={forensicCardSx}>
         <FlexBetween px={3} py={2}>
           <H5>{t("users.apiKeys.title")}</H5>
           <Button variant="contained" onClick={() => setCreateOpen(true)}>

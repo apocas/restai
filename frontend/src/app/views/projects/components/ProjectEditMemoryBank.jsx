@@ -1,31 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Box, Card, Chip, Collapse, IconButton, Tooltip } from "@mui/material";
+import { Box, Collapse, IconButton, Tooltip } from "@mui/material";
 import {
   RefreshRounded, DeleteOutlineRounded, ChevronLeftRounded,
   ChevronRightRounded, VisibilityRounded, MemoryRounded,
 } from "@mui/icons-material";
-import { keyframes } from "@emotion/react";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
+import ForensicCard, { RichBackdrop } from "./forensic/ForensicCard";
+import {
+  PALETTE, ACCENT, ACCENT_SOFT, FONT_DISPLAY, FONT_MONO,
+  breath, drift, tickerIn,
+} from "./forensic/styles";
 
-// ─── Aesthetic system ────────────────────────────────────────────────────
-// "Forensic command deck", LIGHT mode: paper-white base with cool-violet
-// tint, theme-aligned accents per granularity, glassmorphic shards over
-// pale stock, low-key scanlines, slow ambient drift. Typography: Chakra
-// Petch for HUD chrome, JetBrains Mono for tabular data.
-
-const PALETTE = {
-  void:     "#f4f7fb",                       // paper base (cool blue-tinted off-white)
-  surface:  "rgba(255, 255, 255, 0.78)",     // shard fill
-  edge:     "rgba(25, 118, 210, 0.18)",      // faint blue hairline (theme.blue.primary)
-  ink:      "#222a45",                        // theme primary text
-  inkDim:   "rgba(34, 42, 69, 0.62)",
-  inkFaint: "rgba(34, 42, 69, 0.36)",
-};
-// Accent system tuned for legibility on white. Granularities walk a
-// blue gradient (cyan → primary → deep) so depth in time = depth in
-// hue, with the theme's amber secondary as the contrast for "month".
+// ─── Memory-bank-specific constants ──────────────────────────────────────
+// Granularities walk a blue gradient (cyan → primary → deep) so depth in
+// time = depth in hue, with the theme's amber secondary as the contrast
+// for "month". This stays bank-local because no other tab needs it.
 const GRAN = {
   conversation: { color: "#0891b2", label: "CONVERSATION" },  // cyan-600 — freshest
   day:          { color: "#1976d2", label: "DAY"          },  // theme primary blue
@@ -33,40 +24,8 @@ const GRAN = {
   month:        { color: "#f59e0b", label: "MONTH"        },  // amber (theme.blue.secondary)
 };
 const GRAN_ORDER = ["conversation", "day", "week", "month"];
-const ACCENT = "#1976d2";      // theme blue primary
-const ACCENT_SOFT = "#64b5f6"; // blue-300 — softer washes
-
-// ─── Animations ──────────────────────────────────────────────────────────
-const breath = keyframes`
-  0%,100% { box-shadow: 0 0 18px rgba(25,118,210,0.08), inset 0 0 24px rgba(25,118,210,0.03); }
-  50%     { box-shadow: 0 0 36px rgba(25,118,210,0.20), inset 0 0 32px rgba(25,118,210,0.06); }
-`;
-const drift = keyframes`
-  0%   { transform: translate3d(0,0,0); }
-  50%  { transform: translate3d(0,-2px,0); }
-  100% { transform: translate3d(0,0,0); }
-`;
-const sweep = keyframes`
-  0%   { transform: translateX(-100%); opacity: 0; }
-  50%  { opacity: 1; }
-  100% { transform: translateX(100%); opacity: 0; }
-`;
-const tickerIn = keyframes`
-  from { opacity: 0; transform: translateY(8px); filter: blur(6px); }
-  to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
-`;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
-const FONTS_LINK_ID = "memorybank-fonts";
-function loadFonts() {
-  if (document.getElementById(FONTS_LINK_ID)) return;
-  const link = document.createElement("link");
-  link.id = FONTS_LINK_ID;
-  link.rel = "stylesheet";
-  link.href = "https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap";
-  document.head.appendChild(link);
-}
-
 function formatRelative(iso) {
   if (!iso) return "—";
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -75,46 +34,6 @@ function formatRelative(iso) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}H AGO`;
   return `${Math.floor(diff / 86400)}D AGO`;
 }
-
-const FONT_DISPLAY = "'Chakra Petch', ui-sans-serif, system-ui, sans-serif";
-const FONT_MONO    = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
-
-// ─── Background plates ───────────────────────────────────────────────────
-const HUDBackdrop = (
-  <>
-    {/* Soft blue bloom from above — restrained on light surfaces */}
-    <Box sx={{
-      position: "absolute", inset: 0, pointerEvents: "none",
-      background: "radial-gradient(ellipse 70% 45% at 50% -10%, rgba(25,118,210,0.10), transparent 60%)",
-    }}/>
-    {/* Warm amber bloom from bottom-right for depth (theme secondary) */}
-    <Box sx={{
-      position: "absolute", inset: 0, pointerEvents: "none",
-      background: "radial-gradient(ellipse 50% 35% at 90% 110%, rgba(245,158,11,0.07), transparent 60%)",
-    }}/>
-    {/* Faint blueprint grid */}
-    <Box sx={{
-      position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.7,
-      backgroundImage:
-        "linear-gradient(rgba(25,118,210,0.05) 1px, transparent 1px),"
-      + "linear-gradient(90deg, rgba(25,118,210,0.05) 1px, transparent 1px)",
-      backgroundSize: "24px 24px",
-      maskImage: "radial-gradient(ellipse 80% 100% at 50% 0%, black 30%, transparent 90%)",
-    }}/>
-    {/* Scanline — blue, softer than the dark version */}
-    <Box sx={{
-      position: "absolute", left: 0, right: 0, top: 0, bottom: 0,
-      pointerEvents: "none", overflow: "hidden", zIndex: 0,
-    }}>
-      <Box sx={{
-        position: "absolute", left: 0, right: 0, height: 2,
-        background: "linear-gradient(90deg, transparent, rgba(25,118,210,0.32), transparent)",
-        animation: `${sweep} 7s linear infinite`,
-        top: "12%",
-      }}/>
-    </Box>
-  </>
-);
 
 // ─── HUD components ──────────────────────────────────────────────────────
 function HUDRule({ children, sx }) {
@@ -611,8 +530,6 @@ export default function ProjectEditMemoryBank({ project }) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [refreshTick, setRefreshTick] = useState(0);
 
-  useEffect(() => { loadFonts(); }, []);
-
   useEffect(() => {
     if (!project?.id) return;
     setLoading(true);
@@ -658,81 +575,56 @@ export default function ProjectEditMemoryBank({ project }) {
   const refresh = () => setRefreshTick((t) => t + 1);
 
   // ─── Outer panel ─────────────────────────────────────────────────────
-  return (
-    <Card
-      elevation={0}
-      sx={{
-        position: "relative",
-        background: PALETTE.void,
-        border: `1px solid ${PALETTE.edge}`,
-        borderRadius: 1,
-        overflow: "hidden",
-        color: PALETTE.ink,
-        p: { xs: 2, md: 3 },
-        minHeight: 480,
-        boxShadow: "0 1px 0 rgba(255,255,255,0.9) inset, 0 8px 32px rgba(34,42,69,0.06)",
-      }}
-    >
-      {HUDBackdrop}
+  const headerActions = (
+    <>
+      <Tooltip title="Refresh">
+        <span>
+          <IconButton
+            onClick={refresh}
+            disabled={loading}
+            sx={{
+              color: PALETTE.ink, border: `1px solid ${PALETTE.edge}`,
+              borderRadius: 0.5, background: "rgba(255,255,255,0.7)",
+              "&:hover": { borderColor: ACCENT, color: ACCENT, background: `${ACCENT}0c` },
+            }}
+            size="small"
+          >
+            <RefreshRounded fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Purge all memories (cannot be undone)">
+        <span>
+          <IconButton
+            onClick={handleClear}
+            disabled={!entries.length}
+            sx={{
+              color: PALETTE.inkDim, border: `1px solid ${PALETTE.edge}`,
+              borderRadius: 0.5, background: "rgba(255,255,255,0.7)",
+              "&:hover": { borderColor: "#dc2626", color: "#dc2626", background: "#dc262610" },
+            }}
+            size="small"
+          >
+            <DeleteOutlineRounded fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+    </>
+  );
 
-      <Box sx={{ position: "relative", zIndex: 1 }}>
-        {/* ── Top HUD strip ─────────────────────────────────────────── */}
-        <Box sx={{
-          display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", mb: 2,
-        }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <MemoryRounded sx={{
-              fontSize: 18, color: ACCENT,
-              filter: `drop-shadow(0 0 6px ${ACCENT}55)`,
-            }}/>
-            <Box>
-              <Box sx={{
-                fontFamily: FONT_DISPLAY, fontSize: "0.95rem",
-                letterSpacing: "0.18em", fontWeight: 600,
-                color: PALETTE.ink, textTransform: "uppercase",
-                lineHeight: 1,
-              }}>
-                Memory Bank
-              </Box>
-              <MonoText color={PALETTE.inkFaint} sx={{ fontSize: "0.6rem" }}>
-                PROJECT/{String(project.id).padStart(4, "0")} · READ-ONLY ARCHIVE
-              </MonoText>
-            </Box>
-          </Box>
-          <Box sx={{ flex: 1 }} />
-          <Tooltip title="Refresh">
-            <span>
-              <IconButton
-                onClick={refresh}
-                disabled={loading}
-                sx={{
-                  color: PALETTE.ink, border: `1px solid ${PALETTE.edge}`,
-                  borderRadius: 0.5, background: "rgba(255,255,255,0.7)",
-                  "&:hover": { borderColor: ACCENT, color: ACCENT, background: `${ACCENT}0c` },
-                }}
-                size="small"
-              >
-                <RefreshRounded fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="Purge all memories (cannot be undone)">
-            <span>
-              <IconButton
-                onClick={handleClear}
-                disabled={!entries.length}
-                sx={{
-                  color: PALETTE.inkDim, border: `1px solid ${PALETTE.edge}`,
-                  borderRadius: 0.5, background: "rgba(255,255,255,0.7)",
-                  "&:hover": { borderColor: "#dc2626", color: "#dc2626", background: "#dc262610" },
-                }}
-                size="small"
-              >
-                <DeleteOutlineRounded fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Box>
+  return (
+    <ForensicCard
+      icon={<MemoryRounded />}
+      title="Memory Bank"
+      subtitle={
+        <>PROJECT/{String(project.id).padStart(4, "0")} · READ-ONLY ARCHIVE</>
+      }
+      actions={headerActions}
+      backdrop={RichBackdrop}
+      sx={{ minHeight: 480 }}
+    >
+      <>
+        {/* spacer left intentionally — header rendered by ForensicCard */}
 
         {/* ── Stats row ─────────────────────────────────────────────── */}
         {data?.enabled && (
@@ -843,7 +735,7 @@ export default function ProjectEditMemoryBank({ project }) {
             />
           </>
         )}
-      </Box>
-    </Card>
+      </>
+    </ForensicCard>
   );
 }

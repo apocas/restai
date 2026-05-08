@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { toCsv, downloadCsv } from "app/utils/csvExport";
+import { forensicCardSx } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -101,7 +102,7 @@ export default function CronLogs() {
       </Box>
 
       <ContentBox>
-        <Card elevation={3}>
+        <Card elevation={0} sx={forensicCardSx}>
           <FlexBox justifyContent="space-between" sx={{ pr: 2 }}>
             <FlexBox>
               <ScheduleIcon sx={{ ml: 2 }} />

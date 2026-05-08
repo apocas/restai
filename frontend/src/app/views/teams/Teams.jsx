@@ -4,7 +4,7 @@ import { Add, Edit, Delete, Visibility, Groups } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import { useTranslation } from "react-i18next";
 import DataList from "app/components/DataList";
 import api from "app/utils/api";
@@ -124,28 +124,38 @@ export default function Teams() {
     },
   ];
 
+  const memberSet = new Set();
+  teams.forEach((tm) => (tm.users || []).forEach((u) => memberSet.add(u.username)));
+  const totalProjects = teams.reduce((acc, tm) => acc + (tm.projects || []).length, 0);
+
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: t("nav.teams"), path: "/teams" }]} />
-      </Box>
-
-      <DataList
-        title={t("teams.title")}
+      <PageHero
+        icon={<Groups sx={{ color: "#fff" }} />}
+        eyebrow="TEAMS"
+        title={t("teams.title") || "Teams"}
         subtitle={t("teams.subtitle")}
-        data={teams}
-        columns={columns}
-        searchKeys={["name", "description"]}
-        onRowClick={(row) => navigate(`/team/${row.id}`)}
-        rowKey={(row) => row.id}
-        defaultSort={{ key: "id", direction: "desc" }}
-        headerAction={
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${teams.length} teams` },
+          { glyph: "★", color: "#7dd3fc", label: `${memberSet.size} members` },
+          { glyph: "⌬", color: "#fcd34d", label: `${totalProjects} projects` },
+        ]}
+        actions={
           isAdmin && (
             <Button variant="contained" startIcon={<Add />} onClick={() => navigate("/teams/new")}>
               {t("teams.new")}
             </Button>
           )
         }
+      />
+
+      <DataList
+        data={teams}
+        columns={columns}
+        searchKeys={["name", "description"]}
+        onRowClick={(row) => navigate(`/team/${row.id}`)}
+        rowKey={(row) => row.id}
+        defaultSort={{ key: "id", direction: "desc" }}
         actions={(row) => {
           const role = userRole(row);
           const canEdit = role !== "member";

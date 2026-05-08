@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { Grid } from "@mui/material";
+import { BarChart } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import ProjectAnalytics from "./ProjectAnalytics";
 import ProjectTokens from "./ProjectTokens";
 import ProjectSourceAnalytics from "./ProjectSourceAnalytics";
 import ProjectChunkingAnalytics from "./ProjectChunkingAnalytics";
+import ContentCard from "app/components/page/ContentCard";
 
 export default function ProjectInfoAnalytics({ project }) {
   const auth = useAuth();
@@ -36,37 +38,43 @@ export default function ProjectInfoAnalytics({ project }) {
   }, [project, selectedYear, selectedMonth]);
 
   return (
-    <Grid container spacing={3}>
-      {/* Conversation analytics */}
-      <Grid item xs={12}>
-        <ProjectAnalytics project={project} />
-      </Grid>
-
-      {/* Token usage */}
-      <Grid item xs={12}>
-        <ProjectTokens
-          project={project}
-          tokens={tokens}
-          selectedYear={selectedYear}
-          selectedMonth={selectedMonth}
-          setSelectedYear={setSelectedYear}
-          setSelectedMonth={setSelectedMonth}
-        />
-      </Grid>
-
-      {/* Source analytics (RAG only) */}
-      {project.type === "rag" && (
+    <ContentCard
+      icon={<BarChart />}
+      title="Analytics"
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · USAGE · TOKENS · SOURCES`}
+    >
+      <Grid container spacing={3}>
+        {/* Conversation analytics */}
         <Grid item xs={12}>
-          <ProjectSourceAnalytics project={project} />
+          <ProjectAnalytics project={project} />
         </Grid>
-      )}
 
-      {/* Chunking analytics (RAG only) */}
-      {project.type === "rag" && (
+        {/* Token usage */}
         <Grid item xs={12}>
-          <ProjectChunkingAnalytics project={project} />
+          <ProjectTokens
+            project={project}
+            tokens={tokens}
+            selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
+            setSelectedYear={setSelectedYear}
+            setSelectedMonth={setSelectedMonth}
+          />
         </Grid>
-      )}
-    </Grid>
+
+        {/* Source analytics (RAG only) */}
+        {project.type === "rag" && (
+          <Grid item xs={12}>
+            <ProjectSourceAnalytics project={project} />
+          </Grid>
+        )}
+
+        {/* Chunking analytics (RAG only) */}
+        {project.type === "rag" && (
+          <Grid item xs={12}>
+            <ProjectChunkingAnalytics project={project} />
+          </Grid>
+        )}
+      </Grid>
+    </ContentCard>
   );
 }

@@ -4,7 +4,7 @@ import { Add, Edit, Delete, Visibility, Psychology } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import { useTranslation } from "react-i18next";
 import DataList from "app/components/DataList";
 import api from "app/utils/api";
@@ -131,15 +131,31 @@ export default function LLMs() {
     },
   ];
 
+  const providerCount = new Set(llms.map((l) => l.class_name).filter(Boolean)).size;
+  const privateCount = llms.filter((l) => l.privacy === "private").length;
+
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: t("nav.llms"), path: "/llms" }]} />
-      </Box>
+      <PageHero
+        icon={<Psychology sx={{ color: "#fff" }} />}
+        eyebrow="LANGUAGE MODELS"
+        title="LLMs"
+        subtitle="Configure providers and models available across the platform."
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${llms.length} models` },
+          { glyph: "⊞", color: "#7dd3fc", label: `${providerCount} providers` },
+          { glyph: "◇", color: "#fcd34d", label: `${privateCount} private` },
+        ]}
+        actions={
+          isAdmin && (
+            <Button variant="contained" startIcon={<Add />} onClick={() => navigate("/llms/new")}>
+              {t("llms.newBreadcrumb")}
+            </Button>
+          )
+        }
+      />
 
       <DataList
-        title={t("llms.title")}
-        subtitle={t("llms.subtitle")}
         data={llms}
         columns={columns}
         searchKeys={["name", "class_name"]}
@@ -156,13 +172,6 @@ export default function LLMs() {
         onRowClick={(row) => navigate(`/llm/${row.id}`)}
         rowKey={(row) => row.id}
         defaultSort={{ key: "id", direction: "desc" }}
-        headerAction={
-          isAdmin && (
-            <Button variant="contained" startIcon={<Add />} onClick={() => navigate("/llms/new")}>
-              {t("llms.newBreadcrumb")}
-            </Button>
-          )
-        }
         actions={(row) => (
           <>
             <Tooltip title={t("llms.actions.view")}>

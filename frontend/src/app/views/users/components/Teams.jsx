@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useEffect } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import {
   Box,
@@ -14,6 +14,7 @@ import {
 
 import { H5, Paragraph } from "app/components/Typography";
 import { useTranslation } from "react-i18next";
+import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
 
 export default function Teams({ user }) {
   const { t } = useTranslation();
@@ -49,8 +50,10 @@ export default function Teams({ user }) {
     </Fragment>
   );
 
+  useEffect(() => { loadFonts(); }, []);
+
   return (
-    <Card sx={{ padding: 3 }}>
+    <Card elevation={0} sx={{ ...forensicCardSx, padding: 3 }}>
       <H5 sx={{ mb: 2 }}>{t("users.userTeams.title")}</H5>
 
       {isEmpty ? (

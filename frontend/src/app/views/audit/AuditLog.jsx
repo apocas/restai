@@ -5,12 +5,13 @@ import {
   TextField, MenuItem, Button, IconButton,
 } from "@mui/material";
 import { History, ChevronLeft, ChevronRight, FileDownload } from "@mui/icons-material";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import { H4 } from "app/components/Typography";
 import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { toCsv, downloadCsv } from "app/utils/csvExport";
+import { forensicCardSx } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -65,23 +66,53 @@ export default function AuditLog() {
   }, [page, filterUsername, filterAction, t]);
 
   const totalPages = Math.ceil(total / pageSize);
+  const distinctActors = new Set(entries.map((e) => e.username).filter(Boolean)).size;
+
+  const exportCsv = () => {
+    if (entries.length === 0) return;
+    const csv = toCsv(entries, [
+      { key: "date", header: t("audit.columns.date") },
+      { key: "username", header: t("audit.columns.user") },
+      { key: "action", header: t("audit.columns.action") },
+      { key: "resource", header: t("audit.columns.resource") },
+      { key: "status_code", header: t("audit.columns.status") },
+    ]);
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    downloadCsv(`audit-log-${stamp}.csv`, csv);
+  };
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: t("audit.title"), path: "/audit" }]} />
-      </Box>
+      <PageHero
+        icon={<History sx={{ color: "#fff" }} />}
+        eyebrow="AUDIT TRAIL"
+        title={t("audit.title") || "Audit Log"}
+        subtitle="Privileged operations across the platform — every write is logged with actor, action and target."
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${total} total events` },
+          { glyph: "★", color: "#7dd3fc", label: `${entries.length} on screen` },
+          { glyph: "⌬", color: "#fcd34d", label: `${distinctActors} distinct actors` },
+        ]}
+        actions={
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<FileDownload />}
+            disabled={entries.length === 0}
+            onClick={exportCsv}
+            sx={{ color: "#fff", borderColor: "rgba(255,255,255,0.4)", "&:hover": { borderColor: "#fff", background: "rgba(255,255,255,0.08)" }, "&.Mui-disabled": { color: "rgba(255,255,255,0.4)", borderColor: "rgba(255,255,255,0.2)" } }}
+          >
+            {t("audit.exportCsv")}
+          </Button>
+        }
+      />
 
       <ContentBox>
-        <Card elevation={3}>
-          <FlexBox justifyContent="space-between" sx={{ pr: 2 }}>
-            <FlexBox>
-              <History sx={{ ml: 2 }} />
-              <H4 sx={{ p: 2 }}>{t("audit.title")}</H4>
-              <Typography variant="caption" color="text.secondary">
-                {t("audit.entries", { count: total })}
-              </Typography>
-            </FlexBox>
+        <Card elevation={0} sx={forensicCardSx}>
+          <FlexBox justifyContent="space-between" sx={{ pr: 2, pl: 2, py: 1.5 }}>
+            <Typography variant="caption" color="text.secondary">
+              {t("audit.entries", { count: total })}
+            </Typography>
             <FlexBox sx={{ gap: 1 }}>
               <TextField
                 size="small"
@@ -103,29 +134,6 @@ export default function AuditLog() {
                 <MenuItem value="PATCH">PATCH</MenuItem>
                 <MenuItem value="DELETE">DELETE</MenuItem>
               </TextField>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<FileDownload />}
-                disabled={entries.length === 0}
-                onClick={() => {
-                  // Exports the *current page* of entries. The server
-                  // paginates and full-range export would need a new
-                  // endpoint; admins can bump the page size first if
-                  // they need more rows in one download.
-                  const csv = toCsv(entries, [
-                    { key: "date", header: t("audit.columns.date") },
-                    { key: "username", header: t("audit.columns.user") },
-                    { key: "action", header: t("audit.columns.action") },
-                    { key: "resource", header: t("audit.columns.resource") },
-                    { key: "status_code", header: t("audit.columns.status") },
-                  ]);
-                  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-                  downloadCsv(`audit-log-${stamp}.csv`, csv);
-                }}
-              >
-                {t("audit.exportCsv")}
-              </Button>
             </FlexBox>
           </FlexBox>
           <Divider />

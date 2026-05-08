@@ -1,5 +1,6 @@
-import { styled, Box } from "@mui/material";
-import Breadcrumb from "app/components/Breadcrumb";
+import { styled } from "@mui/material";
+import { Image as ImageIcon } from "@mui/icons-material";
+import PageHero from "app/components/page/PageHero";
 import ImageChatContainer from "./components/ImageChatContainer";
 import useAuth from "app/hooks/useAuth";
 import { useState, useEffect } from "react";
@@ -29,9 +30,16 @@ export default function Image() {
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Image", path: "/image" }]} />
-      </Box>
+      <PageHero
+        icon={<ImageIcon sx={{ color: "#fff" }} />}
+        eyebrow="PLAYGROUND"
+        title="Image Playground"
+        subtitle="Generate images using configured generators."
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${generators.length} generator${generators.length === 1 ? "" : "s"}` },
+        ]}
+        compact
+      />
 
       <ContentBox>
         <ImageChatContainer generators={generators} />

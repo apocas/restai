@@ -7,9 +7,10 @@ import { SportsEsports, Code, ContentCopy, Bookmark, AddCircle } from "@mui/icon
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import api from "app/utils/api";
 import ProjectTypeChip from "app/components/ProjectTypeChip";
+import { forensicCardSx } from "./components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -23,6 +24,7 @@ const ContentBox = styled("div")(({ theme }) => ({
 }));
 
 const ProjectCard = styled(Card)(({ theme }) => ({
+  ...forensicCardSx,
   padding: theme.spacing(2.5),
   height: "100%",
   display: "flex",
@@ -30,7 +32,7 @@ const ProjectCard = styled(Card)(({ theme }) => ({
   transition: "all 0.2s ease",
   "&:hover": {
     transform: "translateY(-3px)",
-    boxShadow: theme.shadows[8],
+    boxShadow: "0 1px 0 rgba(255,255,255,0.9) inset, 0 12px 36px rgba(34,42,69,0.10)",
   },
 }));
 
@@ -115,21 +117,19 @@ export default function Library() {
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: t("nav.projects"), path: "/projects" }, { name: t("nav.library"), path: "/projects/library" }]} />
-      </Box>
+      <PageHero
+        icon={<Bookmark sx={{ color: "#fff" }} />}
+        eyebrow="LIBRARY"
+        title="Templates Library"
+        subtitle="Community templates you can clone into a new project."
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${projects.length} shared` },
+          { glyph: "⚡", color: "#7dd3fc", label: `${templates.length} templates` },
+        ]}
+        compact
+      />
 
       <ContentBox>
-        {/* Header */}
-        <Box sx={{ textAlign: "center", mb: 3 }}>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>
-            {t("projects.library.title")}
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            {t("projects.library.subtitle")}
-          </Typography>
-        </Box>
-
         {/* Type filter */}
         <Box sx={{ display: "flex", justifyContent: "center", gap: 1, mb: 3, flexWrap: "wrap" }}>
           {TYPE_FILTERS.map((tf) => (

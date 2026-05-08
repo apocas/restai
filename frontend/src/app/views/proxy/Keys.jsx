@@ -20,6 +20,7 @@ import { H4 } from "app/components/Typography";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
+import { forensicCardSx } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -147,7 +148,7 @@ print(response)`;
 
       <ContentBox>
         {/* Proxy Info */}
-        <Card elevation={3} sx={{ mb: 3 }}>
+        <Card elevation={0} sx={{ ...forensicCardSx, mb: 3 }}>
           <FlexBox sx={{ p: 2 }}>
             <RouteIcon sx={{ mr: 1.5 }} />
             <H4>{t("proxy.info")}</H4>
@@ -176,7 +177,7 @@ print(response)`;
         </Card>
 
         {/* Keys Card */}
-        <Card elevation={3} sx={{ mb: 3 }}>
+        <Card elevation={0} sx={{ ...forensicCardSx, mb: 3 }}>
           <FlexBox justifyContent="space-between" sx={{ pr: 2 }}>
             <FlexBox>
               <KeyIcon sx={{ ml: 2 }} />
@@ -262,7 +263,7 @@ print(response)`;
         </Card>
 
         {/* Usage Example */}
-        <Card elevation={3}>
+        <Card elevation={0} sx={forensicCardSx}>
           <FlexBox sx={{ pr: 2 }}>
             <CodeIcon sx={{ ml: 2 }} />
             <H4 sx={{ p: 2 }}>{t("proxy.usageExample")}</H4>

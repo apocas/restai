@@ -4,15 +4,20 @@ import { useTranslation } from "react-i18next";
 import RAGUpload from "./RAGUpload";
 import RAGBrowser from "./RAGBrowser";
 import RAGRetrieval from "./RAGRetrieval";
+import ContentCard from "app/components/page/ContentCard";
+import { PALETTE, ACCENT, FONT_DISPLAY } from "./forensic/styles";
 
 const SectionTitle = styled(Typography)(({ theme }) => ({
+  fontFamily: FONT_DISPLAY,
   fontWeight: 600,
-  fontSize: "0.9rem",
+  fontSize: "0.7rem",
+  letterSpacing: "0.18em",
+  textTransform: "uppercase",
   display: "flex",
   alignItems: "center",
-  gap: theme.spacing(0.5),
-  color: theme.palette.text.secondary,
-  marginBottom: theme.spacing(1),
+  gap: theme.spacing(0.75),
+  color: ACCENT,
+  marginBottom: theme.spacing(1.5),
 }));
 
 const DetailItem = ({ label, children }) => (
@@ -27,36 +32,41 @@ const DetailItem = ({ label, children }) => (
 export default function ProjectInfoKnowledge({ project }) {
   const { t } = useTranslation();
   return (
+    <ContentCard
+      icon={<Storage />}
+      title="Knowledge"
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · DOCS · INDEX · RETRIEVAL`}
+    >
     <Grid container spacing={3}>
       {/* RAG Settings */}
       <Grid item xs={12}>
-        <Card elevation={1} sx={{ p: 2.5 }}>
-          <SectionTitle><Storage fontSize="small" /> {t("projects.knowledge.infoKnowledge.title")}</SectionTitle>
+        <Card elevation={0} sx={{ p: 2.5, background: "rgba(255,255,255,0.55)", border: `1px solid ${PALETTE.edge}` }}>
+          <SectionTitle><Storage fontSize="small" /> {t("projects.edit.knowledge.infoKnowledge.title")}</SectionTitle>
           <Grid container spacing={2}>
-            <DetailItem label={t("projects.knowledge.infoKnowledge.documents")}>
+            <DetailItem label={t("projects.edit.knowledge.infoKnowledge.documents")}>
               <Typography variant="body2" fontWeight="bold">
                 {project.chunks ?? 0}
               </Typography>
             </DetailItem>
             {project.embeddings && (
-              <DetailItem label={t("projects.knowledge.infoKnowledge.embeddings")}>
+              <DetailItem label={t("projects.edit.knowledge.infoKnowledge.embeddings")}>
                 <Typography variant="body2" fontFamily="monospace">
                   {project.embeddings}
                 </Typography>
               </DetailItem>
             )}
             {project.vectorstore && (
-              <DetailItem label={t("projects.knowledge.infoKnowledge.vectorStore")}>
+              <DetailItem label={t("projects.edit.knowledge.infoKnowledge.vectorStore")}>
                 <Chip label={project.vectorstore} size="small" variant="outlined" />
               </DetailItem>
             )}
-            <DetailItem label={t("projects.knowledge.infoKnowledge.topK")}>
+            <DetailItem label={t("projects.edit.knowledge.infoKnowledge.topK")}>
               <Typography variant="body2">{project.options?.k ?? 4}</Typography>
             </DetailItem>
-            <DetailItem label={t("projects.knowledge.infoKnowledge.scoreCutoff")}>
+            <DetailItem label={t("projects.edit.knowledge.infoKnowledge.scoreCutoff")}>
               <Typography variant="body2">{project.options?.score ?? 0.0}</Typography>
             </DetailItem>
-            <DetailItem label={t("projects.knowledge.infoKnowledge.colbertRerank")}>
+            <DetailItem label={t("projects.edit.knowledge.infoKnowledge.colbertRerank")}>
               <Chip
                 label={project.options?.colbert_rerank ? t("common.enabled") : t("common.disabled")}
                 size="small"
@@ -64,7 +74,7 @@ export default function ProjectInfoKnowledge({ project }) {
                 variant="outlined"
               />
             </DetailItem>
-            <DetailItem label={t("projects.knowledge.infoKnowledge.llmRerank")}>
+            <DetailItem label={t("projects.edit.knowledge.infoKnowledge.llmRerank")}>
               <Chip
                 label={project.options?.llm_rerank ? t("common.enabled") : t("common.disabled")}
                 size="small"
@@ -72,7 +82,7 @@ export default function ProjectInfoKnowledge({ project }) {
                 variant="outlined"
               />
             </DetailItem>
-            <DetailItem label={t("projects.knowledge.infoKnowledge.cache")}>
+            <DetailItem label={t("projects.edit.knowledge.infoKnowledge.cache")}>
               <Chip
                 label={project.options?.cache ? t("common.enabled") : t("common.disabled")}
                 size="small"
@@ -81,25 +91,25 @@ export default function ProjectInfoKnowledge({ project }) {
               />
             </DetailItem>
             {project.options?.cache && (
-              <DetailItem label={t("projects.knowledge.infoKnowledge.cacheThreshold")}>
+              <DetailItem label={t("projects.edit.knowledge.infoKnowledge.cacheThreshold")}>
                 <Typography variant="body2">
                   {project.options.cache_threshold ?? 0.85}
                 </Typography>
               </DetailItem>
             )}
             {project.options?.connection && (
-              <DetailItem label={t("projects.knowledge.infoKnowledge.sqlConnection")}>
-                <Chip label={t("projects.knowledge.infoKnowledge.configured")} size="small" color="info" variant="outlined" />
+              <DetailItem label={t("projects.edit.knowledge.infoKnowledge.sqlConnection")}>
+                <Chip label={t("projects.edit.knowledge.infoKnowledge.configured")} size="small" color="info" variant="outlined" />
               </DetailItem>
             )}
             {project.options?.tables && (
-              <DetailItem label={t("projects.knowledge.infoKnowledge.sqlTables")}>
+              <DetailItem label={t("projects.edit.knowledge.infoKnowledge.sqlTables")}>
                 <Typography variant="body2" fontFamily="monospace">
                   {project.options.tables}
                 </Typography>
               </DetailItem>
             )}
-            <DetailItem label={t("projects.knowledge.infoKnowledge.knowledgeGraph")}>
+            <DetailItem label={t("projects.edit.knowledge.infoKnowledge.knowledgeGraph")}>
               <Chip
                 label={project.options?.enable_knowledge_graph ? t("common.enabled") : t("common.disabled")}
                 size="small"
@@ -107,7 +117,7 @@ export default function ProjectInfoKnowledge({ project }) {
                 variant="outlined"
               />
             </DetailItem>
-            <DetailItem label={t("projects.knowledge.infoKnowledge.logging")}>
+            <DetailItem label={t("projects.edit.knowledge.infoKnowledge.logging")}>
               <Chip
                 label={project.options?.logging !== false ? t("common.enabled") : t("common.disabled")}
                 size="small"
@@ -116,24 +126,24 @@ export default function ProjectInfoKnowledge({ project }) {
               />
             </DetailItem>
             {project.options?.rate_limit && (
-              <DetailItem label={t("projects.knowledge.infoKnowledge.rateLimit")}>
-                <Typography variant="body2">{t("projects.knowledge.infoKnowledge.rateLimitValue", { value: project.options.rate_limit })}</Typography>
+              <DetailItem label={t("projects.edit.knowledge.infoKnowledge.rateLimit")}>
+                <Typography variant="body2">{t("projects.edit.knowledge.infoKnowledge.rateLimitValue", { value: project.options.rate_limit })}</Typography>
               </DetailItem>
             )}
             {project.guard && (
-              <DetailItem label={t("projects.knowledge.infoKnowledge.inputGuard")}>
+              <DetailItem label={t("projects.edit.knowledge.infoKnowledge.inputGuard")}>
                 <Chip label={project.guard} size="small" color="warning" variant="outlined" />
               </DetailItem>
             )}
             {project.options?.guard_output && (
-              <DetailItem label={t("projects.knowledge.infoKnowledge.outputGuard")}>
+              <DetailItem label={t("projects.edit.knowledge.infoKnowledge.outputGuard")}>
                 <Chip label={project.options.guard_output} size="small" color="warning" variant="outlined" />
               </DetailItem>
             )}
             {(project.guard || project.options?.guard_output) && (
-              <DetailItem label={t("projects.knowledge.infoKnowledge.guardMode")}>
+              <DetailItem label={t("projects.edit.knowledge.infoKnowledge.guardMode")}>
                 <Chip
-                  label={project.options?.guard_mode === "warn" ? t("projects.knowledge.infoKnowledge.guardWarn") : t("projects.knowledge.infoKnowledge.guardBlock")}
+                  label={project.options?.guard_mode === "warn" ? t("projects.edit.knowledge.infoKnowledge.guardWarn") : t("projects.edit.knowledge.infoKnowledge.guardBlock")}
                   size="small"
                   color={project.options?.guard_mode === "warn" ? "info" : "error"}
                   variant="outlined"
@@ -141,16 +151,16 @@ export default function ProjectInfoKnowledge({ project }) {
               </DetailItem>
             )}
             {project.censorship && (
-              <DetailItem label={t("projects.knowledge.infoKnowledge.censorshipMessage")}>
+              <DetailItem label={t("projects.edit.knowledge.infoKnowledge.censorshipMessage")}>
                 <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
                   {project.censorship.length > 80 ? project.censorship.slice(0, 80) + "…" : project.censorship}
                 </Typography>
               </DetailItem>
             )}
-            <DetailItem label={t("projects.knowledge.infoKnowledge.autoSync")}>
+            <DetailItem label={t("projects.edit.knowledge.infoKnowledge.autoSync")}>
               {project.options?.sync_enabled && project.options?.sync_sources?.length > 0 ? (
                 <Chip
-                  label={t("projects.knowledge.infoKnowledge.autoSyncActive", { count: project.options.sync_sources.length })}
+                  label={t("projects.edit.knowledge.infoKnowledge.autoSyncActive", { count: project.options.sync_sources.length })}
                   size="small"
                   color="success"
                   variant="outlined"
@@ -182,5 +192,6 @@ export default function ProjectInfoKnowledge({ project }) {
         <RAGRetrieval project={project} />
       </Grid>
     </Grid>
+    </ContentCard>
   );
 }

@@ -1,12 +1,19 @@
 import { Grid, TextField, MenuItem, Autocomplete, Divider } from "@mui/material";
-import { Fragment } from "react";
+import { Shield } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import { makeErrorFor } from "./projectOptionValidators";
+import ContentCard from "app/components/page/ContentCard";
 
-export default function ProjectEditSecurity({ state, setState, handleChange, projects, fieldErrors = {}, clearFieldError = () => {} }) {
+export default function ProjectEditSecurity({ state, setState, handleChange, projects, project, fieldErrors = {}, clearFieldError = () => {} }) {
   const { t } = useTranslation();
   const errorFor = makeErrorFor(fieldErrors, state);
+  const projId = project?.id ?? state?.id ?? 0;
   return (
+    <ContentCard
+      icon={<Shield />}
+      title="Security"
+      subtitle={`PROJECT/${String(projId).padStart(4, "0")} · GUARDS · RATE LIMIT`}
+    >
     <Grid container spacing={3}>
       <Grid item sm={6} xs={12}>
         <Autocomplete
@@ -97,5 +104,6 @@ export default function ProjectEditSecurity({ state, setState, handleChange, pro
         />
       </Grid>
     </Grid>
+    </ContentCard>
   );
 }

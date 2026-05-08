@@ -8,11 +8,12 @@ import {
   styled,
   MenuItem
 } from "@mui/material";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { H5, Paragraph } from "app/components/Typography";
 import { FlexBetween, FlexBox } from "app/components/FlexBox";
 import { convertHexToRGB } from "app/utils/utils";
 import useAuth from "app/hooks/useAuth";
+import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
 import BAvatar from "boring-avatars";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
@@ -79,8 +80,10 @@ export default function Preferences({ user, projects }) {
     setState({ ...state, [event.target.name]: (event.target.type === "checkbox" ? event.target.checked : event.target.value) });
   };
 
+  useEffect(() => { loadFonts(); }, []);
+
   return (
-    <Card>
+    <Card elevation={0} sx={forensicCardSx}>
       <H5 padding={3}>{t("users.userProjects.title")}</H5>
       <Divider />
 

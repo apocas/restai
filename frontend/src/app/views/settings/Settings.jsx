@@ -5,7 +5,7 @@ import {
   Collapse, IconButton
 } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
@@ -13,6 +13,7 @@ import api from "app/utils/api";
 import { Settings as SettingsIcon, Storage, Security, ExpandMore, ExpandLess } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
 import ProjectTabNav from "app/views/projects/components/ProjectTabNav";
+import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -202,9 +203,14 @@ export default function SettingsPage() {
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: t("settings.title"), path: "/settings" }]} />
-      </Box>
+      <PageHero
+        icon={<SettingsIcon sx={{ color: "#fff" }} />}
+        eyebrow="PLATFORM CONFIG"
+        title={t("settings.title") || "Settings"}
+        subtitle="GUI-managed runtime configuration. Saved to the DB, applied across workers immediately."
+        showStatusDot
+        statusLabel="Live"
+      />
 
       <Grid container spacing={3}>
         <Grid item md={2} xs={12}>
@@ -217,7 +223,7 @@ export default function SettingsPage() {
             <Grid container spacing={3}>
               {/* App */}
               <Grid item xs={12}>
-                <Card elevation={1} sx={{ p: 3 }}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.platform")}</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
@@ -262,7 +268,7 @@ export default function SettingsPage() {
 
               {/* LLM Proxy */}
               <Grid item xs={12}>
-                <Card elevation={1} sx={{ p: 3 }}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.proxy")}</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12}>
@@ -290,7 +296,7 @@ export default function SettingsPage() {
 
               {/* Limits */}
               <Grid item xs={12}>
-                <Card elevation={1} sx={{ p: 3 }}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.limits")}</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
@@ -308,7 +314,7 @@ export default function SettingsPage() {
 
               {/* Redis */}
               <Grid item xs={12}>
-                <Card elevation={1} sx={{ p: 3 }}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.redis")}</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
@@ -330,7 +336,7 @@ export default function SettingsPage() {
 
               {/* MCP */}
               <Grid item xs={12}>
-                <Card elevation={1} sx={{ p: 3 }}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>{t("settings.sections.mcp")}</Typography>
                   <FormControlLabel
                     control={<Switch checked={form.mcp_enabled} onChange={handleChange("mcp_enabled")} />}
@@ -344,7 +350,7 @@ export default function SettingsPage() {
 
               {/* Docker */}
               <Grid item xs={12}>
-                <Card elevation={1} sx={{ p: 3 }}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>{t("settings.sections.docker")}</Typography>
                   <FormControlLabel
                     control={<Switch checked={form.docker_enabled} onChange={handleChange("docker_enabled")} />}
@@ -422,7 +428,7 @@ export default function SettingsPage() {
 
               {/* Agentic Browser — Playwright + Chromium per-chat container */}
               <Grid item xs={12}>
-                <Card elevation={1} sx={{ p: 3 }}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.browser")}</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12}>
@@ -474,7 +480,7 @@ export default function SettingsPage() {
 
               {/* App Builder — per-project PHP+TS+SQLite preview container */}
               <Grid item xs={12}>
-                <Card elevation={1} sx={{ p: 3 }}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.appBuilder")}</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12}>
@@ -521,7 +527,7 @@ export default function SettingsPage() {
             <Grid container spacing={3}>
               {/* Core auth settings */}
               <Grid item xs={12}>
-                <Card elevation={1} sx={{ p: 3 }}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.localAuth")}</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={4}>
@@ -548,7 +554,7 @@ export default function SettingsPage() {
 
               {/* SSO general */}
               <Grid item xs={12}>
-                <Card elevation={1} sx={{ p: 3 }}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Single Sign-On</Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={4}>

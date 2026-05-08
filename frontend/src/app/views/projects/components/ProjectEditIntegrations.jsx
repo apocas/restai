@@ -1,8 +1,10 @@
 import { Alert, Button, Divider, Grid, TextField, Typography } from "@mui/material";
+import { Hub } from "@mui/icons-material";
 import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 import useAuth from "app/hooks/useAuth";
+import ContentCard from "app/components/page/ContentCard";
 
 export default function ProjectEditIntegrations({ state, setState, handleChange, project }) {
   const { t } = useTranslation();
@@ -29,6 +31,11 @@ export default function ProjectEditIntegrations({ state, setState, handleChange,
   };
 
   return (
+    <ContentCard
+      icon={<Hub />}
+      title="Integrations"
+      subtitle={`PROJECT/${String(project?.id ?? 0).padStart(4, "0")} · TELEGRAM · SLACK · WHATSAPP · WEBHOOKS`}
+    >
     <Grid container spacing={3}>
       {(state.type === "rag" || state.type === "agent") && (
         <Fragment>
@@ -416,5 +423,6 @@ export default function ProjectEditIntegrations({ state, setState, handleChange,
         </Fragment>
       )}
     </Grid>
+    </ContentCard>
   );
 }

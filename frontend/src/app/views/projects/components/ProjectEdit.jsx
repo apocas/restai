@@ -1,6 +1,5 @@
 import { Box, Button, Card, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid } from "@mui/material";
 import { Info, Storage, Shield, Extension } from "@mui/icons-material";
-import { H4 } from "app/components/Typography";
 import { useState, useEffect, useRef } from "react";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -313,13 +312,22 @@ export default function ProjectEdit({ project, projects, info }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <Card elevation={3} sx={{ p: 2, mb: 2 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <H4>{t("projects.edit.title", { name: project.name })}</H4>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Button variant="outlined" onClick={() => requestNavigate("/project/" + project.id)}>{t("common.cancel")}</Button>
-            <Button type="submit" variant="contained" color="primary">{t("common.save")}{dirty ? "*" : ""}</Button>
-          </Box>
+      <Card
+        elevation={0}
+        sx={{
+          p: 1.5, mb: 2,
+          borderRadius: 3,
+          border: "1px solid",
+          borderColor: "divider",
+          backgroundColor: "background.paper",
+        }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={() => requestNavigate("/project/" + project.id)}
+          >{t("common.cancel")}</Button>
+          <Button type="submit" variant="contained" color="primary">{t("common.save")}{dirty ? "*" : ""}</Button>
         </Box>
       </Card>
 
@@ -329,7 +337,9 @@ export default function ProjectEdit({ project, projects, info }) {
         </Grid>
 
         <Grid item md={10} xs={12}>
-          <Card elevation={1} sx={{ p: 3 }}>
+          {/* Each tab supplies its own ForensicCard chrome — no outer
+              wrapper needed. */}
+          <Box>
             {active === "General" && (
               <ProjectEditGeneral
                 state={state} setState={setState} handleChange={handleChange}
@@ -359,7 +369,7 @@ export default function ProjectEdit({ project, projects, info }) {
             {active === "Security" && (
               <ProjectEditSecurity
                 state={state} setState={setState} handleChange={handleChange}
-                projects={projects}
+                projects={projects} project={project}
                 fieldErrors={fieldErrors}
                 clearFieldError={(k) => setFieldErrors((prev) => {
                   if (!(k in prev)) return prev;
@@ -372,7 +382,7 @@ export default function ProjectEdit({ project, projects, info }) {
                 state={state} setState={setState} handleChange={handleChange} project={project}
               />
             )}
-          </Card>
+          </Box>
         </Grid>
       </Grid>
 

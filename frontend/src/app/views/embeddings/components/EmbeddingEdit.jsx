@@ -5,6 +5,7 @@ import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
+import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
 
 export default function EmbeddingEdit({ embedding }) {
   const { t } = useTranslation();
@@ -52,8 +53,10 @@ export default function EmbeddingEdit({ embedding }) {
     setState(embedding);
   }, [embedding]);
 
+  useEffect(() => { loadFonts(); }, []);
+
   return (
-    <Card elevation={3}>
+    <Card elevation={0} sx={forensicCardSx}>
       <H4 p={2}>{t("embeddings.edit.title", { name: embedding.name })}</H4>
 
       <Divider sx={{ mb: 1 }} />

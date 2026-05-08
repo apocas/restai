@@ -13,6 +13,7 @@ import useAuth from "app/hooks/useAuth";
 import { Breadcrumb } from "app/components";
 import { Trans, useTranslation } from "react-i18next";
 import api from "app/utils/api";
+import { forensicCardSx } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: "30px",
@@ -24,6 +25,7 @@ const Container = styled("div")(({ theme }) => ({
 }));
 
 const StyledCard = styled(Card)(({ theme }) => ({
+  ...forensicCardSx,
   padding: theme.spacing(3),
   marginBottom: theme.spacing(3),
 }));
@@ -70,7 +72,7 @@ export default function DirectAccess() {
         <Breadcrumb routeSegments={[{ name: t("direct.breadcrumb"), path: "/direct" }]} />
       </Box>
 
-      <StyledCard>
+      <StyledCard elevation={0}>
         <Typography variant="h4" gutterBottom>
           {t("direct.title")}
         </Typography>
@@ -84,7 +86,7 @@ export default function DirectAccess() {
       </StyledCard>
 
       {/* LLMs Section */}
-      <StyledCard>
+      <StyledCard elevation={0}>
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <Psychology color="primary" />
           <Typography variant="h5">{t("direct.chat")}</Typography>
@@ -158,7 +160,7 @@ for chunk in stream:
       </StyledCard>
 
       {/* Embeddings Section */}
-      <StyledCard>
+      <StyledCard elevation={0}>
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <DataArray color="primary" />
           <Typography variant="h5">{t("direct.embeddings")}</Typography>
@@ -227,7 +229,7 @@ for item in response.data:
       </StyledCard>
 
       {/* Image Generators Section */}
-      <StyledCard>
+      <StyledCard elevation={0}>
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <Image color="primary" />
           <Typography variant="h5">{t("direct.images")}</Typography>
@@ -288,7 +290,7 @@ print(response.data[0].b64_json[:50] + "...")`}</code>
       </StyledCard>
 
       {/* Audio Transcription Section */}
-      <StyledCard>
+      <StyledCard elevation={0}>
         <Box display="flex" alignItems="center" gap={1} mb={2}>
           <Speaker color="primary" />
           <Typography variant="h5">{t("direct.audio")}</Typography>

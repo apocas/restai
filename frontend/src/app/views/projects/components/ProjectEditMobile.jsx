@@ -9,6 +9,7 @@ import { toast } from "react-toastify";
 import { useTranslation, Trans } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
+import ContentCard from "app/components/page/ContentCard";
 
 /**
  * Mobile integration tab.
@@ -101,11 +102,11 @@ export default function ProjectEditMobile({ project }) {
   const qrText = qrPayload ? JSON.stringify(qrPayload) : null;
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
-        <PhoneAndroid color="primary" />
-        <Typography variant="h6" fontWeight={700}>{t("projects.edit.mobile.title")}</Typography>
-      </Stack>
+    <ContentCard
+      icon={<PhoneAndroid />}
+      title={t("projects.edit.mobile.title")}
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · COMPANION · QR PAIR`}
+    >
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         {t("projects.edit.mobile.intro")}
       </Typography>
@@ -175,6 +176,6 @@ export default function ProjectEditMobile({ project }) {
           {t("projects.edit.mobile.offMessage")}
         </Typography>
       )}
-    </Box>
+    </ContentCard>
   );
 }

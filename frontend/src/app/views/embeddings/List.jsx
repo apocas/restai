@@ -4,7 +4,7 @@ import { Add, Edit, Delete, Visibility, Hub } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import { useTranslation } from "react-i18next";
 import DataList from "app/components/DataList";
 import api from "app/utils/api";
@@ -123,15 +123,29 @@ export default function Embeddings() {
     },
   ];
 
+  const providerCount = new Set(embeddings.map((e) => e.class_name).filter(Boolean)).size;
+
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: t("nav.embeddings"), path: "/embeddings" }]} />
-      </Box>
+      <PageHero
+        icon={<Hub sx={{ color: "#fff" }} />}
+        eyebrow="EMBEDDINGS"
+        title="Embeddings"
+        subtitle="Vector embedding models for retrieval."
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${embeddings.length} models` },
+          { glyph: "⊞", color: "#7dd3fc", label: `${providerCount} providers` },
+        ]}
+        actions={
+          isAdmin && (
+            <Button variant="contained" startIcon={<Add />} onClick={() => navigate("/embeddings/new")}>
+              {t("embeddings.newBreadcrumb")}
+            </Button>
+          )
+        }
+      />
 
       <DataList
-        title={t("embeddings.title")}
-        subtitle={t("embeddings.subtitle")}
         data={embeddings}
         columns={columns}
         searchKeys={["name", "class_name"]}
@@ -148,13 +162,6 @@ export default function Embeddings() {
         onRowClick={(row) => navigate(`/embedding/${row.id}`)}
         rowKey={(row) => row.id}
         defaultSort={{ key: "id", direction: "desc" }}
-        headerAction={
-          isAdmin && (
-            <Button variant="contained" startIcon={<Add />} onClick={() => navigate("/embeddings/new")}>
-              {t("embeddings.newBreadcrumb")}
-            </Button>
-          )
-        }
         actions={(row) => (
           <>
             <Tooltip title={t("embeddings.actions.view")}>

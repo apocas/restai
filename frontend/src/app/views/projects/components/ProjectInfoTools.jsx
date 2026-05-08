@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Box, Button, Card, CircularProgress, Divider, Snackbar, Alert, Typography, styled,
+  Box, Button, CircularProgress, Divider, Snackbar, Alert, Typography,
 } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
+import { Build } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import ProjectEditTools from "./ProjectEditTools";
-
-const Container = styled(Card)(({ theme }) => ({
-  padding: theme.spacing(3),
-}));
+import ContentCard from "app/components/page/ContentCard";
 
 // MCP server "headers" arrive from the API as an object and live in the
 // editor as a single `KEY: VALUE`-per-line textarea. Same parser used
@@ -249,7 +247,11 @@ export default function ProjectInfoTools({ project }) {
   }
 
   return (
-    <Container elevation={1}>
+    <ContentCard
+      icon={<Build />}
+      title="Tools"
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · BUILTINS · MCP · AGENT LOOP`}
+    >
       <ProjectEditTools
         state={state}
         setState={setState}
@@ -295,6 +297,6 @@ export default function ProjectInfoTools({ project }) {
           </Alert>
         ) : null}
       </Snackbar>
-    </Container>
+    </ContentCard>
   );
 }

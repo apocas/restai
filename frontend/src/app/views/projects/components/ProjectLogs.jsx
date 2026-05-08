@@ -8,6 +8,7 @@ import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import ReactJson from '@microlink/react-json-view';
 import api from "app/utils/api";
+import { forensicCardSx } from "./forensic/styles";
 
 
 export default function RAGRetrieval({ project }) {
@@ -64,7 +65,7 @@ export default function RAGRetrieval({ project }) {
   }, [page, rows]);
 
   return (
-    <Card elevation={3}>
+    <Card elevation={0} sx={forensicCardSx}>
       <MUIDataTable
         title={
           <FlexBox alignItems="center">

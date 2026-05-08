@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Grid, styled, Box, Button } from "@mui/material";
-import { ArrowBack } from "@mui/icons-material";
+import { Grid, styled, Button } from "@mui/material";
+import { ArrowBack, AddCircle } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import ProjectNew from "./components/ProjectNew";
 import TemplateGallery from "./components/TemplateGallery";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
@@ -44,19 +44,18 @@ export default function ProjectNewView() {
 
   const showGallery = selectedTemplate === undefined;
 
-  const breadcrumb = showGallery
-    ? [{ name: "Projects", path: "/projects" }, { name: "New Project", path: "/projects/new" }]
-    : [
-        { name: "Projects", path: "/projects" },
-        { name: "New Project", path: "/projects/new" },
-        { name: selectedTemplate ? selectedTemplate.name : "From Scratch" },
-      ];
-
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={breadcrumb} />
-      </Box>
+      <PageHero
+        icon={<AddCircle sx={{ color: "#fff" }} />}
+        eyebrow="PROJECTS/NEW"
+        title="New Project"
+        subtitle="Pick a project type to get started."
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: showGallery ? "templates" : (selectedTemplate ? selectedTemplate.name : "from scratch") },
+        ]}
+        compact
+      />
 
       <ContentBox>
         {showGallery ? (

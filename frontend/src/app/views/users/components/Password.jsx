@@ -6,6 +6,7 @@ import useAuth from "app/hooks/useAuth";
 import { toast } from 'react-toastify';
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
+import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
 
 const Dot = styled("div")(({ theme }) => ({
   width: 8,
@@ -56,8 +57,10 @@ export default function Password({user}) {
     setState({ ...state, [event.target.name]: (event.target.type === "checkbox" ? event.target.checked : event.target.value) });
   };
 
+  useEffect(() => { loadFonts(); }, []);
+
   return (
-    <Card>
+    <Card elevation={0} sx={forensicCardSx}>
       <H5 padding={3}>{t("users.password.title")}</H5>
       <Divider />
 

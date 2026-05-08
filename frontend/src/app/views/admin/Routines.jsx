@@ -12,6 +12,7 @@ import { H4 } from "app/components/Typography";
 import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
+import { forensicCardSx } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -82,7 +83,7 @@ export default function Routines() {
       </Box>
 
       <ContentBox>
-        <Card elevation={3}>
+        <Card elevation={0} sx={forensicCardSx}>
           <FlexBox justifyContent="space-between" sx={{ pr: 2 }}>
             <FlexBox>
               <ScheduleIcon sx={{ ml: 2 }} />

@@ -12,6 +12,7 @@ import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 import api from "app/utils/api";
 import { Memory } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
+import { forensicCardSx } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -84,7 +85,7 @@ export default function GpuInfo() {
       <ContentBox>
         <Grid container spacing={3}>
           <Grid item xs={12}>
-            <Card elevation={3}>
+            <Card elevation={0} sx={forensicCardSx}>
               <FlexBox>
                 <Memory sx={{ ml: 2 }} />
                 <H4 sx={{ p: 2 }}>GPU</H4>

@@ -20,6 +20,7 @@ import { toast } from 'react-toastify';
 import { useTranslation } from "react-i18next";
 import { Group, Code, Psychology, Palette } from "@mui/icons-material";
 import api from "app/utils/api";
+import { PALETTE, forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: "30px",
@@ -31,8 +32,9 @@ const Container = styled("div")(({ theme }) => ({
 }));
 
 const StyledCard = styled(Card)(({ theme }) => ({
+  ...forensicCardSx,
   padding: theme.spacing(3),
-  marginBottom: theme.spacing(3)
+  marginBottom: theme.spacing(3),
 }));
 
 function TabPanel(props) {
@@ -246,7 +248,7 @@ export default function TeamEdit() {
       </Box>
 
       <form onSubmit={handleSubmit}>
-        <StyledCard>
+        <StyledCard elevation={0}>
           <Typography variant="h5" mb={3}>{isNewTeam ? t("teams.edit.newTitle") : t("teams.edit.editTitle")}</Typography>
           
           <Grid container spacing={3}>

@@ -8,7 +8,7 @@ import {
   Terminal as TerminalIcon,
 } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
@@ -237,18 +237,19 @@ export default function Tools() {
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: t("nav.projects"), path: "/projects" }, { name: t("tools.breadcrumb") }]} />
-      </Box>
+      <PageHero
+        icon={<Build sx={{ color: "#fff" }} />}
+        eyebrow="TOOLS"
+        title="Tools"
+        subtitle="Built-in, MCP, and agent-created tools."
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${tools.length} available` },
+        ]}
+        compact
+      />
 
       <Box>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, flexWrap: "wrap", gap: 2 }}>
-          <Box>
-            <Typography variant="h5" fontWeight={700}>{t("tools.title")}</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {t("tools.subtitle")}
-            </Typography>
-          </Box>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", mb: 2 }}>
           <Chip label={t("tools.toolCount", { count: tools.length })} variant="outlined" size="small" />
         </Box>
 

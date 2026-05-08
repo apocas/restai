@@ -11,6 +11,7 @@ import Breadcrumb from "app/components/Breadcrumb";
 import useAuth from "app/hooks/useAuth";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
+import { forensicCardSx } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -30,8 +31,8 @@ const HEADER_HEIGHT = 160;
 
 const StatCard = ({ icon, value, label, color }) => (
   <Card elevation={0} sx={{
+    ...forensicCardSx,
     p: 2, display: "flex", alignItems: "center", gap: 2,
-    borderRadius: 3, border: "1px solid", borderColor: "divider",
   }}>
     <Box sx={{
       width: 44, height: 44, borderRadius: "50%",
@@ -163,7 +164,7 @@ export default function PermissionMatrix() {
         </Grid>
 
         {/* Filters */}
-        <Card elevation={0} sx={{ p: 2, mb: 3, borderRadius: 3, border: "1px solid", borderColor: "divider" }}>
+        <Card elevation={0} sx={{ ...forensicCardSx, p: 2, mb: 3 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={4} md={3}>
               <TextField
@@ -198,7 +199,7 @@ export default function PermissionMatrix() {
         </Card>
 
         {/* Matrix */}
-        <Card elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", overflow: "hidden" }}>
+        <Card elevation={0} sx={forensicCardSx}>
           {filteredUsers.length === 0 || filteredProjects.length === 0 ? (
             <Box sx={{ p: 6, textAlign: "center", color: "text.secondary" }}>
               <Typography variant="body2">{t("permissions.noMatches")}</Typography>

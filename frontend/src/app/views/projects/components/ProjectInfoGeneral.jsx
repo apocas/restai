@@ -29,15 +29,20 @@ import {
 } from "@mui/icons-material";
 import sha256 from "crypto-js/sha256";
 import ProjectBlock from "./ProjectBlock";
+import ContentCard from "app/components/page/ContentCard";
+import { PALETTE, ACCENT, FONT_DISPLAY } from "./forensic/styles";
 
 const SectionTitle = styled(Typography)(({ theme }) => ({
+  fontFamily: FONT_DISPLAY,
   fontWeight: 600,
-  fontSize: "0.9rem",
+  fontSize: "0.7rem",
+  letterSpacing: "0.18em",
+  textTransform: "uppercase",
   display: "flex",
   alignItems: "center",
-  gap: theme.spacing(0.5),
-  color: theme.palette.text.secondary,
-  marginBottom: theme.spacing(1),
+  gap: theme.spacing(0.75),
+  color: ACCENT,
+  marginBottom: theme.spacing(1.5),
 }));
 
 const DetailItem = ({ label, children }) => (
@@ -63,10 +68,15 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
   const showIntegrations = !!(project.options?.telegram_token || project.options?.slack_bot_token);
 
   return (
+    <ContentCard
+      icon={<Settings />}
+      title="General"
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · MODEL · PROMPT · CONFIG`}
+    >
     <Grid container spacing={3}>
       {/* Metadata pills */}
       <Grid item xs={12}>
-        <Card elevation={1} sx={{ p: 2.5 }}>
+        <Card elevation={0} sx={{ p: 2.5, background: "rgba(255,255,255,0.55)", border: `1px solid ${PALETTE.edge}` }}>
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
             <ProjectTypeChip type={project.type} />
             {project.llm && (
@@ -121,7 +131,7 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
       {/* System prompt preview */}
       {project.system && project.type !== "block" && (
         <Grid item xs={12}>
-          <Card elevation={1} sx={{ p: 2.5 }}>
+          <Card elevation={0} sx={{ p: 2.5, background: "rgba(255,255,255,0.55)", border: `1px solid ${PALETTE.edge}` }}>
             <SectionTitle>System Prompt</SectionTitle>
             <Typography
               variant="body2"
@@ -146,7 +156,7 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
       {/* Users with access */}
       {project.users && project.users.length > 0 && (
         <Grid item xs={12}>
-          <Card elevation={1} sx={{ p: 2.5 }}>
+          <Card elevation={0} sx={{ p: 2.5, background: "rgba(255,255,255,0.55)", border: `1px solid ${PALETTE.edge}` }}>
             <SectionTitle>Users with Access</SectionTitle>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
               {project.users.slice(0, 10).map((u, i) => {
@@ -173,7 +183,7 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
       {/* Configuration */}
       {showConfig && (
         <Grid item xs={12}>
-          <Card elevation={1} sx={{ p: 2.5 }}>
+          <Card elevation={0} sx={{ p: 2.5, background: "rgba(255,255,255,0.55)", border: `1px solid ${PALETTE.edge}` }}>
             <SectionTitle><Settings fontSize="small" /> Configuration</SectionTitle>
             <Grid container spacing={2}>
               <DetailItem label="Logging">
@@ -227,7 +237,7 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
       {/* Integrations */}
       {showIntegrations && (
         <Grid item xs={12}>
-          <Card elevation={1} sx={{ p: 2.5 }}>
+          <Card elevation={0} sx={{ p: 2.5, background: "rgba(255,255,255,0.55)", border: `1px solid ${PALETTE.edge}` }}>
             <SectionTitle><Chat fontSize="small" /> Integrations</SectionTitle>
             <Grid container spacing={2}>
               {project.options?.telegram_token && (
@@ -255,7 +265,7 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
       {/* Agent settings */}
       {showAgent && (
         <Grid item xs={12}>
-          <Card elevation={1} sx={{ p: 2.5 }}>
+          <Card elevation={0} sx={{ p: 2.5, background: "rgba(255,255,255,0.55)", border: `1px solid ${PALETTE.edge}` }}>
             <SectionTitle><Build fontSize="small" /> Agent Settings</SectionTitle>
             <Grid container spacing={2}>
               {project.options?.tools && (
@@ -369,5 +379,6 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
         </Grid>
       )}
     </Grid>
+    </ContentCard>
   );
 }

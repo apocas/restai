@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Grid, styled, Box } from "@mui/material";
+import { Grid, styled } from "@mui/material";
+import { Security } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import ProjectGuards from "./components/ProjectGuards";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
@@ -36,13 +37,17 @@ export default function ProjectGuardsView() {
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[
-          { name: t("nav.projects"), path: "/projects" },
-          { name: id, path: "/project/" + id },
-          { name: t("projects.edit.tabs.guards") },
-        ]} />
-      </Box>
+      <PageHero
+        icon={<Security sx={{ color: "#fff" }} />}
+        eyebrow={`PROJECT/${String(id).padStart(4, "0")}`}
+        title="Guards"
+        subtitle="Input/output guardrail checks and recent flags."
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: project.name || "—" },
+          { glyph: "⚡", color: "#7dd3fc", label: project.type || "—" },
+        ]}
+        compact
+      />
       <ContentBox>
         <Grid container spacing={3}>
           <Grid item lg={12} md={12} sm={12} xs={12}>

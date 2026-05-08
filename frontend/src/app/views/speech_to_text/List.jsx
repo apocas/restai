@@ -8,7 +8,7 @@ import { Add, Edit, Delete, RecordVoiceOver, PlayArrow } from "@mui/icons-materi
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import DataList from "app/components/DataList";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
@@ -231,15 +231,39 @@ export default function SpeechToText() {
     },
   ];
 
+  const enabledCount = models.filter((m) => m.enabled).length;
+
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: t("speechGen.breadcrumb"), path: "/generators/speech2text" }]} />
-      </Box>
+      <PageHero
+        icon={<RecordVoiceOver sx={{ color: "#fff" }} />}
+        eyebrow="SPEECH TO TEXT"
+        title="Speech to Text"
+        subtitle={t("speechGen.subtitle")}
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${models.length} configured` },
+          { glyph: "★", color: "#7dd3fc", label: `${enabledCount} enabled` },
+        ]}
+        actions={
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              variant="outlined"
+              startIcon={<PlayArrow />}
+              onClick={() => navigate("/audio")}
+              sx={{ color: "#fff", borderColor: "rgba(255,255,255,0.4)", "&:hover": { borderColor: "#fff", background: "rgba(255,255,255,0.08)" } }}
+            >
+              {t("speechGen.playground")}
+            </Button>
+            {isAdmin && (
+              <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
+                {t("speechGen.new")}
+              </Button>
+            )}
+          </Box>
+        }
+      />
 
       <DataList
-        title={t("speechGen.title")}
-        subtitle={t("speechGen.subtitle")}
         data={models}
         columns={columns}
         searchKeys={["name", "class_name", "description"]}
@@ -259,22 +283,6 @@ export default function SpeechToText() {
         onRowClick={(row) => isAdmin && openEdit(row)}
         rowKey={(row) => row.id}
         defaultSort={{ key: "name", direction: "asc" }}
-        headerAction={
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
-              variant="outlined"
-              startIcon={<PlayArrow />}
-              onClick={() => navigate("/audio")}
-            >
-              {t("speechGen.playground")}
-            </Button>
-            {isAdmin && (
-              <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
-                {t("speechGen.new")}
-              </Button>
-            )}
-          </Box>
-        }
         actions={(row) => (
           <>
             {isAdmin && (

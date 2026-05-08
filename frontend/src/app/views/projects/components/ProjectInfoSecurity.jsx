@@ -4,15 +4,20 @@ import { Shield, PersonAdd } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
+import ContentCard from "app/components/page/ContentCard";
+import { PALETTE, ACCENT, FONT_DISPLAY } from "./forensic/styles";
 
 const SectionTitle = styled(Typography)(({ theme }) => ({
+  fontFamily: FONT_DISPLAY,
   fontWeight: 600,
-  fontSize: "0.9rem",
+  fontSize: "0.7rem",
+  letterSpacing: "0.18em",
+  textTransform: "uppercase",
   display: "flex",
   alignItems: "center",
-  gap: theme.spacing(0.5),
-  color: theme.palette.text.secondary,
-  marginBottom: theme.spacing(1),
+  gap: theme.spacing(0.75),
+  color: ACCENT,
+  marginBottom: theme.spacing(1.5),
 }));
 
 const DetailItem = ({ label, children }) => (
@@ -39,10 +44,15 @@ export default function ProjectInfoSecurity({ project }) {
   };
 
   return (
+    <ContentCard
+      icon={<Shield />}
+      title="Security"
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · GUARDS · ACCESS`}
+    >
     <Grid container spacing={3}>
       <Grid item xs={12}>
-        <Card elevation={1} sx={{ p: 2.5 }}>
-          <SectionTitle><Shield fontSize="small" /> Security</SectionTitle>
+        <Card elevation={0} sx={{ p: 2.5, background: "rgba(255,255,255,0.55)", border: `1px solid ${PALETTE.edge}` }}>
+          <SectionTitle><Shield fontSize="small" /> Guards</SectionTitle>
           <Grid container spacing={2}>
             <DetailItem label="Input Guard">
               {project.guard ? (
@@ -106,7 +116,7 @@ export default function ProjectInfoSecurity({ project }) {
 
       {/* Invite User */}
       <Grid item xs={12}>
-        <Card elevation={1} sx={{ p: 2.5 }}>
+        <Card elevation={0} sx={{ p: 2.5, background: "rgba(255,255,255,0.55)", border: `1px solid ${PALETTE.edge}` }}>
           <SectionTitle><PersonAdd fontSize="small" /> Invite User</SectionTitle>
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
             Invite a team member to this project by username. They will be able to accept or decline.
@@ -133,5 +143,6 @@ export default function ProjectInfoSecurity({ project }) {
         </Card>
       </Grid>
     </Grid>
+    </ContentCard>
   );
 }

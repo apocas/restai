@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Alert, Box, Card, CircularProgress, IconButton, InputAdornment,
+  Alert, Box, CircularProgress, IconButton, InputAdornment,
   TextField, Tooltip, Typography,
 } from "@mui/material";
 import {
@@ -10,21 +10,8 @@ import {
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
-
-// Lift the same display tokens used by ProjectEditMemoryBank so the
-// two memory screens feel like a single piece. Light surface, RESTai
-// blue accent, monospace data, Chakra Petch headers (loaded once via
-// the bank tab's useEffect; we don't re-inject).
-const PALETTE = {
-  void:     "#f4f7fb",
-  edge:     "rgba(25, 118, 210, 0.18)",
-  ink:      "#222a45",
-  inkDim:   "rgba(34, 42, 69, 0.62)",
-  inkFaint: "rgba(34, 42, 69, 0.36)",
-};
-const ACCENT = "#1976d2";
-const FONT_DISPLAY = "'Chakra Petch', ui-sans-serif, system-ui, sans-serif";
-const FONT_MONO    = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
+import ForensicCard from "./forensic/ForensicCard";
+import { PALETTE, ACCENT, FONT_DISPLAY, FONT_MONO } from "./forensic/styles";
 
 const PRESET_K = [3, 5, 10, 20];
 
@@ -68,60 +55,19 @@ export default function ProjectEditMemorySearch({ project }) {
   };
 
   return (
-    <Card
-      elevation={0}
-      sx={{
-        position: "relative",
-        background: PALETTE.void,
-        border: `1px solid ${PALETTE.edge}`,
-        borderRadius: 1,
-        overflow: "hidden",
-        color: PALETTE.ink,
-        p: { xs: 2, md: 3 },
-        minHeight: 480,
-        boxShadow: "0 1px 0 rgba(255,255,255,0.9) inset, 0 8px 32px rgba(34,42,69,0.06)",
-      }}
+    <ForensicCard
+      icon={<TravelExploreRounded />}
+      title="Memory"
+      subtitle={
+        <>
+          PROJECT/{String(project.id).padStart(4, "0")} ·
+          SAME OUTPUT THE LLM SEES VIA <code>search_memories</code>
+        </>
+      }
+      dense
+      sx={{ minHeight: 480 }}
     >
-      {/* Soft blue bloom — same vocabulary as the bank viewer */}
-      <Box sx={{
-        position: "absolute", inset: 0, pointerEvents: "none",
-        background: "radial-gradient(ellipse 70% 45% at 50% -10%, rgba(25,118,210,0.10), transparent 60%)",
-      }}/>
-      <Box sx={{
-        position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.6,
-        backgroundImage:
-          "linear-gradient(rgba(25,118,210,0.05) 1px, transparent 1px),"
-        + "linear-gradient(90deg, rgba(25,118,210,0.05) 1px, transparent 1px)",
-        backgroundSize: "24px 24px",
-        maskImage: "radial-gradient(ellipse 80% 100% at 50% 0%, black 30%, transparent 90%)",
-      }}/>
-
-      <Box sx={{ position: "relative", zIndex: 1 }}>
-        {/* Header */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-          <TravelExploreRounded sx={{
-            fontSize: 18, color: ACCENT,
-            filter: `drop-shadow(0 0 6px ${ACCENT}55)`,
-          }}/>
-          <Box>
-            <Box sx={{
-              fontFamily: FONT_DISPLAY, fontSize: "0.95rem",
-              letterSpacing: "0.18em", fontWeight: 600,
-              color: PALETTE.ink, textTransform: "uppercase",
-              lineHeight: 1,
-            }}>
-              Memory
-            </Box>
-            <Box sx={{
-              fontFamily: FONT_MONO, fontSize: "0.6rem",
-              color: PALETTE.inkFaint, letterSpacing: "0.06em", mt: 0.25,
-            }}>
-              PROJECT/{String(project.id).padStart(4, "0")} ·
-              SAME OUTPUT THE LLM SEES VIA <code>search_memories</code>
-            </Box>
-          </Box>
-        </Box>
-
+      <>
         <Typography
           variant="caption"
           sx={{ color: PALETTE.inkDim, display: "block", mt: 1, mb: 2 }}
@@ -318,7 +264,7 @@ export default function ProjectEditMemorySearch({ project }) {
           {" "}with access to this project, regardless of who sent them. The
           agent has the same view when it invokes the tool.
         </Alert>
-      </Box>
-    </Card>
+      </>
+    </ForensicCard>
   );
 }

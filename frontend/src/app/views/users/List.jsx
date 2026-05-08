@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import sha256 from "crypto-js/sha256";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import DataList from "app/components/DataList";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
@@ -74,7 +74,7 @@ export default function Users() {
       render: (row) => (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <Avatar
-            src={`https://www.gravatar.com/avatar/${sha256(row.username)}`}
+            src={`https://www.gravatar.com/avatar/${sha256(row.username)}?d=wavatar`}
             sx={{ width: 32, height: 32 }}
           />
           <Box sx={{ fontWeight: 500 }}>{row.username}</Box>
@@ -142,15 +142,35 @@ export default function Users() {
     },
   ];
 
+  const adminCount = users.filter((u) => u.is_admin).length;
+  const restrictedCount = users.filter((u) => u.is_restricted).length;
+
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: t("nav.users"), path: "/users" }]} />
-      </Box>
+      <PageHero
+        icon={<People sx={{ color: "#fff" }} />}
+        eyebrow="PLATFORM USERS"
+        title={t("users.title") || "Users"}
+        subtitle={t("users.subtitle")}
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${users.length} total` },
+          { glyph: "★", color: "#fca5a5", label: `${adminCount} admins` },
+          { glyph: "⌬", color: "#fcd34d", label: `${restrictedCount} restricted` },
+        ]}
+        actions={
+          isAdmin && (
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => navigate("/users/new")}
+            >
+              New User
+            </Button>
+          )
+        }
+      />
 
       <DataList
-        title={t("users.title")}
-        subtitle={t("users.subtitle")}
         data={users}
         columns={columns}
         searchKeys={["username"]}
@@ -177,17 +197,6 @@ export default function Users() {
         onRowClick={(row) => navigate(`/user/${row.username}`)}
         rowKey={(row) => row.username}
         defaultSort={{ key: "id", direction: "desc" }}
-        headerAction={
-          isAdmin && (
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => navigate("/users/new")}
-            >
-              New User
-            </Button>
-          )
-        }
         actions={(row) => (
           <>
             <Tooltip title="View">

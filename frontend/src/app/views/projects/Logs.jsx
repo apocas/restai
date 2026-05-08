@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { styled, Box } from "@mui/material";
+import { styled } from "@mui/material";
+import { Article } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import ProjectLogs from "./components/ProjectLogs";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import { useParams } from "react-router-dom";
 import api from "app/utils/api";
 
@@ -38,9 +39,17 @@ export default function Logs() {
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Projects", path: "/projects" }, { name: id, path: "/project/" + id }, { name: "Logs", path: "/project/" + id + "/logs" }]} />
-      </Box>
+      <PageHero
+        icon={<Article sx={{ color: "#fff" }} />}
+        eyebrow={`PROJECT/${String(id).padStart(4, "0")}`}
+        title="Logs"
+        subtitle="Inference history with status, latency, tokens and tool traces."
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: project.name || "—" },
+          { glyph: "⚡", color: "#7dd3fc", label: project.type || "—" },
+        ]}
+        compact
+      />
 
       <ContentBox className="analytics">
         <ProjectLogs project={project} />

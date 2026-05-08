@@ -6,19 +6,24 @@ import {
 } from "@mui/material";
 import {
   Add, Code, ContentCopy, Delete, Edit, Refresh, VpnKey, PowerSettingsNew, Visibility,
-  Lock, LockOpen, ExpandMore, ExpandLess,
+  Lock, LockOpen, ExpandMore, ExpandLess, Widgets,
 } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { toast } from "react-toastify";
+import ContentCard from "app/components/page/ContentCard";
+import { ACCENT, FONT_DISPLAY } from "./forensic/styles";
 
 const SectionTitle = styled(Typography)(({ theme }) => ({
+  fontFamily: FONT_DISPLAY,
   fontWeight: 600,
-  fontSize: "0.9rem",
+  fontSize: "0.7rem",
+  letterSpacing: "0.18em",
+  textTransform: "uppercase",
   display: "flex",
   alignItems: "center",
-  gap: theme.spacing(0.5),
-  color: theme.palette.text.secondary,
+  gap: theme.spacing(0.75),
+  color: ACCENT,
   marginBottom: theme.spacing(1.5),
 }));
 
@@ -259,6 +264,11 @@ export default function ProjectWidget({ project }) {
   if (loading) return <Box sx={{ textAlign: "center", py: 4 }}><CircularProgress /></Box>;
 
   return (
+    <ContentCard
+      icon={<Widgets />}
+      title="Widget"
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · EMBED · API KEY`}
+    >
     <Grid container spacing={3}>
       {/* Context secret shown once alert */}
       {contextSecret && (
@@ -599,5 +609,6 @@ Adjust your responses accordingly.`}</CodeBlock>
         </Dialog>
       )}
     </Grid>
+    </ContentCard>
   );
 }

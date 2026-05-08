@@ -4,38 +4,20 @@ import {
   Card,
   Grid,
   Button,
-  styled,
   Divider,
   TextField,
   Switch,
   Typography,
   MenuItem
 } from "@mui/material";
-import AvatarBadge from "./AvatarBadge";
-import { H4, H5, Small } from "app/components/Typography";
-import { FlexBetween, FlexBox } from "app/components/FlexBox";
-import sha256 from 'crypto-js/sha256';
+import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
+import { H5 } from "app/components/Typography";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { People, AccountTree, Key, PersonOutline } from "@mui/icons-material";
 import { SUPPORTED_LANGUAGES, applyLanguage } from "app/i18n";
 import api from "app/utils/api";
-
-const ContentWrapper = styled(Box)(({ theme }) => ({
-  zIndex: 1,
-  position: "relative",
-  [theme.breakpoints.down("sm")]: { paddingLeft: 20, paddingRight: 20 }
-}));
-
-const ImageWrapper = styled(Box)(({ theme }) => ({
-  margin: "auto",
-  borderRadius: "50%",
-  border: "2px solid",
-  borderColor: "white",
-  backgroundColor: theme.palette.primary[200]
-}));
 
 export default function BasicInformation({ user }) {
   const { t, i18n: i18nInstance } = useTranslation();
@@ -98,70 +80,11 @@ export default function BasicInformation({ user }) {
     setState({ ...user });
   }, [user]);
 
+  useEffect(() => { loadFonts(); }, []);
+
   return (
     <Fragment>
-      <Card sx={{ padding: 3, position: "relative" }}>
-
-
-        <ContentWrapper>
-          <FlexBox justifyContent="center">
-            <AvatarBadge>
-              <ImageWrapper>
-                <img src={`https://www.gravatar.com/avatar/${sha256(user.username).toString()}`} alt="Gravatar" sizes="large" style={{ borderRadius: "50%" }} />
-              </ImageWrapper>
-            </AvatarBadge>
-          </FlexBox>
-
-          <Box mt={0}>
-            <H4 fontWeight={600} textAlign="center">
-              {user.username}
-            </H4>
-
-            <FlexBetween maxWidth={400} flexWrap="wrap" margin="auto" mt={1}>
-              <FlexBox alignItems="center" gap={1}>
-                <AccountTree sx={{ color: "text.disabled" }} />
-                <Small fontWeight={600} color="text.disabled">
-                  {user.projects && user.projects.length} {t("users.basic.projects")}
-                </Small>
-              </FlexBox>
-
-              <FlexBox alignItems="center" gap={1}>
-                <People sx={{ color: "text.disabled" }} />
-                <Small fontWeight={600} color="text.disabled">
-                  {user.is_admin ? t("users.basic.roleAdmin") : t("users.basic.roleRegular")}
-                </Small>
-              </FlexBox>
-
-              <FlexBox alignItems="center" gap={1}>
-                <Key sx={{ color: "text.disabled" }} />
-                <Small fontWeight={600} color="text.disabled">
-                  {user.sso ? t("users.basic.authSso") : t("users.basic.authLocal")}
-                </Small>
-              </FlexBox>
-
-            </FlexBetween>
-
-            {auth.user.is_admin && user.username !== auth.user.username && (
-              <Box mt={2} textAlign="center">
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="warning"
-                  startIcon={<PersonOutline />}
-                  onClick={() => {
-                    auth.impersonate(user.username);
-                  }}
-                >
-                  {t("users.basic.impersonate")}
-                </Button>
-              </Box>
-            )}
-
-          </Box>
-        </ContentWrapper>
-      </Card>
-
-      <Card sx={{ mt: 3 }}>
+      <Card elevation={0} sx={{ ...forensicCardSx }}>
         <H5 padding={3}>{t("users.basic.title")}</H5>
         <Divider />
 

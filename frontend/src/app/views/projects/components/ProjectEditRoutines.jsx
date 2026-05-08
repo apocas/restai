@@ -18,6 +18,7 @@ import { toast } from "react-toastify";
 import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
+import ContentCard from "app/components/page/ContentCard";
 
 const SCHEDULE_PRESETS = [
   { value: 1, label: "Every minute" },
@@ -134,15 +135,16 @@ export default function ProjectEditRoutines({ project }) {
   if (loading) return <Box sx={{ textAlign: "center", py: 4 }}><CircularProgress size={24} /></Box>;
 
   return (
-    <Card elevation={1} sx={{ p: 3 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: "0.9rem", display: "flex", alignItems: "center", gap: 0.5, color: "text.secondary" }}>
-          <TimerIcon fontSize="small" /> Routines
-        </Typography>
+    <ContentCard
+      icon={<ScheduleIcon />}
+      title="Routines"
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · SCHEDULED · CRON`}
+      actions={
         <Button variant="outlined" size="small" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
           Add Routine
         </Button>
-      </Box>
+      }
+    >
       <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 2 }}>
         Scheduled messages that fire automatically at set intervals.
       </Typography>
@@ -387,6 +389,6 @@ export default function ProjectEditRoutines({ project }) {
           <Button onClick={() => setHistoryTarget(null)}>Close</Button>
         </DialogActions>
       </Dialog>
-    </Card>
+    </ContentCard>
   );
 }

@@ -30,6 +30,7 @@ import { Person, Settings, Delete, Group, Code, Psychology, AccountBalanceWallet
 import MUIDataTable from "mui-datatables";
 import ReactJson from '@microlink/react-json-view';
 import api from "app/utils/api";
+import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: "30px",
@@ -41,8 +42,9 @@ const Container = styled("div")(({ theme }) => ({
 }));
 
 const StyledCard = styled(Card)(({ theme }) => ({
+  ...forensicCardSx,
   padding: theme.spacing(3),
-  marginBottom: theme.spacing(3)
+  marginBottom: theme.spacing(3),
 }));
 
 function TabPanel(props) {
@@ -266,7 +268,7 @@ export default function TeamView() {
         ]} />
       </Box>
 
-      <StyledCard>
+      <StyledCard elevation={0}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
           <Box>
             <Typography variant="h4">{team.name}</Typography>
