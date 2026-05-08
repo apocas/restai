@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { styled, Box, Card } from "@mui/material";
+import { styled, Box } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
 import Breadcrumb from "app/components/Breadcrumb";
 import { useParams } from "react-router-dom";
@@ -9,7 +9,7 @@ import { topBarHeight } from "app/utils/constant";
 import ChatContainer from "./components/ChatContainer";
 import api from "app/utils/api";
 
-// Anchor a real pixel height so the chat panel chain (all `height: 100%`)
+// Anchor a real pixel height so the chat-panel chain (all `height: 100%`)
 // has something to stretch into. Header + footer + breadcrumb/margins.
 const CHROME_OFFSET = topBarHeight * 2 + 50;
 
@@ -20,10 +20,21 @@ const Container = styled("div")(({ theme }) => ({
   height: `calc(100vh - ${CHROME_OFFSET}px)`,
   [theme.breakpoints.down("sm")]: { margin: 16, height: `calc(100vh - ${CHROME_OFFSET + 12}px)` },
   "& .breadcrumb": {
-    marginBottom: 30,
+    marginBottom: 16,
     flex: "0 0 auto",
-    [theme.breakpoints.down("sm")]: { marginBottom: 16 },
+    [theme.breakpoints.down("sm")]: { marginBottom: 12 },
   },
+}));
+
+const ContentBox = styled("div")(({ theme }) => ({
+  marginLeft: 30,
+  marginRight: 30,
+  marginBottom: 30,
+  flex: 1,
+  minHeight: 0,
+  display: "flex",
+  flexDirection: "column",
+  [theme.breakpoints.down("sm")]: { marginLeft: 16, marginRight: 16, marginBottom: 16 },
 }));
 
 
@@ -73,13 +84,13 @@ export default function Playground() {
                 <Breadcrumb routeSegments={[{ name: "Projects", path: "/projects" }, { name: id, path: "/project/" + id }, { name: "Playground", path: "/project/" + id + "/playground" }]} />
       </Box>
 
-      <Card elevation={6} sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <ContentBox>
         <MatxSidenavContainer>
           <MatxSidenavContent>
             <ChatContainer project={project}/>
           </MatxSidenavContent>
         </MatxSidenavContainer>
-      </Card>
+      </ContentBox>
     </Container>
 
   );
