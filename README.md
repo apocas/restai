@@ -504,7 +504,7 @@ curl -X POST http://localhost:9000/projects \
 **Chat with a project:**
 
 ```bash
-curl -X POST http://localhost:9000/projects/my-rag/chat \
+curl -X POST http://localhost:9000/projects/1/chat \
   -u admin:admin \
   -H 'Content-Type: application/json' \
   -d '{"message": "What is RESTai?"}'
