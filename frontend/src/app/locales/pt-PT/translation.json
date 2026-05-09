@@ -957,11 +957,16 @@
     "edit": {
       "newTitle": "Nova equipa",
       "editTitle": "Editar equipa",
+      "newSubtitle": "Crie uma nova equipa, escolha membros e associe modelos.",
+      "editSubtitle": "Ajuste membros, alocações e personalização.",
+      "generalSubtitle": "Identidade da equipa e limite de orçamento",
+      "membersSubtitle": "Escolha quem tem acesso de leitura e escrita",
       "name": "Nome da equipa",
       "description": "Descrição",
       "budget": "Orçamento (-1 = ilimitado)",
       "budgetHelp": "Defina para -1 para orçamento ilimitado",
       "tabs": {
+        "general": "Geral",
         "users": "Utilizadores",
         "projects": "Projetos",
         "models": "Modelos",
@@ -1019,6 +1024,9 @@
       "tabs": {
         "transactions": "Transações"
       },
+      "membersSubtitle": "Acesso de leitura e escrita por papel",
+      "adminsSubtitle": "Pode gerir membros e recursos",
+      "projectsSubtitle": "Clique num projeto para abrir",
       "noMembers": "Sem membros",
       "noAdmins": "Sem administradores",
       "noProjects": "Sem projetos atribuídos a esta equipa",

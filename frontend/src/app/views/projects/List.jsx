@@ -570,7 +570,7 @@ export default function Projects() {
                           {users.slice(0, 3).map((u, idx) => (
                             <Tooltip key={u.username} title={u.username}>
                               <Avatar
-                                src={`https://www.gravatar.com/avatar/${sha256(u.username)}?d=wavatar`}
+                                src={`https://www.gravatar.com/avatar/${sha256(u.username)}?d=identicon`}
                                 sx={{
                                   width: 22,
                                   height: 22,

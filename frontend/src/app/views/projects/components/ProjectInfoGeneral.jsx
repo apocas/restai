@@ -165,7 +165,7 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
                   <Tooltip key={username || i} title={username} placement="top" arrow>
                     <Box sx={{ display: "inline-flex" }}>
                       <Avatar
-                        src={"https://www.gravatar.com/avatar/" + sha256(username || "")}
+                        src={"https://www.gravatar.com/avatar/" + sha256(username || "") + "?d=identicon"}
                         sx={{ width: 32, height: 32 }}
                       />
                     </Box>

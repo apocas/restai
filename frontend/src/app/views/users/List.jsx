@@ -171,7 +171,7 @@ function StatusPill({ icon: Icon, label, color, soft }) {
 }
 
 // User row avatar with role-coloured ring (admin red, restricted amber,
-// regular indigo). The Gravatar wavatar stays as the avatar image.
+// regular indigo). The Gravatar identicon stays as the avatar image.
 function UserRowAvatar({ username, isAdmin, isRestricted }) {
   const ring = isAdmin
     ? "#dc2626"
@@ -181,7 +181,7 @@ function UserRowAvatar({ username, isAdmin, isRestricted }) {
   return (
     <Box sx={{ position: "relative", display: "inline-block" }}>
       <Avatar
-        src={`https://www.gravatar.com/avatar/${sha256(username)}?d=wavatar`}
+        src={`https://www.gravatar.com/avatar/${sha256(username)}?d=identicon`}
         sx={{
           width: 36, height: 36,
           border: `2px solid ${ring}`,

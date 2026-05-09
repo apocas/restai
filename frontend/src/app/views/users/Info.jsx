@@ -304,7 +304,7 @@ export default function UserInfo() {
             {user.username && (
               <Box
                 component="img"
-                src={`https://www.gravatar.com/avatar/${sha256(user.username).toString()}?d=wavatar`}
+                src={`https://www.gravatar.com/avatar/${sha256(user.username).toString()}?d=identicon`}
                 alt={user.username}
                 sx={{ width: "100%", height: "100%", objectFit: "cover" }}
               />

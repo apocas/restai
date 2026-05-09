@@ -166,7 +166,7 @@ const Layout1Topbar = () => {
                   </Span>
                 </Hidden>
                 <Badge badgeContent={inviteCount} color="error" overlap="circular">
-                  <Avatar src={"https://www.gravatar.com/avatar/" + sha256(user.username) + "?d=wavatar"} sx={{ cursor: "pointer" }} />
+                  <Avatar src={"https://www.gravatar.com/avatar/" + sha256(user.username) + "?d=identicon"} sx={{ cursor: "pointer" }} />
                 </Badge>
               </UserMenu>
             }>

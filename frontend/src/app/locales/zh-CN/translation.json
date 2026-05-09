@@ -957,11 +957,16 @@
     "edit": {
       "newTitle": "新建团队",
       "editTitle": "编辑团队",
+      "newSubtitle": "创建新工作区，选择成员，分配模型。",
+      "editSubtitle": "调整成员、配额与品牌设置。",
+      "generalSubtitle": "团队身份与预算上限",
+      "membersSubtitle": "选择拥有读写权限的成员",
       "name": "团队名称",
       "description": "描述",
       "budget": "预算（-1 = 无限制）",
       "budgetHelp": "设为 -1 表示无限制预算",
       "tabs": {
+        "general": "通用",
         "users": "用户",
         "projects": "项目",
         "models": "模型",
@@ -1019,6 +1024,9 @@
       "tabs": {
         "transactions": "交易"
       },
+      "membersSubtitle": "按角色分配的读写权限",
+      "adminsSubtitle": "可管理成员与资源",
+      "projectsSubtitle": "点击任意项目即可打开",
       "noMembers": "没有团队成员",
       "noAdmins": "没有团队管理员",
       "noProjects": "没有分配给此团队的项目",

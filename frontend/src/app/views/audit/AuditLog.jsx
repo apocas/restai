@@ -510,7 +510,7 @@ export default function AuditLog() {
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                           <Box
                             component="img"
-                            src={`https://www.gravatar.com/avatar/${sha256(e.username).toString()}?d=wavatar&s=48`}
+                            src={`https://www.gravatar.com/avatar/${sha256(e.username).toString()}?d=identicon&s=48`}
                             alt={e.username}
                             sx={{
                               width: 24, height: 24,

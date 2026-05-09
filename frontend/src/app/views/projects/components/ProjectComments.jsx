@@ -85,7 +85,7 @@ export default function ProjectComments({ project }) {
         <Card elevation={1} sx={{ p: 2.5 }}>
           <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
             <Avatar
-              src={"https://www.gravatar.com/avatar/" + sha256(auth.user?.username || "")}
+              src={"https://www.gravatar.com/avatar/" + sha256(auth.user?.username || "") + "?d=identicon"}
               sx={{ width: 36, height: 36, mt: 0.5 }}
             />
             <TextField
@@ -125,7 +125,7 @@ export default function ProjectComments({ project }) {
               <CommentCard key={comment.id}>
                 <Tooltip title={comment.username}>
                   <Avatar
-                    src={"https://www.gravatar.com/avatar/" + sha256(comment.username || "")}
+                    src={"https://www.gravatar.com/avatar/" + sha256(comment.username || "") + "?d=identicon"}
                     sx={{ width: 32, height: 32, mt: 0.3 }}
                   />
                 </Tooltip>

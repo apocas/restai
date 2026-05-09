@@ -969,11 +969,16 @@
     "edit": {
       "newTitle": "New Team",
       "editTitle": "Edit Team",
+      "newSubtitle": "Provision a new workspace, pick members, attach models.",
+      "editSubtitle": "Adjust membership, allocations, and branding.",
+      "generalSubtitle": "Team identity and budget cap",
+      "membersSubtitle": "Pick everyone with read+write access",
       "name": "Team Name",
       "description": "Description",
       "budget": "Budget (-1 = unlimited)",
       "budgetHelp": "Set to -1 for unlimited budget",
       "tabs": {
+        "general": "General",
         "users": "Users",
         "projects": "Projects",
         "models": "Models",
@@ -1031,6 +1036,9 @@
       "tabs": {
         "transactions": "Transactions"
       },
+      "membersSubtitle": "Read + write access via roles",
+      "adminsSubtitle": "Can manage members & resources",
+      "projectsSubtitle": "Click any project to open",
       "noMembers": "No team members",
       "noAdmins": "No team admins",
       "noProjects": "No projects assigned to this team",
