@@ -115,20 +115,6 @@ export default function ModelFleet({ llms = [] }) {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", mb: 1.5 }}>
-        <Box>
-          <Typography
-            variant="overline"
-            sx={{ color: "text.secondary", letterSpacing: 1.5, fontWeight: 600 }}
-          >
-            {t("dashboard.fleet.title")}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-            {t("dashboard.fleet.subtitle", { count: llms.length })}
-          </Typography>
-        </Box>
-      </Box>
-
       <FleetRow>
         {llms.map((llm) => {
           const prov = detectProvider(llm.name);
