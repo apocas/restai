@@ -8,19 +8,21 @@ import {
   Box,
   Card,
   Chip,
-  Grid,
-  styled,
   Drawer,
-  Button,
+  Grid,
   IconButton,
   Tooltip,
   Typography,
+  styled,
   useMediaQuery,
 } from "@mui/material";
 
-import { H5 } from "app/components/Typography";
-import { FlexBox } from "app/components/FlexBox";
-import { ContentCopy, PersonOutline, Edit, Delete } from "@mui/icons-material";
+import {
+  PersonOutline, Edit, Delete, Menu as MenuIcon,
+  Info as InfoIcon, Key as KeyIcon, Https as HttpsIcon,
+  DeleteForever as DeleteForeverIcon, Timeline as TimelineIcon,
+  Security as SecurityIcon, Groups as GroupsIcon, Workspaces,
+} from "@mui/icons-material";
 
 import ApiKeys from "./components/ApiKeys";
 import Password from "./components/Password";
@@ -31,42 +33,19 @@ import DeleteAccount from "./components/DeleteAccount";
 import TwoFactorAuth from "./components/TwoFactorAuth";
 import BasicInformation from "./components/BasicInformation";
 import api from "app/utils/api";
-import InfoIcon from "@mui/icons-material/Info";
-import KeyIcon from "@mui/icons-material/Key";
-import HttpsIcon from "@mui/icons-material/Https";
-import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
-import TimelineIcon from "@mui/icons-material/Timeline";
-import SecurityIcon from "@mui/icons-material/Security";
-import GroupsIcon from "@mui/icons-material/Groups";
-import { shimmer, sweep, blink } from "app/components/page/pageStyles";
+import { FONT_MONO, shimmer, sweep, blink } from "app/components/page/pageStyles";
 
-const StyledButton = styled(Button)(({ theme }) => ({
-  borderRadius: 0,
-  overflow: "hidden",
-  position: "relative",
-  whiteSpace: "nowrap",
-  textOverflow: "ellipsis",
-  padding: "0.7rem 1.25rem",
-  justifyContent: "flex-start",
-  color: theme.palette.text.secondary,
-  fontSize: "0.85rem",
-  fontWeight: 500,
-  textTransform: "none",
-  letterSpacing: 0,
-  transition: "all 0.2s ease",
-  borderBottom: `1px solid ${theme.palette.divider}`,
-  "&:last-of-type": { borderBottom: "none" },
-}));
+const ACCENT = "#4338ca";        // indigo-700, matches Users list page
+const ACCENT_SOFT = "rgba(67,56,202,0.10)";
 
 const Container = styled("div")(({ theme }) => ({
-  margin: 10,
+  margin: "24px 48px",
+  [theme.breakpoints.down("md")]: { margin: "24px 32px" },
   [theme.breakpoints.down("sm")]: { margin: 16 },
 }));
 
-// Navy/cyan gradient hero — same family as ProjectInfo + AIHero. Lifts
-// the user identity (avatar, name, role/auth pills, projects count)
-// out of the BasicInformation tab so the page leads with a strong
-// visual identity instead of a breadcrumb + duplicate avatar block.
+// Same navy/cyan hero as ProjectInfo / TeamView so the landing pages
+// stay one family.
 const HeroCard = styled(Card)(({ theme }) => ({
   position: "relative",
   padding: theme.spacing(4),
@@ -170,6 +149,145 @@ const heroIconBtnDangerSx = {
   },
 };
 
+// ── Tab nav sidebar — modernised. Section labels in mono, items with
+// indigo rail on active, sky-tinted on hover. Matches the ProjectTabNav
+// vocabulary but adapted to the user-info structure.
+const NavCard = styled(Card)(() => ({
+  position: "relative",
+  borderRadius: 14,
+  border: "1px solid rgba(15,23,42,0.08)",
+  backgroundColor: "#ffffff",
+  overflow: "hidden",
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    left: 0, right: 0, top: 0, height: 4,
+    background: ACCENT,
+    opacity: 0.85,
+    pointerEvents: "none",
+  },
+}));
+
+const NavSectionLabel = styled("div")(() => ({
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  paddingLeft: 14,
+  paddingRight: 14,
+  marginTop: 14,
+  marginBottom: 4,
+  "&::before": {
+    content: '""',
+    width: 10,
+    height: 2,
+    background: ACCENT,
+    flexShrink: 0,
+  },
+  "& > span": {
+    fontFamily: FONT_MONO,
+    fontSize: 10,
+    letterSpacing: "0.14em",
+    textTransform: "uppercase",
+    fontWeight: 800,
+    color: "text.secondary",
+  },
+}));
+
+const NavItem = styled("button", {
+  shouldForwardProp: (p) => p !== "active" && p !== "danger",
+})(({ active, danger }) => ({
+  position: "relative",
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  width: "calc(100% - 12px)",
+  marginLeft: 6,
+  marginRight: 6,
+  marginBottom: 2,
+  height: 36,
+  paddingLeft: 14,
+  paddingRight: 14,
+  border: "none",
+  borderRadius: 6,
+  backgroundColor: active
+    ? (danger ? "rgba(239,68,68,0.10)" : ACCENT_SOFT)
+    : "transparent",
+  color: active
+    ? (danger ? "#dc2626" : ACCENT)
+    : "rgba(15,23,42,0.78)",
+  cursor: "pointer",
+  fontSize: "0.84rem",
+  fontWeight: active ? 700 : 500,
+  textAlign: "left",
+  transition: "all 160ms cubic-bezier(0.4, 0, 0.2, 1)",
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    left: 0, top: 0, bottom: 0,
+    width: 3,
+    background: danger ? "#dc2626" : ACCENT,
+    opacity: active ? 1 : 0,
+    transform: active ? "scaleY(1)" : "scaleY(0.6)",
+    transition: "opacity 160ms, transform 160ms",
+  },
+  "&:hover": {
+    backgroundColor: active
+      ? (danger ? "rgba(239,68,68,0.12)" : ACCENT_SOFT)
+      : (danger ? "rgba(239,68,68,0.05)" : "rgba(15,23,42,0.04)"),
+    color: danger ? "#dc2626" : ACCENT,
+    "&::before": { opacity: 0.6, transform: "scaleY(1)" },
+    "& .nav-icon": { color: danger ? "#dc2626" : ACCENT },
+  },
+  "& .nav-icon": {
+    fontSize: 17,
+    flexShrink: 0,
+    transition: "color 160ms",
+    color: active ? (danger ? "#dc2626" : ACCENT) : "rgba(15,23,42,0.55)",
+  },
+}));
+
+// Stat tile — mono, sky-line, no card chrome (just lives inside the
+// nav card under the header).
+function MiniStat({ icon: Icon, label, value, color = ACCENT }) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        px: 1.75, py: 0.75,
+      }}
+    >
+      <Icon sx={{ fontSize: 14, color, opacity: 0.75 }} />
+      <Box
+        component="span"
+        sx={{
+          fontFamily: FONT_MONO,
+          fontSize: "0.6rem",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "text.secondary",
+          fontWeight: 700,
+          flex: 1,
+        }}
+      >
+        {label}
+      </Box>
+      <Box
+        component="span"
+        sx={{
+          fontFamily: FONT_MONO,
+          fontSize: "0.78rem",
+          fontWeight: 800,
+          color,
+        }}
+      >
+        {value}
+      </Box>
+    </Box>
+  );
+}
+
 export default function UserInfo() {
   const { t } = useTranslation();
   const { id } = useParams();
@@ -183,81 +301,85 @@ export default function UserInfo() {
   const [active, setActive] = useState("basic");
   const downMd = useMediaQuery((theme) => theme.breakpoints.down("md"));
 
-  const tabList = [
-    { id: "basic", name: t("users.tabs.basic"), Icon: InfoIcon },
-    { id: "password", name: t("users.tabs.password"), Icon: HttpsIcon },
-    { id: "twoFactor", name: t("users.tabs.twoFactor"), Icon: SecurityIcon },
-    { id: "projects", name: t("users.tabs.projects"), Icon: ContentCopy },
-    { id: "teams", name: t("users.tabs.teams"), Icon: GroupsIcon },
-    { id: "apiKeys", name: t("users.tabs.apiKeys"), Icon: KeyIcon },
-    { id: "activity", name: t("users.tabs.activity"), Icon: TimelineIcon },
-    { id: "delete", name: t("users.tabs.delete"), Icon: DeleteForeverIcon }
-  ];
-
-  const activeStyle = (theme) => ({
-    color: theme.palette.primary.main,
-    backgroundColor: theme.palette.action.selected,
-    "&::before": {
-      left: 0,
-      width: 3,
-      content: '""',
-      height: "100%",
-      position: "absolute",
-      transition: "all 0.3s",
-      backgroundColor: theme.palette.primary.main,
+  const tabSections = [
+    {
+      label: t("users.tabs.account") || "Account",
+      items: [
+        { id: "basic", name: t("users.tabs.basic"), Icon: InfoIcon },
+        { id: "password", name: t("users.tabs.password"), Icon: HttpsIcon },
+        { id: "twoFactor", name: t("users.tabs.twoFactor"), Icon: SecurityIcon },
+        { id: "apiKeys", name: t("users.tabs.apiKeys"), Icon: KeyIcon },
+      ],
     },
-  });
-  const hoverStyle = (theme) => ({
-    color: theme.palette.text.primary,
-    backgroundColor: theme.palette.action.hover,
-  });
+    {
+      label: t("users.tabs.access") || "Access",
+      items: [
+        { id: "projects", name: t("users.tabs.projects"), Icon: Workspaces },
+        { id: "teams", name: t("users.tabs.teams"), Icon: GroupsIcon },
+      ],
+    },
+    {
+      label: t("users.tabs.history") || "History",
+      items: [
+        { id: "activity", name: t("users.tabs.activity"), Icon: TimelineIcon },
+      ],
+    },
+    {
+      label: t("users.tabs.dangerZone") || "Danger zone",
+      items: [
+        { id: "delete", name: t("users.tabs.delete"), Icon: DeleteForeverIcon, danger: true },
+      ],
+    },
+  ];
 
   function TabListContent() {
     return (
-      <FlexBox flexDirection="column">
-        {tabList.map(({ id: tabId, name, Icon }) => (
-          <StyledButton
-            key={tabId}
-            startIcon={<Icon sx={{ fontSize: 18 }} />}
-            sx={(theme) =>
-              active === tabId ? activeStyle(theme) : { "&:hover": hoverStyle(theme) }
-            }
-            onClick={() => {
-              setActive(tabId);
-              setOpenDrawer(false);
-            }}>
-            {name}
-          </StyledButton>
+      <Box sx={{ pb: 2 }}>
+        {tabSections.map((section) => (
+          <Box key={section.label}>
+            <NavSectionLabel>
+              <span>{section.label}</span>
+            </NavSectionLabel>
+            {section.items.map(({ id: tabId, name, Icon, danger }) => (
+              <NavItem
+                key={tabId}
+                active={active === tabId}
+                danger={danger}
+                onClick={() => {
+                  setActive(tabId);
+                  setOpenDrawer(false);
+                }}
+              >
+                <Icon className="nav-icon" />
+                <Box component="span">{name}</Box>
+              </NavItem>
+            ))}
+          </Box>
         ))}
-      </FlexBox>
+      </Box>
     );
   }
 
   const fetchUser = (username) => {
     return api.get("/users/" + username, auth.user.token)
-      .then((d) => {
-        setUser(d)
-        return d
-      })
+      .then((d) => { setUser(d); return d; })
       .catch(() => {});
-  }
+  };
 
   const fetchProjects = () => {
     return api.get("/projects", auth.user.token)
-      .then((d) => {
-        setProjects(d.projects)
-      })
+      .then((d) => setProjects(d.projects))
       .catch(() => {});
-  }
+  };
 
   const fetchInfo = () => {
     return api.get("/info", auth.user.token)
-      .then((d) => setInfo(d))
+      .then(setInfo)
       .catch(() => {});
-  }
+  };
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + ' - User - ' + id;
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - User - " + id;
     fetchUser(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -273,6 +395,7 @@ export default function UserInfo() {
   const canDelete = auth.user?.is_admin && !isViewingSelf;
   const projectCount = (user.projects || []).length;
   const teamCount = (user.teams || []).length;
+  const apiKeyCount = (user.api_keys || []).length;
 
   const handleDelete = () => {
     if (!user.username) return;
@@ -284,13 +407,12 @@ export default function UserInfo() {
 
   return (
     <Container>
+      {/* ── HERO ──────────────────────────────────────────────── */}
       <HeroCard elevation={0}>
         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2.5, flexWrap: "wrap" }}>
           <Box
             sx={{
-              width: 76,
-              height: 76,
-              flexShrink: 0,
+              width: 76, height: 76, flexShrink: 0,
               borderRadius: "50%",
               border: "2px solid rgba(255,255,255,0.25)",
               overflow: "hidden",
@@ -312,13 +434,13 @@ export default function UserInfo() {
           </Box>
 
           <Box sx={{ flex: 1, minWidth: 220 }}>
-            {/* Inline path trail — same pattern as the project hero. */}
+            {/* Inline path trail */}
             <Box
               sx={{
                 display: "flex",
                 alignItems: "center",
                 gap: 0.75,
-                fontFamily: '"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace',
+                fontFamily: FONT_MONO,
                 fontSize: "0.65rem",
                 letterSpacing: 3,
                 lineHeight: 1.2,
@@ -403,6 +525,9 @@ export default function UserInfo() {
               {teamCount > 0 && (
                 <Chip size="small" label={`${teamCount} teams`} sx={pillInfoSx} />
               )}
+              {isViewingSelf && (
+                <Chip size="small" label={t("users.basic.you") || "You"} sx={pillInfoSx} />
+              )}
             </Box>
           </Box>
         </Box>
@@ -445,54 +570,67 @@ export default function UserInfo() {
         </ActionBar>
       </HeroCard>
 
-      <Box>
-        <Grid container spacing={3}>
-          <Grid item md={3} xs={12}>
-            {downMd ? (
-              <Fragment>
-                <FlexBox alignItems="center" gap={1}>
-                  <IconButton sx={{ padding: 0 }} onClick={() => setOpenDrawer(true)}>
-                    <ContentCopy sx={{ color: "primary.main" }} />
+      {/* ── BODY: nav sidebar + content panel ────────────────── */}
+      <Grid container spacing={3}>
+        <Grid item md={3} xs={12}>
+          {downMd ? (
+            <Fragment>
+              <NavCard sx={{ p: 1.25 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <IconButton
+                    size="small"
+                    onClick={() => setOpenDrawer(true)}
+                    sx={{ color: ACCENT }}
+                  >
+                    <MenuIcon />
                   </IconButton>
-
-                  <H5>{t("users.showMore")}</H5>
-                </FlexBox>
-
-                <Drawer open={openDrawer} onClose={() => setOpenDrawer(false)}>
-                  <Box padding={1} sx={{ minWidth: 240 }}>
-                    <TabListContent />
+                  <Box
+                    component="span"
+                    sx={{
+                      fontFamily: FONT_MONO,
+                      fontSize: "0.7rem",
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      fontWeight: 800,
+                      color: ACCENT,
+                    }}
+                  >
+                    {t("users.showMore")}
                   </Box>
-                </Drawer>
-              </Fragment>
-            ) : (
-              <Card
-                elevation={0}
-                sx={{
-                  py: 0.5,
-                  borderRadius: 3,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  backgroundColor: "background.paper",
-                  overflow: "hidden",
-                }}
-              >
-                <TabListContent />
-              </Card>
-            )}
-          </Grid>
-
-          <Grid item md={9} xs={12}>
-            {active === "basic" && <BasicInformation user={user} />}
-            {active === "password" && <Password user={user} />}
-            {active === "twoFactor" && <TwoFactorAuth user={user} />}
-            {active === "projects" && <Projects user={user} projects={projects} />}
-            {active === "teams" && <Teams user={user} />}
-            {active === "apiKeys" && <ApiKeys user={user} />}
-            {active === "activity" && user.id && <UserActivity user={user} />}
-            {active === "delete" && <DeleteAccount user={user} />}
-          </Grid>
+                </Box>
+              </NavCard>
+              <Drawer open={openDrawer} onClose={() => setOpenDrawer(false)}>
+                <Box sx={{ minWidth: 260, background: "#fff", height: "100%" }}>
+                  <TabListContent />
+                </Box>
+              </Drawer>
+            </Fragment>
+          ) : (
+            <NavCard elevation={0}>
+              {/* Mini stats inside the nav card — keeps the page tight */}
+              <Box sx={{ pt: 2, pb: 1, borderBottom: "1px dashed rgba(15,23,42,0.06)" }}>
+                <MiniStat icon={Workspaces} label="Projects" value={projectCount} color={ACCENT} />
+                <MiniStat icon={GroupsIcon} label="Teams" value={teamCount} color="#0891b2" />
+                {apiKeyCount > 0 && (
+                  <MiniStat icon={KeyIcon} label="Keys" value={apiKeyCount} color="#7c3aed" />
+                )}
+              </Box>
+              <TabListContent />
+            </NavCard>
+          )}
         </Grid>
-      </Box>
+
+        <Grid item md={9} xs={12}>
+          {active === "basic" && <BasicInformation user={user} />}
+          {active === "password" && <Password user={user} />}
+          {active === "twoFactor" && <TwoFactorAuth user={user} />}
+          {active === "projects" && <Projects user={user} projects={projects} />}
+          {active === "teams" && <Teams user={user} />}
+          {active === "apiKeys" && <ApiKeys user={user} />}
+          {active === "activity" && user.id && <UserActivity user={user} />}
+          {active === "delete" && <DeleteAccount user={user} />}
+        </Grid>
+      </Grid>
     </Container>
   );
 }

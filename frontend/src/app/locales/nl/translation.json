@@ -786,7 +786,11 @@
       "teams": "Teams",
       "apiKeys": "API-sleutels",
       "activity": "Activiteit",
-      "delete": "Account verwijderen"
+      "delete": "Account verwijderen",
+      "account": "Account",
+      "access": "Toegang",
+      "history": "Geschiedenis",
+      "dangerZone": "Gevarenzone"
     },
     "showMore": "Meer tonen",
     "basic": {
@@ -977,7 +981,8 @@
         "users": "Gebruikers",
         "projects": "Projecten",
         "models": "Modellen",
-        "branding": "Branding"
+        "branding": "Branding",
+        "general": "Algemeen"
       },
       "members": "Teamleden",
       "selectUsers": "Gebruikers selecteren",
@@ -1017,7 +1022,11 @@
       "createTeam": "Team aanmaken",
       "saveChanges": "Wijzigingen opslaan",
       "created": "Team succesvol aangemaakt",
-      "updated": "Team succesvol bijgewerkt"
+      "updated": "Team succesvol bijgewerkt",
+      "newSubtitle": "Maak een nieuwe workspace, kies leden, koppel modellen.",
+      "editSubtitle": "Pas lidmaatschap, toewijzingen en branding aan.",
+      "generalSubtitle": "Team-identiteit en budgetlimiet",
+      "membersSubtitle": "Kies wie lees-/schrijftoegang heeft"
     },
     "view": {
       "loading": "Teamdetails laden…",
@@ -1062,7 +1071,10 @@
       "confirmRemoveProject": "Weet u zeker dat u dit project uit het team wilt verwijderen?",
       "removed": "{{name}} uit team verwijderd",
       "adminRemoved": "Beheerdersrechten ingetrokken van {{name}}",
-      "projectRemoved": "Project uit team verwijderd"
+      "projectRemoved": "Project uit team verwijderd",
+      "membersSubtitle": "Lees-/schrijftoegang via rollen",
+      "adminsSubtitle": "Kunnen leden en bronnen beheren",
+      "projectsSubtitle": "Klik op een project om te openen"
     }
   },
   "llms": {

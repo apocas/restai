@@ -6,13 +6,9 @@ import { useParams } from "react-router-dom";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
-  margin: 10,
+  margin: "24px 48px",
+  [theme.breakpoints.down("md")]: { margin: "24px 32px" },
   [theme.breakpoints.down("sm")]: { margin: 16 },
-}));
-
-const ContentBox = styled("div")(({ theme }) => ({
-  margin: "30px",
-  [theme.breakpoints.down("sm")]: { margin: "16px" }
 }));
 
 export default function ProjectInfo() {
@@ -57,9 +53,7 @@ export default function ProjectInfo() {
 
   return (
     <Container>
-      <ContentBox className="analytics">
-        <ProjectDetails project={project} projects={projects} info={info} />
-      </ContentBox>
+      <ProjectDetails project={project} projects={projects} info={info} />
     </Container>
   );
 }

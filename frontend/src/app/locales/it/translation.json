@@ -786,7 +786,11 @@
       "teams": "Team",
       "apiKeys": "Chiavi API",
       "activity": "Attività",
-      "delete": "Elimina account"
+      "delete": "Elimina account",
+      "account": "Account",
+      "access": "Accesso",
+      "history": "Cronologia",
+      "dangerZone": "Zona pericolosa"
     },
     "showMore": "Mostra di più",
     "basic": {
@@ -977,7 +981,8 @@
         "users": "Utenti",
         "projects": "Progetti",
         "models": "Modelli",
-        "branding": "Branding"
+        "branding": "Branding",
+        "general": "Generale"
       },
       "members": "Membri del team",
       "selectUsers": "Seleziona utenti",
@@ -1017,7 +1022,11 @@
       "createTeam": "Crea team",
       "saveChanges": "Salva modifiche",
       "created": "Team creato con successo",
-      "updated": "Team aggiornato con successo"
+      "updated": "Team aggiornato con successo",
+      "newSubtitle": "Crea un nuovo workspace, scegli i membri, collega i modelli.",
+      "editSubtitle": "Modifica appartenenza, allocazioni e branding.",
+      "generalSubtitle": "Identità del team e limite di budget",
+      "membersSubtitle": "Scegli chi ha accesso in lettura/scrittura"
     },
     "view": {
       "loading": "Caricamento dettagli del team…",
@@ -1062,7 +1071,10 @@
       "confirmRemoveProject": "Sei sicuro di voler rimuovere questo progetto dal team?",
       "removed": "{{name}} rimosso dal team",
       "adminRemoved": "Privilegi di amministratore rimossi a {{name}}",
-      "projectRemoved": "Progetto rimosso dal team"
+      "projectRemoved": "Progetto rimosso dal team",
+      "membersSubtitle": "Accesso lettura/scrittura tramite ruoli",
+      "adminsSubtitle": "Possono gestire membri e risorse",
+      "projectsSubtitle": "Clicca su un progetto per aprirlo"
     }
   },
   "llms": {

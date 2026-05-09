@@ -19,19 +19,22 @@ import ProjectEditMemoryBank from "./ProjectEditMemoryBank";
 import ProjectEditMemorySearch from "./ProjectEditMemorySearch";
 
 const ALL_TABS = [
-  { name: "General", Icon: Info },
-  { name: "Knowledge", Icon: Storage, ragOnly: true },
-  { name: "Knowledge Graph", Icon: Hub, ragOnly: true, kgOnly: true },
-  { name: "Tools", Icon: Build, agentOnly: true },
-  { name: "Secrets", Icon: VpnKey, agentOnly: true },
-  { name: "Memory Bank", Icon: Memory, memoryBankOnly: true },
-  { name: "Memory", Icon: TravelExplore, memorySearchOnly: true },
-  { name: "Routines", Icon: Schedule },
-  { name: "Security", Icon: Shield },
-  { name: "Analytics", Icon: BarChart },
-  { name: "Widget", Icon: Widgets },
-  { name: "Mobile", Icon: PhoneAndroid },
-  { name: "Comments", Icon: ChatBubble },
+  // Section: Build — what the project is and its content
+  { name: "General",         Icon: Info,          section: "build" },
+  { name: "Knowledge",       Icon: Storage,       section: "build", ragOnly: true },
+  { name: "Knowledge Graph", Icon: Hub,           section: "build", ragOnly: true, kgOnly: true },
+  { name: "Tools",           Icon: Build,         section: "build", agentOnly: true },
+  { name: "Secrets",         Icon: VpnKey,        section: "build", agentOnly: true },
+  { name: "Memory Bank",     Icon: Memory,        section: "build", memoryBankOnly: true },
+  { name: "Memory",          Icon: TravelExplore, section: "build", memorySearchOnly: true },
+  // Section: Operate — automation, safety, observability
+  { name: "Routines",        Icon: Schedule,      section: "operate" },
+  { name: "Security",        Icon: Shield,        section: "operate" },
+  { name: "Analytics",       Icon: BarChart,      section: "operate" },
+  // Section: Engage — user-facing surfaces
+  { name: "Widget",          Icon: Widgets,       section: "engage" },
+  { name: "Mobile",          Icon: PhoneAndroid,  section: "engage" },
+  { name: "Comments",        Icon: ChatBubble,    section: "engage" },
 ];
 
 export default function ProjectDetails({ project, projects, info }) {

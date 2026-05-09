@@ -786,7 +786,11 @@
       "teams": "Equipos",
       "apiKeys": "Claves de API",
       "activity": "Actividad",
-      "delete": "Eliminar cuenta"
+      "delete": "Eliminar cuenta",
+      "account": "Cuenta",
+      "access": "Acceso",
+      "history": "Historial",
+      "dangerZone": "Zona de peligro"
     },
     "showMore": "Mostrar más",
     "basic": {
@@ -977,7 +981,8 @@
         "users": "Usuarios",
         "projects": "Proyectos",
         "models": "Modelos",
-        "branding": "Marca"
+        "branding": "Marca",
+        "general": "General"
       },
       "members": "Miembros del equipo",
       "selectUsers": "Seleccionar usuarios",
@@ -1017,7 +1022,11 @@
       "createTeam": "Crear equipo",
       "saveChanges": "Guardar cambios",
       "created": "Equipo creado correctamente",
-      "updated": "Equipo actualizado correctamente"
+      "updated": "Equipo actualizado correctamente",
+      "newSubtitle": "Crea un nuevo espacio, elige miembros, asocia modelos.",
+      "editSubtitle": "Ajusta membresía, asignaciones y marca.",
+      "generalSubtitle": "Identidad del equipo y límite de presupuesto",
+      "membersSubtitle": "Elige quién tiene acceso de lectura y escritura"
     },
     "view": {
       "loading": "Cargando detalles del equipo…",
@@ -1062,7 +1071,10 @@
       "confirmRemoveProject": "¿Seguro que desea quitar este proyecto del equipo?",
       "removed": "{{name}} eliminado del equipo",
       "adminRemoved": "Privilegios de administrador retirados a {{name}}",
-      "projectRemoved": "Proyecto eliminado del equipo"
+      "projectRemoved": "Proyecto eliminado del equipo",
+      "membersSubtitle": "Acceso de lectura y escritura por roles",
+      "adminsSubtitle": "Pueden gestionar miembros y recursos",
+      "projectsSubtitle": "Haga clic en cualquier proyecto para abrir"
     }
   },
   "llms": {

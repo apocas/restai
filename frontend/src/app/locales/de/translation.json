@@ -786,7 +786,11 @@
       "teams": "Teams",
       "apiKeys": "API-Schlüssel",
       "activity": "Aktivität",
-      "delete": "Konto löschen"
+      "delete": "Konto löschen",
+      "account": "Konto",
+      "access": "Zugriff",
+      "history": "Verlauf",
+      "dangerZone": "Gefahrenzone"
     },
     "showMore": "Mehr anzeigen",
     "basic": {
@@ -977,7 +981,8 @@
         "users": "Benutzer",
         "projects": "Projekte",
         "models": "Modelle",
-        "branding": "Branding"
+        "branding": "Branding",
+        "general": "Allgemein"
       },
       "members": "Team-Mitglieder",
       "selectUsers": "Benutzer auswählen",
@@ -1017,7 +1022,11 @@
       "createTeam": "Team erstellen",
       "saveChanges": "Änderungen speichern",
       "created": "Team erfolgreich erstellt",
-      "updated": "Team erfolgreich aktualisiert"
+      "updated": "Team erfolgreich aktualisiert",
+      "newSubtitle": "Neuen Workspace anlegen, Mitglieder wählen, Modelle anhängen.",
+      "editSubtitle": "Mitgliedschaft, Zuweisungen und Branding anpassen.",
+      "generalSubtitle": "Team-Identität und Budgetlimit",
+      "membersSubtitle": "Wählen Sie, wer Lese- und Schreibzugriff hat"
     },
     "view": {
       "loading": "Team-Details werden geladen…",
@@ -1062,7 +1071,10 @@
       "confirmRemoveProject": "Sind Sie sicher, dass Sie dieses Projekt aus dem Team entfernen möchten?",
       "removed": "{{name}} aus dem Team entfernt",
       "adminRemoved": "Administratorrechte von {{name}} entfernt",
-      "projectRemoved": "Projekt aus dem Team entfernt"
+      "projectRemoved": "Projekt aus dem Team entfernt",
+      "membersSubtitle": "Lese- und Schreibzugriff über Rollen",
+      "adminsSubtitle": "Können Mitglieder und Ressourcen verwalten",
+      "projectsSubtitle": "Klicken Sie auf ein Projekt, um es zu öffnen"
     }
   },
   "llms": {

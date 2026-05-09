@@ -786,7 +786,11 @@
       "teams": "Teams",
       "apiKeys": "API-nøgler",
       "activity": "Aktivitet",
-      "delete": "Slet konto"
+      "delete": "Slet konto",
+      "account": "Konto",
+      "access": "Adgang",
+      "history": "Historik",
+      "dangerZone": "Farezone"
     },
     "showMore": "Vis mere",
     "basic": {
@@ -977,7 +981,8 @@
         "users": "Brugere",
         "projects": "Projekter",
         "models": "Modeller",
-        "branding": "Branding"
+        "branding": "Branding",
+        "general": "Generelt"
       },
       "members": "Team-medlemmer",
       "selectUsers": "Vælg brugere",
@@ -1017,7 +1022,11 @@
       "createTeam": "Opret team",
       "saveChanges": "Gem ændringer",
       "created": "Team oprettet med succes",
-      "updated": "Team opdateret med succes"
+      "updated": "Team opdateret med succes",
+      "newSubtitle": "Opret et nyt arbejdsområde, vælg medlemmer, tilknyt modeller.",
+      "editSubtitle": "Juster medlemskab, tildelinger og branding.",
+      "generalSubtitle": "Team-identitet og budgetloft",
+      "membersSubtitle": "Vælg hvem der har læse-/skriveadgang"
     },
     "view": {
       "loading": "Indlæser team-detaljer…",
@@ -1062,7 +1071,10 @@
       "confirmRemoveProject": "Er du sikker på, at du vil fjerne dette projekt fra teamet?",
       "removed": "{{name}} fjernet fra team",
       "adminRemoved": "Administratorrettigheder fjernet fra {{name}}",
-      "projectRemoved": "Projekt fjernet fra team"
+      "projectRemoved": "Projekt fjernet fra team",
+      "membersSubtitle": "Læse-/skriveadgang via roller",
+      "adminsSubtitle": "Kan administrere medlemmer og ressourcer",
+      "projectsSubtitle": "Klik på et projekt for at åbne"
     }
   },
   "llms": {

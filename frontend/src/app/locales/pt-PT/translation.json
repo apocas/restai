@@ -779,6 +779,10 @@
       "isPrivate": "Apenas IA local"
     },
     "tabs": {
+      "account": "Conta",
+      "access": "Acesso",
+      "history": "Histórico",
+      "dangerZone": "Zona de perigo",
       "basic": "Informação básica",
       "password": "Palavra-passe",
       "twoFactor": "Autenticação em dois passos",

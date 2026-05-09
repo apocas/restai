@@ -786,7 +786,11 @@
       "teams": "Équipes",
       "apiKeys": "Clés API",
       "activity": "Activité",
-      "delete": "Supprimer le compte"
+      "delete": "Supprimer le compte",
+      "account": "Compte",
+      "access": "Accès",
+      "history": "Historique",
+      "dangerZone": "Zone dangereuse"
     },
     "showMore": "Afficher plus",
     "basic": {
@@ -977,7 +981,8 @@
         "users": "Utilisateurs",
         "projects": "Projets",
         "models": "Modèles",
-        "branding": "Marque"
+        "branding": "Marque",
+        "general": "Général"
       },
       "members": "Membres de l'équipe",
       "selectUsers": "Sélectionner des utilisateurs",
@@ -1017,7 +1022,11 @@
       "createTeam": "Créer l'équipe",
       "saveChanges": "Enregistrer les modifications",
       "created": "Équipe créée avec succès",
-      "updated": "Équipe mise à jour avec succès"
+      "updated": "Équipe mise à jour avec succès",
+      "newSubtitle": "Créez un nouvel espace, choisissez les membres, attachez des modèles.",
+      "editSubtitle": "Ajustez l'adhésion, les allocations et la marque.",
+      "generalSubtitle": "Identité de l'équipe et plafond budgétaire",
+      "membersSubtitle": "Sélectionnez qui a un accès en lecture/écriture"
     },
     "view": {
       "loading": "Chargement des détails de l'équipe…",
@@ -1062,7 +1071,10 @@
       "confirmRemoveProject": "Êtes-vous sûr de vouloir retirer ce projet de l'équipe ?",
       "removed": "{{name}} retiré de l'équipe",
       "adminRemoved": "Privilèges d'administrateur retirés à {{name}}",
-      "projectRemoved": "Projet retiré de l'équipe"
+      "projectRemoved": "Projet retiré de l'équipe",
+      "membersSubtitle": "Accès lecture/écriture via les rôles",
+      "adminsSubtitle": "Peuvent gérer les membres et les ressources",
+      "projectsSubtitle": "Cliquez sur un projet pour l'ouvrir"
     }
   },
   "llms": {

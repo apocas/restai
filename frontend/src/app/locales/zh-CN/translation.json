@@ -779,6 +779,10 @@
       "isPrivate": "仅本地 AI"
     },
     "tabs": {
+      "account": "账户",
+      "access": "访问权限",
+      "history": "历史",
+      "dangerZone": "危险操作",
       "basic": "基本信息",
       "password": "密码",
       "twoFactor": "双重身份验证",

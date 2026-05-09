@@ -779,6 +779,10 @@
       "isPrivate": "Local AI only"
     },
     "tabs": {
+      "account": "Account",
+      "access": "Access",
+      "history": "History",
+      "dangerZone": "Danger zone",
       "basic": "Basic Information",
       "password": "Password",
       "twoFactor": "Two-Factor Auth",
