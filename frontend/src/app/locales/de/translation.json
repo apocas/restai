@@ -1133,7 +1133,9 @@
       "tokens": "Tokens",
       "confirmDelete": "Sind Sie sicher, dass Sie das LLM {{name}} löschen möchten?",
       "deleteConfirm": "LLM \"{{name}}\" löschen?",
-      "deleted": "{{name}} gelöscht"
+      "deleted": "{{name}} gelöscht",
+      "title": "Konfiguration",
+      "usedBy": "Projekte, die dieses Modell nutzen"
     },
     "chooser": {
       "title": "Ein neues LLM hinzufügen",
@@ -1216,7 +1218,9 @@
       "dimension": "Dimension",
       "confirmDelete": "Sind Sie sicher, dass Sie das Embedding {{name}} löschen möchten?",
       "deleteConfirm": "Embedding \"{{name}}\" löschen?",
-      "deleted": "{{name}} gelöscht"
+      "deleted": "{{name}} gelöscht",
+      "title": "Konfiguration",
+      "usedBy": "Projekte, die dieses Embedding nutzen"
     },
     "chooser": {
       "title": "Ein neues Embedding hinzufügen",

@@ -1133,7 +1133,9 @@
       "tokens": "tokens",
       "confirmDelete": "确定要删除 LLM {{name}} 吗？",
       "deleteConfirm": "删除 LLM \"{{name}}\"？",
-      "deleted": "已删除 {{name}}"
+      "deleted": "已删除 {{name}}",
+      "title": "配置",
+      "usedBy": "使用此模型的项目"
     },
     "chooser": {
       "title": "添加新的 LLM",
@@ -1216,7 +1218,9 @@
       "dimension": "维度",
       "confirmDelete": "确定要删除 embedding {{name}} 吗？",
       "deleteConfirm": "删除 embedding \"{{name}}\"？",
-      "deleted": "已删除 {{name}}"
+      "deleted": "已删除 {{name}}",
+      "title": "配置",
+      "usedBy": "使用此嵌入模型的项目"
     },
     "chooser": {
       "title": "添加新的 embedding",

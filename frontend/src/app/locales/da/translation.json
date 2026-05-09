@@ -1133,7 +1133,9 @@
       "tokens": "tokens",
       "confirmDelete": "Er du sikker på, at du vil slette LLM'en {{name}}?",
       "deleteConfirm": "Slet LLM \"{{name}}\"?",
-      "deleted": "Slettede {{name}}"
+      "deleted": "Slettede {{name}}",
+      "title": "Konfiguration",
+      "usedBy": "Projekter der bruger denne model"
     },
     "chooser": {
       "title": "Tilføj en ny LLM",
@@ -1216,7 +1218,9 @@
       "dimension": "Dimension",
       "confirmDelete": "Er du sikker på, at du vil slette embeddingen {{name}}?",
       "deleteConfirm": "Slet embedding \"{{name}}\"?",
-      "deleted": "Slettede {{name}}"
+      "deleted": "Slettede {{name}}",
+      "title": "Konfiguration",
+      "usedBy": "Projekter der bruger denne embedding"
     },
     "chooser": {
       "title": "Tilføj en ny embedding",

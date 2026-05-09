@@ -1133,7 +1133,9 @@
       "tokens": "tokens",
       "confirmDelete": "Weet u zeker dat u de LLM {{name}} wilt verwijderen?",
       "deleteConfirm": "LLM \"{{name}}\" verwijderen?",
-      "deleted": "{{name}} verwijderd"
+      "deleted": "{{name}} verwijderd",
+      "title": "Configuratie",
+      "usedBy": "Projecten die dit model gebruiken"
     },
     "chooser": {
       "title": "Een nieuwe LLM toevoegen",
@@ -1216,7 +1218,9 @@
       "dimension": "Dimensie",
       "confirmDelete": "Weet u zeker dat u de embedding {{name}} wilt verwijderen?",
       "deleteConfirm": "Embedding \"{{name}}\" verwijderen?",
-      "deleted": "{{name}} verwijderd"
+      "deleted": "{{name}} verwijderd",
+      "title": "Configuratie",
+      "usedBy": "Projecten die deze embedding gebruiken"
     },
     "chooser": {
       "title": "Een nieuwe Embedding toevoegen",
