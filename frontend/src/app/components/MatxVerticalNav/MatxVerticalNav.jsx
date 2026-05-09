@@ -1,170 +1,211 @@
-import { Fragment } from "react";
 import { NavLink } from "react-router-dom";
-import { Box, ButtonBase, Icon, styled } from "@mui/material";
+import { Box, Icon, styled } from "@mui/material";
 
-import useSettings from "app/hooks/useSettings";
-import { Paragraph, Span } from "../Typography";
 import MatxVerticalNavExpansionPanel from "./MatxVerticalNavExpansionPanel";
 
-const ListLabel = styled(Paragraph)(({ theme, mode }) => ({
-  fontSize: "12px",
-  marginTop: "20px",
-  marginLeft: "15px",
-  marginBottom: "10px",
-  textTransform: "uppercase",
-  display: mode === "compact" && "none",
-  color: theme.palette.text.secondary
-}));
+// Sky accent — same family as the rest of the modernised app.
+const ACCENT = "#38bdf8";
+const ACCENT_SOFT = "rgba(56,189,248,0.10)";
 
-const ExtAndIntCommon = {
+// ── Section heading row (Backend, Admin, etc.). The data-mode rules
+// in Layout1Sidenav collapse this to just the tick in compact mode.
+const SectionRow = styled("div")(() => ({
   display: "flex",
-  overflow: "hidden",
-  borderRadius: "4px",
-  height: 44,
-  whiteSpace: "pre",
-  marginBottom: "8px",
+  alignItems: "center",
+  gap: 8,
+  marginTop: 22,
+  marginBottom: 8,
+  marginLeft: 4,
+  marginRight: 4,
+  paddingLeft: 12,
+  paddingRight: 12,
+}));
+const SectionTick = styled("div")(() => ({
+  width: 12,
+  height: 2,
+  background: ACCENT,
+  flexShrink: 0,
+}));
+const SectionLabel = styled("span")(() => ({
+  fontFamily: '"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace',
+  fontSize: 10,
+  letterSpacing: "0.16em",
+  textTransform: "uppercase",
+  fontWeight: 800,
+  color: "rgba(186,230,253,0.72)",
+  whiteSpace: "nowrap",
+}));
+const SectionTail = styled("div")(() => ({
+  flex: 1,
+  height: 1,
+  background: "linear-gradient(90deg, rgba(56,189,248,0.18), transparent)",
+}));
+
+// ── Shared item shape — a single-tier flex row.
+//
+// Used directly for external links (`<a>`), and as a styled wrapper
+// for `NavLink` (internal). Both render identically so the icon/label
+// alignment is the same regardless of item kind.
+const itemBaseSx = {
+  position: "relative",
+  display: "flex",
+  alignItems: "center",
+  height: 40,
+  marginLeft: 6,
+  marginRight: 6,
+  marginBottom: 4,
+  paddingLeft: 14,
+  paddingRight: 14,
+  borderRadius: "6px",
+  cursor: "pointer",
+  color: "rgba(255,255,255,0.78)",
   textDecoration: "none",
-  justifyContent: "space-between",
-  transition: "all 150ms ease-in",
-  "&:hover": { background: "rgba(255, 255, 255, 0.08)" },
-  "&.compactNavItem": {
-    overflow: "hidden",
-    justifyContent: "center !important"
+  transition: "all 160ms cubic-bezier(0.4, 0, 0.2, 1)",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  // Left-edge sky rail — fades in on hover/active.
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    left: 0, top: 0, bottom: 0,
+    width: 3,
+    background: ACCENT,
+    opacity: 0,
+    transform: "scaleY(0.6)",
+    transformOrigin: "center",
+    transition: "opacity 160ms, transform 160ms",
   },
-  "& .icon": {
-    fontSize: "18px",
-    paddingLeft: "16px",
-    paddingRight: "16px",
-    verticalAlign: "middle"
-  }
+  "&:hover": {
+    background: "rgba(255,255,255,0.04)",
+    color: "#ffffff",
+    "&::before": { opacity: 0.6, transform: "scaleY(1)" },
+    "& .nav-icon": { color: ACCENT },
+  },
+  "&.active": {
+    background: ACCENT_SOFT,
+    color: "#ffffff",
+    "&::before": { opacity: 1, transform: "scaleY(1)" },
+    "& .nav-icon": { color: ACCENT },
+    "& .nav-label": { fontWeight: 700, color: "#ffffff" },
+  },
 };
-const ExternalLink = styled("a")(({ theme }) => ({
-  ...ExtAndIntCommon,
-  color: theme.palette.text.primary
+
+const ExternalItem = styled("a")(() => itemBaseSx);
+const InternalItem = styled(NavLink)(() => itemBaseSx);
+
+const NavIcon = styled("span")(() => ({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 18,
+  height: 18,
+  flexShrink: 0,
+  fontSize: 18,
+  color: "rgba(255,255,255,0.78)",
+  transition: "color 160ms",
+  "& .MuiIcon-root": { fontSize: 18, lineHeight: 1 },
 }));
 
-const InternalLink = styled(Box)(({ theme }) => ({
-  "& a": {
-    ...ExtAndIntCommon,
-    color: theme.palette.text.primary
-  },
-  "& .navItemActive": {
-    backgroundColor: "rgba(255, 255, 255, 0.16)"
-  }
+const NavBullet = styled("div")(() => ({
+  width: 5,
+  height: 5,
+  borderRadius: "50%",
+  background: "rgba(186,230,253,0.55)",
+  flexShrink: 0,
 }));
 
-const StyledText = styled(Span)(({ mode }) => ({
-  fontSize: "0.875rem",
-  paddingLeft: "0.8rem",
-  display: mode === "compact" && "none"
-}));
-
-const BulletIcon = styled("div")(({ theme }) => ({
-  padding: "2px",
-  marginLeft: "24px",
-  marginRight: "8px",
+const NavLabel = styled("span")(() => ({
+  fontSize: "0.84rem",
+  letterSpacing: "0.01em",
+  marginLeft: 14,
+  flex: 1,
+  minWidth: 0,
   overflow: "hidden",
-  borderRadius: "300px",
-  background: theme.palette.text.primary
+  textOverflow: "ellipsis",
 }));
 
-const BadgeValue = styled("div")(() => ({
+const NavBadge = styled("span")(() => ({
+  marginLeft: 8,
   padding: "1px 8px",
-  overflow: "hidden",
-  borderRadius: "300px"
+  fontFamily: '"JetBrains Mono", "SF Mono", Menlo, Consolas, monospace',
+  fontSize: "0.62rem",
+  fontWeight: 800,
+  letterSpacing: "0.04em",
+  borderRadius: 4,
+  background: ACCENT_SOFT,
+  color: ACCENT,
+  border: `1px solid ${ACCENT}33`,
+  flexShrink: 0,
 }));
+
+function ItemBody({ item }) {
+  return (
+    <>
+      <NavIcon className="nav-icon">
+        {item.icon
+          ? <Icon>{item.icon}</Icon>
+          : item.iconText
+            ? <span className="nav-bullet-text">{item.iconText}</span>
+            : <NavBullet />}
+      </NavIcon>
+      <NavLabel className="nav-label">{item.name}</NavLabel>
+      {item.badge && (
+        <NavBadge className="nav-trailing">{item.badge.value}</NavBadge>
+      )}
+    </>
+  );
+}
 
 export default function MatxVerticalNav({ items }) {
-  const { settings } = useSettings();
-  const { mode } = settings.layout1Settings.leftSidebar;
-
-  const renderLevels = (data) => {
-    return data.map((item, index) => {
-      if (item.type === "label")
+  const renderLevels = (data) =>
+    data.map((item, index) => {
+      // Section heading
+      if (item.type === "label") {
         return (
-          <ListLabel key={index} mode={mode} className="sidenavHoverShow">
-            {item.label}
-          </ListLabel>
+          <SectionRow key={index} className="nav-section">
+            <SectionTick className="nav-section-tick" />
+            <SectionLabel className="nav-label">{item.label}</SectionLabel>
+            <SectionTail className="nav-section-tail" />
+          </SectionRow>
         );
-
+      }
+      // Parent with submenu
       if (item.children) {
         return (
-          <MatxVerticalNavExpansionPanel mode={mode} item={item} key={index}>
+          <MatxVerticalNavExpansionPanel item={item} key={index}>
             {renderLevels(item.children)}
           </MatxVerticalNavExpansionPanel>
         );
-      } else if (item.type === "extLink") {
+      }
+      // External link
+      if (item.type === "extLink") {
         return (
-          <ExternalLink
+          <ExternalItem
             key={index}
+            className="nav-item"
             href={item.path}
-            className={`${mode === "compact" && "compactNavItem"}`}
             rel="noopener noreferrer"
-            target="_blank">
-            <ButtonBase key={item.name} name="child" sx={{ width: "100%" }}>
-              {(() => {
-                if (item.icon) {
-                  return <Icon className="icon">{item.icon}</Icon>;
-                } else {
-                  return <span className="item-icon icon-text">{item.iconText}</span>;
-                }
-              })()}
-              <StyledText mode={mode} className="sidenavHoverShow">
-                {item.name}
-              </StyledText>
-              <Box mx="auto"></Box>
-              {item.badge && <BadgeValue>{item.badge.value}</BadgeValue>}
-            </ButtonBase>
-          </ExternalLink>
-        );
-      } else {
-        return (
-          <InternalLink key={index}>
-            <NavLink
-              to={item.path}
-              className={({ isActive }) =>
-                isActive
-                  ? `navItemActive ${mode === "compact" && "compactNavItem"}`
-                  : `${mode === "compact" && "compactNavItem"}`
-              }>
-              <ButtonBase key={item.name} name="child" sx={{ width: "100%" }}>
-                {item?.icon ? (
-                  <Icon className="icon" sx={{ width: 36 }}>
-                    {item.icon}
-                  </Icon>
-                ) : (
-                  <Fragment>
-                    <BulletIcon
-                      className={`nav-bullet`}
-                      sx={{ display: mode === "compact" && "none" }}
-                    />
-                    <Box
-                      className="nav-bullet-text"
-                      sx={{
-                        ml: "20px",
-                        fontSize: "11px",
-                        display: mode !== "compact" && "none"
-                      }}>
-                      {item.iconText}
-                    </Box>
-                  </Fragment>
-                )}
-                <StyledText mode={mode} className="sidenavHoverShow">
-                  {item.name}
-                </StyledText>
-
-                <Box mx="auto" />
-
-                {item.badge && (
-                  <BadgeValue className="sidenavHoverShow">{item.badge.value}</BadgeValue>
-                )}
-              </ButtonBase>
-            </NavLink>
-          </InternalLink>
+            target="_blank"
+          >
+            <ItemBody item={item} />
+          </ExternalItem>
         );
       }
+      // Internal nav link
+      return (
+        <InternalItem
+          key={index}
+          to={item.path}
+          className={({ isActive }) => (isActive ? "active nav-item" : "nav-item")}
+        >
+          <ItemBody item={item} />
+        </InternalItem>
+      );
     });
-  };
 
-  return <div className="navigation">{renderLevels(items)}</div>;
+  return (
+    <Box sx={{ position: "relative", zIndex: 1, pt: 1 }}>
+      {renderLevels(items)}
+    </Box>
+  );
 }

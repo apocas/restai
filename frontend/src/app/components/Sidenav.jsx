@@ -9,9 +9,16 @@ import useAuth from "app/hooks/useAuth";
 import { navGuard } from "app/auth/navGuard";
 
 const StyledScrollBar = styled(Scrollbar)(() => ({
-  paddingLeft: "1rem",
-  paddingRight: "1rem",
-  position: "relative"
+  paddingLeft: "0.4rem",
+  paddingRight: "0.4rem",
+  position: "relative",
+  // Custom scrollbar — sky-tinted instead of grey.
+  "& .ps__rail-y": { width: 6 },
+  "& .ps__thumb-y": {
+    width: 4,
+    background: "rgba(56,189,248,0.35)",
+    "&:hover, &:focus": { background: "rgba(56,189,248,0.55)" },
+  },
 }));
 
 const SideNavMobile = styled("div")(({ theme }) => ({
