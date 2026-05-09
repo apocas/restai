@@ -1,56 +1,234 @@
 import { useState, useEffect } from "react";
 import {
-  Box,
-  Grid,
-  styled,
-  Card,
-  Typography,
-  Button,
-  TextField,
-  Autocomplete,
-  Divider,
-  InputAdornment,
-  Tabs,
-  Tab
+  Autocomplete, Box, Button, Card, Chip, CircularProgress, Grid,
+  InputAdornment, Tab, Tabs, TextField, Typography, styled,
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
-import { Breadcrumb } from "app/components";
-import { toast } from 'react-toastify';
+import { toast } from "react-toastify";
 import { useTranslation } from "react-i18next";
-import { Group, Code, Psychology, Palette } from "@mui/icons-material";
+import {
+  Group, Code, Psychology, Palette, Star, Image, Speaker,
+  Save, Close, Send, GroupsOutlined, AttachMoney, Workspaces,
+  AllInclusive,
+} from "@mui/icons-material";
 import api from "app/utils/api";
-import { PALETTE, forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
+import PageHero from "app/components/page/PageHero";
+import { FONT_MONO, sweep, pulse } from "app/components/page/pageStyles";
+
+// Same fuchsia family as the Teams list / view pages so the trio
+// reads as one tightly related cluster.
+const ACCENT = "#c026d3";        // fuchsia-600
+const ACCENT_DARK = "#a21caf";   // fuchsia-700
+const ACCENT_SOFT = "rgba(192,38,211,0.10)";
+
+// Per-section accents — same palette as TeamView so the edit form
+// echoes the read page's visual taxonomy.
+const SECTION = {
+  members:    { c: "#7c3aed", soft: "rgba(124,58,237,0.10)" },
+  admins:     { c: "#dc2626", soft: "rgba(220,38,38,0.10)"  },
+  projects:   { c: ACCENT,    soft: ACCENT_SOFT             },
+  llms:       { c: "#1d4ed8", soft: "rgba(29,78,216,0.10)"  },
+  embeddings: { c: "#0d9488", soft: "rgba(13,148,136,0.10)" },
+  imageGen:   { c: "#f43f5e", soft: "rgba(244,63,94,0.10)"  },
+  audioGen:   { c: "#f59e0b", soft: "rgba(245,158,11,0.10)" },
+  branding:   { c: "#0891b2", soft: "rgba(8,145,178,0.10)"  },
+  general:    { c: ACCENT,    soft: ACCENT_SOFT             },
+};
 
 const Container = styled("div")(({ theme }) => ({
-  margin: "30px",
-  [theme.breakpoints.down("sm")]: { margin: "16px" },
-  "& .breadcrumb": {
-    marginBottom: "30px",
-    [theme.breakpoints.down("sm")]: { marginBottom: "16px" }
-  }
+  margin: "24px 48px",
+  [theme.breakpoints.down("md")]: { margin: "24px 32px" },
+  [theme.breakpoints.down("sm")]: { margin: 16 },
 }));
 
-const StyledCard = styled(Card)(({ theme }) => ({
-  ...forensicCardSx,
-  padding: theme.spacing(3),
-  marginBottom: theme.spacing(3),
+const TileCard = styled(Card, {
+  shouldForwardProp: (p) => p !== "accent",
+})(({ accent = ACCENT }) => ({
+  position: "relative",
+  borderRadius: 14,
+  border: "1px solid rgba(15,23,42,0.08)",
+  backgroundColor: "#ffffff",
+  overflow: "hidden",
+  transition: "border-color 0.25s ease, box-shadow 0.25s ease",
+  "&::before": {
+    content: '""',
+    position: "absolute",
+    left: 0, right: 0, top: 0, height: 4,
+    background: accent,
+    opacity: 0.85,
+    pointerEvents: "none",
+    zIndex: 2,
+  },
+  "&::after": {
+    content: '""',
+    position: "absolute",
+    left: 0, right: 0, top: 0, height: 4,
+    background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.85), transparent)",
+    transform: "translateX(-100%)",
+    opacity: 0,
+    pointerEvents: "none",
+    zIndex: 3,
+  },
+  "&:hover": {
+    borderColor: `${accent}55`,
+    boxShadow: `0 18px 36px ${accent}1c, 0 4px 10px rgba(15,23,42,0.05)`,
+  },
+  "&:hover::after": {
+    animation: `${sweep} 1.6s ease-out`,
+  },
 }));
 
-function TabPanel(props) {
-  const { children, value, index, ...other } = props;
-
+function TileHeader({ icon, title, subtitle, accent = ACCENT, count, action }) {
   return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`team-tabpanel-${index}`}
-      aria-labelledby={`team-tab-${index}`}
-      {...other}
+    <Box
+      sx={{
+        px: 2.5, pt: 2, pb: 1.75,
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        borderBottom: "1px solid rgba(15,23,42,0.06)",
+        flexWrap: "wrap",
+      }}
     >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
+      <Box
+        sx={{
+          width: 36, height: 36, flexShrink: 0,
+          borderRadius: 1.5,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: `${accent}1a`,
+          color: accent,
+          "& svg": { fontSize: 20 },
+        }}
+      >
+        {icon}
+      </Box>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography
+          sx={{
+            fontFamily: FONT_MONO,
+            fontSize: "0.72rem",
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            fontWeight: 800,
+            color: accent,
+            lineHeight: 1,
+          }}
+        >
+          {title}
+        </Typography>
+        {subtitle && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.4 }}>
+            {subtitle}
+          </Typography>
+        )}
+      </Box>
+      {count != null && (
+        <Box
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            px: 1, py: 0.4,
+            borderRadius: 0.75,
+            backgroundColor: `${accent}10`,
+            border: `1px solid ${accent}33`,
+            fontFamily: FONT_MONO,
+            fontSize: "0.72rem",
+            fontWeight: 700,
+            color: accent,
+          }}
+        >
+          {count}
+        </Box>
+      )}
+      {action}
+    </Box>
   );
+}
+
+// Per-section text-field styling — focus ring picks up the section's
+// accent so each tab feels colour-grounded.
+const fieldSx = (accent) => ({
+  "& .MuiOutlinedInput-root": {
+    "& fieldset": { borderColor: "rgba(15,23,42,0.12)" },
+    "&:hover fieldset": { borderColor: `${accent}55` },
+    "&.Mui-focused fieldset": { borderColor: accent, borderWidth: 1.5 },
+  },
+  "& .MuiInputLabel-root.Mui-focused": { color: accent },
+});
+
+// Themed Autocomplete — section-tinted chips for picked items.
+function PickerField({ label, placeholder, options, value, onChange, accent, getOptionLabel = (o) => o.name, isOptionEqualToValue, helperText }) {
+  return (
+    <>
+      <Autocomplete
+        multiple
+        options={options}
+        getOptionLabel={getOptionLabel}
+        value={value}
+        onChange={(_, v) => onChange(v)}
+        filterSelectedOptions
+        isOptionEqualToValue={isOptionEqualToValue}
+        renderTags={(picked, getTagProps) =>
+          picked.map((opt, idx) => {
+            const tagProps = getTagProps({ index: idx });
+            return (
+              <Chip
+                {...tagProps}
+                key={tagProps.key}
+                label={getOptionLabel(opt)}
+                size="small"
+                sx={{
+                  fontFamily: FONT_MONO,
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  backgroundColor: `${accent}15`,
+                  color: accent,
+                  border: `1px solid ${accent}44`,
+                  borderRadius: 0.75,
+                  "& .MuiChip-deleteIcon": {
+                    color: `${accent}88`,
+                    "&:hover": { color: accent },
+                  },
+                }}
+              />
+            );
+          })
+        }
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            variant="outlined"
+            label={label}
+            placeholder={placeholder}
+            sx={fieldSx(accent)}
+          />
+        )}
+      />
+      {helperText && (
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            mt: 0.75,
+            color: "text.secondary",
+            fontFamily: FONT_MONO,
+            fontSize: "0.66rem",
+            letterSpacing: "0.04em",
+          }}
+        >
+          {helperText}
+        </Typography>
+      )}
+    </>
+  );
+}
+
+function TabPanel({ children, value, index }) {
+  if (value !== index) return null;
+  return <Box sx={{ p: 2.5 }}>{children}</Box>;
 }
 
 export default function TeamEdit() {
@@ -78,7 +256,12 @@ export default function TeamEdit() {
   const [audioGenerators, setAudioGenerators] = useState([]);
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [inviteUsername, setInviteUsername] = useState("");
+
+  const navigate = useNavigate();
+  const auth = useAuth();
+  const user = auth.user;
 
   const handleInvite = () => {
     if (!inviteUsername.trim()) return;
@@ -89,20 +272,11 @@ export default function TeamEdit() {
       })
       .catch(() => {});
   };
-  const navigate = useNavigate();
-  const auth = useAuth();
-  const user = auth.user;
 
   const fetchTeam = async () => {
-    if (isNewTeam) {
-      setLoading(false);
-      return;
-    }
-
+    if (isNewTeam) { setLoading(false); return; }
     try {
       const data = await api.get(`/teams/${id}`, user.token);
-
-      // Preprocess the data for form usage
       setTeam({
         ...data,
         users: data.users || [],
@@ -110,66 +284,25 @@ export default function TeamEdit() {
         projects: data.projects || [],
         llms: data.llms || [],
         embeddings: data.embeddings || [],
-        image_generators: (data.image_generators || []).map(g => ({ name: g })),
-        audio_generators: (data.audio_generators || []).map(g => ({ name: g })),
+        image_generators: (data.image_generators || []).map((g) => ({ name: g })),
+        audio_generators: (data.audio_generators || []).map((g) => ({ name: g })),
         branding: data.branding || { primary_color: "", secondary_color: "", logo_url: "", welcome_message: "", app_name: "" },
       });
-
       setLoading(false);
-    } catch (error) {
-      setLoading(false);
-    }
+    } catch (e) { setLoading(false); }
   };
 
-  const fetchUsers = async () => {
-    try {
-      const data = await api.get("/users", user.token);
-      setUsers(data.users);
-    } catch (error) {
-      // errors auto-toasted
-    }
-  };
-
-  const fetchProjects = async () => {
-    try {
-      const data = await api.get("/projects", user.token);
-      setProjects(data.projects);
-    } catch (error) {
-      // errors auto-toasted
-    }
-  };
-
-  const fetchModels = async () => {
-    try {
-      const data = await api.get("/info", user.token);
-      setLLMs(data.llms);
-      setEmbeddings(data.embeddings);
-    } catch (error) {
-      // errors auto-toasted
-    }
-  };
-
+  const fetchUsers     = async () => { try { const d = await api.get("/users",    user.token); setUsers(d.users); } catch {} };
+  const fetchProjects  = async () => { try { const d = await api.get("/projects", user.token); setProjects(d.projects); } catch {} };
+  const fetchModels    = async () => { try { const d = await api.get("/info",     user.token); setLLMs(d.llms); setEmbeddings(d.embeddings); } catch {} };
   const fetchGenerators = async () => {
-    try {
-      const imgData = await api.get("/image", user.token, { silent: true });
-      setImageGenerators((imgData.generators || []).map(g => ({ name: g })));
-    } catch (error) {
-      // GPU not enabled — keep empty, admin can still type free-form
-    }
-    try {
-      const audioData = await api.get("/audio", user.token, { silent: true });
-      setAudioGenerators((audioData.generators || []).map(g => ({ name: g })));
-    } catch (error) {
-      // GPU not enabled — keep empty, admin can still type free-form
-    }
+    try { const d = await api.get("/image", user.token, { silent: true }); setImageGenerators((d.generators || []).map((g) => ({ name: g }))); } catch {}
+    try { const d = await api.get("/audio", user.token, { silent: true }); setAudioGenerators((d.generators || []).map((g) => ({ name: g }))); } catch {}
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      await Promise.all([fetchTeam(), fetchUsers(), fetchProjects(), fetchModels(), fetchGenerators()]);
-    };
-
-    fetchData();
+    Promise.all([fetchTeam(), fetchUsers(), fetchProjects(), fetchModels(), fetchGenerators()]);
+    // eslint-disable-next-line
   }, [id]);
 
   useEffect(() => {
@@ -178,468 +311,644 @@ export default function TeamEdit() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setTeam({
-      ...team,
-      [name]: value
-    });
-  };
-
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
+    setTeam({ ...team, [name]: value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    setSaving(true);
     try {
       const payload = {
         name: team.name,
         description: team.description,
         budget: parseFloat(team.budget),
-        users: team.users.map(u => u.username),
-        admins: team.admins.map(a => a.username),
-        projects: team.projects.map(p => p.name),
-        llms: team.llms.map(l => l.name),
-        embeddings: team.embeddings.map(e => e.name),
-        image_generators: team.image_generators.map(g => g.name),
-        audio_generators: team.audio_generators.map(g => g.name),
+        users: team.users.map((u) => u.username),
+        admins: team.admins.map((a) => a.username),
+        projects: team.projects.map((p) => p.name),
+        llms: team.llms.map((l) => l.name),
+        embeddings: team.embeddings.map((e2) => e2.name),
+        image_generators: team.image_generators.map((g) => g.name),
+        audio_generators: team.audio_generators.map((g) => g.name),
         branding: team.branding,
       };
-
-      const endpoint = isNewTeam ? '/teams' : `/teams/${id}`;
+      const endpoint = isNewTeam ? "/teams" : `/teams/${id}`;
       const data = isNewTeam
         ? await api.post(endpoint, payload, user.token)
         : await api.patch(endpoint, payload, user.token);
-
       toast.success(isNewTeam ? t("teams.edit.created") : t("teams.edit.updated"));
-
-      // Redirect to the team view page
       navigate(isNewTeam ? `/team/${data.id}` : `/team/${id}`);
-    } catch (error) {
-      // errors auto-toasted
-    }
+    } catch (e2) {} finally { setSaving(false); }
   };
 
-  const handleCancel = () => {
-    navigate(isNewTeam ? '/teams' : `/team/${id}`);
-  };
+  const handleCancel = () => navigate(isNewTeam ? "/teams" : `/team/${id}`);
 
   if (loading) {
     return (
       <Container>
-        <Box className="breadcrumb">
-          <Breadcrumb routeSegments={[
-            { name: t("nav.teams"), path: "/teams" },
-            { name: isNewTeam ? t("teams.edit.newTitle") : t("teams.edit.editTitle"), path: isNewTeam ? "/teams/new" : `/teams/${id}/edit` }
-          ]} />
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 12, gap: 2 }}>
+          <Box
+            sx={{
+              width: 64, height: 64,
+              borderRadius: "50%",
+              background: ACCENT_SOFT,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              animation: `${pulse} 2s ease-out infinite`,
+            }}
+          >
+            <CircularProgress size={28} sx={{ color: ACCENT }} />
+          </Box>
+          <Box
+            component="span"
+            sx={{
+              fontFamily: FONT_MONO,
+              fontSize: "0.7rem",
+              color: "text.secondary",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}
+          >
+            {t("common.loading")}
+          </Box>
         </Box>
-        <Typography>{t("common.loading")}</Typography>
       </Container>
     );
   }
 
+  const hasBudget = team.budget >= 0;
+  const heroEyebrow = isNewTeam ? "TEAM/NEW" : `TEAM/${String(id).padStart(4, "0")}`;
+  const heroTitle = isNewTeam ? t("teams.edit.newTitle") : team.name || t("teams.edit.editTitle");
+
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[
-          { name: t("nav.teams"), path: "/teams" },
-          { name: isNewTeam ? t("teams.edit.newTitle") : t("teams.edit.editTitle"), path: isNewTeam ? "/teams/new" : `/teams/${id}/edit` }
-        ]} />
-      </Box>
-
       <form onSubmit={handleSubmit}>
-        <StyledCard elevation={0}>
-          <Typography variant="h5" mb={3}>{isNewTeam ? t("teams.edit.newTitle") : t("teams.edit.editTitle")}</Typography>
-          
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label={t("teams.edit.name")}
-                name="name"
-                value={team.name}
-                onChange={handleChange}
-                required
+        <PageHero
+          icon={<GroupsOutlined sx={{ color: "#fff" }} />}
+          eyebrow={heroEyebrow}
+          title={heroTitle}
+          subtitle={
+            isNewTeam
+              ? t("teams.edit.newSubtitle") || "Provision a new workspace, pick members, attach models."
+              : t("teams.edit.editSubtitle") || "Adjust membership, allocations, and branding."
+          }
+          stats={[
+            { glyph: "◆", color: "#f0abfc", label: `${(team.users || []).length} member${(team.users || []).length === 1 ? "" : "s"}` },
+            { glyph: "★", color: "#fca5a5", label: `${(team.admins || []).length} admin${(team.admins || []).length === 1 ? "" : "s"}` },
+            { glyph: "⌬", color: "#fcd34d", label: `${(team.projects || []).length} project${(team.projects || []).length === 1 ? "" : "s"}` },
+            ...(hasBudget
+              ? [{ glyph: "$", color: "#a7f3d0", label: `$${parseFloat(team.budget).toFixed(2)} cap` }]
+              : [{ glyph: "∞", color: "#94a3b8", label: t("teams.view.unlimited") }]),
+          ]}
+          actions={
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Button
                 variant="outlined"
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label={t("teams.edit.description")}
-                name="description"
-                value={team.description || ''}
-                onChange={handleChange}
-                multiline
-                rows={3}
-                variant="outlined"
-              />
-            </Grid>
+                startIcon={<Close />}
+                onClick={handleCancel}
+                sx={{
+                  textTransform: "none",
+                  color: "#fff",
+                  borderColor: "rgba(255,255,255,0.4)",
+                  "&:hover": { borderColor: "#fff", backgroundColor: "rgba(255,255,255,0.08)" },
+                }}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <Save />}
+                disabled={saving}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 700,
+                  background: `linear-gradient(135deg, ${ACCENT} 0%, ${ACCENT_DARK} 100%)`,
+                  boxShadow: `0 4px 14px ${ACCENT}66`,
+                  "&:hover": {
+                    background: `linear-gradient(135deg, ${ACCENT} 0%, #86198f 100%)`,
+                    boxShadow: `0 6px 18px ${ACCENT}88`,
+                  },
+                }}
+              >
+                {saving
+                  ? t("common.saving") || "Saving…"
+                  : isNewTeam ? t("teams.edit.createTeam") : t("teams.edit.saveChanges")}
+              </Button>
+            </Box>
+          }
+          compact
+        />
 
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label={t("teams.edit.budget")}
-                name="budget"
-                type="number"
-                value={team.budget}
-                onChange={handleChange}
-                variant="outlined"
-                helperText={t("teams.edit.budgetHelp")}
-                inputProps={{ step: "0.01" }}
-              />
-            </Grid>
-          </Grid>
-
-          <Box sx={{ mt: 4, borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs value={tabValue} onChange={handleTabChange} aria-label="team tabs">
-              <Tab label={t("teams.edit.tabs.users")} icon={<Group />} iconPosition="start" />
-              <Tab label={t("teams.edit.tabs.projects")} icon={<Code />} iconPosition="start" />
-              <Tab label={t("teams.edit.tabs.models")} icon={<Psychology />} iconPosition="start" />
-              <Tab label={t("teams.edit.tabs.branding")} icon={<Palette />} iconPosition="start" />
-            </Tabs>
-          </Box>
-          
-          <TabPanel value={tabValue} index={0}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>{t("teams.edit.members")}</Typography>
-                <Autocomplete
-                  multiple
-                  id="users-select"
-                  options={users}
-                  getOptionLabel={(option) => option.username}
-                  value={team.users}
-                  onChange={(event, newValue) => {
-                    setTeam({ ...team, users: newValue });
-                  }}
-                  filterSelectedOptions
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      variant="outlined"
-                      label={t("teams.edit.selectUsers")}
-                      placeholder={t("teams.edit.tabs.users")}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>{t("teams.edit.admins")}</Typography>
-                <Autocomplete
-                  multiple
-                  id="admins-select"
-                  options={users}
-                  getOptionLabel={(option) => option.username}
-                  value={team.admins}
-                  onChange={(event, newValue) => {
-                    setTeam({ ...team, admins: newValue });
-                  }}
-                  filterSelectedOptions
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      variant="outlined"
-                      label={t("teams.edit.selectAdmins")}
-                      placeholder={t("teams.edit.admins")}
-                    />
-                  )}
-                />
-                <Typography variant="caption" color="textSecondary">
-                  {t("teams.edit.adminsHelp")}
-                </Typography>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="h6" gutterBottom>{t("teams.edit.invite")}</Typography>
-                <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 1 }}>
-                  {t("teams.edit.inviteHelp")}
-                </Typography>
-                <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
-                  <TextField
-                    size="small"
-                    label={t("teams.edit.username")}
-                    value={inviteUsername}
-                    onChange={(e) => setInviteUsername(e.target.value)}
-                    sx={{ width: 250 }}
-                  />
-                  <Button
-                    variant="contained"
-                    onClick={handleInvite}
-                    disabled={!inviteUsername.trim()}
-                  >
-                    {t("teams.edit.sendInvite")}
-                  </Button>
-                </Box>
-              </Grid>
-            </Grid>
-          </TabPanel>
-          
-          <TabPanel value={tabValue} index={1}>
-            <Typography variant="h6" gutterBottom>{t("teams.edit.projectsHeading")}</Typography>
-            <Autocomplete
-              multiple
-              id="projects-select"
-              options={projects}
-              getOptionLabel={(option) => option.name}
-              value={team.projects}
-              onChange={(event, newValue) => {
-                setTeam({ ...team, projects: newValue });
-              }}
-              filterSelectedOptions
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  variant="outlined"
-                  label={t("teams.edit.selectProjects")}
-                  placeholder={t("teams.edit.tabs.projects")}
-                />
-              )}
+        {/* GENERAL — name, description, budget */}
+        <Box sx={{ mt: 2.5 }}>
+          <TileCard elevation={0} accent={SECTION.general.c}>
+            <TileHeader
+              icon={<GroupsOutlined />}
+              title={t("teams.edit.tabs.general") || "General"}
+              subtitle={t("teams.edit.generalSubtitle") || "Team identity and budget cap"}
+              accent={SECTION.general.c}
             />
-            <Typography variant="caption" color="textSecondary">
-              {t("teams.edit.projectsHelp")}
-            </Typography>
-          </TabPanel>
-          
-          <TabPanel value={tabValue} index={2}>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>{t("teams.edit.llms")}</Typography>
-                <Autocomplete
-                  multiple
-                  id="llms-select"
-                  options={llms}
-                  getOptionLabel={(option) => option.name}
-                  value={team.llms}
-                  onChange={(event, newValue) => {
-                    setTeam({ ...team, llms: newValue });
-                  }}
-                  filterSelectedOptions
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      variant="outlined"
-                      label={t("teams.edit.selectLlms")}
-                      placeholder={t("nav.llms")}
-                    />
-                  )}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>{t("teams.edit.embeddings")}</Typography>
-                <Autocomplete
-                  multiple
-                  id="embeddings-select"
-                  options={embeddings}
-                  getOptionLabel={(option) => option.name}
-                  value={team.embeddings}
-                  onChange={(event, newValue) => {
-                    setTeam({ ...team, embeddings: newValue });
-                  }}
-                  filterSelectedOptions
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      variant="outlined"
-                      label={t("teams.edit.selectEmbeddings")}
-                      placeholder={t("nav.embeddings")}
-                    />
-                  )}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>{t("teams.edit.imageGen")}</Typography>
-                {imageGenerators.length > 0 ? (
-                  <Autocomplete
-                    multiple
-                    id="image-generators-select"
-                    options={imageGenerators}
-                    getOptionLabel={(option) => option.name}
-                    value={team.image_generators}
-                    onChange={(event, newValue) => {
-                      setTeam({ ...team, image_generators: newValue });
-                    }}
-                    isOptionEqualToValue={(option, value) => option.name === value.name}
-                    filterSelectedOptions
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        variant="outlined"
-                        label={t("teams.edit.selectImageGen")}
-                        placeholder={t("teams.edit.imageGen")}
-                      />
-                    )}
+            <Box sx={{ p: 2.5 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label={t("teams.edit.name")}
+                    name="name"
+                    value={team.name}
+                    onChange={handleChange}
+                    required
+                    sx={fieldSx(SECTION.general.c)}
                   />
-                ) : (
-                  <Typography variant="body2" color="textSecondary">
-                    {t("teams.edit.noImageGen")}
-                  </Typography>
-                )}
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>{t("teams.edit.audioGen")}</Typography>
-                {audioGenerators.length > 0 ? (
-                  <Autocomplete
-                    multiple
-                    id="audio-generators-select"
-                    options={audioGenerators}
-                    getOptionLabel={(option) => option.name}
-                    value={team.audio_generators}
-                    onChange={(event, newValue) => {
-                      setTeam({ ...team, audio_generators: newValue });
-                    }}
-                    isOptionEqualToValue={(option, value) => option.name === value.name}
-                    filterSelectedOptions
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        variant="outlined"
-                        label={t("teams.edit.selectAudioGen")}
-                        placeholder={t("teams.edit.audioGen")}
-                      />
-                    )}
-                  />
-                ) : (
-                  <Typography variant="body2" color="textSecondary">
-                    {t("teams.edit.noAudioGen")}
-                  </Typography>
-                )}
-              </Grid>
-            </Grid>
-          </TabPanel>
-
-          <TabPanel value={tabValue} index={3}>
-            <Typography variant="h6" gutterBottom>{t("teams.edit.branding")}</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              {t("teams.edit.brandingHelp")}
-            </Typography>
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t("teams.edit.appName")}
-                  value={team.branding?.app_name || ""}
-                  onChange={(e) => setTeam({ ...team, branding: { ...team.branding, app_name: e.target.value } })}
-                  variant="outlined"
-                  helperText={t("teams.edit.appNameHelp")}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t("teams.edit.logoUrl")}
-                  value={team.branding?.logo_url || ""}
-                  onChange={(e) => setTeam({ ...team, branding: { ...team.branding, logo_url: e.target.value } })}
-                  variant="outlined"
-                  helperText={t("teams.edit.logoUrlHelp")}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t("teams.edit.primaryColor")}
-                  value={team.branding?.primary_color || ""}
-                  onChange={(e) => setTeam({ ...team, branding: { ...team.branding, primary_color: e.target.value } })}
-                  variant="outlined"
-                  placeholder="#1976d2"
-                  helperText={t("teams.edit.primaryColorHelp")}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <input
-                          type="color"
-                          value={team.branding?.primary_color || "#1976d2"}
-                          onChange={(e) => setTeam({ ...team, branding: { ...team.branding, primary_color: e.target.value } })}
-                          style={{ width: 32, height: 32, padding: 0, border: "none", cursor: "pointer", background: "none" }}
-                        />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label={t("teams.edit.secondaryColor")}
-                  value={team.branding?.secondary_color || ""}
-                  onChange={(e) => setTeam({ ...team, branding: { ...team.branding, secondary_color: e.target.value } })}
-                  variant="outlined"
-                  placeholder="#ff9800"
-                  helperText={t("teams.edit.secondaryColorHelp")}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <input
-                          type="color"
-                          value={team.branding?.secondary_color || "#ff9800"}
-                          onChange={(e) => setTeam({ ...team, branding: { ...team.branding, secondary_color: e.target.value } })}
-                          style={{ width: 32, height: 32, padding: 0, border: "none", cursor: "pointer", background: "none" }}
-                        />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={3}
-                  label={t("teams.edit.welcomeMessage")}
-                  value={team.branding?.welcome_message || ""}
-                  onChange={(e) => setTeam({ ...team, branding: { ...team.branding, welcome_message: e.target.value } })}
-                  variant="outlined"
-                  helperText={t("teams.edit.welcomeHelp")}
-                />
-              </Grid>
-
-              {/* Live preview */}
-              {(team.branding?.logo_url || team.branding?.primary_color || team.branding?.app_name) && (
-                <Grid item xs={12}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("teams.edit.preview")}</Typography>
-                  <Box sx={{
-                    display: "flex", alignItems: "center", gap: 1.5, p: 2,
-                    bgcolor: team.branding?.primary_color || "primary.main",
-                    borderRadius: 1, color: "#fff",
-                  }}>
-                    {team.branding?.logo_url ? (
-                      <img width="30" height="30" src={team.branding.logo_url} alt="logo" style={{ objectFit: "contain" }} />
-                    ) : (
-                      <img width="30" height="30" src="/admin/assets/images/restai-logo.png" alt="logo" />
-                    )}
-                    <Typography variant="h6" sx={{ color: "#fff" }}>
-                      {team.branding?.app_name || team.name || "RESTai"}
-                    </Typography>
-                  </Box>
                 </Grid>
-              )}
-            </Grid>
-          </TabPanel>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label={t("teams.edit.budget")}
+                    name="budget"
+                    type="number"
+                    value={team.budget}
+                    onChange={handleChange}
+                    inputProps={{ step: "0.01" }}
+                    helperText={t("teams.edit.budgetHelp")}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          {hasBudget
+                            ? <AttachMoney sx={{ color: SECTION.general.c, fontSize: 18 }} />
+                            : <AllInclusive sx={{ color: "text.disabled", fontSize: 18 }} />}
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={fieldSx(SECTION.general.c)}
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label={t("teams.edit.description")}
+                    name="description"
+                    value={team.description || ""}
+                    onChange={handleChange}
+                    multiline
+                    rows={3}
+                    sx={fieldSx(SECTION.general.c)}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+          </TileCard>
+        </Box>
 
-          <Box mt={4} display="flex" justifyContent="flex-end">
-            <Button
-              variant="outlined"
-              color="secondary"
-              onClick={handleCancel}
-              sx={{ mr: 2 }}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-            >
-              {isNewTeam ? t("teams.edit.createTeam") : t("teams.edit.saveChanges")}
-            </Button>
-          </Box>
-        </StyledCard>
+        {/* TABS */}
+        <Box sx={{ mt: 2.5 }}>
+          <TileCard elevation={0} accent={ACCENT}>
+            <Box sx={{ borderBottom: "1px solid rgba(15,23,42,0.06)", px: 1.5 }}>
+              <Tabs
+                value={tabValue}
+                onChange={(_, v) => setTabValue(v)}
+                TabIndicatorProps={{ sx: { background: `linear-gradient(90deg, ${ACCENT}, ${ACCENT_DARK})`, height: 3, borderRadius: 2 } }}
+                sx={{
+                  minHeight: 48,
+                  "& .MuiTab-root": {
+                    textTransform: "none",
+                    fontWeight: 700,
+                    fontSize: "0.85rem",
+                    color: "text.secondary",
+                    minHeight: 48,
+                    "&.Mui-selected": { color: ACCENT },
+                  },
+                }}
+              >
+                <Tab label={t("teams.edit.tabs.users")}    icon={<Group />}     iconPosition="start" />
+                <Tab label={t("teams.edit.tabs.projects")} icon={<Code />}      iconPosition="start" />
+                <Tab label={t("teams.edit.tabs.models")}   icon={<Psychology />} iconPosition="start" />
+                <Tab label={t("teams.edit.tabs.branding")} icon={<Palette />}    iconPosition="start" />
+              </Tabs>
+            </Box>
+
+            {/* USERS / ADMINS / INVITE */}
+            <TabPanel value={tabValue} index={0}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <TileCard elevation={0} accent={SECTION.members.c}>
+                    <TileHeader
+                      icon={<Group />}
+                      title={t("teams.edit.members")}
+                      subtitle={t("teams.edit.membersSubtitle") || "Pick everyone with read+write access"}
+                      accent={SECTION.members.c}
+                      count={(team.users || []).length}
+                    />
+                    <Box sx={{ p: 2 }}>
+                      <PickerField
+                        options={users}
+                        value={team.users}
+                        onChange={(v) => setTeam({ ...team, users: v })}
+                        accent={SECTION.members.c}
+                        label={t("teams.edit.selectUsers")}
+                        placeholder={t("teams.edit.tabs.users")}
+                        getOptionLabel={(o) => o.username}
+                      />
+                    </Box>
+                  </TileCard>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TileCard elevation={0} accent={SECTION.admins.c}>
+                    <TileHeader
+                      icon={<Star />}
+                      title={t("teams.edit.admins")}
+                      subtitle={t("teams.edit.adminsHelp")}
+                      accent={SECTION.admins.c}
+                      count={(team.admins || []).length}
+                    />
+                    <Box sx={{ p: 2 }}>
+                      <PickerField
+                        options={users}
+                        value={team.admins}
+                        onChange={(v) => setTeam({ ...team, admins: v })}
+                        accent={SECTION.admins.c}
+                        label={t("teams.edit.selectAdmins")}
+                        placeholder={t("teams.edit.admins")}
+                        getOptionLabel={(o) => o.username}
+                      />
+                    </Box>
+                  </TileCard>
+                </Grid>
+
+                {!isNewTeam && (
+                  <Grid item xs={12}>
+                    <TileCard elevation={0} accent={ACCENT}>
+                      <TileHeader
+                        icon={<Send />}
+                        title={t("teams.edit.invite")}
+                        subtitle={t("teams.edit.inviteHelp")}
+                        accent={ACCENT}
+                      />
+                      <Box sx={{ p: 2, display: "flex", gap: 1, alignItems: "stretch", flexWrap: "wrap" }}>
+                        <TextField
+                          size="small"
+                          label={t("teams.edit.username")}
+                          value={inviteUsername}
+                          onChange={(e) => setInviteUsername(e.target.value)}
+                          sx={{ ...fieldSx(ACCENT), minWidth: 280, flex: 1 }}
+                        />
+                        <Button
+                          variant="contained"
+                          startIcon={<Send />}
+                          onClick={handleInvite}
+                          disabled={!inviteUsername.trim()}
+                          sx={{
+                            textTransform: "none",
+                            fontWeight: 700,
+                            background: `linear-gradient(135deg, ${ACCENT} 0%, ${ACCENT_DARK} 100%)`,
+                            boxShadow: `0 4px 14px ${ACCENT}55`,
+                            "&:hover": {
+                              background: `linear-gradient(135deg, ${ACCENT} 0%, #86198f 100%)`,
+                              boxShadow: `0 6px 18px ${ACCENT}77`,
+                            },
+                          }}
+                        >
+                          {t("teams.edit.sendInvite")}
+                        </Button>
+                      </Box>
+                    </TileCard>
+                  </Grid>
+                )}
+              </Grid>
+            </TabPanel>
+
+            {/* PROJECTS */}
+            <TabPanel value={tabValue} index={1}>
+              <TileCard elevation={0} accent={SECTION.projects.c}>
+                <TileHeader
+                  icon={<Workspaces />}
+                  title={t("teams.edit.projectsHeading")}
+                  subtitle={t("teams.edit.projectsHelp")}
+                  accent={SECTION.projects.c}
+                  count={(team.projects || []).length}
+                />
+                <Box sx={{ p: 2 }}>
+                  <PickerField
+                    options={projects}
+                    value={team.projects}
+                    onChange={(v) => setTeam({ ...team, projects: v })}
+                    accent={SECTION.projects.c}
+                    label={t("teams.edit.selectProjects")}
+                    placeholder={t("teams.edit.tabs.projects")}
+                  />
+                </Box>
+              </TileCard>
+            </TabPanel>
+
+            {/* MODELS */}
+            <TabPanel value={tabValue} index={2}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <TileCard elevation={0} accent={SECTION.llms.c}>
+                    <TileHeader icon={<Psychology />} title={t("teams.edit.llms")} accent={SECTION.llms.c} count={(team.llms || []).length} />
+                    <Box sx={{ p: 2 }}>
+                      <PickerField
+                        options={llms}
+                        value={team.llms}
+                        onChange={(v) => setTeam({ ...team, llms: v })}
+                        accent={SECTION.llms.c}
+                        label={t("teams.edit.selectLlms")}
+                        placeholder={t("nav.llms")}
+                      />
+                    </Box>
+                  </TileCard>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TileCard elevation={0} accent={SECTION.embeddings.c}>
+                    <TileHeader icon={<Psychology />} title={t("teams.edit.embeddings")} accent={SECTION.embeddings.c} count={(team.embeddings || []).length} />
+                    <Box sx={{ p: 2 }}>
+                      <PickerField
+                        options={embeddings}
+                        value={team.embeddings}
+                        onChange={(v) => setTeam({ ...team, embeddings: v })}
+                        accent={SECTION.embeddings.c}
+                        label={t("teams.edit.selectEmbeddings")}
+                        placeholder={t("nav.embeddings")}
+                      />
+                    </Box>
+                  </TileCard>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TileCard elevation={0} accent={SECTION.imageGen.c}>
+                    <TileHeader icon={<Image />} title={t("teams.edit.imageGen")} accent={SECTION.imageGen.c} count={(team.image_generators || []).length} />
+                    <Box sx={{ p: 2 }}>
+                      {imageGenerators.length > 0 ? (
+                        <PickerField
+                          options={imageGenerators}
+                          value={team.image_generators}
+                          onChange={(v) => setTeam({ ...team, image_generators: v })}
+                          accent={SECTION.imageGen.c}
+                          label={t("teams.edit.selectImageGen")}
+                          placeholder={t("teams.edit.imageGen")}
+                          isOptionEqualToValue={(o, v) => o.name === v.name}
+                        />
+                      ) : (
+                        <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic" }}>
+                          {t("teams.edit.noImageGen")}
+                        </Typography>
+                      )}
+                    </Box>
+                  </TileCard>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TileCard elevation={0} accent={SECTION.audioGen.c}>
+                    <TileHeader icon={<Speaker />} title={t("teams.edit.audioGen")} accent={SECTION.audioGen.c} count={(team.audio_generators || []).length} />
+                    <Box sx={{ p: 2 }}>
+                      {audioGenerators.length > 0 ? (
+                        <PickerField
+                          options={audioGenerators}
+                          value={team.audio_generators}
+                          onChange={(v) => setTeam({ ...team, audio_generators: v })}
+                          accent={SECTION.audioGen.c}
+                          label={t("teams.edit.selectAudioGen")}
+                          placeholder={t("teams.edit.audioGen")}
+                          isOptionEqualToValue={(o, v) => o.name === v.name}
+                        />
+                      ) : (
+                        <Typography variant="body2" sx={{ color: "text.disabled", fontStyle: "italic" }}>
+                          {t("teams.edit.noAudioGen")}
+                        </Typography>
+                      )}
+                    </Box>
+                  </TileCard>
+                </Grid>
+              </Grid>
+            </TabPanel>
+
+            {/* BRANDING */}
+            <TabPanel value={tabValue} index={3}>
+              <TileCard elevation={0} accent={SECTION.branding.c}>
+                <TileHeader
+                  icon={<Palette />}
+                  title={t("teams.edit.branding")}
+                  subtitle={t("teams.edit.brandingHelp")}
+                  accent={SECTION.branding.c}
+                />
+                <Box sx={{ p: 2.5 }}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label={t("teams.edit.appName")}
+                        value={team.branding?.app_name || ""}
+                        onChange={(e) => setTeam({ ...team, branding: { ...team.branding, app_name: e.target.value } })}
+                        helperText={t("teams.edit.appNameHelp")}
+                        sx={fieldSx(SECTION.branding.c)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label={t("teams.edit.logoUrl")}
+                        value={team.branding?.logo_url || ""}
+                        onChange={(e) => setTeam({ ...team, branding: { ...team.branding, logo_url: e.target.value } })}
+                        helperText={t("teams.edit.logoUrlHelp")}
+                        sx={fieldSx(SECTION.branding.c)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label={t("teams.edit.primaryColor")}
+                        value={team.branding?.primary_color || ""}
+                        onChange={(e) => setTeam({ ...team, branding: { ...team.branding, primary_color: e.target.value } })}
+                        placeholder="#1976d2"
+                        helperText={t("teams.edit.primaryColorHelp")}
+                        sx={fieldSx(SECTION.branding.c)}
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <Box
+                                sx={{
+                                  width: 28, height: 28,
+                                  borderRadius: 1,
+                                  border: "1px solid rgba(15,23,42,0.10)",
+                                  background: team.branding?.primary_color || "#1976d2",
+                                  position: "relative",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <input
+                                  type="color"
+                                  value={team.branding?.primary_color || "#1976d2"}
+                                  onChange={(e) => setTeam({ ...team, branding: { ...team.branding, primary_color: e.target.value } })}
+                                  style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", border: "none" }}
+                                />
+                              </Box>
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label={t("teams.edit.secondaryColor")}
+                        value={team.branding?.secondary_color || ""}
+                        onChange={(e) => setTeam({ ...team, branding: { ...team.branding, secondary_color: e.target.value } })}
+                        placeholder="#ff9800"
+                        helperText={t("teams.edit.secondaryColorHelp")}
+                        sx={fieldSx(SECTION.branding.c)}
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <Box
+                                sx={{
+                                  width: 28, height: 28,
+                                  borderRadius: 1,
+                                  border: "1px solid rgba(15,23,42,0.10)",
+                                  background: team.branding?.secondary_color || "#ff9800",
+                                  position: "relative",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <input
+                                  type="color"
+                                  value={team.branding?.secondary_color || "#ff9800"}
+                                  onChange={(e) => setTeam({ ...team, branding: { ...team.branding, secondary_color: e.target.value } })}
+                                  style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", border: "none" }}
+                                />
+                              </Box>
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={3}
+                        label={t("teams.edit.welcomeMessage")}
+                        value={team.branding?.welcome_message || ""}
+                        onChange={(e) => setTeam({ ...team, branding: { ...team.branding, welcome_message: e.target.value } })}
+                        helperText={t("teams.edit.welcomeHelp")}
+                        sx={fieldSx(SECTION.branding.c)}
+                      />
+                    </Grid>
+
+                    {/* Live preview */}
+                    {(team.branding?.logo_url || team.branding?.primary_color || team.branding?.app_name) && (
+                      <Grid item xs={12}>
+                        <Box
+                          component="span"
+                          sx={{
+                            display: "block",
+                            fontFamily: FONT_MONO,
+                            fontSize: "0.62rem",
+                            letterSpacing: "0.12em",
+                            textTransform: "uppercase",
+                            fontWeight: 700,
+                            color: "text.secondary",
+                            mb: 1,
+                          }}
+                        >
+                          {t("teams.edit.preview")}
+                        </Box>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1.5,
+                            p: 2,
+                            borderRadius: 2,
+                            background: team.branding?.primary_color || "#1976d2",
+                            color: "#fff",
+                            boxShadow: `0 8px 24px ${(team.branding?.primary_color || "#1976d2")}55`,
+                            position: "relative",
+                            overflow: "hidden",
+                            "&::after": {
+                              content: '""',
+                              position: "absolute",
+                              right: -40, top: -40,
+                              width: 140, height: 140,
+                              borderRadius: "50%",
+                              background: team.branding?.secondary_color || "rgba(255,255,255,0.15)",
+                              opacity: 0.25,
+                            },
+                          }}
+                        >
+                          {team.branding?.logo_url
+                            ? <img width="32" height="32" src={team.branding.logo_url} alt="logo" style={{ objectFit: "contain", position: "relative", zIndex: 1 }} />
+                            : <img width="32" height="32" src="/admin/assets/images/restai-logo.png" alt="logo" style={{ position: "relative", zIndex: 1 }} />}
+                          <Typography variant="h6" sx={{ color: "#fff", fontWeight: 700, position: "relative", zIndex: 1 }}>
+                            {team.branding?.app_name || team.name || "RESTai"}
+                          </Typography>
+                        </Box>
+                        {team.branding?.welcome_message && (
+                          <Box
+                            sx={{
+                              mt: 1,
+                              p: 1.5,
+                              borderRadius: 1.5,
+                              border: `1px dashed ${SECTION.branding.c}55`,
+                              backgroundColor: SECTION.branding.soft,
+                              fontSize: "0.85rem",
+                              color: "text.secondary",
+                              fontStyle: "italic",
+                            }}
+                          >
+                            {team.branding.welcome_message}
+                          </Box>
+                        )}
+                      </Grid>
+                    )}
+                  </Grid>
+                </Box>
+              </TileCard>
+            </TabPanel>
+          </TileCard>
+        </Box>
+
+        {/* Sticky-ish bottom save bar (mirrors the hero actions for long forms) */}
+        <Box
+          sx={{
+            mt: 2.5,
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 1,
+          }}
+        >
+          <Button
+            variant="outlined"
+            startIcon={<Close />}
+            onClick={handleCancel}
+            sx={{
+              textTransform: "none",
+              color: "text.secondary",
+              borderColor: "rgba(15,23,42,0.15)",
+              "&:hover": { borderColor: "rgba(15,23,42,0.4)", backgroundColor: "rgba(15,23,42,0.03)" },
+            }}
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            startIcon={saving ? <CircularProgress size={14} color="inherit" /> : <Save />}
+            disabled={saving}
+            sx={{
+              textTransform: "none",
+              fontWeight: 700,
+              background: `linear-gradient(135deg, ${ACCENT} 0%, ${ACCENT_DARK} 100%)`,
+              boxShadow: `0 4px 14px ${ACCENT}55`,
+              "&:hover": {
+                background: `linear-gradient(135deg, ${ACCENT} 0%, #86198f 100%)`,
+                boxShadow: `0 6px 18px ${ACCENT}77`,
+              },
+            }}
+          >
+            {saving
+              ? t("common.saving") || "Saving…"
+              : isNewTeam ? t("teams.edit.createTeam") : t("teams.edit.saveChanges")}
+          </Button>
+        </Box>
       </form>
     </Container>
   );
