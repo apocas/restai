@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { styled } from "@mui/material";
+import { styled, Box } from "@mui/material";
 import { Article } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import ProjectLogs from "./components/ProjectLogs";
@@ -8,14 +8,9 @@ import { useParams } from "react-router-dom";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
-  margin: 10,
+  margin: "24px 48px",
+  [theme.breakpoints.down("md")]: { margin: "24px 32px" },
   [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
-}));
-
-const ContentBox = styled("div")(({ theme }) => ({
-  margin: "30px",
-  [theme.breakpoints.down("sm")]: { margin: "16px" }
 }));
 
 export default function Logs() {
@@ -27,14 +22,16 @@ export default function Logs() {
     auth.checkAuth();
     return api.get("/projects/" + projectID, auth.user.token)
       .then((d) => {
-        setProject(d)
-        return d
-      }).catch(() => {});
-  }
+        setProject(d);
+        return d;
+      })
+      .catch(() => {});
+  };
 
   useEffect(() => {
-    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + ' - Logs - ' + id;
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Logs - " + id;
     fetchProject(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   return (
@@ -45,15 +42,15 @@ export default function Logs() {
         title="Logs"
         subtitle="Inference history with status, latency, tokens and tool traces."
         stats={[
-          { glyph: "◆", color: "#93c5fd", label: project.name || "—" },
+          { glyph: "◆", color: "#c4b5fd", label: project.name || "—" },
           { glyph: "⚡", color: "#7dd3fc", label: project.type || "—" },
         ]}
         compact
       />
 
-      <ContentBox className="analytics">
+      <Box>
         <ProjectLogs project={project} />
-      </ContentBox>
+      </Box>
     </Container>
   );
 }

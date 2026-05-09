@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Grid, styled } from "@mui/material";
+import { styled, Box } from "@mui/material";
 import { Security } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import ProjectGuards from "./components/ProjectGuards";
@@ -9,14 +9,9 @@ import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
-  margin: 10,
+  margin: "24px 48px",
+  [theme.breakpoints.down("md")]: { margin: "24px 32px" },
   [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
-}));
-
-const ContentBox = styled("div")(({ theme }) => ({
-  margin: "30px",
-  [theme.breakpoints.down("sm")]: { margin: "16px" }
 }));
 
 export default function ProjectGuardsView() {
@@ -43,18 +38,14 @@ export default function ProjectGuardsView() {
         title="Guards"
         subtitle="Input/output guardrail checks and recent flags."
         stats={[
-          { glyph: "◆", color: "#93c5fd", label: project.name || "—" },
+          { glyph: "◆", color: "#fda4af", label: project.name || "—" },
           { glyph: "⚡", color: "#7dd3fc", label: project.type || "—" },
         ]}
         compact
       />
-      <ContentBox>
-        <Grid container spacing={3}>
-          <Grid item lg={12} md={12} sm={12} xs={12}>
-            {project.name && <ProjectGuards project={project} />}
-          </Grid>
-        </Grid>
-      </ContentBox>
+      <Box>
+        {project.name && <ProjectGuards project={project} />}
+      </Box>
     </Container>
   );
 }

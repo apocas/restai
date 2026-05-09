@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Grid, styled } from "@mui/material";
+import { styled, Box } from "@mui/material";
 import { Science } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import ProjectEvals from "./components/ProjectEvals";
@@ -9,14 +9,9 @@ import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
-  margin: 10,
+  margin: "24px 48px",
+  [theme.breakpoints.down("md")]: { margin: "24px 32px" },
   [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
-}));
-
-const ContentBox = styled("div")(({ theme }) => ({
-  margin: "30px",
-  [theme.breakpoints.down("sm")]: { margin: "16px" }
 }));
 
 export default function ProjectEvalsView() {
@@ -25,14 +20,14 @@ export default function ProjectEvalsView() {
   const [project, setProject] = useState({});
   const auth = useAuth();
 
-  const fetchProject = (projectID) => {
-    return api.get("/projects/" + projectID, auth.user.token)
+  const fetchProject = (projectID) =>
+    api.get("/projects/" + projectID, auth.user.token)
       .then((d) => setProject(d))
       .catch(() => {});
-  };
 
   useEffect(() => {
     fetchProject(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -47,19 +42,14 @@ export default function ProjectEvalsView() {
         title="Evals"
         subtitle="Run evaluations against datasets and watch metric trends."
         stats={[
-          { glyph: "◆", color: "#93c5fd", label: project.name || "—" },
+          { glyph: "◆", color: "#5eead4", label: project.name || "—" },
           { glyph: "⚡", color: "#7dd3fc", label: project.type || "—" },
         ]}
         compact
       />
-
-      <ContentBox>
-        <Grid container spacing={3}>
-          <Grid item lg={12} md={12} sm={12} xs={12}>
-            {project.name && <ProjectEvals project={project} />}
-          </Grid>
-        </Grid>
-      </ContentBox>
+      <Box>
+        {project.name && <ProjectEvals project={project} />}
+      </Box>
     </Container>
   );
 }
