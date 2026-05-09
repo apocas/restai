@@ -81,19 +81,19 @@ export const defaultNavigations = [
   {
     name: "Cron Logs", nameKey: "nav.cronLogs",
     icon: "schedule",
-    path: "/admin/cron-logs",
+    path: "/cron-logs",
     auth: authRoles.admin,
   },
   {
     name: "Routines", nameKey: "nav.routines",
     icon: "alarm",
-    path: "/admin/routines",
+    path: "/routines",
     auth: authRoles.admin,
   },
   {
     name: "Permissions", nameKey: "nav.permissionMatrix",
     icon: "lock",
-    path: "/admin/permissions",
+    path: "/permissions",
     auth: authRoles.teamAdmin,
   },
   { label: "Docs", labelKey: "nav.docsLabel", type: "label" },

@@ -124,7 +124,7 @@ export default function PermissionMatrix() {
     return (
       <Container>
         <Box className="breadcrumb">
-          <Breadcrumb routeSegments={[{ name: t("permissions.title"), path: "/admin/permissions" }]} />
+          <Breadcrumb routeSegments={[{ name: t("permissions.title"), path: "/permissions" }]} />
         </Box>
         <ContentBox>
           <Box sx={{ textAlign: "center", py: 8 }}><CircularProgress /></Box>
@@ -137,7 +137,7 @@ export default function PermissionMatrix() {
     return (
       <Container>
         <Box className="breadcrumb">
-          <Breadcrumb routeSegments={[{ name: t("permissions.title"), path: "/admin/permissions" }]} />
+          <Breadcrumb routeSegments={[{ name: t("permissions.title"), path: "/permissions" }]} />
         </Box>
         <ContentBox>
           <Card sx={{ p: 4, textAlign: "center" }}>
@@ -151,7 +151,7 @@ export default function PermissionMatrix() {
   return (
     <Container>
       <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Permissions", path: "/admin/permissions" }]} />
+        <Breadcrumb routeSegments={[{ name: "Permissions", path: "/permissions" }]} />
       </Box>
 
       <ContentBox>

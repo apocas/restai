@@ -280,17 +280,17 @@ const routes = [
         auth: authRoles.admin
       },
       {
-        path: "/admin/cron-logs",
+        path: "/cron-logs",
         element: <CronLogs />,
         auth: authRoles.admin
       },
       {
-        path: "/admin/routines",
+        path: "/routines",
         element: <AdminRoutines />,
         auth: authRoles.admin
       },
       {
-        path: "/admin/permissions",
+        path: "/permissions",
         element: <PermissionMatrix />,
         auth: authRoles.teamAdmin
       },

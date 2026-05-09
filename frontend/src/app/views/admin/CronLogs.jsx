@@ -43,7 +43,8 @@ const STATUS_META = {
   warning: { color: "#f59e0b", soft: "rgba(245,158,11,0.12)", icon: WarningIcon },
 };
 
-const JOBS = ["sync", "telegram", "docker_cleanup", "routines"];
+// Job types are derived from the log entries themselves — see the
+// union-from-entries effect in CronLogs.
 
 // ── Tile card — same accent-rail vocabulary as the project library
 // cards / direct-access / proxy / classifier pages.
@@ -250,6 +251,7 @@ export default function CronLogs() {
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState(null);
   const [running, setRunning] = useState(false);
+  const [jobs, setJobs] = useState([]);
   const pageSize = 25;
 
   const fetchEntries = () => {
@@ -273,6 +275,20 @@ export default function CronLogs() {
     fetchEntries();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, filterJob, filterStatus, t]);
+
+  // Job types: harvested from whatever log entries we see, unioned
+  // across pagination so the dropdown grows the more you browse.
+  // No backend index needed — the data drives the filter.
+  useEffect(() => {
+    const fromLogs = new Set(entries.map((e) => e.job).filter(Boolean));
+    if (!fromLogs.size) return;
+    setJobs((prev) => {
+      const merged = new Set(prev);
+      let changed = false;
+      fromLogs.forEach((j) => { if (!merged.has(j)) { merged.add(j); changed = true; } });
+      return changed ? [...merged].sort() : prev;
+    });
+  }, [entries]);
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -408,7 +424,7 @@ export default function CronLogs() {
             sx={{ width: 160 }}
           >
             <MenuItem value="">{t("cron.filterAll")}</MenuItem>
-            {JOBS.map((j) => (
+            {jobs.map((j) => (
               <MenuItem key={j} value={j}>
                 <Box component="span" sx={{ fontFamily: FONT_MONO, fontSize: "0.78rem" }}>{j}</Box>
               </MenuItem>
