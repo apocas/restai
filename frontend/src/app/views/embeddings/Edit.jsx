@@ -1,57 +1,54 @@
 import { useState, useEffect } from "react";
-import { Grid, styled, Box } from "@mui/material";
+import { Box, styled } from "@mui/material";
+import { Hub } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import EmbeddingEdit from "./components/EmbeddingEdit";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import { useParams } from "react-router-dom";
-import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
-  margin: 10,
+  margin: "24px 48px",
+  [theme.breakpoints.down("md")]: { margin: "24px 32px" },
   [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
 }));
-
-const ContentBox = styled("div")(({ theme }) => ({
-  margin: "30px",
-  [theme.breakpoints.down("sm")]: { margin: "16px" }
-}));
-
 
 export default function EmbeddingEditView() {
-  const { t } = useTranslation();
   const { id } = useParams();
   const [embedding, setEmbedding] = useState({});
   const auth = useAuth();
 
-
-  const fetchLLM = (llm) => {
-    return api.get("/embeddings/" + llm, auth.user.token)
-      .then((d) => {
-        setEmbedding(d)
-        return d
-      }).catch(() => {});
-  }
-
   useEffect(() => {
-    fetchLLM(id);
+    api.get("/embeddings/" + id, auth.user.token)
+      .then(setEmbedding)
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  useEffect(() => {
+    document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - Edit Embedding - " + id;
+  }, [id]);
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: t("nav.embeddings"), path: "/embeddings"}, { name: t("common.edit") + " " + id, path: "/embedding/" + id + "/edit" }]} />
-      </Box>
+      <PageHero
+        icon={<Hub sx={{ color: "#fff" }} />}
+        eyebrow={`EMBEDDING/${String(embedding.id || 0).padStart(4, "0")} · EDIT`}
+        title={embedding.name || id}
+        subtitle="Tune provider, options, dimension, and visibility for this vector encoder."
+        stats={[
+          { glyph: "◆", color: "#5eead4", label: embedding.class_name || "—" },
+          { glyph: "▸", color: "#7dd3fc", label: embedding.privacy || "—" },
+          ...(embedding.dimension
+            ? [{ glyph: "⌬", color: "#a7f3d0", label: `${embedding.dimension}-d` }]
+            : []),
+        ]}
+        compact
+      />
 
-      <ContentBox className="analytics">
-        <Grid container spacing={3}>
-          <Grid item lg={12} md={8} sm={12} xs={12}>
-            <EmbeddingEdit embedding={embedding} />
-          </Grid>
-        </Grid>
-      </ContentBox>
+      <Box sx={{ mt: 2.5 }}>
+        {embedding.name && <EmbeddingEdit embedding={embedding} />}
+      </Box>
     </Container>
   );
 }
