@@ -713,11 +713,29 @@ def _strip_prose_from_code(content: str, ext: str) -> str:
     need changes." That junk turns into syntax errors at build time.
 
     Heuristic: find the FIRST line that matches a known code-line shape
-    for the file's extension; everything before it is dropped. Same for
-    the tail in reverse. Returns the original content unchanged when
-    the file is already code-only or when we don't have a pattern for
-    the extension.
+    for the file's extension; everything before it is dropped.
+
+    Trailing-prose stripping is RISKY for content-shaped files where
+    legitimate string literals (`"Welcome."`) can match the prose
+    pattern, so it's only applied to source-code extensions where a
+    sentence-ending paragraph at end-of-file is unambiguously LLM
+    chatter, never code. JSON / SVG / Markdown / config files are
+    json-validated first and otherwise returned untouched.
     """
+    # Files we will NEVER strip trailing prose from — they legitimately
+    # contain English sentences and capital-letter-leading values.
+    no_trail_strip_exts = {".json", ".svg", ".md", ".markdown", ".txt", ".yml", ".yaml", ".xml"}
+
+    # JSON: try to parse-and-reserialize in pristine form. If parses,
+    # return as-is. If not, fall through to heuristic preamble strip
+    # only — never a trailing-line strip.
+    if ext == ".json":
+        try:
+            json.loads(content)
+            return content
+        except (json.JSONDecodeError, ValueError):
+            pass  # fall through to head-strip only
+
     pat = None
     if ext in (".ts", ".tsx", ".js", ".jsx", ".mjs"):
         pat = _CODE_LINE_RE["js"]
@@ -731,6 +749,7 @@ def _strip_prose_from_code(content: str, ext: str) -> str:
         pat = _CODE_LINE_RE["json"]
     else:
         return content
+
     lines = content.splitlines(keepends=True)
     if not lines:
         return content
@@ -744,19 +763,26 @@ def _strip_prose_from_code(content: str, ext: str) -> str:
     else:
         # No code-shaped line found — return original (don't blow it up).
         return content
-    # Trailing prose: walk back from the end, drop lines that look like
-    # English sentences (start with a capital letter, end with `.`/`!`/`?`).
+
+    # Trailing prose strip — only safe for unambiguous code extensions.
+    # For everything in `no_trail_strip_exts` we keep the tail intact;
+    # for code, drop trailing lines that look like an English sentence.
     tail = len(lines)
-    trailing_prose_re = re.compile(r'^\s*[A-Z][\w\s\',-]*[.!?]\s*$')
-    for j in range(len(lines) - 1, head, -1):
-        line = lines[j]
-        if not line.strip():
+    if ext not in no_trail_strip_exts:
+        # Tighter regex than before: requires a multi-word phrase (no
+        # one-word "Welcome." sneaks through), and explicitly disallows
+        # quotes, braces, semicolons, parens — characters that almost
+        # always mean it's a JS/PHP statement, not chatter.
+        trailing_prose_re = re.compile(r"^\s*[A-Z][a-zA-Z]+(?:\s+[a-zA-Z][\w'-]*){2,}[.!?]\s*$")
+        for j in range(len(lines) - 1, head, -1):
+            line = lines[j]
+            if not line.strip():
+                tail = j + 1
+                continue
+            if trailing_prose_re.match(line):
+                continue
             tail = j + 1
-            continue
-        if trailing_prose_re.match(line):
-            continue
-        tail = j + 1
-        break
+            break
     return "".join(lines[head:tail])
 
 

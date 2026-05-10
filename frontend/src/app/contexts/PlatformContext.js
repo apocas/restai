@@ -11,7 +11,8 @@ export const PlatformContext = createContext({
     proxy_url: "",
     currency: "EUR",
     auth_disable_local: false,
-    mcp: false
+    mcp: false,
+    app_builder: false
   },
   isLoading: true,
   refreshCapabilities: () => {}
@@ -30,7 +31,8 @@ export default function PlatformProvider({ children }) {
     proxy_url: "",
     currency: "EUR",
     auth_disable_local: false,
-    mcp: false
+    mcp: false,
+    app_builder: false
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -52,6 +54,10 @@ export default function PlatformProvider({ children }) {
           currency: data.currency || "USD",
           auth_disable_local: data.auth_disable_local || false,
           mcp: data.mcp || false,
+          // Gates the "app" project type in /projects/new — backend
+          // sets this true when app_docker_enabled is on. Default
+          // false so the type stays hidden when the runtime isn't ready.
+          app_builder: data.app_builder || false,
           // `auth_secret_weak` used to live here but leaked pre-auth via
           // /setup — it now comes from the authenticated /info endpoint
           // and is consumed directly by the admin dashboard.

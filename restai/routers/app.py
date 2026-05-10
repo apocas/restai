@@ -880,43 +880,13 @@ async def route_app_generate_execute(
                 "preview": (contracts_text or "")[:500],
             })
 
-            # ── Test pack generation (after contracts, before files).
-            # Produces tests/api.php that hits each /api/ endpoint and
-            # asserts JSON shape per the contracts. The test runner
-            # (called from /app/validate) feeds failures into the
-            # auto-fix loop with line-attributed evidence. Skips for
-            # backendless apps (no /api/ files in plan).
-            try:
-                from restai.app.ai import generate_tests
-                tests_text, tests_tokens = await _asyncio.get_event_loop().run_in_executor(
-                    None,
-                    generate_tests,
-                    request.app.state.brain, db_wrapper,
-                    project.props.llm, clean_plan, contracts_text,
-                )
-                total_tokens["input"] += int(tests_tokens.get("input", 0) or 0)
-                total_tokens["output"] += int(tests_tokens.get("output", 0) or 0)
-            except Exception as e:
-                logger.warning("test gen failed (degrading gracefully): %s", e)
-                tests_text = ""
-            if tests_text:
-                # Write tests/api.php to disk. Don't run static_arch
-                # checks here — tests are CLI PHP, not API/UI files;
-                # the regular content-pattern checks would fire false
-                # positives on test asserter helpers.
-                try:
-                    async with project_lock(projectID):
-                        write_file(
-                            projectID, "tests/api.php",
-                            tests_text.encode("utf-8"),
-                            if_match=None,
-                        )
-                    yield _sse_frame("tests_generated", {
-                        "path": "tests/api.php",
-                        "size": len(tests_text),
-                    })
-                except Exception as e:
-                    logger.warning("test file write failed: %s", e)
+            # NOTE: test-pack generation used to live here (before file
+            # gen) and burned 10–30 s of LLM time before the user saw
+            # any file activity. The tests file is only consumed by
+            # /app/validate (which runs after the wizard finishes), so
+            # it doesn't need to be on disk before the first phase.
+            # Moved to after the phase loop, just before the preview
+            # restart — see the `tests_start` block below.
 
             for ph_idx, phase in enumerate(phases, 1):
                 if await request.is_disconnected():
@@ -1158,13 +1128,67 @@ async def route_app_generate_execute(
                         "errors": fix_errors,
                     })
 
+            # ── Test pack generation (post-phases, pre-validate).
+            # Produces tests/api.php that hits each /api/ endpoint and
+            # asserts JSON shape per the contracts. The test runner
+            # (called from /app/validate) feeds failures into the
+            # auto-fix loop with line-attributed evidence. Skips for
+            # backendless apps (no /api/ files in plan). Sandwiched
+            # here — between the last file write and the preview
+            # restart — so the wait happens with everything already
+            # on disk and the user has a clear "wrapping up" beat.
+            yield _sse_frame("tests_start", {
+                "message": "Generating end-to-end test pack (tests/api.php)…",
+            })
+            try:
+                from restai.app.ai import generate_tests
+                tests_text, tests_tokens = await _asyncio.get_event_loop().run_in_executor(
+                    None,
+                    generate_tests,
+                    request.app.state.brain, db_wrapper,
+                    project.props.llm, clean_plan, contracts_text,
+                )
+                total_tokens["input"] += int(tests_tokens.get("input", 0) or 0)
+                total_tokens["output"] += int(tests_tokens.get("output", 0) or 0)
+            except Exception as e:
+                logger.warning("test gen failed (degrading gracefully): %s", e)
+                tests_text = ""
+            if tests_text:
+                try:
+                    async with project_lock(projectID):
+                        write_file(
+                            projectID, "tests/api.php",
+                            tests_text.encode("utf-8"),
+                            if_match=None,
+                        )
+                    yield _sse_frame("tests_generated", {
+                        "path": "tests/api.php",
+                        "size": len(tests_text),
+                    })
+                except Exception as e:
+                    logger.warning("test file write failed: %s", e)
+
             # Restart preview so esbuild picks up the new src tree.
+            # Critical: emit `preview_restarting` BEFORE the await so the
+            # wizard knows to wait, and `preview_ready` AFTER. Previously
+            # `complete` shipped while the restart was still in flight,
+            # so the auto-validate that follows hit either a stale
+            # container or a half-booted one — fast-pathing to "looks
+            # good" against reality that was actually broken.
             mgr = getattr(request.app.state.brain, "app_manager", None)
             if mgr is not None and mgr.get_port(projectID) is not None:
+                yield _sse_frame("preview_restarting", {
+                    "message": "Restarting preview container so esbuild rebuilds the bundle…",
+                })
                 try:
                     await mgr.restart(projectID)
-                except Exception:
+                    yield _sse_frame("preview_ready", {"status": "ok"})
+                except Exception as e:
                     logger.exception("Preview restart failed after execute (project=%s)", projectID)
+                    yield _sse_frame("preview_ready", {
+                        "status": "error",
+                        "error": str(e)[:200],
+                    })
 
             yield _sse_frame("complete", {
                 "written": written,

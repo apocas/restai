@@ -643,14 +643,21 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
         /\b(should|would|could|do you want|which|how)\b.*\?/i.test(trimmed) ||
         /\bclarif\w*/i.test(trimmed);
       if (!looksLikeQuestion) {
+        // Bumped from 50ms → 250ms so React's commit settles first,
+        // and re-checked at fire time: if the user cancelled or a new
+        // stream has started in the meantime, skip the auto-retry.
+        // The 50ms version raced both the close handler and a fast
+        // user follow-up message.
         setTimeout(() => {
-          if (sendMessageRef.current) {
-            sendMessageRef.current(
-              "You described the plan but didn't include the required ```json``` plan block. Please now emit the structured JSON plan as specified in the system prompt — same description, just add the JSON block at the end of your reply.",
-              { isAutoRetry: true }
-            );
-          }
-        }, 50);
+          if (!sendMessageRef.current) return;
+          // A non-null abortRef means another stream is already
+          // running (user typed something else, or auto-fix kicked in).
+          if (abortRef.current) return;
+          sendMessageRef.current(
+            "You described the plan but didn't include the required ```json``` plan block. Please now emit the structured JSON plan as specified in the system prompt — same description, just add the JSON block at the end of your reply.",
+            { isAutoRetry: true }
+          );
+        }, 250);
       }
     }
   }, [input, streaming, projectId, token]);
@@ -772,6 +779,33 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
             setProgress((p) => ({ ...p, currentPhase: null }));
             // The contracts text isn't shown in the editor — it's
             // injected into every per-file LLM prompt server-side.
+          } else if (evt === "tests_start") {
+            // Test-pack generation runs after all phases finish (used
+            // to run before — moved so the first file appears
+            // immediately after contracts). Show as the current
+            // "phase" so the user knows we're wrapping up.
+            setProgress((p) => ({ ...p, currentPhase: "Generating test pack" }));
+            setCurrentText("");
+          } else if (evt === "tests_generated") {
+            setProgress((p) => ({ ...p, currentPhase: null }));
+          } else if (evt === "preview_restarting") {
+            // Container is being torn down + recreated. The
+            // auto-validate that follows would otherwise race against
+            // a stale/empty PHP server — the wait MUST be visible so
+            // the user knows we're not just hung.
+            setProgress((p) => ({
+              ...p,
+              currentPhase: "Restarting preview container",
+              previewReady: false,
+            }));
+            setCurrentText("");
+          } else if (evt === "preview_ready") {
+            setProgress((p) => ({
+              ...p,
+              currentPhase: null,
+              previewReady: true,
+              previewError: data?.status === "error" ? (data.error || "restart failed") : null,
+            }));
           } else if (evt === "phase_start" && data?.name) {
             // Highlight the current phase header in the sidebar.
             setProgress((p) => ({ ...p, currentPhase: data.name }));
@@ -841,6 +875,13 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
       );
       setStep("done");
       if (onAfterBuild) onAfterBuild();
+      // Settle wait before validation — even with the new
+      // `preview_ready` event, esbuild needs ~1-3s after container
+      // ack to actually emit the new bundle to disk. Without this
+      // pause the runtime probes inside /app/validate hit a still-
+      // empty `dist/app.js` and fast-path return "looks good" against
+      // a stale build.
+      await new Promise((r) => setTimeout(r, 2500));
       // Run validation, then immediately kick off the auto-fix loop if
       // the reviewer flagged issues. Done synchronously here (instead of
       // via the useEffect) so the chain is deterministic and doesn't
@@ -855,7 +896,17 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
         runAutoFixRef.current(v.issues);
       }
     } catch (e) {
-      if (e?.name !== "AbortError") {
+      // Three "this is fine, user wanted it" cases that shouldn't toast:
+      //   1. AbortError — user cancelled via the Stop button
+      //   2. "client disconnected" — server-side mirror of #1, fired
+      //      when our SSE polling sees the request close
+      //   3. AbortError nested in a fetch wrapper
+      const msg = String(e?.message || e || "").toLowerCase();
+      const isCancel =
+        e?.name === "AbortError" ||
+        msg.includes("client disconnected") ||
+        msg.includes("aborted");
+      if (!isCancel) {
         toast.error(e?.message || "execute failed");
       }
       // Even if cancelled, keep showing what was written so far.
@@ -971,7 +1022,21 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
       setAutoFix((p) => ({ ...p, running: false, status: "" }));
       return;
     }
-    if (!fixPlan || !Array.isArray(fixPlan.files) || fixPlan.files.length === 0) {
+    // The LLM may return EITHER a phased plan (`{phases:[{files:[...]}]}`)
+    // OR the legacy flat shape (`{files:[...]}`). Earlier code only
+    // checked the flat shape, so every phased fix-plan silently bailed
+    // here without surfacing anything to the user — the auto-fix loop
+    // appeared to "work" but did nothing. Flatten across both shapes.
+    const flattenPlanFiles = (plan) => {
+      if (!plan) return [];
+      if (Array.isArray(plan.files) && plan.files.length) return plan.files;
+      if (Array.isArray(plan.phases)) {
+        return plan.phases.flatMap((ph) => Array.isArray(ph.files) ? ph.files : []);
+      }
+      return [];
+    };
+    const fixFiles = flattenPlanFiles(fixPlan);
+    if (!fixPlan || fixFiles.length === 0) {
       // LLM asked a clarifying question instead of producing a plan.
       // Stop the loop — user must take over.
       setAutoFix((p) => ({ ...p, running: false, status: "" }));
@@ -981,9 +1046,7 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
     // 2) Execute the fix plan. Per-file status updates so the user sees
     // actual progress — file_start fires per file, file_delta fires as the
     // LLM streams content, file_done fires after the file lands on disk.
-    // Without this the status was stuck on plain "writing files…" for the
-    // entire run because we only updated on file_done.
-    const totalFiles = (fixPlan.files || []).length;
+    const totalFiles = fixFiles.length;
     let writtenCount = 0;
     let errorCount = 0;
     setAutoFix((p) => ({ ...p, status: `writing 0/${totalFiles}` }));
@@ -1412,6 +1475,40 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
                     o: summary.tokens.output || 0,
                   })}
                 </Typography>
+              )}
+
+              {/* Per-phase runtime probes — these issues were
+                  collected during the build via `phase_check` events
+                  but never displayed before. Quick context for a user
+                  trying to understand why a build "succeeded" but the
+                  preview is broken: the static-arch checks may have
+                  flagged issues mid-stream. */}
+              {Array.isArray(progress.phaseIssues) && progress.phaseIssues.length > 0 && (
+                <Box>
+                  <Typography variant="caption" color="warning.main" sx={{ fontWeight: 600 }}>
+                    {t("projects.app.gen.phaseIssuesLabel", "Per-phase checks flagged:")}
+                  </Typography>
+                  <Box sx={{ mt: 0.5, p: 1, bgcolor: "action.hover", borderRadius: 1, maxHeight: 160, overflow: "auto" }}>
+                    {progress.phaseIssues.map((p, i) => (
+                      <Box key={`${p.phase}-${i}`} sx={{ mb: 0.75 }}>
+                        <Typography variant="caption" sx={{ fontFamily: "monospace", display: "block", color: "warning.main", fontWeight: 700 }}>
+                          phase {p.index} · {p.phase}
+                        </Typography>
+                        {(p.issues || []).map((iss, j) => (
+                          <Typography key={j} variant="caption" sx={{ fontFamily: "monospace", display: "block", pl: 1.5, color: "text.secondary" }}>
+                            ▸ {typeof iss === "string" ? iss : (iss.message || iss.path || JSON.stringify(iss))}
+                          </Typography>
+                        ))}
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {progress.previewError && (
+                <Alert severity="warning" variant="outlined">
+                  {t("projects.app.gen.previewErrorLabel", "Preview restart")}: {progress.previewError}
+                </Alert>
               )}
 
               {/* Post-build LLM validation result + auto-fix loop status.
