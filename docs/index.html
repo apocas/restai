@@ -64,7 +64,27 @@ nav.scrolled{box-shadow:0 4px 30px rgba(0,0,0,.4)}
 .btn-outline{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.2)}
 .btn-outline:hover{border-color:var(--accent1);background:rgba(99,102,241,.1);color:#fff}
 .hero-screenshot{margin-top:3rem;position:relative;z-index:1;max-width:1000px;border-radius:var(--radius);overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 40px var(--glow)}
-.hero-screenshot img{border-radius:var(--radius)}
+.hero-screenshot img{border-radius:var(--radius);display:block;width:100%;height:auto}
+/* "is-live" — used when the hero media is the animated GIF. Adds an
+   aurora-conic gradient frame that slowly rotates, a subtly breathing
+   glow that picks up the GIF's motion, and a tiny LIVE badge so users
+   notice the screenshot is actually playing. */
+.hero-screenshot.is-live{padding:2px;background:conic-gradient(from var(--ang,0deg),
+    var(--accent1),var(--accent3),var(--accent2),var(--accent1));
+  animation:auroraSpin 12s linear infinite, screenshotBreathe 6s ease-in-out infinite;
+  box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 60px rgba(99,102,241,.25),0 0 120px rgba(6,182,212,.15)}
+.hero-screenshot.is-live > .hero-screenshot-frame{position:relative;border-radius:calc(var(--radius) - 2px);overflow:hidden;background:#0a0a0f}
+.hero-screenshot.is-live img{border-radius:calc(var(--radius) - 2px)}
+.hero-screenshot .live-badge{position:absolute;top:14px;right:14px;z-index:2;display:inline-flex;align-items:center;gap:6px;
+  padding:5px 11px;border-radius:999px;background:rgba(8,12,24,.72);backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.12);font:600 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.14em;text-transform:uppercase;color:#bae6fd;pointer-events:none}
+.hero-screenshot .live-badge::before{content:'';width:7px;height:7px;border-radius:50%;
+  background:#34d399;box-shadow:0 0 10px rgba(52,211,153,.85);animation:liveBlink 1.6s ease-in-out infinite}
+@keyframes auroraSpin{to{--ang:360deg}}
+@keyframes screenshotBreathe{0%,100%{filter:saturate(1) brightness(1)}50%{filter:saturate(1.05) brightness(1.04)}}
+@keyframes liveBlink{0%,100%{opacity:1}50%{opacity:.45}}
+@property --ang{syntax:'<angle>';initial-value:0deg;inherits:false}
 
 /* Section */
 section{padding:6rem 2rem}
@@ -191,8 +211,11 @@ footer a{color:var(--text2)}
     </a>
   </div>
   <p style="margin-top:1rem;font-size:.85rem;color:rgba(255,255,255,.4);position:relative;z-index:1">Demo login: <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px">demo</code> / <code style="background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px">demodemo</code></p>
-  <div class="hero-screenshot reveal">
-    <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/templates.png" alt="RESTai Dashboard">
+  <div class="hero-screenshot is-live reveal">
+    <div class="hero-screenshot-frame">
+      <span class="live-badge">Live preview</span>
+      <img src="https://raw.githubusercontent.com/apocas/restai/master/readme/assets/restai.gif" alt="RESTai — animated walkthrough" loading="eager" fetchpriority="high" decoding="async">
+    </div>
   </div>
 </section>
 
