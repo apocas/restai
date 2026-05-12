@@ -8,9 +8,11 @@ from restai.main import app
 suffix = str(random.randint(0, 1000000))
 team_name = f"wid_team_{suffix}"
 project_name = f"wid_project_{suffix}"
+sub_project_name = f"wid_subproj_{suffix}"
 
 team_id = None
 project_id = None
+sub_project_id = None
 widget_id = None
 widget_key = None
 
@@ -104,6 +106,110 @@ def test_widget_chat_correct_domain(client):
     assert resp.status_code != 403
 
 
+def test_widget_call_project_end_to_end(client):
+    """Regression for the b9f75b5 access-guard bug: a block-widget calling
+    `Call Project` against another project used to silently return ""
+    because the synthetic widget user had `projects=[]` and the new
+    `user_can_access_project` check refused every sub-project call →
+    JS widget rendered "No response."
+
+    The pre-existing widget tests didn't catch this because they used an
+    empty block workspace (so `_eval_call_project` was never reached) and
+    only asserted `status_code != 401, != 403` — a 200 with empty body
+    was indistinguishable from a 200 with content. This test wires up a
+    real Call Project chain and asserts on `answer` content.
+    """
+    global sub_project_id
+    auth = ("admin", RESTAI_DEFAULT_PASSWORD)
+
+    # Sub-project: passthrough block workspace that echoes the input
+    # back as the output. Using `block` type so we don't depend on a
+    # configured LLM (other test files note tests/test_projects.py
+    # fails when no LLMs are present). ProjectModelCreate doesn't
+    # accept `options`, so the workspace is set via PATCH afterwards.
+    resp = client.post(
+        "/projects",
+        json={"name": sub_project_name, "type": "block", "team_id": team_id},
+        auth=auth,
+    )
+    assert resp.status_code == 201, f"sub-project create failed: {resp.text}"
+    sub_project_id = resp.json()["project"]
+
+    resp = client.patch(
+        f"/projects/{sub_project_id}",
+        json={
+            "options": {
+                "blockly_workspace": {
+                    "blocks": {
+                        "blocks": [
+                            {
+                                "type": "restai_set_output",
+                                "inputs": {
+                                    "VALUE": {
+                                        "block": {"type": "restai_get_input"}
+                                    }
+                                },
+                            }
+                        ]
+                    },
+                    "variables": [],
+                },
+            },
+        },
+        auth=auth,
+    )
+    assert resp.status_code == 200, f"sub-project workspace patch failed: {resp.text}"
+
+    # Widget's project: workspace that delegates to the sub-project via
+    # restai_call_project, passing the user input through. If the
+    # access guard rejects the synthetic widget user, _eval_call_project
+    # returns "" and the widget answer is empty.
+    resp = client.patch(
+        f"/projects/{project_id}",
+        json={
+            "options": {
+                "blockly_workspace": {
+                    "blocks": {
+                        "blocks": [
+                            {
+                                "type": "restai_set_output",
+                                "inputs": {
+                                    "VALUE": {
+                                        "block": {
+                                            "type": "restai_call_project",
+                                            "fields": {"PROJECT_NAME": sub_project_name},
+                                            "inputs": {
+                                                "TEXT": {"block": {"type": "restai_get_input"}}
+                                            },
+                                        }
+                                    }
+                                },
+                            }
+                        ]
+                    },
+                    "variables": [],
+                },
+            },
+        },
+        auth=auth,
+    )
+    assert resp.status_code == 200
+
+    marker = f"call_project_marker_{suffix}"
+    resp = client.post(
+        "/widget/chat",
+        json={"question": marker},
+        headers={"X-Widget-Key": widget_key, "Origin": "https://newdomain.com"},
+    )
+    assert resp.status_code == 200, f"widget chat failed: {resp.status_code} {resp.text}"
+    answer = (resp.json().get("answer") or "")
+    assert marker in answer, (
+        f"Call Project chain returned empty/wrong answer (likely "
+        f"user_can_access_project rejected the synthetic widget user). "
+        f"Got: {answer!r}"
+    )
+
+
 def test_disable_widget(client):
     auth = ("admin", RESTAI_DEFAULT_PASSWORD)
     client.patch(f"/projects/{project_id}/widgets/{widget_id}", json={"enabled": False}, auth=auth)
@@ -174,5 +280,7 @@ def test_delete_widget(client):
 
 def test_cleanup(client):
     auth = ("admin", RESTAI_DEFAULT_PASSWORD)
-    client.delete(f"/projects/{project_name}", auth=auth)
+    if sub_project_id is not None:
+        client.delete(f"/projects/{sub_project_id}", auth=auth)
+    client.delete(f"/projects/{project_id}", auth=auth)
     client.delete(f"/teams/{team_id}", auth=auth)

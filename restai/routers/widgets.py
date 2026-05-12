@@ -99,22 +99,29 @@ async def widget_chat(
         prepend = w_config.get("context_prefix", True)
         project = project.with_context(context, prepend_block=prepend)
 
-    # Use project creator as synthetic user
+    # Use project creator as synthetic user. We inherit the creator's
+    # `projects` / `teams` / `admin_teams` from the ORM row (via
+    # `model_validate`) so block widgets that delegate to other
+    # projects via `Call Project` pass the cross-project access guard
+    # introduced in b9f75b5 (block_interpreter.py:1136). Without this
+    # the synthetic user had `projects=[]` and the guard silently
+    # refused every sub-project call → widget rendered "No response."
+    #
+    # `api_key_allowed_projects` is left None (= creator's full scope)
+    # rather than `[widget.project_id]`. The widget→project binding
+    # is already enforced at the auth boundary in
+    # `get_widget_from_request`; narrowing the API-key scope here
+    # would re-break `Call Project` for the same reason (delegated
+    # target isn't in the [widget.project_id] list). `is_admin=False`
+    # still applies so widgets never inherit platform-admin powers.
     creator = db_wrapper.get_user_by_id(widget.creator_id)
     if creator is None:
         raise HTTPException(status_code=500, detail="Widget creator not found")
 
-    user = User(
-        id=creator.id,
-        username=creator.username,
-        is_admin=False,
-        is_private=creator.is_private,
-        projects=[],
-        teams=[],
-        admin_teams=[],
-        api_key_allowed_projects=[widget.project_id],
-        api_key_read_only=True,
-    )
+    user = User.model_validate(creator)
+    user.is_admin = False
+    user.api_key_allowed_projects = None
+    user.api_key_read_only = True
 
     use_stream = body.stream if body.stream is not None else w_config.get("stream", False)
 
