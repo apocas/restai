@@ -1087,6 +1087,7 @@
       "name": "Name",
       "class": "Class",
       "context": "Context",
+      "cost": "Cost / 1K",
       "privacy": "Privacy"
     },
     "tooltip": {

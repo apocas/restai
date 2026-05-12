@@ -1087,6 +1087,7 @@
       "name": "名称",
       "class": "类别",
       "context": "上下文",
+      "cost": "成本 / 1K",
       "privacy": "隐私"
     },
     "tooltip": {

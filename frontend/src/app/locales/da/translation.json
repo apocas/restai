@@ -1087,6 +1087,7 @@
       "name": "Navn",
       "class": "Klasse",
       "context": "Kontekst",
+      "cost": "Pris / 1K",
       "privacy": "Privatliv"
     },
     "tooltip": {
