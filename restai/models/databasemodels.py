@@ -59,6 +59,13 @@ class TeamDatabase(Base):
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     budget = Column(Float, default=-1.0)
     branding = Column(Text, default="{}")
+    # Generic per-team options blob — mirrors ProjectDatabase.options. Today
+    # carries SMTP overrides under `smtp_*` + `email_default_to`; future
+    # team-level integrations (webhooks, defaults) reuse the same column.
+    # NOT nullable so existing rows don't blow up on first read; default is
+    # the empty-dict JSON string, NOT a server_default (MySQL pre-8.0.13
+    # rejects defaults on TEXT — see CLAUDE.md migration rules).
+    options = Column(Text, nullable=False, default="{}")
 
     # Many-to-many relationships
     users = relationship('UserDatabase', secondary=teams_users, back_populates='teams')

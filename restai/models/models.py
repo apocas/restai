@@ -712,14 +712,10 @@ class ProjectOptions(BaseModel):
     whatsapp_verify_token: Union[str, None] = Field(default=None, description="Admin-chosen string Meta echoes back during the initial GET subscription handshake. Encrypted at rest.")
     whatsapp_default_to: Union[str, None] = Field(default=None, description="Default recipient phone number (E.164, no '+') for the send_whatsapp builtin tool — typically your own phone for proactive notifications. Outbound is constrained to WhatsApp's 24h customer-service window unless using a pre-approved template (template messages are not supported by this tool).")
     whatsapp_allowed_phone_numbers: Union[str, None] = Field(default=None, description="Comma-separated allowlist of E.164 senders (no '+'). Empty = anyone with the bot's number can chat. Recommended for production — protects WhatsApp number quality rating from spam.")
-    # Outbound email (SMTP / SES / Mailgun / Postmark — anything that
-    # speaks SMTP). Used by the send_email builtin tool.
-    smtp_host: Union[str, None] = Field(default=None, description="SMTP server hostname (e.g. smtp.gmail.com, email-smtp.us-east-1.amazonaws.com).")
-    smtp_port: Union[int, None] = Field(default=587, ge=1, le=65535, description="SMTP server port. Defaults to 587 (STARTTLS). Use 465 for implicit TLS.")
-    smtp_user: Union[str, None] = Field(default=None, description="SMTP username (often the same as the From address, but provider-dependent).")
-    smtp_password: Union[str, None] = Field(default=None, description="SMTP password / API key. Encrypted at rest.")
-    smtp_from: Union[str, None] = Field(default=None, description="From address for outbound mail (e.g. 'Bot <bot@example.com>'). Must be authorized by the SMTP relay.")
-    email_default_to: Union[str, None] = Field(default=None, description="Default recipient address for the send_email builtin tool — typically your own inbox for proactive notifications.")
+    # NOTE: per-project SMTP options were removed — the send_email
+    # builtin now resolves credentials from the project's owning team
+    # (Settings → Integrations → Email) and falls back to the platform
+    # Notifications settings. See restai/utils/email.py.
     # Outbound SMS via Twilio's REST API. Pick Twilio specifically because
     # the auth model is a single account-sid + auth-token pair, no OAuth
     # dance, no webhook subscription. Other providers can be added later.
@@ -1268,6 +1264,18 @@ class TeamBranding(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TeamOptions(BaseModel):
+    """Per-team option blob. Empty fields fall back to platform settings
+    when consumed by `restai.utils.email.send_email` and similar helpers."""
+    smtp_host: Union[str, None] = Field(default=None, max_length=255, description="SMTP server hostname (empty = use platform default)")
+    smtp_port: Union[int, None] = Field(default=None, ge=1, le=65535, description="SMTP port (587 STARTTLS, 465 implicit TLS)")
+    smtp_user: Union[str, None] = Field(default=None, max_length=255, description="SMTP user")
+    smtp_password: Union[str, None] = Field(default=None, max_length=4096, description="SMTP password (encrypted at rest, masked on response)")
+    smtp_from: Union[str, None] = Field(default=None, max_length=320, description="Default `From` address used by this team")
+    email_default_to: Union[str, None] = Field(default=None, max_length=320, description="Default recipient for notifications when caller didn't specify one")
+    model_config = ConfigDict(from_attributes=True)
+
+
 class TeamModel(BaseModel):
     """Full team details with members, admins, and resources."""
     id: int = Field(description="Unique team identifier")
@@ -1285,6 +1293,7 @@ class TeamModel(BaseModel):
     image_generators: list[str] = Field(default=[], description="Image generator names accessible to this team")
     audio_generators: list[str] = Field(default=[], description="Audio generator names accessible to this team")
     branding: Union[TeamBranding, None] = Field(default=None, description="Team branding configuration for white-labeling")
+    options: Union[TeamOptions, None] = Field(default=None, description="Per-team options (e.g. SMTP overrides). Empty fields fall back to platform settings.")
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator('branding', mode='before')
@@ -1297,6 +1306,38 @@ class TeamModel(BaseModel):
                     return None
                 return TeamBranding(**parsed)
             except (json.JSONDecodeError, Exception):
+                return None
+        return v
+
+    @field_validator('options', mode='before')
+    @classmethod
+    def parse_options(cls, v):
+        # TeamModel is a RESPONSE shape, so decrypt the secrets that are
+        # encrypted at rest and then MASK them before they leave the
+        # process. Internal callers (e.g. `restai.utils.email.send_email`)
+        # bypass this by reading `team_db.options` directly and using
+        # `decrypt_sensitive_options` with `TEAM_SENSITIVE_KEYS`.
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+            except (json.JSONDecodeError, Exception):
+                return None
+            v = parsed
+        if isinstance(v, dict):
+            if not v:
+                return None
+            try:
+                from restai.utils.crypto import decrypt_sensitive_options, TEAM_SENSITIVE_KEYS
+                from restai.settings import mask_key
+                v = decrypt_sensitive_options(dict(v), TEAM_SENSITIVE_KEYS)
+                for k in TEAM_SENSITIVE_KEYS:
+                    if v.get(k):
+                        v[k] = mask_key(v[k])
+            except Exception:
+                pass
+            try:
+                return TeamOptions(**v)
+            except Exception:
                 return None
         return v
 
@@ -1373,6 +1414,7 @@ class TeamModelUpdate(BaseModel):
         return v
     embeddings: list[str] = Field(default=None, description="Updated list of embedding model names (replaces existing)")
     branding: Union[TeamBranding, None] = Field(default=None, description="Team branding configuration")
+    options: Union[TeamOptions, None] = Field(default=None, description="Per-team options (SMTP overrides etc.). Empty fields fall back to platform settings.")
     image_generators: list[str] = Field(default=None, description="Updated list of image generator names (replaces existing)")
     audio_generators: list[str] = Field(default=None, description="Updated list of audio generator names (replaces existing)")
     model_config = ConfigDict(json_schema_extra={
@@ -1539,6 +1581,13 @@ class SettingsResponse(BaseModel):
     ldap_use_tls: bool = Field(default=False, description="Wrap the LDAP connection in TLS (LDAPS)")
     ldap_ca_cert_file: Optional[str] = Field(default="", description="Path on disk to a CA bundle for LDAPS validation (server-side path)")
     ldap_ciphers: Optional[str] = Field(default="", description="TLS cipher allowlist passed to ldap3. Empty = library default ('ALL')")
+    # SMTP (platform-level). Teams override via team.options.
+    smtp_host: Optional[str] = Field(default="", description="SMTP server hostname")
+    smtp_port: Optional[str] = Field(default="587", description="SMTP server port (587 STARTTLS, 465 implicit TLS)")
+    smtp_user: Optional[str] = Field(default="", description="SMTP user")
+    smtp_password: Optional[str] = Field(default="", description="SMTP password (masked)")
+    smtp_from: Optional[str] = Field(default="", description="Default From address used when sending email")
+    email_default_to: Optional[str] = Field(default="", description="Fallback recipient when no `to=` is given (e.g. ops alerts)")
 
 
 class SettingsUpdate(BaseModel):
@@ -1645,6 +1694,13 @@ class SettingsUpdate(BaseModel):
     ldap_use_tls: Optional[bool] = Field(default=None, description="Wrap the LDAP connection in TLS (LDAPS)")
     ldap_ca_cert_file: Optional[str] = Field(default=None, description="Path to a CA bundle for LDAPS validation")
     ldap_ciphers: Optional[str] = Field(default=None, description="TLS cipher allowlist (empty = ldap3 default)")
+    # SMTP (platform-level)
+    smtp_host: Optional[str] = Field(default=None, description="SMTP server hostname")
+    smtp_port: Optional[str] = Field(default=None, description="SMTP server port")
+    smtp_user: Optional[str] = Field(default=None, description="SMTP user")
+    smtp_password: Optional[str] = Field(default=None, description="SMTP password")
+    smtp_from: Optional[str] = Field(default=None, description="Default From address")
+    email_default_to: Optional[str] = Field(default=None, description="Fallback recipient when no to= is given")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "app_name": "My AI Platform",

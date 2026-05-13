@@ -982,7 +982,8 @@
         "projects": "Projets",
         "models": "Modèles",
         "branding": "Marque",
-        "general": "Général"
+        "general": "Général",
+        "integrations": "Intégrations"
       },
       "members": "Membres de l'équipe",
       "selectUsers": "Sélectionner des utilisateurs",
@@ -1026,7 +1027,11 @@
       "newSubtitle": "Créez un nouvel espace, choisissez les membres, attachez des modèles.",
       "editSubtitle": "Ajustez l'adhésion, les allocations et la marque.",
       "generalSubtitle": "Identité de l'équipe et plafond budgétaire",
-      "membersSubtitle": "Sélectionnez qui a un accès en lecture/écriture"
+      "membersSubtitle": "Sélectionnez qui a un accès en lecture/écriture",
+      "email": {
+        "title": "E-mail (SMTP)",
+        "subtitle": "Les champs vides utilisent les paramètres Notifications de la plateforme."
+      }
     },
     "view": {
       "loading": "Chargement des détails de l'équipe…",
@@ -1708,7 +1713,13 @@
       "ldapAppDn": "Bind DN",
       "ldapAppPassword": "Bind Password",
       "ldapCaCertFile": "Fichier CA",
-      "ldapCiphers": "Suites TLS"
+      "ldapCiphers": "Suites TLS",
+      "smtpHost": "Hôte SMTP",
+      "smtpPort": "Port",
+      "smtpUser": "Utilisateur",
+      "smtpPassword": "Mot de passe",
+      "smtpFrom": "Adresse expéditeur",
+      "emailDefaultTo": "Destinataire par défaut"
     },
     "helpers": {
       "systemLlm": "LLM utilisé par la plateforme pour les tâches internes (aides d'invite, résumé, etc.). Laissez vide pour désactiver.",
@@ -1740,7 +1751,9 @@
       "ldapAttributeForUsername": "Typiquement uid (OpenLDAP) ou sAMAccountName (AD).",
       "ldapAttributeForMail": "Généralement mail. Utilisé comme identifiant local après un bind réussi.",
       "ldapAppDn": "DN du compte applicatif qui recherche les utilisateurs.",
-      "ldapCaCertFile": "Chemin absolu sur le serveur RESTai. Utilisé uniquement quand TLS est activé."
+      "ldapCaCertFile": "Chemin absolu sur le serveur RESTai. Utilisé uniquement quand TLS est activé.",
+      "notificationsIntro": "Canaux de notification sortants. E-mail aujourd'hui ; webhooks/Slack/SMS plus tard. Les équipes peuvent surcharger ces valeurs dans Paramètres → Intégrations sur l'édition d'équipe ; les champs vides de l'équipe retombent sur ceux-ci.",
+      "smtpPasswordMasked": "Le mot de passe enregistré est affiché en ****; conservez-le pour le garder inchangé."
     },
     "status": {
       "enabled": "Activé",
@@ -1778,7 +1791,9 @@
       "pgvector": "PGVector",
       "weaviate": "Weaviate",
       "pinecone": "Pinecone",
-      "ldap": "LDAP"
+      "ldap": "LDAP",
+      "notifications": "Notifications",
+      "email": "E-mail (SMTP)"
     }
   },
   "widgets": {

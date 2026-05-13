@@ -982,7 +982,8 @@
         "projects": "Projekter",
         "models": "Modeller",
         "branding": "Branding",
-        "general": "Generelt"
+        "general": "Generelt",
+        "integrations": "Integrationer"
       },
       "members": "Team-medlemmer",
       "selectUsers": "Vælg brugere",
@@ -1026,7 +1027,11 @@
       "newSubtitle": "Opret et nyt arbejdsområde, vælg medlemmer, tilknyt modeller.",
       "editSubtitle": "Juster medlemskab, tildelinger og branding.",
       "generalSubtitle": "Team-identitet og budgetloft",
-      "membersSubtitle": "Vælg hvem der har læse-/skriveadgang"
+      "membersSubtitle": "Vælg hvem der har læse-/skriveadgang",
+      "email": {
+        "title": "E-mail (SMTP)",
+        "subtitle": "Tomme felter bruger platformens Notifikations-indstillinger."
+      }
     },
     "view": {
       "loading": "Indlæser team-detaljer…",
@@ -1708,7 +1713,13 @@
       "ldapAppDn": "Bind DN",
       "ldapAppPassword": "Bind-adgangskode",
       "ldapCaCertFile": "CA-certifikatfil",
-      "ldapCiphers": "TLS-cipher"
+      "ldapCiphers": "TLS-cipher",
+      "smtpHost": "SMTP-host",
+      "smtpPort": "Port",
+      "smtpUser": "Bruger",
+      "smtpPassword": "Adgangskode",
+      "smtpFrom": "Afsenderadresse",
+      "emailDefaultTo": "Standardmodtager"
     },
     "helpers": {
       "systemLlm": "LLM brugt af platformen til interne opgaver (prompt-hjælpere, opsummering osv.). Lad stå tom for at deaktivere.",
@@ -1740,7 +1751,9 @@
       "ldapAttributeForUsername": "Typisk uid (OpenLDAP) eller sAMAccountName (AD).",
       "ldapAttributeForMail": "Normalt mail. Bruges som lokalt brugernavn efter en gyldig bind.",
       "ldapAppDn": "DN for applikationskontoen, der søger efter brugere.",
-      "ldapCaCertFile": "Absolut sti på RESTai-serveren. Bruges kun, når TLS er aktiveret."
+      "ldapCaCertFile": "Absolut sti på RESTai-serveren. Bruges kun, når TLS er aktiveret.",
+      "notificationsIntro": "Udgående notifikationskanaler. I dag e-mail; senere også webhooks/Slack/SMS. Teams overskriver disse værdier under Indstillinger → Integrationer på team-redigeringssiden; tomme team-felter falder tilbage til disse.",
+      "smtpPasswordMasked": "Den gemte adgangskode vises som ****; lad den stå for at bevare den."
     },
     "status": {
       "enabled": "Aktiveret",
@@ -1778,7 +1791,9 @@
       "pgvector": "PGVector",
       "weaviate": "Weaviate",
       "pinecone": "Pinecone",
-      "ldap": "LDAP"
+      "ldap": "LDAP",
+      "notifications": "Notifikationer",
+      "email": "E-mail (SMTP)"
     }
   },
   "widgets": {

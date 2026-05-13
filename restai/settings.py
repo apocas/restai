@@ -127,6 +127,13 @@ SETTINGS_DEFAULTS = {
     "ldap_use_tls": "false",
     "ldap_ca_cert_file": "",
     "ldap_ciphers": "",
+    # SMTP — platform email defaults. Teams override via teams.options.
+    "smtp_host": "",
+    "smtp_port": "587",
+    "smtp_user": "",
+    "smtp_password": "",
+    "smtp_from": "",
+    "email_default_to": "",
     # Telemetry
     "telemetry_instance_id": "",
 }
@@ -142,6 +149,7 @@ _SECRET_KEYS = {
     "vectordb_pgvector_password", "vectordb_weaviate_api_key",
     "vectordb_pinecone_api_key",
     "ldap_app_password",
+    "smtp_password",
 }
 
 
@@ -281,6 +289,13 @@ def get_all_settings(db_wrapper) -> dict:
         "ldap_use_tls": _to_bool(rows.get("ldap_use_tls", "false")),
         "ldap_ca_cert_file": rows.get("ldap_ca_cert_file", ""),
         "ldap_ciphers": rows.get("ldap_ciphers", ""),
+        # SMTP — platform defaults; team overrides live in teams.options
+        "smtp_host": rows.get("smtp_host", ""),
+        "smtp_port": rows.get("smtp_port", "587"),
+        "smtp_user": rows.get("smtp_user", ""),
+        "smtp_password": mask_key(rows.get("smtp_password", "")),
+        "smtp_from": rows.get("smtp_from", ""),
+        "email_default_to": rows.get("email_default_to", ""),
     }
 
 

@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import {
   Group, Code, Psychology, Palette, Star, Image, Speaker,
   Save, Close, Send, GroupsOutlined, AttachMoney, Workspaces,
-  AllInclusive,
+  AllInclusive, Mail,
 } from "@mui/icons-material";
 import api from "app/utils/api";
 import PageHero from "app/components/page/PageHero";
@@ -33,6 +33,7 @@ const SECTION = {
   imageGen:   { c: "#f43f5e", soft: "rgba(244,63,94,0.10)"  },
   audioGen:   { c: "#f59e0b", soft: "rgba(245,158,11,0.10)" },
   branding:   { c: "#0891b2", soft: "rgba(8,145,178,0.10)"  },
+  integrations: { c: "#16a34a", soft: "rgba(22,163,74,0.10)"  },
   general:    { c: ACCENT,    soft: ACCENT_SOFT             },
 };
 
@@ -247,6 +248,7 @@ export default function TeamEdit() {
     image_generators: [],
     audio_generators: [],
     branding: { primary_color: "", secondary_color: "", logo_url: "", welcome_message: "", app_name: "" },
+    options: { smtp_host: "", smtp_port: "", smtp_user: "", smtp_password: "", smtp_from: "", email_default_to: "" },
   });
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -287,6 +289,10 @@ export default function TeamEdit() {
         image_generators: (data.image_generators || []).map((g) => ({ name: g })),
         audio_generators: (data.audio_generators || []).map((g) => ({ name: g })),
         branding: data.branding || { primary_color: "", secondary_color: "", logo_url: "", welcome_message: "", app_name: "" },
+        // Server returns the SMTP password masked as `****xxxx`. We
+        // keep that string in the field — the server's update_team
+        // detects the mask prefix and preserves the existing value.
+        options: data.options || { smtp_host: "", smtp_port: "", smtp_user: "", smtp_password: "", smtp_from: "", email_default_to: "" },
       });
       setLoading(false);
     } catch (e) { setLoading(false); }
@@ -330,6 +336,7 @@ export default function TeamEdit() {
         image_generators: team.image_generators.map((g) => g.name),
         audio_generators: team.audio_generators.map((g) => g.name),
         branding: team.branding,
+        options: team.options,
       };
       const endpoint = isNewTeam ? "/teams" : `/teams/${id}`;
       const data = isNewTeam
@@ -525,6 +532,7 @@ export default function TeamEdit() {
                 <Tab label={t("teams.edit.tabs.projects")} icon={<Code />}      iconPosition="start" />
                 <Tab label={t("teams.edit.tabs.models")}   icon={<Psychology />} iconPosition="start" />
                 <Tab label={t("teams.edit.tabs.branding")} icon={<Palette />}    iconPosition="start" />
+                <Tab label={t("teams.edit.tabs.integrations")} icon={<Mail />}   iconPosition="start" />
               </Tabs>
             </Box>
 
@@ -899,6 +907,82 @@ export default function TeamEdit() {
                         )}
                       </Grid>
                     )}
+                  </Grid>
+                </Box>
+              </TileCard>
+            </TabPanel>
+
+            {/* Integrations — currently just SMTP/email. New channels
+                (webhooks, Slack, etc.) will be added here as siblings. */}
+            <TabPanel value={tabValue} index={4}>
+              <TileCard elevation={0} accent={SECTION.integrations.c}>
+                <TileHeader
+                  icon={<Mail />}
+                  title={t("teams.edit.email.title") || "Email (SMTP)"}
+                  subtitle={t("teams.edit.email.subtitle") || "Empty fields fall back to platform Notifications settings."}
+                  accent={SECTION.integrations.c}
+                />
+                <Box sx={{ p: 3 }}>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={8}>
+                      <TextField
+                        fullWidth
+                        label={t("settings.fields.smtpHost")}
+                        placeholder="smtp.example.com"
+                        value={team.options?.smtp_host || ""}
+                        onChange={(e) => setTeam({ ...team, options: { ...team.options, smtp_host: e.target.value } })}
+                        sx={fieldSx(SECTION.integrations.c)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={2}>
+                      <TextField
+                        fullWidth
+                        label={t("settings.fields.smtpPort")}
+                        placeholder="587"
+                        value={team.options?.smtp_port || ""}
+                        onChange={(e) => setTeam({ ...team, options: { ...team.options, smtp_port: e.target.value } })}
+                        sx={fieldSx(SECTION.integrations.c)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={2}>
+                      <TextField
+                        fullWidth
+                        label={t("settings.fields.emailDefaultTo")}
+                        value={team.options?.email_default_to || ""}
+                        onChange={(e) => setTeam({ ...team, options: { ...team.options, email_default_to: e.target.value } })}
+                        sx={fieldSx(SECTION.integrations.c)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label={t("settings.fields.smtpUser")}
+                        value={team.options?.smtp_user || ""}
+                        onChange={(e) => setTeam({ ...team, options: { ...team.options, smtp_user: e.target.value } })}
+                        sx={fieldSx(SECTION.integrations.c)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        type="password"
+                        label={t("settings.fields.smtpPassword")}
+                        value={team.options?.smtp_password || ""}
+                        onChange={(e) => setTeam({ ...team, options: { ...team.options, smtp_password: e.target.value } })}
+                        helperText={t("settings.helpers.smtpPasswordMasked") || "Saved password is shown as ****; leave that to keep it unchanged."}
+                        sx={fieldSx(SECTION.integrations.c)}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label={t("settings.fields.smtpFrom")}
+                        placeholder='"Team Bot" <bot@example.com>'
+                        value={team.options?.smtp_from || ""}
+                        onChange={(e) => setTeam({ ...team, options: { ...team.options, smtp_from: e.target.value } })}
+                        sx={fieldSx(SECTION.integrations.c)}
+                      />
+                    </Grid>
                   </Grid>
                 </Box>
               </TileCard>

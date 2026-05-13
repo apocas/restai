@@ -117,11 +117,16 @@ def decrypt_field(value: str) -> str:
 PROJECT_SENSITIVE_KEYS = {
     "telegram_token", "slack_bot_token", "connection",
     "whatsapp_access_token", "whatsapp_app_secret", "whatsapp_verify_token",
-    "smtp_password", "twilio_auth_token", "webhook_secret",
+    "twilio_auth_token", "webhook_secret",
     # App Builder FTP/SFTP deploy credential.
     "ftp_password",
 }
 LLM_SENSITIVE_KEYS = {"api_key", "key", "password", "secret"}
+
+# Sensitive keys inside `team.options`. Encrypted at rest, masked on
+# API response. Consumed by `restai/database.py:update_team` (write)
+# and `routers/teams.py` (mask) — same pattern as PROJECT_SENSITIVE_KEYS.
+TEAM_SENSITIVE_KEYS = {"smtp_password"}
 
 # Sub-structures inside `project.options` that carry their own
 # credentials (separate from the top-level PROJECT_SENSITIVE_KEYS).
@@ -208,6 +213,7 @@ SETTINGS_ENCRYPTED_KEYS = {
     "vectordb_weaviate_api_key",
     "vectordb_pinecone_api_key",
     "ldap_app_password",
+    "smtp_password",
 }
 
 # Keys inside sync_sources that should be encrypted

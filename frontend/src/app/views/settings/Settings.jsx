@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 import api from "app/utils/api";
-import { Settings as SettingsIcon, Storage, Security, ExpandMore, ExpandLess } from "@mui/icons-material";
+import { Settings as SettingsIcon, Storage, Security, Mail, ExpandMore, ExpandLess } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
 import ProjectTabNav from "app/views/projects/components/ProjectTabNav";
 import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
@@ -37,6 +37,7 @@ export default function SettingsPage() {
   const TABS = [
     { key: "general", name: t("settings.sections.general"), Icon: SettingsIcon },
     { key: "vectordbs", name: t("settings.sections.vectordbs"), Icon: Storage },
+    { key: "notifications", name: t("settings.sections.notifications"), Icon: Mail },
     { key: "authentication", name: t("settings.sections.authentication"), Icon: Security },
   ];
 
@@ -128,6 +129,14 @@ export default function SettingsPage() {
     ldap_use_tls: false,
     ldap_ca_cert_file: "",
     ldap_ciphers: "",
+    // SMTP — platform-level email defaults. Teams override via
+    // Integrations tab on the team edit page.
+    smtp_host: "",
+    smtp_port: "587",
+    smtp_user: "",
+    smtp_password: "",
+    smtp_from: "",
+    email_default_to: "",
   });
   const [teams, setTeams] = useState([]);
   const [llms, setLlms] = useState([]);
@@ -557,6 +566,24 @@ export default function SettingsPage() {
                   </Grid>
                 </Card>
               </Grid>
+
+              {/* Telemetry — informational, lives in General because it
+                  describes platform-wide opt-out behavior, not a
+                  notification channel or auth provider. */}
+              <Grid item xs={12}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>{t("settings.sections.telemetry")}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {t("settings.telemetry.description")}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    {t("settings.helpers.telemetryStatus", { status: telemetryEnabled === null ? "..." : telemetryEnabled ? t("settings.status.enabled") : t("settings.status.disabled") })}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                    {t("settings.telemetry.optOut")}
+                  </Typography>
+                </Card>
+              </Grid>
             </Grid>
           )}
 
@@ -692,6 +719,53 @@ export default function SettingsPage() {
                     <Grid item xs={12} md={6}>
                       <TextField fullWidth label={t("settings.fields.vectordbPineconeIndex")}
                         value={form.vectordb_pinecone_index || ""} onChange={handleChange("vectordb_pinecone_index")} />
+                    </Grid>
+                  </Grid>
+                </Card>
+              </Grid>
+            </Grid>
+          )}
+
+          {/* ===== NOTIFICATIONS TAB ===== */}
+          {active === "notifications" && (
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <Typography variant="body2" color="text.secondary">
+                  {t("settings.helpers.notificationsIntro")}
+                </Typography>
+              </Grid>
+
+              {/* Email (SMTP) */}
+              <Grid item xs={12}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.email")}</Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={8}>
+                      <TextField fullWidth label={t("settings.fields.smtpHost")}
+                        value={form.smtp_host || ""} onChange={handleChange("smtp_host")}
+                        placeholder="smtp.example.com" />
+                    </Grid>
+                    <Grid item xs={12} md={2}>
+                      <TextField fullWidth label={t("settings.fields.smtpPort")}
+                        value={form.smtp_port || ""} onChange={handleChange("smtp_port")}
+                        helperText="587 STARTTLS · 465 SMTPS" />
+                    </Grid>
+                    <Grid item xs={12} md={2}>
+                      <TextField fullWidth label={t("settings.fields.emailDefaultTo")}
+                        value={form.email_default_to || ""} onChange={handleChange("email_default_to")} />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth label={t("settings.fields.smtpUser")}
+                        value={form.smtp_user || ""} onChange={handleChange("smtp_user")} />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth type="password" label={t("settings.fields.smtpPassword")}
+                        value={form.smtp_password || ""} onChange={handleChange("smtp_password")} />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField fullWidth label={t("settings.fields.smtpFrom")}
+                        value={form.smtp_from || ""} onChange={handleChange("smtp_from")}
+                        placeholder='"RESTai" <ops@example.com>' />
                     </Grid>
                   </Grid>
                 </Card>
@@ -975,22 +1049,6 @@ export default function SettingsPage() {
               </Grid>
             </Grid>
           )}
-
-          {/* Telemetry */}
-          <Grid item xs={12}>
-            <Card elevation={1} sx={{ p: 3 }}>
-              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>{t("settings.sections.telemetry")}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t("settings.telemetry.description")}
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                {t("settings.helpers.telemetryStatus", { status: telemetryEnabled === null ? "..." : telemetryEnabled ? t("settings.status.enabled") : t("settings.status.disabled") })}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-                {t("settings.telemetry.optOut")}
-              </Typography>
-            </Card>
-          </Grid>
 
           {/* Save button — always visible */}
           <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>

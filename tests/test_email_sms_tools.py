@@ -5,6 +5,11 @@ Covers the happy path with mocked transports, plus precondition errors
 agent gets a clear ERROR string instead of an unhandled exception when
 an admin forgets a field.
 
+SMTP refactor (2026-05): the email tool no longer reads from project
+options. It resolves credentials team → platform via
+`restai.utils.email.send_email`. These tests now stub a project that
+points at a fake team whose `options` JSON carries the SMTP block.
+
 The tools do their `import smtplib` / `import requests` / `from
 restai.database import open_db_wrapper` *inside* the function (so the
 import cost is paid only when the tool is actually invoked). Tests
@@ -19,17 +24,29 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from restai.utils.crypto import encrypt_field
+from restai.utils.crypto import (
+    encrypt_field,
+    encrypt_sensitive_options,
+    TEAM_SENSITIVE_KEYS,
+)
 
 
-def _fake_project(opts: dict):
+def _fake_project(opts: dict, team_id: int = 99):
     """Stand-in for ProjectDatabase as the tools see it."""
-    return SimpleNamespace(options=json.dumps(opts))
+    return SimpleNamespace(options=json.dumps(opts), team_id=team_id)
 
 
-def _fake_db(project_obj):
+def _fake_team(opts: dict):
+    """Stand-in for TeamDatabase: options column carries SMTP config,
+    encrypted at rest the same way `update_team` would have stored it."""
+    encrypted = encrypt_sensitive_options(opts, TEAM_SENSITIVE_KEYS)
+    return SimpleNamespace(options=json.dumps(encrypted))
+
+
+def _fake_db(project_obj, team_obj=None):
     db = MagicMock()
     db.get_project_by_id.return_value = project_obj
+    db.get_team_by_id.return_value = team_obj
     return db
 
 
@@ -43,36 +60,51 @@ def test_send_email_requires_project_context():
 
 
 def test_send_email_missing_smtp_config():
+    """No team SMTP and no platform SMTP → clear error, no network call."""
     from restai.llms.tools.send_email import send_email
-    db = _fake_db(_fake_project({}))
-    with patch("restai.database.open_db_wrapper", return_value=db):
+    db = _fake_db(_fake_project({}, team_id=99), team_obj=_fake_team({}))
+    # Force platform-level SMTP_HOST to empty for the duration of the test.
+    with patch("restai.database.open_db_wrapper", return_value=db), \
+         patch("restai.utils.email._cfg") as mock_cfg:
+        mock_cfg.SMTP_HOST = ""
+        mock_cfg.SMTP_PORT = ""
+        mock_cfg.SMTP_USER = ""
+        mock_cfg.SMTP_PASSWORD = ""
+        mock_cfg.SMTP_FROM = ""
+        mock_cfg.EMAIL_DEFAULT_TO = ""
         out = send_email("hello", "body", _brain=object(), _project_id=42)
     assert out.startswith("ERROR:")
     assert "not configured" in out
 
 
 def test_send_email_missing_recipient():
+    """Team has SMTP host + From but neither caller-provided `to` nor a
+    default recipient anywhere → return error before the network call."""
     from restai.llms.tools.send_email import send_email
-    db = _fake_db(_fake_project({"smtp_host": "smtp.example.com", "smtp_from": "bot@x"}))
-    with patch("restai.database.open_db_wrapper", return_value=db):
+    team = _fake_team({"smtp_host": "smtp.example.com", "smtp_from": "bot@x"})
+    db = _fake_db(_fake_project({}), team_obj=team)
+    with patch("restai.database.open_db_wrapper", return_value=db), \
+         patch("restai.utils.email._cfg") as mock_cfg:
+        mock_cfg.SMTP_HOST = ""; mock_cfg.SMTP_PORT = ""; mock_cfg.SMTP_USER = ""
+        mock_cfg.SMTP_PASSWORD = ""; mock_cfg.SMTP_FROM = ""; mock_cfg.EMAIL_DEFAULT_TO = ""
         out = send_email("hi", "body", _brain=object(), _project_id=42)
     assert out.startswith("ERROR:")
     assert "recipient" in out
 
 
 def test_send_email_happy_path():
-    """STARTTLS path (port 587). Ensure smtplib.SMTP is constructed
-    with host/port/timeout and send_message is called."""
+    """STARTTLS path (port 587), team-level SMTP. Ensure smtplib.SMTP
+    is constructed with host/port/timeout and send_message is called."""
     from restai.llms.tools.send_email import send_email
-    opts = {
+    team = _fake_team({
         "smtp_host": "smtp.example.com",
         "smtp_port": 587,
         "smtp_user": "bot@example.com",
-        "smtp_password": encrypt_field("hunter2"),
+        "smtp_password": "hunter2",
         "smtp_from": "bot@example.com",
         "email_default_to": "admin@example.com",
-    }
-    db = _fake_db(_fake_project(opts))
+    })
+    db = _fake_db(_fake_project({}), team_obj=team)
 
     sent = []
     class _FakeSMTP:
@@ -99,13 +131,13 @@ def test_send_email_happy_path():
 def test_send_email_implicit_tls_path():
     """Port 465 should use SMTP_SSL, not STARTTLS."""
     from restai.llms.tools.send_email import send_email
-    opts = {
+    team = _fake_team({
         "smtp_host": "smtp.example.com",
         "smtp_port": 465,
         "smtp_from": "bot@example.com",
         "email_default_to": "admin@example.com",
-    }
-    db = _fake_db(_fake_project(opts))
+    })
+    db = _fake_db(_fake_project({}), team_obj=team)
 
     used_ssl = {"flag": False}
     class _FakeSSL:
@@ -131,13 +163,13 @@ def test_send_email_implicit_tls_path():
 
 def test_send_email_smtp_failure_returns_error_string():
     from restai.llms.tools.send_email import send_email
-    opts = {
+    team = _fake_team({
         "smtp_host": "smtp.example.com",
         "smtp_port": 587,
         "smtp_from": "bot@example.com",
         "email_default_to": "admin@example.com",
-    }
-    db = _fake_db(_fake_project(opts))
+    })
+    db = _fake_db(_fake_project({}), team_obj=team)
 
     def _raise(*a, **kw):
         raise smtplib.SMTPException("relay refused")
@@ -147,6 +179,80 @@ def test_send_email_smtp_failure_returns_error_string():
         out = send_email("subj", "body", _brain=object(), _project_id=1)
     assert out.startswith("ERROR:"), out
     assert "relay refused" in out
+
+
+def test_send_email_falls_back_to_platform_when_team_blank():
+    """A team that doesn't fill SMTP must inherit platform settings.
+    Confirms the resolver chain end-to-end."""
+    from restai.llms.tools.send_email import send_email
+    team = _fake_team({})  # nothing on team
+    db = _fake_db(_fake_project({}), team_obj=team)
+
+    sent = []
+    class _FakeSMTP:
+        def __init__(self, host, port, timeout=None):
+            sent.append({"host": host, "port": port})
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def ehlo(self): pass
+        def starttls(self): pass
+        def login(self, u, p): sent.append({"login": (u, p)})
+        def send_message(self, msg): sent.append({"to": msg["To"]})
+
+    with patch("restai.database.open_db_wrapper", return_value=db), \
+         patch("smtplib.SMTP", _FakeSMTP), \
+         patch("restai.utils.email._cfg") as mock_cfg:
+        mock_cfg.SMTP_HOST = "platform.example.com"
+        mock_cfg.SMTP_PORT = "587"
+        mock_cfg.SMTP_USER = "ops@example.com"
+        mock_cfg.SMTP_PASSWORD = "platformpw"
+        mock_cfg.SMTP_FROM = "ops@example.com"
+        mock_cfg.EMAIL_DEFAULT_TO = "alerts@example.com"
+        out = send_email("subj", "body", _brain=object(), _project_id=1)
+
+    assert out.startswith("OK:"), out
+    assert sent[0]["host"] == "platform.example.com"
+    assert any("login" in s and s["login"] == ("ops@example.com", "platformpw") for s in sent)
+    assert any("to" in s and s["to"] == "alerts@example.com" for s in sent)
+
+
+def test_send_email_team_overrides_platform():
+    """Team-level smtp_host wins over platform-level smtp_host."""
+    from restai.llms.tools.send_email import send_email
+    team = _fake_team({
+        "smtp_host": "team.example.com",
+        "smtp_from": "team@example.com",
+        "email_default_to": "team-admin@example.com",
+    })
+    db = _fake_db(_fake_project({}), team_obj=team)
+
+    sent = []
+    class _FakeSMTP:
+        def __init__(self, host, port, timeout=None):
+            sent.append({"host": host})
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def ehlo(self): pass
+        def starttls(self): pass
+        def login(self, u, p): pass
+        def send_message(self, msg): sent.append({"to": msg["To"]})
+
+    with patch("restai.database.open_db_wrapper", return_value=db), \
+         patch("smtplib.SMTP", _FakeSMTP), \
+         patch("restai.utils.email._cfg") as mock_cfg:
+        # Platform values are present but should be IGNORED for fields
+        # the team filled in.
+        mock_cfg.SMTP_HOST = "platform.example.com"
+        mock_cfg.SMTP_PORT = "587"
+        mock_cfg.SMTP_USER = ""
+        mock_cfg.SMTP_PASSWORD = ""
+        mock_cfg.SMTP_FROM = "platform@example.com"
+        mock_cfg.EMAIL_DEFAULT_TO = "platform-admin@example.com"
+        out = send_email("subj", "body", _brain=object(), _project_id=1)
+
+    assert out.startswith("OK:"), out
+    assert sent[0]["host"] == "team.example.com"
+    assert any(s.get("to") == "team-admin@example.com" for s in sent)
 
 
 # ─── send_sms ───────────────────────────────────────────────────────────

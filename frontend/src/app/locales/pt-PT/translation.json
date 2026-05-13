@@ -974,7 +974,8 @@
         "users": "Utilizadores",
         "projects": "Projetos",
         "models": "Modelos",
-        "branding": "Marca"
+        "branding": "Marca",
+        "integrations": "Integrações"
       },
       "members": "Membros da equipa",
       "selectUsers": "Selecionar utilizadores",
@@ -1014,7 +1015,11 @@
       "createTeam": "Criar equipa",
       "saveChanges": "Guardar alterações",
       "created": "Equipa criada com sucesso",
-      "updated": "Equipa atualizada com sucesso"
+      "updated": "Equipa atualizada com sucesso",
+      "email": {
+        "title": "Email (SMTP)",
+        "subtitle": "Campos vazios usam as definições de Notificações da plataforma."
+      }
     },
     "view": {
       "loading": "A carregar detalhes da equipa…",
@@ -1708,7 +1713,13 @@
       "ldapAppDn": "Bind DN",
       "ldapAppPassword": "Bind Password",
       "ldapCaCertFile": "Ficheiro do CA",
-      "ldapCiphers": "Cifras TLS"
+      "ldapCiphers": "Cifras TLS",
+      "smtpHost": "Host SMTP",
+      "smtpPort": "Porta",
+      "smtpUser": "Utilizador",
+      "smtpPassword": "Palavra-passe",
+      "smtpFrom": "Endereço remetente",
+      "emailDefaultTo": "Destinatário por omissão"
     },
     "helpers": {
       "systemLlm": "LLM utilizado pela plataforma para tarefas internas (ajudas de prompt, resumos, etc.). Deixe vazio para desativar.",
@@ -1740,7 +1751,9 @@
       "ldapAttributeForUsername": "Tipicamente uid (OpenLDAP) ou sAMAccountName (AD).",
       "ldapAttributeForMail": "Normalmente mail. Usado como nome de utilizador local após bind bem-sucedido.",
       "ldapAppDn": "DN da conta de aplicação que pesquisa utilizadores.",
-      "ldapCaCertFile": "Caminho absoluto no servidor RESTai. Só usado quando o TLS está ativado."
+      "ldapCaCertFile": "Caminho absoluto no servidor RESTai. Só usado quando o TLS está ativado.",
+      "notificationsIntro": "Canais de notificação de saída. Atualmente apenas email; futuramente também webhooks/Slack/SMS. As equipas podem substituir estes valores em Definições → Integrações na página de edição da equipa; campos vazios na equipa caem para os definidos aqui.",
+      "smtpPasswordMasked": "A palavra-passe guardada aparece como ****; mantenha esse valor para a preservar."
     },
     "status": {
       "enabled": "Ativado",
@@ -1778,7 +1791,9 @@
       "pgvector": "PGVector",
       "weaviate": "Weaviate",
       "pinecone": "Pinecone",
-      "ldap": "LDAP"
+      "ldap": "LDAP",
+      "notifications": "Notificações",
+      "email": "Email (SMTP)"
     }
   },
   "widgets": {

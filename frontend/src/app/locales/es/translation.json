@@ -982,7 +982,8 @@
         "projects": "Proyectos",
         "models": "Modelos",
         "branding": "Marca",
-        "general": "General"
+        "general": "General",
+        "integrations": "Integraciones"
       },
       "members": "Miembros del equipo",
       "selectUsers": "Seleccionar usuarios",
@@ -1026,7 +1027,11 @@
       "newSubtitle": "Crea un nuevo espacio, elige miembros, asocia modelos.",
       "editSubtitle": "Ajusta membresía, asignaciones y marca.",
       "generalSubtitle": "Identidad del equipo y límite de presupuesto",
-      "membersSubtitle": "Elige quién tiene acceso de lectura y escritura"
+      "membersSubtitle": "Elige quién tiene acceso de lectura y escritura",
+      "email": {
+        "title": "Correo (SMTP)",
+        "subtitle": "Los campos vacíos usan los ajustes de Notificaciones de la plataforma."
+      }
     },
     "view": {
       "loading": "Cargando detalles del equipo…",
@@ -1708,7 +1713,13 @@
       "ldapAppDn": "Bind DN",
       "ldapAppPassword": "Bind Password",
       "ldapCaCertFile": "Archivo CA",
-      "ldapCiphers": "Cifrados TLS"
+      "ldapCiphers": "Cifrados TLS",
+      "smtpHost": "Host SMTP",
+      "smtpPort": "Puerto",
+      "smtpUser": "Usuario",
+      "smtpPassword": "Contraseña",
+      "smtpFrom": "Dirección de envío",
+      "emailDefaultTo": "Destinatario por defecto"
     },
     "helpers": {
       "systemLlm": "LLM usado por la plataforma para tareas internas (ayudas de prompt, resúmenes, etc.). Deje vacío para desactivar.",
@@ -1740,7 +1751,9 @@
       "ldapAttributeForUsername": "Habitualmente uid (OpenLDAP) o sAMAccountName (AD).",
       "ldapAttributeForMail": "Normalmente mail. Se usa como nombre de usuario local tras un bind correcto.",
       "ldapAppDn": "DN de la cuenta de aplicación que busca usuarios.",
-      "ldapCaCertFile": "Ruta absoluta en el servidor RESTai. Solo se usa con TLS activado."
+      "ldapCaCertFile": "Ruta absoluta en el servidor RESTai. Solo se usa con TLS activado.",
+      "notificationsIntro": "Canales de notificación salientes. Hoy correo; pronto también webhooks/Slack/SMS. Los equipos pueden sobrescribir estos valores en Ajustes → Integraciones en la edición del equipo; los campos vacíos del equipo recurren a estos.",
+      "smtpPasswordMasked": "La contraseña guardada se muestra como ****; déjala para conservarla."
     },
     "status": {
       "enabled": "Activado",
@@ -1778,7 +1791,9 @@
       "pgvector": "PGVector",
       "weaviate": "Weaviate",
       "pinecone": "Pinecone",
-      "ldap": "LDAP"
+      "ldap": "LDAP",
+      "notifications": "Notificaciones",
+      "email": "Correo (SMTP)"
     }
   },
   "widgets": {

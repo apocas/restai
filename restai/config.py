@@ -361,6 +361,15 @@ _GUI_SETTING_ATTRS = {
     "LDAP_USE_TLS": ("ldap_use_tls", bool, False),
     "LDAP_CA_CERT_FILE": ("ldap_ca_cert_file", str, ""),
     "LDAP_CIPHERS": ("ldap_ciphers", str, ""),
+    # SMTP — platform-level email defaults. Per-team overrides live in
+    # `teams.options` and are resolved by `restai.utils.email.send_email`.
+    # A team that doesn't fill its SMTP fields falls through to these.
+    "SMTP_HOST": ("smtp_host", str, ""),
+    "SMTP_PORT": ("smtp_port", str, "587"),
+    "SMTP_USER": ("smtp_user", str, ""),
+    "SMTP_PASSWORD": ("smtp_password", str, ""),
+    "SMTP_FROM": ("smtp_from", str, ""),
+    "EMAIL_DEFAULT_TO": ("email_default_to", str, ""),
 }
 
 

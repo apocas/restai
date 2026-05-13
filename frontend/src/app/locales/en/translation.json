@@ -986,7 +986,8 @@
         "users": "Users",
         "projects": "Projects",
         "models": "Models",
-        "branding": "Branding"
+        "branding": "Branding",
+        "integrations": "Integrations"
       },
       "members": "Team Members",
       "selectUsers": "Select Users",
@@ -1026,7 +1027,11 @@
       "createTeam": "Create Team",
       "saveChanges": "Save Changes",
       "created": "Team created successfully",
-      "updated": "Team updated successfully"
+      "updated": "Team updated successfully",
+      "email": {
+        "title": "Email (SMTP)",
+        "subtitle": "Empty fields fall back to platform Notifications settings."
+      }
     },
     "view": {
       "loading": "Loading team details…",
@@ -1708,7 +1713,13 @@
       "ldapAppDn": "Bind DN",
       "ldapAppPassword": "Bind Password",
       "ldapCaCertFile": "CA Cert File",
-      "ldapCiphers": "TLS Ciphers"
+      "ldapCiphers": "TLS Ciphers",
+      "smtpHost": "SMTP Host",
+      "smtpPort": "Port",
+      "smtpUser": "User",
+      "smtpPassword": "Password",
+      "smtpFrom": "From Address",
+      "emailDefaultTo": "Default Recipient"
     },
     "helpers": {
       "systemLlm": "LLM used by the platform for internal tasks (prompt helpers, summarization, etc). Leave empty to disable.",
@@ -1740,7 +1751,9 @@
       "ldapAttributeForUsername": "Typically uid (OpenLDAP) or sAMAccountName (AD).",
       "ldapAttributeForMail": "Usually mail. Used as the local username after a successful bind.",
       "ldapAppDn": "DN of the application bind account used to search for users.",
-      "ldapCaCertFile": "Absolute path on the RESTai server. Only used when TLS is on."
+      "ldapCaCertFile": "Absolute path on the RESTai server. Only used when TLS is on.",
+      "notificationsIntro": "Outbound notification channels. Email today; webhooks/Slack/SMS land here later. Teams override these per-team in Settings → Integrations on the team edit page; empty team fields fall back to what you set here.",
+      "smtpPasswordMasked": "Saved password is shown as ****; leave that to keep it unchanged."
     },
     "status": {
       "enabled": "Enabled",
@@ -1778,7 +1791,9 @@
       "pgvector": "PGVector",
       "weaviate": "Weaviate",
       "pinecone": "Pinecone",
-      "ldap": "LDAP"
+      "ldap": "LDAP",
+      "notifications": "Notifications",
+      "email": "Email (SMTP)"
     }
   },
   "widgets": {

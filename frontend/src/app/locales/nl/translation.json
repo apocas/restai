@@ -982,7 +982,8 @@
         "projects": "Projecten",
         "models": "Modellen",
         "branding": "Branding",
-        "general": "Algemeen"
+        "general": "Algemeen",
+        "integrations": "Integraties"
       },
       "members": "Teamleden",
       "selectUsers": "Gebruikers selecteren",
@@ -1026,7 +1027,11 @@
       "newSubtitle": "Maak een nieuwe workspace, kies leden, koppel modellen.",
       "editSubtitle": "Pas lidmaatschap, toewijzingen en branding aan.",
       "generalSubtitle": "Team-identiteit en budgetlimiet",
-      "membersSubtitle": "Kies wie lees-/schrijftoegang heeft"
+      "membersSubtitle": "Kies wie lees-/schrijftoegang heeft",
+      "email": {
+        "title": "E-mail (SMTP)",
+        "subtitle": "Lege velden gebruiken de platform Notificatie-instellingen."
+      }
     },
     "view": {
       "loading": "Teamdetails laden…",
@@ -1708,7 +1713,13 @@
       "ldapAppDn": "Bind DN",
       "ldapAppPassword": "Bind-wachtwoord",
       "ldapCaCertFile": "CA-certificaatbestand",
-      "ldapCiphers": "TLS-ciphers"
+      "ldapCiphers": "TLS-ciphers",
+      "smtpHost": "SMTP-host",
+      "smtpPort": "Poort",
+      "smtpUser": "Gebruiker",
+      "smtpPassword": "Wachtwoord",
+      "smtpFrom": "Afzenderadres",
+      "emailDefaultTo": "Standaardontvanger"
     },
     "helpers": {
       "systemLlm": "LLM die door het platform wordt gebruikt voor interne taken (prompt-helpers, samenvatting, enz.). Leeg laten om uit te schakelen.",
@@ -1740,7 +1751,9 @@
       "ldapAttributeForUsername": "Meestal uid (OpenLDAP) of sAMAccountName (AD).",
       "ldapAttributeForMail": "Doorgaans mail. Gebruikt als lokale gebruikersnaam na een geslaagde bind.",
       "ldapAppDn": "DN van het applicatie-account dat gebruikers zoekt.",
-      "ldapCaCertFile": "Absoluut pad op de RESTai-server. Alleen gebruikt als TLS aanstaat."
+      "ldapCaCertFile": "Absoluut pad op de RESTai-server. Alleen gebruikt als TLS aanstaat.",
+      "notificationsIntro": "Uitgaande notificatiekanalen. Vandaag e-mail; later ook webhooks/Slack/SMS. Teams overschrijven deze waarden in Instellingen → Integraties op de team-bewerkpagina; lege teamvelden vallen terug op deze.",
+      "smtpPasswordMasked": "Het opgeslagen wachtwoord wordt getoond als ****; laat dit staan om het ongewijzigd te houden."
     },
     "status": {
       "enabled": "Ingeschakeld",
@@ -1778,7 +1791,9 @@
       "pgvector": "PGVector",
       "weaviate": "Weaviate",
       "pinecone": "Pinecone",
-      "ldap": "LDAP"
+      "ldap": "LDAP",
+      "notifications": "Notificaties",
+      "email": "E-mail (SMTP)"
     }
   },
   "widgets": {

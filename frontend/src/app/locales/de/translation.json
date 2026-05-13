@@ -982,7 +982,8 @@
         "projects": "Projekte",
         "models": "Modelle",
         "branding": "Branding",
-        "general": "Allgemein"
+        "general": "Allgemein",
+        "integrations": "Integrationen"
       },
       "members": "Team-Mitglieder",
       "selectUsers": "Benutzer auswählen",
@@ -1026,7 +1027,11 @@
       "newSubtitle": "Neuen Workspace anlegen, Mitglieder wählen, Modelle anhängen.",
       "editSubtitle": "Mitgliedschaft, Zuweisungen und Branding anpassen.",
       "generalSubtitle": "Team-Identität und Budgetlimit",
-      "membersSubtitle": "Wählen Sie, wer Lese- und Schreibzugriff hat"
+      "membersSubtitle": "Wählen Sie, wer Lese- und Schreibzugriff hat",
+      "email": {
+        "title": "E-Mail (SMTP)",
+        "subtitle": "Leere Felder verwenden die Plattform-Benachrichtigungseinstellungen."
+      }
     },
     "view": {
       "loading": "Team-Details werden geladen…",
@@ -1708,7 +1713,13 @@
       "ldapAppDn": "Bind DN",
       "ldapAppPassword": "Bind-Passwort",
       "ldapCaCertFile": "CA-Zertifikatsdatei",
-      "ldapCiphers": "TLS-Cipher"
+      "ldapCiphers": "TLS-Cipher",
+      "smtpHost": "SMTP-Host",
+      "smtpPort": "Port",
+      "smtpUser": "Benutzer",
+      "smtpPassword": "Passwort",
+      "smtpFrom": "Absenderadresse",
+      "emailDefaultTo": "Standard-Empfänger"
     },
     "helpers": {
       "systemLlm": "LLM, das von der Plattform für interne Aufgaben verwendet wird (Prompt-Helfer, Zusammenfassungen usw.). Leer lassen, um zu deaktivieren.",
@@ -1740,7 +1751,9 @@
       "ldapAttributeForUsername": "Typischerweise uid (OpenLDAP) oder sAMAccountName (AD).",
       "ldapAttributeForMail": "Üblicherweise mail. Nach erfolgreichem Bind als lokaler Benutzername verwendet.",
       "ldapAppDn": "DN des Anwendungskontos, das Benutzer sucht.",
-      "ldapCaCertFile": "Absoluter Pfad auf dem RESTai-Server. Nur bei aktiviertem TLS verwendet."
+      "ldapCaCertFile": "Absoluter Pfad auf dem RESTai-Server. Nur bei aktiviertem TLS verwendet.",
+      "notificationsIntro": "Ausgehende Benachrichtigungskanäle. Heute E-Mail; später auch Webhooks/Slack/SMS. Teams überschreiben diese Werte unter Einstellungen → Integrationen auf der Team-Bearbeitungsseite; leere Team-Felder greifen auf diese zurück.",
+      "smtpPasswordMasked": "Das gespeicherte Passwort wird als **** angezeigt; lassen Sie es unverändert, um es beizubehalten."
     },
     "status": {
       "enabled": "Aktiviert",
@@ -1778,7 +1791,9 @@
       "pgvector": "PGVector",
       "weaviate": "Weaviate",
       "pinecone": "Pinecone",
-      "ldap": "LDAP"
+      "ldap": "LDAP",
+      "notifications": "Benachrichtigungen",
+      "email": "E-Mail (SMTP)"
     }
   },
   "widgets": {

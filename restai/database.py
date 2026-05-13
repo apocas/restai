@@ -1102,6 +1102,25 @@ class DBWrapper:
             team.branding = json.dumps(team_update.branding.model_dump())
             changed = True
 
+        if team_update.options is not None:
+            import json as _json
+            from restai.utils.crypto import encrypt_sensitive_options, TEAM_SENSITIVE_KEYS
+            incoming = team_update.options.model_dump(exclude_none=True)
+            # Preserve existing encrypted values when the caller submits
+            # the masked placeholder (UI render of a saved secret). Same
+            # contract as PROJECT_SENSITIVE_KEYS in project options.
+            existing = _json.loads(team.options) if team.options else {}
+            for k in TEAM_SENSITIVE_KEYS:
+                v = incoming.get(k)
+                if v is None or v == "" or (isinstance(v, str) and v.startswith("****")):
+                    if k in existing:
+                        incoming[k] = existing[k]
+                    else:
+                        incoming.pop(k, None)
+            encrypted = encrypt_sensitive_options(incoming, TEAM_SENSITIVE_KEYS)
+            team.options = _json.dumps(encrypted)
+            changed = True
+
         if changed:
             team.updated_at = datetime.now(timezone.utc)
             self.db.commit()

@@ -982,7 +982,8 @@
         "projects": "Progetti",
         "models": "Modelli",
         "branding": "Branding",
-        "general": "Generale"
+        "general": "Generale",
+        "integrations": "Integrazioni"
       },
       "members": "Membri del team",
       "selectUsers": "Seleziona utenti",
@@ -1026,7 +1027,11 @@
       "newSubtitle": "Crea un nuovo workspace, scegli i membri, collega i modelli.",
       "editSubtitle": "Modifica appartenenza, allocazioni e branding.",
       "generalSubtitle": "Identità del team e limite di budget",
-      "membersSubtitle": "Scegli chi ha accesso in lettura/scrittura"
+      "membersSubtitle": "Scegli chi ha accesso in lettura/scrittura",
+      "email": {
+        "title": "Email (SMTP)",
+        "subtitle": "I campi vuoti usano le impostazioni Notifiche della piattaforma."
+      }
     },
     "view": {
       "loading": "Caricamento dettagli del team…",
@@ -1708,7 +1713,13 @@
       "ldapAppDn": "Bind DN",
       "ldapAppPassword": "Bind Password",
       "ldapCaCertFile": "File CA",
-      "ldapCiphers": "Cipher TLS"
+      "ldapCiphers": "Cipher TLS",
+      "smtpHost": "Host SMTP",
+      "smtpPort": "Porta",
+      "smtpUser": "Utente",
+      "smtpPassword": "Password",
+      "smtpFrom": "Indirizzo mittente",
+      "emailDefaultTo": "Destinatario predefinito"
     },
     "helpers": {
       "systemLlm": "LLM utilizzato dalla piattaforma per attività interne (helper di prompt, riassunti, ecc.). Lascia vuoto per disattivare.",
@@ -1740,7 +1751,9 @@
       "ldapAttributeForUsername": "Tipicamente uid (OpenLDAP) o sAMAccountName (AD).",
       "ldapAttributeForMail": "Di solito mail. Usato come nome utente locale dopo un bind valido.",
       "ldapAppDn": "DN dell'account applicativo che cerca gli utenti.",
-      "ldapCaCertFile": "Percorso assoluto sul server RESTai. Usato solo quando TLS è attivo."
+      "ldapCaCertFile": "Percorso assoluto sul server RESTai. Usato solo quando TLS è attivo.",
+      "notificationsIntro": "Canali di notifica in uscita. Oggi solo email; in futuro anche webhook/Slack/SMS. I team possono sovrascrivere questi valori in Impostazioni → Integrazioni della modifica team; i campi vuoti del team ripiegano su questi.",
+      "smtpPasswordMasked": "La password salvata è mostrata come ****; lasciala per non modificarla."
     },
     "status": {
       "enabled": "Attivato",
@@ -1778,7 +1791,9 @@
       "pgvector": "PGVector",
       "weaviate": "Weaviate",
       "pinecone": "Pinecone",
-      "ldap": "LDAP"
+      "ldap": "LDAP",
+      "notifications": "Notifiche",
+      "email": "Email (SMTP)"
     }
   },
   "widgets": {
