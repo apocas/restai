@@ -257,7 +257,7 @@ class Brain:
         logging.warning(
             "image cache: writing %s to IN-PROCESS store. Multi-worker / multi-node "
             "deployments will 404 on cross-worker reads. Configure Redis "
-            "(REDIS_HOST or admin Settings > Chat History) to fix.",
+            "in /admin/settings → General → Redis to fix.",
             filename,
         )
         store = self._image_cache_local()

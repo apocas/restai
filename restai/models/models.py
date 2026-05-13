@@ -1522,7 +1522,7 @@ class SettingsResponse(BaseModel):
     sso_oidc_email_claim: Optional[str] = Field(default="email", description="OIDC email claim field")
     # GPU
     gpu_enabled: bool = Field(default=False, description="Whether GPU features are enabled")
-    gpu_worker_devices: Optional[str] = Field(default="", description="Comma-separated GPU indices for worker processes (e.g. '0,1')")
+    gpu_worker_devices: Optional[str] = Field(default="", description="Comma-separated GPU indices for worker processes (e.g. '0,1'). Workers that need a single device target use the first index here as `cuda:N` (`config.RESTAI_DEFAULT_DEVICE`).")
     # MCP
     mcp_enabled: bool = Field(default=False, description="Whether the internal MCP server is enabled")
     # System LLM

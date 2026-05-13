@@ -13,12 +13,16 @@ def worker(prompt, sharedmem):
     from diffusers import DiffusionPipeline
     import torch
 
-    from restai.config import RESTAI_DEFAULT_DEVICE
+    import restai.config as _cfg
+
+    # `_cfg.RESTAI_DEFAULT_DEVICE` is derived from `gpu_worker_devices`
+    # in /admin/gpu (first index in the worker pool, "cuda:N").
+    device = _cfg.RESTAI_DEFAULT_DEVICE
 
     base = DiffusionPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16, variant="fp16", use_safetensors=True
     )
-    base.to(RESTAI_DEFAULT_DEVICE or "cuda")
+    base.to(device)
 
     refiner = DiffusionPipeline.from_pretrained(
         "stabilityai/stable-diffusion-xl-refiner-1.0",
@@ -29,7 +33,7 @@ def worker(prompt, sharedmem):
         variant="fp16",
     )
 
-    refiner.to(RESTAI_DEFAULT_DEVICE or "cuda")
+    refiner.to(device)
 
     image = base(
         prompt=prompt,

@@ -409,7 +409,9 @@ Integer Query/Form params have `ge`/`le` bounds. File uploads sanitized via `san
 
 ## Key env vars
 
-`RESTAI_DEV`, `RESTAI_GPU`, `RESTAI_DEFAULT_PASSWORD`, `RESTAI_URL` (OAuth redirects), `REDIS_HOST`/`REDIS_PORT`, `CHROMADB_HOST`/`CHROMADB_PORT`, `MCP_SERVER`, LLM API keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc). Full list in `restai/config.py`.
+`RESTAI_DEV`, `RESTAI_DEFAULT_PASSWORD`, `RESTAI_URL` (OAuth redirects), `MCP_SERVER`, `HF_TOKEN` (HuggingFace gated models). Full list in `restai/config.py`. **No LLM provider API keys** — those live per-LLM in `/admin/llms` and are encrypted at rest; same for image-generator and audio-generator credentials.
+
+GPU toggle, Redis (chat memory), and the vector backends (ChromaDB / PGVector / Weaviate / Pinecone) are GUI-managed in `/admin/settings` — env-var bootstrap was dropped, see the `_GUI_SETTING_ATTRS` block in `restai/config.py`. GPU is auto-detected on first boot (`gpu_enabled` default `None` ⇒ `detect_gpu()` fallback in `__getattr__`).
 
 Runtime-tunable settings (proxy, SSO, Docker, MCP, system LLM, knowledge retention, 2FA, branding, GUI-managed everything) live in the `settings` DB table. Consumers read via `restai.config.<NAME>` — `restai/config.py` defines a module-level `__getattr__` that resolves any GUI-managed key by querying the DB on every access (`_GUI_SETTING_ATTRS` is the authoritative `config_name -> (db_key, type, default)` map).
 

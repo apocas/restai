@@ -1,8 +1,10 @@
 """Google Cloud Speech-to-Text.
 
-Uses the `google-cloud-speech` package via API-key auth. For service-account
-auth set `GOOGLE_APPLICATION_CREDENTIALS` and leave `api_key` empty — the
-client falls back to ADC.
+Uses the `google-cloud-speech` package via API-key auth. Set the
+`api_key` option in the Speech-to-Text settings page. With an empty
+`api_key` the underlying SDK uses Google's Application Default
+Credentials (workload identity inside GKE, gcloud login on dev
+machines, etc.) — RESTai doesn't surface that as a configuration knob.
 
 Options recognized:
 - `api_key`         (optional) — Google API key with STT enabled.

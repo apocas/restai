@@ -8,12 +8,11 @@ x-restai-env: &restai-env
   RESTAI_DEV: ${RESTAI_DEV:-false}
   RESTAI_DEFAULT_PASSWORD: ${RESTAI_DEFAULT_PASSWORD:-admin}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
-  # LLM API keys
-  OPENAI_API_KEY: ${OPENAI_API_KEY}
-  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-  GROQ_API_KEY: ${GROQ_API_KEY}
-  GOOGLE_API_KEY: ${GOOGLE_API_KEY}
-  XAI_API_KEY: ${XAI_API_KEY}
+  # LLM provider credentials (OpenAI, Anthropic, Google/Gemini, Grok,
+  # Azure, Ollama Cloud, …) live per-LLM in /admin/llms — encrypted at
+  # rest, scoped to teams. Env-var bootstrap was dropped.
+  # HF_TOKEN stays: HuggingFace's hub libraries read it directly for
+  # gated models (whisperx alignment, etc.).
   HF_TOKEN: ${HF_TOKEN}
   # Database (defaults to SQLite if none set)
   POSTGRES_HOST: ${POSTGRES_HOST}
@@ -33,11 +32,10 @@ x-restai-env: &restai-env
   DB_POOL_SIZE: ${DB_POOL_SIZE}
   DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW}
   DB_POOL_RECYCLE: ${DB_POOL_RECYCLE}
-  # Redis (optional — enables persistent chat memory)
-  REDIS_HOST: ${REDIS_HOST}
-  REDIS_PORT: ${REDIS_PORT:-6379}
-  REDIS_PASSWORD: ${REDIS_PASSWORD}
-  REDIS_DATABASE: ${REDIS_DATABASE}
+  # Redis (chat memory) is configured in the GUI: /admin/settings →
+  # General → Redis. The env-var bootstrap was dropped; admins set
+  # host/port/password/db in the Settings page and config reads them
+  # from the DB at runtime.
   # ChromaDB (optional — remote vector store)
   CHROMADB_HOST: ${CHROMADB_HOST}
   CHROMADB_PORT: ${CHROMADB_PORT:-8000}
@@ -48,8 +46,8 @@ x-restai-env: &restai-env
   # Agent settings
   AGENT_MAX_ITERATIONS: ${AGENT_MAX_ITERATIONS}
   MCP_SERVER: ${MCP_SERVER}
-  # GPU (auto-detected, override if needed)
-  RESTAI_GPU: ${RESTAI_GPU}
+  # GPU is GUI-managed (Settings → General → GPU; auto-detected on
+  # first boot). Env-var bootstrap was dropped.
   SENTRY_DSN: ${SENTRY_DSN}
 
 services:

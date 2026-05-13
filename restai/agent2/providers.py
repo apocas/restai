@@ -542,7 +542,7 @@ class AnthropicProvider(Provider):
             raise Agent2ProviderError("anthropic package is required for AnthropicProvider") from e
 
         if not config.api_key:
-            raise Agent2ProviderError("ANTHROPIC_API_KEY (or options.api_key) is required for AnthropicProvider")
+            raise Agent2ProviderError("api_key is required for AnthropicProvider — set it in /admin/llms")
 
         client_kwargs: dict = {"api_key": config.api_key}
         if config.base_url:
@@ -737,8 +737,6 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
     context_window = llm_model.context_window
 
     if class_name in ("OpenAI",):
-        if not api_key:
-            api_key = os.environ.get("OPENAI_API_KEY")
         cfg = ProviderConfig(
             model=model or "gpt-4o-mini",
             api_key=api_key,
@@ -750,9 +748,13 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
         return OpenAIProvider(cfg), cfg
 
     if class_name in ("OpenAILike", "LiteLLM"):
+        # OpenAILike / LiteLLM often points at a self-hosted gateway that
+        # ignores the api_key field entirely (vLLM, llama.cpp, Ollama
+        # behind a proxy, etc.). Fall back to a placeholder so the OpenAI
+        # SDK doesn't refuse to construct the client.
         cfg = ProviderConfig(
             model=model,
-            api_key=api_key or os.environ.get("OPENAI_API_KEY") or "not-needed",
+            api_key=api_key or "not-needed",
             base_url=base_url,
             max_output_tokens=max_tokens,
             temperature=temperature,
@@ -782,7 +784,7 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
     if class_name == "Grok":
         cfg = ProviderConfig(
             model=model or "grok-beta",
-            api_key=api_key or os.environ.get("XAI_API_KEY"),
+            api_key=api_key,
             base_url=base_url or "https://api.x.ai/v1",
             max_output_tokens=max_tokens,
             temperature=temperature,
@@ -793,7 +795,7 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
     if class_name == "Anthropic":
         cfg = ProviderConfig(
             model=model or "claude-3-5-sonnet-latest",
-            api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"),
+            api_key=api_key,
             base_url=base_url,
             max_output_tokens=max_tokens,
             temperature=temperature,
@@ -829,11 +831,7 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
             gemini_model = gemini_model[len("models/") :]
         cfg = ProviderConfig(
             model=gemini_model or "gemini-2.0-flash",
-            api_key=(
-                api_key
-                or os.environ.get("GOOGLE_API_KEY")
-                or os.environ.get("GEMINI_API_KEY")
-            ),
+            api_key=api_key,
             base_url=base_url or "https://generativelanguage.googleapis.com/v1beta/openai/",
             max_output_tokens=max_tokens,
             temperature=temperature,
@@ -845,13 +843,8 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
         azure_endpoint = (
             options.get("azure_endpoint")
             or options.get("base_url")
-            or os.environ.get("AZURE_OPENAI_ENDPOINT")
         )
-        api_version = (
-            options.get("api_version")
-            or os.environ.get("OPENAI_API_VERSION")
-            or "2024-08-01-preview"
-        )
+        api_version = options.get("api_version") or "2024-08-01-preview"
         # Azure routes by deployment name, not by model name. Fall back to the
         # 'model' field for backwards compatibility with how it's stored today.
         deployment = (
@@ -862,7 +855,7 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
         )
         cfg = ProviderConfig(
             model=deployment,
-            api_key=api_key or os.environ.get("AZURE_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY"),
+            api_key=api_key,
             base_url=azure_endpoint,
             max_output_tokens=max_tokens,
             temperature=temperature,

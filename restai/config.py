@@ -231,7 +231,10 @@ def detect_gpu_info():
         gpus.append(gpu)
     return gpus
 
-RESTAI_DEFAULT_DEVICE = os.environ.get("RESTAI_DEFAULT_DEVICE")
+# RESTAI_DEFAULT_DEVICE moved to GUI settings (`_GUI_SETTING_ATTRS`
+# below, db_key `gpu_default_device`). Image / audio workers read it
+# via `import restai.config as _cfg` + `_cfg.RESTAI_DEFAULT_DEVICE` so
+# admin changes in /admin/gpu apply on the next worker spin-up.
 
 EMBEDDINGS_PATH = os.environ.get("EMBEDDINGS_PATH")
 
@@ -305,6 +308,10 @@ _GUI_SETTING_ATTRS = {
     "OAUTH_EMAIL_CLAIM": ("sso_oidc_email_claim", str, "email"),
     "RESTAI_GPU": ("gpu_enabled", bool, None),  # None sentinel => auto-detect
     "GPU_WORKER_DEVICES": ("gpu_worker_devices", str, ""),
+    # `RESTAI_DEFAULT_DEVICE` is NOT a separate GUI setting — it's
+    # derived from `gpu_worker_devices` in `__getattr__` below (first
+    # index in the worker pool, formatted "cuda:N", or "cuda:0" when
+    # the pool is empty/all-available).
     "RESTAI_MCP": ("mcp_enabled", bool, False),
     "SYSTEM_LLM": ("system_llm", str, ""),
     "DOCKER_ENABLED": ("docker_enabled", bool, False),
@@ -389,6 +396,20 @@ def _coerce_setting(raw: str, type_, default):
     return raw
 
 
+def _read_setting(db_key: str) -> str:
+    """One-shot DB read for a single settings row. Returns "" on any
+    failure (early bootstrap before the schema exists, etc.)."""
+    try:
+        from restai.database import DBWrapper
+        wrapper = DBWrapper()
+        try:
+            return wrapper.get_setting_value(db_key, "")
+        finally:
+            wrapper.db.close()
+    except Exception:
+        return ""
+
+
 def __getattr__(name):
     """Read GUI-managed settings from the DB on demand.
 
@@ -401,20 +422,23 @@ def __getattr__(name):
     DB failures (e.g. very early bootstrap before the schema exists) fall back
     to the declared default; for RESTAI_GPU the fallback is `detect_gpu()`.
     """
+    # Derived attribute: pick the first GPU index from
+    # `gpu_worker_devices` (CSV) and format as a torch device string.
+    # Lets workers do `_cfg.RESTAI_DEFAULT_DEVICE` without us carrying
+    # a redundant "default device" GUI setting that would inevitably
+    # drift from the worker pool config.
+    if name == "RESTAI_DEFAULT_DEVICE":
+        devices = _coerce_setting(_read_setting("gpu_worker_devices"), "csv-list", [])
+        if devices:
+            return f"cuda:{devices[0]}"
+        return "cuda:0"
+
     spec = _GUI_SETTING_ATTRS.get(name)
     if spec is None:
         raise AttributeError(f"module 'restai.config' has no attribute {name!r}")
     db_key, type_, default = spec
 
-    try:
-        from restai.database import DBWrapper
-        wrapper = DBWrapper()
-        try:
-            raw = wrapper.get_setting_value(db_key, "")
-        finally:
-            wrapper.db.close()
-    except Exception:
-        raw = ""
+    raw = _read_setting(db_key)
 
     if name == "RESTAI_GPU" and default is None and not raw:
         return detect_gpu()

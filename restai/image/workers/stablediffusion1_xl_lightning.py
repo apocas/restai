@@ -15,13 +15,16 @@ def worker(prompt, sharedmem):
     from huggingface_hub import hf_hub_download
     from safetensors.torch import load_file
 
-    from restai.config import RESTAI_DEFAULT_DEVICE
+    import restai.config as _cfg
 
 
     base = "stabilityai/stable-diffusion-xl-base-1.0"
     repo = "ByteDance/SDXL-Lightning"
     ckpt = "sdxl_lightning_4step_unet.safetensors"
-    default_device = RESTAI_DEFAULT_DEVICE or "cuda"
+    # Derived from gpu_worker_devices in /admin/gpu (first index in
+    # the worker pool, "cuda:N"). Use _cfg.X — a `from … import …`
+    # would freeze the value at module load.
+    default_device = _cfg.RESTAI_DEFAULT_DEVICE
 
     unet = UNet2DConditionModel.from_config(base, subfolder="unet").to(default_device, torch.float16)
     unet.load_state_dict(load_file(hf_hub_download(repo, ckpt), device=default_device))

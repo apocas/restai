@@ -61,7 +61,6 @@ config:
   # Base URL for OAuth callbacks and absolute links. Boot-only because
   # FastAPI uses it before the DB is reachable.
   restaiUrl: ""
-  defaultDevice: ""
 
 # -- Sensitive values (stored in K8s Secret).
 #

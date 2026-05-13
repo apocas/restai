@@ -617,14 +617,17 @@ Direct interaction with the GPU layer — ideal for small deployments.
 |----------|-------------|---------|
 | `RESTAI_DEFAULT_PASSWORD` | Admin user password | `admin` |
 | `RESTAI_DEV` | Enable dev mode with hot reload | `false` |
-| `RESTAI_GPU` | Enable GPU features (image gen) | auto-detected |
-| `OPENAI_API_KEY` | OpenAI API key | — |
-| `ANTHROPIC_API_KEY` | Anthropic API key | — |
 | `POSTGRES_HOST` | Use PostgreSQL instead of SQLite | — |
 | `MYSQL_HOST` | Use MySQL instead of SQLite | — |
-| `REDIS_HOST` / `REDIS_PORT` | Redis for persistent chat history | — |
-| `CHROMADB_HOST` / `CHROMADB_PORT` | Remote ChromaDB for vector storage | — |
 | `MCP_SERVER` | Enable built-in MCP server at `/mcp/sse` | `false` |
+
+LLM credentials (OpenAI, Anthropic, Gemini, Grok, Azure, etc.) live on
+each LLM in `/admin/llms` — encrypted per-LLM in the DB and scoped to
+teams. Image-generator credentials (DALL-E, Imagen) live in
+`/admin/image-generators`. GPU toggle, Redis (chat memory) and the
+vector backends (ChromaDB / PGVector / Weaviate / Pinecone) are
+configured in `/admin/settings`. None of these need env vars; GPU is
+auto-detected on first boot.
 
 Full configuration in [`restai/config.py`](restai/config.py).
 

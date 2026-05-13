@@ -12,10 +12,12 @@ def worker(prompt, sharedmem):
     import torch
     import torchaudio
     from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq
+    import restai.config as _cfg
 
     file_path = sharedmem["file_path"]
 
-    device = os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda:0"
+    # Derived from gpu_worker_devices in /admin/gpu.
+    device = _cfg.RESTAI_DEFAULT_DEVICE
 
     model_name = "ibm-granite/granite-speech-3.3-8b"
     processor = AutoProcessor.from_pretrained(model_name)

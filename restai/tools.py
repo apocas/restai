@@ -65,9 +65,12 @@ def get_llm_class(llm_class_name: str):
         case "Grok":
             from llama_index.llms.anthropic import Anthropic
 
+            # Grok speaks the Anthropic protocol via x.ai. The api_key
+            # comes from the LLM's stored options (set in /admin/llms);
+            # this default block only fills the routing fields the SDK
+            # needs to construct the client.
             return Anthropic, {
                 "base_url": "https://api.x.ai/",
-                "api_key": os.environ.get("XAI_API_KEY"),
                 "model": "grok-beta",
             }
         case "Anthropic":

@@ -39,6 +39,5 @@ data:
   {{- if .Values.config.restaiUrl }}
   RESTAI_URL: {{ .Values.config.restaiUrl | quote }}
   {{- end }}
-  {{- if .Values.config.defaultDevice }}
-  RESTAI_DEFAULT_DEVICE: {{ .Values.config.defaultDevice | quote }}
-  {{- end }}
+  # GPU device targeting is GUI-managed at /admin/gpu (the worker
+  # pool's first selected index drives `config.RESTAI_DEFAULT_DEVICE`).

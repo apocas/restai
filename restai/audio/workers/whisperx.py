@@ -35,7 +35,9 @@ def worker(prompt, sharedmem):
     file_path = sharedmem["file_path"]
     filename = sharedmem["filename"]
 
-    device = os.environ.get("RESTAI_DEFAULT_DEVICE") or "cuda:0"
+    # Derived from gpu_worker_devices in /admin/gpu (first index of
+    # the worker pool, "cuda:N", or "cuda:0" when the pool is empty).
+    device = config.RESTAI_DEFAULT_DEVICE
 
     batch_size = 16
 

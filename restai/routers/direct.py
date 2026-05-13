@@ -476,15 +476,13 @@ async def list_accessible_models(
         image_generators = []
         audio_generators = []
         if hasattr(request.app.state.brain, "generators"):
+            # Hosted image generators (DALL-E, Imagen, etc.) register
+            # themselves through the image-generator registry; admins
+            # enable them in /admin/image-generators per team.
             image_generators = [
                 g.__module__.split("restai.image.workers.")[1]
                 for g in request.app.state.brain.get_generators()
             ]
-            if not user.is_private:
-                if os.environ.get("OPENAI_API_KEY"):
-                    image_generators.append("dalle")
-                if os.environ.get("GOOGLE_API_KEY"):
-                    image_generators.append("imagen")
 
         if hasattr(request.app.state.brain, "audio_generators"):
             audio_generators = [
