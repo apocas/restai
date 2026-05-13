@@ -353,6 +353,71 @@ export default function MessageBubble({ message, onBranch }) {
                   {answerText}
                 </ReactMarkdown>
               </Typography>
+              {/* Live tool-call panel — populated by SSE
+                  `tool_call_started` / `tool_call_completed` events
+                  during streaming. Auto-expands so the user can watch
+                  the agent work in real-time. Reuses the persisted
+                  `Terminal` renderer (same green-on-black look) by
+                  mapping each in-flight call into a synthetic
+                  reasoning.steps[].actions[] entry; running tools
+                  show "…running…" as the output placeholder until
+                  the matching completion event lands.
+
+                  Disappears on stream close — the persisted
+                  `toolSteps` accordion below takes over. */}
+              {Array.isArray(message.live_tool_calls) && message.live_tool_calls.length > 0 && (
+                <Accordion
+                  disableGutters
+                  elevation={0}
+                  defaultExpanded
+                  sx={{ mt: 1, backgroundColor: "transparent", "&:before": { display: "none" } }}
+                >
+                  <AccordionSummary expandIcon={<ExpandMore />} sx={{ minHeight: 32, px: 0, "& .MuiAccordionSummary-content": { my: 0 } }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                      <TerminalOutlined fontSize="small" />
+                      <Typography variant="caption" color="text.secondary">
+                        {(() => {
+                          const total = message.live_tool_calls.length;
+                          const running = message.live_tool_calls.filter((c) => c.status === "running").length;
+                          if (running > 0) return `Running ${running} of ${total} tool${total !== 1 ? "s" : ""}…`;
+                          return `${total} tool call${total !== 1 ? "s" : ""}`;
+                        })()}
+                      </Typography>
+                    </Box>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ px: 0, pt: 0 }}>
+                    <Terminal
+                      message={{
+                        reasoning: {
+                          steps: message.live_tool_calls.map((call) => {
+                            // `args` arrives JSON-stringified from the
+                            // backend (input_preview, capped at 500
+                            // chars). Try to parse so Terminal renders
+                            // it as a clean object; fall back to the
+                            // raw string if it's truncated/invalid.
+                            let parsedArgs;
+                            try {
+                              parsedArgs = call.args ? JSON.parse(call.args) : {};
+                            } catch {
+                              parsedArgs = { args: call.args };
+                            }
+                            return {
+                              actions: [{
+                                action: call.tool,
+                                input: parsedArgs,
+                                output: call.status === "running"
+                                  ? "…running…"
+                                  : (call.error || call.output || ""),
+                              }],
+                            };
+                          }),
+                        },
+                      }}
+                    />
+                  </AccordionDetails>
+                </Accordion>
+              )}
+
               {/* Tool calls — separate accordion from thinking. Reuses
                   the existing terminal renderer with a filtered view of
                   reasoning.steps (action !== "reasoning"). */}

@@ -59,6 +59,12 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
   // Shape: { plan: [name, ...], steps: [{name, status, summary?}] }
   // status ∈ "pending" | "running" | "done"
   const [streamingPlan, setStreamingPlan] = useState(null);
+  // Live tool-call lifecycle for the in-flight assistant turn. Keyed by
+  // tool_use_id so completion events match the right `running` entry.
+  // Mirrors the thoughts/plan panels — appears in the streaming bubble
+  // and clears on `onclose` (the persisted `tool_trace` accordion in
+  // MessageBubble takes over from there).
+  const [streamingToolCalls, setStreamingToolCalls] = useState([]);
   const scrollRef = useRef(null);
   // AbortController for the in-flight streaming fetch. Kept in a ref so
   // the Stop button can access the live controller without triggering
@@ -216,6 +222,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     }]);
     setStreamingText("");
     setStreamingPlan(null);
+    setStreamingToolCalls([]);
 
     let accumulated = "";
     let finalOutput = null;
@@ -295,6 +302,23 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
               }
               return { ...cur, steps };
             });
+          } else if (data.tool_call_started) {
+            // Append a "running" tool-call entry; it'll flip to done/error
+            // when the matching tool_call_completed event arrives.
+            const { id, tool, args } = data.tool_call_started;
+            setStreamingToolCalls((cur) => [
+              ...cur,
+              { id, tool, args, status: "running", startedAt: Date.now() },
+            ]);
+          } else if (data.tool_call_completed) {
+            const { id, status, latency_ms, output, error } = data.tool_call_completed;
+            setStreamingToolCalls((cur) =>
+              cur.map((entry) =>
+                entry.id === id
+                  ? { ...entry, status, latency_ms, output, error }
+                  : entry
+              )
+            );
           }
         } catch (e) {
           // Non-JSON chunk, ignore
@@ -303,6 +327,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       onclose() {
         setStreamingText("");
         setStreamingPlan(null);
+        setStreamingToolCalls([]);
         if (finalOutput) {
           setMessages(prev => {
             const updated = [...prev];
@@ -339,6 +364,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       onerror(err) {
         setStreamingText("");
         setStreamingPlan(null);
+        setStreamingToolCalls([]);
         // Intentional user abort — keep whatever text we accumulated
         // as the final answer and exit quietly, no error bubble, no
         // toast. Aborting via AbortController surfaces here as a
@@ -547,6 +573,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     setMessages([]);
     setStreamingText("");
     setStreamingPlan(null);
+    setStreamingToolCalls([]);
     setFiles([]);
     setBranches([]);
     setActiveBranchIdx(-1);
@@ -611,7 +638,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
                 onBranch={chatMode && msg.answer ? () => handleBranch(i) : undefined}
               />
             ))}
-            {(streamingText || streamingPlan) && (
+            {(streamingText || streamingPlan || streamingToolCalls.length > 0) && (
               <MessageBubble
                 message={{
                   question: null,
@@ -619,6 +646,11 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
                   sources: [],
                   plan: streamingPlan ? streamingPlan.plan : undefined,
                   step_summaries: streamingPlan ? streamingPlan.steps : undefined,
+                  // Synthetic field — MessageBubble renders it as a live
+                  // tool-call panel when present, distinct from the
+                  // persisted `tool_trace` accordion that appears after
+                  // the final dict arrives.
+                  live_tool_calls: streamingToolCalls,
                 }}
               />
             )}

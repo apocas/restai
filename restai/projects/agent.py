@@ -397,7 +397,7 @@ class Agent(ProjectBase):
                 )
 
             step_output: dict = {}
-            async for delta in self._drive_runtime(
+            async for kind, payload in self._drive_runtime(
                 runtime,
                 prompt=step_prompt,
                 session=session,
@@ -407,7 +407,10 @@ class Agent(ProjectBase):
                 output=step_output,
             ):
                 if stream:
-                    yield "data: " + json.dumps({"text": delta}) + "\n\n"
+                    if kind == "text":
+                        yield "data: " + json.dumps({"text": payload}) + "\n\n"
+                    else:
+                        yield "data: " + json.dumps(payload) + "\n\n"
 
             step_text = (step_output.get("answer") or "").strip()
             output["step_summaries"].append({"name": step_name, "result": step_text[:1000]})
@@ -434,7 +437,7 @@ class Agent(ProjectBase):
             "Don't ask clarifying questions and don't recap the plan — just give the answer."
         )
         final_output: dict = {}
-        async for delta in self._drive_runtime(
+        async for kind, payload in self._drive_runtime(
             runtime,
             prompt=synth_prompt,
             session=session,
@@ -444,7 +447,10 @@ class Agent(ProjectBase):
             output=final_output,
         ):
             if stream:
-                yield "data: " + json.dumps({"text": delta}) + "\n\n"
+                if kind == "text":
+                    yield "data: " + json.dumps({"text": payload}) + "\n\n"
+                else:
+                    yield "data: " + json.dumps(payload) + "\n\n"
 
         if stream:
             yield "data: " + json.dumps(
@@ -598,7 +604,7 @@ class Agent(ProjectBase):
                 delta = event.data.get("text", "")
                 if delta:
                     streamed_text_buf.append(delta)
-                    yield delta
+                    yield ("text", delta)
 
             elif event.type == "assistant":
                 msg = event.message
@@ -607,6 +613,21 @@ class Agent(ProjectBase):
                         if isinstance(block, ToolUseBlock):
                             pending_tool_calls[block.id] = block
                             tool_call_started_at[block.id] = _time.monotonic()
+                            # Live event so the playground UI can show the
+                            # tool is in flight (mirrors plan/step events).
+                            try:
+                                args_preview = json.dumps(block.input, default=str)
+                            except Exception:
+                                args_preview = str(block.input)
+                            if len(args_preview) > 500:
+                                args_preview = args_preview[:500] + "…"
+                            yield ("event", {
+                                "tool_call_started": {
+                                    "id": block.id,
+                                    "tool": block.name,
+                                    "args": args_preview,
+                                }
+                            })
 
             elif event.type == "tool_result":
                 msg = event.message
@@ -643,6 +664,21 @@ class Agent(ProjectBase):
                                 "latency_ms": latency_ms,
                                 "status": status,
                                 "error": err_preview,
+                            })
+                            # Live completion event paired with the earlier
+                            # `tool_call_started` by `id`.
+                            output_preview = str(content)[:500]
+                            if len(str(content)) > 500:
+                                output_preview = output_preview + "…"
+                            yield ("event", {
+                                "tool_call_completed": {
+                                    "id": tool_use_id,
+                                    "tool": tool_call.name,
+                                    "status": status,
+                                    "latency_ms": latency_ms,
+                                    "output": output_preview,
+                                    "error": err_preview,
+                                }
                             })
                             # Capture every image-cache URL the tool emitted so
                             # we can guarantee it ends up in front of the user.
@@ -907,7 +943,7 @@ class Agent(ProjectBase):
                             streamed_any_text = True
                             yield sse_line
                     else:
-                        async for delta in self._drive_runtime(
+                        async for kind, payload in self._drive_runtime(
                             runtime,
                             prompt=prompt_text,
                             session=session,
@@ -916,8 +952,14 @@ class Agent(ProjectBase):
                             project=project,
                             output=output,
                         ):
-                            streamed_any_text = True
-                            yield "data: " + json.dumps({"text": delta}) + "\n\n"
+                            if kind == "text":
+                                streamed_any_text = True
+                                yield "data: " + json.dumps({"text": payload}) + "\n\n"
+                            else:
+                                # Tool-call lifecycle event (or any other
+                                # structured signal from `_drive_runtime`).
+                                # ChatPanel branches on the dict's key.
+                                yield "data: " + json.dumps(payload) + "\n\n"
 
                     await save_session(self.brain, chat_id, session)
                     self._count_tokens(output)
@@ -1027,7 +1069,7 @@ class Agent(ProjectBase):
             image_block = ImageBlock.from_data_url(image_url) if image_url else None
 
             try:
-                async for delta in self._drive_runtime(
+                async for kind, payload in self._drive_runtime(
                     runtime,
                     prompt=prompt_text,
                     session=None,
@@ -1036,8 +1078,14 @@ class Agent(ProjectBase):
                     project=project,
                     output=output,
                 ):
-                    streamed_any_text = True
-                    yield "data: " + json.dumps({"text": delta}) + "\n\n"
+                    if kind == "text":
+                        streamed_any_text = True
+                        yield "data: " + json.dumps({"text": payload}) + "\n\n"
+                    else:
+                        # Tool-call lifecycle event — same shape used by
+                        # the chat path so the playground UI can show
+                        # tools in flight regardless of endpoint.
+                        yield "data: " + json.dumps(payload) + "\n\n"
 
                 self._count_tokens(output)
                 self.check_output_guard(project, user, db, output)
