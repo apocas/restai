@@ -31,10 +31,27 @@ class DockerManager:
                  read_only: bool = True):
         import docker as docker_sdk
         self._client = docker_sdk.DockerClient(base_url=docker_url)
-        self._image = docker_image
-        self._timeout = container_timeout
-        self._network_mode = network_mode
-        self._read_only = read_only
+        # NOTE: image/timeout/network/read_only are intentionally NOT
+        # cached as instance state. They're GUI-managed and read live
+        # from `restai.config` on every container spawn (see the
+        # `_image` / `_timeout` / `_network_mode` / `_read_only`
+        # @property accessors below).
+        #
+        # Why: `Brain.init_docker_manager()` reinits the manager only
+        # in the worker that handled the PATCH, so under uvicorn's
+        # multi-worker model the other workers would otherwise keep
+        # the boot-time values forever — exactly the multi-worker
+        # drift CLAUDE.md flags for `_CONFIG_ATTR_MAP`. The constructor
+        # args are still accepted for API compat but ignored after the
+        # initial connectivity check.
+        self._docker_url = docker_url
+        # Fallbacks used when `restai.config` can't be read (very early
+        # bootstrap before settings table exists). Mirror the
+        # `_GUI_SETTING_ATTRS` defaults.
+        self._fallback_image = docker_image
+        self._fallback_timeout = container_timeout
+        self._fallback_network = network_mode
+        self._fallback_read_only = read_only
         self._containers: dict[str, ContainerInfo] = {}
         self._lock = threading.Lock()
         # Per-chat memory of artifacts we've already shown the model.
@@ -58,6 +75,53 @@ class DockerManager:
         except Exception as e:
             logger.error("Docker manager failed to connect to %s: %s", docker_url, e)
             raise
+
+    # ─── Live GUI-setting accessors ──────────────────────────────────
+    # Read on every container spawn so admin changes in /admin/settings
+    # take effect across all uvicorn workers without restart. `_cfg.X`
+    # routes through `restai.config.__getattr__` which queries the DB.
+    # If the read fails (very early bootstrap), fall back to the value
+    # the manager was constructed with — that path can only execute
+    # before the settings table exists.
+
+    @property
+    def _image(self) -> str:
+        try:
+            import restai.config as _cfg
+            return getattr(_cfg, "DOCKER_IMAGE", None) or self._fallback_image
+        except Exception:
+            return self._fallback_image
+
+    @property
+    def _timeout(self) -> int:
+        try:
+            import restai.config as _cfg
+            return int(getattr(_cfg, "DOCKER_TIMEOUT", None) or self._fallback_timeout)
+        except Exception:
+            return self._fallback_timeout
+
+    @property
+    def _network_mode(self) -> str:
+        try:
+            import restai.config as _cfg
+            return getattr(_cfg, "DOCKER_NETWORK", None) or self._fallback_network
+        except Exception:
+            return self._fallback_network
+
+    @property
+    def _read_only(self) -> bool:
+        try:
+            import restai.config as _cfg
+            val = getattr(_cfg, "DOCKER_READ_ONLY", None)
+            # `_GUI_SETTING_ATTRS` returns the bool default (True) when
+            # the row is missing; an explicit False from the GUI means
+            # "let pip install work" and must NOT be coerced back to
+            # True by the `or` fallback below.
+            if isinstance(val, bool):
+                return val
+            return self._fallback_read_only
+        except Exception:
+            return self._fallback_read_only
 
     def exec_command(self, chat_id: str, command: str, env: dict | None = None) -> str:
         """Execute a command in the container for this chat_id.
