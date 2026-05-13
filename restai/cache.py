@@ -4,15 +4,20 @@ import chromadb
 import uuid
 
 from restai.vectordb.tools import find_embeddings_path
-from restai.config import CHROMADB_HOST, CHROMADB_PORT
+import restai.config as _cfg
 
 # Reuse PersistentClient per cache path within the same worker process.
 _cache_client_cache = {}
 
 
 def _get_cache_client(path):
-    if CHROMADB_HOST:
-        return chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT)
+    # Read GUI settings on every call so admins can change Chroma host
+    # without a restart. `_cfg.X` triggers the module __getattr__ which
+    # hits the DB; a top-level `from restai.config import X` would have
+    # frozen the value at import time.
+    host = _cfg.CHROMADB_HOST
+    if host:
+        return chromadb.HttpClient(host=host, port=_cfg.CHROMADB_PORT)
     if path not in _cache_client_cache:
         _cache_client_cache[path] = chromadb.PersistentClient(path=path)
     return _cache_client_cache[path]

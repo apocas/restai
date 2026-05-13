@@ -10,19 +10,26 @@ from restai.embedding import Embedding
 from restai.vectordb.tools import find_embeddings_path
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from restai.vectordb.base import VectorBase
-from restai.config import CHROMADB_HOST, CHROMADB_PORT
+import restai.config as _cfg
 
 logging.basicConfig(level=config.LOG_LEVEL)
 
 # Cache PersistentClient instances per path to avoid creating multiple
 # SQLite connections to the same directory within the same worker process.
+# `patch_settings` clears this cache on any vectordb_* setting change so
+# admins can swap Chroma host without restarting workers.
 _client_cache = {}
 
 
 def _get_client(path=None):
-    """Get or create a ChromaDB client, reusing PersistentClient per path."""
-    if CHROMADB_HOST:
-        return chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT)
+    """Get or create a ChromaDB client, reusing PersistentClient per path.
+
+    `_cfg.X` resolves through the GUI settings layer on every call — a
+    plain `from restai.config import CHROMADB_HOST` would freeze the
+    value at module import time."""
+    host = _cfg.CHROMADB_HOST
+    if host:
+        return chromadb.HttpClient(host=host, port=_cfg.CHROMADB_PORT)
     if path not in _client_cache:
         _client_cache[path] = chromadb.PersistentClient(path=path)
     return _client_cache[path]

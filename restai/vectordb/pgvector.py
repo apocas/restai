@@ -7,16 +7,10 @@ from llama_index.core.storage import StorageContext
 from llama_index.vector_stores.postgres import PGVectorStore
 
 from restai import config
+import restai.config as _cfg
 from restai.brain import Brain
 from restai.embedding import Embedding
 from restai.vectordb.base import VectorBase
-from restai.config import (
-    PGVECTOR_HOST,
-    PGVECTOR_PORT,
-    PGVECTOR_USER,
-    PGVECTOR_PASSWORD,
-    PGVECTOR_DB,
-)
 
 logging.basicConfig(level=config.LOG_LEVEL)
 
@@ -26,16 +20,18 @@ def _sanitize_table_name(name: str) -> str:
 
 
 def _get_sync_connection_string() -> str:
+    # Resolve through _cfg.X on every call so admins can change PGVector
+    # settings in the GUI without restarting workers.
     return (
-        f"postgresql+psycopg2://{PGVECTOR_USER}:{PGVECTOR_PASSWORD}"
-        f"@{PGVECTOR_HOST}:{PGVECTOR_PORT}/{PGVECTOR_DB}"
+        f"postgresql+psycopg2://{_cfg.PGVECTOR_USER}:{_cfg.PGVECTOR_PASSWORD}"
+        f"@{_cfg.PGVECTOR_HOST}:{_cfg.PGVECTOR_PORT}/{_cfg.PGVECTOR_DB}"
     )
 
 
 def _get_async_connection_string() -> str:
     return (
-        f"postgresql+asyncpg://{PGVECTOR_USER}:{PGVECTOR_PASSWORD}"
-        f"@{PGVECTOR_HOST}:{PGVECTOR_PORT}/{PGVECTOR_DB}"
+        f"postgresql+asyncpg://{_cfg.PGVECTOR_USER}:{_cfg.PGVECTOR_PASSWORD}"
+        f"@{_cfg.PGVECTOR_HOST}:{_cfg.PGVECTOR_PORT}/{_cfg.PGVECTOR_DB}"
     )
 
 
@@ -48,11 +44,11 @@ class PGVectorDB(VectorBase):
 
     def _vector_init(self, brain: Brain):
         vector_store = PGVectorStore.from_params(
-            host=PGVECTOR_HOST,
-            port=PGVECTOR_PORT,
-            user=PGVECTOR_USER,
-            password=PGVECTOR_PASSWORD,
-            database=PGVECTOR_DB,
+            host=_cfg.PGVECTOR_HOST,
+            port=_cfg.PGVECTOR_PORT,
+            user=_cfg.PGVECTOR_USER,
+            password=_cfg.PGVECTOR_PASSWORD,
+            database=_cfg.PGVECTOR_DB,
             table_name=self.table_name,
             embed_dim=self.embedding.props.dimension,
         )

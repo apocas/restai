@@ -204,6 +204,10 @@ SETTINGS_ENCRYPTED_KEYS = {
     "sso_microsoft_client_secret",
     "sso_github_client_secret",
     "sso_oidc_client_secret",
+    "vectordb_pgvector_password",
+    "vectordb_weaviate_api_key",
+    "vectordb_pinecone_api_key",
+    "ldap_app_password",
 }
 
 # Keys inside sync_sources that should be encrypted

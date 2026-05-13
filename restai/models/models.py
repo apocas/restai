@@ -1507,6 +1507,38 @@ class SettingsResponse(BaseModel):
     enforce_2fa: bool = Field(default=False, description="Whether TOTP 2FA is enforced for all local users")
     # Password rotation
     password_max_age_days: int = Field(default=0, description="Soft warning shown on login when a user's password is older than this many days. 0 = disabled.")
+    # Vector DB backends — gating the project-create vectorstore dropdown.
+    # ChromaDB defaults on (local PersistentClient when host is empty).
+    vectordb_chromadb_enabled: bool = Field(default=True, description="Whether ChromaDB appears as an available vectorstore in project creation")
+    vectordb_chromadb_host: Optional[str] = Field(default="", description="Remote ChromaDB host. Empty = use a local PersistentClient under the embeddings path.")
+    vectordb_chromadb_port: Optional[str] = Field(default="", description="Remote ChromaDB port (only used when host is set)")
+    vectordb_pgvector_enabled: bool = Field(default=False, description="Whether PGVector appears as an available vectorstore")
+    vectordb_pgvector_host: Optional[str] = Field(default="", description="PGVector PostgreSQL host")
+    vectordb_pgvector_port: Optional[str] = Field(default="5432", description="PGVector PostgreSQL port")
+    vectordb_pgvector_user: Optional[str] = Field(default="", description="PGVector PostgreSQL user")
+    vectordb_pgvector_password: Optional[str] = Field(default="", description="PGVector PostgreSQL password (masked)")
+    vectordb_pgvector_db: Optional[str] = Field(default="restai_vectors", description="PGVector PostgreSQL database name")
+    vectordb_weaviate_enabled: bool = Field(default=False, description="Whether Weaviate appears as an available vectorstore")
+    vectordb_weaviate_host: Optional[str] = Field(default="", description="Weaviate host")
+    vectordb_weaviate_port: Optional[str] = Field(default="8080", description="Weaviate HTTP port")
+    vectordb_weaviate_grpc_port: Optional[str] = Field(default="50051", description="Weaviate gRPC port")
+    vectordb_weaviate_api_key: Optional[str] = Field(default="", description="Weaviate API key (masked, optional)")
+    vectordb_pinecone_enabled: bool = Field(default=False, description="Whether Pinecone appears as an available vectorstore")
+    vectordb_pinecone_api_key: Optional[str] = Field(default="", description="Pinecone API key (masked)")
+    vectordb_pinecone_index: Optional[str] = Field(default="", description="Pinecone index name")
+    # LDAP
+    ldap_enabled: bool = Field(default=False, description="Whether the /ldap login endpoint accepts authentication")
+    ldap_server_host: Optional[str] = Field(default="", description="LDAP server hostname")
+    ldap_server_port: Optional[str] = Field(default="", description="LDAP server port (389 plain, 636 LDAPS)")
+    ldap_attribute_for_mail: Optional[str] = Field(default="mail", description="LDAP attribute carrying the user's email")
+    ldap_attribute_for_username: Optional[str] = Field(default="uid", description="LDAP attribute carrying the username")
+    ldap_search_base: Optional[str] = Field(default="", description="LDAP search base DN, e.g. ou=users,dc=example,dc=com")
+    ldap_search_filters: Optional[str] = Field(default="", description="Additional LDAP search filters (objectClass etc.); pre-anded with the username match")
+    ldap_app_dn: Optional[str] = Field(default="", description="DN of the application bind account used to search for users")
+    ldap_app_password: Optional[str] = Field(default="", description="Password for the application bind account (masked)")
+    ldap_use_tls: bool = Field(default=False, description="Wrap the LDAP connection in TLS (LDAPS)")
+    ldap_ca_cert_file: Optional[str] = Field(default="", description="Path on disk to a CA bundle for LDAPS validation (server-side path)")
+    ldap_ciphers: Optional[str] = Field(default="", description="TLS cipher allowlist passed to ldap3. Empty = library default ('ALL')")
 
 
 class SettingsUpdate(BaseModel):
@@ -1582,6 +1614,37 @@ class SettingsUpdate(BaseModel):
     enforce_2fa: Optional[bool] = Field(default=None, description="Whether TOTP 2FA is enforced for all local users")
     # Password rotation
     password_max_age_days: Optional[int] = Field(default=None, ge=0, description="Soft warning shown on login when a user's password is older than this many days. 0 = disabled.")
+    # Vector DB backends
+    vectordb_chromadb_enabled: Optional[bool] = Field(default=None, description="Whether ChromaDB is offered as a vectorstore option")
+    vectordb_chromadb_host: Optional[str] = Field(default=None, description="Remote ChromaDB host (empty for local PersistentClient)")
+    vectordb_chromadb_port: Optional[str] = Field(default=None, description="Remote ChromaDB port")
+    vectordb_pgvector_enabled: Optional[bool] = Field(default=None, description="Whether PGVector is offered as a vectorstore option")
+    vectordb_pgvector_host: Optional[str] = Field(default=None, description="PGVector PostgreSQL host")
+    vectordb_pgvector_port: Optional[str] = Field(default=None, description="PGVector PostgreSQL port")
+    vectordb_pgvector_user: Optional[str] = Field(default=None, description="PGVector PostgreSQL user")
+    vectordb_pgvector_password: Optional[str] = Field(default=None, description="PGVector PostgreSQL password")
+    vectordb_pgvector_db: Optional[str] = Field(default=None, description="PGVector PostgreSQL database name")
+    vectordb_weaviate_enabled: Optional[bool] = Field(default=None, description="Whether Weaviate is offered as a vectorstore option")
+    vectordb_weaviate_host: Optional[str] = Field(default=None, description="Weaviate host")
+    vectordb_weaviate_port: Optional[str] = Field(default=None, description="Weaviate HTTP port")
+    vectordb_weaviate_grpc_port: Optional[str] = Field(default=None, description="Weaviate gRPC port")
+    vectordb_weaviate_api_key: Optional[str] = Field(default=None, description="Weaviate API key (optional)")
+    vectordb_pinecone_enabled: Optional[bool] = Field(default=None, description="Whether Pinecone is offered as a vectorstore option")
+    vectordb_pinecone_api_key: Optional[str] = Field(default=None, description="Pinecone API key")
+    vectordb_pinecone_index: Optional[str] = Field(default=None, description="Pinecone index name")
+    # LDAP
+    ldap_enabled: Optional[bool] = Field(default=None, description="Whether the /ldap login endpoint accepts authentication")
+    ldap_server_host: Optional[str] = Field(default=None, description="LDAP server hostname")
+    ldap_server_port: Optional[str] = Field(default=None, description="LDAP server port")
+    ldap_attribute_for_mail: Optional[str] = Field(default=None, description="LDAP attribute carrying the user's email")
+    ldap_attribute_for_username: Optional[str] = Field(default=None, description="LDAP attribute carrying the username")
+    ldap_search_base: Optional[str] = Field(default=None, description="LDAP search base DN")
+    ldap_search_filters: Optional[str] = Field(default=None, description="Additional LDAP search filters")
+    ldap_app_dn: Optional[str] = Field(default=None, description="Application bind account DN")
+    ldap_app_password: Optional[str] = Field(default=None, description="Application bind account password")
+    ldap_use_tls: Optional[bool] = Field(default=None, description="Wrap the LDAP connection in TLS (LDAPS)")
+    ldap_ca_cert_file: Optional[str] = Field(default=None, description="Path to a CA bundle for LDAPS validation")
+    ldap_ciphers: Optional[str] = Field(default=None, description="TLS cipher allowlist (empty = ldap3 default)")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "app_name": "My AI Platform",

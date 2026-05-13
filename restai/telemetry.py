@@ -90,7 +90,7 @@ def collect_telemetry(db_wrapper) -> dict:
         "sso_google": bool(getattr(config, "GOOGLE_CLIENT_ID", "")),
         "sso_microsoft": bool(getattr(config, "MICROSOFT_CLIENT_ID", "")),
         "sso_github": bool(getattr(config, "GITHUB_CLIENT_ID", "")),
-        "ldap": bool(getattr(config, "LDAP_HOST", "")),
+        "ldap": bool(getattr(config, "ENABLE_LDAP", False)),
         "enforce_2fa": str(getattr(config, "ENFORCE_2FA", "false")).lower() == "true",
     }
 

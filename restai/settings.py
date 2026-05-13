@@ -92,11 +92,46 @@ SETTINGS_DEFAULTS = {
     # response just includes a `password_warning` field so the UI can
     # nudge the user to rotate.
     "password_max_age_days": "0",
+    # Vector DB backends. Chroma defaults on (local PersistentClient
+    # when host is empty); the other three are dormant until an admin
+    # fills the credentials and flips the toggle. Per-backend
+    # `enabled` gates the project-create vectorstore dropdown.
+    "vectordb_chromadb_enabled": "true",
+    "vectordb_chromadb_host": "",
+    "vectordb_chromadb_port": "",
+    "vectordb_pgvector_enabled": "false",
+    "vectordb_pgvector_host": "",
+    "vectordb_pgvector_port": "5432",
+    "vectordb_pgvector_user": "",
+    "vectordb_pgvector_password": "",
+    "vectordb_pgvector_db": "restai_vectors",
+    "vectordb_weaviate_enabled": "false",
+    "vectordb_weaviate_host": "",
+    "vectordb_weaviate_port": "8080",
+    "vectordb_weaviate_grpc_port": "50051",
+    "vectordb_weaviate_api_key": "",
+    "vectordb_pinecone_enabled": "false",
+    "vectordb_pinecone_api_key": "",
+    "vectordb_pinecone_index": "",
+    # LDAP. `ldap_enabled` gates whether the `/ldap` login endpoint
+    # accepts authentication; the bind password is encrypted at rest.
+    "ldap_enabled": "false",
+    "ldap_server_host": "",
+    "ldap_server_port": "",
+    "ldap_attribute_for_mail": "mail",
+    "ldap_attribute_for_username": "uid",
+    "ldap_search_base": "",
+    "ldap_search_filters": "",
+    "ldap_app_dn": "",
+    "ldap_app_password": "",
+    "ldap_use_tls": "false",
+    "ldap_ca_cert_file": "",
+    "ldap_ciphers": "",
     # Telemetry
     "telemetry_instance_id": "",
 }
 
-_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "docker_read_only", "browser_enabled", "app_docker_enabled", "enforce_2fa"}
+_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "docker_read_only", "browser_enabled", "app_docker_enabled", "enforce_2fa", "vectordb_chromadb_enabled", "vectordb_pgvector_enabled", "vectordb_weaviate_enabled", "vectordb_pinecone_enabled", "ldap_enabled", "ldap_use_tls"}
 _INT_KEYS = {"max_audio_upload_size", "data_retention_days", "docker_timeout", "browser_timeout", "app_docker_idle_timeout", "password_max_age_days"}
 
 # Secret keys that should be masked in API responses
@@ -104,6 +139,9 @@ _SECRET_KEYS = {
     "proxy_key", "redis_password",
     "sso_google_client_secret", "sso_microsoft_client_secret",
     "sso_github_client_secret", "sso_oidc_client_secret",
+    "vectordb_pgvector_password", "vectordb_weaviate_api_key",
+    "vectordb_pinecone_api_key",
+    "ldap_app_password",
 }
 
 
@@ -212,6 +250,37 @@ def get_all_settings(db_wrapper) -> dict:
         "enforce_2fa": _to_bool(rows.get("enforce_2fa", "false")),
         # Password rotation
         "password_max_age_days": int(rows.get("password_max_age_days", "0") or "0"),
+        # Vector DB backends
+        "vectordb_chromadb_enabled": _to_bool(rows.get("vectordb_chromadb_enabled", "true")),
+        "vectordb_chromadb_host": rows.get("vectordb_chromadb_host", ""),
+        "vectordb_chromadb_port": rows.get("vectordb_chromadb_port", ""),
+        "vectordb_pgvector_enabled": _to_bool(rows.get("vectordb_pgvector_enabled", "false")),
+        "vectordb_pgvector_host": rows.get("vectordb_pgvector_host", ""),
+        "vectordb_pgvector_port": rows.get("vectordb_pgvector_port", "5432"),
+        "vectordb_pgvector_user": rows.get("vectordb_pgvector_user", ""),
+        "vectordb_pgvector_password": mask_key(rows.get("vectordb_pgvector_password", "")),
+        "vectordb_pgvector_db": rows.get("vectordb_pgvector_db", "restai_vectors"),
+        "vectordb_weaviate_enabled": _to_bool(rows.get("vectordb_weaviate_enabled", "false")),
+        "vectordb_weaviate_host": rows.get("vectordb_weaviate_host", ""),
+        "vectordb_weaviate_port": rows.get("vectordb_weaviate_port", "8080"),
+        "vectordb_weaviate_grpc_port": rows.get("vectordb_weaviate_grpc_port", "50051"),
+        "vectordb_weaviate_api_key": mask_key(rows.get("vectordb_weaviate_api_key", "")),
+        "vectordb_pinecone_enabled": _to_bool(rows.get("vectordb_pinecone_enabled", "false")),
+        "vectordb_pinecone_api_key": mask_key(rows.get("vectordb_pinecone_api_key", "")),
+        "vectordb_pinecone_index": rows.get("vectordb_pinecone_index", ""),
+        # LDAP
+        "ldap_enabled": _to_bool(rows.get("ldap_enabled", "false")),
+        "ldap_server_host": rows.get("ldap_server_host", ""),
+        "ldap_server_port": rows.get("ldap_server_port", ""),
+        "ldap_attribute_for_mail": rows.get("ldap_attribute_for_mail", "mail"),
+        "ldap_attribute_for_username": rows.get("ldap_attribute_for_username", "uid"),
+        "ldap_search_base": rows.get("ldap_search_base", ""),
+        "ldap_search_filters": rows.get("ldap_search_filters", ""),
+        "ldap_app_dn": rows.get("ldap_app_dn", ""),
+        "ldap_app_password": mask_key(rows.get("ldap_app_password", "")),
+        "ldap_use_tls": _to_bool(rows.get("ldap_use_tls", "false")),
+        "ldap_ca_cert_file": rows.get("ldap_ca_cert_file", ""),
+        "ldap_ciphers": rows.get("ldap_ciphers", ""),
     }
 
 

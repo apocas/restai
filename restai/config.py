@@ -143,22 +143,12 @@ def build_redis_url():
     db = f"/{raw_db}" if raw_db and raw_db != "0" else ""
     return f"redis://{auth}{host}:{port}{db}"
 
-CHROMADB_HOST = os.environ.get("CHROMADB_HOST")
-CHROMADB_PORT = os.environ.get("CHROMADB_PORT")
-
-PGVECTOR_HOST = os.environ.get("PGVECTOR_HOST") or POSTGRES_HOST
-PGVECTOR_PORT = os.environ.get("PGVECTOR_PORT") or os.environ.get("POSTGRES_PORT", "5432")
-PGVECTOR_USER = os.environ.get("PGVECTOR_USER") or POSTGRES_USER
-PGVECTOR_PASSWORD = os.environ.get("PGVECTOR_PASSWORD") or POSTGRES_PASSWORD
-PGVECTOR_DB = os.environ.get("PGVECTOR_DB", "restai_vectors")
-
-WEAVIATE_HOST = os.environ.get("WEAVIATE_HOST")
-WEAVIATE_PORT = os.environ.get("WEAVIATE_PORT", "8080")
-WEAVIATE_GRPC_PORT = os.environ.get("WEAVIATE_GRPC_PORT", "50051")
-WEAVIATE_API_KEY = os.environ.get("WEAVIATE_API_KEY")
-
-PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
-PINECONE_INDEX = os.environ.get("PINECONE_INDEX")
+# Vector-DB connection settings live in the `settings` table now and are
+# resolved per-access through `__getattr__` below. Consumers must use
+# `import restai.config as _cfg` + `_cfg.X` to get the live DB value;
+# `from restai.config import CHROMADB_HOST` would capture whatever the
+# DB held at import time and never refresh. See `_GUI_SETTING_ATTRS`
+# entries `vectordb_*` and the rationale in CLAUDE.md.
 
 def detect_gpu():
     """Auto-detect GPU availability via nvidia-smi."""
@@ -253,18 +243,11 @@ DB_POOL_RECYCLE = int(os.environ.get("DB_POOL_RECYCLE") or 100)
 
 MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE_MB") or 100) * 1024 * 1024  # Default 100MB
 
-ENABLE_LDAP = os.environ.get("ENABLE_LDAP")
-LDAP_SERVER_HOST = os.environ.get("LDAP_SERVER_HOST")
-LDAP_SERVER_PORT = os.environ.get("LDAP_SERVER_PORT")
-LDAP_ATTRIBUTE_FOR_MAIL = os.environ.get("LDAP_ATTRIBUTE_FOR_MAIL")
-LDAP_ATTRIBUTE_FOR_USERNAME = os.environ.get("LDAP_ATTRIBUTE_FOR_USERNAME")
-LDAP_SEARCH_BASE = os.environ.get("LDAP_SEARCH_BASE")
-LDAP_SEARCH_FILTERS = os.environ.get("LDAP_SEARCH_FILTERS")
-LDAP_APP_DN = os.environ.get("LDAP_APP_DN")
-LDAP_APP_PASSWORD = os.environ.get("LDAP_APP_PASSWORD")
-LDAP_USE_TLS = os.environ.get("LDAP_USE_TLS")
-LDAP_CA_CERT_FILE = os.environ.get("LDAP_CA_CERT_FILE")
-LDAP_CIPHERS = os.environ.get("LDAP_CIPHERS")
+# LDAP settings live in the GUI settings table now. `config.LDAP_*`
+# routes through `__getattr__` below, which reads the DB per-access so
+# admins can change them without restarting. The bind password is
+# encrypted at rest via `SETTINGS_ENCRYPTED_KEYS`. See `_GUI_SETTING_ATTRS`
+# entries `ldap_*` and `restai/routers/users.py:ldap_auth`.
 
 OAUTH_PROVIDERS = {}
 
@@ -343,6 +326,41 @@ _GUI_SETTING_ATTRS = {
     "APP_DOCKER_IDLE_TIMEOUT": ("app_docker_idle_timeout", int, 1800),
     "DATA_RETENTION_DAYS": ("data_retention_days", int, 0),
     "ENFORCE_2FA": ("enforce_2fa", bool, False),
+    # Vector DB backends. ChromaDB is on by default (local PersistentClient
+    # if host is empty). The other three are off until an admin fills the
+    # connection fields and flips the toggle in the VectorDBs settings tab.
+    "CHROMADB_ENABLED": ("vectordb_chromadb_enabled", bool, True),
+    "CHROMADB_HOST": ("vectordb_chromadb_host", str, ""),
+    "CHROMADB_PORT": ("vectordb_chromadb_port", str, ""),
+    "PGVECTOR_ENABLED": ("vectordb_pgvector_enabled", bool, False),
+    "PGVECTOR_HOST": ("vectordb_pgvector_host", str, ""),
+    "PGVECTOR_PORT": ("vectordb_pgvector_port", str, "5432"),
+    "PGVECTOR_USER": ("vectordb_pgvector_user", str, ""),
+    "PGVECTOR_PASSWORD": ("vectordb_pgvector_password", str, ""),
+    "PGVECTOR_DB": ("vectordb_pgvector_db", str, "restai_vectors"),
+    "WEAVIATE_ENABLED": ("vectordb_weaviate_enabled", bool, False),
+    "WEAVIATE_HOST": ("vectordb_weaviate_host", str, ""),
+    "WEAVIATE_PORT": ("vectordb_weaviate_port", str, "8080"),
+    "WEAVIATE_GRPC_PORT": ("vectordb_weaviate_grpc_port", str, "50051"),
+    "WEAVIATE_API_KEY": ("vectordb_weaviate_api_key", str, ""),
+    "PINECONE_ENABLED": ("vectordb_pinecone_enabled", bool, False),
+    "PINECONE_API_KEY": ("vectordb_pinecone_api_key", str, ""),
+    "PINECONE_INDEX": ("vectordb_pinecone_index", str, ""),
+    # LDAP — flipped on with `ldap_enabled`, exposes `/ldap` POST as a
+    # login path. The bind password is the only encrypted-at-rest field;
+    # everything else (DNs, search base, filters) is non-secret.
+    "ENABLE_LDAP": ("ldap_enabled", bool, False),
+    "LDAP_SERVER_HOST": ("ldap_server_host", str, ""),
+    "LDAP_SERVER_PORT": ("ldap_server_port", str, ""),
+    "LDAP_ATTRIBUTE_FOR_MAIL": ("ldap_attribute_for_mail", str, "mail"),
+    "LDAP_ATTRIBUTE_FOR_USERNAME": ("ldap_attribute_for_username", str, "uid"),
+    "LDAP_SEARCH_BASE": ("ldap_search_base", str, ""),
+    "LDAP_SEARCH_FILTERS": ("ldap_search_filters", str, ""),
+    "LDAP_APP_DN": ("ldap_app_dn", str, ""),
+    "LDAP_APP_PASSWORD": ("ldap_app_password", str, ""),
+    "LDAP_USE_TLS": ("ldap_use_tls", bool, False),
+    "LDAP_CA_CERT_FILE": ("ldap_ca_cert_file", str, ""),
+    "LDAP_CIPHERS": ("ldap_ciphers", str, ""),
 }
 
 

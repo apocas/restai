@@ -31,7 +31,8 @@ from typing import Optional
 
 import chromadb
 
-from restai.config import EMBEDDINGS_PATH, CHROMADB_HOST, CHROMADB_PORT
+from restai.config import EMBEDDINGS_PATH
+import restai.config as _cfg
 
 logger = logging.getLogger(__name__)
 
@@ -60,11 +61,12 @@ def _get_client():
 
     Mirrors ``restai/vectordb/chromadb.py:_get_client`` so admins flipping
     the ``CHROMADB_HOST`` setting get the same behavior across RAG and
-    memory search."""
-    if CHROMADB_HOST:
+    memory search. `_cfg.X` reads the live DB value on every call."""
+    host = _cfg.CHROMADB_HOST
+    if host:
         cached = _client_cache.get(_REMOTE_CACHE_KEY)
         if cached is None:
-            cached = chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT)
+            cached = chromadb.HttpClient(host=host, port=_cfg.CHROMADB_PORT)
             _client_cache[_REMOTE_CACHE_KEY] = cached
         return cached
     path = _store_path()

@@ -7,10 +7,10 @@ from llama_index.core.storage import StorageContext
 from llama_index.vector_stores.pinecone import PineconeVectorStore
 
 from restai import config
+import restai.config as _cfg
 from restai.brain import Brain
 from restai.embedding import Embedding
 from restai.vectordb.base import VectorBase
-from restai.config import PINECONE_API_KEY, PINECONE_INDEX
 
 logging.basicConfig(level=config.LOG_LEVEL)
 
@@ -25,8 +25,10 @@ class PineconeDB(VectorBase):
         self.embedding = embedding
         self.namespace = _sanitize_namespace(project.props.name)
 
-        self.pc = Pinecone(api_key=PINECONE_API_KEY)
-        self.pinecone_index = self.pc.Index(PINECONE_INDEX)
+        # Live read via _cfg.X — admin can rotate the API key in
+        # Settings → VectorDBs without restarting workers.
+        self.pc = Pinecone(api_key=_cfg.PINECONE_API_KEY)
+        self.pinecone_index = self.pc.Index(_cfg.PINECONE_INDEX)
         self.index = self._vector_init(brain)
 
     def _vector_init(self, brain: Brain):

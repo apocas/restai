@@ -21,16 +21,22 @@ if TYPE_CHECKING:
 
 
 def get_available_vectorstores() -> list[str]:
-    from restai.config import (
-        PGVECTOR_HOST, WEAVIATE_HOST,
-        PINECONE_API_KEY, PINECONE_INDEX,
-    )
-    available = ["chroma"]
-    if PGVECTOR_HOST:
+    """List of backends to surface in the project-create vectorstore
+    dropdown. Gated on each backend's `vectordb_<name>_enabled` GUI
+    setting — admins flip a backend off without wiping its credentials.
+
+    `_cfg.X` reads through `restai.config.__getattr__` to the DB on
+    every call so toggling a switch in Settings → VectorDBs takes
+    effect on the next page load."""
+    import restai.config as _cfg
+    available = []
+    if _cfg.CHROMADB_ENABLED:
+        available.append("chroma")
+    if _cfg.PGVECTOR_ENABLED:
         available.append("pgvector")
-    if WEAVIATE_HOST:
+    if _cfg.WEAVIATE_ENABLED:
         available.append("weaviate")
-    if PINECONE_API_KEY and PINECONE_INDEX:
+    if _cfg.PINECONE_ENABLED:
         available.append("pinecone")
     return available
 

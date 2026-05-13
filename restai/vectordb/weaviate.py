@@ -9,15 +9,10 @@ from llama_index.core.storage import StorageContext
 from llama_index.vector_stores.weaviate import WeaviateVectorStore
 
 from restai import config
+import restai.config as _cfg
 from restai.brain import Brain
 from restai.embedding import Embedding
 from restai.vectordb.base import VectorBase
-from restai.config import (
-    WEAVIATE_HOST,
-    WEAVIATE_PORT,
-    WEAVIATE_GRPC_PORT,
-    WEAVIATE_API_KEY,
-)
 
 logging.basicConfig(level=config.LOG_LEVEL)
 
@@ -37,21 +32,28 @@ class WeaviateDB(VectorBase):
         self.embedding = embedding
         self.collection_name = _sanitize_collection_name(project.props.name)
 
-        if WEAVIATE_API_KEY:
+        # Pull live values via _cfg.X — admins changing these in the GUI
+        # take effect on the next VectorBase construction without a restart.
+        host = _cfg.WEAVIATE_HOST
+        port = int(_cfg.WEAVIATE_PORT)
+        grpc_port = int(_cfg.WEAVIATE_GRPC_PORT)
+        api_key = _cfg.WEAVIATE_API_KEY
+
+        if api_key:
             self.client = weaviate.connect_to_custom(
-                http_host=WEAVIATE_HOST,
-                http_port=int(WEAVIATE_PORT),
+                http_host=host,
+                http_port=port,
                 http_secure=False,
-                grpc_host=WEAVIATE_HOST,
-                grpc_port=int(WEAVIATE_GRPC_PORT),
+                grpc_host=host,
+                grpc_port=grpc_port,
                 grpc_secure=False,
-                auth_credentials=AuthApiKey(WEAVIATE_API_KEY),
+                auth_credentials=AuthApiKey(api_key),
             )
         else:
             self.client = weaviate.connect_to_local(
-                host=WEAVIATE_HOST,
-                port=int(WEAVIATE_PORT),
-                grpc_port=int(WEAVIATE_GRPC_PORT),
+                host=host,
+                port=port,
+                grpc_port=grpc_port,
             )
 
         self.index = self._vector_init(brain)

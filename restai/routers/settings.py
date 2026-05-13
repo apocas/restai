@@ -113,6 +113,21 @@ async def patch_settings(
     if app_fields & updates.keys():
         request.app.state.brain.init_app_manager()
 
+    # Chroma reuses a process-level _client_cache keyed on path, so a host
+    # change won't take effect until each cached client is dropped. Other
+    # backends instantiate a fresh client per VectorBase construction —
+    # nothing to reset for pgvector/weaviate/pinecone.
+    if any(k.startswith("vectordb_") for k in updates.keys()):
+        try:
+            from restai.vectordb import chromadb as _chroma_mod
+            _chroma_mod._client_cache.clear()
+            from restai import cache as _cache_mod
+            _cache_mod._cache_client_cache.clear()
+            from restai import memory_search as _memsearch_mod
+            _memsearch_mod._client_cache.clear()
+        except Exception:
+            pass
+
     return get_all_settings(db_wrapper)
 
 

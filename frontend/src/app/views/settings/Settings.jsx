@@ -36,6 +36,7 @@ export default function SettingsPage() {
 
   const TABS = [
     { key: "general", name: t("settings.sections.general"), Icon: SettingsIcon },
+    { key: "vectordbs", name: t("settings.sections.vectordbs"), Icon: Storage },
     { key: "authentication", name: t("settings.sections.authentication"), Icon: Security },
   ];
 
@@ -94,13 +95,46 @@ export default function SettingsPage() {
     app_docker_idle_timeout: 1800,
     system_llm: "",
     enforce_2fa: false,
+    // Vector DB backends — defaults match SettingsResponse so the form
+    // shows sensible values before /settings GET returns.
+    vectordb_chromadb_enabled: true,
+    vectordb_chromadb_host: "",
+    vectordb_chromadb_port: "",
+    vectordb_pgvector_enabled: false,
+    vectordb_pgvector_host: "",
+    vectordb_pgvector_port: "5432",
+    vectordb_pgvector_user: "",
+    vectordb_pgvector_password: "",
+    vectordb_pgvector_db: "restai_vectors",
+    vectordb_weaviate_enabled: false,
+    vectordb_weaviate_host: "",
+    vectordb_weaviate_port: "8080",
+    vectordb_weaviate_grpc_port: "50051",
+    vectordb_weaviate_api_key: "",
+    vectordb_pinecone_enabled: false,
+    vectordb_pinecone_api_key: "",
+    vectordb_pinecone_index: "",
+    // LDAP — defaults match SettingsResponse so the form is well-formed
+    // before /settings GET returns.
+    ldap_enabled: false,
+    ldap_server_host: "",
+    ldap_server_port: "",
+    ldap_attribute_for_mail: "mail",
+    ldap_attribute_for_username: "uid",
+    ldap_search_base: "",
+    ldap_search_filters: "",
+    ldap_app_dn: "",
+    ldap_app_password: "",
+    ldap_use_tls: false,
+    ldap_ca_cert_file: "",
+    ldap_ciphers: "",
   });
   const [teams, setTeams] = useState([]);
   const [llms, setLlms] = useState([]);
   const [saving, setSaving] = useState(false);
   const [dockerTest, setDockerTest] = useState(null); // null | "testing" | {status, detail}
   const [telemetryEnabled, setTelemetryEnabled] = useState(null);
-  const [expanded, setExpanded] = useState({ google: false, microsoft: false, github: false, oidc: false });
+  const [expanded, setExpanded] = useState({ google: false, microsoft: false, github: false, oidc: false, ldap: false });
 
   // Refs for deep-linkable sections. Hash like `#microsoft` auto-opens
   // the Authentication tab, expands the Microsoft card, and scrolls to
@@ -111,6 +145,7 @@ export default function SettingsPage() {
     microsoft: useRef(null),
     github: useRef(null),
     oidc: useRef(null),
+    ldap: useRef(null),
   };
 
   // Map each deep-linkable hash to the tab it lives on. Extend this
@@ -120,6 +155,7 @@ export default function SettingsPage() {
     microsoft: "authentication",
     github: "authentication",
     oidc: "authentication",
+    ldap: "authentication",
   };
 
   const toggleExpanded = (section) => () => {
@@ -524,6 +560,145 @@ export default function SettingsPage() {
             </Grid>
           )}
 
+          {/* ===== VECTORDBS TAB ===== */}
+          {active === "vectordbs" && (
+            <Grid container spacing={3}>
+              {/* Header note */}
+              <Grid item xs={12}>
+                <Typography variant="body2" color="text.secondary">
+                  {t("settings.helpers.vectordbsIntro")}
+                </Typography>
+              </Grid>
+
+              {/* ChromaDB */}
+              <Grid item xs={12}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.chromadb")}</Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={<Switch checked={!!form.vectordb_chromadb_enabled} onChange={handleChange("vectordb_chromadb_enabled")} />}
+                        label={t("settings.fields.vectordbEnabled")}
+                      />
+                      <FormHelperText sx={{ mt: -0.5, ml: 4 }}>
+                        {t("settings.helpers.chromadbEnabled")}
+                      </FormHelperText>
+                    </Grid>
+                    <Grid item xs={12} md={9}>
+                      <TextField fullWidth label={t("settings.fields.vectordbChromadbHost")}
+                        placeholder={t("settings.fields.vectordbChromadbHostPlaceholder")}
+                        value={form.vectordb_chromadb_host || ""} onChange={handleChange("vectordb_chromadb_host")}
+                        helperText={t("settings.helpers.vectordbChromadbHost")} />
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <TextField fullWidth label={t("settings.fields.vectordbChromadbPort")}
+                        value={form.vectordb_chromadb_port || ""} onChange={handleChange("vectordb_chromadb_port")} />
+                    </Grid>
+                  </Grid>
+                </Card>
+              </Grid>
+
+              {/* PGVector */}
+              <Grid item xs={12}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.pgvector")}</Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={<Switch checked={!!form.vectordb_pgvector_enabled} onChange={handleChange("vectordb_pgvector_enabled")} />}
+                        label={t("settings.fields.vectordbEnabled")}
+                      />
+                      <FormHelperText sx={{ mt: -0.5, ml: 4 }}>
+                        {t("settings.helpers.pgvectorEnabled")}
+                      </FormHelperText>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth label={t("settings.fields.vectordbPgvectorHost")}
+                        value={form.vectordb_pgvector_host || ""} onChange={handleChange("vectordb_pgvector_host")} />
+                    </Grid>
+                    <Grid item xs={12} md={2}>
+                      <TextField fullWidth label={t("settings.fields.vectordbPgvectorPort")}
+                        value={form.vectordb_pgvector_port || ""} onChange={handleChange("vectordb_pgvector_port")} />
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <TextField fullWidth label={t("settings.fields.vectordbPgvectorDb")}
+                        value={form.vectordb_pgvector_db || ""} onChange={handleChange("vectordb_pgvector_db")} />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth label={t("settings.fields.vectordbPgvectorUser")}
+                        value={form.vectordb_pgvector_user || ""} onChange={handleChange("vectordb_pgvector_user")} />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth type="password" label={t("settings.fields.vectordbPgvectorPassword")}
+                        value={form.vectordb_pgvector_password || ""} onChange={handleChange("vectordb_pgvector_password")} />
+                    </Grid>
+                  </Grid>
+                </Card>
+              </Grid>
+
+              {/* Weaviate */}
+              <Grid item xs={12}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.weaviate")}</Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={<Switch checked={!!form.vectordb_weaviate_enabled} onChange={handleChange("vectordb_weaviate_enabled")} />}
+                        label={t("settings.fields.vectordbEnabled")}
+                      />
+                      <FormHelperText sx={{ mt: -0.5, ml: 4 }}>
+                        {t("settings.helpers.weaviateEnabled")}
+                      </FormHelperText>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth label={t("settings.fields.vectordbWeaviateHost")}
+                        value={form.vectordb_weaviate_host || ""} onChange={handleChange("vectordb_weaviate_host")} />
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <TextField fullWidth label={t("settings.fields.vectordbWeaviatePort")}
+                        value={form.vectordb_weaviate_port || ""} onChange={handleChange("vectordb_weaviate_port")} />
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <TextField fullWidth label={t("settings.fields.vectordbWeaviateGrpcPort")}
+                        value={form.vectordb_weaviate_grpc_port || ""} onChange={handleChange("vectordb_weaviate_grpc_port")} />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField fullWidth type="password" label={t("settings.fields.vectordbWeaviateApiKey")}
+                        value={form.vectordb_weaviate_api_key || ""} onChange={handleChange("vectordb_weaviate_api_key")}
+                        helperText={t("settings.helpers.vectordbWeaviateApiKey")} />
+                    </Grid>
+                  </Grid>
+                </Card>
+              </Grid>
+
+              {/* Pinecone */}
+              <Grid item xs={12}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.pinecone")}</Typography>
+                  <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={<Switch checked={!!form.vectordb_pinecone_enabled} onChange={handleChange("vectordb_pinecone_enabled")} />}
+                        label={t("settings.fields.vectordbEnabled")}
+                      />
+                      <FormHelperText sx={{ mt: -0.5, ml: 4 }}>
+                        {t("settings.helpers.pineconeEnabled")}
+                      </FormHelperText>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth type="password" label={t("settings.fields.vectordbPineconeApiKey")}
+                        value={form.vectordb_pinecone_api_key || ""} onChange={handleChange("vectordb_pinecone_api_key")} />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth label={t("settings.fields.vectordbPineconeIndex")}
+                        value={form.vectordb_pinecone_index || ""} onChange={handleChange("vectordb_pinecone_index")} />
+                    </Grid>
+                  </Grid>
+                </Card>
+              </Grid>
+            </Grid>
+          )}
+
           {/* ===== AUTHENTICATION TAB ===== */}
           {active === "authentication" && (
             <Grid container spacing={3}>
@@ -596,6 +771,88 @@ export default function SettingsPage() {
                       </Typography>
                     </Grid>
                   </Grid>
+                </Card>
+              </Grid>
+
+              {/* LDAP — collapsible, mirrors the SSO provider cards */}
+              <Grid item xs={12}>
+                <Card elevation={1} ref={sectionRefs.ldap}>
+                  <CollapsibleCardHeader icon={Security} title={t("settings.sections.ldap")} section="ldap" />
+                  <Collapse in={expanded.ldap}>
+                    <Divider />
+                    <Box sx={{ p: 3 }}>
+                      <Grid container spacing={3}>
+                        <Grid item xs={12}>
+                          <FormControlLabel
+                            control={<Switch checked={!!form.ldap_enabled} onChange={handleChange("ldap_enabled")} />}
+                            label={t("settings.fields.ldapEnabled")}
+                          />
+                          <FormHelperText sx={{ mt: -0.5, ml: 4 }}>
+                            {t("settings.helpers.ldapEnabled")}
+                          </FormHelperText>
+                        </Grid>
+
+                        <Grid item xs={12} md={8}>
+                          <TextField fullWidth label={t("settings.fields.ldapServerHost")}
+                            value={form.ldap_server_host || ""} onChange={handleChange("ldap_server_host")} />
+                        </Grid>
+                        <Grid item xs={12} md={2}>
+                          <TextField fullWidth label={t("settings.fields.ldapServerPort")}
+                            value={form.ldap_server_port || ""} onChange={handleChange("ldap_server_port")}
+                            placeholder="389 / 636" />
+                        </Grid>
+                        <Grid item xs={12} md={2}>
+                          <FormControlLabel
+                            control={<Switch checked={!!form.ldap_use_tls} onChange={handleChange("ldap_use_tls")} />}
+                            label={t("settings.fields.ldapUseTls")}
+                          />
+                        </Grid>
+
+                        <Grid item xs={12} md={6}>
+                          <TextField fullWidth label={t("settings.fields.ldapSearchBase")}
+                            value={form.ldap_search_base || ""} onChange={handleChange("ldap_search_base")}
+                            helperText={t("settings.helpers.ldapSearchBase")} />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                          <TextField fullWidth label={t("settings.fields.ldapSearchFilters")}
+                            value={form.ldap_search_filters || ""} onChange={handleChange("ldap_search_filters")}
+                            helperText={t("settings.helpers.ldapSearchFilters")} />
+                        </Grid>
+
+                        <Grid item xs={12} md={6}>
+                          <TextField fullWidth label={t("settings.fields.ldapAttributeForUsername")}
+                            value={form.ldap_attribute_for_username || ""} onChange={handleChange("ldap_attribute_for_username")}
+                            helperText={t("settings.helpers.ldapAttributeForUsername")} />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                          <TextField fullWidth label={t("settings.fields.ldapAttributeForMail")}
+                            value={form.ldap_attribute_for_mail || ""} onChange={handleChange("ldap_attribute_for_mail")}
+                            helperText={t("settings.helpers.ldapAttributeForMail")} />
+                        </Grid>
+
+                        <Grid item xs={12} md={6}>
+                          <TextField fullWidth label={t("settings.fields.ldapAppDn")}
+                            value={form.ldap_app_dn || ""} onChange={handleChange("ldap_app_dn")}
+                            helperText={t("settings.helpers.ldapAppDn")} />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                          <TextField fullWidth type="password" label={t("settings.fields.ldapAppPassword")}
+                            value={form.ldap_app_password || ""} onChange={handleChange("ldap_app_password")} />
+                        </Grid>
+
+                        <Grid item xs={12} md={8}>
+                          <TextField fullWidth label={t("settings.fields.ldapCaCertFile")}
+                            value={form.ldap_ca_cert_file || ""} onChange={handleChange("ldap_ca_cert_file")}
+                            helperText={t("settings.helpers.ldapCaCertFile")} />
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                          <TextField fullWidth label={t("settings.fields.ldapCiphers")}
+                            value={form.ldap_ciphers || ""} onChange={handleChange("ldap_ciphers")}
+                            placeholder="ALL" />
+                        </Grid>
+                      </Grid>
+                    </Box>
+                  </Collapse>
                 </Card>
               </Grid>
 
