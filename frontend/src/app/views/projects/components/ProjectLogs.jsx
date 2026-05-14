@@ -7,12 +7,14 @@ import {
 import {
   Article, ChevronLeft, ChevronRight, Search, Close, ExpandMore,
   ExpandLess, CheckCircle, Error as ErrorIcon, Warning, Info as InfoIcon,
-  Image as ImageIcon, AttachFile,
+  Image as ImageIcon, AttachFile, PlayCircleOutline,
 } from "@mui/icons-material";
 import ReactJson from "@microlink/react-json-view";
+import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { FONT_MONO, sweep, pulse } from "app/components/page/pageStyles";
+import ChatReplayDialog from "./ChatReplayDialog";
 
 // Logs = inference history / trace. Violet = unique vs cron-amber and
 // audit-indigo so the user knows which "log" surface they're on.
@@ -246,6 +248,7 @@ const truncate = (s, n) => {
 };
 
 export default function ProjectLogs({ project }) {
+  const { t } = useTranslation();
   const auth = useAuth();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -254,6 +257,7 @@ export default function ProjectLogs({ project }) {
   const [filterStatus, setFilterStatus] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [replayChatId, setReplayChatId] = useState(null);
 
   const fetchLogs = (projectID, start, end) => {
     setLoading(true);
@@ -313,6 +317,7 @@ export default function ProjectLogs({ project }) {
   const handlePrevPage = () => setPage((p) => Math.max(0, p - 1));
 
   return (
+    <>
     <TileCard elevation={0} accent={ACCENT}>
       <Box
         sx={{
@@ -419,19 +424,20 @@ export default function ProjectLogs({ project }) {
             <TableCell>Question</TableCell>
             <TableCell>Answer</TableCell>
             <TableCell align="right" sx={{ width: 90 }}>Latency</TableCell>
-            <TableCell align="right" sx={{ pr: 3, width: 100 }}>Tokens</TableCell>
+            <TableCell align="right" sx={{ width: 100 }}>Tokens</TableCell>
+            <TableCell align="right" sx={{ pr: 3, width: 60 }} />
           </TableRow>
         </TableHead>
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={7} align="center" sx={{ py: 5 }}>
+              <TableCell colSpan={8} align="center" sx={{ py: 5 }}>
                 <CircularProgress size={24} sx={{ color: ACCENT }} />
               </TableCell>
             </TableRow>
           ) : filtered.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+              <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                 <Box sx={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 1.25 }}>
                   <Box
                     sx={{
@@ -571,7 +577,7 @@ export default function ProjectLogs({ project }) {
                     <TableCell align="right">
                       <LatencyBadge ms={log.latency_ms} />
                     </TableCell>
-                    <TableCell align="right" sx={{ pr: 3 }}>
+                    <TableCell align="right">
                       {totalTokens > 0 ? (
                         <Tooltip title={`${log.input_tokens || 0} in · ${log.output_tokens || 0} out`} arrow>
                           <Box
@@ -590,10 +596,23 @@ export default function ProjectLogs({ project }) {
                         <Box component="span" sx={{ color: "text.disabled" }}>—</Box>
                       )}
                     </TableCell>
+                    <TableCell align="right" sx={{ pr: 3 }} onClick={(e) => e.stopPropagation()}>
+                      {log.chat_id ? (
+                        <Tooltip title={t("projects.logs.replay.button", "Replay conversation")} arrow>
+                          <IconButton
+                            size="small"
+                            onClick={() => setReplayChatId(log.chat_id)}
+                            sx={{ color: ACCENT }}
+                          >
+                            <PlayCircleOutline fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      ) : null}
+                    </TableCell>
                   </TableRow>
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       sx={{
                         p: 0,
                         borderBottom: isOpen ? undefined : "none",
@@ -887,5 +906,13 @@ export default function ProjectLogs({ project }) {
         </Box>
       </Box>
     </TileCard>
+    <ChatReplayDialog
+      open={!!replayChatId}
+      onClose={() => setReplayChatId(null)}
+      projectId={project?.id}
+      projectName={project?.name}
+      chatId={replayChatId}
+    />
+    </>
   );
 }

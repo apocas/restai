@@ -194,6 +194,17 @@
       "block": "Block",
       "app": "App"
     },
+    "logs": {
+      "replay": {
+        "button": "Replay conversation",
+        "title": "Conversation",
+        "turnCount_one": "{{count}} turn",
+        "turnCount_other": "{{count}} turns",
+        "truncated": "Showing first 500 turns of this conversation.",
+        "empty": "No turns found for this chat.",
+        "loadError": "Failed to load conversation."
+      }
+    },
     "app": {
       "title": "App Builder",
       "subtitle": "Edit your generated TypeScript + PHP + SQLite app, preview live, and deploy to any shared PHP host.",
@@ -1401,6 +1412,7 @@
     },
     "team": "Team",
     "allTeams": "All teams",
+    "allTeamsDisabledTip": "Disabled — over 50 projects. Pick a single team to keep the matrix readable.",
     "noTeam": "(No team)",
     "teamFallback": "Team #{{id}}",
     "searchPlaceholder": "Search users or projects…",

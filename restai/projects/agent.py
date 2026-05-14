@@ -386,12 +386,27 @@ class Agent(ProjectBase):
                     + "\n".join(f"  {i+1}. {s}" for i, s in enumerate(plan))
                     + f"\n\n**Now do step 1/{len(plan)}: {step_name}**\n"
                     "Focus only on this step. Use as many tool calls as needed. "
-                    "When you're done with this step, write a brief one-paragraph summary of what you found/did and stop."
+                    "When you're done with this step, write a brief one-paragraph summary of what you found/did and stop. "
+                    "Note: the plan above was just created for THIS conversation — don't waste a `memory_search` call trying to look up the plan itself. "
+                    "(Other `memory_search` calls — user preferences, project facts, past work on the same topic — are fine when they help the step.)"
                 )
             else:
+                # Re-state the plan + summaries of completed steps inline so
+                # the model never has to hunt through session history (or
+                # worse, run memory_search) to remember context.
+                done_recap = "\n".join(
+                    f"  {i+1}. {s['name']} — {(s.get('result') or '').strip()[:300]}"
+                    for i, s in enumerate(output["step_summaries"])
+                )
                 step_prompt = (
+                    f"User's overall request:\n\n{original_prompt}\n\n"
+                    f"Plan ({len(plan)} steps):\n"
+                    + "\n".join(f"  {i+1}. {s}" for i, s in enumerate(plan))
+                    + f"\n\nCompleted so far:\n{done_recap}\n\n"
                     f"**Now do step {idx+1}/{len(plan)}: {step_name}**\n"
-                    "Focus only on this step. When done, write a brief summary and stop."
+                    "Focus only on this step. When done, write a brief summary and stop. "
+                    "The request, plan, and prior step results are all in THIS message — don't waste a `memory_search` call looking for them. "
+                    "(Other `memory_search` calls for the actual step work — user preferences, project facts, past work on the same topic — are fine.)"
                 )
 
             step_output: dict = {}
@@ -429,10 +444,18 @@ class Agent(ProjectBase):
                 {"step_start": {"index": len(plan), "name": "Synthesize final answer"}}
             ) + "\n\n"
 
+        steps_recap = "\n\n".join(
+            f"### Step {i+1}/{len(plan)}: {s['name']}\n{(s.get('result') or '').strip()}"
+            for i, s in enumerate(output["step_summaries"])
+        )
         synth_prompt = (
+            f"User's original request:\n\n{original_prompt}\n\n"
+            f"Findings from each step:\n\n{steps_recap}\n\n"
             "All planned steps are done. Write a complete, well-structured final answer "
-            "to the user's original request, drawing on everything you found across the steps. "
-            "Don't ask clarifying questions and don't recap the plan — just give the answer."
+            "to the user's original request, drawing on the findings above. "
+            "Don't ask clarifying questions and don't recap the plan — just give the answer. "
+            "The request and per-step findings are all in THIS message — don't waste a `memory_search` call looking for them. "
+            "(If a memory lookup genuinely improves the synthesis — user preferences, related past work — go ahead.)"
         )
         final_output: dict = {}
         async for kind, payload in self._drive_runtime(

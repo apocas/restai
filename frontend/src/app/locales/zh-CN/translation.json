@@ -194,6 +194,16 @@
       "block": "块",
       "app": "应用"
     },
+    "logs": {
+      "replay": {
+        "button": "重放对话",
+        "title": "对话",
+        "turnCount_other": "{{count}} 轮",
+        "truncated": "仅显示此对话的前 500 轮。",
+        "empty": "未找到此对话的任何轮次。",
+        "loadError": "加载对话失败。"
+      }
+    },
     "app": {
       "title": "应用构建器",
       "subtitle": "编辑生成的 TypeScript + PHP + SQLite 应用,实时预览,并部署到任何共享 PHP 主机。",
@@ -1401,6 +1411,7 @@
     },
     "team": "团队",
     "allTeams": "所有团队",
+    "allTeamsDisabledTip": "已禁用 — 项目超过 50 个。请选择单个团队以保持矩阵可读。",
     "noTeam": "（无团队）",
     "teamFallback": "团队 #{{id}}",
     "searchPlaceholder": "搜索用户或项目…",

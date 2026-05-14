@@ -194,6 +194,17 @@
       "block": "Block",
       "app": "App"
     },
+    "logs": {
+      "replay": {
+        "button": "Gesprek afspelen",
+        "title": "Gesprek",
+        "turnCount_one": "{{count}} beurt",
+        "turnCount_other": "{{count}} beurten",
+        "truncated": "De eerste 500 beurten van dit gesprek worden weergegeven.",
+        "empty": "Geen beurten gevonden voor deze chat.",
+        "loadError": "Het gesprek kon niet worden geladen."
+      }
+    },
     "fields": {
       "name": "Naam",
       "humanName": "Weergavenaam",
@@ -1401,6 +1412,7 @@
     },
     "team": "Team",
     "allTeams": "Alle teams",
+    "allTeamsDisabledTip": "Uitgeschakeld — meer dan 50 projecten. Kies één team om de matrix leesbaar te houden.",
     "noTeam": "(Geen team)",
     "teamFallback": "Team #{{id}}",
     "searchPlaceholder": "Gebruikers of projecten zoeken…",

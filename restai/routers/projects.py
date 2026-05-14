@@ -58,6 +58,7 @@ from restai.models.models import (
     ProjectToolUpdate,
     RoutineCreate,
     RoutineUpdate,
+    validate_safe_name,
 )
 import uuid
 import secrets
@@ -2038,6 +2039,48 @@ async def get_token_consumption(
             .all()
         )
         return {"logs": logs}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+_REPLAY_MAX_TURNS = 500
+
+
+@router.get("/projects/{projectID}/logs/conversation/{chat_id}", tags=["Statistics"])
+async def get_conversation_replay(
+    projectID: int = PathParam(description="Project ID"),
+    chat_id: str = PathParam(description="Chat session id"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Return every OutputDatabase row for a chat_id, ordered oldest first.
+    Capped at 500 turns; payload sets `truncated=true` past that."""
+    try:
+        validate_safe_name(chat_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid chat_id")
+    try:
+        project = db_wrapper.get_project_by_id(projectID)
+        if project is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        rows = (
+            db_wrapper.db.query(OutputDatabase)
+            .filter(
+                OutputDatabase.project_id == project.id,
+                OutputDatabase.chat_id == chat_id,
+            )
+            .order_by(OutputDatabase.date.asc())
+            .limit(_REPLAY_MAX_TURNS + 1)
+            .all()
+        )
+        truncated = len(rows) > _REPLAY_MAX_TURNS
+        if truncated:
+            rows = rows[:_REPLAY_MAX_TURNS]
+        return {"turns": rows, "truncated": truncated, "chat_id": chat_id}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

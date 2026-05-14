@@ -194,6 +194,17 @@
       "block": "Block",
       "app": "App"
     },
+    "logs": {
+      "replay": {
+        "button": "Konversation abspielen",
+        "title": "Konversation",
+        "turnCount_one": "{{count}} Runde",
+        "turnCount_other": "{{count}} Runden",
+        "truncated": "Es werden die ersten 500 Runden dieser Konversation angezeigt.",
+        "empty": "Keine Runden für diese Konversation gefunden.",
+        "loadError": "Konversation konnte nicht geladen werden."
+      }
+    },
     "fields": {
       "name": "Name",
       "humanName": "Anzeigename",
@@ -1401,6 +1412,7 @@
     },
     "team": "Team",
     "allTeams": "Alle Teams",
+    "allTeamsDisabledTip": "Deaktiviert — über 50 Projekte. Wählen Sie ein einzelnes Team, damit die Matrix lesbar bleibt.",
     "noTeam": "(Kein Team)",
     "teamFallback": "Team #{{id}}",
     "searchPlaceholder": "Benutzer oder Projekte suchen…",

@@ -194,6 +194,17 @@
       "block": "Bloque",
       "app": "App"
     },
+    "logs": {
+      "replay": {
+        "button": "Reproducir conversación",
+        "title": "Conversación",
+        "turnCount_one": "{{count}} turno",
+        "turnCount_other": "{{count}} turnos",
+        "truncated": "Mostrando los primeros 500 turnos de esta conversación.",
+        "empty": "No se encontraron turnos para esta conversación.",
+        "loadError": "Error al cargar la conversación."
+      }
+    },
     "fields": {
       "name": "Nombre",
       "humanName": "Nombre visible",
@@ -1401,6 +1412,7 @@
     },
     "team": "Equipo",
     "allTeams": "Todos los equipos",
+    "allTeamsDisabledTip": "Desactivado — más de 50 proyectos. Selecciona un único equipo para mantener la matriz legible.",
     "noTeam": "(Sin equipo)",
     "teamFallback": "Equipo #{{id}}",
     "searchPlaceholder": "Buscar usuarios o proyectos…",

@@ -382,7 +382,8 @@ export default function MessageBubble({ message, onBranch }) {
                           steps: message.live_tool_calls.map((call) => {
                             let parsedArgs;
                             try {
-                              parsedArgs = call.args ? JSON.parse(call.args) : {};
+                              const p = call.args ? JSON.parse(call.args) : {};
+                              parsedArgs = (p !== null && typeof p === "object") ? p : { value: p };
                             } catch {
                               parsedArgs = { args: call.args };
                             }

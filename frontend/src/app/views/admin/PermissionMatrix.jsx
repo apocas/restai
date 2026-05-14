@@ -86,6 +86,15 @@ export default function PermissionMatrix() {
     return sorted;
   }, [data]);
 
+  // Big tenants: a 50+ project × every-user matrix is unreadable AND
+  // expensive to render. Force the picker to a single team.
+  const tooManyProjects = (data?.projects?.length || 0) > 50;
+  useEffect(() => {
+    if (tooManyProjects && selectedTeamId === "all" && teams.length > 0) {
+      setSelectedTeamId(teams[0].id);
+    }
+  }, [tooManyProjects, selectedTeamId, teams]);
+
   const { filteredUsers, filteredProjects, accessSet, stats } = useMemo(() => {
     if (!data) return { filteredUsers: [], filteredProjects: [], accessSet: new Set(), stats: {} };
 
@@ -172,7 +181,15 @@ export default function PermissionMatrix() {
                 value={selectedTeamId}
                 onChange={(e) => setSelectedTeamId(e.target.value)}
               >
-                <MenuItem value="all">{t("permissions.allTeams")}</MenuItem>
+                <MenuItem value="all" disabled={tooManyProjects}>
+                  {tooManyProjects ? (
+                    <Tooltip title={t("permissions.allTeamsDisabledTip")} placement="right" arrow>
+                      <span>{t("permissions.allTeams")}</span>
+                    </Tooltip>
+                  ) : (
+                    t("permissions.allTeams")
+                  )}
+                </MenuItem>
                 {teams.map((tm) => (
                   <MenuItem key={tm.id} value={tm.id}>{tm.name}</MenuItem>
                 ))}

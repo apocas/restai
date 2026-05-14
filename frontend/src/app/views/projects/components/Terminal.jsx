@@ -29,13 +29,26 @@ export default function Terminal({
     <TerminalC>
 
       {message.reasoning.steps.map((step, stepIndex) =>
-        step.actions.map((action, actionIndex) => (
+        step.actions.map((action, actionIndex) => {
+          const inputObj = action.input;
+          const renderArgs = () => {
+            if (inputObj == null) return "(no args)";
+            if (typeof inputObj === "object") {
+              const src = inputObj.kwargs && typeof inputObj.kwargs === "object" ? inputObj.kwargs : inputObj;
+              const keys = Object.keys(src);
+              if (keys.length === 0) return "(no args)";
+              try { return JSON.stringify(src); } catch { return String(src); }
+            }
+            return String(inputObj);
+          };
+          const command = inputObj?.kwargs?.command || inputObj?.command;
+          return (
           <Box key={`${stepIndex}-${actionIndex}`}>
             <TerminalLine color={"gray"} textDecorationLine={"underline"}>{action.action}</TerminalLine>
             {action.action === "terminal" || action.action === "connect_ssh" ? (
               <>
                 <TerminalLine>
-                  <TerminalPrompt>ai@01 [~]# </TerminalPrompt>{action.input?.kwargs?.command || action.input?.command || ""}
+                  <TerminalPrompt>ai@01 [~]# </TerminalPrompt>{command || renderArgs()}
                 </TerminalLine>
                 <TerminalLine marginLeft={"15px"} color={"#a8ffa8"}>
                   {action.output}
@@ -44,10 +57,7 @@ export default function Terminal({
             ) : (
               <>
                 <TerminalLine>
-                  {action.input?.kwargs
-                    ? JSON.stringify(action.input.kwargs)
-                    : action.input ? JSON.stringify(action.input) : ""
-                  }
+                  {renderArgs()}
                 </TerminalLine>
                 <TerminalLine marginLeft={"15px"} color={"#a8ffa8"}>
                   <Span sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{action.output}</Span>
@@ -58,7 +68,8 @@ export default function Terminal({
               <Box sx={{ borderBottom: "1px solid #333", my: 1 }} />
             )}
           </Box>
-        ))
+        );
+        })
       )}
 
     </TerminalC>

@@ -194,6 +194,17 @@
       "block": "Blocchi",
       "app": "App"
     },
+    "logs": {
+      "replay": {
+        "button": "Riproduci conversazione",
+        "title": "Conversazione",
+        "turnCount_one": "{{count}} turno",
+        "turnCount_other": "{{count}} turni",
+        "truncated": "Mostrando i primi 500 turni di questa conversazione.",
+        "empty": "Nessun turno trovato per questa conversazione.",
+        "loadError": "Impossibile caricare la conversazione."
+      }
+    },
     "fields": {
       "name": "Nome",
       "humanName": "Nome visualizzato",
@@ -1401,6 +1412,7 @@
     },
     "team": "Team",
     "allTeams": "Tutti i team",
+    "allTeamsDisabledTip": "Disabilitato — oltre 50 progetti. Seleziona un singolo team per mantenere la matrice leggibile.",
     "noTeam": "(Nessun team)",
     "teamFallback": "Team #{{id}}",
     "searchPlaceholder": "Cerca utenti o progetti…",

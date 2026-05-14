@@ -194,6 +194,17 @@
       "block": "Blok",
       "app": "App"
     },
+    "logs": {
+      "replay": {
+        "button": "Afspil samtale",
+        "title": "Samtale",
+        "turnCount_one": "{{count}} runde",
+        "turnCount_other": "{{count}} runder",
+        "truncated": "Viser de første 500 runder af denne samtale.",
+        "empty": "Ingen runder fundet for denne samtale.",
+        "loadError": "Kunne ikke indlæse samtalen."
+      }
+    },
     "fields": {
       "name": "Navn",
       "humanName": "Visningsnavn",
@@ -1401,6 +1412,7 @@
     },
     "team": "Team",
     "allTeams": "Alle teams",
+    "allTeamsDisabledTip": "Deaktiveret — over 50 projekter. Vælg et enkelt team for at holde matrixen læselig.",
     "noTeam": "(Intet team)",
     "teamFallback": "Team #{{id}}",
     "searchPlaceholder": "Søg brugere eller projekter…",

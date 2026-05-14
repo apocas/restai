@@ -194,6 +194,17 @@
       "block": "Bloco",
       "app": "App"
     },
+    "logs": {
+      "replay": {
+        "button": "Reproduzir conversa",
+        "title": "Conversa",
+        "turnCount_one": "{{count}} turno",
+        "turnCount_other": "{{count}} turnos",
+        "truncated": "A mostrar os primeiros 500 turnos desta conversa.",
+        "empty": "Sem turnos encontrados para esta conversa.",
+        "loadError": "Falha ao carregar a conversa."
+      }
+    },
     "app": {
       "title": "Construtor de Apps",
       "subtitle": "Edite a app TypeScript + PHP + SQLite gerada, pré-visualize em direto e publique em qualquer alojamento PHP partilhado.",
@@ -1401,6 +1412,7 @@
     },
     "team": "Equipa",
     "allTeams": "Todas as equipas",
+    "allTeamsDisabledTip": "Desativado — mais de 50 projetos. Escolha uma única equipa para manter a matriz legível.",
     "noTeam": "(Sem equipa)",
     "teamFallback": "Equipa #{{id}}",
     "searchPlaceholder": "Procurar utilizadores ou projetos…",
