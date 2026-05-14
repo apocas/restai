@@ -280,6 +280,7 @@
       "title": "Project bewerken - {{name}}",
       "tabs": {
         "general": "Algemeen",
+        "system": "Systeem",
         "knowledge": "Kennis",
         "tools": "Tools",
         "secrets": "Geheimen",
@@ -571,6 +572,35 @@
         "requests": "Verzoeken",
         "msgs": "Ber.",
         "tokens": "Tokens"
+      },
+      "webhooks": {
+        "title": "Event-webhooks",
+        "live": "ACTIEF",
+        "off": "UIT",
+        "subtitle": "Uitgaande HTTPS-notificaties wanneer project-events worden afgevuurd.",
+        "endpoint": "Endpoint",
+        "urlHelp": "Alleen HTTPS · private/RFC1918-hosts worden bij aflevering geweigerd.",
+        "rotateTip": "Genereer nieuw 32-byte geheim · bestaande ontvangers moeten bijwerken",
+        "rotate": "roteer",
+        "secretHelp": "HMAC-SHA256 van de body, verzonden in X-RESTai-Signature. In rust versleuteld.",
+        "rotateWarn": "Nieuw geheim gegenereerd. Kopieer het nu — het formulier maskeert het na de volgende reload. Bestaande ontvangers moeten bijwerken vóór het volgende event.",
+        "subscriptions": "Abonnementen",
+        "events": "events",
+        "allDefault": "alle (standaard)",
+        "inspector": "Payload-inspector",
+        "testConsole": "Testconsole",
+        "firing": "Verzenden…",
+        "fireTest": "Vuur test-event af",
+        "fireDisabled": "stel een URL hierboven in om te activeren",
+        "clearLog": "log wissen",
+        "logEmpty": "nog geen afvuringen — vuur er één af om het resultaat te zien",
+        "logFootnote": "Fire-and-forget · 10 s timeout · de backend toont de response van de ontvanger niet. Controleer het log van je ontvanger om 2xx te bevestigen.",
+        "event": {
+          "budget_exceeded": "Project bereikte zijn budgetlimiet. Afgevuurd VOOR de 402 aan de aanroeper.",
+          "sync_completed": "Knowledge-base sync-bron voltooid (URL/S3/Drive/Confluence/SharePoint). Eén event per bron per run.",
+          "eval_completed": "Eval-run voltooid — score + per-metric uitsplitsing in de payload.",
+          "routine_failed": "Een geplande routine wierp een exceptie op zijn tick. Body bevat de exception-samenvatting."
+        }
       }
     },
     "app": {

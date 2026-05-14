@@ -280,6 +280,7 @@
       "title": "Modifica progetto - {{name}}",
       "tabs": {
         "general": "Generale",
+        "system": "Sistema",
         "knowledge": "Conoscenza",
         "tools": "Strumenti",
         "secrets": "Segreti",
@@ -571,6 +572,35 @@
         "requests": "Richieste",
         "msgs": "Msg",
         "tokens": "Token"
+      },
+      "webhooks": {
+        "title": "Webhook eventi",
+        "live": "ATTIVO",
+        "off": "OFF",
+        "subtitle": "Notifiche HTTPS in uscita quando vengono attivati eventi del progetto.",
+        "endpoint": "Endpoint",
+        "urlHelp": "Solo HTTPS · host privati/RFC1918 rifiutati alla consegna.",
+        "rotateTip": "Genera nuovo segreto da 32 byte · i ricevitori esistenti dovranno aggiornare",
+        "rotate": "ruota",
+        "secretHelp": "HMAC-SHA256 del corpo, inviato in X-RESTai-Signature. Cifrato a riposo.",
+        "rotateWarn": "Nuovo segreto generato. Copialo ora — il form lo mascherà dopo il prossimo reload. I ricevitori esistenti devono aggiornare prima del prossimo evento.",
+        "subscriptions": "Sottoscrizioni",
+        "events": "eventi",
+        "allDefault": "tutti (predefinito)",
+        "inspector": "Ispettore payload",
+        "testConsole": "Console di test",
+        "firing": "Invio in corso…",
+        "fireTest": "Invia evento di test",
+        "fireDisabled": "imposta un URL sopra per abilitare",
+        "clearLog": "pulisci log",
+        "logEmpty": "nessun invio ancora — invia uno per vedere il risultato del ricevitore",
+        "logFootnote": "Fire-and-forget · 10 s timeout · il backend non espone la risposta del ricevitore. Controlla il log del tuo ricevitore per confermare 2xx.",
+        "event": {
+          "budget_exceeded": "Il progetto ha raggiunto il limite di budget. Attivato PRIMA del 402 al chiamante.",
+          "sync_completed": "Sincronizzazione sorgente knowledge-base completata (URL/S3/Drive/Confluence/SharePoint). Un evento per sorgente per esecuzione.",
+          "eval_completed": "Esecuzione eval completata — punteggio + dettaglio per metrica nel payload.",
+          "routine_failed": "Una routine pianificata ha sollevato un'eccezione durante il tick. Il corpo contiene il riepilogo dell'eccezione."
+        }
       }
     },
     "app": {

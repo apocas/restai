@@ -1,5 +1,5 @@
 import { Box, Button, Card, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid } from "@mui/material";
-import { Info, Storage, Shield, Extension } from "@mui/icons-material";
+import { Info, Storage, Shield, Extension, Description } from "@mui/icons-material";
 import { useState, useEffect, useRef } from "react";
 import useAuth from "app/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -7,14 +7,17 @@ import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 import ProjectTabNav from "./ProjectTabNav";
 import ProjectEditGeneral from "./ProjectEditGeneral";
+import ProjectEditSystemPrompt from "./ProjectEditSystemPrompt";
 import ProjectEditKnowledge from "./ProjectEditKnowledge";
 import ProjectEditSecurity from "./ProjectEditSecurity";
 import ProjectEditIntegrations from "./ProjectEditIntegrations";
 
 // Tab definitions. `key` stays stable (used internally for conditional
 // rendering); `name` is resolved via i18n at render time.
+// `system` is gated to rag/agent — block projects don't have a system prompt.
 const ALL_TABS = [
   { key: "General",       nameKey: "projects.edit.tabs.general",      Icon: Info },
+  { key: "System",        nameKey: "projects.edit.tabs.system",       Icon: Description, agentOrRag: true },
   { key: "Knowledge",     nameKey: "projects.edit.tabs.knowledge",    Icon: Storage, ragOnly: true },
   { key: "Security",      nameKey: "projects.edit.tabs.security",     Icon: Shield },
   { key: "Integrations",  nameKey: "projects.edit.tabs.integrations", Icon: Extension },
@@ -55,6 +58,7 @@ export default function ProjectEdit({ project, projects, info }) {
   const tabs = translatedTabs.filter((tab) => {
     if (tab.ragOnly && project.type !== "rag") return false;
     if (tab.agentOnly && project.type !== "agent") return false;
+    if (tab.agentOrRag && project.type !== "agent" && project.type !== "rag") return false;
     return true;
   });
 
@@ -339,6 +343,15 @@ export default function ProjectEdit({ project, projects, info }) {
                   delete next[k];
                   return next;
                 })}
+              />
+            )}
+            {active === "System" && (
+              <ProjectEditSystemPrompt
+                state={state} setState={setState}
+                project={project} info={info}
+                promptVersions={promptVersions}
+                showVersions={showVersions}
+                setShowVersions={setShowVersions}
               />
             )}
             {active === "Knowledge" && (

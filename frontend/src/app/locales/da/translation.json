@@ -280,6 +280,7 @@
       "title": "Redigér projekt - {{name}}",
       "tabs": {
         "general": "Generelt",
+        "system": "System",
         "knowledge": "Viden",
         "tools": "Værktøjer",
         "secrets": "Hemmeligheder",
@@ -571,6 +572,35 @@
         "requests": "Forespørgsler",
         "msgs": "Beskeder",
         "tokens": "Tokens"
+      },
+      "webhooks": {
+        "title": "Begivenheds-webhooks",
+        "live": "AKTIV",
+        "off": "FRA",
+        "subtitle": "Udgående HTTPS-notifikationer når projekt-events udløses.",
+        "endpoint": "Endpoint",
+        "urlHelp": "Kun HTTPS · private/RFC1918-værter afvises ved levering.",
+        "rotateTip": "Generér nyt 32-byte hemmeligt nøgle · eksisterende modtagere skal opdatere",
+        "rotate": "rotér",
+        "secretHelp": "HMAC-SHA256 af body, sendt i X-RESTai-Signature. Krypteret ved hvile.",
+        "rotateWarn": "Ny hemmelighed genereret. Kopiér den nu — formularen maskerer den efter næste genindlæsning. Eksisterende modtagere skal opdatere før næste event.",
+        "subscriptions": "Abonnementer",
+        "events": "events",
+        "allDefault": "alle (standard)",
+        "inspector": "Payload-inspektør",
+        "testConsole": "Testkonsol",
+        "firing": "Sender…",
+        "fireTest": "Affyr test-event",
+        "fireDisabled": "angiv en URL ovenfor for at aktivere",
+        "clearLog": "ryd log",
+        "logEmpty": "ingen affyringer endnu — affyr én for at se modtagerens resultat",
+        "logFootnote": "Fire-and-forget · 10 s timeout · backend afslører ikke modtagerens svar. Tjek din modtagers log for at bekræfte 2xx.",
+        "event": {
+          "budget_exceeded": "Projektet ramte sit budgetloft. Udløses FØR 402 til kalderen.",
+          "sync_completed": "Knowledge-base sync-kilde fuldført (URL/S3/Drive/Confluence/SharePoint). Et event pr. kilde pr. kørsel.",
+          "eval_completed": "Eval-kørsel afsluttet — score + per-metric opdeling i payload.",
+          "routine_failed": "En planlagt rutine fejlede ved tick. Body indeholder undtagelsens resumé."
+        }
       }
     },
     "app": {

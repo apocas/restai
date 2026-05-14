@@ -441,6 +441,7 @@
       "title": "Edit project - {{name}}",
       "tabs": {
         "general": "General",
+        "system": "System",
         "knowledge": "Knowledge",
         "tools": "Tools",
         "secrets": "Secrets",
@@ -732,6 +733,35 @@
         "requests": "Requests",
         "msgs": "Msgs",
         "tokens": "Tokens"
+      },
+      "webhooks": {
+        "title": "Event webhooks",
+        "live": "LIVE",
+        "off": "OFF",
+        "subtitle": "Outbound HTTPS notifications when project events fire.",
+        "endpoint": "Endpoint",
+        "urlHelp": "HTTPS only · private/RFC1918 hosts refused at delivery time.",
+        "rotateTip": "Mint fresh 32-byte secret · prior receivers will need the new value",
+        "rotate": "rotate",
+        "secretHelp": "HMAC-SHA256 of body, sent in X-RESTai-Signature. Encrypted at rest.",
+        "rotateWarn": "New secret minted. Capture it now — the masked form will hide it after the next page reload. Existing receivers must update before the next event fires.",
+        "subscriptions": "Subscriptions",
+        "events": "events",
+        "allDefault": "all (default)",
+        "inspector": "Payload inspector",
+        "testConsole": "Test console",
+        "firing": "Firing…",
+        "fireTest": "Fire test event",
+        "fireDisabled": "set a URL above to enable",
+        "clearLog": "clear log",
+        "logEmpty": "no test fires yet — fire one to see the receiver result",
+        "logFootnote": "Fire-and-forget · 10 s timeout · backend doesn't surface receiver response. Check your receiver's own log to confirm 2xx.",
+        "event": {
+          "budget_exceeded": "Project hit its budget cap. Fired BEFORE the 402 to the caller.",
+          "sync_completed": "Knowledge-base sync source finished (URL/S3/Drive/Confluence/SharePoint). One event per source per run.",
+          "eval_completed": "Eval run finished — score + per-metric breakdown in the payload.",
+          "routine_failed": "A scheduled routine raised on its tick. Body carries the exception summary."
+        }
       }
     }
   },

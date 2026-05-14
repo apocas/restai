@@ -280,6 +280,7 @@
       "title": "Editar proyecto - {{name}}",
       "tabs": {
         "general": "General",
+        "system": "Sistema",
         "knowledge": "Conocimiento",
         "tools": "Herramientas",
         "secrets": "Secretos",
@@ -571,6 +572,35 @@
         "requests": "Solicitudes",
         "msgs": "Msjs",
         "tokens": "Tokens"
+      },
+      "webhooks": {
+        "title": "Webhooks de eventos",
+        "live": "ACTIVO",
+        "off": "DESACT.",
+        "subtitle": "Notificaciones HTTPS salientes cuando se disparan eventos del proyecto.",
+        "endpoint": "Endpoint",
+        "urlHelp": "Solo HTTPS · destinos privados/RFC1918 se rechazan al entregar.",
+        "rotateTip": "Generar secreto nuevo de 32 bytes · los receptores existentes deberán actualizar",
+        "rotate": "rotar",
+        "secretHelp": "HMAC-SHA256 del cuerpo, enviado en X-RESTai-Signature. Cifrado en reposo.",
+        "rotateWarn": "Nuevo secreto generado. Cópielo ahora — el formulario lo ocultará tras la próxima recarga. Los receptores existentes deben actualizar antes del siguiente evento.",
+        "subscriptions": "Suscripciones",
+        "events": "eventos",
+        "allDefault": "todos (predeterm.)",
+        "inspector": "Inspector de payload",
+        "testConsole": "Consola de prueba",
+        "firing": "Disparando…",
+        "fireTest": "Disparar evento de prueba",
+        "fireDisabled": "establezca una URL arriba para activar",
+        "clearLog": "limpiar log",
+        "logEmpty": "aún sin disparos — dispare uno para ver el resultado del receptor",
+        "logFootnote": "Fire-and-forget · 10 s timeout · el backend no expone la respuesta del receptor. Revise el log de su receptor para confirmar 2xx.",
+        "event": {
+          "budget_exceeded": "El proyecto alcanzó su límite de presupuesto. Disparado ANTES del 402 al llamador.",
+          "sync_completed": "Sincronización de fuente de conocimiento finalizada (URL/S3/Drive/Confluence/SharePoint). Un evento por fuente por ejecución.",
+          "eval_completed": "Ejecución de evaluación finalizada — puntuación + detalle por métrica en el payload.",
+          "routine_failed": "Una rutina programada falló en su tick. El cuerpo lleva el resumen de la excepción."
+        }
       }
     },
     "app": {

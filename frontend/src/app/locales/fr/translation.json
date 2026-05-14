@@ -280,6 +280,7 @@
       "title": "Modifier le projet - {{name}}",
       "tabs": {
         "general": "Général",
+        "system": "Système",
         "knowledge": "Connaissances",
         "tools": "Outils",
         "secrets": "Secrets",
@@ -571,6 +572,35 @@
         "requests": "Requêtes",
         "msgs": "Msgs",
         "tokens": "Tokens"
+      },
+      "webhooks": {
+        "title": "Webhooks d'événements",
+        "live": "ACTIF",
+        "off": "ARRÊTÉ",
+        "subtitle": "Notifications HTTPS sortantes lorsque des événements du projet se déclenchent.",
+        "endpoint": "Endpoint",
+        "urlHelp": "HTTPS uniquement · les hôtes privés/RFC1918 sont refusés à la livraison.",
+        "rotateTip": "Générer un nouveau secret de 32 octets · les récepteurs existants devront se mettre à jour",
+        "rotate": "rotation",
+        "secretHelp": "HMAC-SHA256 du corps, envoyé dans X-RESTai-Signature. Chiffré au repos.",
+        "rotateWarn": "Nouveau secret généré. Copiez-le maintenant — le formulaire le masquera après le prochain rechargement. Les récepteurs existants doivent se mettre à jour avant le prochain événement.",
+        "subscriptions": "Abonnements",
+        "events": "événements",
+        "allDefault": "tous (défaut)",
+        "inspector": "Inspecteur de payload",
+        "testConsole": "Console de test",
+        "firing": "Envoi…",
+        "fireTest": "Déclencher événement test",
+        "fireDisabled": "définissez une URL ci-dessus pour activer",
+        "clearLog": "vider le log",
+        "logEmpty": "aucun envoi pour l'instant — déclenchez-en un pour voir le résultat",
+        "logFootnote": "Fire-and-forget · timeout 10 s · le backend ne renvoie pas la réponse du récepteur. Consultez le log de votre récepteur pour confirmer 2xx.",
+        "event": {
+          "budget_exceeded": "Le projet a atteint son plafond de budget. Déclenché AVANT le 402 à l'appelant.",
+          "sync_completed": "Synchronisation de source de connaissance terminée (URL/S3/Drive/Confluence/SharePoint). Un événement par source par exécution.",
+          "eval_completed": "Exécution d'évaluation terminée — score + détail par métrique dans le payload.",
+          "routine_failed": "Une routine planifiée a échoué lors de son tick. Le corps porte le résumé de l'exception."
+        }
       }
     },
     "app": {

@@ -280,6 +280,7 @@
       "title": "Projekt bearbeiten - {{name}}",
       "tabs": {
         "general": "Allgemein",
+        "system": "System",
         "knowledge": "Wissen",
         "tools": "Werkzeuge",
         "secrets": "Geheimnisse",
@@ -571,6 +572,35 @@
         "requests": "Anfragen",
         "msgs": "Nachr.",
         "tokens": "Tokens"
+      },
+      "webhooks": {
+        "title": "Event-Webhooks",
+        "live": "AKTIV",
+        "off": "AUS",
+        "subtitle": "Ausgehende HTTPS-Benachrichtigungen, wenn Projektereignisse ausgelöst werden.",
+        "endpoint": "Endpoint",
+        "urlHelp": "Nur HTTPS · private/RFC1918-Hosts werden bei der Auslieferung abgelehnt.",
+        "rotateTip": "Neues 32-Byte-Geheimnis erzeugen · bestehende Empfänger müssen aktualisieren",
+        "rotate": "rotieren",
+        "secretHelp": "HMAC-SHA256 des Bodys, gesendet in X-RESTai-Signature. Verschlüsselt gespeichert.",
+        "rotateWarn": "Neues Geheimnis erzeugt. Jetzt kopieren — das Formular maskiert es nach dem nächsten Reload. Bestehende Empfänger müssen vor dem nächsten Event aktualisieren.",
+        "subscriptions": "Abonnements",
+        "events": "Events",
+        "allDefault": "alle (Standard)",
+        "inspector": "Payload-Inspektor",
+        "testConsole": "Test-Konsole",
+        "firing": "Wird gesendet…",
+        "fireTest": "Test-Event auslösen",
+        "fireDisabled": "URL oben festlegen, um zu aktivieren",
+        "clearLog": "Log leeren",
+        "logEmpty": "noch keine Tests — einen auslösen, um das Empfänger-Ergebnis zu sehen",
+        "logFootnote": "Fire-and-forget · 10 s Timeout · Backend liefert keine Empfänger-Antwort zurück. Im Empfänger-Log 2xx prüfen.",
+        "event": {
+          "budget_exceeded": "Projekt hat sein Budget-Limit erreicht. Vor dem 402 an den Aufrufer ausgelöst.",
+          "sync_completed": "Knowledge-Base-Sync-Quelle abgeschlossen (URL/S3/Drive/Confluence/SharePoint). Ein Event pro Quelle pro Lauf.",
+          "eval_completed": "Eval-Lauf beendet — Score + Aufschlüsselung pro Metrik im Payload.",
+          "routine_failed": "Eine geplante Routine warf beim Tick eine Ausnahme. Body enthält die Ausnahme-Zusammenfassung."
+        }
       }
     },
     "app": {

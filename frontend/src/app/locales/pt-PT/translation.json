@@ -441,6 +441,7 @@
       "title": "Editar projeto - {{name}}",
       "tabs": {
         "general": "Geral",
+        "system": "Sistema",
         "knowledge": "Conhecimento",
         "tools": "Ferramentas",
         "secrets": "Segredos",
@@ -732,6 +733,35 @@
         "requests": "Pedidos",
         "msgs": "Msgs",
         "tokens": "Tokens"
+      },
+      "webhooks": {
+        "title": "Webhooks de eventos",
+        "live": "ATIVO",
+        "off": "DESL.",
+        "subtitle": "Notificações HTTPS de saída quando ocorrem eventos do projeto.",
+        "endpoint": "Endpoint",
+        "urlHelp": "Apenas HTTPS · destinos privados/RFC1918 são recusados na entrega.",
+        "rotateTip": "Gerar segredo novo de 32 bytes · recetores antigos terão de atualizar",
+        "rotate": "rodar",
+        "secretHelp": "HMAC-SHA256 do corpo, enviado em X-RESTai-Signature. Encriptado em repouso.",
+        "rotateWarn": "Novo segredo gerado. Copie-o agora — o formulário máscara o valor após o próximo recarregamento. Recetores existentes têm de atualizar antes do próximo evento.",
+        "subscriptions": "Subscrições",
+        "events": "eventos",
+        "allDefault": "todos (predefinição)",
+        "inspector": "Inspector de payload",
+        "testConsole": "Consola de teste",
+        "firing": "A disparar…",
+        "fireTest": "Disparar evento de teste",
+        "fireDisabled": "defina um URL acima para ativar",
+        "clearLog": "limpar log",
+        "logEmpty": "ainda sem disparos — dispare um para ver o resultado do recetor",
+        "logFootnote": "Fire-and-forget · 10 s timeout · o backend não expõe a resposta do recetor. Verifique o log do recetor para confirmar 2xx.",
+        "event": {
+          "budget_exceeded": "Projeto atingiu o limite de orçamento. Disparado ANTES do 402 ao chamador.",
+          "sync_completed": "Sincronização de fonte de conhecimento concluída (URL/S3/Drive/Confluence/SharePoint). Um evento por fonte por execução.",
+          "eval_completed": "Execução de avaliação concluída — pontuação + detalhe por métrica no payload.",
+          "routine_failed": "Uma rotina agendada falhou. O corpo contém o resumo da exceção."
+        }
       }
     }
   },

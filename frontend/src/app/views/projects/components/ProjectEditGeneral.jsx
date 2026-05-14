@@ -1,16 +1,21 @@
+import { Fragment } from "react";
 import {
-  Grid, TextField, MenuItem, Switch, Slider, Autocomplete, Divider, Typography, Button, Box, Tooltip,
-  Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress, Alert,
+  Alert, Autocomplete, Box, FormControlLabel, MenuItem,
+  Slider, Switch, TextField, Tooltip, Typography,
 } from "@mui/material";
-import { HelpOutline, AutoAwesome, Settings } from "@mui/icons-material";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import { Fragment, useState } from "react";
-import { toast } from "react-toastify";
+import { HelpOutline, Settings } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
-import useAuth from "app/hooks/useAuth";
-import api from "app/utils/api";
-import { makeErrorFor } from "./projectOptionValidators";
 import ContentCard from "app/components/page/ContentCard";
+import { FONT_MONO } from "app/components/page/pageStyles";
+import { makeErrorFor } from "./projectOptionValidators";
+import { SectionHeader, sectionShellSx } from "./integrationsKit";
+
+const ID_ACCENT     = "#0ea5e9";
+const ACCESS_ACCENT = "#10b981";
+const MODEL_ACCENT  = "#8b5cf6";
+const CACHE_ACCENT  = "#f59e0b";
+const MEM_ACCENT    = "#ec4899";
+const BROWSER_ACCENT = "#14b8a6";
 
 const HelpTip = ({ text }) => (
   <Tooltip title={text} placement="top" arrow>
@@ -18,547 +23,309 @@ const HelpTip = ({ text }) => (
   </Tooltip>
 );
 
-export default function ProjectEditGeneral({ state, setState, handleChange, project, info, users, teams, promptVersions, showVersions, setShowVersions, handleTeamChange, fieldErrors = {}, clearFieldError = () => {} }) {
-  const { t } = useTranslation();
-  // Combined client + server error lookup. Server message wins once a
-  // save has been attempted; before that, client-side bounds guide the
-  // user.
-  const errorFor = makeErrorFor(fieldErrors, state);
-  const auth = useAuth();
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiDescription, setAiDescription] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
+function Section({ accent, children }) {
+  return (
+    <Box sx={{ ...sectionShellSx(accent), p: 2.5, display: "flex", flexDirection: "column", gap: 2 }}>
+      {children}
+    </Box>
+  );
+}
 
-  const handleGeneratePrompt = () => {
-    if (!aiDescription.trim()) return;
-    setAiLoading(true);
-    api.post(
-      `/projects/${project.id}/system-prompt/generate`,
-      { description: aiDescription, project_type: state.type || project.type },
-      auth.user.token,
-    )
-      .then((d) => {
-        setState((prev) => ({ ...prev, system: d.system_prompt || "" }));
-        toast.success("System prompt generated");
-        setAiOpen(false);
-        setAiDescription("");
-      })
-      .catch(() => {})
-      .finally(() => setAiLoading(false));
-  };
+function FieldGrid({ children }) {
+  return (
+    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+      {children}
+    </Box>
+  );
+}
+
+export default function ProjectEditGeneral({
+  state, setState, handleChange, project, info, users, teams,
+  handleTeamChange, fieldErrors = {}, clearFieldError = () => {},
+}) {
+  const { t } = useTranslation();
+  const errorFor = makeErrorFor(fieldErrors, state);
+  const opts = state.options || {};
+
+  const teamId = state.team ? state.team.id : (project.team ? project.team.id : "");
+  const llmsForTeam = info.llms.filter((l) => {
+    if (!state.team) return true;
+    const teamLlms = (state.team.llms || []).map((x) => (typeof x === "string" ? x : x.name));
+    return teamLlms.includes(l.name);
+  });
+  const embeddingsForTeam = (info.embeddings || []).filter((e) => {
+    if (!state.team) return true;
+    const teamEmbs = (state.team.embeddings || []).map((x) => (typeof x === "string" ? x : x.name));
+    return teamEmbs.includes(e.name);
+  });
+
+  const accessLive = !!(state.public || (state.selectedUsers && state.selectedUsers.length > 0));
+  const cacheOn = !!opts.cache;
 
   return (
     <ContentCard
       icon={<Settings />}
       title="General"
-      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · MODEL · PROMPT · CONFIG`}
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · IDENTITY · ACCESS · MODEL · CACHE · MEMORY`}
     >
-    <Grid container spacing={3}>
-      <Grid item sm={6} xs={12}>
-        <TextField
-          fullWidth
-          InputLabelProps={{ shrink: true }}
-          name="human_name"
-          label={t("projects.edit.general.displayName")}
-          variant="outlined"
-          onChange={handleChange}
-          value={state.human_name ?? ''}
-        />
-      </Grid>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
 
-      <Grid item sm={6} xs={12}>
-        <TextField
-          fullWidth
-          InputLabelProps={{ shrink: true }}
-          name="human_description"
-          label={t("projects.edit.general.description")}
-          variant="outlined"
-          onChange={handleChange}
-          value={state.human_description ?? ''}
-        />
-      </Grid>
-
-      <Grid item sm={12} xs={12}>
-        <Divider sx={{ mb: 1 }} />
-      </Grid>
-
-      {state.public !== undefined && (
-        <Grid item sm={6} xs={12}>
-          <FormControlLabel
-            label={<span>Shared<HelpTip text="When enabled, all users on the platform can access this project" /></span>}
-            control={
-              <Switch
-                checked={state.public}
-                name="public"
-                inputProps={{ "aria-label": "secondary checkbox controlled" }}
-                onChange={handleChange}
-              />
-            }
+        {/* ── IDENTITY ──────────────────────────────────────── */}
+        <Section accent={ID_ACCENT}>
+          <SectionHeader
+            title="Identity"
+            accent={ID_ACCENT}
+            subtitle="Public-facing name + one-line summary."
           />
-        </Grid>
-      )}
-
-      <Grid item sm={6} xs={12}>
-        <FormControlLabel
-          label={<span>Logging<HelpTip text="Records all requests and responses for analytics and debugging" /></span>}
-          control={
-            <Switch
-              checked={state.options?.logging ?? false}
-              name="logging"
-              inputProps={{ "aria-label": "logging checkbox" }}
-              onChange={handleChange}
-            />
-          }
-        />
-      </Grid>
-
-      <Grid item sm={6} xs={12}>
-        <FormControlLabel
-          label={<span>Redact secrets in logs<HelpTip text="Strip API keys, tokens and credentials from question/answer/system prompt before persisting" /></span>}
-          control={
-            <Switch
-              checked={state.options?.redact_inference_logs ?? false}
-              name="redact_inference_logs"
-              inputProps={{ "aria-label": "redact inference logs checkbox" }}
-              onChange={handleChange}
-              disabled={!(state.options?.logging ?? false)}
-            />
-          }
-        />
-      </Grid>
-
-      <Grid item sm={12} xs={12}>
-        <Divider sx={{ mb: 1 }} />
-      </Grid>
-
-      <Grid item sm={12} xs={12}>
-        <Autocomplete
-          multiple
-          id="users-select"
-          options={users}
-          getOptionLabel={(option) => option.username}
-          value={state.selectedUsers || []}
-          isOptionEqualToValue={(option, value) => option.username === value.username}
-          onChange={(event, newValue) => {
-            setState({ ...state, selectedUsers: newValue });
-          }}
-          renderInput={(params) => (
+          <FieldGrid>
             <TextField
-              {...params}
-              variant="outlined"
-              label={t("nav.users")}
-              placeholder="Select users"
-            />
-          )}
-        />
-        <Typography variant="caption" color="textSecondary">
-          Select users who should have access to this project
-        </Typography>
-      </Grid>
-
-      <Grid item sm={12} xs={12}>
-        <Divider sx={{ mb: 1 }} />
-      </Grid>
-
-      <Grid item sm={6} xs={12}>
-        <TextField
-          select
-          fullWidth
-          name="team_id"
-          label={t("common.team")}
-          variant="outlined"
-          onChange={handleTeamChange}
-          value={state.team ? state.team.id : (project.team ? project.team.id : '')}
-        >
-          {teams.map((team) => (
-            <MenuItem value={team.id} key={team.id}>
-              {team.name}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Grid>
-
-      <Grid item sm={12} xs={12}>
-        <Divider sx={{ mb: 1 }} />
-      </Grid>
-
-      {state.llm !== undefined && state.type !== "block" && (
-        <Grid item sm={6} xs={12}>
-          <TextField
-            fullWidth
-            select
-            name="llm"
-            label={t("projects.edit.general.llm")}
-            variant="outlined"
-            onChange={handleChange}
-            value={state.llm ?? ''}
-            defaultValue={state.llm ?? ''}
-          >
-            {info.llms
-              .filter(item => {
-                if (!state.team) return true;
-                const teamLLMs = state.team.llms || [];
-                const teamLLMNames = teamLLMs.map(llm => typeof llm === 'string' ? llm : llm.name);
-                return teamLLMNames.includes(item.name);
-              })
-              .map((item) => (
-                <MenuItem value={item.name} key={item.name}>
-                  {item.name}
-                </MenuItem>
-              ))}
-          </TextField>
-        </Grid>
-      )}
-
-      {state.type !== "block" && (
-        <Grid item sm={6} xs={12}>
-          <TextField
-            fullWidth
-            select
-            name="embeddings"
-            label="Embeddings"
-            variant="outlined"
-            onChange={(e) => setState({ ...state, embeddings: e.target.value })}
-            value={state.embeddings ?? ''}
-            helperText="Embedding model used for RAG retrieval (RAG projects) and conversation memory search (agent projects with Memory Search on)."
-            InputLabelProps={{ shrink: true }}
-            SelectProps={{ displayEmpty: true }}
-          >
-            <MenuItem value=""><em>None</em></MenuItem>
-            {(info.embeddings || [])
-              .filter(item => {
-                if (!state.team) return true;
-                const teamEmbeddings = state.team.embeddings || [];
-                const teamEmbeddingNames = teamEmbeddings.map(e => typeof e === 'string' ? e : e.name);
-                return teamEmbeddingNames.includes(item.name);
-              })
-              .map((item) => (
-                <MenuItem value={item.name} key={item.name}>
-                  {item.name}
-                </MenuItem>
-              ))}
-          </TextField>
-        </Grid>
-      )}
-      {/* Warn when the user picks a different embedding from what's saved on
-          the server. Existing vectors are tied to the previous model and
-          can't be compared against vectors produced by the new one — the
-          memory_search collection is dropped on save and re-indexed by the
-          cron over the next few minutes. RAG projects pay the same cost
-          (their stored vectors become unusable). */}
-      {state.type !== "block"
-        && project?.embeddings
-        && state.embeddings !== undefined
-        && state.embeddings !== project.embeddings && (
-          <Grid item sm={12} xs={12}>
-            <Alert severity="warning" variant="outlined">
-              <strong>Embedding change detected.</strong> Switching from <code>{project.embeddings || "(none)"}</code> to <code>{state.embeddings || "(none)"}</code> will <strong>discard all previously-computed embeddings</strong> for this project — the conversation memory index will be wiped and rebuilt from scratch on the next cron tick{state.type === "rag" && ", and the RAG knowledge base will need to be re-ingested before retrieval works again"}.
-            </Alert>
-          </Grid>
-        )}
-
-      {(state.type === "rag" || state.type === "agent") && (
-        <Fragment>
-          <Grid item sm={12} xs={12}>
-            <Divider sx={{ mb: 1 }} />
-          </Grid>
-          <Grid item sm={12} xs={12}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Typography variant="subtitle1" gutterBottom>System Message</Typography>
-              {info?.system_llm_configured && (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<AutoAwesome />}
-                  onClick={() => setAiOpen(true)}
-                >
-                  Generate with AI
-                </Button>
-              )}
-            </Box>
-            <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
-              Defines the AI's behavior and personality. This is prepended to every conversation.
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
-              <Button size="small" variant="outlined" onClick={() => setState({ ...state, system: "You are a helpful assistant. Answer questions clearly and concisely." })}>
-                General Assistant
-              </Button>
-              <Button size="small" variant="outlined" onClick={() => setState({ ...state, system: "Describe the provided image in detail. Include colors, objects, people, text, and any notable features." })}>
-                Describe Image
-              </Button>
-              <Button size="small" variant="outlined" onClick={() => setState({ ...state, system: "Summarize the following text. Keep the summary concise while preserving the key points and main ideas." })}>
-                Summarize Text
-              </Button>
-              <Button size="small" variant="outlined" onClick={() => setState({ ...state, system: "You are a translator. Translate the user's input to English. Preserve the original meaning and tone." })}>
-                Translate to English
-              </Button>
-              <Button size="small" variant="outlined" onClick={() => setState({ ...state, system: "Extract structured data from the user's input. Return the result as valid JSON." })}>
-                Extract Data (JSON)
-              </Button>
-              <Button size="small" variant="outlined" onClick={() => setState({ ...state, system: "You are a code assistant. Help the user write, debug, and explain code. Use markdown code blocks in your responses." })}>
-                Code Assistant
-              </Button>
-            </Box>
-            <TextField
-              fullWidth
+              fullWidth size="small"
               InputLabelProps={{ shrink: true }}
-              name="system"
-              label={t("projects.edit.general.systemPrompt")}
-              variant="outlined"
-              onChange={handleChange}
-              value={state.system ?? ''}
-              multiline
-              minRows={3}
-              maxRows={12}
-            />
-            {promptVersions.length > 0 && (
-              <Box sx={{ mt: 2 }}>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ cursor: "pointer", display: "flex", alignItems: "center" }}
-                  onClick={() => setShowVersions(!showVersions)}
-                >
-                  Version History ({promptVersions.length})
-                  {showVersions ? " \u25B2" : " \u25BC"}
-                </Typography>
-                {showVersions && (
-                  <Box sx={{ mt: 1, maxHeight: 300, overflow: "auto", border: "1px solid #e0e0e0", borderRadius: 1 }}>
-                    {promptVersions.map((v) => (
-                      <Box
-                        key={v.id}
-                        sx={{
-                          p: 1,
-                          borderBottom: "1px solid #f0f0f0",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          backgroundColor: v.is_active ? "#f0f7ff" : "transparent",
-                        }}
-                      >
-                        <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2">
-                            <strong>v{v.version}</strong>
-                            {v.is_active && <span style={{ color: "#1976d2", marginLeft: 8 }}>(active)</span>}
-                            <span style={{ color: "#999", marginLeft: 8 }}>
-                              {v.created_at ? new Date(v.created_at).toLocaleString() : ""}
-                            </span>
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                            {v.system_prompt ? v.system_prompt.substring(0, 100) + (v.system_prompt.length > 100 ? "..." : "") : "(empty)"}
-                          </Typography>
-                        </Box>
-                        {!v.is_active && (
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            sx={{ ml: 1, minWidth: 70 }}
-                            onClick={() => {
-                              setState({ ...state, system: v.system_prompt });
-                            }}
-                          >
-                            Restore
-                          </Button>
-                        )}
-                      </Box>
-                    ))}
-                  </Box>
-                )}
-              </Box>
-            )}
-          </Grid>
-        </Fragment>
-      )}
-
-      <Grid item sm={6} xs={12}>
-        <TextField
-          fullWidth
-          InputLabelProps={{ shrink: true }}
-          name="default_prompt"
-          label={t("projects.edit.general.censorship")}
-          variant="outlined"
-          onChange={handleChange}
-          value={state.default_prompt ?? ''}
-        />
-      </Grid>
-
-      <Grid item sm={12} xs={12}>
-        <Divider sx={{ mb: 1 }} />
-      </Grid>
-      <Grid item sm={6} xs={12}>
-        <FormControlLabel
-          label={<span>Cache<HelpTip text="Caches similar questions to avoid redundant LLM calls, reducing cost and latency" /></span>}
-          control={
-            <Switch
-              checked={state.options?.cache ?? false}
-              name="cache"
-              inputProps={{ "aria-label": "cache checkbox" }}
+              name="human_name"
+              label={t("projects.edit.general.displayName")}
+              value={state.human_name ?? ""}
               onChange={handleChange}
             />
-          }
-        />
-      </Grid>
-      {state.options?.cache && (
-        <Grid item sm={6} xs={12}>
-          <Typography gutterBottom>Cache Threshold<HelpTip text="How similar a new question must be to a cached one to reuse the answer (higher = stricter match)" /></Typography>
-          <Slider
-            name="cache_threshold"
-            value={(state.options?.cache_threshold ?? 0.85) * 100}
-            onChange={handleChange}
-            step={1}
-            min={0}
-            max={100}
-            valueLabelDisplay="auto"
-            style={{ width: "400px" }}
+            <TextField
+              fullWidth size="small"
+              InputLabelProps={{ shrink: true }}
+              name="human_description"
+              label={t("projects.edit.general.description")}
+              value={state.human_description ?? ""}
+              onChange={handleChange}
+            />
+          </FieldGrid>
+        </Section>
+
+        {/* ── ACCESS ────────────────────────────────────────── */}
+        <Section accent={ACCESS_ACCENT}>
+          <SectionHeader
+            title="Access"
+            accent={ACCESS_ACCENT}
+            subtitle="Visibility, audit logging, team & individual users."
           />
-        </Grid>
-      )}
-
-      {state.type === "agent" && (
-        <Fragment>
-          <Grid item sm={12} xs={12}>
-            <Divider sx={{ mb: 1 }} />
-          </Grid>
-          <Grid item sm={6} xs={12}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+            {state.public !== undefined && (
+              <FormControlLabel
+                label={<span>Shared<HelpTip text="When enabled, all users on the platform can access this project" /></span>}
+                control={<Switch checked={state.public} name="public" onChange={handleChange} />}
+              />
+            )}
             <FormControlLabel
-              label={<span>Memory Bank<HelpTip text="Aggregates summaries of every conversation in this project into a shared memory that gets injected into every chat's system prompt" /></span>}
+              label={<span>Logging<HelpTip text="Records all requests and responses for analytics and debugging" /></span>}
+              control={<Switch checked={opts.logging ?? false} name="logging" onChange={handleChange} />}
+            />
+            <FormControlLabel
+              label={<span>Redact secrets in logs<HelpTip text="Strip API keys, tokens and credentials from question/answer/system prompt before persisting" /></span>}
               control={
                 <Switch
-                  checked={state.options?.memory_bank_enabled ?? false}
-                  name="memory_bank_enabled"
-                  inputProps={{ "aria-label": "memory bank checkbox" }}
+                  checked={opts.redact_inference_logs ?? false}
+                  name="redact_inference_logs"
                   onChange={handleChange}
+                  disabled={!(opts.logging ?? false)}
                 />
               }
             />
-          </Grid>
-          {state.options?.memory_bank_enabled && (
-            <Grid item sm={6} xs={12}>
+          </Box>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 2fr" }, gap: 2 }}>
+            <TextField
+              select fullWidth size="small"
+              name="team_id"
+              label={t("common.team")}
+              value={teamId}
+              onChange={handleTeamChange}
+            >
+              {teams.map((team) => (
+                <MenuItem value={team.id} key={team.id}>{team.name}</MenuItem>
+              ))}
+            </TextField>
+            <Autocomplete
+              multiple size="small"
+              id="users-select"
+              options={users}
+              getOptionLabel={(option) => option.username}
+              value={state.selectedUsers || []}
+              isOptionEqualToValue={(option, value) => option.username === value.username}
+              onChange={(_, newValue) => setState({ ...state, selectedUsers: newValue })}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={t("nav.users")}
+                  placeholder="Select users"
+                  helperText="Direct assignments — bypasses team membership"
+                />
+              )}
+            />
+          </Box>
+        </Section>
+
+        {/* ── MODEL ─────────────────────────────────────────── */}
+        {state.type !== "block" && (
+          <Section accent={MODEL_ACCENT}>
+            <SectionHeader
+              title="Model"
+              accent={MODEL_ACCENT}
+              subtitle="LLM that powers chat. Embedding powers RAG retrieval and conversation memory search."
+            />
+            <FieldGrid>
+              {state.llm !== undefined && (
+                <TextField
+                  fullWidth select size="small"
+                  name="llm"
+                  label={t("projects.edit.general.llm")}
+                  value={state.llm ?? ""}
+                  onChange={handleChange}
+                >
+                  {llmsForTeam.map((item) => (
+                    <MenuItem value={item.name} key={item.name}>{item.name}</MenuItem>
+                  ))}
+                </TextField>
+              )}
               <TextField
-                fullWidth
+                fullWidth select size="small"
+                name="embeddings"
+                label="Embeddings"
+                value={state.embeddings ?? ""}
+                onChange={(e) => setState({ ...state, embeddings: e.target.value })}
+                helperText="Used for RAG (RAG projects) and conversation memory search (agent + Memory Search on)."
+                InputLabelProps={{ shrink: true }}
+                SelectProps={{ displayEmpty: true }}
+              >
+                <MenuItem value=""><em>None</em></MenuItem>
+                {embeddingsForTeam.map((item) => (
+                  <MenuItem value={item.name} key={item.name}>{item.name}</MenuItem>
+                ))}
+              </TextField>
+            </FieldGrid>
+            {project?.embeddings
+              && state.embeddings !== undefined
+              && state.embeddings !== project.embeddings && (
+                <Alert severity="warning" variant="outlined">
+                  <strong>Embedding change detected.</strong> Switching from{" "}
+                  <Box component="code" sx={{ fontFamily: FONT_MONO }}>{project.embeddings || "(none)"}</Box>{" "}
+                  to <Box component="code" sx={{ fontFamily: FONT_MONO }}>{state.embeddings || "(none)"}</Box>{" "}
+                  will <strong>discard all previously-computed embeddings</strong> for this project — the
+                  conversation memory index is wiped and rebuilt on the next cron tick
+                  {state.type === "rag" && ", and the RAG knowledge base will need to be re-ingested before retrieval works again"}.
+                </Alert>
+              )}
+          </Section>
+        )}
+
+        {/* ── CACHE ─────────────────────────────────────────── */}
+        <Section accent={CACHE_ACCENT}>
+          <SectionHeader
+            title="Cache"
+            accent={CACHE_ACCENT}
+            subtitle="Reuse answers for semantically similar questions to cut cost and latency."
+          />
+          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
+            <FormControlLabel
+              label={<span>Enable cache<HelpTip text="Caches similar questions to avoid redundant LLM calls" /></span>}
+              control={<Switch checked={cacheOn} name="cache" onChange={handleChange} />}
+            />
+            {cacheOn && (
+              <Box sx={{ minWidth: 280 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center" }}>
+                  Threshold<HelpTip text="How similar a new question must be to a cached one to reuse the answer (higher = stricter match)" />
+                  <Box component="span" sx={{ ml: "auto", fontFamily: FONT_MONO, fontSize: "0.78rem", fontWeight: 700, color: CACHE_ACCENT }}>
+                    {Math.round((opts.cache_threshold ?? 0.85) * 100)}%
+                  </Box>
+                </Typography>
+                <Slider
+                  name="cache_threshold"
+                  value={(opts.cache_threshold ?? 0.85) * 100}
+                  onChange={handleChange}
+                  step={1} min={0} max={100}
+                  size="small"
+                  sx={{ color: CACHE_ACCENT }}
+                />
+              </Box>
+            )}
+          </Box>
+        </Section>
+
+        {/* ── MEMORY (agent only) ───────────────────────────── */}
+        {state.type === "agent" && (
+          <Section accent={MEM_ACCENT}>
+            <SectionHeader
+              title="Memory"
+              accent={MEM_ACCENT}
+              subtitle="Bank: a shared summary prepended to every chat. Search: per-turn vector index for `search_memories` tool."
+            />
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+              <FormControlLabel
+                label={<span>Memory Bank<HelpTip text="Aggregates summaries of every conversation in this project into a shared memory injected into every chat's system prompt" /></span>}
+                control={<Switch checked={opts.memory_bank_enabled ?? false} name="memory_bank_enabled" onChange={handleChange} />}
+              />
+              <FormControlLabel
+                label={<span>Memory Search<HelpTip text="Indexes every conversation turn into a per-project vector collection so the `search_memories` builtin can semantically retrieve past Q/A. Requires an embedding configured on the project." /></span>}
+                control={<Switch checked={opts.memory_search_enabled ?? false} name="memory_search_enabled" onChange={handleChange} />}
+              />
+            </Box>
+            {opts.memory_bank_enabled && (
+              <TextField
+                fullWidth size="small"
                 type="number"
                 name="memory_bank_max_tokens"
                 label={t("projects.edit.general.memoryBankMaxTokens")}
-                variant="outlined"
+                value={opts.memory_bank_max_tokens ?? 2000}
                 inputProps={{ min: 200, max: 10000, step: 100 }}
-                value={state.options?.memory_bank_max_tokens ?? 2000}
                 onChange={(e) => { clearFieldError("memory_bank_max_tokens"); handleChange(e); }}
                 error={!!errorFor("memory_bank_max_tokens")}
                 helperText={errorFor("memory_bank_max_tokens") || "Token budget for the injected memory block (200–10000). Older entries get rolled up automatically."}
               />
-            </Grid>
-          )}
-          {state.options?.memory_bank_enabled && (
-            <Grid item sm={12} xs={12}>
+            )}
+            {opts.memory_bank_enabled && (
               <Alert severity="warning" variant="outlined">
-                <strong>Privacy notice.</strong> The Memory Bank shares a compressed summary of every conversation in this project with every other conversation. Any user with access to this project will see the agent reference summarized context derived from other users' chats. Do not enable this option for projects that handle confidential per-user data.
+                <strong>Privacy notice.</strong> The Memory Bank shares a compressed summary of every conversation in this project with every other conversation. Any user with access to this project will see the agent reference summarized context derived from other users' chats. Do not enable for projects that handle confidential per-user data.
               </Alert>
-            </Grid>
-          )}
-
-          <Grid item sm={6} xs={12}>
-            <FormControlLabel
-              label={<span>Memory Search<HelpTip text="Indexes every conversation turn into a per-project ChromaDB collection so the `search_memories` builtin tool can semantically retrieve past Q/A on demand. Independent of Memory Bank — the bank broadcasts a fixed slice into every system prompt; this powers targeted recall. Requires an embedding configured on the project." /></span>}
-              control={
-                <Switch
-                  checked={state.options?.memory_search_enabled ?? false}
-                  name="memory_search_enabled"
-                  inputProps={{ "aria-label": "memory search checkbox" }}
-                  onChange={handleChange}
-                />
-              }
-            />
-          </Grid>
-          {state.options?.memory_search_enabled && !state.embeddings && (
-            <Grid item sm={12} xs={12}>
+            )}
+            {opts.memory_search_enabled && !state.embeddings && (
               <Alert severity="warning" variant="outlined">
-                <strong>Embedding required.</strong> Memory Search needs an embedding configured on this project to index conversations. Pick one in the <strong>Embeddings</strong> field above, otherwise the indexer will skip every tick and the <code>search_memories</code> tool will return an error when called.
+                <strong>Embedding required.</strong> Memory Search needs an embedding configured on this project to index conversations. Pick one in the Embeddings field above, otherwise the indexer will skip every tick and the <code>search_memories</code> tool will return an error when called.
               </Alert>
-            </Grid>
-          )}
-          {state.options?.memory_search_enabled && (
-            <Grid item sm={12} xs={12}>
+            )}
+            {opts.memory_search_enabled && (
               <Alert severity="warning" variant="outlined">
                 <strong>Privacy notice.</strong> Memory Search makes the full conversation history of every user retrievable to every other user with access to this project. Do not enable for projects that handle confidential per-user data.
               </Alert>
-            </Grid>
-          )}
+            )}
+          </Section>
+        )}
 
-          {/* Agentic Browser — browser_* tools controls */}
-          <Grid item sm={12} xs={12}>
-            <Divider sx={{ mb: 1 }} />
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              Agentic Browser
-              <HelpTip text="Applies to the browser_* builtin tools (browser_goto, browser_fill, etc.). The admin must also enable Agentic Browser globally in Settings → Agentic Browser." />
-            </Typography>
-          </Grid>
-          <Grid item sm={12} xs={12}>
+        {/* ── AGENTIC BROWSER (agent only) ──────────────────── */}
+        {state.type === "agent" && (
+          <Section accent={BROWSER_ACCENT}>
+            <SectionHeader
+              title="Agentic Browser"
+              accent={BROWSER_ACCENT}
+              subtitle="Controls for browser_* builtin tools. Admin must also enable globally in Settings → Agentic Browser."
+            />
             <TextField
-              fullWidth
-              multiline
-              minRows={2}
+              fullWidth size="small"
+              multiline minRows={2}
               name="browser_allowed_domains"
               label={t("projects.edit.general.browserAllowedDomains")}
-              variant="outlined"
-              value={state.options?.browser_allowed_domains ?? ''}
+              value={opts.browser_allowed_domains ?? ""}
               onChange={(e) => setState({ ...state, options: { ...state.options, browser_allowed_domains: e.target.value } })}
               placeholder="acme.com, *.supplier.net, gov.co.uk"
               helperText="Comma-separated allowlist for browser_goto. Empty = unrestricted (risky — prompt injection can navigate anywhere). Use suffix globs like `*.example.com`."
+              InputProps={{ sx: { fontFamily: FONT_MONO } }}
             />
-          </Grid>
-          <Grid item sm={12} xs={12}>
             <FormControlLabel
               label={
                 <span>
-                  Allow <code>browser_eval</code>
+                  Allow <Box component="code" sx={{ fontFamily: FONT_MONO }}>browser_eval</Box>
                   <HelpTip text="Lets the agent run arbitrary JavaScript in the page. Dangerous — a prompt-injected page can exfiltrate cookies or hit authed APIs. Off by default." />
                 </span>
               }
-              control={
-                <Switch
-                  checked={state.options?.browser_allow_eval ?? false}
-                  name="browser_allow_eval"
-                  inputProps={{ "aria-label": "allow browser_eval checkbox" }}
-                  onChange={handleChange}
-                />
-              }
+              control={<Switch checked={opts.browser_allow_eval ?? false} name="browser_allow_eval" onChange={handleChange} />}
             />
-          </Grid>
-        </Fragment>
-      )}
-    </Grid>
+          </Section>
+        )}
 
-    <Dialog open={aiOpen} onClose={() => !aiLoading && setAiOpen(false)} maxWidth="sm" fullWidth>
-      <DialogTitle>Generate system prompt with AI</DialogTitle>
-      <DialogContent>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Describe in plain English what this project does. The system LLM will draft a full system prompt you can then edit.
-        </Typography>
-        <TextField
-          autoFocus
-          fullWidth
-          multiline
-          minRows={3}
-          placeholder={'e.g. "customer support assistant for my SaaS billing product"'}
-          value={aiDescription}
-          onChange={(e) => setAiDescription(e.target.value)}
-          disabled={aiLoading}
-        />
-        <Alert severity="info" sx={{ mt: 2 }}>
-          This replaces the current system message. Copy the existing one first if you want to keep it.
-        </Alert>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setAiOpen(false)} disabled={aiLoading}>Cancel</Button>
-        <Button
-          variant="contained"
-          onClick={handleGeneratePrompt}
-          disabled={aiLoading || !aiDescription.trim()}
-          startIcon={aiLoading ? <CircularProgress size={16} /> : <AutoAwesome />}
-        >
-          {aiLoading ? "Generating..." : "Generate"}
-        </Button>
-      </DialogActions>
-    </Dialog>
+      </Box>
     </ContentCard>
   );
 }

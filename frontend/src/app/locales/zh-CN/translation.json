@@ -440,6 +440,7 @@
       "title": "编辑项目 - {{name}}",
       "tabs": {
         "general": "常规",
+        "system": "系统",
         "knowledge": "知识",
         "tools": "工具",
         "secrets": "密钥",
@@ -731,6 +732,35 @@
         "requests": "请求",
         "msgs": "条",
         "tokens": "Tokens"
+      },
+      "webhooks": {
+        "title": "事件 Webhook",
+        "live": "在线",
+        "off": "关闭",
+        "subtitle": "项目事件触发时的出站 HTTPS 通知。",
+        "endpoint": "端点",
+        "urlHelp": "仅限 HTTPS · 投递时拒绝私有/RFC1918 主机。",
+        "rotateTip": "生成新的 32 字节密钥 · 现有接收方需更新",
+        "rotate": "轮换",
+        "secretHelp": "正文的 HMAC-SHA256,通过 X-RESTai-Signature 发送。静态加密。",
+        "rotateWarn": "已生成新密钥。请立即记录 — 下次刷新后表单将隐藏该值。现有接收方须在下次事件触发前更新。",
+        "subscriptions": "订阅",
+        "events": "事件",
+        "allDefault": "全部(默认)",
+        "inspector": "Payload 检视器",
+        "testConsole": "测试控制台",
+        "firing": "触发中…",
+        "fireTest": "触发测试事件",
+        "fireDisabled": "请先在上方设置 URL",
+        "clearLog": "清空日志",
+        "logEmpty": "尚未触发 — 触发一次以查看接收方结果",
+        "logFootnote": "Fire-and-forget · 10 秒超时 · 后端不暴露接收方响应。请查看你接收方的日志以确认 2xx。",
+        "event": {
+          "budget_exceeded": "项目达到预算上限。在向调用方返回 402 之前触发。",
+          "sync_completed": "知识库同步源已完成(URL/S3/Drive/Confluence/SharePoint)。每次运行每个源一个事件。",
+          "eval_completed": "评估运行完成 — payload 中包含评分和每项指标。",
+          "routine_failed": "计划任务在执行时抛出异常。正文包含异常摘要。"
+        }
       }
     }
   },
