@@ -65,7 +65,7 @@ def _check_allowed_domain(project, url: str) -> Optional[str]:
     """Returns an error string if the URL is blocked, or None when allowed."""
     allowed = _parse_allowed_domains(project)
     if not allowed:
-        # Empty allowlist = unrestricted (admin choice, risky but explicit).
+        # Empty allowlist = unrestricted (admin choice; risky but explicit).
         return None
     try:
         host = (urlparse(url).hostname or "").lower()

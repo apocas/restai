@@ -47,28 +47,21 @@ async def patch_settings(
     actor = getattr(user, "username", None) or "(admin)"
 
     def _audit_change(key: str, new_str: str) -> None:
-        """Emit a per-key audit row. Resource carries the key + a status
-        marker; values are NEVER included for SETTINGS_ENCRYPTED_KEYS so
-        an attacker who reads the audit log can't recover secrets. For
-        non-secret keys we include a short fingerprint (length + first
-        chars) so an admin can confirm "yes that was the change I made"
-        without leaking the full value either."""
+        # Encrypted/secret keys log a marker only; non-secrets get a
+        # short fingerprint so admins can verify intent without the value.
         try:
             old = db_wrapper.get_setting_value(key, "")
         except Exception:
             old = ""
         if (old or "") == (new_str or ""):
-            # No actual change — don't pollute the audit log.
             return
         if key in SETTINGS_ENCRYPTED_KEYS or key in _SECRET_KEYS:
             resource = f"settings/{key}:secret_changed"
         else:
-            # Cap length for the column; small fingerprint for sanity.
             preview = (new_str or "")[:32].replace("\n", " ")
             resource = f"settings/{key}:{preview}"
         _audit_log(actor, "SETTING", resource[:500], 200)
 
-    # Handle proxy_enabled=False: clear proxy fields
     if updates.get("proxy_enabled") is False:
         for key, value in (("proxy_enabled", "false"), ("proxy_url", ""), ("proxy_key", ""), ("proxy_team_id", "")):
             _audit_change(key, value)
@@ -79,7 +72,6 @@ async def patch_settings(
         updates.pop("proxy_team_id", None)
 
     for key, value in updates.items():
-        # Skip secret fields if masked or empty
         if key in _SECRET_KEYS:
             if not value or value.startswith("****"):
                 continue
@@ -113,10 +105,8 @@ async def patch_settings(
     if app_fields & updates.keys():
         request.app.state.brain.init_app_manager()
 
-    # Chroma reuses a process-level _client_cache keyed on path, so a host
-    # change won't take effect until each cached client is dropped. Other
-    # backends instantiate a fresh client per VectorBase construction —
-    # nothing to reset for pgvector/weaviate/pinecone.
+    # Chroma keeps a process-level client cache; flush so the next
+    # request reads fresh settings.
     if any(k.startswith("vectordb_") for k in updates.keys()):
         try:
             from restai.vectordb import chromadb as _chroma_mod

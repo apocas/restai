@@ -167,43 +167,34 @@ async def get_ollama_models(
     """
     try:
         from ollama import Client
-        
-        # Configure Ollama client to use the specified host/port
+
         ollama_host = f"http://{ollama_instance.host}:{ollama_instance.port}"
-        
+
         client = Client(
           host=ollama_host,
         )
-                
-        # List all models
+
         models_response = client.list()
         
-        # Convert to our model format
         models_info = []
         for model in models_response.get("models", []):
-            # Convert ModelDetails to a dictionary if it's not already
             details = model.get("details", {})
             if details and not isinstance(details, dict):
                 try:
-                    # Convert to dictionary using model_dump() if available (for Pydantic models)
                     if hasattr(details, "model_dump"):
                         details = details.model_dump()
-                    # Or use __dict__ as fallback
                     elif hasattr(details, "__dict__"):
                         details = {k: v for k, v in details.__dict__.items() if not k.startswith("_")}
                     else:
-                        # Last resort: convert to string and log warning
                         logging.warning(f"Could not convert details to dictionary: {details}")
                         details = {"raw_info": str(details)}
                 except Exception as conversion_error:
                     logging.error(f"Error converting model details to dictionary: {conversion_error}")
                     details = {}
             
-            # Convert datetime to string if needed
             modified_at = model.get("modified_at", "")
             if modified_at and not isinstance(modified_at, str):
                 try:
-                    # Convert datetime to ISO format string
                     modified_at = modified_at.isoformat() if hasattr(modified_at, "isoformat") else str(modified_at)
                 except Exception as dt_error:
                     logging.error(f"Error converting modified_at to string: {dt_error}")
@@ -211,7 +202,6 @@ async def get_ollama_models(
             
             model_name = model.get("name", "") or model.get("model", "")
 
-            # Fetch capabilities and embedding_length via show()
             capabilities = None
             embedding_length = None
             try:
@@ -366,7 +356,6 @@ async def pull_ollama_model(
         # Pull the requested model
         pull_response = client.pull(model_request.name)
         
-        # Return the response
         return OllamaModelPullResponse(
             status="success",
             model=model_request.name,

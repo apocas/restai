@@ -8,12 +8,11 @@ depends_on = None
 
 def upgrade():
     try:
-        # Null out orphaned creator values that reference deleted users
+        # Null out orphaned creator values that reference deleted users — FK add would fail otherwise.
         conn = op.get_bind()
         conn.execute(sa.text(
             "UPDATE projects SET creator = NULL WHERE creator IS NOT NULL AND creator NOT IN (SELECT id FROM users)"
         ))
-        # Add foreign key constraint
         with op.batch_alter_table("projects") as batch_op:
             batch_op.create_foreign_key("fk_projects_creator_users", "users", ["creator"], ["id"])
     except Exception as e:

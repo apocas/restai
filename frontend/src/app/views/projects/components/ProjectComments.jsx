@@ -80,7 +80,6 @@ export default function ProjectComments({ project }) {
       subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · THREAD`}
     >
     <Grid container spacing={3}>
-      {/* Post new comment */}
       <Grid item xs={12}>
         <Card elevation={1} sx={{ p: 2.5 }}>
           <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>

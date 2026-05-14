@@ -122,7 +122,6 @@ export default function ModelFleet({ llms = [] }) {
           return (
             <ModelCard key={llm.name} accent={prov.color}>
               <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, mb: 1.25 }}>
-                {/* Provider avatar square */}
                 <Box
                   sx={{
                     width: 40,

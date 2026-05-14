@@ -143,12 +143,10 @@ def build_redis_url():
     db = f"/{raw_db}" if raw_db and raw_db != "0" else ""
     return f"redis://{auth}{host}:{port}{db}"
 
-# Vector-DB connection settings live in the `settings` table now and are
-# resolved per-access through `__getattr__` below. Consumers must use
-# `import restai.config as _cfg` + `_cfg.X` to get the live DB value;
-# `from restai.config import CHROMADB_HOST` would capture whatever the
-# DB held at import time and never refresh. See `_GUI_SETTING_ATTRS`
-# entries `vectordb_*` and the rationale in CLAUDE.md.
+# Vector-DB and LDAP settings live in the `settings` table — see
+# `_GUI_SETTING_ATTRS` below. Consumers MUST use `import restai.config
+# as _cfg` + `_cfg.X` (a `from restai.config import X` would freeze
+# the value at import time and break multi-worker config refreshes).
 
 def detect_gpu():
     """Auto-detect GPU availability via nvidia-smi."""
@@ -172,7 +170,6 @@ def detect_gpu_info():
     """
     import subprocess
 
-    # First get CUDA version from nvidia-smi header
     cuda_version = ""
     try:
         header = subprocess.run(
@@ -231,11 +228,6 @@ def detect_gpu_info():
         gpus.append(gpu)
     return gpus
 
-# RESTAI_DEFAULT_DEVICE moved to GUI settings (`_GUI_SETTING_ATTRS`
-# below, db_key `gpu_default_device`). Image / audio workers read it
-# via `import restai.config as _cfg` + `_cfg.RESTAI_DEFAULT_DEVICE` so
-# admin changes in /admin/gpu apply on the next worker spin-up.
-
 EMBEDDINGS_PATH = os.environ.get("EMBEDDINGS_PATH")
 
 # Database connection pool settings
@@ -246,12 +238,6 @@ DB_POOL_RECYCLE = int(os.environ.get("DB_POOL_RECYCLE") or 100)
 
 MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE_MB") or 100) * 1024 * 1024  # Default 100MB
 
-# LDAP settings live in the GUI settings table now. `config.LDAP_*`
-# routes through `__getattr__` below, which reads the DB per-access so
-# admins can change them without restarting. The bind password is
-# encrypted at rest via `SETTINGS_ENCRYPTED_KEYS`. See `_GUI_SETTING_ATTRS`
-# entries `ldap_*` and `restai/routers/users.py:ldap_auth`.
-
 OAUTH_PROVIDERS = {}
 
 SESSION_COOKIE_SAME_SITE = os.environ.get("SESSION_COOKIE_SAME_SITE", "lax")
@@ -261,9 +247,7 @@ SESSION_COOKIE_SECURE = (
 SSO_SECRET_KEY = os.environ.get("SSO_SECRET_KEY", os.environ.get("SECRET_KEY"))
 
 
-# ---------------------------------------------------------------------------
 # GUI-managed settings — DB-backed, read on every access via __getattr__
-# ---------------------------------------------------------------------------
 #
 # Mapping shape: <module attr name> -> (db_key, type_, default).
 # type_ is one of: str, bool, int, "csv-list".
@@ -308,10 +292,7 @@ _GUI_SETTING_ATTRS = {
     "OAUTH_EMAIL_CLAIM": ("sso_oidc_email_claim", str, "email"),
     "RESTAI_GPU": ("gpu_enabled", bool, None),  # None sentinel => auto-detect
     "GPU_WORKER_DEVICES": ("gpu_worker_devices", str, ""),
-    # `RESTAI_DEFAULT_DEVICE` is NOT a separate GUI setting — it's
-    # derived from `gpu_worker_devices` in `__getattr__` below (first
-    # index in the worker pool, formatted "cuda:N", or "cuda:0" when
-    # the pool is empty/all-available).
+    # RESTAI_DEFAULT_DEVICE is derived from gpu_worker_devices — see __getattr__.
     "RESTAI_MCP": ("mcp_enabled", bool, False),
     "SYSTEM_LLM": ("system_llm", str, ""),
     "DOCKER_ENABLED": ("docker_enabled", bool, False),
@@ -324,18 +305,12 @@ _GUI_SETTING_ATTRS = {
     "BROWSER_IMAGE": ("browser_image", str, "mcr.microsoft.com/playwright/python:v1.48.0-jammy"),
     "BROWSER_NETWORK": ("browser_network", str, "bridge"),
     "BROWSER_TIMEOUT": ("browser_timeout", int, 900),
-    # App Builder runtime — per-project PHP+TS preview container. Defaults
-    # to the bundled image (`docker build -t restai/app-runtime:2
-    # docker/app-runtime`). Idle eviction is by `app_last_activity`, NOT
-    # raw container age — active edits should keep the container alive.
     "APP_DOCKER_ENABLED": ("app_docker_enabled", bool, False),
     "APP_DOCKER_IMAGE": ("app_docker_image", str, "restai/app-runtime:2"),
     "APP_DOCKER_IDLE_TIMEOUT": ("app_docker_idle_timeout", int, 1800),
     "DATA_RETENTION_DAYS": ("data_retention_days", int, 0),
     "ENFORCE_2FA": ("enforce_2fa", bool, False),
-    # Vector DB backends. ChromaDB is on by default (local PersistentClient
-    # if host is empty). The other three are off until an admin fills the
-    # connection fields and flips the toggle in the VectorDBs settings tab.
+    # ChromaDB is on by default (local PersistentClient when host is empty).
     "CHROMADB_ENABLED": ("vectordb_chromadb_enabled", bool, True),
     "CHROMADB_HOST": ("vectordb_chromadb_host", str, ""),
     "CHROMADB_PORT": ("vectordb_chromadb_port", str, ""),
@@ -353,9 +328,6 @@ _GUI_SETTING_ATTRS = {
     "PINECONE_ENABLED": ("vectordb_pinecone_enabled", bool, False),
     "PINECONE_API_KEY": ("vectordb_pinecone_api_key", str, ""),
     "PINECONE_INDEX": ("vectordb_pinecone_index", str, ""),
-    # LDAP — flipped on with `ldap_enabled`, exposes `/ldap` POST as a
-    # login path. The bind password is the only encrypted-at-rest field;
-    # everything else (DNs, search base, filters) is non-secret.
     "ENABLE_LDAP": ("ldap_enabled", bool, False),
     "LDAP_SERVER_HOST": ("ldap_server_host", str, ""),
     "LDAP_SERVER_PORT": ("ldap_server_port", str, ""),
@@ -368,9 +340,7 @@ _GUI_SETTING_ATTRS = {
     "LDAP_USE_TLS": ("ldap_use_tls", bool, False),
     "LDAP_CA_CERT_FILE": ("ldap_ca_cert_file", str, ""),
     "LDAP_CIPHERS": ("ldap_ciphers", str, ""),
-    # SMTP — platform-level email defaults. Per-team overrides live in
-    # `teams.options` and are resolved by `restai.utils.email.send_email`.
-    # A team that doesn't fill its SMTP fields falls through to these.
+    # Platform SMTP defaults; teams override via team.options.
     "SMTP_HOST": ("smtp_host", str, ""),
     "SMTP_PORT": ("smtp_port", str, "587"),
     "SMTP_USER": ("smtp_user", str, ""),
@@ -397,8 +367,7 @@ def _coerce_setting(raw: str, type_, default):
 
 
 def _read_setting(db_key: str) -> str:
-    """One-shot DB read for a single settings row. Returns "" on any
-    failure (early bootstrap before the schema exists, etc.)."""
+    """Returns "" on any failure (early bootstrap before schema)."""
     try:
         from restai.database import DBWrapper
         wrapper = DBWrapper()
@@ -411,22 +380,10 @@ def _read_setting(db_key: str) -> str:
 
 
 def __getattr__(name):
-    """Read GUI-managed settings from the DB on demand.
-
-    Module-level __getattr__ fires only when an attribute is NOT defined on the
-    module. Boot-only env vars are bound at import time above and don't go
-    through here. Anything in `_GUI_SETTING_ATTRS` is resolved per-access from
-    the `settings` table, so multi-worker uvicorn deployments see the live
-    value without any in-process mirroring.
-
-    DB failures (e.g. very early bootstrap before the schema exists) fall back
-    to the declared default; for RESTAI_GPU the fallback is `detect_gpu()`.
-    """
-    # Derived attribute: pick the first GPU index from
-    # `gpu_worker_devices` (CSV) and format as a torch device string.
-    # Lets workers do `_cfg.RESTAI_DEFAULT_DEVICE` without us carrying
-    # a redundant "default device" GUI setting that would inevitably
-    # drift from the worker pool config.
+    """Resolve GUI-managed settings from the DB per-access. Multi-worker
+    safe — no in-process mirror. Boot-only env vars (defined as module
+    constants above) bypass this. RESTAI_GPU falls back to detect_gpu()."""
+    # Derived from gpu_worker_devices (first index → "cuda:N").
     if name == "RESTAI_DEFAULT_DEVICE":
         devices = _coerce_setting(_read_setting("gpu_worker_devices"), "csv-list", [])
         if devices:

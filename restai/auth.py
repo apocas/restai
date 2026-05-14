@@ -181,7 +181,6 @@ def get_current_username_project(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     if not user.has_project_access(projectID):
-        # Team admin: can access all projects in their administered teams
         if user.admin_teams:
             project_db = db_wrapper.get_project_by_id(projectID)
             if not (project_db and project_db.team_id and
@@ -200,7 +199,6 @@ def check_not_read_only(user: User):
         raise HTTPException(status_code=403, detail="This API key is read-only and cannot perform write operations")
 
 
-# ─── MCP transport gating ───────────────────────────────────────────────
 # MCP supports two transport modes:
 #
 #   - Network transports (`http://`, `https://`, `sse://`) — the
@@ -271,7 +269,6 @@ def get_widget_from_request(request: Request, db_wrapper):
     if not widget.enabled:
         raise HTTPException(status_code=403, detail="Widget is disabled")
 
-    # Block widgets owned by restricted users
     creator = db_wrapper.get_user_by_id(widget.creator_id)
     if creator is not None and getattr(creator, "is_restricted", False) and not getattr(creator, "is_admin", False):
         raise HTTPException(status_code=403, detail="Widget owner is restricted")
@@ -322,7 +319,6 @@ def get_current_username_project_public(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     has_access = user.has_project_access(projectID)
-    # Team admin access
     if not has_access and user.admin_teams:
         p = db_wrapper.get_project_by_id(projectID)
         if p and p.team_id and any(t.id == p.team_id for t in user.admin_teams):
@@ -375,10 +371,9 @@ def get_current_username_team_admin(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Check if user is an admin for the specified team or a platform admin"""
-    if user.is_admin:  # Platform admins can manage any team
+    if user.is_admin:
         return user
 
-    # Check if user is a team admin for this team
     is_team_admin = False
     team = db_wrapper.get_team_by_id(team_id)
 
@@ -477,10 +472,9 @@ def get_current_username_team_member(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Check if user is a member of the specified team (admin or normal member)"""
-    if user.is_admin:  # Platform admins can access any team
+    if user.is_admin:
         return user
 
-    # Check if user is a team member
     team = db_wrapper.get_team_by_id(team_id)
 
     if team is None:
@@ -488,7 +482,6 @@ def get_current_username_team_member(
 
     is_team_member = False
 
-    # Check if user is an admin or member
     for team_user in team.users + team.admins:
         if team_user.id == user.id:
             is_team_member = True

@@ -68,7 +68,6 @@ class BlockInterpreter:
         # Procedure registry: name -> {"block": def_block, "params": [{"id": ..., "name": ...}], "has_return": bool}
         self.procedures: dict[str, dict] = {}
         # Frame stack for procedure-local variables. The top frame is checked
-        # first by variables_get / variables_set before falling through to
         # self.variables (globals).
         self._scope_stack: list[dict] = []
 
@@ -95,20 +94,16 @@ class BlockInterpreter:
         }
 
         self._value_handlers = {
-            # --- Literals ---
             "text": lambda b: b.get("fields", {}).get("TEXT", ""),
             "math_number": lambda b: b.get("fields", {}).get("NUM", 0),
             "logic_boolean": lambda b: b.get("fields", {}).get("BOOL", "TRUE") == "TRUE",
             "logic_null": lambda b: None,
             "math_constant": self._eval_math_constant,
-            # --- Variables ---
             "variables_get": self._eval_variables_get,
-            # --- Logic ---
             "logic_compare": self._eval_logic_compare,
             "logic_operation": self._eval_logic_operation,
             "logic_negate": self._eval_logic_negate,
             "logic_ternary": self._eval_logic_ternary,
-            # --- Math ---
             "math_arithmetic": self._eval_math_arithmetic,
             "math_single": self._eval_math_single,
             "math_trig": self._eval_math_trig,
@@ -120,7 +115,6 @@ class BlockInterpreter:
             "math_random_int": self._eval_math_random_int,
             "math_random_float": self._eval_math_random_float,
             "math_atan2": self._eval_math_atan2,
-            # --- Text ---
             "text_join": self._eval_text_join,
             "text_length": self._eval_text_length,
             "text_isEmpty": self._eval_text_isEmpty,
@@ -133,7 +127,6 @@ class BlockInterpreter:
             "text_count": self._eval_text_count,
             "text_replace": self._eval_text_replace,
             "text_reverse": self._eval_text_reverse,
-            # --- Lists ---
             "lists_create_with": self._eval_lists_create_with,
             "lists_create_empty": lambda b: [],
             "lists_repeat": self._eval_lists_repeat,
@@ -145,9 +138,7 @@ class BlockInterpreter:
             "lists_split": self._eval_lists_split,
             "lists_sort": self._eval_lists_sort,
             "lists_reverse": self._eval_lists_reverse,
-            # --- Procedures ---
             "procedures_callreturn": self._eval_procedures_callreturn,
-            # --- RESTai custom ---
             "restai_get_input": lambda b: self.input_text,
             "restai_call_project": self._eval_call_project,
             "restai_classifier": self._eval_classifier,
@@ -161,9 +152,7 @@ class BlockInterpreter:
                 detail="Block execution exceeded maximum iterations.",
             )
 
-    # ------------------------------------------------------------------
     # Variable scope helpers
-    # ------------------------------------------------------------------
 
     def _get_var(self, var_id: str) -> Any:
         """Look up a variable: top procedure frame first, then globals."""
@@ -183,9 +172,7 @@ class BlockInterpreter:
                 return
         self.variables[var_id] = value
 
-    # ------------------------------------------------------------------
     # Procedure registration
-    # ------------------------------------------------------------------
 
     def _register_procedures(self):
         """Scan top-level + next-chained blocks, register every procedure def
@@ -237,9 +224,7 @@ class BlockInterpreter:
                 pass
         return self.output_text
 
-    # ------------------------------------------------------------------
     # Statement execution
-    # ------------------------------------------------------------------
 
     async def _exec_statement(self, block: dict):
         self._tick()
@@ -452,9 +437,7 @@ class BlockInterpreter:
             val = await self._eval_input(block, "VALUE")
             raise _BlockReturn(val)
 
-    # ------------------------------------------------------------------
     # Value evaluation
-    # ------------------------------------------------------------------
 
     async def _eval_input(self, block: dict, input_name: str) -> Any:
         inp = block.get("inputs", {}).get(input_name)
@@ -481,17 +464,13 @@ class BlockInterpreter:
             result = await result
         return result
 
-    # ------------------------------------------------------------------
     # Variables
-    # ------------------------------------------------------------------
 
     def _eval_variables_get(self, block: dict) -> Any:
         var_id = block.get("fields", {}).get("VAR", {}).get("id", "")
         return self._get_var(var_id)
 
-    # ------------------------------------------------------------------
     # Text helpers (existing + new)
-    # ------------------------------------------------------------------
 
     async def _eval_text_join(self, block: dict) -> str:
         items = block.get("extraState", {}).get("itemCount", 0)
@@ -616,9 +595,7 @@ class BlockInterpreter:
         s = str(val) if val is not None else ""
         return s[::-1]
 
-    # ------------------------------------------------------------------
     # Math helpers (existing + new)
-    # ------------------------------------------------------------------
 
     async def _eval_math_arithmetic(self, block: dict):
         a = await self._eval_input(block, "A")
@@ -838,9 +815,7 @@ class BlockInterpreter:
             return 0
         return math.degrees(math.atan2(y, x))
 
-    # ------------------------------------------------------------------
     # Logic helpers (existing + new)
-    # ------------------------------------------------------------------
 
     async def _eval_logic_compare(self, block: dict):
         a = await self._eval_input(block, "A")
@@ -888,9 +863,7 @@ class BlockInterpreter:
             return await self._eval_input(block, "THEN")
         return await self._eval_input(block, "ELSE")
 
-    # ------------------------------------------------------------------
     # List helpers
-    # ------------------------------------------------------------------
 
     async def _eval_lists_create_with(self, block: dict) -> list:
         count = block.get("extraState", {}).get("itemCount", 0)
@@ -1023,9 +996,7 @@ class BlockInterpreter:
             return []
         return list(reversed(lst))
 
-    # ------------------------------------------------------------------
     # Sequence index resolution (1-based Blockly semantics → 0-based Python)
-    # ------------------------------------------------------------------
 
     def _resolve_list_index(self, length: int, where: str, at_val, for_insert: bool = False):
         """Return a 0-based Python index matching Blockly's semantics.
@@ -1078,9 +1049,7 @@ class BlockInterpreter:
             return (length - at) if not end else (length - at + 1)
         return None
 
-    # ------------------------------------------------------------------
     # Procedures
-    # ------------------------------------------------------------------
 
     async def _invoke_procedure(self, call_block: dict, want_return: bool):
         extra = call_block.get("extraState", {}) or {}
@@ -1118,9 +1087,7 @@ class BlockInterpreter:
     async def _eval_procedures_callreturn(self, block: dict):
         return await self._invoke_procedure(block, want_return=True)
 
-    # ------------------------------------------------------------------
     # RESTai custom blocks
-    # ------------------------------------------------------------------
 
     async def _eval_call_project(self, block: dict) -> str:
         project_name = block.get("fields", {}).get("PROJECT_NAME", "")

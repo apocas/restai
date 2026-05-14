@@ -18,7 +18,6 @@ function projectDropdownGenerator() {
 }
 
 export function registerCustomBlocks() {
-  // --- restai_get_input ---
   Blockly.Blocks["restai_get_input"] = {
     init: function () {
       this.appendDummyInput().appendField("Get Input");
@@ -28,7 +27,6 @@ export function registerCustomBlocks() {
     },
   };
 
-  // --- restai_set_output ---
   Blockly.Blocks["restai_set_output"] = {
     init: function () {
       this.appendValueInput("VALUE")
@@ -41,7 +39,6 @@ export function registerCustomBlocks() {
     },
   };
 
-  // --- restai_call_project ---
   Blockly.Blocks["restai_call_project"] = {
     init: function () {
       this.appendValueInput("TEXT")
@@ -65,7 +62,6 @@ export function registerCustomBlocks() {
     },
   };
 
-  // --- restai_log ---
   Blockly.Blocks["restai_log"] = {
     init: function () {
       this.appendValueInput("TEXT").setCheck("String").appendField("Log");
@@ -76,7 +72,6 @@ export function registerCustomBlocks() {
     },
   };
 
-  // --- restai_classifier ---
   Blockly.Blocks["restai_classifier"] = {
     init: function () {
       this.appendValueInput("TEXT")
@@ -102,7 +97,6 @@ export function registerCustomBlocks() {
     },
   };
 
-  // --- text_contains ---
   Blockly.Blocks["text_contains"] = {
     init: function () {
       this.appendValueInput("VALUE")

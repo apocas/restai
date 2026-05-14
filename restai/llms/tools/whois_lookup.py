@@ -12,7 +12,6 @@ def whois_lookup(domain: str) -> str:
         from urllib.parse import urlparse
         domain = urlparse(domain).hostname or domain
 
-    # Determine WHOIS server
     tld = domain.rsplit(".", 1)[-1] if "." in domain else ""
     whois_servers = {
         "com": "whois.verisign-grs.com",
@@ -52,7 +51,6 @@ def whois_lookup(domain: str) -> str:
 
         raw = response.decode("utf-8", errors="replace")
 
-        # Extract key fields
         lines = []
         seen_keys = set()
         for line in raw.splitlines():
@@ -73,7 +71,6 @@ def whois_lookup(domain: str) -> str:
                     break
 
         if not lines:
-            # Return first 20 non-empty lines as fallback
             fallback = [l.strip() for l in raw.splitlines() if l.strip() and not l.strip().startswith(("%", "#", ">>>"))]
             return "\n".join(fallback[:20]) if fallback else f"No WHOIS data found for {domain}"
 

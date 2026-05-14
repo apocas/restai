@@ -190,7 +190,6 @@ export default function AIHero({ summary, dailyTokens, modelsCount }) {
           {t("dashboard.hero.subtitle")}
         </Typography>
 
-        {/* Live status row */}
         <Box sx={{ mt: 3, display: "flex", flexWrap: "wrap", gap: 1.25 }}>
           <StatChip>
             <StatusDot />

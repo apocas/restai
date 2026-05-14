@@ -68,7 +68,6 @@ class Block(ProjectBase):
         result = await interpreter.execute()
         output["answer"] = result or ""
 
-        # Save assistant response to session
         session.messages.append(
             Message(role="assistant", content=[TextBlock(text=output["answer"])])
         )

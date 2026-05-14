@@ -238,7 +238,6 @@ export default function UserNewView() {
                 />
               </Grid>
 
-              {/* Strength meter */}
               {pwd && (
                 <Grid item xs={12}>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1.5 }}>

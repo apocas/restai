@@ -122,7 +122,6 @@ export default function OnboardingChecklist() {
           : `linear-gradient(135deg, ${alpha(primary, 0.05)} 0%, #ffffff 70%)`,
       }}
     >
-      {/* Decorative blur orbs */}
       <Box
         aria-hidden
         sx={{
@@ -150,7 +149,6 @@ export default function OnboardingChecklist() {
         }}
       />
 
-      {/* Header */}
       <Box sx={{ p: 3, pb: 2.5, display: "flex", alignItems: "center", gap: 2, position: "relative" }}>
         <Box
           sx={{
@@ -189,7 +187,6 @@ export default function OnboardingChecklist() {
         </Tooltip>
       </Box>
 
-      {/* Progress bar */}
       <Box sx={{ px: 3, position: "relative" }}>
         <LinearProgress
           variant="determinate"
@@ -300,7 +297,6 @@ export default function OnboardingChecklist() {
                 <StepIcon fontSize="small" />
               </Box>
 
-              {/* Text */}
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography
                   variant="body1"

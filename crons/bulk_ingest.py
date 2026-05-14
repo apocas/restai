@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
-"""Bulk ingest runner.
+"""Bulk ingest runner. Drains queued bulk_ingest_jobs.
 
-Picks up every ``queued`` row in ``bulk_ingest_jobs``, dispatches the
-file to the same ingestion pipeline the synchronous endpoint uses
-(auto_ingest → docling → classic fallback), and flips status to
-``done`` or ``error``. Tempfile is deleted in either case so the
-staging dir doesn't grow unbounded.
-
-Locks per-row at the DB level: we claim a row by flipping it from
-``queued`` to ``processing`` in a single update, so two concurrent
-runners (unlikely under the flock-based cron runner but possible if
-the user runs this manually alongside the cron) can't process the
-same job twice.
+Per-row claim (queued → processing in one txn) so concurrent runners
+can't pick up the same job — flock cron usually prevents overlap, but
+manual invocation alongside the cron can race.
 """
 from __future__ import annotations
 
@@ -32,8 +24,7 @@ def main():
 
     ensure_settings_table(db_engine)
 
-    # Auto-create the new table when running against a pre-migration
-    # DB — mirrors the lifespan pattern in main.py.
+    # Auto-create on pre-migration DBs (mirrors lifespan pattern in main.py).
     try:
         BulkIngestJobDatabase.__table__.create(db_engine, checkfirst=True)
     except Exception:
@@ -47,8 +38,7 @@ def main():
         while True:
             db = open_db_wrapper()
             try:
-                # Claim one job atomically: SELECT + UPDATE in a single
-                # transaction. Loop so we drain the queue each tick.
+                # Claim one job atomically (SELECT + UPDATE in one txn); loop drains queue.
                 job = (
                     db.db.query(BulkIngestJobDatabase)
                     .filter(BulkIngestJobDatabase.status == "queued")
@@ -71,8 +61,6 @@ def main():
                 logger.exception("Failed to claim next job: %s", e)
                 break
             finally:
-                # Keep the session alive until we're done with the job —
-                # we reload via job_id below.
                 pass
 
             logger.info(f"Processing job {job_id}: {filename} (project={project_id}, method={method})")
@@ -144,9 +132,7 @@ def main():
                 logger.exception("Job %d failed: %s", job_id, e)
                 err_msg = str(e)[:1000]
 
-            # Re-open the session and update the row with the final
-            # status. Using a fresh session avoids stale-state issues
-            # after long-running ingestion.
+            # Fresh session for finalization — avoids stale state after long ingest.
             db2 = open_db_wrapper()
             try:
                 j = db2.db.query(BulkIngestJobDatabase).filter(BulkIngestJobDatabase.id == job_id).first()
@@ -164,9 +150,6 @@ def main():
             finally:
                 db2.db.close()
 
-            # Clean up the staged file regardless of outcome — failed
-            # jobs can be resubmitted by the admin, no point keeping
-            # broken bytes around.
             try:
                 os.unlink(file_path)
             except OSError:

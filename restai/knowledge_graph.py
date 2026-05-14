@@ -145,7 +145,6 @@ def extract_and_persist(project_id: int, source: str, text: str, brain, db) -> i
             ))
 
     # Co-occurrence edges: for every pair of distinct entities in this source,
-    # increment the edge weight (or create the edge).
     ids_in_source = sorted(entity_ids.values())
     for i, a in enumerate(ids_in_source):
         for b in ids_in_source[i + 1:]:

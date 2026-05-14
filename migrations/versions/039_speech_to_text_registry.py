@@ -1,18 +1,8 @@
 """Speech-to-text model registry.
 
-New `speech_to_text` table managed via the dedicated admin page. Local
-workers (auto-seeded from `restai/audio/workers/*.py`) sit alongside
-external providers (OpenAI Whisper, Google STT, Deepgram, AssemblyAI),
-each with its own encrypted credentials in `options`.
-
-The legacy `Audio Gen` menu entry is removed in this same release; team
-grants in `teams_audio_generators` continue to work unchanged (still
-keyed by the generator's `name`).
-
-MySQL-safety notes (see 035 for the full story):
-- TEXT columns drop `server_default` — MySQL rejects defaults on
-  TEXT/BLOB. `options` is set explicitly by the application on insert.
-- The broad try/except around `create_table` was removed.
+MySQL-safety notes (see 035):
+- No `server_default` on TEXT (`options`) — pre-8.0.13 MySQL rejects them.
+- No broad try/except around create_table — silent failures advance alembic_version with no table.
 """
 import sqlalchemy as sa
 from alembic import op

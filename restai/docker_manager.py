@@ -31,23 +31,11 @@ class DockerManager:
                  read_only: bool = True):
         import docker as docker_sdk
         self._client = docker_sdk.DockerClient(base_url=docker_url)
-        # NOTE: image/timeout/network/read_only are intentionally NOT
-        # cached as instance state. They're GUI-managed and read live
-        # from `restai.config` on every container spawn (see the
-        # `_image` / `_timeout` / `_network_mode` / `_read_only`
-        # @property accessors below).
-        #
-        # Why: `Brain.init_docker_manager()` reinits the manager only
-        # in the worker that handled the PATCH, so under uvicorn's
-        # multi-worker model the other workers would otherwise keep
-        # the boot-time values forever — exactly the multi-worker
-        # drift CLAUDE.md flags for `_CONFIG_ATTR_MAP`. The constructor
-        # args are still accepted for API compat but ignored after the
-        # initial connectivity check.
+        # image/timeout/network/read_only are NOT cached — they're
+        # read live via @property below so admin PATCHes propagate
+        # across all uvicorn workers without restart. Constructor args
+        # only feed the fallback used before the settings table exists.
         self._docker_url = docker_url
-        # Fallbacks used when `restai.config` can't be read (very early
-        # bootstrap before settings table exists). Mirror the
-        # `_GUI_SETTING_ATTRS` defaults.
         self._fallback_image = docker_image
         self._fallback_timeout = container_timeout
         self._fallback_network = network_mode
@@ -75,14 +63,6 @@ class DockerManager:
         except Exception as e:
             logger.error("Docker manager failed to connect to %s: %s", docker_url, e)
             raise
-
-    # ─── Live GUI-setting accessors ──────────────────────────────────
-    # Read on every container spawn so admin changes in /admin/settings
-    # take effect across all uvicorn workers without restart. `_cfg.X`
-    # routes through `restai.config.__getattr__` which queries the DB.
-    # If the read fails (very early bootstrap), fall back to the value
-    # the manager was constructed with — that path can only execute
-    # before the settings table exists.
 
     @property
     def _image(self) -> str:
@@ -113,10 +93,7 @@ class DockerManager:
         try:
             import restai.config as _cfg
             val = getattr(_cfg, "DOCKER_READ_ONLY", None)
-            # `_GUI_SETTING_ATTRS` returns the bool default (True) when
-            # the row is missing; an explicit False from the GUI means
-            # "let pip install work" and must NOT be coerced back to
-            # True by the `or` fallback below.
+            # `or` would coerce an explicit False back to the True default.
             if isinstance(val, bool):
                 return val
             return self._fallback_read_only
@@ -136,7 +113,6 @@ class DockerManager:
 
         container = self._get_or_create_container(chat_id)
 
-        # Update last activity (label on the container for the cron script)
         with self._lock:
             info = self._containers.get(chat_id)
             if info:

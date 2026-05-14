@@ -124,7 +124,6 @@ export default function MessageBubble({ message, onBranch }) {
               />
             )}
 
-            {/* Inline thumbnails for attached images */}
             {message._files && message._files.some((f) => f.isImage && f.dataUrl) && (
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: message.question ? 1 : 0 }}>
                 {message._files.filter((f) => f.isImage && f.dataUrl).map((f, i) => (
@@ -353,18 +352,9 @@ export default function MessageBubble({ message, onBranch }) {
                   {answerText}
                 </ReactMarkdown>
               </Typography>
-              {/* Live tool-call panel — populated by SSE
-                  `tool_call_started` / `tool_call_completed` events
-                  during streaming. Auto-expands so the user can watch
-                  the agent work in real-time. Reuses the persisted
-                  `Terminal` renderer (same green-on-black look) by
-                  mapping each in-flight call into a synthetic
-                  reasoning.steps[].actions[] entry; running tools
-                  show "…running…" as the output placeholder until
-                  the matching completion event lands.
-
-                  Disappears on stream close — the persisted
-                  `toolSteps` accordion below takes over. */}
+              {/* Live tool-call panel during streaming. Disappears on
+                  stream close — the persisted toolSteps accordion
+                  below takes over. */}
               {Array.isArray(message.live_tool_calls) && message.live_tool_calls.length > 0 && (
                 <Accordion
                   disableGutters
@@ -390,11 +380,6 @@ export default function MessageBubble({ message, onBranch }) {
                       message={{
                         reasoning: {
                           steps: message.live_tool_calls.map((call) => {
-                            // `args` arrives JSON-stringified from the
-                            // backend (input_preview, capped at 500
-                            // chars). Try to parse so Terminal renders
-                            // it as a clean object; fall back to the
-                            // raw string if it's truncated/invalid.
                             let parsedArgs;
                             try {
                               parsedArgs = call.args ? JSON.parse(call.args) : {};
@@ -418,9 +403,6 @@ export default function MessageBubble({ message, onBranch }) {
                 </Accordion>
               )}
 
-              {/* Tool calls — separate accordion from thinking. Reuses
-                  the existing terminal renderer with a filtered view of
-                  reasoning.steps (action !== "reasoning"). */}
               {toolSteps.length > 0 && (
                 <Accordion
                   disableGutters
@@ -516,7 +498,6 @@ export default function MessageBubble({ message, onBranch }) {
         );
       })()}
 
-      {/* Loading state */}
       {message.answer === null && (
         <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
           <AnswerBubble>

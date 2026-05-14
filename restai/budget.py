@@ -14,9 +14,7 @@ def check_budget(project: Project, db: DBWrapper):
     if team is not None and team.budget >= 0:
         team_spending = db.get_team_spending(team.id)
         if team.budget - team_spending <= 0:
-            # Fire a webhook before we raise so external systems can
-            # react (page oncall, top up the budget, etc.). Best-effort —
-            # webhook failures must never mask the 402.
+            # Best-effort webhook — failures must never mask the 402.
             try:
                 from restai.webhooks import emit_event
                 opts = getattr(getattr(project, "props", None), "options", None)
@@ -83,8 +81,7 @@ def check_api_key_quota(user, db: DBWrapper):
         db.db.commit()
 
     if (key.tokens_used_this_month or 0) >= key.token_quota_monthly:
-        # Use 429 (same code as rate limit) with a clear detail; receivers
-        # don't need to distinguish between "too fast" and "too much".
+        # 429 (same as rate limit); detail string disambiguates.
         raise HTTPException(
             status_code=429,
             detail=(

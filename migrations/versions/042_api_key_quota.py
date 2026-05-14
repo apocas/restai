@@ -1,14 +1,4 @@
-"""Per-API-key monthly token quotas.
-
-Adds three columns to ``api_keys``:
-* ``token_quota_monthly`` (nullable int) — monthly cap; NULL = unlimited
-* ``tokens_used_this_month`` (int, default 0) — rolling counter
-* ``quota_reset_at`` (nullable datetime) — first-of-next-month rollover
-
-Lets an SMB mint one key per customer and isolate quota per customer.
-Enforced by ``check_api_key_quota`` in ``restai/budget.py`` alongside
-the existing project rate limit + team budget checks.
-"""
+"""Per-API-key monthly token quotas (token_quota_monthly NULL = unlimited)."""
 import sqlalchemy as sa
 from alembic import op
 

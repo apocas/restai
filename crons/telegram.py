@@ -205,8 +205,7 @@ async def _process_message(brain, db, project_id, text, chat_id):
     user = User.model_validate(user_db)
 
     background_tasks = BackgroundTasks()
-    # chat_main signature: (request, brain, project, chat_input, user, db, background_tasks).
-    # The Request slot is `_` (unused) inside chat_main, so None is fine.
+    # chat_main's request arg is unused inside; None is safe here.
     result = await chat_main(None, brain, project, chat_input, user, db, background_tasks)
     await background_tasks()
 

@@ -13,7 +13,6 @@ import LockIcon from "@mui/icons-material/Lock";
 import useAuth from "app/hooks/useAuth";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 
-// --- Animations ---
 const aurora = keyframes`
   0% { background-position: 0% 50%; transform: rotate(0deg); }
   25% { background-position: 50% 100%; }
@@ -70,7 +69,6 @@ const lineGlow = keyframes`
   100% { opacity: 0; width: 0; }
 `;
 
-// --- Styled Components ---
 const Root = styled("div")({
   minHeight: "100vh",
   display: "flex",
@@ -328,7 +326,6 @@ export default function JwtLogin() {
 
   return (
     <Root>
-      {/* Subtle grid overlay */}
       <GridOverlay />
 
       {/* Floating orbs — deeper, more cinematic */}
@@ -338,7 +335,6 @@ export default function JwtLogin() {
       <Orb color="rgba(14, 165, 233, 0.025)" size={350} top="70%" left="15%" anim={1} />
 
       <GlassCard shaking={shaking}>
-        {/* Logo */}
         <Box sx={{ textAlign: "center", mb: 3 }}>
           <Box
             component="img"
@@ -367,7 +363,6 @@ export default function JwtLogin() {
           </Typography>
         </Box>
 
-        {/* Error */}
         <Collapse in={!!error}>
           <Alert
             severity="error"

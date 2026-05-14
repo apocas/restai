@@ -268,7 +268,6 @@ export default function SettingsPage() {
           {/* ===== GENERAL TAB ===== */}
           {active === "general" && (
             <Grid container spacing={3}>
-              {/* App */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.platform")}</Typography>
@@ -341,7 +340,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* Limits */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.limits")}</Typography>
@@ -359,7 +357,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* Redis */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.redis")}</Typography>
@@ -395,7 +392,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* Docker */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>{t("settings.sections.docker")}</Typography>
@@ -567,9 +563,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* Telemetry — informational, lives in General because it
-                  describes platform-wide opt-out behavior, not a
-                  notification channel or auth provider. */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>{t("settings.sections.telemetry")}</Typography>
@@ -590,7 +583,6 @@ export default function SettingsPage() {
           {/* ===== VECTORDBS TAB ===== */}
           {active === "vectordbs" && (
             <Grid container spacing={3}>
-              {/* Header note */}
               <Grid item xs={12}>
                 <Typography variant="body2" color="text.secondary">
                   {t("settings.helpers.vectordbsIntro")}
@@ -663,7 +655,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* Weaviate */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.weaviate")}</Typography>
@@ -698,7 +689,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* Pinecone */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.pinecone")}</Typography>
@@ -776,7 +766,6 @@ export default function SettingsPage() {
           {/* ===== AUTHENTICATION TAB ===== */}
           {active === "authentication" && (
             <Grid container spacing={3}>
-              {/* Core auth settings */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.localAuth")}</Typography>
@@ -848,7 +837,7 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* LDAP — collapsible, mirrors the SSO provider cards */}
+              {/* LDAP */}
               <Grid item xs={12}>
                 <Card elevation={1} ref={sectionRefs.ldap}>
                   <CollapsibleCardHeader icon={Security} title={t("settings.sections.ldap")} section="ldap" />

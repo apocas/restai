@@ -408,7 +408,6 @@ export default function CronLogs() {
             }}
           />
 
-          {/* Status tally */}
           <Box sx={{ display: "flex", gap: 0.75 }}>
             <StatusSummary icon={CheckCircleIcon} count={tally.success} color="#10b981" label={`${tally.success} success`} />
             <StatusSummary icon={WarningIcon}     count={tally.warning} color="#f59e0b" label={`${tally.warning} warning`} />
@@ -483,7 +482,6 @@ export default function CronLogs() {
           </Tooltip>
         </Box>
 
-        {/* Table */}
         <Table size="small">
           <TableHead>
             <TableRow sx={{ "& th": { backgroundColor: "rgba(15,23,42,0.02)", fontWeight: 600 } }}>

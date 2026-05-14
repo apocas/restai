@@ -330,7 +330,6 @@ export default function AuditLog() {
       />
 
       <TileCard elevation={0} accent={ACCENT}>
-        {/* Toolbar */}
         <Box
           sx={{
             display: "flex",
@@ -402,7 +401,6 @@ export default function AuditLog() {
           </TextField>
         </Box>
 
-        {/* Table */}
         <Table size="small">
           <TableHead>
             <TableRow sx={{ "& th": { backgroundColor: "rgba(15,23,42,0.02)", fontWeight: 600 } }}>
@@ -533,7 +531,6 @@ export default function AuditLog() {
                       )}
                     </TableCell>
 
-                    {/* Action verb */}
                     <TableCell>
                       <VerbPill action={e.action} />
                     </TableCell>
@@ -564,7 +561,6 @@ export default function AuditLog() {
                       </Tooltip>
                     </TableCell>
 
-                    {/* Status code badge */}
                     <TableCell align="center" sx={{ pr: 3 }}>
                       <Tooltip title={sMeta.label} arrow>
                         <Box sx={{ display: "inline-block" }}>

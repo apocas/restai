@@ -1,34 +1,11 @@
 """Add ON DELETE CASCADE / SET NULL to every FK pointing at projects.id.
 
-Triggered by an admin hitting `IntegrityError 1451` on `DELETE FROM
-projects` because most child FKs were created without a delete rule.
-Only 3 of 17 child FKs had `ondelete="CASCADE"` before this; the
-other 14 blocked project deletion as soon as any child row existed
-(the canary was prompt_versions on a project that had ever had a
-prompt edit).
-
-Rules picked per table:
-  - audit / log data (output) → SET NULL. We want to keep the
-    inference history when the project is gone — useful for
-    cost-attribution review.
-  - everything else → CASCADE. Project lifecycle owns the row;
-    deletion should sweep it.
-
-Backend portability:
-  - **MySQL**: can't alter a constraint in place; we DROP the existing
-    FK by name and ADD a new one with the rule. Constraint names
-    follow MySQL's auto-generated `<table>_ibfk_<n>` pattern when
-    SQLAlchemy didn't pin one. To avoid guessing, we look up the
-    real names from `information_schema.KEY_COLUMN_USAGE`.
-  - **PostgreSQL**: same DROP + ADD shape, but constraint names are
-    SQLAlchemy-generated like `<table>_project_id_fkey`. We look
-    them up from `information_schema.table_constraints`.
-  - **SQLite**: doesn't support ALTER FK. Use `op.batch_alter_table`
-    so SQLAlchemy does a copy-rebuild — drops the table, recreates
-    with the new constraints, re-inserts rows.
-
-Idempotent: each per-table block checks the current rule first and
-skips if already correct. Re-runs are no-ops.
+`output` keeps history (SET NULL); everything else CASCADEs with the
+parent. MySQL/Postgres look up the live constraint name from
+information_schema, then DROP + ADD. SQLite is a no-op (model-level
+`ondelete` already covers fresh installs; legacy SQLite relies on the
+app-side fallback in `delete_project`). Idempotent: skips when the
+current rule already matches.
 """
 import sqlalchemy as sa
 from alembic import op
@@ -64,8 +41,6 @@ _FKS = [
 
 
 def _mysql_apply(bind, table: str, column: str, rule: str):
-    """MySQL: look up the existing FK name from information_schema, then
-    drop + recreate with the desired rule. Skip when already correct."""
     rows = bind.execute(sa.text("""
         SELECT
             kcu.CONSTRAINT_NAME AS name,
@@ -83,12 +58,9 @@ def _mysql_apply(bind, table: str, column: str, rule: str):
 
     for row in rows:
         name, current = row[0], (row[1] or "").upper()
-        target = rule.upper().replace(" ", " ")
-        # MySQL stores "NO ACTION" / "RESTRICT" / "CASCADE" / "SET NULL"
+        target = rule.upper()
         if current == target:
             continue
-        # backtick-quote `key`/`group`/etc. defensive — none in our
-        # table names today, but cheap to keep.
         op.execute(sa.text(f"ALTER TABLE `{table}` DROP FOREIGN KEY `{name}`"))
         op.execute(sa.text(
             f"ALTER TABLE `{table}` "
@@ -98,8 +70,6 @@ def _mysql_apply(bind, table: str, column: str, rule: str):
 
 
 def _postgres_apply(bind, table: str, column: str, rule: str):
-    """Postgres: use information_schema to find the constraint name and
-    delete rule. DROP + ADD if the rule differs."""
     rows = bind.execute(sa.text("""
         SELECT tc.constraint_name, rc.delete_rule
         FROM information_schema.table_constraints tc
@@ -133,18 +103,9 @@ def _postgres_apply(bind, table: str, column: str, rule: str):
 
 
 def _sqlite_apply(table: str, column: str, rule: str):
-    """SQLite: no-op.
-
-    SQLite's reflection of unnamed FKs through alembic's batch
-    operation is unreliable (drop_constraint requires a name we don't
-    have). For the dev SQLite path we accept the trade-off: existing
-    SQLite databases keep their original FKs, but
-    `delete_project_with_cleanup` (database.py) explicitly nukes child
-    rows before the DELETE, so cascade isn't required for correctness.
-    Fresh SQLite installs created from `Base.metadata.create_all()`
-    pick up the model-level `ondelete="CASCADE"` automatically.
-    Production deployments are MySQL / Postgres — the two paths above
-    handle those correctly."""
+    # SQLite can't reflect unnamed FKs reliably; legacy installs lean on
+    # the app-side fallback in database.delete_project. Fresh installs
+    # pick up the model-level ondelete from Base.metadata.create_all().
     return
 
 
@@ -155,23 +116,16 @@ def upgrade():
 
     for table, column, rule in _FKS:
         if not inspector.has_table(table):
-            # Migration ran on an older DB that hasn't yet seen this
-            # table created — skip; the model definition will create
-            # it correctly on next boot.
             continue
         if dialect == "mysql":
             _mysql_apply(bind, table, column, rule)
         elif dialect == "postgresql":
             _postgres_apply(bind, table, column, rule)
         else:
-            # SQLite (and anything else): copy-rebuild path.
             _sqlite_apply(table, column, rule)
 
 
 def downgrade():
-    """Restore the no-rule FKs (DELETE blocks). Reverse of upgrade,
-    same per-dialect plumbing. Mostly here for symmetry — there's no
-    reason to actually run this in production."""
     bind = op.get_bind()
     inspector = sa.inspect(bind)
     dialect = bind.dialect.name
@@ -182,4 +136,3 @@ def downgrade():
             _mysql_apply(bind, table, column, "RESTRICT")
         elif dialect == "postgresql":
             _postgres_apply(bind, table, column, "NO ACTION")
-        # SQLite has no equivalent; downgrade is a no-op.

@@ -568,7 +568,6 @@ export default function LLMs() {
         }
       />
 
-      {/* Metric strip */}
       <Grid container spacing={2} sx={{ mt: 1, mb: 2 }}>
         <Grid item xs={6} md={3}>
           <StatTile
@@ -608,7 +607,6 @@ export default function LLMs() {
         </Grid>
       </Grid>
 
-      {/* Provider distribution */}
       {aggregates.providers.length > 0 && (
         <Box sx={{ mb: 2.5 }}>
           <ProviderDistribution providers={aggregates.providers} total={aggregates.total} />

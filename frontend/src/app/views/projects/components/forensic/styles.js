@@ -1,7 +1,4 @@
 // Shared visual tokens for the project pages' "forensic command deck" look.
-// Originally inlined in ProjectEditMemoryBank.jsx and ProjectEditMemorySearch.jsx;
-// extracted here so every project tab can share the same palette / fonts /
-// animations without duplicating ~80 lines of constants.
 
 import { keyframes } from "@emotion/react";
 
@@ -22,19 +19,14 @@ export const ACCENT_SOFT = "#64b5f6";  // blue-300 — softer washes
 export const FONT_DISPLAY = "'Chakra Petch', ui-sans-serif, system-ui, sans-serif";
 export const FONT_MONO    = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
 
-// `forensicCardSx` was originally a bluish void plate applied broadly
-// across the app. It overpowered the design — reads as patched-on
-// chrome rather than purposeful "this is a data inspector" framing.
-// Re-routed here to the clean MUI card look the dashboard uses, so
-// every page that imported the old token now gets the correct
-// neutral-white surface without per-file edits. The bluish plate
-// itself is still available to Memory Bank / Memory Search via the
-// <ForensicCard> wrapper component — it just no longer leaks out.
+// `forensicCardSx` aliases the clean MUI card look used by the dashboard.
+// The bluish plate is still available to Memory Bank / Memory Search via
+// the <ForensicCard> wrapper component.
 export { cleanCardSx as forensicCardSx } from "app/components/page/pageStyles";
 
-// Idempotent font-link injector. Memory Bank used to call this from its own
-// useEffect; ForensicCard now calls it on mount so any tab that uses the kit
-// gets the right typography without remembering to import it themselves.
+// Idempotent font-link injector. ForensicCard calls it on mount so any
+// tab that uses the kit gets the right typography without remembering
+// to import it themselves.
 const FONTS_LINK_ID = "forensic-fonts";
 export function loadFonts() {
   if (typeof document === "undefined") return;

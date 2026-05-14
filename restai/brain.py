@@ -34,7 +34,7 @@ class Brain:
         self.embeddings_cache = {}
         self._classifier_cache = {}
         self._ner_cache = {}
-        # agent2 in-memory session store: chat_id -> list[message dict]
+        # chat_id -> list[message dict]
         self._agent2_sessions: dict[str, list[dict]] = {}
         self.docker_manager = None
         self.browser_manager = None
@@ -61,7 +61,6 @@ class Brain:
 
     def init_docker_manager(self):
         """Create or recreate the Docker manager from current config."""
-        # Shut down existing manager if any
         if self.docker_manager is not None:
             self.docker_manager.shutdown()
             self.docker_manager = None
@@ -103,7 +102,6 @@ class Brain:
         if not getattr(config, "BROWSER_ENABLED", False):
             return
 
-        # Re-use the Docker daemon the sandbox-terminal uses.
         docker_url = getattr(config, "DOCKER_URL", "") or ""
         if not docker_url.strip():
             return
@@ -170,10 +168,6 @@ class Brain:
         if self.app_manager is not None:
             self.app_manager.shutdown()
             self.app_manager = None
-
-    # ------------------------------------------------------------------
-    # Tool-generated image cache (Redis when available, in-memory fallback)
-    # ------------------------------------------------------------------
 
     _IMAGE_CACHE_TTL_SECONDS = 24 * 60 * 60  # 24h
     _IMAGE_CACHE_KEY_PREFIX = "restai_image_cache:"
@@ -311,8 +305,7 @@ class Brain:
             self.chat_store = RedisChatStore(redis_url=redis_url)
         else:
             self.chat_store = SimpleChatStore()
-        # Also invalidate the agent2 Redis client cache so the next session
-        # operation rebuilds it against the new settings.
+        # Invalidate agent2 Redis client cache so the next session rebuilds against new settings.
         self.reinit_agent2_redis()
 
     def reinit_agent2_redis(self):
@@ -362,14 +355,10 @@ class Brain:
         return self.get_llm(name, db)
 
     def post_processing_reasoning(self, output):
-        # Pull every <think>…</think> block out of the answer (multi-block
-        # is common when the model thought multiple times in one turn or
-        # when accumulated turn text was preserved). Each becomes a
-        # separate reasoning step. Even when the agent already populated
-        # `output["reasoning"]` from tool calls, we still need to record
-        # the thoughts as steps so the UI's "Thinking" panel shows them
-        # and the empty-answer fallback in agent.py can detect that real
-        # work happened.
+        # Each <think>…</think> block becomes a separate reasoning step.
+        # Recording them as steps is required even when reasoning is already
+        # populated from tool calls — the UI's "Thinking" panel and the
+        # empty-answer fallback in agent.py both depend on it.
         think_pattern = re.compile(r"<think>(.*?)</think>", re.DOTALL)
         thoughts = [m.group(1).strip() for m in think_pattern.finditer(output.get("answer") or "")]
         thoughts = [t for t in thoughts if t]
@@ -387,8 +376,7 @@ class Brain:
         ]
 
         if "reasoning" in output and isinstance(output["reasoning"], dict):
-            # Tool steps already recorded — prepend thought steps so the
-            # rendered timeline reads chronologically (thoughts → tools).
+            # Prepend so the timeline reads chronologically (thoughts → tools).
             existing_steps = output["reasoning"].get("steps") or []
             output["reasoning"]["steps"] = thought_steps + existing_steps
             existing_out = output["reasoning"].get("output") or ""
@@ -515,7 +503,7 @@ class Brain:
             self._ner_cache[model] = pipeline("ner", model=model, aggregation_strategy="simple")
             logging.info("NER model '%s' loaded.", model)
         ner = self._ner_cache[model]
-        # Process in 2000-char windows to fit BERT's token limits comfortably
+        # 2000-char windows to fit BERT's token limits comfortably.
         entities = []
         for i in range(0, len(text), 2000):
             window = text[i:i + 2000]
@@ -527,9 +515,8 @@ class Brain:
         return entities
 
     def get_tools(self, names: Optional[Iterable[str]] = None) -> list[FunctionTool]:
-        # Lazy-load tools on first use — covers the cron path where Brain
-        # was constructed with lightweight=True and now needs tools because
-        # a routine / Telegram / Slack message fired an agent.
+        # Lazy-load on first use — covers cron-spawned Brains that started
+        # lightweight=True and only now need tools.
         if self.tools is None:
             self.tools = tools.load_tools()
 
@@ -540,17 +527,9 @@ class Brain:
         if len(names) > 0:
             for tool in self.tools:
                 if tool.metadata.name in names:
-                    # We used to silently drop the terminal tool when
-                    # Docker wasn't configured, but that left the agent
-                    # with no idea why its tool call vanished — the model
-                    # would then improvise (e.g. emit text-only Qwen-style
-                    # `<tool_code>print(bash("date"))</tool_code>` blocks
-                    # that the runtime can't parse, leaving the user with
-                    # mysterious empty output). Now we register the tool
-                    # in either case; `terminal()` itself returns a clear
-                    # `ERROR: Docker is not configured…` string when
-                    # invoked without a docker_manager, so the model sees
-                    # a real failure and can surface it to the user.
+                    # Register `terminal` even without Docker — it returns a
+                    # clear ERROR string at call time, so the model sees a
+                    # real failure instead of improvising tool-code blocks.
                     if tool.metadata.name == "terminal" and self.docker_manager is None:
                         logging.warning(
                             "Terminal tool requested by an agent project but Docker is not "

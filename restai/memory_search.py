@@ -98,7 +98,6 @@ def get_collection(project_id: int):
     return _get_or_create_collection(project_id)
 
 
-# ─── Collection metadata helpers ────────────────────────────────────────
 # Chroma collection metadata must be a flat dict of primitives. We stash
 # the indexer's two pieces of state here so we don't need a sidecar DB
 # table (and so the state is co-located with the data it describes —

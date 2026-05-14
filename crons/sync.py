@@ -15,7 +15,6 @@ from datetime import datetime, timezone
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("restai.sync")
 
-# Load config (reads .env)
 from restai import config
 from restai.settings import ensure_settings_table
 from restai.database import open_db_wrapper, engine as db_engine
@@ -60,12 +59,11 @@ def main():
                     except (ValueError, TypeError):
                         pass
 
-                # Load project with vector store
                 project = brain.find_project(proj.id, db)
                 if not project or project.props.type != "rag":
                     break
 
-                # Mark as syncing before starting
+                # Stamp last_sync up-front so concurrent workers skip this source.
                 _update_last_sync(db, proj.id, i)
 
                 try:

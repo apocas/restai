@@ -74,7 +74,6 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
       subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · MODEL · PROMPT · CONFIG`}
     >
     <Grid container spacing={3}>
-      {/* Metadata pills */}
       <Grid item xs={12}>
         <Card elevation={0} sx={{ p: 2.5, background: "rgba(255,255,255,0.55)", border: `1px solid ${PALETTE.edge}` }}>
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
@@ -128,7 +127,6 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
         </Card>
       </Grid>
 
-      {/* System prompt preview */}
       {project.system && project.type !== "block" && (
         <Grid item xs={12}>
           <Card elevation={0} sx={{ p: 2.5, background: "rgba(255,255,255,0.55)", border: `1px solid ${PALETTE.edge}` }}>
@@ -153,7 +151,6 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
         </Grid>
       )}
 
-      {/* Users with access */}
       {project.users && project.users.length > 0 && (
         <Grid item xs={12}>
           <Card elevation={0} sx={{ p: 2.5, background: "rgba(255,255,255,0.55)", border: `1px solid ${PALETTE.edge}` }}>

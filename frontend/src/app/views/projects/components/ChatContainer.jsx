@@ -45,7 +45,6 @@ export default function ChatContainer({ project }) {
 
   return (
     <ChatRoot elevation={3}>
-      {/* Header */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1, flexWrap: "wrap", gap: 1 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography variant="subtitle1" fontWeight="bold">
@@ -115,7 +114,6 @@ export default function ChatContainer({ project }) {
 
       <Divider />
 
-      {/* Body */}
       <Box sx={{ flex: 1, minHeight: 0, p: mode === 1 ? 2 : 0 }}>
         {mode === 0 && (
           <ChatPanel project={project} chatMode={chatMode} streaming={streaming} context={parsedContext} autoScroll={autoScroll} />

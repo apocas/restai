@@ -163,7 +163,6 @@ export default function PermissionMatrix() {
           <Grid item xs={6} md={3}><StatCard icon={<Star />} value={stats.admins} label={t("permissions.stats.admins")} color="linear-gradient(135deg, #ef5350 0%, #c62828 100%)" /></Grid>
         </Grid>
 
-        {/* Filters */}
         <Card elevation={0} sx={{ ...forensicCardSx, p: 2, mb: 3 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={4} md={3}>

@@ -1,10 +1,4 @@
-"""Add status / error / image / attachments columns to the inference log.
-
-Lets the log viewer record failures (budget / rate limit / LLM error / tool
-crash / guard block) and user-supplied images + file attachments. Previously
-these paths either silently dropped the row or kept only the happy-path
-question/answer pair.
-"""
+"""Add status / error / image / attachments columns to the inference log."""
 import sqlalchemy as sa
 from alembic import op
 

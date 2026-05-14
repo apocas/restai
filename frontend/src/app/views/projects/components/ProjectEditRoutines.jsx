@@ -341,7 +341,6 @@ export default function ProjectEditRoutines({ project }) {
         </Dialog>
       )}
 
-      {/* Execution history dialog */}
       <Dialog open={!!historyTarget} onClose={() => setHistoryTarget(null)} maxWidth="md" fullWidth>
         <DialogTitle>{t("projects.edit.routines.history")}: {historyTarget?.name}</DialogTitle>
         <DialogContent>

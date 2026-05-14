@@ -151,7 +151,6 @@ async def route_app_delete_file(
     return {"path": path, "deleted": True}
 
 
-# ──────────────────────────────────────────────────────────────────────
 # SQLite DB editor.
 #
 # All endpoints operate on `<install_root>/apps/<id>/database.sqlite` via
@@ -169,7 +168,6 @@ async def route_app_delete_file(
 #   is the table/column name, which has been validated against the actual
 #   schema two lines up.
 # - Reserved tables (`sqlite_*`, internal) are filtered.
-# ──────────────────────────────────────────────────────────────────────
 
 
 # SQLite's own table-name rule is permissive (almost anything in quotes),
@@ -438,7 +436,6 @@ async def route_app_db_delete_row(
         conn.close()
 
 
-# ──────────────────────────────────────────────────────────────────────
 # AI generation: full app scaffold + per-file targeted edit.
 #
 # Both run on the project's own LLM (selected at project create time),
@@ -448,7 +445,6 @@ async def route_app_db_delete_row(
 #
 # `check_budget` and `check_rate_limit` are called up-front so a project
 # that's hit its monthly cap can't burn LLM cycles via this path either.
-# ──────────────────────────────────────────────────────────────────────
 
 
 class FixFilePayload(BaseModel):
@@ -1236,7 +1232,6 @@ async def route_app_fix_file(
     check_rate_limit(project, db_wrapper)
     check_api_key_quota(user, db_wrapper)
 
-    # Read current content (re-uses the file router's safety guarantees:
     # traversal guard, size cap, 404 on missing).
     current_bytes, current_etag = read_file(projectID, payload.path)
     try:
@@ -1281,14 +1276,12 @@ async def route_app_fix_file(
     return {"path": payload.path, "etag": new_etag, "size": len(new_content)}
 
 
-# ──────────────────────────────────────────────────────────────────────
 # Deploy: download zip + push via FTP/SFTP.
 #
 # Generated apps are deliberately standalone (no RESTai dependency at
 # runtime), so "deploy" really is just "copy these files to a host".
 # Most cheap PHP hosts only offer FTP/SFTP — that's exactly what we
 # wire up here.
-# ──────────────────────────────────────────────────────────────────────
 
 
 @router.get(
@@ -1496,9 +1489,7 @@ async def route_app_deploy(
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
-# ──────────────────────────────────────────────────────────────────────
 # Reset + post-build validation
-# ──────────────────────────────────────────────────────────────────────
 
 
 @router.post("/projects/{projectID}/app/reset", tags=["App Builder"])
@@ -1998,7 +1989,6 @@ async def route_app_validate(
     # is observably working. Skip the LLM "static review" entirely — it's
     # a known source of false positives that wreck working apps via the
     # auto-fix loop. Real bugs surface as runtime evidence on the next
-    # validate run anyway.
     if not runtime_issues:
         return {
             "ok": True,
@@ -2006,8 +1996,6 @@ async def route_app_validate(
             "issues": [],
         }
 
-    # Build the user prompt: runtime evidence first (highest signal),
-    # then file tree + each file's content.
     parts: list[str] = []
     if runtime_issues:
         parts.append(

@@ -218,7 +218,6 @@ async def route_create_user_apikey(
         allowed_projects_json = None
         if body.allowed_projects is not None:
             import json
-            # Validate the requesting user has access to all scoped projects
             caller = db_wrapper.get_user_by_username(_.username)
             for pid in body.allowed_projects:
                 if not _.is_admin:
@@ -349,27 +348,21 @@ async def route_get_users(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """List all users. Admins see all, others see team members only."""
-    # If user is admin, return all users
     if user.is_admin:
         users = db_wrapper.get_users()
         users_final = [User.model_validate(user_obj) for user_obj in users]
-    # For regular users, only return users from their teams
     else:
-        # Get the set of unique users from all teams the current user belongs to
         team_users = set()
         for team in user.teams:
-            # Add all users from this team to our set
             for team_user in team.users:
                 team_users.add(team_user.id)
-        
-        # Get all users and filter by the team user IDs
+
         users = db_wrapper.get_users()
         team_users_list = []
         for user_obj in users:
             if user_obj.id in team_users:
                 team_users_list.append(user_obj)
         
-        # Convert to LimitedUser objects
         users_final = []
         for user_obj in team_users_list:
             user_model = User.model_validate(user_obj)
@@ -506,7 +499,6 @@ async def route_delete_user(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# --- TOTP 2FA Endpoints ---
 
 @router.get("/users/{username}/totp/status")
 async def totp_status(
@@ -588,7 +580,6 @@ async def totp_setup(
         if not ok:
             raise HTTPException(status_code=400, detail="Invalid TOTP code")
 
-    # Generate secret and recovery codes
     secret = pyotp.random_base32()
     app_name = getattr(config, "RESTAI_NAME", "RESTai") or "RESTai"
     provisioning_uri = pyotp.TOTP(secret).provisioning_uri(username, issuer_name=app_name)

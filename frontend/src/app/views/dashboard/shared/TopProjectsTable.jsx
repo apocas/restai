@@ -92,7 +92,6 @@ const TopProjectsTable = ({ projects = [], currency = "USD" }) => {
 
   return (
     <TileCard elevation={0}>
-      {/* Header */}
       <Box
         sx={{
           px: 2.5, pt: 2, pb: 1.75,

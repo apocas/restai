@@ -13,11 +13,6 @@ import ProjectEditIntegrations from "./ProjectEditIntegrations";
 
 // Tab definitions. `key` stays stable (used internally for conditional
 // rendering); `name` is resolved via i18n at render time.
-//
-// The Tools tab moved to the project Info page (`ProjectInfoTools.jsx`).
-// All built-in tools, MCP servers, agent loop settings, and agent-created
-// tools live there now — single place to inspect and edit them, instead
-// of having "view tools" on Info and "edit tools" on Edit.
 const ALL_TABS = [
   { key: "General",       nameKey: "projects.edit.tabs.general",      Icon: Info },
   { key: "Knowledge",     nameKey: "projects.edit.tabs.knowledge",    Icon: Storage, ragOnly: true },
@@ -63,10 +58,6 @@ export default function ProjectEdit({ project, projects, info }) {
     return true;
   });
 
-  // (Tools / MCP server handlers used to live here; they moved to
-  // ProjectInfoTools.jsx along with the rest of the Tools tab.)
-
-  // --- Form Submission ---
   const handleSubmit = (event) => {
     event.preventDefault();
 
@@ -185,7 +176,6 @@ export default function ProjectEdit({ project, projects, info }) {
       });
   };
 
-  // --- Change Handlers ---
   const handleChange = (event) => {
     if (event && event.persist) event.persist();
 
@@ -224,7 +214,6 @@ export default function ProjectEdit({ project, projects, info }) {
     }
   };
 
-  // --- Data Fetching ---
   useEffect(() => {
     const initialState = {
       ...project,
@@ -258,9 +247,6 @@ export default function ProjectEdit({ project, projects, info }) {
         .then((versions) => setPromptVersions(versions || []))
         .catch(() => {});
     }
-
-    // (Tool catalog fetch + MCP server hydration / probe loop moved to
-    // ProjectInfoTools.jsx — that's where the Tools tab lives now.)
 
     if (project?.team?.id) {
       api.get("/teams/" + project.team.id, auth.user.token, { silent: true })

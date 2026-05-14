@@ -8,7 +8,6 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from restai import config
 
-# Load encryption key from dedicated Fernet environment variable
 FERNET_KEY = config.RESTAI_FERNET_KEY
 if not FERNET_KEY:
     raise RuntimeError("RESTAI_FERNET_KEY environment variable not set.")
@@ -25,10 +24,7 @@ def decrypt_api_key(token: str) -> str:
         raise ValueError("Invalid API key token or decryption failed.")
 
 
-# ─── Salted hashing for API keys ────────────────────────────────────────
-# New hashes use PBKDF2 with a random salt, prefixed with "$pbkdf2$".
-# Legacy SHA256 hashes (no prefix) are still accepted for lookups.
-
+# PBKDF2-prefixed hashes; legacy bare SHA256 hashes still accepted for lookups.
 _PBKDF2_PREFIX = "$pbkdf2$"
 _PBKDF2_ITERATIONS = 100_000
 
@@ -51,11 +47,9 @@ def verify_api_key_hash(plaintext: str, stored_hash: str) -> bool:
         expected = bytes.fromhex(parts[1])
         dk = hashlib.pbkdf2_hmac("sha256", plaintext.encode(), salt, _PBKDF2_ITERATIONS)
         return dk == expected
-    # Legacy: plain SHA256
     return hashlib.sha256(plaintext.encode()).hexdigest() == stored_hash
 
 
-# TOTP helpers
 def encrypt_totp_secret(secret: str) -> str:
     return fernet.encrypt(secret.encode()).decode()
 
@@ -86,25 +80,21 @@ def verify_recovery_code(code: str, stored_hash: str) -> bool:
         expected = bytes.fromhex(parts[1])
         dk = hashlib.pbkdf2_hmac("sha256", code.strip().lower().encode(), salt, _PBKDF2_ITERATIONS)
         return dk == expected
-    # Legacy: plain SHA256
     return hashlib.sha256(code.strip().lower().encode()).hexdigest() == stored_hash
 
 
-# ─── Field-level encryption for sensitive options ───
 _ENC_PREFIX = "$ENC$"
 
 
 def encrypt_field(value: str) -> str:
-    """Encrypt a single string value. Returns prefixed ciphertext.
-    No-op if already encrypted or empty."""
+    """No-op if already encrypted or empty."""
     if not value or value.startswith(_ENC_PREFIX):
         return value
     return _ENC_PREFIX + fernet.encrypt(value.encode()).decode()
 
 
 def decrypt_field(value: str) -> str:
-    """Decrypt a single prefixed ciphertext. Returns plaintext.
-    No-op if not encrypted (backward-compatible with legacy plaintext)."""
+    """No-op if not encrypted (backward-compatible with legacy plaintext)."""
     if not value or not value.startswith(_ENC_PREFIX):
         return value
     try:
@@ -113,25 +103,18 @@ def decrypt_field(value: str) -> str:
         return value
 
 
-# Keys to encrypt in project options and LLM options
 PROJECT_SENSITIVE_KEYS = {
     "telegram_token", "slack_bot_token", "connection",
     "whatsapp_access_token", "whatsapp_app_secret", "whatsapp_verify_token",
     "twilio_auth_token", "webhook_secret",
-    # App Builder FTP/SFTP deploy credential.
     "ftp_password",
 }
 LLM_SENSITIVE_KEYS = {"api_key", "key", "password", "secret"}
 
-# Sensitive keys inside `team.options`. Encrypted at rest, masked on
-# API response. Consumed by `restai/database.py:update_team` (write)
-# and `routers/teams.py` (mask) — same pattern as PROJECT_SENSITIVE_KEYS.
 TEAM_SENSITIVE_KEYS = {"smtp_password"}
 
-# Sub-structures inside `project.options` that carry their own
-# credentials (separate from the top-level PROJECT_SENSITIVE_KEYS).
-# Used by `strip_sensitive_project_options` and by the masking logic
-# in `routers/projects.py:route_edit_project`.
+# Per-source secret fields in sync_sources[]; separate from top-level PROJECT_SENSITIVE_KEYS.
+# Used by strip_sensitive_project_options and the masking in routers/projects.py:route_edit_project.
 _SYNC_SOURCE_SECRET_KEYS = (
     "s3_access_key",
     "s3_secret_key",
@@ -142,22 +125,10 @@ _SYNC_SOURCE_SECRET_KEYS = (
 
 
 def strip_sensitive_project_options(options_blob):
-    """Return a copy of `options_blob` with every credential-bearing
-    field removed. Used by template publish + template instantiate so
-    secrets configured by a project owner can never be transplanted
-    onto a project owned by someone else.
+    """Return a copy with every credential-bearing field removed; used by template
+    publish/instantiate so secrets never cross project owners.
 
-    Strips:
-      - top-level keys in `PROJECT_SENSITIVE_KEYS` (telegram_token,
-        smtp_password, twilio_auth_token, webhook_secret, …)
-      - per-source credentials inside `sync_sources[]`
-      - `env` and `headers` on every entry of `mcp_servers[]` (may
-        contain bearer tokens or arbitrary API keys)
-
-    Accepts a JSON string OR a dict; returns the same shape it got so
-    the caller doesn't have to second-guess what `project.options`
-    looks like at the call site (the column is sometimes a JSON
-    string, sometimes a parsed dict depending on the path)."""
+    Accepts a JSON string OR a dict; returns the same shape it got."""
     if not options_blob:
         return options_blob
 
@@ -165,8 +136,7 @@ def strip_sensitive_project_options(options_blob):
         try:
             opts = _json.loads(options_blob)
         except Exception:
-            # Unparseable — safer to wipe the whole thing than to
-            # ship potentially-credential-bearing bytes.
+            # Unparseable — safer to wipe than ship potentially-credential bytes.
             return "{}"
         was_str = True
     elif isinstance(options_blob, dict):
@@ -192,16 +162,13 @@ def strip_sensitive_project_options(options_blob):
     if isinstance(mcp_servers, list):
         for srv in mcp_servers:
             if isinstance(srv, dict):
-                # Drop the entire env/headers blobs — both can carry
-                # arbitrary bearer tokens / API keys / OAuth refresh
-                # tokens. The instantiator must reconfigure these.
+                # env/headers can carry bearer tokens / OAuth refresh — instantiator must reconfigure.
                 srv.pop("env", None)
                 srv.pop("headers", None)
 
     return _json.dumps(opts) if was_str else opts
 
 
-# Settings table keys that must be encrypted at rest
 SETTINGS_ENCRYPTED_KEYS = {
     "proxy_key",
     "redis_password",
@@ -216,7 +183,6 @@ SETTINGS_ENCRYPTED_KEYS = {
     "smtp_password",
 }
 
-# Keys inside sync_sources that should be encrypted
 SYNC_SOURCE_SENSITIVE_KEYS = {
     "s3_secret_key", "confluence_api_token",
     "sharepoint_client_secret", "gdrive_service_account_json",
@@ -224,13 +190,11 @@ SYNC_SOURCE_SENSITIVE_KEYS = {
 
 
 def encrypt_sensitive_options(opts: dict, sensitive_keys: set) -> dict:
-    """Encrypt marked fields in a dict. Returns a new dict."""
     result = dict(opts)
     for key in sensitive_keys:
         val = result.get(key)
         if val and isinstance(val, str):
             result[key] = encrypt_field(val)
-    # Handle nested sync_sources
     if "sync_sources" in result and isinstance(result["sync_sources"], list):
         result["sync_sources"] = [
             _encrypt_sync_source(s) for s in result["sync_sources"]
@@ -239,7 +203,6 @@ def encrypt_sensitive_options(opts: dict, sensitive_keys: set) -> dict:
 
 
 def decrypt_sensitive_options(opts: dict, sensitive_keys: set) -> dict:
-    """Decrypt marked fields in a dict. Returns a new dict."""
     result = dict(opts)
     for key in sensitive_keys:
         val = result.get(key)

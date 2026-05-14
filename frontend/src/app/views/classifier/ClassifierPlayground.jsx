@@ -302,7 +302,6 @@ export default function ClassifierPlayground() {
             <TileHeader icon={<AutoAwesome />} title={t("classifier.playgroundTitle") || "Playground"} accent={ACCENT} />
 
             <Box sx={{ p: 3, pt: 2.5, display: "flex", flexDirection: "column", gap: 2.25, flex: 1 }}>
-              {/* Model picker */}
               <TextField
                 fullWidth
                 select
@@ -337,7 +336,6 @@ export default function ClassifierPlayground() {
                 ))}
               </TextField>
 
-              {/* Text area */}
               <TextField
                 fullWidth
                 multiline
@@ -530,7 +528,6 @@ export default function ClassifierPlayground() {
 
               {results && (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {/* Echo of the input */}
                   <Box
                     sx={{
                       p: 1.75,
@@ -566,7 +563,6 @@ export default function ClassifierPlayground() {
                     </Typography>
                   </Box>
 
-                  {/* Score bars */}
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                     {results.labels.map((label, i) => {
                       const score = results.scores[i];

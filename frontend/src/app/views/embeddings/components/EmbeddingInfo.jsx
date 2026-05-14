@@ -309,7 +309,6 @@ export default function EmbeddingInfo({ embedding, projects, usedBy = 0 }) {
 
   return (
     <Box>
-      {/* Stat strip */}
       <Grid container spacing={2} sx={{ mb: 2.5 }}>
         <Grid item xs={6} md={3}>
           <StatTile

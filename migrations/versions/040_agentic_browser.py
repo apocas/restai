@@ -1,12 +1,4 @@
-"""Agentic browser — project_secrets vault.
-
-New `project_secrets` table: per-project encrypted credential store that
-the `browser_fill` builtin tool resolves server-side (plaintext never
-enters the LLM's context). Admin CRUD via `/projects/{id}/secrets`.
-
-Companion changes live on `ProjectOptions` (`browser_allowed_domains`,
-`browser_allow_eval`) — those are JSON-blob fields with no migration.
-"""
+"""Agentic browser — project_secrets vault (per-project encrypted credentials)."""
 import sqlalchemy as sa
 from alembic import op
 

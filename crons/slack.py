@@ -68,7 +68,6 @@ def main():
 
             last_ts = opts.get("slack_last_ts", "0")
 
-            # Get conversations the bot is a member of (DMs, channels, group DMs)
             try:
                 convos = _get_bot_conversations(client)
             except SlackApiError as e:
@@ -90,9 +89,8 @@ def main():
                     continue
 
                 messages = result.get("messages", [])
-                # Process oldest first
+                # Oldest-first so newest_ts is the high-water mark.
                 for msg in reversed(messages):
-                    # Skip bot's own messages, subtypes (joins, etc.), and bot messages
                     if msg.get("user") == bot_user_id:
                         continue
                     if msg.get("subtype") or msg.get("bot_id"):

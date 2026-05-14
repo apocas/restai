@@ -47,10 +47,6 @@ from typing import Any, AsyncGenerator, Generator, Iterable, Optional
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Limits
-# ---------------------------------------------------------------------------
-
 # Per-file cap. Matches the file CRUD endpoint so generated files can be
 # edited later from the IDE.
 MAX_FILE_BYTES = 256 * 1024
@@ -89,10 +85,6 @@ GENERATION_ALLOWED_EXTENSIONS = {
     ".sql",
 }
 
-
-# ---------------------------------------------------------------------------
-# System prompts
-# ---------------------------------------------------------------------------
 
 _PLAN_SYSTEM = """You plan small self-contained web apps that run on any
 cheap shared PHP host (PHP 8 + PDO SQLite, no Composer, no Node, no
@@ -586,11 +578,6 @@ def _role_guidance_for(path: str, design: Optional[dict] = None) -> str:
             "- 30-80 lines max."
         )
     return "- Follow the architecture contract above. Be concise and complete."
-
-
-# ---------------------------------------------------------------------------
-# Validators
-# ---------------------------------------------------------------------------
 
 
 # Curated allowlist of npm imports the runtime image bakes into
@@ -1120,9 +1107,7 @@ def _clean_design(design: Any) -> Optional[dict]:
     return out or None
 
 
-# ---------------------------------------------------------------------------
-# JSON-tail extraction from the LLM's plan reply
-# ---------------------------------------------------------------------------
+# JSON-tail extraction from the LLM's plan reply.
 
 
 # Markdown fence with any (optional) language tag.
@@ -1170,9 +1155,6 @@ def extract_plan_from_reply(reply: str) -> Optional[dict]:
     return None
 
 
-# ---------------------------------------------------------------------------
-# LLM streaming helpers
-# ---------------------------------------------------------------------------
 
 
 def _resolve_llm(brain: Any, db: Any, project_llm_name: Optional[str]):
@@ -1216,9 +1198,6 @@ def _stream_complete(llm, prompt: str) -> Iterable[str]:
         yield delta
 
 
-# ---------------------------------------------------------------------------
-# Public streaming entry points
-# ---------------------------------------------------------------------------
 
 
 def _format_messages_for_complete(messages: list[dict]) -> str:

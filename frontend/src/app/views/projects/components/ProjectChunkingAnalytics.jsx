@@ -63,7 +63,6 @@ export default function ProjectChunkingAnalytics({ project }) {
         </Alert>
       )}
 
-      {/* Summary stats */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={6} sm={3}>
           <StatCard elevation={0} variant="outlined">
@@ -131,7 +130,6 @@ export default function ProjectChunkingAnalytics({ project }) {
         </Box>
       )}
 
-      {/* Recommendations */}
       {data.recommendations.length > 0 && (
         <Box>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Recommendations</Typography>

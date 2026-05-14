@@ -581,7 +581,6 @@ export default function TeamView() {
         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2.5, flexWrap: "wrap" }}>
           <UserAvatar name={team.name} size={64} />
           <Box sx={{ flex: 1, minWidth: 200 }}>
-            {/* Inline path trail */}
             <Box
               sx={{
                 display: "flex",
@@ -652,7 +651,6 @@ export default function TeamView() {
               </Typography>
             )}
 
-            {/* Metadata pills */}
             <Box sx={{ display: "flex", gap: 1, mt: 2, flexWrap: "wrap", alignItems: "center" }}>
               <Chip icon={<Group />} label={`${counts.users} member${counts.users === 1 ? "" : "s"}`} size="small" sx={pillSx} />
               <Chip icon={<Star />} label={`${counts.admins} admin${counts.admins === 1 ? "" : "s"}`} size="small" sx={pillSx} />
@@ -674,7 +672,6 @@ export default function TeamView() {
           </Box>
         </Box>
 
-        {/* Action toolbar */}
         <ActionBar>
           {isTeamAdmin && (
             <Tooltip title={t("teams.view.edit")}>

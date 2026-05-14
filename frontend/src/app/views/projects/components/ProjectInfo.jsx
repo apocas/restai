@@ -256,7 +256,6 @@ export default function ProjectInfo({ project }) {
               </Typography>
             )}
 
-            {/* Metadata pills */}
             <Box sx={{ display: "flex", gap: 1, mt: 2, flexWrap: "wrap", alignItems: "center" }}>
               {project.llm && (
                 <Chip icon={<Psychology />} label={project.llm} size="small" sx={pillSx} />
@@ -362,7 +361,6 @@ export default function ProjectInfo({ project }) {
         </ActionBar>
       </HeroCard>
 
-      {/* Clone dialog */}
       <Dialog open={cloneOpen} onClose={() => setCloneOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{t("projects.clone.title")}</DialogTitle>
         <DialogContent>

@@ -46,8 +46,6 @@ import AppCodeEditor from "./AppCodeEditor";
 
 const apiBase = process.env.REACT_APP_RESTAI_API_URL || "";
 
-// --- SSE consumer (same shape as AppDeploy.jsx) ----------------------
-//
 // Native EventSource doesn't support POST + Authorization header. We use
 // fetch + ReadableStream and parse `event:`/`data:` frames by hand.
 async function consumeSSE(url, init, signal, onEvent) {
@@ -79,8 +77,6 @@ async function consumeSSE(url, init, signal, onEvent) {
     }
   }
 }
-
-// --- UI bits ---------------------------------------------------------
 
 const Bubble = styled(Paper)(({ theme, role }) => ({
   padding: theme.spacing(1.5, 2),
@@ -443,8 +439,6 @@ const FileStatusIcon = ({ status }) => {
   return <HourglassEmpty fontSize="small" sx={{ color: "text.disabled" }} />;
 };
 
-// --- The wizard ------------------------------------------------------
-
 const INITIAL_GREETING = (t) => ({
   role: "assistant",
   content: t(
@@ -563,7 +557,6 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
     return null;
   }, [messages]);
 
-  // ---- Send chat message ----
   // Optionally accepts an explicit message text + opts so internal
   // call sites (the no-JSON auto-retry, future programmatic flows) can
   // bypass the input field. opts.isAutoRetry suppresses the auto-retry
@@ -643,11 +636,10 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
         /\b(should|would|could|do you want|which|how)\b.*\?/i.test(trimmed) ||
         /\bclarif\w*/i.test(trimmed);
       if (!looksLikeQuestion) {
-        // Bumped from 50ms → 250ms so React's commit settles first,
-        // and re-checked at fire time: if the user cancelled or a new
-        // stream has started in the meantime, skip the auto-retry.
-        // The 50ms version raced both the close handler and a fast
-        // user follow-up message.
+        // 250ms lets React's commit settle first; re-checked at fire
+        // time so if the user cancelled or a new stream has started in
+        // the meantime, skip the auto-retry. Anything shorter (e.g.
+        // 50ms) races both the close handler and a fast follow-up.
         setTimeout(() => {
           if (!sendMessageRef.current) return;
           // A non-null abortRef means another stream is already
@@ -672,9 +664,9 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
     setStreamingReply("");
   }, []);
 
-  // ---- Validation (used by both Approve & Build's post-step and the
-  // auto-fix loop). Defined before startExecute so React deps don't
-  // hit a temporal dead zone at render time. ----
+  // Used by both Approve & Build's post-step and the auto-fix loop.
+  // Defined before startExecute so React deps don't hit a temporal
+  // dead zone at render time.
   const runValidate = useCallback(async () => {
     setValidation({ running: true, result: null });
     try {
@@ -708,7 +700,6 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
     }
   }, [projectId, token]);
 
-  // ---- Approve & Build ----
   const startExecute = useCallback(async () => {
     if (!latestPlan) return;
     // Mark this plan as consumed so re-opening the wizard with the
@@ -921,8 +912,6 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
     if (abortRef.current) abortRef.current.abort();
   }, []);
 
-  // ---- Auto-fix loop ----
-  //
   // When validation finds issues, automatically run a fix iteration:
   //   1. Push a synthetic "fix these issues" chat message (visible to the
   //      user — the conversation captures what the agent did).
@@ -1141,12 +1130,6 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
     setAutoFix((p) => ({ ...p, running: false, halted: true, status: "" }));
   }, []);
 
-  // (Auto-fix now triggered explicitly by startExecute after runValidate
-  // returns — no useEffect needed. The earlier effect-based trigger had
-  // race conditions with React's render scheduling that made it miss
-  // events on some paths.)
-
-  // ---- Reset chat (DELETE the persisted thread) ----
   const resetChat = useCallback(async () => {
     if (streaming) return;
     if (!window.confirm(t("projects.app.gen.resetConfirm", "Clear the planning chat for this project? Files on disk are not touched."))) {
@@ -1172,7 +1155,6 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
     }
   }, [projectId, token, streaming, t]);
 
-  // ---- Done handlers ----
   const continueChat = useCallback(() => {
     // If validation left unresolved issues (auto-fix gave up, or the
     // user hit Stop, or 2 iterations weren't enough), pre-fill the chat

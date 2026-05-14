@@ -107,7 +107,6 @@ async def login(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Authenticate and receive a session cookie. If 2FA is enabled, returns a temporary token instead."""
-    # Check if user has TOTP enabled
     user_db = db_wrapper.get_user_by_username(user.username)
     if user_db and user_db.totp_enabled:
         # Return temp token for TOTP verification (5 min expiry)

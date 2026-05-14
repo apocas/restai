@@ -282,8 +282,6 @@ def _wrap_image_error(err: Exception, has_image: bool) -> Exception:
 
 class Agent(ProjectBase):
 
-    # ---------------- Plan-and-execute (auto_plan) ----------------
-
     async def _run_planner(
         self, project, prompt: str, db: DBWrapper
     ) -> list[str] | None:
@@ -492,7 +490,6 @@ class Agent(ProjectBase):
         if extra_tools:
             adapted.extend(extra_tools)
 
-        # Load agent-created project tools from DB
         from restai.database import DBWrapper as _DBW
         _db = _DBW()
         try:
@@ -613,8 +610,6 @@ class Agent(ProjectBase):
                         if isinstance(block, ToolUseBlock):
                             pending_tool_calls[block.id] = block
                             tool_call_started_at[block.id] = _time.monotonic()
-                            # Live event so the playground UI can show the
-                            # tool is in flight (mirrors plan/step events).
                             try:
                                 args_preview = json.dumps(block.input, default=str)
                             except Exception:
@@ -665,8 +660,6 @@ class Agent(ProjectBase):
                                 "status": status,
                                 "error": err_preview,
                             })
-                            # Live completion event paired with the earlier
-                            # `tool_call_started` by `id`.
                             output_preview = str(content)[:500]
                             if len(str(content)) > 500:
                                 output_preview = output_preview + "…"
@@ -956,9 +949,6 @@ class Agent(ProjectBase):
                                 streamed_any_text = True
                                 yield "data: " + json.dumps({"text": payload}) + "\n\n"
                             else:
-                                # Tool-call lifecycle event (or any other
-                                # structured signal from `_drive_runtime`).
-                                # ChatPanel branches on the dict's key.
                                 yield "data: " + json.dumps(payload) + "\n\n"
 
                     await save_session(self.brain, chat_id, session)
@@ -1082,9 +1072,6 @@ class Agent(ProjectBase):
                         streamed_any_text = True
                         yield "data: " + json.dumps({"text": payload}) + "\n\n"
                     else:
-                        # Tool-call lifecycle event — same shape used by
-                        # the chat path so the playground UI can show
-                        # tools in flight regardless of endpoint.
                         yield "data: " + json.dumps(payload) + "\n\n"
 
                 self._count_tokens(output)

@@ -90,7 +90,6 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
       subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · INDEX · INGEST · RETRIEVAL`}
     >
     <Grid container spacing={3}>
-      {/* Bulk ingest queue */}
       <Grid item sm={12} xs={12}>
         <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
           {t("projects.edit.knowledge.bulkIngest")}

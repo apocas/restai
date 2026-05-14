@@ -28,7 +28,6 @@ export const DefaultBackdrop = (
 // Exported so the bank can keep its existing visual exactly.
 export const RichBackdrop = (
   <>
-    {/* Soft blue bloom from above */}
     <Box sx={{
       position: "absolute", inset: 0, pointerEvents: "none",
       background: "radial-gradient(ellipse 70% 45% at 50% -10%, rgba(25,118,210,0.10), transparent 60%)",

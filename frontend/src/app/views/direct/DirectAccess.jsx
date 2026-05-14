@@ -98,7 +98,6 @@ function CodeTerminal({ language, code }) {
         boxShadow: "0 8px 22px rgba(15,23,42,0.18)",
       }}
     >
-      {/* Title bar */}
       <Box
         sx={{
           display: "flex",
@@ -189,7 +188,6 @@ function EndpointSection({
 
   return (
     <SectionCard elevation={0} accent={accent.color}>
-      {/* Header strip */}
       <Box sx={{ p: 3, pt: 2.75, display: "flex", flexDirection: "column", gap: 1.5 }}>
         <Box sx={{ display: "flex", gap: 1.75, alignItems: "center", flexWrap: "wrap" }}>
           <Box

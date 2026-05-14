@@ -434,7 +434,6 @@ export default function UserInfo() {
           </Box>
 
           <Box sx={{ flex: 1, minWidth: 220 }}>
-            {/* Inline path trail */}
             <Box
               sx={{
                 display: "flex",
@@ -504,7 +503,6 @@ export default function UserInfo() {
               </Typography>
             )}
 
-            {/* Metadata pills */}
             <Box sx={{ display: "flex", gap: 1, mt: 2, flexWrap: "wrap", alignItems: "center" }}>
               <Chip
                 size="small"

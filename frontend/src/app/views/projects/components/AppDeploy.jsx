@@ -104,7 +104,6 @@ export default function AppDeploy({ projectId, project, token, onProjectReload }
     setLog((prev) => [...prev, { ts: ts(), type, text }].slice(-200));
   }, []);
 
-  // ---- Save credentials ------------------------------------------------
   const saveCredentials = useCallback(async () => {
     setSavingCreds(true);
     try {
@@ -137,7 +136,6 @@ export default function AppDeploy({ projectId, project, token, onProjectReload }
     }
   }, [projectId, token, form, t, onProjectReload]);
 
-  // ---- Test connection -------------------------------------------------
   const testConnection = useCallback(async () => {
     if (!form.host) {
       toast.error(t("projects.app.deploy.hostRequired", "Host is required"));
@@ -174,13 +172,11 @@ export default function AppDeploy({ projectId, project, token, onProjectReload }
     }
   }, [projectId, token, form, t, appendLog]);
 
-  // ---- Download zip ----------------------------------------------------
   // Triggered by a plain anchor click — letting the browser handle the
   // streaming download is simpler than wrestling with fetch + Blob, and
   // it shows the download progress in the browser's UI for free.
   const downloadHref = `${apiBase}/projects/${projectId}/app/download?include_source=${includeSource}&include_db=${includeDb}`;
 
-  // ---- Deploy with SSE -------------------------------------------------
   const startDeploy = useCallback(() => {
     if (deploying) return;
     setDeploying(true);

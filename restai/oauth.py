@@ -43,7 +43,7 @@ class OAuthManager:
     async def handle_login(self, request, provider):
         if provider not in OAUTH_PROVIDERS:
             raise HTTPException(404)
-        # If the provider has a custom redirect URL, use that, otherwise automatically generate one
+        # Custom redirect_uri overrides the auto-generated one.
         redirect_uri = OAUTH_PROVIDERS[provider].get("redirect_uri") or request.url_for(
             "oauth_callback", provider=provider
         )
@@ -86,7 +86,6 @@ class OAuthManager:
                         ) as resp:
                             if resp.ok:
                                 emails = await resp.json()
-                                # use the primary email as the user's email
                                 primary_email = next(
                                     (e["email"] for e in emails if e.get("primary")),
                                     None,

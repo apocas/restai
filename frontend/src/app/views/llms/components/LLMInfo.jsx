@@ -415,7 +415,6 @@ export default function LLMInfo({ llm, projects, usedBy = 0 }) {
 
   return (
     <Box>
-      {/* Stat strip */}
       <Grid container spacing={2} sx={{ mb: 2.5 }}>
         <Grid item xs={6} md={3}>
           <StatTile
@@ -460,7 +459,6 @@ export default function LLMInfo({ llm, projects, usedBy = 0 }) {
       </Grid>
 
       <Grid container spacing={2.5}>
-        {/* Identity card */}
         <Grid item xs={12} md={4}>
           <TileCard elevation={0} accent={meta.color}>
             <Box sx={{ p: 3, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
@@ -668,7 +666,6 @@ export default function LLMInfo({ llm, projects, usedBy = 0 }) {
             </Box>
           </TileCard>
 
-          {/* Options block */}
           {optionsObj && (
             <Box sx={{ mt: 2.5 }}>
               <TileCard elevation={0} accent={ACCENT}>

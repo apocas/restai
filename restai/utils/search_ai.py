@@ -24,14 +24,8 @@ from restai.models.databasemodels import (
 logger = logging.getLogger(__name__)
 
 
-# ── Allowed entities and fields ─────────────────────────────────────────
-#
-# Each entity lists (field → spec):
-#   type: "str" | "bool" | "int" | "float" | "enum"
-#   ops:  list of allowed operators from: eq, ne, contains, gt, gte, lt, lte
-#   values: only for "enum" fields — closed set of allowed values
-#   model_attr: how to look the field up on the SQLAlchemy model (defaults to field name)
-
+# Per-entity schema. Each field spec: type ("str"|"bool"|"int"|"float"|"enum"),
+# ops (subset of eq/ne/contains/gt/gte/lt/lte), values (enum only).
 ENTITIES = {
     "projects": {
         "model": ProjectDatabase,
@@ -41,8 +35,8 @@ ENTITIES = {
             "type": {"type": "enum", "ops": ["eq", "ne"], "values": ["rag", "agent", "block"]},
             "llm": {"type": "str", "ops": ["eq", "ne", "contains"]},
             "public": {"type": "bool", "ops": ["eq"]},
-            "team_name": {"type": "str", "ops": ["eq", "contains"]},  # virtual
-            "creator_username": {"type": "str", "ops": ["eq", "contains"]},  # virtual
+            "team_name": {"type": "str", "ops": ["eq", "contains"]},
+            "creator_username": {"type": "str", "ops": ["eq", "contains"]},
         },
     },
     "users": {
@@ -80,9 +74,6 @@ ENTITIES = {
         },
     },
 }
-
-
-# ── Prompt building ─────────────────────────────────────────────────────
 
 
 def _describe_schema() -> str:
@@ -136,9 +127,6 @@ Output ONLY the JSON object. No markdown fences, no prose.
 """
 
 
-# ── Parsing and validation ──────────────────────────────────────────────
-
-
 _FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
 
 
@@ -189,7 +177,6 @@ def validate_query(parsed: dict) -> tuple[dict, list[str]]:
         if op not in fspec["ops"]:
             warnings.append(f"Ignored unsupported op '{op}' on field '{field}'")
             continue
-        # Type coercion
         if fspec["type"] == "bool":
             if isinstance(value, str):
                 value = value.lower() in ("true", "1", "yes")
@@ -211,7 +198,7 @@ def validate_query(parsed: dict) -> tuple[dict, list[str]]:
                 warnings.append(f"Ignored out-of-range value '{value}' on '{field}'")
                 continue
             value = str(value)
-        else:  # str
+        else:
             if value is None:
                 continue
             value = str(value)
@@ -229,15 +216,11 @@ def validate_query(parsed: dict) -> tuple[dict, list[str]]:
     )
 
 
-# ── Query execution ─────────────────────────────────────────────────────
-
-
 def _apply_filter(query, model, entity: str, f: dict):
     field = f["field"]
     op = f["op"]
     value = f["value"]
 
-    # Handle virtual fields on projects
     if entity == "projects":
         if field == "team_name":
             from restai.models.databasemodels import TeamDatabase
@@ -287,7 +270,6 @@ def _apply_rbac(query, entity: str, user):
         else:
             query = query.filter(ProjectDatabase.id.in_(accessible_ids))
     elif entity == "users":
-        # Regular users: can only see themselves. Team admins: members of their teams.
         visible_ids = {user.id}
         for team in (user.admin_teams or []):
             for u in getattr(team, "users", []) or []:
@@ -296,11 +278,9 @@ def _apply_rbac(query, entity: str, user):
                 visible_ids.add(u.id)
         query = query.filter(UserDatabase.id.in_(visible_ids))
     elif entity == "teams":
-        # Regular users: only teams they belong to. Team admins: teams they admin.
         team_ids = {t.id for t in (user.teams or [])} | {t.id for t in (user.admin_teams or [])}
         query = query.filter(TeamDatabase.id.in_(team_ids))
     elif entity in ("llms", "embeddings"):
-        # Regular users: only entities their teams have access to
         accessible_ids = set()
         for team in (user.teams or []) + (user.admin_teams or []):
             items = getattr(team, entity, []) or []
@@ -375,9 +355,6 @@ def execute_query(db_wrapper, user, cleaned: dict) -> list[dict]:
 
     rows = query.all()
     return [_row_to_result(entity, r) for r in rows]
-
-
-# ── Top-level orchestration ─────────────────────────────────────────────
 
 
 async def run_search(brain, db_wrapper, user, query_text: str) -> dict:

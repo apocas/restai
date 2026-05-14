@@ -1,12 +1,4 @@
-"""Project template library — reusable project snapshots.
-
-Adds the ``project_templates`` table that lets users publish a
-project's config (system prompt + options + Blockly workspace) as a
-clonable "starter pack" with three-tier visibility (private / team /
-public). Decouples sharing from the live project so an admin can share
-a "Customer Support Bot" template without making the underlying
-project public.
-"""
+"""Project template library — reusable project snapshots (private/team/public)."""
 import sqlalchemy as sa
 from alembic import op
 

@@ -1,10 +1,4 @@
-"""Bulk file ingest queue for RAG projects.
-
-Admins upload CSV/XLSX/JSON/PDF/docx via the KB tab; each file lands
-as a ``queued`` row here and ``crons/bulk_ingest.py`` picks it up.
-Decouples large-file ingestion from the request/response cycle so an
-admin uploading a 500-page PDF doesn't block on a 2-minute response.
-"""
+"""Bulk file ingest queue for RAG projects (consumed by crons/bulk_ingest.py)."""
 import sqlalchemy as sa
 from alembic import op
 

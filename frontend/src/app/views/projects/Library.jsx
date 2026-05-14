@@ -184,7 +184,6 @@ export default function Library() {
       />
 
       <ContentBox>
-        {/* Type filter */}
         <Box sx={{ display: "flex", justifyContent: "center", gap: 1, mb: 3, flexWrap: "wrap" }}>
           {TYPE_FILTERS.map((tf) => (
             <Chip
@@ -450,7 +449,6 @@ export default function Library() {
                 .map((tpl) => (
                 <Grid item xs={12} sm={6} md={4} key={tpl.id}>
                   <ProjectCard elevation={0} accent={getAccent(tpl.project_type)}>
-                    {/* Body */}
                     <Box sx={{ p: 2.25, pt: 2.5, pb: 1.5, flex: 1, display: "flex", flexDirection: "column", gap: 1.25 }}>
                       <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
                         <Box sx={{ flexShrink: 0, mt: 0.25 }}>
@@ -524,7 +522,6 @@ export default function Library() {
                         )}
                       </Box>
 
-                      {/* Description */}
                       <Typography
                         variant="body2"
                         sx={{
@@ -558,7 +555,6 @@ export default function Library() {
                       )}
                     </Box>
 
-                    {/* Footer */}
                     <Box
                       sx={{
                         px: 2.25, py: 1.25,
@@ -644,7 +640,6 @@ export default function Library() {
         </DialogActions>
       </Dialog>
 
-      {/* Clone dialog */}
       <Dialog open={cloneOpen} onClose={() => setCloneOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{t("projects.clone.title")}: {cloneTarget?.human_name || cloneTarget?.name}</DialogTitle>
         <DialogContent>

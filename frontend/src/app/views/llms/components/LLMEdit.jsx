@@ -44,8 +44,8 @@ const providerMeta = (className) => {
   return PROVIDER_COLORS.find((p) => p.match.test(className)) || { color: "#64748b", short: className };
 };
 
-// OpenAI-compatible classes — same set the original form used to gate
-// the "List Models" button. These can be probed remotely.
+// OpenAI-compatible classes — gate the "List Models" button. These can
+// be probed remotely.
 const OPENAI_COMPAT_CLASSES = new Set([
   "OpenAI", "OpenAILike", "LiteLLM", "vLLM", "Grok", "Gemini", "GeminiMultiModal",
 ]);

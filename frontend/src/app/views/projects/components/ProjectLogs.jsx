@@ -314,7 +314,6 @@ export default function ProjectLogs({ project }) {
 
   return (
     <TileCard elevation={0} accent={ACCENT}>
-      {/* Toolbar */}
       <Box
         sx={{
           display: "flex",
@@ -411,7 +410,6 @@ export default function ProjectLogs({ project }) {
         </TextField>
       </Box>
 
-      {/* Table */}
       <Table size="small">
         <TableHead>
           <TableRow sx={{ "& th": { backgroundColor: "rgba(15,23,42,0.02)", fontWeight: 600 } }}>
@@ -707,7 +705,6 @@ export default function ProjectLogs({ project }) {
                             </Box>
                           )}
 
-                          {/* Tool trace timeline */}
                           {toolTrace && toolTrace.length > 0 && (
                             <Box>
                               <Typography

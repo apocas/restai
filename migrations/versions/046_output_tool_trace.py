@@ -1,10 +1,4 @@
-"""Per-tool trace column on `output`.
-
-Adds ``output.tool_trace`` (nullable JSON-encoded text) so the log
-viewer can render each agent's tool-call timeline. Populated by the
-agent loop in ``restai/projects/agent.py``; see ``log_inference`` in
-``restai/tools.py`` for persistence.
-"""
+"""Add output.tool_trace (JSON-encoded agent tool-call timeline)."""
 import sqlalchemy as sa
 from alembic import op
 

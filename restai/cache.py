@@ -11,10 +11,8 @@ _cache_client_cache = {}
 
 
 def _get_cache_client(path):
-    # Read GUI settings on every call so admins can change Chroma host
-    # without a restart. `_cfg.X` triggers the module __getattr__ which
-    # hits the DB; a top-level `from restai.config import X` would have
-    # frozen the value at import time.
+    # Read via _cfg.X so module __getattr__ hits the DB on every call —
+    # `from restai.config import X` would freeze the value at import time.
     host = _cfg.CHROMADB_HOST
     if host:
         return chromadb.HttpClient(host=host, port=_cfg.CHROMADB_PORT)

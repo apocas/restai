@@ -194,16 +194,13 @@ def parse_workspace_json(text: str) -> Optional[dict]:
         return None
     text = text.strip()
 
-    # Strip markdown code fences if present
     fence_match = _CODE_FENCE_RE.search(text)
     if fence_match:
         text = fence_match.group(1).strip()
 
-    # Try direct parse first
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError:
-        # Try to find the outermost JSON object
         start = text.find("{")
         end = text.rfind("}")
         if start == -1 or end == -1 or end <= start:
@@ -213,11 +210,9 @@ def parse_workspace_json(text: str) -> Optional[dict]:
         except json.JSONDecodeError:
             return None
 
-    # Ensure minimal shape
     if not isinstance(parsed, dict):
         return None
     if "blocks" not in parsed:
-        # If the LLM returned just the inner blocks structure, wrap it
         if "type" in parsed:
             parsed = {"blocks": {"blocks": [parsed]}, "variables": []}
         else:

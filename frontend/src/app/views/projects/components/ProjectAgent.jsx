@@ -44,7 +44,6 @@ export default function ProjectAgent({ project }) {
     <Card elevation={1} sx={{ p: 2.5 }}>
       <SectionTitle><SmartToy fontSize="small" /> Agent</SectionTitle>
 
-      {/* Tools */}
       {toolsList.length > 0 && (
         <Box sx={{ mb: 2 }}>
           <Typography variant="caption" color="text.secondary" display="block" gutterBottom>Tools</Typography>
@@ -56,7 +55,6 @@ export default function ProjectAgent({ project }) {
         </Box>
       )}
 
-      {/* MCP Servers */}
       {project.options?.mcp_servers && project.options.mcp_servers.length > 0 && (
         <Box>
           <Typography variant="caption" color="text.secondary" display="block" gutterBottom>MCP Servers</Typography>

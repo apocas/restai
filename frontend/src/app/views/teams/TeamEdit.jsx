@@ -289,9 +289,7 @@ export default function TeamEdit() {
         image_generators: (data.image_generators || []).map((g) => ({ name: g })),
         audio_generators: (data.audio_generators || []).map((g) => ({ name: g })),
         branding: data.branding || { primary_color: "", secondary_color: "", logo_url: "", welcome_message: "", app_name: "" },
-        // Server returns the SMTP password masked as `****xxxx`. We
-        // keep that string in the field — the server's update_team
-        // detects the mask prefix and preserves the existing value.
+        // smtp_password arrives masked (****xxxx); update_team preserves the saved value when it sees that prefix.
         options: data.options || { smtp_host: "", smtp_port: "", smtp_user: "", smtp_password: "", smtp_from: "", email_default_to: "" },
       });
       setLoading(false);
@@ -508,7 +506,6 @@ export default function TeamEdit() {
           </TileCard>
         </Box>
 
-        {/* TABS */}
         <Box sx={{ mt: 2.5 }}>
           <TileCard elevation={0} accent={ACCENT}>
             <Box sx={{ borderBottom: "1px solid rgba(15,23,42,0.06)", px: 1.5 }}>
@@ -841,7 +838,6 @@ export default function TeamEdit() {
                       />
                     </Grid>
 
-                    {/* Live preview */}
                     {(team.branding?.logo_url || team.branding?.primary_color || team.branding?.app_name) && (
                       <Grid item xs={12}>
                         <Box
@@ -912,8 +908,7 @@ export default function TeamEdit() {
               </TileCard>
             </TabPanel>
 
-            {/* Integrations — currently just SMTP/email. New channels
-                (webhooks, Slack, etc.) will be added here as siblings. */}
+            {/* INTEGRATIONS */}
             <TabPanel value={tabValue} index={4}>
               <TileCard elevation={0} accent={SECTION.integrations.c}>
                 <TileHeader

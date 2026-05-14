@@ -26,7 +26,6 @@ def create_tool(name: str, description: str, parameters: str, code: str, **kwarg
     if not project_id:
         return "ERROR: No project context available."
 
-    # Validate name
     if not name or not _NAME_RE.match(name):
         return f"ERROR: Invalid tool name '{name}'. Use only letters, digits, and underscores. Must start with a letter or underscore."
 
@@ -39,13 +38,12 @@ def create_tool(name: str, description: str, parameters: str, code: str, **kwarg
     if len(code) > _MAX_CODE_SIZE:
         return f"ERROR: Code is too large ({len(code)} bytes). Maximum is {_MAX_CODE_SIZE} bytes."
 
-    # Validate parameters JSON
     try:
         params_dict = json.loads(parameters) if isinstance(parameters, str) else parameters
     except json.JSONDecodeError as e:
         return f"ERROR: Invalid parameters JSON: {e}"
 
-    # Test the code by running it in Docker with empty args
+    # Smoke-run with empty args in Docker so we reject syntax errors before saving.
     script = f"import json, sys\nargs = json.loads(sys.stdin.readline() or '{{}}')\n{code}"
     test_result = brain.docker_manager.run_script(
         chat_id or "ephemeral",
@@ -55,7 +53,6 @@ def create_tool(name: str, description: str, parameters: str, code: str, **kwarg
     if test_result.startswith("ERROR:"):
         return f"ERROR: Code validation failed — {test_result}"
 
-    # Save to database
     from restai.database import DBWrapper
     db = DBWrapper()
     try:

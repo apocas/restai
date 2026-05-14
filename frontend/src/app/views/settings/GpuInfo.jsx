@@ -359,7 +359,6 @@ function GpuCard({ gpu, isSelected, onToggle }) {
         </Tooltip>
       </Box>
 
-      {/* Three meters */}
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
         <MeterBar
           value={util}
@@ -385,7 +384,6 @@ function GpuCard({ gpu, isSelected, onToggle }) {
         />
       </Box>
 
-      {/* Thermal pill */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 1.5, pt: 1.25, borderTop: "1px dashed rgba(15,23,42,0.08)" }}>
         <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
           <Thermostat sx={{ fontSize: 14, color: tColor }} />
@@ -552,7 +550,6 @@ export default function GpuInfo() {
             }
           />
 
-          {/* Toggle row */}
           <Box
             sx={{
               px: 2.5, py: 2,
@@ -606,7 +603,6 @@ export default function GpuInfo() {
             </Box>
           </Box>
 
-          {/* Devices */}
           <Box sx={{ p: 2.5 }}>
             {gpuLoading && (
               <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 5, gap: 1.25 }}>
@@ -703,7 +699,6 @@ export default function GpuInfo() {
           </Box>
         </TileCard>
 
-        {/* Save bar */}
         <Box
           sx={{
             mt: 2,

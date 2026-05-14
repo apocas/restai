@@ -51,12 +51,10 @@ function AudioMessage({ message }) {
         </PromptBubble>
       </Box>
 
-      {/* Result */}
       <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
         <ResultBubble>
           {message.answer ? (
             <>
-              {/* Main transcription text */}
               {message.answer.text && (
                 <Typography variant="body2" sx={{ mb: 1, whiteSpace: "pre-wrap" }}>
                   {message.answer.text}
@@ -173,7 +171,6 @@ export default function AudioChatContainer({ generators }) {
 
   return (
     <Card elevation={3} sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Header */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1, flexWrap: "wrap", gap: 1 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Mic />
@@ -202,7 +199,6 @@ export default function AudioChatContainer({ generators }) {
 
       <Divider />
 
-      {/* Messages */}
       <Box sx={{ flex: 1, overflow: "auto", minHeight: 400 }} ref={scrollRef}>
         <Box sx={{ p: 2 }}>
           {messages.length === 0 && (
@@ -222,7 +218,6 @@ export default function AudioChatContainer({ generators }) {
         </Box>
       </Box>
 
-      {/* Audio preview */}
       {audioFile && (
         <Box sx={{ px: 2, pb: 1 }}>
           <Chip
@@ -235,7 +230,6 @@ export default function AudioChatContainer({ generators }) {
         </Box>
       )}
 
-      {/* Input */}
       <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, p: 2, borderTop: 1, borderColor: "divider" }}>
         <TextField
           fullWidth size="small"

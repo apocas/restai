@@ -110,7 +110,6 @@ export default function ProjectsTable({ projects = [], title = "Projects", compa
 
   return (
     <TileCard elevation={0}>
-      {/* Header */}
       <Box
         sx={{
           px: 2.5, pt: 2, pb: 1.75,

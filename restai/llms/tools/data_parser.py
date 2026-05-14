@@ -86,7 +86,6 @@ def _query_csv(data, query):
     if not query:
         return f"{len(rows)} rows. Columns: {list(rows[0].keys())}"
 
-    # Filter: column=value
     if "=" in query:
         col, val = query.split("=", 1)
         col = col.strip()
@@ -101,7 +100,6 @@ def _query_csv(data, query):
             lines.append(",".join(r.values()))
         return "\n".join(lines)
 
-    # Extract column
     col = query.strip()
     if col not in rows[0]:
         return f"Error: Column '{col}' not found. Available: {list(rows[0].keys())}"

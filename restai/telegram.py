@@ -164,7 +164,6 @@ class TelegramPoller:
         send_typing_action(self.token, chat_id)
 
         try:
-            # Run the async chat_main in a new event loop on this thread
             answer = asyncio.run(self._process_message(text, chat_id))
             if answer:
                 send_message(self.token, chat_id, answer)
@@ -193,7 +192,6 @@ class TelegramPoller:
 
         background_tasks = BackgroundTasks()
 
-        # Create a minimal ASGI scope for the Request object
         scope = {
             "type": "http",
             "method": "POST",
@@ -214,7 +212,6 @@ class TelegramPoller:
             background_tasks,
         )
 
-        # Run any background tasks (logging etc.)
         await background_tasks()
 
         if isinstance(response, dict):
@@ -228,7 +225,6 @@ class TelegramPoller:
 
 def start_poller(project_id: int, token: str, app):
     with _pollers_lock:
-        # Stop existing poller for this project if any
         existing = _pollers.get(project_id)
         if existing:
             existing.stop()

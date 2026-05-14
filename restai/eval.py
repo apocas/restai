@@ -99,7 +99,6 @@ async def _get_project_answer(project, question: str, brain, user, db):
     q = QuestionModel(question=question, stream=False)
     start = time.perf_counter()
 
-    # Determine the project type handler
     match project.props.type:
         case "rag":
             from restai.projects.rag import RAG
@@ -185,7 +184,6 @@ async def run_evaluation(run_id: int, app):
             db.db.commit()
             return
 
-        # Apply prompt version if specified, or record active version
         if run.prompt_version_id:
             pv = db.get_prompt_version(run.prompt_version_id)
             if pv and pv.project_id == run.project_id:
@@ -196,17 +194,14 @@ async def run_evaluation(run_id: int, app):
                 run.prompt_version_id = active_pv.id
                 db.db.commit()
 
-        # Get eval LLM — use the project's own LLM
         eval_llm = None
         if project.props.llm:
             llm_model = brain.get_llm(project.props.llm, db)
             if llm_model:
                 eval_llm = DeepEvalLLM(model=llm_model.llm)
 
-        # Create a synthetic user for the eval (use the project creator)
         user_db = db.get_user_by_id(project.props.creator) if project.props.creator else None
         if user_db is None:
-            # Fallback to admin
             user_db = db.get_user_by_username("admin")
         user = User.model_validate(user_db)
 
@@ -231,10 +226,8 @@ async def run_evaluation(run_id: int, app):
                 for metric_name in metrics_list:
                     try:
                         if metric_name == "faithfulness" and not retrieval_context:
-                            # Skip faithfulness if no context available
                             continue
                         if metric_name == "correctness" and not tc.expected_answer:
-                            # Skip correctness if no expected answer
                             continue
 
                         test = LLMTestCase(

@@ -33,7 +33,6 @@ def cmd_serve(args):
     """Start the RESTai server."""
     _load_env(args.env_file)
 
-    # Set port from args or env
     if args.port:
         os.environ["RESTAI_PORT"] = str(args.port)
 
@@ -68,7 +67,7 @@ def cmd_migrate(args):
     else:
         db_url = "sqlite:///./restai.db"
 
-    # Find alembic.ini and migrations — check repo root first, then site-packages
+    # Repo root first, then site-packages.
     import sysconfig
     package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     site_packages = sysconfig.get_path("purelib")
@@ -100,7 +99,6 @@ def cmd_init(args):
     """Initialize the database with tables, admin user, and default models."""
     _load_env(args.env_file)
 
-    # The root database.py script creates tables and seeds data on import
     import importlib
     import database  # noqa: F401 — side-effect import that creates tables
     print("Database initialized.")
@@ -112,7 +110,6 @@ def _run_script(args, script_path):
     import importlib.util
     spec = importlib.util.spec_from_file_location("script", script_path)
     if spec is None:
-        # Try relative to package
         package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         script_path = os.path.join(package_root, script_path)
         spec = importlib.util.spec_from_file_location("script", script_path)
@@ -133,7 +130,6 @@ def main():
     parser.add_argument("--env-file", "-e", default=None, help="Path to .env file")
     subparsers = parser.add_subparsers(dest="command")
 
-    # serve
     serve_parser = subparsers.add_parser("serve", help="Start the RESTai server")
     serve_parser.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
     serve_parser.add_argument("--port", "-p", type=int, default=None, help="Port (default: 9000 or RESTAI_PORT)")
@@ -141,42 +137,33 @@ def main():
     serve_parser.add_argument("--reload", action="store_true", help="Enable auto-reload (dev mode)")
     serve_parser.set_defaults(func=cmd_serve)
 
-    # migrate
     migrate_parser = subparsers.add_parser("migrate", help="Run database migrations")
     migrate_parser.add_argument("direction", nargs="?", default="upgrade", choices=["upgrade", "downgrade"])
     migrate_parser.set_defaults(func=cmd_migrate)
 
-    # init
     init_parser = subparsers.add_parser("init", help="Initialize database schema and admin user")
     init_parser.set_defaults(func=cmd_init)
 
-    # crons (run all)
     crons_parser = subparsers.add_parser("crons", help="Run all cron jobs (single entry point)")
     crons_parser.set_defaults(func=lambda args: _run_script(args, "crons/runner.py"))
 
-    # sync
     sync_parser = subparsers.add_parser("sync", help="Run knowledge base sync (cron-friendly)")
     sync_parser.set_defaults(func=lambda args: _run_script(args, "crons/sync.py"))
 
-    # telegram
     telegram_parser = subparsers.add_parser("telegram", help="Poll Telegram for updates (cron-friendly)")
     telegram_parser.set_defaults(func=lambda args: _run_script(args, "crons/telegram.py"))
 
-    # slack
     slack_parser = subparsers.add_parser("slack", help="Poll Slack for messages (cron-friendly)")
     slack_parser.set_defaults(func=lambda args: _run_script(args, "crons/slack.py"))
 
-    # docker-cleanup
     docker_parser = subparsers.add_parser("docker-cleanup", help="Remove idle Docker containers (cron-friendly)")
     docker_parser.set_defaults(func=lambda args: _run_script(args, "crons/docker_cleanup.py"))
 
-    # routines
     routines_parser = subparsers.add_parser("routines", help="Run project routines (cron-friendly)")
     routines_parser.set_defaults(func=lambda args: _run_script(args, "crons/routines.py"))
 
     args = parser.parse_args()
     if not args.command:
-        # Default to serve
         args.command = "serve"
         args.host = "0.0.0.0"
         args.port = None

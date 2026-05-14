@@ -250,7 +250,6 @@ export default function Routines() {
       />
 
       <TileCard elevation={0} accent={ACCENT}>
-        {/* Toolbar */}
         <Box
           sx={{
             display: "flex",
@@ -283,7 +282,6 @@ export default function Routines() {
             }}
           />
 
-          {/* Status tally */}
           <Box sx={{ display: "flex", gap: 0.75 }}>
             <StatusSummary icon={BoltIcon}         count={tally.enabled}  color="#10b981" label={`${tally.enabled} enabled`} />
             <StatusSummary icon={PauseCircleIcon}  count={tally.disabled} color="#94a3b8" label={`${tally.disabled} paused`} />
@@ -307,7 +305,6 @@ export default function Routines() {
           </TextField>
         </Box>
 
-        {/* Table */}
         <Table size="small">
           <TableHead>
             <TableRow sx={{ "& th": { backgroundColor: "rgba(15,23,42,0.02)", fontWeight: 600 } }}>
@@ -396,7 +393,6 @@ export default function Routines() {
                       </Box>
                     </TableCell>
 
-                    {/* Routine name in mono */}
                     <TableCell>
                       <Box
                         component="span"

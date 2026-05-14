@@ -245,7 +245,6 @@ export default function Projects() {
         }
       />
 
-      {/* Toolbar — search + type filter + sort */}
       <Box
         sx={{
           mb: 3,
@@ -277,7 +276,6 @@ export default function Projects() {
           }}
         />
 
-        {/* Type filter pills (rendered as a chip strip — quicker than a dropdown for 5 buckets) */}
         <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
           {TYPE_FILTERS.map((f) => {
             const active = typeFilter === f.value;
@@ -338,7 +336,6 @@ export default function Projects() {
         </Typography>
       )}
 
-      {/* Card grid OR empty state */}
       {filtered.length === 0 ? (
         <Box
           sx={{
@@ -396,7 +393,6 @@ export default function Projects() {
             return (
               <Grid item xs={12} sm={6} md={4} lg={3} key={project.id}>
                 <ProjectCard elevation={0} accent={accent}>
-                  {/* Body */}
                   <Box sx={{ p: 2.25, pt: 2.5, pb: 1.5, flex: 1, display: "flex", flexDirection: "column", gap: 1.25 }}>
                     <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
                       <Box sx={{ flexShrink: 0, mt: 0.25 }}>
@@ -442,7 +438,6 @@ export default function Projects() {
                       </Box>
                     </Box>
 
-                    {/* Type + LLM + Team strip */}
                     <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", alignItems: "center" }}>
                       <ProjectTypeChip type={project.type} />
                       {project.llm && (
@@ -479,7 +474,6 @@ export default function Projects() {
                       )}
                     </Box>
 
-                    {/* Description */}
                     <Typography
                       variant="body2"
                       sx={{
@@ -496,7 +490,6 @@ export default function Projects() {
                       {project.human_description || "No description provided."}
                     </Typography>
 
-                    {/* System prompt — terminal-style mini-block */}
                     {project.system ? (
                       <Box
                         sx={{
@@ -551,7 +544,6 @@ export default function Projects() {
                     )}
                   </Box>
 
-                  {/* Footer — user avatar stack + actions */}
                   <Box
                     sx={{
                       px: 2.25,
@@ -563,7 +555,6 @@ export default function Projects() {
                       alignItems: "center",
                     }}
                   >
-                    {/* User avatar stack */}
                     <Box sx={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}>
                       {users.length > 0 ? (
                         <>

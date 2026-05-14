@@ -51,7 +51,6 @@ export default function UserActivity({ user }) {
       <Divider />
 
       <Box sx={{ p: 2 }}>
-        {/* Summary cards */}
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid item xs={6} sm={2.4}>
             <StatCard elevation={1}>
@@ -85,7 +84,6 @@ export default function UserActivity({ user }) {
           </Grid>
         </Grid>
 
-        {/* Daily activity chart */}
         {data.daily && data.daily.length > 0 && (
           <>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("users.userActivity.dailyActivity")}</Typography>
@@ -101,7 +99,6 @@ export default function UserActivity({ user }) {
           </>
         )}
 
-        {/* Hourly distribution */}
         {data.hourly && (
           <>
             <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>{t("users.userActivity.peakHours")}</Typography>
@@ -117,7 +114,6 @@ export default function UserActivity({ user }) {
           </>
         )}
 
-        {/* Top projects */}
         {data.top_projects && data.top_projects.length > 0 && (
           <>
             <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>{t("users.userActivity.topProjects")}</Typography>

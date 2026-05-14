@@ -10,7 +10,6 @@ branch_labels = None
 depends_on = None
 
 def upgrade():
-    # Create teams table
     try:
         op.create_table(
             'teams',
@@ -24,7 +23,6 @@ def upgrade():
     except Exception as e:
         print(f"Error creating teams table: {e}")
 
-    # Create teams_users relationship table
     try:
         op.create_table(
             'teams_users',
@@ -33,8 +31,7 @@ def upgrade():
         )
     except Exception as e:
         print(f"Error creating teams_users table: {e}")
-    
-    # Create teams_admins relationship table
+
     try:
         op.create_table(
             'teams_admins',
@@ -43,8 +40,7 @@ def upgrade():
         )
     except Exception as e:
         print(f"Error creating teams_admins table: {e}")
-    
-    # Create teams_projects relationship table
+
     try:
         op.create_table(
             'teams_projects',
@@ -53,8 +49,7 @@ def upgrade():
         )
     except Exception as e:
         print(f"Error creating teams_projects table: {e}")
-    
-    # Create teams_llms relationship table
+
     try:
         op.create_table(
             'teams_llms',
@@ -63,8 +58,7 @@ def upgrade():
         )
     except Exception as e:
         print(f"Error creating teams_llms table: {e}")
-    
-    # Create teams_embeddings relationship table
+
     try:
         op.create_table(
             'teams_embeddings',
@@ -75,33 +69,32 @@ def upgrade():
         print(f"Error creating teams_embeddings table: {e}")
 
 def downgrade():
-    # Drop relationship tables first (to avoid foreign key constraints)
+    # Drop relationship tables first to avoid FK constraint failures.
     try:
         op.drop_table('teams_embeddings')
     except Exception as e:
         print(f"Error dropping teams_embeddings table: {e}")
-    
+
     try:
         op.drop_table('teams_llms')
     except Exception as e:
         print(f"Error dropping teams_llms table: {e}")
-    
+
     try:
         op.drop_table('teams_projects')
     except Exception as e:
         print(f"Error dropping teams_projects table: {e}")
-    
+
     try:
         op.drop_table('teams_admins')
     except Exception as e:
         print(f"Error dropping teams_admins table: {e}")
-    
+
     try:
         op.drop_table('teams_users')
     except Exception as e:
         print(f"Error dropping teams_users table: {e}")
-    
-    # Drop teams table last
+
     try:
         op.drop_table('teams')
     except Exception as e:

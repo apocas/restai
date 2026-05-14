@@ -215,7 +215,6 @@ export default function ApiKeys({ user }) {
         </TableContainer>
       </Card>
 
-      {/* Create dialog */}
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{t("users.apiKeys.createDialog")}</DialogTitle>
         <DialogContent>
@@ -255,7 +254,6 @@ export default function ApiKeys({ user }) {
         </DialogActions>
       </Dialog>
 
-      {/* Show new key dialog */}
       <Dialog open={!!newKey} onClose={() => setNewKey(null)} maxWidth="sm" fullWidth>
         <DialogTitle>{t("users.apiKeys.saveKeyTitle")}</DialogTitle>
         <DialogContent>
@@ -282,7 +280,6 @@ export default function ApiKeys({ user }) {
         </DialogActions>
       </Dialog>
 
-      {/* Quota edit dialog */}
       <Dialog open={!!quotaTarget} onClose={() => setQuotaTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>{t("users.apiKeys.quotaDialogTitle")}</DialogTitle>
         <DialogContent>

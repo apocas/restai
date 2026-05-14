@@ -402,7 +402,6 @@ export default function Users() {
         }
       />
 
-      {/* Metric strip */}
       <Grid container spacing={2} sx={{ mt: 1, mb: 2.5 }}>
         <Grid item xs={6} md={3}>
           <StatTile

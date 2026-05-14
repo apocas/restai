@@ -506,7 +506,6 @@ print(response)`;
         </Box>
       </Box>
 
-      {/* Keys table */}
       <TileCard elevation={0} accent={ACCENT}>
         <TileHeader
           icon={<KeyIcon />}
@@ -726,7 +725,6 @@ print(response)`;
         </Table>
       </TileCard>
 
-      {/* Usage example */}
       <TileCard elevation={0} accent={ACCENT}>
         <TileHeader
           icon={<CodeIcon />}
@@ -948,7 +946,6 @@ print(response)`;
                 }
               />
 
-              {/* Budget row */}
               <Box>
                 <Typography
                   variant="overline"
@@ -994,7 +991,6 @@ print(response)`;
                 </Stack>
               </Box>
 
-              {/* Rate limit row */}
               <Box>
                 <Typography
                   variant="overline"

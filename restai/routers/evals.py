@@ -35,7 +35,6 @@ router = APIRouter()
 VALID_METRICS = {"answer_relevancy", "faithfulness", "correctness"}
 
 
-# ── Datasets ─────────────────────────────────────────────────────────────
 
 
 @router.post("/projects/{projectID}/evals/datasets", status_code=201, tags=["Evaluations"])
@@ -192,7 +191,6 @@ async def delete_dataset(
     return {"deleted": True}
 
 
-# ── Test Cases ───────────────────────────────────────────────────────────
 
 
 @router.post("/projects/{projectID}/evals/datasets/{datasetID}/cases", status_code=201, tags=["Evaluations"])
@@ -261,7 +259,6 @@ async def delete_test_case(
     return {"deleted": True}
 
 
-# ── Runs ─────────────────────────────────────────────────────────────────
 
 
 @router.post("/projects/{projectID}/evals/runs", status_code=201, tags=["Evaluations"])
@@ -274,7 +271,6 @@ async def start_eval_run(
     db: DBWrapper = Depends(get_db_wrapper),
 ):
     """Start an evaluation run. Returns immediately; runs in the background."""
-    # Validate metrics
     for m in body.metrics:
         if m not in VALID_METRICS:
             raise HTTPException(
@@ -282,7 +278,6 @@ async def start_eval_run(
                 detail=f"Invalid metric '{m}'. Valid: {', '.join(sorted(VALID_METRICS))}",
             )
 
-    # Validate dataset belongs to project
     dataset = (
         db.db.query(EvalDatasetDatabase)
         .filter(EvalDatasetDatabase.id == body.dataset_id, EvalDatasetDatabase.project_id == projectID)

@@ -32,14 +32,10 @@ def verify_context_token(
     secret: str,
     max_ttl: int = _MAX_TTL_SECONDS,
 ) -> dict:
-    """Verify a signed JWT context token and return clean claims.
-
-    Raises ValueError on any verification failure.
-    """
+    """Verify a signed JWT context token and return clean claims. Raises ValueError on failure."""
     if not token or not secret:
         raise ValueError("Missing token or secret")
 
-    # Size check on raw token
     if len(token) > _MAX_PAYLOAD_BYTES * 2:
         raise ValueError("Context token too large")
 
@@ -50,7 +46,6 @@ def verify_context_token(
     except jwt.InvalidTokenError as e:
         raise ValueError(f"Invalid context token: {e}")
 
-    # Enforce max TTL cap
     import time
     iat = claims.get("iat")
     exp = claims.get("exp")
@@ -60,13 +55,11 @@ def verify_context_token(
     if exp and not iat and (exp - now) > max_ttl:
         raise ValueError("Context token TTL exceeds maximum allowed")
 
-    # Check decoded payload size
     cleaned = {k: v for k, v in claims.items() if k not in _JWT_RESERVED}
     payload_json = json.dumps(cleaned)
     if len(payload_json.encode()) > _MAX_PAYLOAD_BYTES:
         raise ValueError("Context payload too large")
 
-    # Strip dangerous keys
     for key in _DANGEROUS_KEYS:
         cleaned.pop(key, None)
 
@@ -88,7 +81,6 @@ def apply_context(
 
     result = system_prompt or ""
 
-    # Prepend context block
     if prepend_block:
         lines = []
         for key, value in context.items():
@@ -101,7 +93,6 @@ def apply_context(
             block = "[User Context]\n" + "\n".join(lines) + "\n[/User Context]\n\n"
             result = block + result
 
-    # Template variable substitution (single-pass)
     def _replace(match):
         dotted_key = match.group(1)
         return str(_resolve_dotted_key(context, dotted_key))

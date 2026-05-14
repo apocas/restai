@@ -86,7 +86,6 @@ export default function CompareMode({ project }) {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Version selectors */}
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item xs={6}>
           <TextField

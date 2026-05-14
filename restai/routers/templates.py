@@ -94,7 +94,6 @@ def _can_edit(t: ProjectTemplateDatabase, user: User) -> bool:
     return user.is_admin or t.creator_id == user.id
 
 
-# ─── Publish from a project ─────────────────────────────────────────────
 @router.post(
     "/projects/{projectID}/publish-template",
     response_model=ProjectTemplateResponse,
@@ -147,7 +146,6 @@ async def publish_template(
     return _to_response(template)
 
 
-# ─── List ──────────────────────────────────────────────────────────────
 @router.get("/templates", response_model=list[ProjectTemplateResponse], tags=["Templates"])
 async def list_templates(
     project_type: str = Query(default=None, description="Filter by project_type (rag/agent/block)"),
@@ -164,7 +162,6 @@ async def list_templates(
     return [_to_response(t) for t in visible]
 
 
-# ─── Read one ──────────────────────────────────────────────────────────
 @router.get("/templates/{templateID}", response_model=ProjectTemplateResponse, tags=["Templates"])
 async def get_template(
     templateID: int,
@@ -179,7 +176,6 @@ async def get_template(
     return _to_response(t)
 
 
-# ─── Update ────────────────────────────────────────────────────────────
 @router.patch("/templates/{templateID}", response_model=ProjectTemplateResponse, tags=["Templates"])
 async def update_template(
     body: ProjectTemplateUpdate,
@@ -206,7 +202,6 @@ async def update_template(
     return _to_response(t)
 
 
-# ─── Delete ────────────────────────────────────────────────────────────
 @router.delete("/templates/{templateID}", tags=["Templates"])
 async def delete_template(
     templateID: int,

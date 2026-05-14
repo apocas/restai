@@ -60,42 +60,28 @@ SETTINGS_DEFAULTS = {
     "sso_oidc_scopes": "openid email profile",
     "sso_oidc_provider_name": "SSO",
     "sso_oidc_email_claim": "email",
-    # GPU. Empty string means "auto-detect" — config.RESTAI_GPU resolves it.
+    # GPU — empty string means "auto-detect" (config.RESTAI_GPU resolves it).
     "gpu_enabled": "",
     "gpu_worker_devices": "",
-    # MCP
     "mcp_enabled": "false",
-    # System LLM
     "system_llm": "",
-    # Docker
     "docker_enabled": "false",
     "docker_url": "",
     "docker_image": "python:3.12-slim",
     "docker_timeout": "900",
     "docker_network": "none",
     "docker_read_only": "true",
-    # Agentic Browser (Playwright-backed per-chat Chromium container)
     "browser_enabled": "false",
     "browser_image": "mcr.microsoft.com/playwright/python:v1.48.0-jammy",
     "browser_network": "bridge",
     "browser_timeout": "900",
-    # App Builder (per-project PHP+Node+esbuild preview container)
     "app_docker_enabled": "false",
     "app_docker_image": "restai/app-runtime:2",
     "app_docker_idle_timeout": "1800",
-    # Retention
     "data_retention_days": "0",
-    # 2FA
     "enforce_2fa": "false",
-    # Password rotation reminder. 0 = disabled (no warning ever).
-    # Soft-only — passwords stay valid past the threshold; the login
-    # response just includes a `password_warning` field so the UI can
-    # nudge the user to rotate.
+    # 0 = disabled. Soft warning only — passwords stay valid past the threshold.
     "password_max_age_days": "0",
-    # Vector DB backends. Chroma defaults on (local PersistentClient
-    # when host is empty); the other three are dormant until an admin
-    # fills the credentials and flips the toggle. Per-backend
-    # `enabled` gates the project-create vectorstore dropdown.
     "vectordb_chromadb_enabled": "true",
     "vectordb_chromadb_host": "",
     "vectordb_chromadb_port": "",
@@ -113,8 +99,6 @@ SETTINGS_DEFAULTS = {
     "vectordb_pinecone_enabled": "false",
     "vectordb_pinecone_api_key": "",
     "vectordb_pinecone_index": "",
-    # LDAP. `ldap_enabled` gates whether the `/ldap` login endpoint
-    # accepts authentication; the bind password is encrypted at rest.
     "ldap_enabled": "false",
     "ldap_server_host": "",
     "ldap_server_port": "",
@@ -127,14 +111,12 @@ SETTINGS_DEFAULTS = {
     "ldap_use_tls": "false",
     "ldap_ca_cert_file": "",
     "ldap_ciphers": "",
-    # SMTP — platform email defaults. Teams override via teams.options.
     "smtp_host": "",
     "smtp_port": "587",
     "smtp_user": "",
     "smtp_password": "",
     "smtp_from": "",
     "email_default_to": "",
-    # Telemetry
     "telemetry_instance_id": "",
 }
 
@@ -256,9 +238,7 @@ def get_all_settings(db_wrapper) -> dict:
         "data_retention_days": int(rows.get("data_retention_days", "0") or "0"),
         # 2FA
         "enforce_2fa": _to_bool(rows.get("enforce_2fa", "false")),
-        # Password rotation
         "password_max_age_days": int(rows.get("password_max_age_days", "0") or "0"),
-        # Vector DB backends
         "vectordb_chromadb_enabled": _to_bool(rows.get("vectordb_chromadb_enabled", "true")),
         "vectordb_chromadb_host": rows.get("vectordb_chromadb_host", ""),
         "vectordb_chromadb_port": rows.get("vectordb_chromadb_port", ""),
@@ -276,7 +256,6 @@ def get_all_settings(db_wrapper) -> dict:
         "vectordb_pinecone_enabled": _to_bool(rows.get("vectordb_pinecone_enabled", "false")),
         "vectordb_pinecone_api_key": mask_key(rows.get("vectordb_pinecone_api_key", "")),
         "vectordb_pinecone_index": rows.get("vectordb_pinecone_index", ""),
-        # LDAP
         "ldap_enabled": _to_bool(rows.get("ldap_enabled", "false")),
         "ldap_server_host": rows.get("ldap_server_host", ""),
         "ldap_server_port": rows.get("ldap_server_port", ""),
@@ -289,7 +268,6 @@ def get_all_settings(db_wrapper) -> dict:
         "ldap_use_tls": _to_bool(rows.get("ldap_use_tls", "false")),
         "ldap_ca_cert_file": rows.get("ldap_ca_cert_file", ""),
         "ldap_ciphers": rows.get("ldap_ciphers", ""),
-        # SMTP — platform defaults; team overrides live in teams.options
         "smtp_host": rows.get("smtp_host", ""),
         "smtp_port": rows.get("smtp_port", "587"),
         "smtp_user": rows.get("smtp_user", ""),

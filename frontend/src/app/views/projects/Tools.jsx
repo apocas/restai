@@ -408,7 +408,6 @@ export default function Tools() {
               }}
             />
 
-            {/* Category filter chips */}
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1.5, alignItems: "center" }}>
               <Box
                 sx={{

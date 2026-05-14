@@ -50,7 +50,6 @@ def main():
         cron.finish()
         return
 
-    # Find all RESTai-managed containers
     containers = client.containers.list(
         filters={"label": "restai.managed=true"},
     )
@@ -69,10 +68,9 @@ def main():
         chat_id = labels.get("restai.chat_id", "unknown")
 
         if not created_at:
-            # No timestamp label — use container creation time
+            # No timestamp label — fall back to container creation time.
             try:
                 container.reload()
-                # Docker API returns created time as ISO string
                 from datetime import datetime, timezone
                 created_str = container.attrs.get("Created", "")
                 if created_str:

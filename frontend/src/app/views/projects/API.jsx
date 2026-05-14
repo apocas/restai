@@ -470,7 +470,6 @@ export default function ProjectAPI() {
           Use your API key to interact with the <strong>{projectName}</strong> project programmatically.
         </Typography>
 
-        {/* Language selector */}
         <Tabs
           value={lang}
           onChange={(_, v) => setLang(v)}
@@ -487,7 +486,6 @@ export default function ProjectAPI() {
           ))}
         </Tabs>
 
-        {/* Examples */}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
           <ExampleCard
             title="Question"

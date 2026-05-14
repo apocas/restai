@@ -68,7 +68,6 @@ async def generate_system_prompt(
         raise ValueError(f"System LLM call failed: {e}")
 
     text = text.strip()
-    # Strip wrapping quotes if the LLM added them
     if len(text) >= 2 and text[0] in ('"', "'") and text[-1] == text[0]:
         text = text[1:-1].strip()
     return text

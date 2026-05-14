@@ -270,7 +270,6 @@ export default function ProjectWidget({ project }) {
       subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · EMBED · API KEY`}
     >
     <Grid container spacing={3}>
-      {/* Context secret shown once alert */}
       {contextSecret && (
         <Grid item xs={12}>
           <Alert
@@ -296,7 +295,6 @@ export default function ProjectWidget({ project }) {
         </Grid>
       )}
 
-      {/* Key shown once alert */}
       {newKey && (
         <Grid item xs={12}>
           <Alert

@@ -57,7 +57,6 @@ if MYSQL_HOST:
         # gone away" never bubbles up to the user.
         pool_pre_ping=True,
         # LIFO checkout: hand back the most recently returned connection
-        # first so the cold ones stay cold and get reaped by
         # `pool_recycle`. Net win whenever there's spare pool capacity.
         pool_use_lifo=True,
     )
@@ -145,7 +144,6 @@ class DBWrapper:
         input_cost: float = 0.0,
         output_cost: float = 0.0,
     ) -> LLMDatabase:
-        # Encrypt sensitive fields (api_key) in the options JSON
         from restai.utils.crypto import encrypt_sensitive_options, LLM_SENSITIVE_KEYS
         import json as _json
         try:
@@ -289,7 +287,6 @@ class DBWrapper:
         self.db.commit()
         return True
 
-    # ── Widget methods ─────────────────────────────────────────────────
 
     def create_widget(self, project_id, creator_id, encrypted_key, key_hash, key_prefix, name, config_json, allowed_domains_json):
         now = datetime.now(timezone.utc)
@@ -371,12 +368,10 @@ class DBWrapper:
             llm.class_name = llmUpdate.class_name
 
         if llmUpdate.options is not None and llm.options != llmUpdate.options:
-            # Encrypt sensitive fields (api_key) before persisting
             from restai.utils.crypto import encrypt_sensitive_options, LLM_SENSITIVE_KEYS
             import json as _json
             try:
                 opts_dict = _json.loads(llmUpdate.options) if isinstance(llmUpdate.options, str) else llmUpdate.options
-                # If api_key is the masked value, preserve the existing one
                 if opts_dict.get("api_key") == "********":
                     existing = _json.loads(llm.options) if isinstance(llm.options, str) else (llm.options or {})
                     if "api_key" in existing:
@@ -429,7 +424,6 @@ class DBWrapper:
             embeddingUpdate.options is not None
             and embedding.options != embeddingUpdate.options
         ):
-            # If api_key is the masked value, preserve the existing one
             import json as _json
             try:
                 new_opts = _json.loads(embeddingUpdate.options) if isinstance(embeddingUpdate.options, str) else (embeddingUpdate.options or {})
@@ -475,7 +469,6 @@ class DBWrapper:
         self.db.commit()
         return True
 
-    # ─── Image generators ─────────────────────────────────────────────
 
     def get_image_generators(self) -> list[ImageGeneratorDatabase]:
         return self.db.query(ImageGeneratorDatabase).order_by(ImageGeneratorDatabase.name).all()
@@ -537,9 +530,7 @@ class DBWrapper:
         if update.options is not None:
             try:
                 new_opts = _json.loads(update.options) if isinstance(update.options, str) else (update.options or {})
-                # Preserve masked sensitive fields
                 existing = _json.loads(gen.options) if gen.options else {}
-                # The existing values in DB are already encrypted; decrypt
                 # them so the comparison is plaintext-vs-plaintext.
                 from restai.utils.crypto import decrypt_sensitive_options
                 existing_plain = decrypt_sensitive_options(dict(existing), LLM_SENSITIVE_KEYS)
@@ -682,7 +673,6 @@ class DBWrapper:
         return changed
 
     def delete_speech_to_text(self, model: SpeechToTextDatabase) -> bool:
-        # Drop team grants pointing at this name (string-keyed table).
         try:
             self.db.query(TeamAudioGeneratorDatabase).filter(
                 TeamAudioGeneratorDatabase.generator_name == model.name
@@ -788,7 +778,6 @@ class DBWrapper:
                 out[row.name] = plaintext
         return out
 
-    # ─────────────────────────────────────────────────────────────────────
 
     def get_user_by_id(self, user_id: int) -> Optional[UserDatabase]:
         user: Optional[UserDatabase] = (
@@ -825,7 +814,6 @@ class DBWrapper:
         creator: int,
         team_id: int,
     ) -> Optional[ProjectDatabase]:
-        # Validate that the team exists
         team = self.get_team_by_id(team_id)
         if team is None:
             return None
@@ -842,7 +830,6 @@ class DBWrapper:
             if embedding_db is None or embedding_db not in team.embeddings:
                 return None
                 
-        # Look up the creator so we can associate them in the same transaction
         creator_user = self.get_user_by_id(creator) if creator else None
 
         db_project: ProjectDatabase = ProjectDatabase(
@@ -871,26 +858,13 @@ class DBWrapper:
         return db_project
 
     def delete_project(self, project: ProjectDatabase) -> bool:
-        # Snapshot the id before we cascade-delete, then drop the
-        # per-project memory search index off-DB. Wrapped because a
-        # missing index dir (project never indexed) shouldn't block
-        # the SQL delete.
         project_id = int(project.id)
 
-        # Belt-and-braces application-side cascade. The schema *should*
-        # have ON DELETE CASCADE on every projects.id child FK after
-        # migration 050, but for SQLite (no FK alter support) and for
-        # production deployments that haven't yet run the migration,
-        # an admin clicking "delete project" should still succeed.
-        # Each table is best-effort — failures here are logged and
-        # the SQL DELETE below is tried regardless. The CASCADE
-        # constraint will do the right thing on properly-migrated
-        # deployments; this just shields the others.
+        # App-side fallback for SQLite + pre-050 deployments where the
+        # FK lacks ON DELETE CASCADE. M2M secondary tables are excluded
+        # — the ORM relationship handles those and a manual DELETE here
+        # races it into StaleDataError.
         from sqlalchemy import text as _sql_text
-        # M2M secondary tables (users_projects, teams_projects) are
-        # handled by SQLAlchemy via the ProjectDatabase.users / .team
-        # relationships — listing them here would race the ORM and
-        # trip StaleDataError.
         _CHILDREN_CASCADE = [
             "prompt_versions", "eval_runs", "eval_datasets",
             "project_invitations", "widgets", "kg_entities",
@@ -908,9 +882,7 @@ class DBWrapper:
                 )
             except Exception as e:
                 logging.debug("delete_project: skip %s (%s)", tbl, e)
-        # `output` rows are audit history — preserve them by NULLing
-        # the FK rather than deleting (matches the SET NULL rule from
-        # migration 050).
+        # Preserve audit history when the project goes away.
         try:
             self.db.execute(
                 _sql_text("UPDATE output SET project_id = NULL WHERE project_id = :pid"),
@@ -988,7 +960,6 @@ class DBWrapper:
             changed = True
 
         if projectModel.llm is not None and proj_db.llm != projectModel.llm:
-            # Validate that at least one team has access to this LLM
             llm_db = self.get_llm_by_name(projectModel.llm)
             if llm_db is None:
                 return False
@@ -1006,7 +977,6 @@ class DBWrapper:
             changed = True
 
         if projectModel.embeddings is not None and proj_db.embeddings != projectModel.embeddings:
-            # Validate that at least one team has access to this embedding model
             if projectModel.embeddings:  # Only check if embeddings is not empty
                 embedding_db = self.get_embedding_by_name(projectModel.embeddings)
                 if embedding_db is None:
@@ -1149,9 +1119,7 @@ class DBWrapper:
             import json as _json
             from restai.utils.crypto import encrypt_sensitive_options, TEAM_SENSITIVE_KEYS
             incoming = team_update.options.model_dump(exclude_none=True)
-            # Preserve existing encrypted values when the caller submits
-            # the masked placeholder (UI render of a saved secret). Same
-            # contract as PROJECT_SENSITIVE_KEYS in project options.
+            # Preserve existing secret when caller submits the masked placeholder.
             existing = _json.loads(team.options) if team.options else {}
             for k in TEAM_SENSITIVE_KEYS:
                 v = incoming.get(k)
@@ -1400,7 +1368,6 @@ class DBWrapper:
             team.embeddings = list(resolved_embeddings)
             changed = True
 
-        # Update image generators
         if team_update.image_generators is not None:
             team.image_generators = []
             self.db.flush()
@@ -1410,7 +1377,6 @@ class DBWrapper:
                 )
             changed = True
 
-        # Update audio generators
         if team_update.audio_generators is not None:
             team.audio_generators = []
             self.db.flush()
@@ -1617,7 +1583,6 @@ class DBWrapper:
             return True
         return False
 
-    # ── Cron Logs ────────────────────────────────────────────────────────
 
     def create_cron_log(self, job, status, message, details=None, items_processed=0, duration_ms=None):
         from datetime import datetime, timezone

@@ -173,7 +173,6 @@ export default function TwoFactorAuth({ user }) {
         </Box>
       )}
 
-      {/* Disable flow */}
       {status.enabled && isSelf && (
         <Box>
           {!showDisable ? (

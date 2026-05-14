@@ -10,10 +10,8 @@ from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
 
-# Paths to skip auditing (health checks, auth, static, read-heavy endpoints)
 SKIP_PREFIXES = ("/setup", "/version", "/info", "/auth", "/admin", "/mcp", "/v1")
 
-# Only audit mutation methods
 AUDIT_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
 
 
@@ -86,23 +84,20 @@ class AuditMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
 
-        # Only audit mutations
         if request.method not in AUDIT_METHODS:
             return response
 
-        # Skip non-API paths
         path = request.url.path
         if any(path.startswith(p) for p in SKIP_PREFIXES):
             return response
 
-        # Skip chat/question endpoints (these are read operations via POST)
+        # Chat/question endpoints are read operations via POST — skip auditing.
         if "/chat" in path or "/question" in path:
             return response
 
-        # Extract user identity
         _, username = _extract_username(request)
 
-        # Log in background thread to avoid blocking the response
+        # Background thread to avoid blocking the response.
         threading.Thread(
             target=_log_to_db,
             args=(username, request.method, path, response.status_code),

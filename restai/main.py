@@ -82,7 +82,6 @@ async def lifespan(fs_app: FastAPI):
     from restai.database import engine as db_engine
     ensure_settings_table(db_engine)
 
-    # Auto-create new association tables for generators, eval tables, and migrate output table
     from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase, TeamInvitationDatabase, ImageGeneratorDatabase, SpeechToTextDatabase, ProjectSecretDatabase, ProjectTemplateDatabase, BulkIngestJobDatabase, RoutineExecutionLogDatabase
     TeamImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     TeamAudioGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
@@ -106,9 +105,7 @@ async def lifespan(fs_app: FastAPI):
 
     fs_app.state.brain = Brain()
 
-    # Auto-seed image-generator registry rows for every worker module under
-    # restai/image/workers/*.py. Idempotent — existing rows keep their
-    # admin-applied state (enabled flag, description, team grants).
+    # Idempotent — existing rows keep admin-applied state.
     try:
         from restai.image.registry import seed_local_generators
         seeded = seed_local_generators(settings_db_wrapper)
@@ -117,8 +114,6 @@ async def lifespan(fs_app: FastAPI):
     except Exception as e:
         logging.warning("Failed to seed local image generators: %s", e)
 
-    # Same pattern for speech-to-text models — auto-seed from
-    # restai/audio/workers/*.py so admins can manage them via the new page.
     try:
         from restai.speech_to_text.registry import seed_local_stt_models
         seeded = seed_local_stt_models(settings_db_wrapper)
@@ -131,11 +126,9 @@ async def lifespan(fs_app: FastAPI):
     config.load_oauth_providers()
     fs_app.state.oauth_manager = OAuthManager(fs_app, db_wrapper=open_db_wrapper())
 
-    # Run data retention cleanup on startup
     from restai.retention import run_retention_cleanup
     run_retention_cleanup(settings_db_wrapper)
 
-    # Anonymized telemetry
     import os as _os
     if _os.environ.get("ANONYMIZED_TELEMETRY", "True").lower() == "true":
         print("Anonymized telemetry is enabled. To opt out, set ANONYMIZED_TELEMETRY=false.")
@@ -146,10 +139,8 @@ async def lifespan(fs_app: FastAPI):
     if not RESTAI_URL:
       logging.warning("RESTAI_URL env var missing. OAUTH auth schemes may not work properly.")
 
-    # JWT signing secret strength check. Loud warning so a legacy install
-    # or a copy-pasted dev .env doesn't silently sign tokens with a
-    # guessable secret. Defaults written by `_ensure_env_secret` are
-    # 64 url-safe base64 chars, so a healthy install will pass.
+    # JWT signing secret strength check — catches legacy installs / copy-pasted
+    # dev secrets. Defaults from `_ensure_env_secret` are 64 url-safe base64 chars.
     _weak_secrets = {"secret", "changeme", "change-me", "default", "password", "restai", "dev"}
     secret_val = (RESTAI_AUTH_SECRET or "").strip()
     fs_app.state.auth_secret_weak = False
@@ -199,7 +190,6 @@ async def lifespan(fs_app: FastAPI):
         current = fs_app.version
         now = _time.time()
 
-        # Return cached result if fresh (1 hour)
         if _update_cache["data"] and (now - _update_cache["ts"]) < 3600:
             return _update_cache["data"]
 
@@ -378,18 +368,14 @@ async def lifespan(fs_app: FastAPI):
                 StaticFiles(directory=str(FRONTEND_BUILD_DIR / "assets")),
                 name="static_images",
             )
-            # SPA catch-all is registered further down, AFTER all
-            # `include_router` calls. Starlette matches routes in
-            # registration order, so registering the catch-all first
-            # would shadow any API endpoint under `/admin/...` (e.g.
-            # `/admin/routines`).
+            # SPA catch-all registers further down so explicit API endpoints win
+            # — Starlette matches routes in registration order.
             _SPA_BUILD_DIR = FRONTEND_BUILD_DIR
     except Exception as e:
         print(e)
         print("Admin frontend not available.")
         _SPA_BUILD_DIR = None
 
-    # Widget JS endpoint
     WIDGET_DIR = Path(__file__).parent / "widget"
     if WIDGET_DIR.exists():
         @fs_app.get("/widget/chat.js")
@@ -427,16 +413,14 @@ async def lifespan(fs_app: FastAPI):
     from restai.routers import evals
     fs_app.include_router(evals.router)
 
-    # Image cache endpoint is always mounted (used by the `draw_image` builtin
-    # tool, which works on non-GPU deployments via OpenAI/Google generators).
+    # Image cache always mounted — `draw_image` works on non-GPU deployments
+    # via OpenAI/Google generators.
     from restai.routers import image_cache
     fs_app.include_router(image_cache.router, tags=["Image"])
 
-    # Image + audio routers are always mounted now that external providers
-    # (OpenAI, Google, Deepgram, AssemblyAI) live in the registry alongside
-    # local workers — non-GPU instances can still dispatch to remote
-    # generators / STT models. Local-worker calls fail cleanly with a
-    # "GPU required" error from the dispatch helper.
+    # Image + audio always mounted — external providers (OpenAI, Google,
+    # Deepgram, AssemblyAI) work without GPU; local workers fail cleanly with
+    # a "GPU required" error from the dispatch helper.
     fs_app.include_router(image.router, tags=["Image"])
     fs_app.include_router(audio.router, tags=["Audio"])
 
@@ -446,10 +430,8 @@ async def lifespan(fs_app: FastAPI):
         fs_app.mount("/mcp", mcp_server.http_app(transport="sse"))
         logging.info("MCP server enabled at /mcp/sse")
 
-    # SPA catch-all — registered LAST so explicit API endpoints under
-    # /admin/... (e.g. /admin/routines) win the route match. The
-    # `_SPA_BUILD_DIR` was set up earlier alongside the static mounts;
-    # falsy means the frontend build wasn't found and we silently skip.
+    # Registered LAST so explicit API endpoints under /admin/... win the
+    # route match. Falsy `_SPA_BUILD_DIR` means no frontend build → skip.
     if _SPA_BUILD_DIR is not None:
         @fs_app.get("/admin/{full_path:path}")
         async def serve_spa(full_path: str):
@@ -466,7 +448,6 @@ async def lifespan(fs_app: FastAPI):
 
     yield
 
-    # Shutdown: clean up Docker containers
     fs_app.state.brain.shutdown_docker_manager()
     fs_app.state.brain.shutdown_browser_manager()
     fs_app.state.brain.shutdown_app_manager()
@@ -560,7 +541,6 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     exc_str = f"{exc}".replace("\n", " ").replace("   ", " ")
     logging.error(f"{request}: {exc_str}")
-    # Extract clean user-facing messages from validation errors
     messages = []
     for err in exc.errors():
         msg = err.get("msg", "")
@@ -645,7 +625,6 @@ async def cors_middleware(request: Request, call_next):
 
     response = await call_next(request)
 
-    # Add CORS headers only for widget endpoints
     if is_widget and origin:
         response.headers["Access-Control-Allow-Origin"] = origin
         for k, v in _CORS_HEADERS.items():

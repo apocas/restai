@@ -32,8 +32,7 @@ class _CronLogHandler(logging.Handler):
     def __init__(self, owner: "CronLogger"):
         super().__init__(level=logging.INFO)
         self._owner = owner
-        # Match the CronLogger's own prefix scheme so explicit cron.info()
-        # calls and captured log.info() calls render the same way.
+        # Match CronLogger's prefix scheme so explicit and captured calls render the same.
         self.setFormatter(logging.Formatter("%(name)s: %(message)s"))
 
     def emit(self, record: logging.LogRecord) -> None:
@@ -61,18 +60,13 @@ class CronLogger:
         self._has_warning = False
         self._finished = False
 
-        # Mirror everything `logging` produces into our buffer so the cron
-        # log entry contains the same console output. We attach to the root
-        # logger so ALL named loggers propagate up here.
+        # Attach to root so every named logger propagates into our buffer.
         self._log_handler = _CronLogHandler(self)
-        # Filter out our own handler's output so a cron.info() that triggers
-        # nothing else doesn't get double-counted.
         logging.getLogger().addHandler(self._log_handler)
 
     def _capture(self, level: str | None, message: str, exc_info=None) -> None:
-        """Internal: record a message originating from the logging handler.
-        Distinct from the public info()/warning()/error() so we don't add
-        prefixes twice."""
+        """Record a message from the logging handler — separate from the
+        public info()/warning()/error() so prefixes aren't doubled."""
         if level == "ERROR":
             self._messages.append(f"ERROR: {message}")
             self._has_error = True
@@ -106,9 +100,7 @@ class CronLogger:
             return
         self._finished = True
 
-        # Detach the logging handler — otherwise re-running a cron in the
-        # same process (e.g. unit tests, the admin "Run Now" button if it
-        # ever runs in-process) leaks handlers.
+        # Detach to avoid handler leaks when a cron re-runs in the same process.
         try:
             logging.getLogger().removeHandler(self._log_handler)
         except Exception:

@@ -1,12 +1,7 @@
 """Drop the LLMDatabase.type column.
 
-The LLM `type` field (chat / completion / qa / vision) was metadata-only —
-no backend code branched on it for behavior. Vision-capable models are
-already identified by their `class_name` (OllamaMultiModal, GeminiMultiModal,
-etc.) and model name patterns, not by this field.
-
-Uses `batch_alter_table` so SQLite (which doesn't natively support
-ALTER TABLE DROP COLUMN before 3.35) goes through the copy-and-rebuild path.
+batch_alter_table is required so SQLite (no native DROP COLUMN before 3.35)
+goes through the copy-and-rebuild path.
 """
 import sqlalchemy as sa
 from alembic import op

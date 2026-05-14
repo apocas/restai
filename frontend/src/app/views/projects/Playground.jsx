@@ -166,7 +166,6 @@ export default function Playground() {
           }}
         />
 
-        {/* Path trail */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0, flex: 1 }}>
           <TrailLink onClick={() => navigate("/projects")}>Projects</TrailLink>
           <ChevronRight sx={{ fontSize: 14, color: "rgba(15,23,42,0.3)", flexShrink: 0 }} />

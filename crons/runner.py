@@ -63,7 +63,6 @@ def run_all():
         logger.info("No cron modules found")
         return
 
-    # Launch phase: start all jobs in parallel
     jobs = []  # list of (name, process, lock_fp)
 
     for script_path in scripts:

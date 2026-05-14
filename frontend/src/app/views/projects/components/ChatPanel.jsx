@@ -59,11 +59,6 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
   // Shape: { plan: [name, ...], steps: [{name, status, summary?}] }
   // status ∈ "pending" | "running" | "done"
   const [streamingPlan, setStreamingPlan] = useState(null);
-  // Live tool-call lifecycle for the in-flight assistant turn. Keyed by
-  // tool_use_id so completion events match the right `running` entry.
-  // Mirrors the thoughts/plan panels — appears in the streaming bubble
-  // and clears on `onclose` (the persisted `tool_trace` accordion in
-  // MessageBubble takes over from there).
   const [streamingToolCalls, setStreamingToolCalls] = useState([]);
   const scrollRef = useRef(null);
   // AbortController for the in-flight streaming fetch. Kept in a ref so
@@ -303,8 +298,6 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
               return { ...cur, steps };
             });
           } else if (data.tool_call_started) {
-            // Append a "running" tool-call entry; it'll flip to done/error
-            // when the matching tool_call_completed event arrives.
             const { id, tool, args } = data.tool_call_started;
             setStreamingToolCalls((cur) => [
               ...cur,
@@ -612,7 +605,6 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         </Box>
       )}
 
-      {/* Messages */}
       <Box sx={{ flex: 1, overflow: "auto" }} ref={scrollRef}>
           <Box sx={{ p: 2 }}>
             {messages.length === 0 && (
@@ -646,10 +638,6 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
                   sources: [],
                   plan: streamingPlan ? streamingPlan.plan : undefined,
                   step_summaries: streamingPlan ? streamingPlan.steps : undefined,
-                  // Synthetic field — MessageBubble renders it as a live
-                  // tool-call panel when present, distinct from the
-                  // persisted `tool_trace` accordion that appears after
-                  // the final dict arrives.
                   live_tool_calls: streamingToolCalls,
                 }}
               />
@@ -696,7 +684,6 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         </Box>
       )}
 
-      {/* Input area */}
       <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, p: 2, borderTop: 1, borderColor: "divider" }}>
         <TextField
           fullWidth

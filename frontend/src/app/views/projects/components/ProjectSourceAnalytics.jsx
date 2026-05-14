@@ -41,7 +41,6 @@ export default function ProjectSourceAnalytics({ project }) {
       <Divider />
 
       <Box sx={{ p: 2 }}>
-        {/* Summary */}
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid item xs={4}>
             <StatCard elevation={1}>
@@ -65,7 +64,6 @@ export default function ProjectSourceAnalytics({ project }) {
           </Grid>
         </Grid>
 
-        {/* Source retrieval table */}
         {data.sources.length > 0 && (
           <>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>Retrieval Frequency</Typography>

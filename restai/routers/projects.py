@@ -122,7 +122,6 @@ async def route_get_projects(
         query = query.filter(ProjectDatabase.public == True)
     elif not user.is_admin:
         accessible_ids = user.get_project_ids()
-        # Team admins also see all projects in their administered teams
         if user.admin_teams:
             admin_team_ids = {t.id for t in user.admin_teams}
             team_project_ids = {
@@ -132,30 +131,24 @@ async def route_get_projects(
             accessible_ids = accessible_ids | team_project_ids
         query = query.filter(ProjectDatabase.id.in_(accessible_ids))
 
-    # Filter by API key scope if set
     if user.api_key_allowed_projects is not None:
         query = query.filter(ProjectDatabase.id.in_(user.api_key_allowed_projects))
 
     projects = query.offset(start).limit(end - start).all()
 
-    # Process the projects to simplify team objects
     serialized_projects = []
     for project in projects:
-        # Create a Pydantic model from the SQLAlchemy object (handles all properties dynamically)
         project_model = ProjectModel.model_validate(project)
         project_model.creator_username = project.creator_user.username if project.creator_user else None
 
-        # Convert to dict and modify just the team property
         project_dict = project_model.model_dump()
 
-        # Simplify the team object if it exists
         if project_dict.get("team"):
             project_dict["team"] = {
                 "id": project_dict["team"]["id"],
                 "name": project_dict["team"]["name"],
             }
 
-        # Mask sensitive tokens in list
         if isinstance(project_dict.get("options"), dict):
             for key in _SENSITIVE_OPTION_KEYS:
                 val = project_dict["options"].get(key)
@@ -183,7 +176,6 @@ async def get_projects_health(
     import json as _json
     from restai.models.databasemodels import GuardEventDatabase, EvalRunDatabase
 
-    # Get accessible project IDs
     if user.is_admin:
         project_ids = [p.id for p in db_wrapper.db.query(ProjectDatabase.id).all()]
     else:
@@ -198,7 +190,6 @@ async def get_projects_health(
     seven_days_ago = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)
     thirty_days_ago = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=30)
 
-    # Bulk query 1: activity + latency (last 7 days)
     activity_rows = (
         db_wrapper.db.query(
             OutputDatabase.project_id,
@@ -211,7 +202,6 @@ async def get_projects_health(
     )
     activity = {r.project_id: {"requests": r.requests, "avg_latency": r.avg_latency} for r in activity_rows}
 
-    # Bulk query 2: guard block rate (last 30 days)
     guard_rows = (
         db_wrapper.db.query(
             GuardEventDatabase.project_id,
@@ -224,8 +214,6 @@ async def get_projects_health(
     )
     guards = {r.project_id: {"total": r.total, "blocks": r.blocks or 0} for r in guard_rows}
 
-    # Bulk query 3: latest eval scores
-    # Get the most recent completed run per project
     from sqlalchemy import desc
     eval_rows = (
         db_wrapper.db.query(EvalRunDatabase.project_id, EvalRunDatabase.summary)
@@ -247,7 +235,6 @@ async def get_projects_health(
             except Exception:
                 pass
 
-    # Compute health scores
     results = []
     for pid in project_ids:
         act = activity.get(pid, {})
@@ -260,7 +247,6 @@ async def get_projects_health(
         guard_blocks = grd.get("blocks", 0)
         block_rate = guard_blocks / guard_total if guard_total > 0 else None
 
-        # Latency score (30%)
         if avg_latency is not None:
             if avg_latency < 500:
                 latency_score = 1.0
@@ -271,7 +257,6 @@ async def get_projects_health(
         else:
             latency_score = 0.5
 
-        # Activity score (30%)
         if requests_7d > 10:
             activity_score = 1.0
         elif requests_7d > 0:
@@ -279,7 +264,6 @@ async def get_projects_health(
         else:
             activity_score = 0.0
 
-        # Guard score (20%)
         if block_rate is not None:
             if block_rate < 0.05:
                 guard_score = 1.0
@@ -290,7 +274,6 @@ async def get_projects_health(
         else:
             guard_score = 0.5
 
-        # Eval score (20%)
         if eval_score is not None:
             if eval_score > 0.8:
                 eval_component = 1.0
@@ -362,7 +345,6 @@ async def route_get_project(
         if llm_model:
             final_output["llm_privacy"] = llm_model.props.privacy
 
-        # Mask sensitive tokens
         if isinstance(final_output.get("options"), dict):
             for key in _SENSITIVE_OPTION_KEYS:
                 val = final_output["options"].get(key)
@@ -392,7 +374,6 @@ async def route_delete_project(
     try:
         proj = get_project(projectID, db_wrapper, request.app.state.brain)
 
-        # Stop Telegram poller if running
         if proj.props.options and proj.props.options.telegram_token:
             from restai.telegram import stop_poller
             stop_poller(projectID)
@@ -438,19 +419,16 @@ async def route_edit_project(
 ):
     """Update project configuration."""
     check_not_restricted(user)
-    # Check if the project exists
     project = db_wrapper.get_project_by_id(projectID)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Validate LLM if being updated
     if (
         projectModelUpdate.llm
         and request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper) is None
     ):
         raise HTTPException(status_code=404, detail="LLM not found")
 
-    # Validate team LLM/embedding access even when team_id is not changing
     if projectModelUpdate.llm and not projectModelUpdate.team_id:
         current_team = db_wrapper.get_team_by_id(project.team_id)
         if current_team:
@@ -469,14 +447,11 @@ async def route_edit_project(
                     status_code=403, detail=f"Team does not have access to embedding model '{projectModelUpdate.embeddings}'"
                 )
 
-    # Validate team if being updated
     if projectModelUpdate.team_id:
-        # Check if the new team exists
         team = db_wrapper.get_team_by_id(projectModelUpdate.team_id)
         if team is None:
             raise HTTPException(status_code=404, detail="Team not found")
 
-        # Verify user belongs to the new team or is an admin
         is_team_member = user.id in [u.id for u in team.users]
         is_team_admin = user.id in [u.id for u in team.admins]
         if not (is_team_member or is_team_admin or user.is_admin):
@@ -484,7 +459,6 @@ async def route_edit_project(
                 status_code=403, detail="User does not have access to this team"
             )
 
-        # Validate team has access to the LLM
         llm_name = projectModelUpdate.llm or project.llm
         llm_model = request.app.state.brain.get_llm(llm_name, db_wrapper)
         if llm_model and llm_model.props.name not in [llm.name for llm in team.llms]:
@@ -492,7 +466,6 @@ async def route_edit_project(
                 status_code=403, detail=f"Team does not have access to LLM '{llm_name}'"
             )
 
-        # Validate team has access to embeddings for RAG projects
         if project.type == "rag":
             embedding_name = projectModelUpdate.embeddings or project.embeddings
             if embedding_name:
@@ -507,7 +480,6 @@ async def route_edit_project(
                         detail=f"Team does not have access to embedding model '{embedding_name}'",
                     )
 
-    # Validate private user restrictions
     if user.is_private and projectModelUpdate.llm:
         llm_model = request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper)
         if llm_model and llm_model.props.privacy != "private":
@@ -524,14 +496,13 @@ async def route_edit_project(
         for srv in projectModelUpdate.options.mcp_servers:
             check_user_can_use_mcp_host(user, srv.host)
 
-    # Handle masked tokens — preserve existing values
+    # Preserve masked-token values.
     if projectModelUpdate.options:
         existing_opts = json.loads(project.options) if project.options else {}
         for key in _SENSITIVE_OPTION_KEYS:
             val = getattr(projectModelUpdate.options, key, None)
             if val and val.startswith("****"):
                 setattr(projectModelUpdate.options, key, existing_opts.get(key))
-        # Restore masked credentials in sync sources
         if projectModelUpdate.options.sync_sources and existing_opts.get("sync_sources"):
             existing_sources = {s.get("name"): s for s in existing_opts["sync_sources"] if isinstance(s, dict)}
             for src in projectModelUpdate.options.sync_sources:
@@ -541,7 +512,6 @@ async def route_edit_project(
                         existing_src = existing_sources.get(src.name, {})
                         setattr(src, key, existing_src.get(key))
 
-    # Attach user ID for prompt version tracking
     projectModelUpdate._user_id = user.id
 
     # Embedding swap is a vectordb side-effect, not a SQL one — drop
@@ -586,16 +556,13 @@ async def route_create_project(
     if projectModel.name.strip() == "":
         raise HTTPException(status_code=400, detail="Invalid project name")
 
-    # Validate that a team ID is provided
     if not projectModel.team_id:
         raise HTTPException(status_code=400, detail="Team selection is required")
 
-    # Check if the team exists
     team = db_wrapper.get_team_by_id(projectModel.team_id)
     if team is None:
         raise HTTPException(status_code=404, detail="Team not found")
 
-    # Verify user belongs to the team or is an admin
     is_team_member = user.id in [u.id for u in team.users]
     is_team_admin = user.id in [u.id for u in team.admins]
     if not (is_team_member or is_team_admin or user.is_admin):
@@ -622,21 +589,17 @@ async def route_create_project(
                 ),
             )
 
-    # Block projects don't require an LLM
     if projectModel.type != "block":
-        # Validate LLM exists
         llm_model = request.app.state.brain.get_llm(projectModel.llm, db_wrapper)
         if llm_model is None:
             raise HTTPException(status_code=404, detail="LLM not found")
 
-        # Validate team has access to the LLM
         if llm_model.props.name not in [llm.name for llm in team.llms]:
             raise HTTPException(
                 status_code=403,
                 detail=f"Team does not have access to LLM '{projectModel.llm}'",
             )
 
-    # Validate embeddings for RAG projects
     if projectModel.type == "rag":
         embedding_model = request.app.state.brain.get_embedding(
             projectModel.embeddings, db_wrapper
@@ -649,7 +612,6 @@ async def route_create_project(
                 status_code=403, detail="User not allowed to use public models"
             )
 
-        # Validate team has access to the embeddings
         if embedding_model.model_name not in [
             embedding.name for embedding in team.embeddings
         ]:
@@ -888,17 +850,14 @@ async def clone_project(
     if not new_name:
         raise HTTPException(status_code=400, detail="Name is required")
 
-    # Load source project
     source = db_wrapper.get_project_by_id(projectID)
     if source is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Check name uniqueness
     existing = db_wrapper.get_project_by_name(new_name)
     if existing:
         raise HTTPException(status_code=409, detail="A project with this name already exists")
 
-    # Create the new project
     new_project = db_wrapper.create_project(
         name=new_name,
         embeddings=source.embeddings,
@@ -1179,7 +1138,6 @@ async def ingest_file(
 
     opts = json.loads(options)
 
-    # Resolve ingestion method: explicit param or "auto"
     resolved_method = method or "auto"
     # Backward compat: old `classic` bool overrides when method wasn't explicit
     if classic is not None and method is None:
@@ -2151,7 +2109,6 @@ async def get_monthly_token_consumption(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# --- Project Comments ---
 
 @router.get("/projects/{projectID}/comments", tags=["Comments"])
 async def list_project_comments(
@@ -2270,17 +2227,14 @@ async def get_project_tools(
 ):
     """List available MCP tools for an agent project."""
     try:
-        # Get the project by ID
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
-        # Check if the project is of type agent
         if project.props.type != "agent":
             raise HTTPException(
                 status_code=400,
                 detail="Tools endpoint only available for agent-type projects",
             )
 
-        # Check if the project has MCP servers configured
         if not project.props.options or not project.props.options.mcp_servers:
             return {
                 "tools": [],
@@ -2339,7 +2293,6 @@ async def get_project_tools(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ── Project Invitations ──────────────────────────────────────────────────
 
 
 @router.post("/projects/{projectID}/invitations", tags=["Projects"])
@@ -2371,7 +2324,6 @@ async def send_project_invitation(
     if any(u.id == target.id for u in project_db.users):
         return response
 
-    # Validate target belongs to the project's team (admins always eligible)
     in_team = target.is_admin
     if not in_team and project_db.team:
         in_team = target in project_db.team.users or target in project_db.team.admins
@@ -2404,7 +2356,6 @@ async def send_project_invitation(
     return response
 
 
-# ── Widget Management ────────────────────────────────────────────────────
 
 
 @router.post("/projects/{projectID}/widgets", status_code=201, tags=["Widgets"])
@@ -3012,7 +2963,6 @@ async def update_project_custom_tool(
     if not final_code or not final_code.strip():
         raise HTTPException(status_code=400, detail="Code is required.")
 
-    # Validate parameters JSON
     try:
         params_dict = json.loads(final_parameters) if isinstance(final_parameters, str) else final_parameters
     except json.JSONDecodeError as e:
@@ -3131,7 +3081,6 @@ async def generate_system_prompt_endpoint(
     return {"system_prompt": text}
 
 
-# ── Knowledge Graph ──────────────────────────────────────────────────────
 
 
 @router.get("/projects/{projectID}/kg/entities", tags=["Knowledge Graph"])
@@ -3585,7 +3534,6 @@ async def kg_rebuild(
     return {"message": f"Rebuild scheduled for {len(sources)} sources", "source_count": len(sources)}
 
 
-# ─────────────────────────────────────────────────────────────────────
 # Mobile-app integration (Android, iOS, ...)
 #
 # When a project admin toggles "Mobile integration" ON we mint a
@@ -3597,7 +3545,6 @@ async def kg_rebuild(
 # The key id is stashed on ProjectOptions so (a) multiple phones can
 # enrol by scanning the same QR and (b) the owner can revoke every
 # paired phone at once by regenerating the key.
-# ─────────────────────────────────────────────────────────────────────
 
 def _mobile_default_host(request: Request) -> str:
     """Resolve the host URL mobile apps should hit.

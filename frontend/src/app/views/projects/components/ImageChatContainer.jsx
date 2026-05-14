@@ -50,7 +50,6 @@ function ImageMessage({ message }) {
         </Box>
       )}
 
-      {/* Result */}
       <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
         <ResultBubble>
           {message.image ? (
@@ -159,7 +158,6 @@ export default function ImageChatContainer({ generators }) {
 
   return (
     <Card elevation={3} sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Header */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: 2, py: 1 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Brush />
@@ -181,7 +179,6 @@ export default function ImageChatContainer({ generators }) {
 
       <Divider />
 
-      {/* Messages */}
       <Box sx={{ flex: 1, overflow: "auto", minHeight: 400 }} ref={scrollRef}>
         <Box sx={{ p: 2 }}>
           {messages.length === 0 && (
@@ -201,7 +198,6 @@ export default function ImageChatContainer({ generators }) {
         </Box>
       </Box>
 
-      {/* Image preview */}
       {image && (
         <Box sx={{ px: 2, pb: 1 }}>
           <Chip
@@ -214,7 +210,6 @@ export default function ImageChatContainer({ generators }) {
         </Box>
       )}
 
-      {/* Input */}
       <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, p: 2, borderTop: 1, borderColor: "divider" }}>
         <TextField
           fullWidth

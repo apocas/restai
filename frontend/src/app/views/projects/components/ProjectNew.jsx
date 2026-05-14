@@ -500,7 +500,6 @@ export default function ProjectNew({ info, template }) {
                   </TextField>
                 </Grid>
 
-                {/* Type chooser as cards */}
                 {selectedTeam && (
                   <Grid item xs={12}>
                     <Box

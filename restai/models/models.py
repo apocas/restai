@@ -1265,8 +1265,7 @@ class TeamBranding(BaseModel):
 
 
 class TeamOptions(BaseModel):
-    """Per-team option blob. Empty fields fall back to platform settings
-    when consumed by `restai.utils.email.send_email` and similar helpers."""
+    """Per-team option blob. Empty fields fall back to platform settings."""
     smtp_host: Union[str, None] = Field(default=None, max_length=255, description="SMTP server hostname (empty = use platform default)")
     smtp_port: Union[int, None] = Field(default=None, ge=1, le=65535, description="SMTP port (587 STARTTLS, 465 implicit TLS)")
     smtp_user: Union[str, None] = Field(default=None, max_length=255, description="SMTP user")
@@ -1312,11 +1311,9 @@ class TeamModel(BaseModel):
     @field_validator('options', mode='before')
     @classmethod
     def parse_options(cls, v):
-        # TeamModel is a RESPONSE shape, so decrypt the secrets that are
-        # encrypted at rest and then MASK them before they leave the
-        # process. Internal callers (e.g. `restai.utils.email.send_email`)
-        # bypass this by reading `team_db.options` directly and using
-        # `decrypt_sensitive_options` with `TEAM_SENSITIVE_KEYS`.
+        # Response-side: decrypt then mask secrets so plaintext never
+        # leaves the process. Internal callers read team_db.options
+        # directly and decrypt themselves.
         if isinstance(v, str):
             try:
                 parsed = json.loads(v)

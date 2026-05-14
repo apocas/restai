@@ -84,7 +84,6 @@ export default function ProjectAnalytics({ project }) {
       <Divider />
 
       <Box sx={{ p: 2 }}>
-        {/* Summary cards */}
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid item xs={6} sm={3}>
             <StatCard elevation={1}>
@@ -112,7 +111,6 @@ export default function ProjectAnalytics({ project }) {
           </Grid>
         </Grid>
 
-        {/* Daily conversations chart */}
         <Typography variant="subtitle2" sx={{ mb: 1 }}>{t("projects.edit.analytics.dailyActivity")}</Typography>
         <ResponsiveContainer width="100%" height={250}>
           <AreaChart data={filledDaily} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -125,7 +123,6 @@ export default function ProjectAnalytics({ project }) {
           </AreaChart>
         </ResponsiveContainer>
 
-        {/* Hourly distribution */}
         <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>{t("projects.edit.analytics.peakHours")}</Typography>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={data.hourly || []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>

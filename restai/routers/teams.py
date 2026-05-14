@@ -59,10 +59,8 @@ async def get_teams(
     """
     try:
         if user.is_admin:
-            # Platform admins see all teams
             teams = db_wrapper.get_teams()
         else:
-            # Regular users see teams they are members of
             teams = db_wrapper.get_teams_for_user(user.id)
             
         return {"teams": [TeamModel.model_validate(team) for team in teams]}
@@ -108,24 +106,18 @@ async def create_team(
     """Create a new team."""
     check_not_restricted(user)
     try:
-        # Check if team name already exists
         existing_team = db_wrapper.get_team_by_name(team_create.name)
         if existing_team is not None:
             raise HTTPException(status_code=400, detail=ERROR_MESSAGES.TEAM_NAME_TAKEN)
             
-        # Create new team
         team_data = team_create.model_dump()
-        team_data["creator_id"] = user.id  # Set the creator to the current user
-        
+        team_data["creator_id"] = user.id
+
         team = db_wrapper.create_team(TeamModelCreate.model_validate(team_data))
-        
-        # Process team relationships (users, admins, LLMs, embeddings, projects)
-        # Since TeamModelCreate and TeamModelUpdate have the same fields for these relationships,
-        # we can reuse the update_team_members method. Caller is a platform admin
-        # here (auth dep) so the per-resource attach gates short-circuit.
+
+        # Caller is platform admin (auth dep) so per-resource attach gates short-circuit.
         db_wrapper.update_team_members(team, TeamModelUpdate(**team_data), caller=user)
         
-        # Get the refreshed team with all relationships
         team = db_wrapper.get_team_by_id(team.id)
         return TeamModel.model_validate(team)
     except Exception as e:
@@ -150,17 +142,14 @@ async def update_team(
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
             raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
-            
-        # If changing name, check if new name is available
+
         if team_update.name is not None and team_update.name != team.name:
             existing_team = db_wrapper.get_team_by_name(team_update.name)
             if existing_team is not None:
                 raise HTTPException(status_code=400, detail=ERROR_MESSAGES.TEAM_NAME_TAKEN)
         
-        # Update base team properties
         db_wrapper.update_team(team, team_update)
         
-        # Update team members and resources. Pass `caller` so the per-
         # resource attach gates fire — without this, a team admin could
         # PATCH `{llms: [team-B-llm]}` and bypass the per-endpoint guards.
         db_wrapper.update_team_members(team, team_update, caller=user)
@@ -634,7 +623,6 @@ async def remove_audio_generator_from_team(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# ── Team Invitations ─────────────────────────────────────────────────────
 
 
 @router.post("/teams/{team_id}/invitations", tags=["Teams"])
@@ -650,15 +638,13 @@ async def send_team_invitation(
     if not username:
         raise HTTPException(status_code=400, detail="Username is required")
 
-    # Always return the same message regardless of whether user exists
+    # Same response regardless of user existence (don't leak account presence).
     target = db_wrapper.get_user_by_username(username)
     if target is not None:
         team = db_wrapper.get_team_by_id(team_id)
         if team is not None:
-            # Check not already a member
             already_member = any(u.id == target.id for u in team.users)
             if not already_member:
-                # Check no pending invite exists
                 existing = (
                     db_wrapper.db.query(TeamInvitationDatabase)
                     .filter(
@@ -778,7 +764,6 @@ async def accept_invitation(
     if invite.status != "pending":
         raise HTTPException(status_code=400, detail="Invitation is no longer pending")
 
-    # Add user to team
     team = db_wrapper.get_team_by_id(invite.team_id)
     user_db = db_wrapper.get_user_by_username(user.username)
     if team and user_db and user_db not in team.users:
@@ -813,7 +798,6 @@ async def decline_invitation(
     return {"message": "Invitation declined"}
 
 
-# ── Project Invitations ──────────────────────────────────────────────────
 
 
 @router.post("/invitations/projects/{invitation_id}/accept", tags=["Projects"])

@@ -10,9 +10,7 @@ import ProjectEditTools from "./ProjectEditTools";
 import ContentCard from "app/components/page/ContentCard";
 
 // MCP server "headers" arrive from the API as an object and live in the
-// editor as a single `KEY: VALUE`-per-line textarea. Same parser used
-// by the ProjectEdit page used to own; lifted here so MCP probe + save
-// can build the right HTTP body shape.
+// editor as a single `KEY: VALUE`-per-line textarea.
 function parseHeadersText(text) {
   const h = {};
   if (!text) return h;
@@ -33,18 +31,11 @@ const isStdioServer = (host) =>
 /**
  * Self-contained Tools editor for the project Info page.
  *
- * Used to live on the project Edit page (as `ProjectEditTools`, hooked
- * into the shared edit-form state machine). We moved it here so all
- * tool-related configuration lives next to the read-only summary the
- * user already saw on the Info tab — single place to inspect and tweak
- * built-in tools, MCP servers, agent loop settings, and agent-created
- * tools.
- *
- * The component renders the existing `ProjectEditTools` form (kept as
- * the rendering primitive) and owns its own state, fetches its own
- * tool catalog + MCP probes, and persists via PATCH /projects/{id}
- * with options merged on top of `project.options` (so we never wipe
- * unrelated keys like memory_bank, browser_, ftp_, etc.).
+ * Renders the existing `ProjectEditTools` form (kept as the rendering
+ * primitive) and owns its own state, fetches its own tool catalog +
+ * MCP probes, and persists via PATCH /projects/{id} with options
+ * merged on top of `project.options` (so we never wipe unrelated keys
+ * like memory_bank, browser_, ftp_, etc.).
  */
 export default function ProjectInfoTools({ project }) {
   const auth = useAuth();
@@ -64,8 +55,7 @@ export default function ProjectInfoTools({ project }) {
   useEffect(() => { setProj(project); }, [project]);
 
   // Mount + when project changes: hydrate form state from project,
-  // load tool catalog, hydrate MCP servers and stagger their probes
-  // (mirrors the original ProjectEdit mount behavior).
+  // load tool catalog, hydrate MCP servers and stagger their probes.
   useEffect(() => {
     if (!proj?.id) return;
     setState({
@@ -88,8 +78,8 @@ export default function ProjectInfoTools({ project }) {
         error: null,
       }));
       setMcpServers(servers);
-      // Stagger initial probes — same as ProjectEdit used to do, so a
-      // project with many servers doesn't hammer the network on mount.
+      // Stagger initial probes so a project with many servers doesn't
+      // hammer the network on mount.
       servers.forEach((server, index) => {
         if (!server.host) return;
         setTimeout(() => {
@@ -133,7 +123,6 @@ export default function ProjectInfoTools({ project }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proj?.id]);
 
-  // --- MCP server handlers (lifted verbatim from the old ProjectEdit) ---
   const handleAddMcpServer = () => {
     setMcpServers([...mcpServers, { host: "", args: [], env: {}, tools: null, availableTools: [], loading: false, error: null }]);
   };
@@ -206,12 +195,12 @@ export default function ProjectInfoTools({ project }) {
     setMcpServers(updated);
   };
 
-  // --- Save: PATCH options, MERGED on top of current proj.options. ---
-  // The PATCH endpoint replaces the entire options blob with whatever
-  // we send (Pydantic builds a full ProjectOptions, defaults fill in
-  // missing fields), so any key we omit gets reset. To avoid wiping
-  // unrelated tabs (Knowledge / Security / Integrations / etc.) we
-  // start from `proj.options` and only overwrite the tool-related keys.
+  // PATCH options merged on top of current proj.options. The PATCH
+  // endpoint replaces the entire options blob with whatever we send
+  // (Pydantic builds a full ProjectOptions, defaults fill in missing
+  // fields), so any key we omit gets reset. To avoid wiping unrelated
+  // tabs (Knowledge / Security / Integrations / etc.) we start from
+  // `proj.options` and only overwrite the tool-related keys.
   const handleSave = () => {
     setSaving(true);
     const filteredMcpServers = mcpServers

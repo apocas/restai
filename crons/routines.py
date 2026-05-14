@@ -27,10 +27,8 @@ async def _fire_routine(brain, db, routine, project):
     from restai.helper import question_main
     from restai.models.models import QuestionModel, User
 
-    # Use project creator as the user
     creator = db.get_user_by_id(project.props.creator) if project.props.creator else None
     if creator is None:
-        # Fallback to admin
         creator = db.get_user_by_username("admin")
     if creator is None:
         logger.error("No user found to run routine %d", routine.id)
@@ -41,7 +39,6 @@ async def _fire_routine(brain, db, routine, project):
     q = QuestionModel(question=routine.message)
     background_tasks = BackgroundTasks()
 
-    # Create a minimal request-like object
     class _FakeRequest:
         app = type("App", (), {"state": type("State", (), {"brain": brain})()})()
 
@@ -49,7 +46,6 @@ async def _fire_routine(brain, db, routine, project):
         _FakeRequest(), brain, project, q, user, db, background_tasks,
     )
 
-    # Execute queued background tasks (inference logging)
     for task in background_tasks.tasks:
         try:
             if inspect.iscoroutinefunction(task.func):
@@ -112,7 +108,6 @@ async def _run():
                 routine.updated_at = datetime.now(timezone.utc)
                 db.db.commit()
 
-                # Append a success row to the execution log.
                 try:
                     from restai.models.databasemodels import RoutineExecutionLogDatabase
                     db.db.add(RoutineExecutionLogDatabase(
@@ -139,7 +134,7 @@ async def _run():
                     db.db.commit()
                 except Exception:
                     logger.warning("Failed to update routine '%s' after error", routine.name)
-                # Error row (best-effort, always runs).
+                # Best-effort error row — must not raise out of the per-routine block.
                 try:
                     from restai.models.databasemodels import RoutineExecutionLogDatabase
                     db.db.add(RoutineExecutionLogDatabase(
