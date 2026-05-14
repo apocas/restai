@@ -9,7 +9,7 @@ users_projects = Table(
     "users_projects",
     Base.metadata,
     Column("user_id", ForeignKey("users.id"), primary_key=True),
-    Column("project_id", ForeignKey("projects.id"), primary_key=True),
+    Column("project_id", ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
 )
 
 # Team-related relationship tables
@@ -31,7 +31,7 @@ teams_projects = Table(
     "teams_projects",
     Base.metadata,
     Column("team_id", ForeignKey("teams.id"), primary_key=True),
-    Column("project_id", ForeignKey("projects.id"), primary_key=True),
+    Column("project_id", ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
 )
 
 teams_llms = Table(
@@ -152,7 +152,7 @@ class OutputDatabase(Base):
     question = Column(Text)
     answer = Column(Text)
     
-    project_id = Column(Integer, ForeignKey('projects.id'), nullable=True, index=True)
+    project_id = Column(Integer, ForeignKey('projects.id', ondelete="SET NULL"), nullable=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id'))
     team_id = Column(Integer, ForeignKey('teams.id'), nullable=True)
 
@@ -205,7 +205,7 @@ class EvalDatasetDatabase(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255))
     description = Column(Text, nullable=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
 
@@ -230,7 +230,7 @@ class PromptVersionDatabase(Base):
     __tablename__ = "prompt_versions"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     version = Column(Integer, nullable=False)
     system_prompt = Column(Text, nullable=False)
     description = Column(String(500), nullable=True)
@@ -244,7 +244,7 @@ class EvalRunDatabase(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     dataset_id = Column(Integer, ForeignKey("eval_datasets.id"), nullable=False)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     prompt_version_id = Column(Integer, ForeignKey("prompt_versions.id"), nullable=True)
     status = Column(String(50), default="pending")
     metrics = Column(Text)
@@ -293,7 +293,7 @@ class ProjectInvitationDatabase(Base):
     __tablename__ = "project_invitations"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     username = Column(String(255), nullable=False, index=True)
     invited_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     status = Column(String(20), nullable=False, default="pending")
@@ -371,7 +371,7 @@ class WidgetDatabase(Base):
     __tablename__ = "widgets"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     key_hash = Column(String(256), nullable=False, unique=True, index=True)
     encrypted_key = Column(String(4096), nullable=False)
@@ -392,7 +392,7 @@ class KGEntityDatabase(Base):
     __tablename__ = "kg_entities"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     normalized = Column(String(255), nullable=False, index=True)
     entity_type = Column(String(50), nullable=False)
@@ -408,7 +408,7 @@ class KGEntityMentionDatabase(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     entity_id = Column(Integer, ForeignKey("kg_entities.id"), nullable=False, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     source = Column(String(500), nullable=False, index=True)
     mention_count = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime, nullable=False)
@@ -418,7 +418,7 @@ class KGEntityRelationshipDatabase(Base):
     __tablename__ = "kg_entity_relationships"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     from_entity_id = Column(Integer, ForeignKey("kg_entities.id"), nullable=False)
     to_entity_id = Column(Integer, ForeignKey("kg_entities.id"), nullable=False)
     weight = Column(Integer, nullable=False, default=1)
@@ -449,7 +449,7 @@ class RetrievalEventDatabase(Base):
     __tablename__ = "retrieval_events"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     source = Column(String(500), nullable=False, index=True)
     score = Column(Float, nullable=True)
     chunk_id = Column(String(255), nullable=True, index=True)
@@ -462,7 +462,7 @@ class GuardEventDatabase(Base):
     __tablename__ = "guard_events"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     guard_project = Column(String(255), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     phase = Column(String(10), nullable=False)
@@ -477,7 +477,7 @@ class ProjectCommentDatabase(Base):
     __tablename__ = "project_comments"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, nullable=False, index=True)
@@ -613,7 +613,7 @@ class ProjectToolDatabase(Base):
     __tablename__ = "project_tools"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
     parameters = Column(Text, nullable=False)
@@ -629,7 +629,7 @@ class ProjectRoutineDatabase(Base):
     __tablename__ = "project_routines"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
     schedule_minutes = Column(Integer, nullable=False, default=60)
@@ -686,7 +686,7 @@ class ProjectMemoryBankEntryDatabase(Base):
     __tablename__ = "project_memory_bank_entries"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     chat_id = Column(String(255), nullable=True, index=True)
     granularity = Column(String(20), nullable=False, index=True)
     period_key = Column(String(20), nullable=True, index=True)

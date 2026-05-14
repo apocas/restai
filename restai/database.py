@@ -876,6 +876,49 @@ class DBWrapper:
         # missing index dir (project never indexed) shouldn't block
         # the SQL delete.
         project_id = int(project.id)
+
+        # Belt-and-braces application-side cascade. The schema *should*
+        # have ON DELETE CASCADE on every projects.id child FK after
+        # migration 050, but for SQLite (no FK alter support) and for
+        # production deployments that haven't yet run the migration,
+        # an admin clicking "delete project" should still succeed.
+        # Each table is best-effort — failures here are logged and
+        # the SQL DELETE below is tried regardless. The CASCADE
+        # constraint will do the right thing on properly-migrated
+        # deployments; this just shields the others.
+        from sqlalchemy import text as _sql_text
+        # M2M secondary tables (users_projects, teams_projects) are
+        # handled by SQLAlchemy via the ProjectDatabase.users / .team
+        # relationships — listing them here would race the ORM and
+        # trip StaleDataError.
+        _CHILDREN_CASCADE = [
+            "prompt_versions", "eval_runs", "eval_datasets",
+            "project_invitations", "widgets", "kg_entities",
+            "kg_entity_mentions", "kg_entity_relationships",
+            "retrieval_events", "guard_events", "project_comments",
+            "project_tools", "project_routines",
+            "project_memory_bank_entries", "bulk_ingest_jobs",
+            "project_secrets", "routine_execution_log",
+        ]
+        for tbl in _CHILDREN_CASCADE:
+            try:
+                self.db.execute(
+                    _sql_text(f"DELETE FROM {tbl} WHERE project_id = :pid"),
+                    {"pid": project_id},
+                )
+            except Exception as e:
+                logging.debug("delete_project: skip %s (%s)", tbl, e)
+        # `output` rows are audit history — preserve them by NULLing
+        # the FK rather than deleting (matches the SET NULL rule from
+        # migration 050).
+        try:
+            self.db.execute(
+                _sql_text("UPDATE output SET project_id = NULL WHERE project_id = :pid"),
+                {"pid": project_id},
+            )
+        except Exception as e:
+            logging.debug("delete_project: skip output null-out (%s)", e)
+
         self.db.delete(project)
         self.db.commit()
         try:
