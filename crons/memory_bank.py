@@ -25,14 +25,13 @@ from restai.cron_log import CronLogger
 from restai import memory_bank
 
 
-# Hard cap on how many conversations one cron tick will summarize. With
-# the System LLM being remote (Ollama / OpenAI / etc.), each summary is
-# ~1-5s best case and up to ~120s worst case (Ollama's request timeout).
-# At 25 chats × worst case that's still under the runner's 600s job
-# timeout — meaning the cron always reports back instead of getting
-# silently killed and looking "stuck" to the admin. Backlog beyond this
-# rolls over to subsequent ticks.
-MAX_CHATS_PER_TICK = 25
+# Hard cap on how many conversations one cron tick will summarize. The
+# binding constraint is the runner's 600s per-job timeout: with Ollama's
+# default 120s request_timeout per `complete()` call, anything north of
+# ~5 chats can blow the budget and get the whole tick killed mid-batch
+# (lock stays held, next tick reports "already running"). 5 × 120s leaves
+# ample headroom; backlog rolls over to subsequent ticks.
+MAX_CHATS_PER_TICK = 5
 
 
 def _run():
