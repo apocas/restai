@@ -437,7 +437,7 @@ export default function LLMInfo({ llm, projects, usedBy = 0 }) {
         <Grid item xs={6} md={3}>
           <StatTile
             icon={<AttachMoney />}
-            label="Cost / 1K"
+            label="Cost / 1M"
             value={
               inCost || outCost
                 ? `$${inCost || "0"}/$${outCost || "0"}`
@@ -644,12 +644,12 @@ export default function LLMInfo({ llm, projects, usedBy = 0 }) {
                   {llm.context_window > 0 && <ContextScale tokens={llm.context_window} />}
                 </Box>
               </AttrRow>
-              <AttrRow icon={AttachMoney} label="Input cost / 1K" accent={ACCENT}>
+              <AttrRow icon={AttachMoney} label="Input cost / 1M" accent={ACCENT}>
                 {inCost
                   ? <MonoPill value={`$${inCost}`} color="#0891b2" icon={AttachMoney} />
                   : <Box component="span" sx={{ color: "text.disabled", fontFamily: FONT_MONO, fontSize: "0.78rem" }}>free</Box>}
               </AttrRow>
-              <AttrRow icon={AttachMoney} label="Output cost / 1K" accent={ACCENT}>
+              <AttrRow icon={AttachMoney} label="Output cost / 1M" accent={ACCENT}>
                 {outCost
                   ? <MonoPill value={`$${outCost}`} color="#0d9488" icon={AttachMoney} />
                   : <Box component="span" sx={{ color: "text.disabled", fontFamily: FONT_MONO, fontSize: "0.78rem" }}>free</Box>}

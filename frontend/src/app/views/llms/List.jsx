@@ -313,7 +313,7 @@ const formatContext = (n) => {
   return `${n}`;
 };
 
-// Format $/1K cost — keep concise so it fits a pill.
+// Format $/1M cost — keep concise so it fits a pill.
 const formatCost = (v) => {
   if (v == null || v === 0) return null;
   const num = Number(v);
@@ -462,7 +462,7 @@ export default function LLMs() {
     },
     {
       key: "cost",
-      label: t("llms.columns.cost") || "Cost / 1K",
+      label: t("llms.columns.cost") || "Cost / 1M",
       sortable: true,
       sortValue: (row) => (row.input_cost || 0) + (row.output_cost || 0),
       render: (row) => {

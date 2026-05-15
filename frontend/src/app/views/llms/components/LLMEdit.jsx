@@ -650,7 +650,7 @@ export default function LLMEdit({ llm }) {
                             fontWeight: 700,
                           }}
                         >
-                          /1K
+                          /1M
                         </Box>
                       </InputAdornment>
                     ),
@@ -687,7 +687,7 @@ export default function LLMEdit({ llm }) {
                             fontWeight: 700,
                           }}
                         >
-                          /1K
+                          /1M
                         </Box>
                       </InputAdornment>
                     ),
