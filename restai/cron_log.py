@@ -18,10 +18,18 @@ The constructor also installs a `logging.Handler` on the root logger so any
 the codebase during the cron run is mirrored into the DB log entry. That
 gives the admin the same view in `/admin/cron-logs` that they would have
 gotten by tailing the console.
+
+The constructor ALSO installs a SIGTERM handler so that when the cron
+runner (or any orchestrator) sends SIGTERM on deadline, we get a chance
+to flush the in-progress log row with an explicit "interrupted" marker
+before the process exits. Without this, a SIGTERM would just terminate
+the process without running atexit/__del__ — invisible in the admin log.
 """
 from __future__ import annotations
 
 import logging
+import signal
+import sys
 import time
 import traceback
 
@@ -63,6 +71,26 @@ class CronLogger:
         # Attach to root so every named logger propagates into our buffer.
         self._log_handler = _CronLogHandler(self)
         logging.getLogger().addHandler(self._log_handler)
+
+        # SIGTERM handler — runner sends SIGTERM on the per-job deadline.
+        # Default Python behavior is to exit without flushing; we want a
+        # row in the cron log explaining what happened. raise SystemExit
+        # so try/finally + atexit + __del__ all fire normally.
+        try:
+            signal.signal(signal.SIGTERM, self._on_sigterm)
+        except (ValueError, OSError):
+            # signal.signal only works in the main thread; harmless when
+            # CronLogger is constructed elsewhere.
+            pass
+
+    def _on_sigterm(self, signum, frame):
+        if not self._finished:
+            self.error(
+                "Cron interrupted by SIGTERM (likely runner deadline). "
+                "Backlog rolls over to the next tick."
+            )
+            self.finish()
+        sys.exit(143)  # 128 + 15 (SIGTERM) — POSIX convention.
 
     def _capture(self, level: str | None, message: str, exc_info=None) -> None:
         """Record a message from the logging handler — separate from the

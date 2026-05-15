@@ -104,7 +104,10 @@ def _run():
                         db.db.rollback()
                     budget_left -= 1
                     if budget_left <= 0:
-                        deferred_total += len(chat_ids) - idx
+                        # Already counted at line above (`deferred_total += deferred`)
+                        # before the loop started — to_process was pre-capped to
+                        # budget_left, so anything beyond is in `deferred`. Don't
+                        # double-add here.
                         break
 
             try:

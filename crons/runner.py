@@ -118,9 +118,19 @@ def run_all():
     while pending:
         if time.monotonic() >= deadline:
             for name, proc, lock_fp in pending:
+                # SIGTERM first so the cron's signal handler can flush its
+                # CronLog row to the DB. SIGKILL bypasses atexit/__del__
+                # entirely, which is why timed-out jobs used to vanish from
+                # /admin/cron-logs without a trace.
                 try:
-                    proc.kill()
-                    proc.wait(timeout=5)
+                    proc.terminate()
+                    proc.wait(timeout=8)
+                except subprocess.TimeoutExpired:
+                    try:
+                        proc.kill()
+                        proc.wait(timeout=5)
+                    except Exception:
+                        pass
                 except Exception:
                     pass
                 logger.error("Cron %s timed out after %ds, killed", name, JOB_TIMEOUT)
