@@ -1133,7 +1133,7 @@
       "name": "Navn",
       "class": "Klasse",
       "context": "Kontekst",
-      "cost": "Pris / 1K",
+      "cost": "Pris / 1M",
       "privacy": "Privatliv"
     },
     "tooltip": {

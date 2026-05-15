@@ -1133,7 +1133,7 @@
       "name": "Nome",
       "class": "Classe",
       "context": "Contexto",
-      "cost": "Custo / 1K",
+      "cost": "Custo / 1M",
       "privacy": "Privacidade"
     },
     "tooltip": {

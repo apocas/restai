@@ -198,8 +198,8 @@ class LLMModel(BaseModel):
     options: Dict[str, Any] = Field(description="Provider-specific configuration options (model name, API keys, etc.)")
     privacy: Literal["public", "private"] = Field(description="Privacy level: 'public' (cloud-hosted) or 'private' (self-hosted)")
     description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable description of the LLM")
-    input_cost: float = Field(default=0.0, ge=0, description="Cost per 1K input tokens in configured currency")
-    output_cost: float = Field(default=0.0, ge=0, description="Cost per 1K output tokens in configured currency")
+    input_cost: float = Field(default=0.0, ge=0, description="Cost per 1M input tokens in configured currency")
+    output_cost: float = Field(default=0.0, ge=0, description="Cost per 1M output tokens in configured currency")
     context_window: Union[int, None] = Field(default=4096, ge=1, le=10000000, description="Maximum context window size in tokens")
     teams: list["TeamModel"] = Field(default=[], description="Teams that have access to this LLM")
     model_config = ConfigDict(from_attributes=True, json_schema_extra={
@@ -209,8 +209,8 @@ class LLMModel(BaseModel):
             "options": {"model": "openai/gpt-4o"},
             "privacy": "public",
             "description": "OpenAI GPT-4o model",
-            "input_cost": 0.005,
-            "output_cost": 0.015,
+            "input_cost": 5.0,
+            "output_cost": 15.0,
             "context_window": 128000
         }
     })
@@ -299,8 +299,8 @@ class LLMUpdate(BaseModel):
     options: Union[str, Dict[str, Any], None] = Field(default=None, description="Provider-specific configuration options")
     privacy: Optional[Literal["public", "private"]] = Field(default=None, description="Privacy level: 'public' or 'private'")
     description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable description of the LLM")
-    input_cost: Union[float, None] = Field(default=None, ge=0, description="Cost per 1K input tokens")
-    output_cost: Union[float, None] = Field(default=None, ge=0, description="Cost per 1K output tokens")
+    input_cost: Union[float, None] = Field(default=None, ge=0, description="Cost per 1M input tokens")
+    output_cost: Union[float, None] = Field(default=None, ge=0, description="Cost per 1M output tokens")
     context_window: Union[int, None] = Field(default=None, ge=1, le=10000000, description="Maximum context window size in tokens")
 
     @field_validator('class_name')
@@ -314,8 +314,8 @@ class LLMUpdate(BaseModel):
             "options": "{\"model\": \"openai/gpt-4o-mini\"}",
             "privacy": "public",
             "description": "Updated model description",
-            "input_cost": 0.003,
-            "output_cost": 0.012
+            "input_cost": 3.0,
+            "output_cost": 12.0
         }
     })
 

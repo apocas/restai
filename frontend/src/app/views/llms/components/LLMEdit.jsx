@@ -148,13 +148,13 @@ const fieldSx = {
 };
 
 // Live cost calculator — quick 100K-in / 50K-out sanity reading so
-// admins can sense-check the per-1K rates without doing math.
+// admins can sense-check the per-1M rates without doing math.
 function CostCalculator({ inputCost, outputCost }) {
   const inNum = Number(inputCost) || 0;
   const outNum = Number(outputCost) || 0;
-  // 100K input + 50K output is a representative chat-shape load.
-  const sample100k = inNum * 100 + outNum * 50;
-  const million = inNum * 1000 + outNum * 500;
+  // Per-million rates: scale token counts to fractions of 1M.
+  const sample100k = inNum * 0.1 + outNum * 0.05;   // 100K in + 50K out
+  const million = inNum * 1 + outNum * 0.5;          //  1M in + 500K out
   if (sample100k === 0) {
     return (
       <Box
@@ -580,7 +580,7 @@ export default function LLMEdit({ llm }) {
           <TileHeader
             icon={<MemoryRounded />}
             title="Geometry · Pricing"
-            subtitle="Context window and per-1K-token rates"
+            subtitle="Context window and per-1M-token rates"
             accent={ACCENT}
           />
           <Box sx={{ p: 2.5 }}>
@@ -630,7 +630,7 @@ export default function LLMEdit({ llm }) {
                   label={t("llms.edit.inputCost")}
                   value={state.input_cost ?? ""}
                   onChange={handleChange}
-                  helperText="$ per 1K input tokens"
+                  helperText="$ per 1M input tokens"
                   InputLabelProps={{ shrink: true }}
                   InputProps={{
                     startAdornment: (
@@ -667,7 +667,7 @@ export default function LLMEdit({ llm }) {
                   label={t("llms.edit.outputCost")}
                   value={state.output_cost ?? ""}
                   onChange={handleChange}
-                  helperText="$ per 1K output tokens"
+                  helperText="$ per 1M output tokens"
                   InputLabelProps={{ shrink: true }}
                   InputProps={{
                     startAdornment: (
