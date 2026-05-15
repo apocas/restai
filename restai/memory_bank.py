@@ -547,6 +547,32 @@ def chat_ids_needing_refresh(
             )
             .first()
         )
-        if existing is None or (existing.last_source_at or datetime.min) < latest:
+        if existing is not None:
+            if (existing.last_source_at or datetime.min) >= latest:
+                continue  # up to date
             out.append(chat_id)
+            continue
+        # No conversation entry — but the chat may already be absorbed
+        # into a day/week/month digest from a previous compression cycle.
+        # Without this check, every compression tick that rolls a chat up
+        # would re-add it to the refresh queue (the conversation row is
+        # deleted by `_rollup`), causing infinite re-summarization on the
+        # same chats and the backlog never drains.
+        absorbed = (
+            sess.query(ProjectMemoryBankEntryDatabase.id)
+            .filter(
+                ProjectMemoryBankEntryDatabase.project_id == project_id,
+                ProjectMemoryBankEntryDatabase.granularity != "conversation",
+                ProjectMemoryBankEntryDatabase.last_source_at >= latest,
+                ProjectMemoryBankEntryDatabase.period_key.in_([
+                    _day_key(latest),
+                    _week_key(latest),
+                    _month_key(latest),
+                ]),
+            )
+            .first()
+        )
+        if absorbed is not None:
+            continue
+        out.append(chat_id)
     return out
