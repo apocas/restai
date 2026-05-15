@@ -691,3 +691,17 @@ class ProjectMemoryBankEntryDatabase(Base):
     updated_at = Column(DateTime, nullable=False)
 
     project = relationship("ProjectDatabase")
+
+
+class DockerChatActivityDatabase(Base):
+    # Multi-server-safe heartbeat for the per-chat Docker container the
+    # `terminal` tool runs inside. `last_activity` bumps on every
+    # exec_command across any RESTai instance; the cleanup cron reads
+    # from here instead of a static container label so eviction reflects
+    # real idle time, not container lifetime.
+    __tablename__ = "docker_chat_activity"
+
+    chat_id = Column(String(255), primary_key=True)
+    last_activity = Column(DateTime, nullable=False, index=True)
+    container_id = Column(String(64), nullable=True)
+    updated_at = Column(DateTime, nullable=False)

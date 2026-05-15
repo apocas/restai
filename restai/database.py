@@ -1607,6 +1607,57 @@ class DBWrapper:
             query = query.filter(CronLogDatabase.status == status)
         return query.offset(start).limit(end - start).all()
 
+    # ── Docker chat-activity heartbeat ──────────────────────────────
+    def upsert_docker_activity(self, chat_id: str, container_id: str | None = None) -> None:
+        """Bump `last_activity` for a chat's Docker container. Called on
+        every `DockerManager.exec_command`. Multi-server safe — the
+        cleanup cron reads from this table instead of in-memory state."""
+        from datetime import datetime, timezone
+        from restai.models.databasemodels import DockerChatActivityDatabase
+        if not chat_id:
+            return
+        now = datetime.now(timezone.utc)
+        row = (
+            self.db.query(DockerChatActivityDatabase)
+            .filter(DockerChatActivityDatabase.chat_id == chat_id)
+            .first()
+        )
+        if row is None:
+            row = DockerChatActivityDatabase(
+                chat_id=chat_id,
+                last_activity=now,
+                container_id=container_id,
+                updated_at=now,
+            )
+            self.db.add(row)
+        else:
+            row.last_activity = now
+            if container_id:
+                row.container_id = container_id
+            row.updated_at = now
+        self.db.commit()
+
+    def delete_docker_activity(self, chat_id: str) -> None:
+        from restai.models.databasemodels import DockerChatActivityDatabase
+        if not chat_id:
+            return
+        (
+            self.db.query(DockerChatActivityDatabase)
+            .filter(DockerChatActivityDatabase.chat_id == chat_id)
+            .delete()
+        )
+        self.db.commit()
+
+    def get_docker_activity(self, chat_id: str):
+        from restai.models.databasemodels import DockerChatActivityDatabase
+        if not chat_id:
+            return None
+        return (
+            self.db.query(DockerChatActivityDatabase)
+            .filter(DockerChatActivityDatabase.chat_id == chat_id)
+            .first()
+        )
+
 
 def get_db_wrapper():
     """FastAPI dependency: open a DB wrapper for one request and close

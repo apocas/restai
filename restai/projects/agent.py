@@ -10,6 +10,7 @@ the runtime exits after one turn with no extra overhead. Add tools or MCP
 servers in the project's Tools tab to turn them into actual agents.
 """
 import asyncio
+import contextlib
 import json
 import logging
 import re
@@ -890,13 +891,23 @@ class Agent(ProjectBase):
 
         streamed_any_text = False
         try:
-            async with MCPSessionPool() as mcp_pool:
-                try:
-                    mcp_tools = await mcp_pool.connect_servers(
-                        project.props.options.mcp_servers or []
-                    )
-                except Exception:
-                    mcp_tools = []
+            # Skip MCPSessionPool entirely when no MCP servers are
+            # configured. The pool's __aexit__ closes stdio sessions
+            # and is a meaningful await point — entering it
+            # unconditionally meant Starlette's post-response cancel
+            # often landed inside the cleanup, generating misleading
+            # "MCP cleanup" warnings even for projects that never used
+            # MCP. AsyncExitStack lets us conditionally enter without
+            # duplicating the body.
+            mcp_servers = project.props.options.mcp_servers or []
+            async with contextlib.AsyncExitStack() as _mcp_stack:
+                mcp_tools = []
+                if mcp_servers:
+                    mcp_pool = await _mcp_stack.enter_async_context(MCPSessionPool())
+                    try:
+                        mcp_tools = await mcp_pool.connect_servers(mcp_servers)
+                    except Exception:
+                        mcp_tools = []
 
                 try:
                     sys_prompt = _augment_system_prompt_with_memory_bank(
@@ -998,9 +1009,18 @@ class Agent(ProjectBase):
                         streamed_any_text = True
         except BaseException as e:
             # Catch ExceptionGroup from MCP session pool cleanup failures
-            # to prevent "No response returned" crashes
+            # to prevent "No response returned" crashes.
+            #
+            # CancelledError after a response was already produced is
+            # Starlette's post-response teardown racing against any
+            # in-flight cleanup (MCP __aexit__ or otherwise). Re-raise
+            # per anyio convention so the cancellation completes
+            # cleanly; nothing useful to log and nothing to recover.
+            import asyncio as _asyncio
+            if isinstance(e, _asyncio.CancelledError) and "answer" in output:
+                raise
             if "answer" not in output:
-                logging.warning("Agent chat failed during MCP cleanup: %s", e)
+                logging.warning("Agent chat failed during post-response cleanup: %s", e)
                 output["answer"] = project.props.censorship or "An error occurred processing your request."
 
         # Non-streaming yield MUST be outside the `async with MCPSessionPool()`
@@ -1045,13 +1065,18 @@ class Agent(ProjectBase):
         system_prompt = _augment_system_prompt_with_memory_search_hint(project, system_prompt)
         system_prompt = _prepend_current_time(system_prompt)
 
-        async with MCPSessionPool() as mcp_pool:
-            try:
-                mcp_tools = await mcp_pool.connect_servers(
-                    project.props.options.mcp_servers or []
-                )
-            except Exception:
-                mcp_tools = []
+        # Same skip-when-empty pattern as `chat()` above — see comment
+        # there. Eliminates spurious "MCP cleanup" warnings for
+        # projects that never used MCP.
+        mcp_servers = project.props.options.mcp_servers or []
+        async with contextlib.AsyncExitStack() as _mcp_stack:
+            mcp_tools = []
+            if mcp_servers:
+                mcp_pool = await _mcp_stack.enter_async_context(MCPSessionPool())
+                try:
+                    mcp_tools = await mcp_pool.connect_servers(mcp_servers)
+                except Exception:
+                    mcp_tools = []
 
             try:
                 runtime = self._build_runtime(

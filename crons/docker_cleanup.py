@@ -59,36 +59,64 @@ def main():
         cron.finish()
         return
 
+    # DB-backed heartbeat: DockerManager.exec_command UPSERTs
+    # `docker_chat_activity` on every terminal/run/upload call across
+    # all RESTai instances sharing this DB. Using the row's
+    # `last_activity` here gives us TRUE idle time. Containers without
+    # a row (orphans, pre-migration) fall back to the old label-based
+    # creation-age check so the rollout is gradual.
+    from datetime import datetime, timezone
+    from restai.models.databasemodels import DockerChatActivityDatabase
+
+    db = open_db_wrapper()
+    try:
+        rows = db.db.query(DockerChatActivityDatabase).all()
+        activity_by_chat = {r.chat_id: r.last_activity for r in rows}
+    finally:
+        db.db.close()
+
     now = time.time()
     removed = 0
 
+    def _age_from_creation_label(container, labels) -> float:
+        created_at = labels.get("restai.created_at")
+        if created_at:
+            try:
+                return now - int(created_at)
+            except Exception:
+                pass
+        try:
+            container.reload()
+            created_str = container.attrs.get("Created", "")
+            if created_str:
+                dt = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
+                return now - dt.timestamp()
+        except Exception:
+            pass
+        return 0.0
+
     for container in containers:
         labels = container.labels or {}
-        created_at = labels.get("restai.created_at")
         chat_id = labels.get("restai.chat_id", "unknown")
 
-        if not created_at:
-            # No timestamp label — fall back to container creation time.
-            try:
-                container.reload()
-                from datetime import datetime, timezone
-                created_str = container.attrs.get("Created", "")
-                if created_str:
-                    dt = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
-                    age = now - dt.timestamp()
-                else:
-                    age = 0
-            except Exception:
-                age = 0
+        last_activity = activity_by_chat.get(chat_id)
+        if last_activity is not None:
+            # Treat naive timestamps as UTC — UPSERTs use datetime.now(tz=utc)
+            # but SQLite returns them naive on read.
+            if last_activity.tzinfo is None:
+                last_activity = last_activity.replace(tzinfo=timezone.utc)
+            idle = now - last_activity.timestamp()
+            source = "db"
         else:
-            age = now - int(created_at)
+            idle = _age_from_creation_label(container, labels)
+            source = "label-fallback"
 
-        if age > timeout:
+        if idle > timeout:
             try:
                 container.stop(timeout=5)
                 logger.info(
-                    "Removed idle container %s (chat_id=%s, idle=%ds)",
-                    container.short_id, chat_id, int(age),
+                    "Removed idle container %s (chat_id=%s, idle=%ds, src=%s)",
+                    container.short_id, chat_id, int(idle), source,
                 )
                 removed += 1
             except Exception as e:

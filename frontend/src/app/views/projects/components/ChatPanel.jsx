@@ -196,13 +196,27 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
 
     const endpoint = chatMode ? "chat" : "question";
     if (chatMode) {
-      // Reuse the session chat_id captured from the first successful
-      // `final` event — survives cancelled/interrupted previous turns
-      // so the backend doesn't mint a new uuid (and DockerManager
-      // doesn't spawn a fresh container) on every retry.
+      // Mint the chat_id CLIENT-SIDE if we don't already have one for
+      // this session. Locking it on the frontend means:
+      //   1. fetchEventSource auto-reconnects (clean close / network
+      //      blip / mid-stream cancel) all carry the same id, so the
+      //      backend reuses the same chat session and the SAME
+      //      DockerManager container. No phantom new containers.
+      //   2. We don't depend on the backend's `final` SSE event
+      //      delivering the id — even an interrupted response keeps
+      //      continuity for the next user turn.
+      // crypto.randomUUID is on every modern browser; the timestamp
+      // fallback is purely belt-and-braces for ancient runtimes.
       const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
       const carriedId = (lastMsg && lastMsg.id) || sessionChatIdRef.current;
-      if (carriedId) body.id = carriedId;
+      if (!sessionChatIdRef.current) {
+        const minted = carriedId
+          || (typeof crypto !== "undefined" && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `c-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+        sessionChatIdRef.current = minted;
+      }
+      body.id = sessionChatIdRef.current;
     }
 
     // Preview refs for the chat log. Keep the image dataUrl inline, but strip
@@ -353,6 +367,11 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         setFiles([]);
         streamAbortRef.current = null;
         if (onQuestionSent) onQuestionSent();
+        // We intentionally do NOT throw here — fetchEventSource's
+        // auto-reconnect is a feature for resilience. The chat_id is
+        // minted client-side (see sessionChatIdRef in sendMessage) and
+        // included in every POST body, so reconnects land on the same
+        // backend chat → same DockerManager container, no state loss.
       },
       onerror(err) {
         setStreamingText("");

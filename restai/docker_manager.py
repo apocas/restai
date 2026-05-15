@@ -117,6 +117,7 @@ class DockerManager:
             info = self._containers.get(chat_id)
             if info:
                 info.last_activity = time.time()
+        self._touch_db_activity(chat_id, getattr(info, "container_id", None) if info else None)
 
         try:
             exec_kwargs = {
@@ -159,6 +160,7 @@ class DockerManager:
             info = self._containers.get(chat_id)
             if info:
                 info.last_activity = time.time()
+        self._touch_db_activity(chat_id, getattr(info, "container_id", None) if info else None)
 
         try:
             import base64
@@ -304,6 +306,7 @@ class DockerManager:
             info = self._containers.get(chat_id)
             if info:
                 info.last_activity = time.time()
+        self._touch_db_activity(chat_id, getattr(info, "container_id", None) if info else None)
 
         logger.info("Uploaded %d file(s) to chat_id=%s at %s",
                     len(manifest), chat_id, target_dir)
@@ -394,6 +397,39 @@ class DockerManager:
             logger.info("Removed container %s for chat_id=%s", info.container_id[:12], chat_id)
         except Exception:
             pass
+        self._drop_db_activity(chat_id)
+
+    # Multi-server-safe heartbeat: bump `docker_chat_activity` on every
+    # exec/run/upload so the cleanup cron sees real idle time across
+    # all RESTai instances. The cron is in a separate process and can't
+    # see this manager's in-memory `last_activity`.
+    def _touch_db_activity(self, chat_id: str, container_id: str | None) -> None:
+        if not chat_id:
+            return
+        try:
+            from restai.database import open_db_wrapper
+            db = open_db_wrapper()
+            try:
+                db.upsert_docker_activity(chat_id, container_id)
+            finally:
+                db.db.close()
+        except Exception as e:
+            # DB blip must never break a tool call. Worst case is one
+            # extra eviction tick away from the optimal idle window.
+            logger.debug("docker_chat_activity upsert failed for %s: %s", chat_id, e)
+
+    def _drop_db_activity(self, chat_id: str) -> None:
+        if not chat_id:
+            return
+        try:
+            from restai.database import open_db_wrapper
+            db = open_db_wrapper()
+            try:
+                db.delete_docker_activity(chat_id)
+            finally:
+                db.db.close()
+        except Exception as e:
+            logger.debug("docker_chat_activity delete failed for %s: %s", chat_id, e)
 
     def shutdown(self):
         """Remove all managed containers — both this worker's tracked
