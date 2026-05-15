@@ -291,8 +291,8 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
         llm_db = db.get_llm_by_name(project.props.llm)
         if llm_db is not None:
             llm = LLMModel.model_validate(llm_db)
-            input_cost = (in_tokens * llm.input_cost) / 1000000
-            output_cost = (out_tokens * llm.output_cost) / 1000000
+            input_cost = (in_tokens * llm.input_cost) / 1000
+            output_cost = (out_tokens * llm.output_cost) / 1000
 
     redact = bool(getattr(project.props.options, "redact_inference_logs", False))
     logging_enabled = bool(getattr(project.props.options, "logging", True))
