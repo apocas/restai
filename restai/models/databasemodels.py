@@ -705,3 +705,16 @@ class DockerChatActivityDatabase(Base):
     last_activity = Column(DateTime, nullable=False, index=True)
     container_id = Column(String(64), nullable=True)
     updated_at = Column(DateTime, nullable=False)
+
+
+class BrowserChatActivityDatabase(Base):
+    # Same as DockerChatActivityDatabase but for the per-chat Playwright
+    # browser container. Separate table because docker terminal and
+    # browser can coexist in the same chat — sharing one row would
+    # overwrite each other's heartbeats.
+    __tablename__ = "browser_chat_activity"
+
+    chat_id = Column(String(255), primary_key=True)
+    last_activity = Column(DateTime, nullable=False, index=True)
+    container_id = Column(String(64), nullable=True)
+    updated_at = Column(DateTime, nullable=False)

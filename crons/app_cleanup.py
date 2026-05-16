@@ -59,9 +59,16 @@ def main():
         containers = client.containers.list(
             filters={"label": ["restai.app_managed=true"]},
         )
+        from restai.instance import get_instance_id
+        my_instance = get_instance_id()
         for c in containers:
+            labels = c.labels or {}
+            # Multi-install isolation — see docker_cleanup for rationale.
+            cont_iid = labels.get("restai.instance_id")
+            if cont_iid and cont_iid != my_instance:
+                continue
             try:
-                created_at = int(c.labels.get("restai.created_at") or "0")
+                created_at = int(labels.get("restai.created_at") or "0")
             except Exception:
                 created_at = 0
             age = now - created_at if created_at else 0

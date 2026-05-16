@@ -95,9 +95,41 @@ def main():
             pass
         return 0.0
 
+    def _has_running_exec(container) -> bool:
+        """True when Docker reports any in-flight exec session on the
+        container. The heartbeat fires at exec *start*; a single exec
+        longer than `timeout` (long compile, slow curl, big find) would
+        otherwise let the cron stop the container out from under the
+        agent mid-call. We ask Docker directly instead of guessing."""
+        try:
+            container.reload()
+            exec_ids = container.attrs.get("ExecIDs") or []
+        except Exception:
+            return False
+        for exec_id in exec_ids:
+            try:
+                info = client.api.exec_inspect(exec_id)
+                if info.get("Running"):
+                    return True
+            except Exception:
+                continue
+        return False
+
+    from restai.instance import get_instance_id
+    my_instance = get_instance_id()
+
     for container in containers:
         labels = container.labels or {}
         chat_id = labels.get("restai.chat_id", "unknown")
+
+        # Multi-install isolation: if a container is tagged with a
+        # different instance_id, hands off — it belongs to another
+        # RESTai install sharing this dockerd. Containers without a
+        # tag (legacy / pre-052) are still managed by anyone so
+        # orphans get cleaned up during the rollout window.
+        cont_iid = labels.get("restai.instance_id")
+        if cont_iid and cont_iid != my_instance:
+            continue
 
         last_activity = activity_by_chat.get(chat_id)
         if last_activity is not None:
@@ -112,6 +144,12 @@ def main():
             source = "label-fallback"
 
         if idle > timeout:
+            if _has_running_exec(container):
+                logger.info(
+                    "Skipping container %s (chat_id=%s, idle=%ds, src=%s) — exec in flight",
+                    container.short_id, chat_id, int(idle), source,
+                )
+                continue
             try:
                 container.stop(timeout=5)
                 logger.info(

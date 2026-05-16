@@ -253,6 +253,7 @@ def _create_container(chat_id: str):
     image = (getattr(_cfg, "BROWSER_IMAGE", _DEFAULT_IMAGE) or _DEFAULT_IMAGE)
     network = (getattr(_cfg, "BROWSER_NETWORK", "bridge") or "bridge")
     logger.info("Browser: creating container for chat_id=%s", chat_id)
+    from restai.instance import get_instance_id
     container = c.containers.run(
         image,
         command=["sleep", "infinity"],
@@ -261,6 +262,7 @@ def _create_container(chat_id: str):
             "restai.browser_managed": "true",
             "restai.browser_chat_id": chat_id,
             "restai.created_at": str(int(time.time())),
+            "restai.instance_id": get_instance_id(),
         },
         mem_limit="1g",
         cpu_period=100000,
@@ -306,6 +308,7 @@ def _chat_lock(chat_id: str) -> asyncio.Lock:
 def remove_container(chat_id: str) -> None:
     """Stop the per-chat container if it exists. Idempotent."""
     container = _resolve_container(chat_id)
+    _drop_db_activity(chat_id)
     if container is None:
         return
     try:
@@ -313,6 +316,36 @@ def remove_container(chat_id: str) -> None:
         logger.info("Browser: removed container for chat_id=%s", chat_id)
     except Exception as e:
         logger.warning("Browser: failed to stop container for chat_id=%s: %s", chat_id, e)
+
+
+# ── Activity heartbeat (DB-backed, multi-worker safe) ─────────────────
+
+def _touch_db_activity(chat_id: str, container_id: Optional[str]) -> None:
+    if not chat_id:
+        return
+    try:
+        from restai.database import open_db_wrapper
+        db = open_db_wrapper()
+        try:
+            db.upsert_browser_activity(chat_id, container_id)
+        finally:
+            db.db.close()
+    except Exception as e:
+        logger.debug("browser_chat_activity upsert failed for %s: %s", chat_id, e)
+
+
+def _drop_db_activity(chat_id: str) -> None:
+    if not chat_id:
+        return
+    try:
+        from restai.database import open_db_wrapper
+        db = open_db_wrapper()
+        try:
+            db.delete_browser_activity(chat_id)
+        finally:
+            db.db.close()
+    except Exception as e:
+        logger.debug("browser_chat_activity delete failed for %s: %s", chat_id, e)
 
 
 # ── Public API ────────────────────────────────────────────────────────
@@ -323,6 +356,7 @@ def call(chat_id: str, path: str, payload: Optional[dict] = None) -> dict:
     if not chat_id:
         chat_id = "ephemeral"
     container, port = _get_or_create(chat_id)
+    _touch_db_activity(chat_id, container.id)
 
     url = f"http://127.0.0.1:{port}{path}"
     try:
@@ -331,8 +365,14 @@ def call(chat_id: str, path: str, payload: Optional[dict] = None) -> dict:
         # Container might have died — drop + retry once.
         remove_container(chat_id)
         container, port = _get_or_create(chat_id)
+        _touch_db_activity(chat_id, container.id)
         url = f"http://127.0.0.1:{port}{path}"
         resp = requests.post(url, json=payload or {}, timeout=90)
+
+    # Re-touch after request returns so a long browser call (e.g.
+    # navigation that takes >timeout) doesn't leave a stale heartbeat
+    # that the next cron tick would evict on.
+    _touch_db_activity(chat_id, container.id)
 
     if resp.status_code >= 400:
         try:

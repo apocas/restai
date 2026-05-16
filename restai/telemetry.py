@@ -26,13 +26,14 @@ STARTUP_DELAY_SECONDS = 60  # Wait for app to stabilize
 
 
 def _get_or_create_instance_id(db_wrapper) -> str:
-    """Get or generate a persistent anonymous instance ID."""
-    setting = db_wrapper.get_setting("telemetry_instance_id")
-    if setting and setting.value:
-        return setting.value
-    instance_id = uuid.uuid4().hex
-    db_wrapper.upsert_setting("telemetry_instance_id", instance_id)
-    return instance_id
+    """Get or generate a persistent anonymous instance ID.
+
+    Thin wrapper around `restai.instance.get_instance_id` kept for
+    backward compatibility — the canonical implementation lives in
+    `restai/instance.py` because Docker/cron also need it.
+    """
+    from restai.instance import get_instance_id
+    return get_instance_id()
 
 
 def _get_database_type() -> str:

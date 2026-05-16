@@ -1658,6 +1658,47 @@ class DBWrapper:
             .first()
         )
 
+    # ── Browser chat-activity heartbeat ─────────────────────────────
+    def upsert_browser_activity(self, chat_id: str, container_id: str | None = None) -> None:
+        """Bump `last_activity` for a chat's browser container. Called
+        on every `browser.runtime.call()`. Cleanup cron reads from this
+        table so eviction reflects real idle time, not container age."""
+        from datetime import datetime, timezone
+        from restai.models.databasemodels import BrowserChatActivityDatabase
+        if not chat_id:
+            return
+        now = datetime.now(timezone.utc)
+        row = (
+            self.db.query(BrowserChatActivityDatabase)
+            .filter(BrowserChatActivityDatabase.chat_id == chat_id)
+            .first()
+        )
+        if row is None:
+            row = BrowserChatActivityDatabase(
+                chat_id=chat_id,
+                last_activity=now,
+                container_id=container_id,
+                updated_at=now,
+            )
+            self.db.add(row)
+        else:
+            row.last_activity = now
+            if container_id:
+                row.container_id = container_id
+            row.updated_at = now
+        self.db.commit()
+
+    def delete_browser_activity(self, chat_id: str) -> None:
+        from restai.models.databasemodels import BrowserChatActivityDatabase
+        if not chat_id:
+            return
+        (
+            self.db.query(BrowserChatActivityDatabase)
+            .filter(BrowserChatActivityDatabase.chat_id == chat_id)
+            .delete()
+        )
+        self.db.commit()
+
 
 def get_db_wrapper():
     """FastAPI dependency: open a DB wrapper for one request and close

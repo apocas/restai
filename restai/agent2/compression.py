@@ -110,18 +110,53 @@ def find_user_turn_boundaries(messages: Sequence[Message]) -> list[int]:
     return [i for i, m in enumerate(messages) if _is_pure_user_message(m)]
 
 
+def find_safe_split_points(messages: Sequence[Message]) -> list[int]:
+    """Indices where the prefix `messages[:i]` is self-contained — i.e.
+    cutting at `i` doesn't orphan any assistant `tool_use` from its
+    matching `tool_result`. Safe = the message at `i` has no
+    `ToolResultBlock` (which would otherwise be the response to the
+    assistant tool_use immediately before).
+
+    Includes pure user-text turn boundaries by construction (those
+    messages have no tool_result) plus assistant-text-only continuations
+    and the start of the list. This widens the set of compressible
+    chats — agent sessions with many tool calls inside one user turn
+    can now still be summarized."""
+    if not messages:
+        return []
+    points = [0]
+    for i in range(1, len(messages)):
+        if any(isinstance(b, ToolResultBlock) for b in messages[i].content):
+            continue
+        points.append(i)
+    return points
+
+
 def split_for_compression(
     messages: Sequence[Message], keep_n_turns: int
 ) -> tuple[list[Message], list[Message]]:
-    """Split into (to_compress, to_keep) at the Nth-from-last turn boundary.
+    """Split into (to_compress, to_keep) at the Nth-from-last safe split point.
 
-    Returns ([], list(messages)) if there aren't enough turns to compress.
+    Prefers user-text turn boundaries (most natural compression cut), but
+    falls back to any safe split point when the agent has been running
+    many tools inside a single user turn — without this fallback, long
+    tool-heavy sessions deadlock on compression because they only have
+    1-2 user-text turns and ``keep_n_turns=3``.
+
+    Returns ([], list(messages)) if there aren't enough safe split points
+    to compress anything.
     """
-    boundaries = find_user_turn_boundaries(messages)
-    if len(boundaries) <= keep_n_turns:
-        return [], list(messages)
-    keep_start = boundaries[-keep_n_turns]
-    return list(messages[:keep_start]), list(messages[keep_start:])
+    user_turns = find_user_turn_boundaries(messages)
+    if len(user_turns) > keep_n_turns:
+        keep_start = user_turns[-keep_n_turns]
+        return list(messages[:keep_start]), list(messages[keep_start:])
+
+    safe = find_safe_split_points(messages)
+    if len(safe) > keep_n_turns:
+        keep_start = safe[-keep_n_turns]
+        return list(messages[:keep_start]), list(messages[keep_start:])
+
+    return [], list(messages)
 
 
 # ---------- prior summary extraction ----------
@@ -267,22 +302,27 @@ def hard_truncate(
     if not messages:
         return messages
 
-    # Walk turn boundaries from newest to oldest, keeping the largest suffix
-    # that fits in the budget. Always keep at least the last turn.
-    boundaries = find_user_turn_boundaries(messages)
+    # Walk safe split points from newest to oldest, keeping the largest
+    # suffix that fits in the budget. User-text turns are the most natural
+    # cuts but tool-heavy sessions often have only 1-2 of them — fall
+    # through to any safe split point (anywhere that doesn't orphan a
+    # tool_use → tool_result pair) so we can actually shrink.
+    boundaries = find_safe_split_points(messages)
     if not boundaries:
-        # No clean turn boundary at all — return as-is and hope for the best
         return list(messages)
 
-    # Try suffixes starting from each boundary, newest-first
-    for n in range(min(keep_n_turns, len(boundaries)), 0, -1):
-        candidate = list(messages[boundaries[-n]:])
+    # Walk every safe split point newest-first looking for the largest
+    # suffix that fits. The `keep_n_turns` knob is now a *lower bound* on
+    # what we attempt to preserve, not a hard cap — if even keeping that
+    # much is over budget we keep slicing forward until we fit.
+    for keep_start in reversed(boundaries):
+        candidate = list(messages[keep_start:])
         if count_session_tokens(candidate) <= target_tokens:
             return candidate
 
-    # Even the most recent single turn is over budget — return it anyway,
-    # the provider will surface a clear error and the user can shrink their
-    # input.
+    # Even the smallest suffix (the last message alone) is over budget —
+    # return it anyway. The provider will surface a clear error and the
+    # user can shrink their input.
     return list(messages[boundaries[-1]:])
 
 
@@ -346,8 +386,8 @@ async def compress_session(
         truncated = hard_truncate(list(session.messages), target_tokens, keep_recent_turns)
         if len(truncated) < len(session.messages):
             session.messages = truncated
-            logger.info("agent2: compression fallback used hard truncation (%d → %d messages)",
-                        current_tokens, count_session_tokens(truncated))
+            logger.info("agent2: compression fallback used hard truncation (%d → %d tokens, %d messages)",
+                        current_tokens, count_session_tokens(truncated), len(truncated))
             return True
         return False
 

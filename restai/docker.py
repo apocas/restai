@@ -114,6 +114,7 @@ def _create_container(chat_id: str):
     image = getattr(_cfg, "DOCKER_IMAGE", "python:3.12-slim") or "python:3.12-slim"
     network = getattr(_cfg, "DOCKER_NETWORK", "none") or "none"
     read_only = bool(getattr(_cfg, "DOCKER_READ_ONLY", True))
+    from restai.instance import get_instance_id
     container = c.containers.run(
         image,
         command="tail -f /dev/null",
@@ -122,6 +123,7 @@ def _create_container(chat_id: str):
             "restai.managed": "true",
             "restai.chat_id": chat_id,
             "restai.created_at": str(int(time.time())),
+            "restai.instance_id": get_instance_id(),
         },
         mem_limit="512m",
         cpu_period=100000,
@@ -140,16 +142,6 @@ def _get_or_create(chat_id: str):
     if container is not None:
         return container
     return _create_container(chat_id)
-
-
-def _container_is_dead(container) -> bool:
-    """True only when Docker confirms not-running. Default False (keep
-    alive) on inspection errors — spurious removal is the bug we avoid."""
-    try:
-        container.reload()
-        return container.status != "running"
-    except Exception:
-        return False
 
 
 def remove_container(chat_id: str) -> None:
@@ -251,11 +243,21 @@ def exec_command(chat_id: str, command: str, env: Optional[dict] = None) -> str:
         output = stdout + stderr
         if len(output) > MAX_OUTPUT:
             output = output[:MAX_OUTPUT] + "\n... (output truncated)"
+        # Re-touch after exec returns — for execs longer than
+        # `docker_timeout` the start-of-call heartbeat is already stale
+        # by the time we land here, and the next cron tick would evict
+        # a freshly-finished container.
+        _touch_db_activity(chat_id, container.id)
         return output if output else "(no output)"
     except Exception as e:
         logger.exception("Docker exec failed for chat_id=%s: %s", chat_id, e)
-        if _container_is_dead(container):
-            remove_container(chat_id)
+        # Do NOT remove the container here. _container_is_dead used to
+        # decide that, but it flips True on transient states
+        # (restarting/removing/paused) and we'd wipe a fine container's
+        # tmpfs over a single exec hiccup. The next call's
+        # `_resolve_container` will see status!="running" if the
+        # container is genuinely dead and create a fresh one; if it's
+        # alive, we keep the agent's state.
         return f"ERROR: Command execution failed: {e}"
 
 
@@ -280,13 +282,14 @@ def run_script(chat_id: str, script: str, stdin_data: str = "") -> str:
         )
         stdout = (result.output[0] or b"").decode("utf-8", errors="replace")
         stderr = (result.output[1] or b"").decode("utf-8", errors="replace")
+        _touch_db_activity(chat_id, container.id)
         if stderr.strip():
             return stdout + "\nSTDERR: " + stderr if stdout else "ERROR: " + stderr
         return stdout.strip() if stdout.strip() else "(no output)"
     except Exception as e:
         logger.exception("Docker run_script failed for chat_id=%s: %s", chat_id, e)
-        if _container_is_dead(container):
-            remove_container(chat_id)
+        # See `exec_command` — never self-remove on exec failure. The
+        # next call's `_resolve_container` is the authoritative check.
         return f"ERROR: Script execution failed: {e}"
 
 
