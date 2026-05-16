@@ -24,7 +24,14 @@ from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.indices.struct_store.sql_query import NLSQLTableQueryEngine
 from sqlalchemy import create_engine
 
-_ALLOWED_DB_SCHEMES = {"postgresql", "postgresql+psycopg2", "mysql", "mysql+pymysql", "sqlite"}
+# SQLite is intentionally NOT in this list. NL→SQL on SQLite gave a
+# project admin (who controls the connection option) a file-read primitive
+# against anything the RESTai process could see — every traversal guard we
+# tried was bypassable in some way (`..` segments, slash-count semantics
+# for relative vs absolute, symlinks). Dropping SQLite entirely removes
+# the attack surface; if a user really needs file-backed RAG-SQL they can
+# put the data into Postgres/MySQL.
+_ALLOWED_DB_SCHEMES = {"postgresql", "postgresql+psycopg2", "mysql", "mysql+pymysql"}
 _ALLOWED_SCHEME_BASES = {s.split("+")[0] for s in _ALLOWED_DB_SCHEMES}
 
 
@@ -44,41 +51,6 @@ def _validate_connection_string(conn: str):
             status_code=400,
             detail=f"Database scheme '{scheme_full}' is not allowed. Permitted: {', '.join(sorted(_ALLOWED_DB_SCHEMES))}",
         )
-
-    # Block SQLite paths that escape the application directory. SQLite can
-    # open any readable file (and ATTACH others), so a project admin who
-    # controls the connection option could exfiltrate arbitrary files
-    # without shell access. Three traversal vectors are addressed here:
-    #
-    #   - "sqlite:////<cwd>/a/../../etc/passwd" — literal prefix matches
-    #     cwd but `..` segments resolve outside it (the previous
-    #     `path.startswith(cwd)` check was bypassable).
-    #   - "sqlite:relative/../../etc/passwd" — relative path; the previous
-    #     check only fired on paths starting with "/" and missed this.
-    #   - "sqlite:///<cwd>/symlink" pointing outside cwd — realpath
-    #     resolves symlinks too.
-    #
-    # `:memory:` is permitted unconditionally (no filesystem access).
-    # SQLAlchemy's URL parser handles the `sqlite:///relative` vs
-    # `sqlite:////absolute` slash convention correctly, which urlparse
-    # alone does not.
-    if scheme_base == "sqlite":
-        import os
-        try:
-            from sqlalchemy.engine.url import make_url
-            db_path = make_url(conn).database or ""
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid SQLite connection string")
-        if not db_path or db_path == ":memory:":
-            return
-        cwd = os.path.realpath(os.getcwd())
-        candidate = db_path if os.path.isabs(db_path) else os.path.join(cwd, db_path)
-        resolved = os.path.realpath(candidate)
-        if resolved != cwd and not resolved.startswith(cwd + os.sep):
-            raise HTTPException(
-                status_code=400,
-                detail="SQLite paths outside the application directory are not allowed",
-            )
 
 
 class EntityBoostPostprocessor:
