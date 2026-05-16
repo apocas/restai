@@ -48,6 +48,33 @@ def _is_image_attachment(f) -> bool:
     return name.endswith(_IMAGE_EXTS)
 
 
+def _looks_repetitive(texts: list[str], min_chars: int = 60, prefix_ratio: float = 0.6,
+                      min_prefix_chars: int = 50) -> bool:
+    """True when the last N assistant texts share enough common prefix to
+    qualify as a self-prompted loop (model rambling without progress —
+    classic open-model failure on long horizons). Two signals must hold:
+      - shared prefix is at least `min_prefix_chars` (avoids tripping on
+        short common openers like "I will check...")
+      - shared prefix is >= `prefix_ratio` of the shortest turn (the
+        repeating part dominates each turn's content)
+    """
+    if len(texts) < 3:
+        return False
+    norms = [(t or "").strip().lower()[:300] for t in texts[-3:]]
+    if any(len(n) < min_chars for n in norms):
+        return False
+    prefix = norms[0]
+    for n in norms[1:]:
+        i = 0
+        cap = min(len(prefix), len(n))
+        while i < cap and prefix[i] == n[i]:
+            i += 1
+        prefix = prefix[:i]
+        if len(prefix) < min_prefix_chars:
+            return False
+    return len(prefix) >= prefix_ratio * min(len(n) for n in norms)
+
+
 def _prepend_current_time(base_system_prompt: str | None) -> str | None:
     """Stamp the current UTC time at the top of the system prompt so
     time-sensitive reasoning ('how recent is this snapshot', 'what day
@@ -605,6 +632,13 @@ class Agent(ProjectBase):
             r"!\[[^\]]*\]\((https?://[^)\s]+/image/cache/[A-Fa-f0-9]+\.[A-Za-z0-9]+|/image/cache/[A-Fa-f0-9]+\.[A-Za-z0-9]+)\)"
         )
 
+        # Repetition guard: track text content of last 3 assistant turns.
+        # When the model gets stuck self-prompting ("Let me look at a few
+        # more files: …" repeated for dozens of turns without invoking a
+        # tool), `_looks_repetitive` flags it and we abort cleanly with
+        # a final answer instead of letting it consume max_iterations.
+        recent_assistant_texts: list[str] = []
+
         # Mirror every text_delta into a local buffer. The "final" event
         # is the canonical source for output["answer"], but if the
         # runtime is interrupted (timeout, abort, upstream EOS without
@@ -630,6 +664,29 @@ class Agent(ProjectBase):
             elif event.type == "assistant":
                 msg = event.message
                 if msg:
+                    try:
+                        turn_text = msg.text_content() or ""
+                    except Exception:
+                        turn_text = ""
+                    if turn_text.strip():
+                        recent_assistant_texts.append(turn_text)
+                        if len(recent_assistant_texts) > 3:
+                            recent_assistant_texts.pop(0)
+                        if _looks_repetitive(recent_assistant_texts):
+                            warning_msg = (
+                                "(stopped — model produced repetitive output across "
+                                "the last 3 turns without making progress. Try rephrasing "
+                                "the request, breaking it into smaller steps, or switching "
+                                "to a more capable model.)"
+                            )
+                            logging.warning(
+                                "agent _drive_runtime aborted: detected repetitive "
+                                "output across last 3 assistant turns"
+                            )
+                            output["answer"] = warning_msg
+                            if stream:
+                                yield ("text", "\n\n" + warning_msg)
+                            return
                     for block in msg.content:
                         if isinstance(block, ToolUseBlock):
                             pending_tool_calls[block.id] = block
