@@ -111,6 +111,21 @@ def test_split_for_compression_not_enough_turns():
     assert to_keep == msgs
 
 
+def test_split_for_compression_tool_heavy_single_user_turn():
+    """One user turn followed by many assistant tool_use → user tool_result
+    pairs — the agent2 chat shape that originally deadlocked compression
+    (only 1 user-text boundary, can't satisfy keep_n_turns=3). The safe
+    split point fallback should kick in and let us still compress the
+    older tool round-trips."""
+    msgs = [_user("do stuff")]
+    for _ in range(10):
+        msgs.append(_assistant_tool_use())
+        msgs.append(_user_tool_result())
+    to_compress, to_keep = split_for_compression(msgs, keep_n_turns=3)
+    assert len(to_compress) > 0, "tool-heavy session must still be compressible"
+    assert to_compress + to_keep == msgs
+
+
 def test_split_for_compression_exact_keep_n():
     msgs = [
         _user("q1"), _assistant("a1"),

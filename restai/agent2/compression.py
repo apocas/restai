@@ -151,10 +151,17 @@ def split_for_compression(
         keep_start = user_turns[-keep_n_turns]
         return list(messages[:keep_start]), list(messages[keep_start:])
 
-    safe = find_safe_split_points(messages)
-    if len(safe) > keep_n_turns:
-        keep_start = safe[-keep_n_turns]
-        return list(messages[:keep_start]), list(messages[keep_start:])
+    # Tool-heavy fallback: ONLY when user-text turns are strictly fewer
+    # than requested. The `==` case (exactly enough user turns to satisfy
+    # keep_n) means we'd be honoring the keep contract by doing nothing —
+    # don't break a turn just to add a sliver of compression. The fallback
+    # exists for agents doing many tool round-trips inside a single user
+    # turn, where len(user_turns) is typically 1.
+    if len(user_turns) < keep_n_turns:
+        safe = find_safe_split_points(messages)
+        if len(safe) > keep_n_turns:
+            keep_start = safe[-keep_n_turns]
+            return list(messages[:keep_start]), list(messages[keep_start:])
 
     return [], list(messages)
 
