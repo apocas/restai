@@ -397,6 +397,42 @@ def test_enforce_2fa_setting(client):
     assert response.status_code == 200
 
 
+def test_enforce_2fa_blocks_login_for_unenrolled_user(client):
+    """Regression for H3 — enforce_2fa was previously only consulted in
+    UI status and the /totp/disable endpoint. Local /auth/login ignored
+    the setting and minted full session cookies for users who hadn't
+    enrolled in TOTP, defeating the platform-wide mandate.
+
+    Setting must already be True when this runs (set by the preceding
+    test_enforce_2fa_setting test in this module).
+    """
+    import base64
+    unenrolled_user = "test_enforce2fa_unenrolled_" + str(random.randint(0, 1000000))
+    unenrolled_pass = "no_totp_pass_456"
+    create = client.post(
+        "/users",
+        json={"username": unenrolled_user, "password": unenrolled_pass, "admin": False, "private": False},
+        auth=("admin", RESTAI_DEFAULT_PASSWORD),
+    )
+    assert create.status_code == 201
+
+    # Hit /auth/login directly with Basic auth — bypassing the conftest's
+    # auth-tuple shim so we can observe the exact response. The shim
+    # swallows failures and re-sends requests unauthenticated, which
+    # would mask the 403 we want to assert here.
+    basic_header = "Basic " + base64.b64encode(
+        f"{unenrolled_user}:{unenrolled_pass}".encode()
+    ).decode()
+    login = client.post("/auth/login", headers={"Authorization": basic_header})
+    assert login.status_code == 403, f"expected 403, got {login.status_code}: {login.text}"
+    assert "two-factor" in login.json().get("detail", "").lower()
+    assert "restai_token" not in login.cookies
+
+    # Cleanup the temp user. Uses admin shim (which logs in via the
+    # configured admin path — admin retains TOTP-bypass via test setup).
+    client.delete(f"/users/{unenrolled_user}", auth=("admin", RESTAI_DEFAULT_PASSWORD))
+
+
 def test_cannot_disable_when_enforced(client):
     # First enable 2FA for the user
     client.post(f"/users/{test_username}/totp/setup", json={}, auth=(test_username, test_password))

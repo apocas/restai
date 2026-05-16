@@ -45,15 +45,39 @@ def _validate_connection_string(conn: str):
             detail=f"Database scheme '{scheme_full}' is not allowed. Permitted: {', '.join(sorted(_ALLOWED_DB_SCHEMES))}",
         )
 
-    # Block SQLite absolute paths that could read system files.
-    # urlparse("sqlite:///etc/passwd").path == "/etc/passwd"
-    if scheme_base == "sqlite" and parsed.path:
+    # Block SQLite paths that escape the application directory. SQLite can
+    # open any readable file (and ATTACH others), so a project admin who
+    # controls the connection option could exfiltrate arbitrary files
+    # without shell access. Three traversal vectors are addressed here:
+    #
+    #   - "sqlite:////<cwd>/a/../../etc/passwd" — literal prefix matches
+    #     cwd but `..` segments resolve outside it (the previous
+    #     `path.startswith(cwd)` check was bypassable).
+    #   - "sqlite:relative/../../etc/passwd" — relative path; the previous
+    #     check only fired on paths starting with "/" and missed this.
+    #   - "sqlite:///<cwd>/symlink" pointing outside cwd — realpath
+    #     resolves symlinks too.
+    #
+    # `:memory:` is permitted unconditionally (no filesystem access).
+    # SQLAlchemy's URL parser handles the `sqlite:///relative` vs
+    # `sqlite:////absolute` slash convention correctly, which urlparse
+    # alone does not.
+    if scheme_base == "sqlite":
         import os
-        path = parsed.path
-        if path.startswith("/") and not path.startswith(os.getcwd()):
+        try:
+            from sqlalchemy.engine.url import make_url
+            db_path = make_url(conn).database or ""
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid SQLite connection string")
+        if not db_path or db_path == ":memory:":
+            return
+        cwd = os.path.realpath(os.getcwd())
+        candidate = db_path if os.path.isabs(db_path) else os.path.join(cwd, db_path)
+        resolved = os.path.realpath(candidate)
+        if resolved != cwd and not resolved.startswith(cwd + os.sep):
             raise HTTPException(
                 status_code=400,
-                detail="SQLite absolute paths outside the application directory are not allowed",
+                detail="SQLite paths outside the application directory are not allowed",
             )
 
 

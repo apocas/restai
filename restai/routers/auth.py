@@ -116,6 +116,29 @@ async def login(
         )
         return {"requires_totp": True, "totp_token": totp_token}
 
+    # Platform-wide 2FA mandate: if the admin has flipped `enforce_2fa`
+    # and this user hasn't enrolled in TOTP yet, refuse to mint a
+    # session. Without this, the setting was only enforced on the
+    # /totp/disable endpoint and in UI status — the actual auth gate
+    # let un-enrolled users in with a full cookie, defeating the
+    # mandate entirely.
+    #
+    # Bootstrap: if everyone is locked out, an admin can temporarily
+    # disable enforce_2fa via the settings endpoint (admin endpoints
+    # honor existing sessions), have users enroll, then re-enable.
+    # Admins can also impersonate users to enroll on their behalf.
+    if user_db and not user_db.totp_enabled and db_wrapper.get_setting_value(
+        "enforce_2fa", "false"
+    ).lower() in ("true", "1"):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Two-factor authentication is required by the administrator. "
+                "Enroll a TOTP authenticator before signing in. "
+                "If you cannot enroll, contact your administrator."
+            ),
+        )
+
     # Normal login — no 2FA
     jwt_token = create_access_token(
         data={"username": user.username}, expires_delta=timedelta(minutes=1440)
