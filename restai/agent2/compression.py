@@ -49,6 +49,10 @@ def _encode_len(text: str) -> int:
 
 DEFAULT_CONTEXT_RATIO = 0.75
 DEFAULT_KEEP_RECENT_TURNS = 3
+# Headroom we reserve for the summary message + a bit of buffer so the
+# kept slice + summary together comfortably fit under target_tokens.
+# 4000 tokens is enough for a 400+ word summary plus framing overhead.
+SUMMARY_RESERVE_TOKENS = 4000
 SUMMARY_MARKER = "[Earlier conversation summary]"
 CURRENT_QUESTION_MARKER = "[Current question]"
 
@@ -133,35 +137,55 @@ def find_safe_split_points(messages: Sequence[Message]) -> list[int]:
 
 
 def split_for_compression(
-    messages: Sequence[Message], keep_n_turns: int
+    messages: Sequence[Message],
+    keep_n_turns: int,
+    target_tokens: Optional[int] = None,
 ) -> tuple[list[Message], list[Message]]:
-    """Split into (to_compress, to_keep) at the Nth-from-last safe split point.
+    """Split into (to_compress, to_keep) at a safe split point.
 
-    Prefers user-text turn boundaries (most natural compression cut), but
-    falls back to any safe split point when the agent has been running
-    many tools inside a single user turn — without this fallback, long
-    tool-heavy sessions deadlock on compression because they only have
-    1-2 user-text turns and ``keep_n_turns=3``.
+    Two modes:
 
-    Returns ([], list(messages)) if there aren't enough safe split points
-    to compress anything.
+    **Budget-aware** (`target_tokens` is given) — finds the LARGEST recent
+    suffix whose token count fits within `target_tokens` at a safe split
+    point. This is what production callers use (`compress_session`) so a
+    100-iteration tool run that gets summarized doesn't waste the model's
+    context window. Without this, a 142k-token session over a 142.5k
+    budget would crater to ~3 messages instead of keeping ~140k tokens
+    of recent context.
+
+    **Turn-based** (`target_tokens` is None) — preserves the historic
+    semantics for callers/tests that haven't moved to the budget API.
+    Prefers user-text turn boundaries (most natural compression cut),
+    falling back to safe split points when user turns can't satisfy
+    `keep_n_turns`.
+
+    Returns ([], list(messages)) when nothing useful can be compressed.
+    ``_prepend_summary_to_first_user`` handles the case where the kept
+    slice doesn't start with a user-role message.
     """
+    if target_tokens is not None:
+        safe = find_safe_split_points(messages)
+        if not safe:
+            return [], list(messages)
+        # Walk oldest-first so the FIRST suffix that fits is the LARGEST.
+        for keep_start in safe:
+            if count_session_tokens(list(messages[keep_start:])) <= target_tokens:
+                if keep_start == 0:
+                    return [], list(messages)
+                return list(messages[:keep_start]), list(messages[keep_start:])
+        # Even the last single message doesn't fit — nothing safe to do here;
+        # caller will fall back to hard_truncate.
+        return [], list(messages)
+
     user_turns = find_user_turn_boundaries(messages)
     if len(user_turns) > keep_n_turns:
         keep_start = user_turns[-keep_n_turns]
         return list(messages[:keep_start]), list(messages[keep_start:])
 
-    # Tool-heavy fallback: ONLY when user-text turns are strictly fewer
-    # than requested. The `==` case (exactly enough user turns to satisfy
-    # keep_n) means we'd be honoring the keep contract by doing nothing —
-    # don't break a turn just to add a sliver of compression. The fallback
-    # exists for agents doing many tool round-trips inside a single user
-    # turn, where len(user_turns) is typically 1.
-    if len(user_turns) < keep_n_turns:
-        safe = find_safe_split_points(messages)
-        if len(safe) > keep_n_turns:
-            keep_start = safe[-keep_n_turns]
-            return list(messages[:keep_start]), list(messages[keep_start:])
+    safe = find_safe_split_points(messages)
+    if len(safe) > keep_n_turns:
+        keep_start = safe[-keep_n_turns]
+        return list(messages[:keep_start]), list(messages[keep_start:])
 
     return [], list(messages)
 
@@ -309,27 +333,22 @@ def hard_truncate(
     if not messages:
         return messages
 
-    # Walk safe split points from newest to oldest, keeping the largest
-    # suffix that fits in the budget. User-text turns are the most natural
-    # cuts but tool-heavy sessions often have only 1-2 of them — fall
-    # through to any safe split point (anywhere that doesn't orphan a
-    # tool_use → tool_result pair) so we can actually shrink.
+    # Walk safe split points oldest-first so the FIRST suffix that fits
+    # is the LARGEST suffix that fits. Walking newest-first (the bug)
+    # always returned the smallest fitting suffix — including just the
+    # last single message when the full list was barely over budget,
+    # cratering the chat from 142k tokens to ~460 tokens of context.
     boundaries = find_safe_split_points(messages)
     if not boundaries:
         return list(messages)
 
-    # Walk every safe split point newest-first looking for the largest
-    # suffix that fits. The `keep_n_turns` knob is now a *lower bound* on
-    # what we attempt to preserve, not a hard cap — if even keeping that
-    # much is over budget we keep slicing forward until we fit.
-    for keep_start in reversed(boundaries):
+    for keep_start in boundaries:
         candidate = list(messages[keep_start:])
         if count_session_tokens(candidate) <= target_tokens:
             return candidate
 
-    # Even the smallest suffix (the last message alone) is over budget —
-    # return it anyway. The provider will surface a clear error and the
-    # user can shrink their input.
+    # Every suffix is over budget — return the smallest one anyway. The
+    # provider will surface a clear error and the user can shrink input.
     return list(messages[boundaries[-1]:])
 
 
@@ -386,10 +405,21 @@ async def compress_session(
         current_tokens, target_tokens, context_window, ratio,
     )
 
-    to_compress, to_keep = split_for_compression(session.messages, keep_recent_turns)
+    # Budget-aware: reserve room for the summary itself + framing, leaving
+    # the rest of the budget for as much recent context as fits. The previous
+    # fixed `keep_recent_turns=3` slice wasted ~140k of the 190k window on
+    # long tool-heavy chats — the agent would resume with almost no memory
+    # of what it just did. min() guards against pathological cases where the
+    # reserve exceeds the budget.
+    keep_budget = max(target_tokens - SUMMARY_RESERVE_TOKENS, target_tokens // 2)
+    to_compress, to_keep = split_for_compression(
+        session.messages, keep_recent_turns, target_tokens=keep_budget,
+    )
 
     if not to_compress:
-        # Not enough turns to do a sliding-window split — fall back to hard truncation.
+        # Budget-aware split found nothing safe to compress (every safe
+        # suffix is still too big, or only the full list fits exactly).
+        # Hard-truncate as last resort.
         truncated = hard_truncate(list(session.messages), target_tokens, keep_recent_turns)
         if len(truncated) < len(session.messages):
             session.messages = truncated
@@ -435,21 +465,29 @@ async def compress_session(
 def _prepend_summary_to_first_user(
     kept: list[Message], summary: str
 ) -> list[Message]:
-    """Insert the summary into the first kept user message (or as a new
-    leading message if there's no user message at the start)."""
+    """Prepend the summary so the kept slice starts with a user message.
+
+    Two cases:
+    - Kept already starts with a pure user-text message → merge the
+      summary into that message (preserves the user's current question).
+    - Kept starts with anything else (assistant continuation, tool_use,
+      tool_result-bearing user message, or empty) → prepend a fresh
+      user-role message carrying the summary. Chat APIs require the first
+      message to be role=user, and the previous behavior of mutating an
+      INNER user message left an orphan assistant prefix that broke
+      alternation for the LLM.
+    """
     if not kept:
         return [user_text_message(f"{SUMMARY_MARKER}\n{summary}")]
 
-    # Find the first pure user message in the kept list
-    for i, msg in enumerate(kept):
-        if _is_pure_user_message(msg):
-            original_text = msg.content[0].text if msg.content else ""
-            new_text = (
-                f"{SUMMARY_MARKER}\n{summary}\n\n"
-                f"{CURRENT_QUESTION_MARKER}\n{original_text}"
-            )
-            new_msg = Message(role="user", content=[TextBlock(text=new_text)])
-            return list(kept[:i]) + [new_msg] + list(kept[i + 1:])
+    first = kept[0]
+    if _is_pure_user_message(first):
+        original_text = first.content[0].text if first.content else ""
+        new_text = (
+            f"{SUMMARY_MARKER}\n{summary}\n\n"
+            f"{CURRENT_QUESTION_MARKER}\n{original_text}"
+        )
+        new_msg = Message(role="user", content=[TextBlock(text=new_text)])
+        return [new_msg] + list(kept[1:])
 
-    # No clean user message in the kept slice — fall back to inserting one
     return [user_text_message(f"{SUMMARY_MARKER}\n{summary}")] + list(kept)

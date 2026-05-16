@@ -111,6 +111,37 @@ def test_split_for_compression_not_enough_turns():
     assert to_keep == msgs
 
 
+def test_split_for_compression_budget_aware_keeps_largest_fitting_suffix():
+    """When `target_tokens` is supplied (production path from
+    `compress_session`), the split should return the LARGEST recent
+    suffix that fits the budget — not just the last 3 messages.
+
+    Regression for the "agent forgets everything after /continue" report:
+    a 200-message session over a 142.5k budget was previously compressed
+    to ~3 messages (wasting 140k tokens of headroom), so the resumed
+    agent had no recall of what it had just done across 100 tool calls."""
+    # Build a sequence: user + 30 tool round-trips. Each tool_result is
+    # 1000-char so token counts stay realistic.
+    msgs = [_user("audit the repo")]
+    for i in range(30):
+        msgs.append(_assistant_tool_use())
+        msgs.append(Message(
+            role="user",
+            content=[ToolResultBlock(tool_use_id="t1", content="x" * 1000)],
+        ))
+    total = count_session_tokens(msgs)
+    # Budget that's about 60% of total — should keep more than just the
+    # last 3 messages.
+    budget = int(total * 0.6)
+    to_compress, to_keep = split_for_compression(msgs, keep_n_turns=3, target_tokens=budget)
+    assert len(to_keep) > 6, (
+        f"budget-aware split kept only {len(to_keep)} messages; "
+        f"expected many more (budget={budget}, total={total})"
+    )
+    assert count_session_tokens(to_keep) <= budget
+    assert to_compress + to_keep == msgs
+
+
 def test_split_for_compression_tool_heavy_single_user_turn():
     """One user turn followed by many assistant tool_use → user tool_result
     pairs — the agent2 chat shape that originally deadlocked compression
@@ -126,16 +157,22 @@ def test_split_for_compression_tool_heavy_single_user_turn():
     assert to_compress + to_keep == msgs
 
 
-def test_split_for_compression_exact_keep_n():
+def test_split_for_compression_exact_keep_n_uses_safe_fallback():
+    """3 turns, keep_n=3 — user-text turns alone can't beat keep_n, so we
+    fall back to safe split points. Without this fallback, plain-text
+    chats with exactly keep_n turns would crater via hard_truncate when
+    they hit the budget (see the 142k→460 token bug)."""
     msgs = [
         _user("q1"), _assistant("a1"),
         _user("q2"), _assistant("a2"),
         _user("q3"), _assistant("a3"),
     ]
     to_compress, to_keep = split_for_compression(msgs, keep_n_turns=3)
-    # 3 turns, keep_n=3 → not enough to compress (need strictly more)
-    assert to_compress == []
-    assert to_keep == msgs
+    # All 6 indices are safe split points (no tool_result blocks).
+    # safe[-3] = index 3 = _assistant("a2"), so kept starts there.
+    assert len(to_compress) == 3
+    assert len(to_keep) == 3
+    assert to_compress + to_keep == msgs
 
 
 # ---------- hard_truncate ----------
@@ -158,6 +195,36 @@ def test_hard_truncate_drops_oldest():
 
 def test_hard_truncate_empty():
     assert hard_truncate([], 100, 3) == []
+
+
+def test_hard_truncate_returns_largest_fitting_suffix():
+    """Regression for the 142k → 460 token bug. When the full list is
+    just barely over budget, hard_truncate must return the LARGEST
+    suffix that fits, not the smallest. The bug was walking safe split
+    points newest-first, which returned the smallest fitting suffix —
+    a chat with 142k tokens and a 142.5k budget collapsed to 2 messages
+    (460 tokens) instead of trimming the few overshoot tokens.
+    """
+    # Stuff each message with enough text so dropping ONE turn from the
+    # front is the smallest cut that fits — exposes the bug clearly.
+    msgs = [
+        _user("A" * 4000), _assistant("B" * 4000),
+        _user("C" * 4000), _assistant("D" * 4000),
+        _user("E" * 4000), _assistant("F" * 4000),
+    ]
+    total = count_session_tokens(msgs)
+    last_turn_tokens = count_session_tokens(msgs[-2:])
+    # Budget that fits everything except the first turn but is MUCH
+    # bigger than just the last turn — the bug returned just the last
+    # turn here.
+    budget = count_session_tokens(msgs[2:])
+    truncated = hard_truncate(msgs, budget, keep_n_turns=3)
+    assert len(truncated) > 2, (
+        f"hard_truncate cratered to {len(truncated)} messages; "
+        f"expected >2 (largest fitting suffix). "
+        f"total={total} budget={budget} last_turn={last_turn_tokens}"
+    )
+    assert count_session_tokens(truncated) <= budget
 
 
 # ---------- _approx_char_count ----------
