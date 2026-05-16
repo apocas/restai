@@ -26,6 +26,39 @@ from restai.agent2 import (
     build_provider_for_llm,
 )
 from restai.agent2.memory import get_session, save_session
+
+
+# Module-level set of background save tasks. Lives outside any request so
+# fire-and-forget saves aren't GC'd before they complete. Tasks self-evict
+# on done. The fallback save in the chat finally block uses this — without
+# it, request-side cancellation (Starlette middleware teardown) would skip
+# the synchronous `save_session(...)` call and the next chat turn would
+# load stale messages, manifesting as the agent "losing its thoughts".
+import asyncio as _agent_asyncio
+_PENDING_SESSION_SAVES: set = set()
+
+
+def _spawn_session_save(brain, chat_id, session) -> None:
+    """Schedule a session persist that outlives request cancellation.
+
+    Safe to call from a finally block: doesn't await, so doesn't raise
+    when the current task is already cancelling. The Redis write usually
+    finishes in <10ms — well before the user's next turn picks up the
+    chat — so the lack of synchronous completion is acceptable.
+    """
+    if not chat_id or session is None or not getattr(session, "messages", None):
+        return
+    try:
+        loop = _agent_asyncio.get_running_loop()
+    except RuntimeError:
+        return
+    try:
+        task = loop.create_task(save_session(brain, chat_id, session))
+    except Exception as e:
+        logging.warning("agent2: failed to schedule fallback session save: %s", e)
+        return
+    _PENDING_SESSION_SAVES.add(task)
+    task.add_done_callback(_PENDING_SESSION_SAVES.discard)
 from restai.agent2.tool_adapter import AdaptedTool
 from restai.agent2.types import ImageBlock, ToolUseBlock
 from restai.database import DBWrapper
@@ -1012,6 +1045,7 @@ class Agent(ProjectBase):
                 if use_plan:
                     plan = await self._run_planner(project, prompt_text, db)
 
+                saved_session = False
                 try:
                     if plan:
                         async for sse_line in self._chat_planned_stream(
@@ -1043,6 +1077,7 @@ class Agent(ProjectBase):
                                 yield "data: " + json.dumps(payload) + "\n\n"
 
                     await save_session(self.brain, chat_id, session)
+                    saved_session = True
                     self._count_tokens(output)
                     self.check_output_guard(project, user, db, output)
 
@@ -1064,6 +1099,18 @@ class Agent(ProjectBase):
                         yield "data: " + json.dumps(output) + "\n"
                         yield "event: close\n\n"
                         streamed_any_text = True
+                finally:
+                    # Fallback persist for the cancellation-mid-run case.
+                    # If `save_session` above never ran (CancelledError
+                    # raised inside `_drive_runtime`, client disconnect
+                    # mid-stream, middleware teardown), schedule it as a
+                    # background task so the session DOES land before the
+                    # next chat turn. Without this, the next turn loads
+                    # the pre-turn session and the agent "loses its
+                    # thoughts" — re-asks for files it already cat'd,
+                    # re-clones repos it already has, etc.
+                    if not saved_session:
+                        _spawn_session_save(self.brain, chat_id, session)
         except BaseException as e:
             # Catch ExceptionGroup from MCP session pool cleanup failures
             # to prevent "No response returned" crashes.
