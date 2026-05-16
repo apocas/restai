@@ -93,17 +93,32 @@ async def patch_settings(
     if sso_fields:
         reinit_oauth(request.app)
 
+    # Docker settings are read live from `restai.config` on every call
+    # in `restai/docker.py` — no manager reinit needed. Flush only the
+    # cached DockerClient (different `docker_url` would need a new TCP
+    # connection); other settings just take effect on the next exec.
     docker_fields = {"docker_enabled", "docker_url", "docker_image", "docker_timeout", "docker_network", "docker_read_only"}
     if docker_fields & updates.keys():
-        request.app.state.brain.init_docker_manager()
+        from restai import docker as _docker_mod
+        _docker_mod._client = None
+        _docker_mod._client_url = ""
 
+    # Browser / App runtimes read settings live from `restai.config` on
+    # every call (see `restai/browser/runtime.py` + `restai/app/runtime.py`)
+    # — no manager reinit needed. Flush the cached DockerClient when
+    # `docker_url` changed (handled in the docker_fields branch above);
+    # other settings just take effect on the next call.
     browser_fields = {"browser_enabled", "browser_image", "browser_network", "browser_timeout"}
     if browser_fields & updates.keys():
-        request.app.state.brain.init_browser_manager()
+        from restai.browser import runtime as _browser_mod
+        _browser_mod._client = None
+        _browser_mod._client_url = ""
 
     app_fields = {"app_docker_enabled", "app_docker_image", "app_docker_idle_timeout"}
     if app_fields & updates.keys():
-        request.app.state.brain.init_app_manager()
+        from restai.app import runtime as _app_mod
+        _app_mod._client = None
+        _app_mod._client_url = ""
 
     # Chroma keeps a process-level client cache; flush so the next
     # request reads fresh settings.
@@ -127,25 +142,14 @@ async def test_docker_connection(
     _=Depends(get_current_username_admin),
 ):
     """Test the Docker connection using the current settings."""
-    brain = request.app.state.brain
-    if brain.docker_manager is None:
-        docker_url = getattr(config, "DOCKER_URL", "") or ""
-        if not docker_url.strip():
-            raise HTTPException(status_code=400, detail="Docker URL is not configured")
-        # Try to connect
-        try:
-            import docker as docker_sdk
-            client = docker_sdk.DockerClient(base_url=docker_url)
-            info = client.info()
-            return {"status": "ok", "server_version": info.get("ServerVersion", "unknown")}
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Connection failed: {e}")
-    else:
-        try:
-            info = brain.docker_manager._client.info()
-            return {"status": "ok", "server_version": info.get("ServerVersion", "unknown")}
-        except Exception as e:
-            raise HTTPException(status_code=502, detail=f"Connection failed: {e}")
+    from restai import docker as _docker_mod
+    if not _docker_mod.is_enabled():
+        raise HTTPException(status_code=400, detail="Docker URL is not configured")
+    try:
+        info = _docker_mod.client_info()
+        return {"status": "ok", "server_version": info.get("ServerVersion", "unknown")}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Connection failed: {e}")
 
 
 @router.get("/audit", tags=["Settings"])

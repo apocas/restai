@@ -1520,7 +1520,7 @@ async def route_app_reset(
     mgr = getattr(request.app.state.brain, "app_manager", None)
     if mgr is not None:
         try:
-            mgr._remove(projectID)  # noqa: SLF001 — internal but stable
+            mgr.remove_container(projectID)
         except Exception:
             logger.exception("reset: failed to stop container before wipe")
 
@@ -1633,12 +1633,11 @@ def _run_tests(request: Request, project_id: int) -> list[dict]:
     mgr = getattr(brain, "app_manager", None)
     if mgr is None:
         return []
-    info = mgr._containers.get(int(project_id))  # noqa: SLF001
-    if not info:
+    container = mgr.get_container(int(project_id))
+    if container is None:
         return []
-    try:
-        container = mgr._client.containers.get(info.container_id)
-    except Exception:
+    docker_client = mgr.get_docker_client()
+    if docker_client is None:
         return []
 
     # Run with a wall-clock guard. exec_run wrapper has no native
@@ -1650,15 +1649,15 @@ def _run_tests(request: Request, project_id: int) -> list[dict]:
 
     def _exec():
         try:
-            exec_id = mgr._client.api.exec_create(  # noqa: SLF001
+            exec_id = docker_client.api.exec_create(
                 container.id,
                 cmd=["php", "/var/www/tests/api.php"],
                 stdout=True,
                 stderr=True,
                 workdir="/var/www",
             )["Id"]
-            output = mgr._client.api.exec_start(exec_id, stream=False)  # noqa: SLF001
-            inspect = mgr._client.api.exec_inspect(exec_id)  # noqa: SLF001
+            output = docker_client.api.exec_start(exec_id, stream=False)
+            inspect = docker_client.api.exec_inspect(exec_id)
             out_q.put((inspect.get("ExitCode"), output or b""))
         except Exception as e:
             out_q.put(("error", str(e).encode("utf-8")))
@@ -1846,9 +1845,8 @@ def _runtime_probes(request: Request, project_id: int) -> list[dict]:
 
     # ── Probe 3: esbuild log via docker exec ───────────────────────
     try:
-        info = mgr._containers.get(int(project_id))  # noqa: SLF001
-        if info:
-            container = mgr._client.containers.get(info.container_id)
+        container = mgr.get_container(int(project_id))
+        if container is not None:
             res = container.exec_run(
                 ["sh", "-c", "test -f /tmp/esbuild.log && tail -c 6000 /tmp/esbuild.log || true"],
                 demux=False,

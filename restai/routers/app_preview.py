@@ -208,15 +208,6 @@ async def _proxy(request: Request, projectID: int, path: str, db_wrapper: DBWrap
 
     response_headers = _filter_response_headers(upstream.headers.multi_items(), mount)
 
-    # Touch last_activity so the cleanup cron doesn't evict an actively-used
-    # preview. Best-effort — never raise.
-    mgr = getattr(request.app.state.brain, "app_manager", None)
-    if mgr is not None:
-        try:
-            mgr._touch(projectID)  # noqa: SLF001 — internal but stable
-        except Exception:
-            pass
-
     return Response(
         content=upstream.content,
         status_code=upstream.status_code,

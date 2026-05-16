@@ -36,9 +36,6 @@ class Brain:
         self._ner_cache = {}
         # chat_id -> list[message dict]
         self._agent2_sessions: dict[str, list[dict]] = {}
-        self.docker_manager = None
-        self.browser_manager = None
-        self.app_manager = None
 
         # Tools are lazy-loaded when first requested via get_tools(). The
         # full app sets them eagerly below so the first chat is fast; cron
@@ -55,119 +52,34 @@ class Brain:
 
             self.chat_store: BaseChatStore
             self.reinit_chat_store()
-            self.init_docker_manager()
-            self.init_browser_manager()
-            self.init_app_manager()
 
-    def init_docker_manager(self):
-        """Create or recreate the Docker manager from current config."""
-        if self.docker_manager is not None:
-            self.docker_manager.shutdown()
-            self.docker_manager = None
+    # Docker, Browser, and App runtimes are flat modules of functions
+    # (`restai.docker`, `restai.browser.runtime`, `restai.app.runtime`)
+    # that look up containers by label per call and read settings live
+    # from `restai.config`. The shims below preserve the historic
+    # `brain.docker_manager` / `brain.browser_manager` / `brain.app_manager`
+    # attribute names for callers — `getattr(brain, "...", None)` returns
+    # the module (truthy) or None when the runtime isn't enabled.
+    @property
+    def docker_manager(self):
+        from restai import docker as _docker_mod
+        if not _docker_mod.is_enabled():
+            return None
+        return _docker_mod
 
-        if not getattr(config, "DOCKER_ENABLED", False):
-            return
+    @property
+    def browser_manager(self):
+        from restai.browser import runtime as _browser_mod
+        if not _browser_mod.is_enabled():
+            return None
+        return _browser_mod
 
-        docker_url = getattr(config, "DOCKER_URL", "") or ""
-        if not docker_url.strip():
-            return
-
-        try:
-            from restai.docker_manager import DockerManager
-            self.docker_manager = DockerManager(
-                docker_url=docker_url,
-                docker_image=getattr(config, "DOCKER_IMAGE", "python:3.12-slim"),
-                container_timeout=int(getattr(config, "DOCKER_TIMEOUT", 900)),
-                network_mode=getattr(config, "DOCKER_NETWORK", "none"),
-                read_only=bool(getattr(config, "DOCKER_READ_ONLY", True)),
-            )
-        except Exception as e:
-            logging.warning("Failed to initialize Docker manager: %s", e)
-            self.docker_manager = None
-
-    def shutdown_docker_manager(self):
-        """Gracefully shut down the Docker manager and remove all containers."""
-        if self.docker_manager is not None:
-            self.docker_manager.shutdown()
-            self.docker_manager = None
-
-    def init_browser_manager(self):
-        """Create or recreate the agentic-browser manager from current config.
-        Mirror of `init_docker_manager` — same Docker host, different image
-        (Playwright) and lifecycle (per-chat Chromium)."""
-        if self.browser_manager is not None:
-            self.browser_manager.shutdown()
-            self.browser_manager = None
-
-        if not getattr(config, "BROWSER_ENABLED", False):
-            return
-
-        docker_url = getattr(config, "DOCKER_URL", "") or ""
-        if not docker_url.strip():
-            return
-
-        try:
-            from restai.browser.manager import BrowserManager
-            self.browser_manager = BrowserManager(
-                docker_url=docker_url,
-                image=getattr(config, "BROWSER_IMAGE", "mcr.microsoft.com/playwright/python:v1.48.0-jammy"),
-                network=getattr(config, "BROWSER_NETWORK", "bridge"),
-                timeout=int(getattr(config, "BROWSER_TIMEOUT", 900)),
-            )
-        except Exception as e:
-            logging.warning("Failed to initialize Browser manager: %s", e)
-            self.browser_manager = None
-
-    def shutdown_browser_manager(self):
-        if self.browser_manager is not None:
-            self.browser_manager.shutdown()
-            self.browser_manager = None
-
-    def init_app_manager(self):
-        """Create or recreate the App-Builder runtime manager from current config.
-
-        Bind-mount-based — the host filesystem must be the same as the
-        Docker daemon's filesystem. A remote `tcp://` daemon will silently
-        bind an empty volume, so we refuse to enable the manager in that
-        case (the project create endpoint also rejects new app projects
-        with a 400 — see `restai/routers/projects.py`).
-        """
-        if self.app_manager is not None:
-            self.app_manager.shutdown()
-            self.app_manager = None
-
-        if not getattr(config, "APP_DOCKER_ENABLED", False):
-            return
-
-        docker_url = getattr(config, "DOCKER_URL", "") or ""
-        if not docker_url.strip():
-            return
-
-        # Local-socket guard. Bind mounts on a remote daemon resolve against
-        # *that* host's filesystem, not ours — the container would mount an
-        # empty path and the user would stare at a 404.
-        if docker_url.startswith("tcp://"):
-            logging.warning(
-                "App Builder requires a local Docker socket (DOCKER_URL=%s is remote); skipping AppManager init",
-                docker_url,
-            )
-            return
-
-        try:
-            from restai.app.manager import AppManager
-            self.app_manager = AppManager(
-                docker_url=docker_url,
-                image=getattr(config, "APP_DOCKER_IMAGE", "restai/app-runtime:2"),
-                idle_timeout=int(getattr(config, "APP_DOCKER_IDLE_TIMEOUT", 1800)),
-            )
-        except Exception as e:
-            logging.warning("Failed to initialize App manager: %s", e)
-            self.app_manager = None
-
-    def shutdown_app_manager(self):
-        if self.app_manager is not None:
-            self.app_manager.shutdown()
-            self.app_manager = None
+    @property
+    def app_manager(self):
+        from restai.app import runtime as _app_mod
+        if not _app_mod.is_enabled():
+            return None
+        return _app_mod
 
     _IMAGE_CACHE_TTL_SECONDS = 24 * 60 * 60  # 24h
     _IMAGE_CACHE_KEY_PREFIX = "restai_image_cache:"

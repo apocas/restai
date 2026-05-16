@@ -396,7 +396,7 @@ async def route_delete_project(
             mgr = getattr(request.app.state.brain, "app_manager", None)
             if mgr is not None:
                 try:
-                    mgr._remove(projectID)  # noqa: SLF001 — internal but stable
+                    mgr.remove_container(projectID)
                 except Exception:
                     logging.exception("Failed to stop app container before wipe (project=%s)", projectID)
             delete_project_root(projectID)
