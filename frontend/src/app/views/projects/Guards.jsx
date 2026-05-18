@@ -3,6 +3,7 @@ import { styled, Box } from "@mui/material";
 import { Security } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import ProjectGuards from "./components/ProjectGuards";
+import ProjectTrailBar from "./components/ProjectTrailBar";
 import PageHero from "app/components/page/PageHero";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -43,6 +44,7 @@ export default function ProjectGuardsView() {
         ]}
         compact
       />
+      <ProjectTrailBar project={project} label="Guards" />
       <Box>
         {project.name && <ProjectGuards project={project} />}
       </Box>

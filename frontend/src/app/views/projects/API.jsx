@@ -4,6 +4,7 @@ import {
 } from "@mui/material";
 import { ContentCopy, Check, Code } from "@mui/icons-material";
 import PageHero from "app/components/page/PageHero";
+import ProjectTrailBar from "./components/ProjectTrailBar";
 import { useParams } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
@@ -461,6 +462,8 @@ export default function ProjectAPI() {
         ]}
         compact
       />
+
+      <ProjectTrailBar project={project} label="API" />
 
       <Box>
         <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>

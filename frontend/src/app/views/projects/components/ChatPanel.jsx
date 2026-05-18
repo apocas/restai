@@ -43,7 +43,7 @@ function formatChatError(t, status, detail) {
   }
 }
 
-export default function ChatPanel({ project, systemOverride, sharedQuestion, onQuestionSent, chatMode = false, compact = false, streaming = false, context = null, autoScroll = true, laneLayout = false }) {
+export default function ChatPanel({ project, systemOverride, sharedQuestion, onQuestionSent, chatMode = false, compact = false, streaming = false, context = null, autoScroll = true, laneLayout = false, hideInput = false }) {
   const { t } = useTranslation();
   const auth = useAuth();
   const [messages, setMessages] = useState([]);
@@ -598,11 +598,13 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
 
   const showUpload = project.type === "agent" || project.type === "block";
 
-  // Fill the parent's height when stretchable; fall back to a fixed
-  // floor when embedded (CompareMode etc. give us no parent height).
-  const COMPACT_HEIGHT = 500;
-  const rootHeight = compact ? COMPACT_HEIGHT : "100%";
-  const rootMinHeight = compact ? COMPACT_HEIGHT : 400;
+  // Fill the parent's height (parent owns its own height — Card,
+  // Lane, Grid item, whatever). `compact` no longer caps at a fixed
+  // 500px because that left dead gaps inside flex parents (CompareMode
+  // Cards have ample height now) and overflowed when the parent had
+  // less. Today `compact` only narrows the empty-state minimum.
+  const rootHeight = "100%";
+  const rootMinHeight = compact ? 320 : 400;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: rootHeight, minHeight: rootMinHeight }}>
@@ -678,7 +680,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       )}
 
       {/* Attachments preview — thumbnails for images, chips for files */}
-      {files.length > 0 && (
+      {!hideInput && files.length > 0 && (
         <Box sx={{ px: 2, pb: 1, display: "flex", flexWrap: "wrap", gap: 0.75, alignItems: "center" }}>
           {files.map((f, i) => (
             f.isImage ? (
@@ -716,6 +718,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         </Box>
       )}
 
+      {!hideInput && (
       <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1, p: 2, borderTop: 1, borderColor: "divider" }}>
         <TextField
           fullWidth
@@ -768,6 +771,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
           </Fab>
         )}
       </Box>
+      )}
     </Box>
   );
 }

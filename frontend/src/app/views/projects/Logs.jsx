@@ -3,6 +3,7 @@ import { styled, Box } from "@mui/material";
 import { Article } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import ProjectLogs from "./components/ProjectLogs";
+import ProjectTrailBar from "./components/ProjectTrailBar";
 import PageHero from "app/components/page/PageHero";
 import { useParams } from "react-router-dom";
 import api from "app/utils/api";
@@ -47,6 +48,8 @@ export default function Logs() {
         ]}
         compact
       />
+
+      <ProjectTrailBar project={project} label="Logs" />
 
       <Box>
         <ProjectLogs project={project} />

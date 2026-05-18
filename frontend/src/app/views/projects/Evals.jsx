@@ -3,6 +3,7 @@ import { styled, Box } from "@mui/material";
 import { Science } from "@mui/icons-material";
 import useAuth from "app/hooks/useAuth";
 import ProjectEvals from "./components/ProjectEvals";
+import ProjectTrailBar from "./components/ProjectTrailBar";
 import PageHero from "app/components/page/PageHero";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -47,6 +48,7 @@ export default function ProjectEvalsView() {
         ]}
         compact
       />
+      <ProjectTrailBar project={project} label="Evals" />
       <Box>
         {project.name && <ProjectEvals project={project} />}
       </Box>
