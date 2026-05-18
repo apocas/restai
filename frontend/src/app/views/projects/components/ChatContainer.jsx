@@ -116,7 +116,14 @@ export default function ChatContainer({ project }) {
 
       <Box sx={{ flex: 1, minHeight: 0, p: mode === 1 ? 2 : 0 }}>
         {mode === 0 && (
-          <ChatPanel project={project} chatMode={chatMode} streaming={streaming} context={parsedContext} autoScroll={autoScroll} />
+          <ChatPanel
+            project={project}
+            chatMode={chatMode}
+            streaming={streaming}
+            context={parsedContext}
+            autoScroll={autoScroll}
+            laneLayout={project.type === "agent"}
+          />
         )}
         {mode === 1 && (
           <CompareMode project={project} />

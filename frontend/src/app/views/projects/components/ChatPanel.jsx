@@ -9,6 +9,7 @@ import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import MessageBubble from "./MessageBubble";
+import PlaygroundLanes from "./PlaygroundLanes";
 
 const HiddenInput = styled("input")({ display: "none" });
 
@@ -42,7 +43,7 @@ function formatChatError(t, status, detail) {
   }
 }
 
-export default function ChatPanel({ project, systemOverride, sharedQuestion, onQuestionSent, chatMode = false, compact = false, streaming = false, context = null, autoScroll = true }) {
+export default function ChatPanel({ project, systemOverride, sharedQuestion, onQuestionSent, chatMode = false, compact = false, streaming = false, context = null, autoScroll = true, laneLayout = false }) {
   const { t } = useTranslation();
   const auth = useAuth();
   const [messages, setMessages] = useState([]);
@@ -624,45 +625,57 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         </Box>
       )}
 
-      <Box sx={{ flex: 1, overflow: "auto" }} ref={scrollRef}>
-          <Box sx={{ p: 2 }}>
-            {messages.length === 0 && (
-              <Box sx={{ textAlign: "center", mt: 4, color: "text.secondary" }}>
-                <Typography variant="body2" sx={{ fontStyle: "italic" }}>
-                  {systemOverride
-                    ? systemOverride.substring(0, 200) + (systemOverride.length > 200 ? "..." : "")
-                    : project.system
-                      ? project.system.substring(0, 200) + (project.system.length > 200 ? "..." : "")
-                      : t("chat.getStarted")}
-                </Typography>
-                {project.default_prompt && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-                    Suggested: {project.default_prompt}
+      {laneLayout ? (
+        <PlaygroundLanes
+          messages={messages}
+          streamingText={streamingText}
+          streamingPlan={streamingPlan}
+          streamingToolCalls={streamingToolCalls}
+          chatMode={chatMode}
+          onBranch={chatMode ? handleBranch : undefined}
+          autoScroll={autoScroll}
+        />
+      ) : (
+        <Box sx={{ flex: 1, overflow: "auto" }} ref={scrollRef}>
+            <Box sx={{ p: 2 }}>
+              {messages.length === 0 && (
+                <Box sx={{ textAlign: "center", mt: 4, color: "text.secondary" }}>
+                  <Typography variant="body2" sx={{ fontStyle: "italic" }}>
+                    {systemOverride
+                      ? systemOverride.substring(0, 200) + (systemOverride.length > 200 ? "..." : "")
+                      : project.system
+                        ? project.system.substring(0, 200) + (project.system.length > 200 ? "..." : "")
+                        : t("chat.getStarted")}
                   </Typography>
-                )}
-              </Box>
-            )}
-            {messages.map((msg, i) => (
-              <MessageBubble
-                key={`${activeBranchIdx}-${i}`}
-                message={msg}
-                onBranch={chatMode && msg.answer ? () => handleBranch(i) : undefined}
-              />
-            ))}
-            {(streamingText || streamingPlan || streamingToolCalls.length > 0) && (
-              <MessageBubble
-                message={{
-                  question: null,
-                  answer: streamingText,
-                  sources: [],
-                  plan: streamingPlan ? streamingPlan.plan : undefined,
-                  step_summaries: streamingPlan ? streamingPlan.steps : undefined,
-                  live_tool_calls: streamingToolCalls,
-                }}
-              />
-            )}
-          </Box>
-      </Box>
+                  {project.default_prompt && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                      Suggested: {project.default_prompt}
+                    </Typography>
+                  )}
+                </Box>
+              )}
+              {messages.map((msg, i) => (
+                <MessageBubble
+                  key={`${activeBranchIdx}-${i}`}
+                  message={msg}
+                  onBranch={chatMode && msg.answer ? () => handleBranch(i) : undefined}
+                />
+              ))}
+              {(streamingText || streamingPlan || streamingToolCalls.length > 0) && (
+                <MessageBubble
+                  message={{
+                    question: null,
+                    answer: streamingText,
+                    sources: [],
+                    plan: streamingPlan ? streamingPlan.plan : undefined,
+                    step_summaries: streamingPlan ? streamingPlan.steps : undefined,
+                    live_tool_calls: streamingToolCalls,
+                  }}
+                />
+              )}
+            </Box>
+        </Box>
+      )}
 
       {/* Attachments preview — thumbnails for images, chips for files */}
       {files.length > 0 && (

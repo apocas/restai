@@ -3,12 +3,12 @@ import {
   Alert, AppBar, Box, Chip, CircularProgress, Dialog, IconButton,
   Slide, Toolbar, Tooltip, Typography,
 } from "@mui/material";
-import { Close, ContentCopy, Person } from "@mui/icons-material";
+import { Close, ContentCopy, ExpandMore, ExpandLess } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { FONT_MONO } from "app/components/page/pageStyles";
-import MessageBubble from "./MessageBubble";
+import PlaygroundLanes from "./PlaygroundLanes";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -22,7 +22,8 @@ const safeJson = (s) => {
 
 // OutputDatabase row → MessageBubble message-shape. tool_trace becomes
 // the same `reasoning.steps[].actions[]` shape that live_tool_calls
-// produces — Terminal renders both identically.
+// produces — PlaygroundLanes pulls thoughts/tools out of this same
+// reasoning structure.
 function turnToMessage(turn) {
   const traceEntries = safeJson(turn.tool_trace) || [];
   const reasoning = traceEntries.length
@@ -71,7 +72,6 @@ function turnToMessage(turn) {
     reasoning,
     _files,
     _image,
-    // Marker fields — surfaced by the per-turn header strip below.
     _meta: {
       date: turn.date,
       llm: turn.llm,
@@ -95,6 +95,10 @@ export default function ChatReplayDialog({ open, onClose, projectId, projectName
   const [truncated, setTruncated] = useState(false);
   const [error, setError] = useState(null);
   const [copiedId, setCopiedId] = useState(false);
+  // System-prompt drawer — collapsed by default since the lanes are
+  // the main act in a replay; users can pop it open if they need to
+  // see what guidance the assistant was running under.
+  const [showSystem, setShowSystem] = useState(false);
 
   useEffect(() => {
     if (!open || !projectId || !chatId) return;
@@ -102,6 +106,7 @@ export default function ChatReplayDialog({ open, onClose, projectId, projectName
     setError(null);
     setTurns([]);
     setTruncated(false);
+    setShowSystem(false);
     api.get(`/projects/${projectId}/logs/conversation/${encodeURIComponent(chatId)}`, auth.user.token)
       .then((d) => {
         setTurns(Array.isArray(d.turns) ? d.turns : []);
@@ -127,11 +132,12 @@ export default function ChatReplayDialog({ open, onClose, projectId, projectName
       open={open}
       onClose={onClose}
       TransitionComponent={Transition}
-      PaperProps={{ sx: { backgroundColor: "#f7f8fb" } }}
+      PaperProps={{ sx: { backgroundColor: "#f7f8fb", display: "flex", flexDirection: "column" } }}
     >
-      <AppBar position="sticky" elevation={0} sx={{
+      <AppBar position="static" elevation={0} sx={{
         background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)",
         borderBottom: "1px solid rgba(255,255,255,0.08)",
+        flexShrink: 0,
       }}>
         <Toolbar sx={{ gap: 1.5 }}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -160,6 +166,25 @@ export default function ChatReplayDialog({ open, onClose, projectId, projectName
                   }}
                 />
               )}
+              {systemPrompt && (
+                <Tooltip title={showSystem ? "Hide system prompt" : "Show system prompt"}>
+                  <Chip
+                    size="small"
+                    icon={showSystem
+                      ? <ExpandLess sx={{ fontSize: 14, color: "#fff !important" }} />
+                      : <ExpandMore sx={{ fontSize: 14, color: "#fff !important" }} />}
+                    label="SYSTEM PROMPT"
+                    onClick={() => setShowSystem((s) => !s)}
+                    sx={{
+                      height: 20, fontSize: "0.6rem", fontFamily: FONT_MONO,
+                      letterSpacing: "0.12em", fontWeight: 700,
+                      backgroundColor: "rgba(255,255,255,0.12)", color: "#fff",
+                      cursor: "pointer",
+                      "&:hover": { backgroundColor: "rgba(255,255,255,0.2)" },
+                    }}
+                  />
+                </Tooltip>
+              )}
             </Box>
           </Box>
           <IconButton onClick={onClose} sx={{ color: "#fff" }}>
@@ -168,99 +193,83 @@ export default function ChatReplayDialog({ open, onClose, projectId, projectName
         </Toolbar>
       </AppBar>
 
-      <Box sx={{ maxWidth: 980, mx: "auto", width: "100%", p: { xs: 2, md: 4 } }}>
-        {truncated && (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            {t("projects.logs.replay.truncated", "Showing first 500 turns of this conversation.")}
-          </Alert>
-        )}
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-        )}
-
-        {systemPrompt && (
-          <Box sx={{
-            mb: 3, p: 2,
-            borderRadius: 2,
-            border: "1px solid rgba(15,23,42,0.08)",
-            backgroundColor: "#fff",
+      {/* Optional system-prompt drawer, collapsed by default. */}
+      {systemPrompt && showSystem && (
+        <Box sx={{
+          flexShrink: 0,
+          mx: { xs: 2, md: 4 }, mt: 2,
+          p: 2,
+          borderRadius: 2,
+          border: "1px solid rgba(15,23,42,0.08)",
+          backgroundColor: "#fff",
+        }}>
+          <Typography sx={{
+            fontFamily: FONT_MONO, fontSize: "0.62rem",
+            letterSpacing: "0.18em", fontWeight: 700,
+            color: "text.disabled", mb: 0.75,
           }}>
-            <Typography sx={{
-              fontFamily: FONT_MONO, fontSize: "0.62rem",
-              letterSpacing: "0.18em", fontWeight: 700,
-              color: "text.disabled", mb: 0.75,
-            }}>
-              SYSTEM PROMPT
-            </Typography>
-            <Box sx={{
-              whiteSpace: "pre-wrap",
-              fontSize: "0.85rem",
-              color: "text.secondary",
-              maxHeight: 180, overflow: "auto",
-            }}>
-              {systemPrompt}
-            </Box>
+            SYSTEM PROMPT
+          </Typography>
+          <Box sx={{
+            whiteSpace: "pre-wrap",
+            fontSize: "0.85rem",
+            color: "text.secondary",
+            maxHeight: 220, overflow: "auto",
+          }}>
+            {systemPrompt}
           </Box>
-        )}
+        </Box>
+      )}
 
-        {loading && (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
-            <CircularProgress />
-          </Box>
-        )}
+      {truncated && (
+        <Alert severity="warning" sx={{ flexShrink: 0, mx: { xs: 2, md: 4 }, mt: 2 }}>
+          {t("projects.logs.replay.truncated", "Showing first 500 turns of this conversation.")}
+        </Alert>
+      )}
+      {error && (
+        <Alert severity="error" sx={{ flexShrink: 0, mx: { xs: 2, md: 4 }, mt: 2 }}>{error}</Alert>
+      )}
 
-        {!loading && !error && messages.length === 0 && (
-          <Box sx={{ textAlign: "center", py: 8, color: "text.disabled" }}>
+      {loading && (
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <CircularProgress />
+        </Box>
+      )}
+
+      {!loading && !error && messages.length === 0 && (
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "text.disabled" }}>
+          <Typography sx={{
+            fontFamily: FONT_MONO, fontSize: "0.78rem",
+            letterSpacing: "0.16em", textTransform: "uppercase",
+          }}>
             {t("projects.logs.replay.empty", "No turns found for this chat.")}
-          </Box>
-        )}
+          </Typography>
+        </Box>
+      )}
 
-        {messages.map((msg, i) => {
-          const meta = msg._meta || {};
-          const status = meta.status || "success";
-          const isErr = status !== "success";
-          return (
-            <Box key={i} sx={{ mb: 3 }}>
-              <Box sx={{
-                display: "flex", alignItems: "center", gap: 1,
-                mb: 0.75, flexWrap: "wrap",
-                fontFamily: FONT_MONO, fontSize: "0.68rem",
-                color: "text.disabled", letterSpacing: "0.04em",
-              }}>
-                <Person sx={{ fontSize: 13 }} />
-                <span>user #{meta.user_id ?? "?"}</span>
-                <span>·</span>
-                <span>{meta.date ? new Date(meta.date).toLocaleString() : "—"}</span>
-                {meta.llm && (<><span>·</span><span style={{ color: "#1e3a8a", fontWeight: 700 }}>{meta.llm}</span></>)}
-                {isErr && (
-                  <Chip
-                    size="small"
-                    label={status}
-                    sx={{
-                      height: 18, fontSize: "0.6rem", ml: 0.5,
-                      backgroundColor: "rgba(239,68,68,0.12)",
-                      color: "#b91c1c", fontWeight: 700,
-                    }}
-                  />
-                )}
-              </Box>
-              <MessageBubble message={msg} onBranch={undefined} />
-              {isErr && meta.error && (
-                <Box sx={{
-                  mt: 0.5, p: 1.25,
-                  borderRadius: 1.5,
-                  border: "1px solid rgba(239,68,68,0.25)",
-                  backgroundColor: "rgba(239,68,68,0.04)",
-                  fontFamily: FONT_MONO, fontSize: "0.72rem",
-                  color: "#9f3a38", whiteSpace: "pre-wrap",
-                }}>
-                  {meta.error}
-                </Box>
-              )}
-            </Box>
-          );
-        })}
-      </Box>
+      {!loading && !error && messages.length > 0 && (
+        <Box sx={{
+          flex: 1, minHeight: 0,
+          display: "flex",
+          mx: { xs: 1, md: 2 },
+          my: 2,
+          borderRadius: 2,
+          overflow: "hidden",
+          border: "1px solid rgba(15,23,42,0.08)",
+          background: "#fff",
+        }}>
+          <PlaygroundLanes
+            messages={messages}
+            streamingText=""
+            streamingPlan={null}
+            streamingToolCalls={[]}
+            chatMode={false}
+            onBranch={undefined}
+            autoScroll={false}
+            autoExpand={false}
+          />
+        </Box>
+      )}
     </Dialog>
   );
 }
