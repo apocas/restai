@@ -2,41 +2,50 @@ import { useState, useEffect } from "react";
 import {
   Box, Card, Chip, IconButton, Tab, Tabs, Tooltip, Typography, styled,
 } from "@mui/material";
-import { ContentCopy, Check, Code } from "@mui/icons-material";
+import { ContentCopy, Check, Code, ChatBubbleOutline, QuestionAnswer } from "@mui/icons-material";
 import PageHero from "app/components/page/PageHero";
 import ProjectTrailBar from "./components/ProjectTrailBar";
 import { useParams } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
+import { FONT_MONO, cleanCardSx } from "app/components/page/pageStyles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: "24px 48px",
   [theme.breakpoints.down("md")]: { margin: "24px 32px" },
   [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 24 },
 }));
 
+// Sleek dark code well — kept the navy terminal look that already
+// pairs well with the playground's terminal lane, just retuned the
+// border radius/inset so it nests cleanly inside the white card.
 const CodeBlock = styled(Box)(() => ({
-  background: "#1e1e2e",
-  color: "#cdd6f4",
-  padding: "20px 24px",
-  borderRadius: "0 0 10px 10px",
-  fontFamily: "'JetBrains Mono', 'SF Mono', Monaco, Consolas, monospace",
-  fontSize: "0.82rem",
-  lineHeight: 1.7,
+  background: "#0f172a",
+  color: "#e2e8f0",
+  padding: "18px 22px 18px 22px",
+  borderRadius: 10,
+  fontFamily: FONT_MONO,
+  fontSize: "0.8rem",
+  lineHeight: 1.65,
   overflowX: "auto",
   whiteSpace: "pre",
   position: "relative",
   tabSize: 4,
+  border: "1px solid rgba(15,23,42,0.08)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
 }));
 
 const LangTab = styled(Tab)(() => ({
   textTransform: "none",
-  fontWeight: 500,
-  fontSize: "0.85rem",
-  minHeight: 40,
-  minWidth: 80,
-  padding: "6px 16px",
+  fontFamily: FONT_MONO,
+  fontWeight: 600,
+  fontSize: "0.78rem",
+  letterSpacing: "0.04em",
+  minHeight: 36,
+  minWidth: 70,
+  padding: "4px 14px",
+  color: "rgba(15,23,42,0.55)",
+  "&.Mui-selected": { color: "#0f172a" },
 }));
 
 const LANGUAGES = [
@@ -368,17 +377,20 @@ function CopyButton({ text }) {
   const handleCopy = () => {
     navigator.clipboard.writeText(text);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 1800);
   };
   return (
-    <Tooltip title={copied ? "Copied!" : "Copy code"}>
+    <Tooltip title={copied ? "Copied!" : "Copy code"} arrow>
       <IconButton
         size="small"
         onClick={handleCopy}
         sx={{
-          position: "absolute", top: 10, right: 10,
-          color: "#6c7086",
-          "&:hover": { color: "#cdd6f4", background: "rgba(255,255,255,0.08)" },
+          position: "absolute", top: 8, right: 8,
+          color: "#94a3b8",
+          background: "rgba(255,255,255,0.04)",
+          backdropFilter: "blur(2px)",
+          "&:hover": { color: "#e2e8f0", background: "rgba(255,255,255,0.1)" },
+          transition: "color 0.15s ease, background 0.15s ease",
         }}
       >
         {copied ? <Check fontSize="small" /> : <ContentCopy fontSize="small" />}
@@ -387,49 +399,52 @@ function CopyButton({ text }) {
   );
 }
 
-// ── Example card ────────────────────────────────────────────────────────
-
-function ExampleCard({ title, description, endpoint, method, code }) {
+// ── Endpoint section — header strip + code block, sits inside the
+// outer documentation card. Reuses the section vocabulary other
+// sub-pages use (mono eyebrow, then content).
+function EndpointSection({ title, description, endpoint, method, code, icon }) {
   return (
-    <Card
-      variant="outlined"
-      sx={{
-        borderRadius: "10px",
-        overflow: "hidden",
-        border: "1px solid",
-        borderColor: "divider",
-      }}
-    >
-      <Box sx={{ p: 2.5, pb: 1.5 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-          <Typography variant="subtitle1" fontWeight={600}>{title}</Typography>
-          <Chip label={method} size="small" variant="outlined"
-            sx={{ fontSize: "0.7rem", height: 22, fontFamily: "monospace", fontWeight: 600 }} />
-        </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          {description}
+    <Box sx={{ pt: 2.5, pb: 0.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5, flexWrap: "wrap" }}>
+        {icon}
+        <Typography sx={{ fontWeight: 700, fontSize: "1rem", color: "#0f172a" }}>
+          {title}
         </Typography>
-        <Typography
-          variant="caption"
+        <Chip
+          label={method}
+          size="small"
           sx={{
-            fontFamily: "monospace",
-            color: "primary.main",
-            background: (t) => t.palette.mode === "dark" ? "rgba(99,102,241,0.1)" : "rgba(99,102,241,0.08)",
-            px: 1, py: 0.3, borderRadius: 1,
+            height: 20, fontSize: "0.66rem", fontWeight: 700,
+            fontFamily: FONT_MONO, letterSpacing: "0.06em",
+            background: "rgba(8,145,178,0.1)", color: "#0e7490",
+            borderRadius: 0.75,
+          }}
+        />
+        <Box
+          component="span"
+          sx={{
+            fontFamily: FONT_MONO, fontSize: "0.74rem",
+            color: "#475569",
+            background: "rgba(15,23,42,0.04)",
+            border: "1px solid rgba(15,23,42,0.08)",
+            px: 1, py: 0.25, borderRadius: 0.75,
           }}
         >
           {endpoint}
-        </Typography>
+        </Box>
       </Box>
-      <CodeBlock>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, maxWidth: 720 }}>
+        {description}
+      </Typography>
+      <Box sx={{ position: "relative" }}>
         <CopyButton text={code} />
-        {code}
-      </CodeBlock>
-    </Card>
+        <CodeBlock>{code}</CodeBlock>
+      </Box>
+    </Box>
   );
 }
 
-// ── Main component ──────────────────────────────────────────────────────
+// ── Main ────────────────────────────────────────────────────────────────
 
 export default function ProjectAPI() {
   const { id } = useParams();
@@ -442,7 +457,7 @@ export default function ProjectAPI() {
     api.get("/projects/" + id, auth.user.token)
       .then((d) => setProject(d))
       .catch(() => {});
-  }, [id]);
+  }, [id, auth.user.token]);
 
   const projectName = project.name || "my-project";
   const langSnippets = snippets[lang] || snippets.curl;
@@ -465,47 +480,100 @@ export default function ProjectAPI() {
 
       <ProjectTrailBar project={project} label="API" />
 
-      <Box>
-        <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-          API Reference
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Use your API key to interact with the <strong>{projectName}</strong> project programmatically.
-        </Typography>
+      {/* Single contained documentation card — matches the cleanCard
+          vocabulary used by Evals / Guards / Logs. Inside: a
+          sticky-style toolbar with language tabs, then per-endpoint
+          sections separated by a hairline divider. */}
+      <Card variant="outlined" sx={{
+        ...cleanCardSx,
+        p: 0,
+        // Override the hover lift — this is the entire page surface,
+        // it shouldn't jiggle on cursor entry.
+        "&:hover": { transform: "none", borderColor: "divider", boxShadow: "none" },
+      }}>
+        {/* Toolbar — monospace eyebrow + language tabs. Matches the
+            section-shell pattern used elsewhere in project edits. */}
+        <Box sx={{
+          display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
+          alignItems: { xs: "flex-start", sm: "center" },
+          justifyContent: "space-between",
+          gap: 1.5,
+          px: 2.5, py: 1.5,
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          background: "linear-gradient(180deg, rgba(15,23,42,0.02), transparent)",
+        }}>
+          <Box>
+            <Typography sx={{
+              fontFamily: FONT_MONO,
+              fontSize: "0.62rem",
+              letterSpacing: "0.2em",
+              fontWeight: 700,
+              color: "rgba(15,23,42,0.5)",
+              textTransform: "uppercase",
+              mb: 0.25,
+            }}>
+              REFERENCE
+            </Typography>
+            <Typography sx={{ fontSize: "0.92rem", color: "text.primary", fontWeight: 600 }}>
+              Interact with{" "}
+              <Box component="span" sx={{
+                fontFamily: FONT_MONO,
+                fontWeight: 700,
+                color: "#0e7490",
+                px: 0.5, borderRadius: 0.5,
+                background: "rgba(8,145,178,0.08)",
+              }}>
+                {projectName}
+              </Box>
+              {" "}using your API key.
+            </Typography>
+          </Box>
+          <Tabs
+            value={lang}
+            onChange={(_, v) => setLang(v)}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{
+              minHeight: 36,
+              maxWidth: "100%",
+              "& .MuiTabs-indicator": {
+                height: 2.5,
+                borderRadius: 1.5,
+                backgroundColor: "#0e7490",
+              },
+            }}
+          >
+            {LANGUAGES.map((l) => (
+              <LangTab key={l.id} value={l.id} label={l.label} />
+            ))}
+          </Tabs>
+        </Box>
 
-        <Tabs
-          value={lang}
-          onChange={(_, v) => setLang(v)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{
-            mb: 3,
-            minHeight: 40,
-            "& .MuiTabs-indicator": { height: 2.5, borderRadius: 2 },
-          }}
-        >
-          {LANGUAGES.map((l) => (
-            <LangTab key={l.id} value={l.id} label={l.label} />
-          ))}
-        </Tabs>
-
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <ExampleCard
+        <Box sx={{ px: 2.5, pb: 2.5 }}>
+          <EndpointSection
             title="Question"
-            description="Send a one-shot question. Each request is independent with no conversation memory."
-            endpoint={`POST /projects/${projectName}/question`}
+            description="Send a one-shot question. Each request is independent — the server keeps no conversation memory between calls."
+            endpoint={`POST /projects/${project.id || "—"}/question`}
             method="POST"
             code={questionCode}
+            icon={<QuestionAnswer sx={{ fontSize: 18, color: "#0e7490" }} />}
           />
-          <ExampleCard
+
+          {/* Hairline rule between endpoint sections. */}
+          <Box sx={{ height: 1, background: "rgba(15,23,42,0.06)", my: 1 }} />
+
+          <EndpointSection
             title="Chat"
-            description="Start or continue a conversation. Omit the id on the first request; include the returned id for follow-ups."
-            endpoint={`POST /projects/${projectName}/chat`}
+            description="Start or continue a conversation. Omit the id on the first request; include the returned id for follow-ups so the server can resume the session and the same per-chat tool sandbox."
+            endpoint={`POST /projects/${project.id || "—"}/chat`}
             method="POST"
             code={chatCode}
+            icon={<ChatBubbleOutline sx={{ fontSize: 18, color: "#0e7490" }} />}
           />
         </Box>
-      </Box>
+      </Card>
     </Container>
   );
 }
