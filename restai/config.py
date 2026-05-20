@@ -30,6 +30,28 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _env(name, default=None):
+    """Read an env var and strip one layer of matched surrounding quotes.
+
+    `python-dotenv` already strips quotes when it parses our `.env` file
+    (so `MYSQL_HOST="db.local"` becomes `db.local`). But values that
+    arrive from elsewhere — Docker `env_file:`, k8s ConfigMap entries,
+    raw `export FOO=\"bar\"` in a shell rc, env-injection tooling that
+    treats the file as a literal text blob — keep the quotes attached.
+    Those literal quotes then end up baked into the SQLAlchemy URL
+    (`mysql+pymysql://u:p@"db.local"/restai`) and DNS resolution fails.
+
+    This helper makes a boot-time env-var read tolerate both shapes.
+    """
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    s = raw.strip()
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in ('"', "'"):
+        s = s[1:-1]
+    return s
+
+
 def load_env_vars():
     if "EMBEDDINGS_PATH" not in os.environ:
         os.environ["EMBEDDINGS_PATH"] = "./embeddings/"
@@ -72,30 +94,30 @@ _ensure_env_secret("RESTAI_FERNET_KEY", generator=_generate_fernet_key)
 
 # ---- Boot-only env vars (cannot live in the DB; needed before DB is up) ----
 
-RESTAI_FERNET_KEY = os.environ.get("RESTAI_FERNET_KEY")
+RESTAI_FERNET_KEY = _env("RESTAI_FERNET_KEY")
 
-RESTAI_URL = os.environ.get("RESTAI_URL")
+RESTAI_URL = _env("RESTAI_URL")
 
-RESTAI_PORT = os.environ.get("RESTAI_PORT") or 9000
-RESTAI_AUTH_SECRET = os.environ.get("RESTAI_AUTH_SECRET")
+RESTAI_PORT = _env("RESTAI_PORT") or 9000
+RESTAI_AUTH_SECRET = _env("RESTAI_AUTH_SECRET")
 RESTAI_DEV = (
-    True if os.environ.get("RESTAI_DEV", "").lower() in ("true", "1") else False
+    True if (_env("RESTAI_DEV") or "").lower() in ("true", "1") else False
 )
 
-LOG_LEVEL = os.environ.get("LOG_LEVEL")
-SENTRY_DSN = os.environ.get("SENTRY_DSN")
+LOG_LEVEL = _env("LOG_LEVEL")
+SENTRY_DSN = _env("SENTRY_DSN")
 
-MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD")
-MYSQL_HOST = os.environ.get("MYSQL_HOST")
-MYSQL_USER = os.environ.get("MYSQL_USER") or "restai"
-MYSQL_DB = os.environ.get("MYSQL_DB") or "restai"
+MYSQL_PASSWORD = _env("MYSQL_PASSWORD")
+MYSQL_HOST = _env("MYSQL_HOST")
+MYSQL_USER = _env("MYSQL_USER") or "restai"
+MYSQL_DB = _env("MYSQL_DB") or "restai"
 
 MYSQL_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DB}"
 
-POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
-POSTGRES_HOST = os.environ.get("POSTGRES_HOST")
-POSTGRES_USER = os.environ.get("POSTGRES_USER")
-POSTGRES_DB = os.environ.get("POSTGRES_DB", "restai")
+POSTGRES_PASSWORD = _env("POSTGRES_PASSWORD")
+POSTGRES_HOST = _env("POSTGRES_HOST")
+POSTGRES_USER = _env("POSTGRES_USER")
+POSTGRES_DB = _env("POSTGRES_DB", "restai")
 
 POSTGRES_URL = (
     "postgresql+psycopg2://"
@@ -104,11 +126,11 @@ POSTGRES_URL = (
 
 SQL_URL = POSTGRES_URL if POSTGRES_HOST else (MYSQL_URL if MYSQL_HOST else None)
 
-RESTAI_DEFAULT_PASSWORD = os.environ.get("RESTAI_DEFAULT_PASSWORD") or "admin"
+RESTAI_DEFAULT_PASSWORD = _env("RESTAI_DEFAULT_PASSWORD") or "admin"
 
 
 
-SQLITE_PATH = os.environ.get("SQLITE_PATH")
+SQLITE_PATH = _env("SQLITE_PATH")
 
 
 # Root directory for app-builder project file trees. Each `app` project gets

@@ -1274,6 +1274,19 @@ class TeamOptions(BaseModel):
     email_default_to: Union[str, None] = Field(default=None, max_length=320, description="Default recipient for notifications when caller didn't specify one")
     model_config = ConfigDict(from_attributes=True)
 
+    # The form always submits `smtp_port` even when the user hasn't
+    # touched the SMTP section, so the wire value on a fresh team is
+    # the empty string. Pydantic's int parser then 422s — fix it by
+    # coercing "" / whitespace-only to None at the boundary.
+    @field_validator("smtp_port", mode="before")
+    @classmethod
+    def _empty_port_to_none(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
+
 
 class TeamModel(BaseModel):
     """Full team details with members, admins, and resources."""

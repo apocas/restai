@@ -244,7 +244,11 @@ export default function OllamaModels() {
           privacy: "private",
         };
 
-        await api.post("/embeddings", embeddingData, auth.user.token);
+        // Capture the numeric id from the create response — the
+        // /embedding/:id route expects an int, not the embedding's
+        // name. Without this we ship the name to a typed-int Path
+        // param and the embedding-info page 422s on load.
+        const created = await api.post("/embeddings", embeddingData, auth.user.token);
 
         toast.success(
           renamed
@@ -252,7 +256,7 @@ export default function OllamaModels() {
             : `Successfully added embedding ${restaiName} to the system`
         );
         setAddingModel(null);
-        navigate(`/embedding/${restaiName}`);
+        navigate(`/embedding/${created?.id ?? ""}`);
         return;
       }
 
@@ -284,7 +288,10 @@ export default function OllamaModels() {
         description: `Ollama model ${upstreamName} from ${sourceLabel}`
       };
 
-      await api.post("/llms", modelData, auth.user.token);
+      // Capture the numeric id from the create response so we can land
+      // the user on the new LLM's info page — /llm/:id expects an int
+      // path param, not the model name.
+      const created = await api.post("/llms", modelData, auth.user.token);
 
       toast.success(
         renamed
@@ -292,6 +299,7 @@ export default function OllamaModels() {
           : `Successfully added model ${restaiName} to the system`
       );
       setAddingModel(null);
+      navigate(`/llm/${created?.id ?? ""}`);
     } catch (error) {
       console.error('Error adding model to the system:', error);
     }
