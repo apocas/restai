@@ -19,6 +19,7 @@ from restai.models.databasemodels import SettingDatabase
 # bootstrap these — admins set everything in the GUI.
 SETTINGS_DEFAULTS = {
     "app_name": "RESTai",
+    "logo_url": "",
     "hide_branding": "false",
     "proxy_enabled": "false",
     "proxy_url": "",
@@ -170,6 +171,7 @@ def get_all_settings(db_wrapper) -> dict:
     rows = {s.key: s.value or "" for s in db_wrapper.get_settings()}
     return {
         "app_name": rows.get("app_name", "RESTai"),
+        "logo_url": rows.get("logo_url", ""),
         "hide_branding": _to_bool(rows.get("hide_branding", "false")),
         "proxy_enabled": _to_bool(rows.get("proxy_enabled", "false")),
         "proxy_url": rows.get("proxy_url", ""),

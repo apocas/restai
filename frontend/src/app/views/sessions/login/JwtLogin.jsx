@@ -323,6 +323,11 @@ export default function JwtLogin() {
   };
 
   const appName = platformCapabilities?.app_name || process.env.REACT_APP_RESTAI_NAME || "RESTai";
+  // Platform-level login logo. Admins set it in Settings → General
+  // (uploaded → data:image URI, or any plain URL). Empty falls back
+  // to the bundled RESTai mark. Pre-login can't honor team branding
+  // because we don't know the user's team yet.
+  const loginLogo = platformCapabilities?.logo_url || "/admin/assets/images/restai-logo.png";
 
   return (
     <Root>
@@ -338,11 +343,12 @@ export default function JwtLogin() {
         <Box sx={{ textAlign: "center", mb: 3 }}>
           <Box
             component="img"
-            src="/admin/assets/images/restai-logo.png"
+            src={loginLogo}
             alt={appName}
             sx={{
               width: 180,
               height: 180,
+              objectFit: "contain",
               mb: 0.5,
               animation: `${logoPulse} 4s ease-in-out infinite`,
             }}

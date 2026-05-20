@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Autocomplete, Box, Button, Card, Chip, CircularProgress, Grid,
-  InputAdornment, Tab, Tabs, TextField, Typography, styled,
+  IconButton, InputAdornment, Tab, Tabs, TextField, Tooltip, Typography, styled,
 } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import {
   Group, Code, Psychology, Palette, Star, Image, Speaker,
   Save, Close, Send, GroupsOutlined, AttachMoney, Workspaces,
-  AllInclusive, Mail,
+  AllInclusive, Mail, CloudUpload,
 } from "@mui/icons-material";
 import api from "app/utils/api";
 import PageHero from "app/components/page/PageHero";
@@ -250,6 +250,76 @@ export default function TeamEdit() {
     branding: { primary_color: "", secondary_color: "", logo_url: "", welcome_message: "", app_name: "" },
     options: { smtp_host: "", smtp_port: "", smtp_user: "", smtp_password: "", smtp_from: "", email_default_to: "" },
   });
+  const [logoUploading, setLogoUploading] = useState(false);
+
+  // ── Logo upload: file → downscaled data URL ─────────────────────────
+  // Keep this entirely client-side and feed the result into the
+  // existing logo_url string. Downscale so a giant 4MB phone screenshot
+  // doesn't bloat the row past the Pydantic max_length cap. PNGs stay
+  // PNG (preserves transparency for logos), everything else encodes
+  // as JPEG at q=0.88 which gets us deep into double-digit-KB range
+  // for a typical 512px-wide logo.
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file later
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error(t("teams.edit.logoNotImage") || "That file isn't an image.");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error(t("teams.edit.logoTooLarge") || "Logo file is over 8 MB.");
+      return;
+    }
+    setLogoUploading(true);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      // SVG: skip canvas — vector files stay vector, just inline as-is.
+      if (file.type === "image/svg+xml") {
+        setTeam((s) => ({ ...s, branding: { ...s.branding, logo_url: dataUrl } }));
+        toast.success(t("teams.edit.logoUploaded") || "Logo uploaded.");
+        return;
+      }
+      // Raster: load + downscale via canvas.
+      const img = await new Promise((resolve, reject) => {
+        const i = new window.Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = dataUrl;
+      });
+      const MAX = 512;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        const scale = MAX / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      const isPng = file.type === "image/png";
+      const out = canvas.toDataURL(isPng ? "image/png" : "image/jpeg", isPng ? undefined : 0.88);
+      // Sanity check: still over the field cap? Bail with a clear msg
+      // instead of letting the save 422.
+      if (out.length > 290000) {
+        toast.error(t("teams.edit.logoTooLargeAfterScale") || "Logo is too large even after downscaling. Try a smaller or simpler image.");
+        return;
+      }
+      setTeam((s) => ({ ...s, branding: { ...s.branding, logo_url: out } }));
+      toast.success(t("teams.edit.logoUploaded") || "Logo uploaded.");
+    } catch (err) {
+      toast.error(t("teams.edit.logoFailed") || "Failed to read the image.");
+    } finally {
+      setLogoUploading(false);
+    }
+  };
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
   const [llms, setLLMs] = useState([]);
@@ -755,6 +825,56 @@ export default function TeamEdit() {
                         onChange={(e) => setTeam({ ...team, branding: { ...team.branding, logo_url: e.target.value } })}
                         helperText={t("teams.edit.logoUrlHelp")}
                         sx={fieldSx(SECTION.branding.c)}
+                        InputProps={{
+                          startAdornment: team.branding?.logo_url ? (
+                            <InputAdornment position="start">
+                              <Box
+                                component="img"
+                                src={team.branding.logo_url}
+                                alt=""
+                                sx={{
+                                  width: 28, height: 28,
+                                  objectFit: "contain",
+                                  borderRadius: 0.75,
+                                  border: "1px solid rgba(15,23,42,0.10)",
+                                  background: "rgba(15,23,42,0.03)",
+                                  p: 0.25,
+                                }}
+                              />
+                            </InputAdornment>
+                          ) : undefined,
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              {team.branding?.logo_url && (
+                                <Tooltip title={t("teams.edit.logoClear") || "Remove logo"}>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => setTeam((s) => ({ ...s, branding: { ...s.branding, logo_url: "" } }))}
+                                    sx={{ mr: 0.25 }}
+                                  >
+                                    <Close fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                              <Tooltip title={t("teams.edit.logoUpload") || "Upload logo"}>
+                                <IconButton
+                                  size="small"
+                                  component="label"
+                                  disabled={logoUploading}
+                                  sx={{ color: SECTION.branding.c }}
+                                >
+                                  <CloudUpload fontSize="small" />
+                                  <input
+                                    hidden
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleLogoUpload}
+                                  />
+                                </IconButton>
+                              </Tooltip>
+                            </InputAdornment>
+                          ),
+                        }}
                       />
                     </Grid>
                     <Grid item xs={12} sm={6}>

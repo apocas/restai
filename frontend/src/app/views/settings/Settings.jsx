@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Grid, styled, Box, Card, Divider, TextField, Button,
   Switch, FormControlLabel, FormHelperText, Typography, Select, MenuItem, InputLabel, FormControl,
-  Collapse, IconButton
+  Collapse, IconButton, InputAdornment, Tooltip
 } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
 import PageHero from "app/components/page/PageHero";
@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 import api from "app/utils/api";
-import { Settings as SettingsIcon, Storage, Security, Mail, ExpandMore, ExpandLess } from "@mui/icons-material";
+import { Settings as SettingsIcon, Storage, Security, Mail, ExpandMore, ExpandLess, CloudUpload, Close as CloseIcon } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
 import ProjectTabNav from "app/views/projects/components/ProjectTabNav";
 import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
@@ -43,6 +43,7 @@ export default function SettingsPage() {
 
   const [form, setForm] = useState({
     app_name: "RESTai",
+    logo_url: "",
     hide_branding: false,
     proxy_enabled: false,
     proxy_url: "",
@@ -220,6 +221,68 @@ export default function SettingsPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Login-page logo upload. Same downscale flow as TeamEdit so the
+  // result fits the Pydantic 300k cap. PNG stays PNG (preserves
+  // transparency), other rasters go through canvas at JPEG q=0.88,
+  // SVGs are inlined verbatim.
+  const [logoUploading, setLogoUploading] = useState(false);
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error(t("settings.logoNotImage") || "That file isn't an image.");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error(t("settings.logoTooLarge") || "Logo file is over 8 MB.");
+      return;
+    }
+    setLogoUploading(true);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      if (file.type === "image/svg+xml") {
+        setForm((s) => ({ ...s, logo_url: dataUrl }));
+        toast.success(t("settings.logoUploaded") || "Logo uploaded.");
+        return;
+      }
+      const img = await new Promise((resolve, reject) => {
+        const i = new window.Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = dataUrl;
+      });
+      const MAX = 512;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        const scale = MAX / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      const isPng = file.type === "image/png";
+      const out = canvas.toDataURL(isPng ? "image/png" : "image/jpeg", isPng ? undefined : 0.88);
+      if (out.length > 290000) {
+        toast.error(t("settings.logoTooLargeAfterScale") || "Logo is too large even after downscaling. Try a smaller or simpler image.");
+        return;
+      }
+      setForm((s) => ({ ...s, logo_url: out }));
+      toast.success(t("settings.logoUploaded") || "Logo uploaded.");
+    } catch {
+      toast.error(t("settings.logoFailed") || "Failed to read the image.");
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
   const handleSave = () => {
     setSaving(true);
     const body = { ...form };
@@ -274,6 +337,61 @@ export default function SettingsPage() {
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
                       <TextField fullWidth label={t("settings.fields.appName")} value={form.app_name} onChange={handleChange("app_name")} />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label={t("settings.fields.loginLogo") || "Login Logo"}
+                        value={form.logo_url || ""}
+                        onChange={handleChange("logo_url")}
+                        placeholder="https://… or upload →"
+                        helperText={t("settings.fields.loginLogoHelp") || "Shown on the login page. URL or upload (auto-downscaled). Leave empty for the default."}
+                        InputProps={{
+                          startAdornment: form.logo_url ? (
+                            <InputAdornment position="start">
+                              <Box
+                                component="img"
+                                src={form.logo_url}
+                                alt=""
+                                sx={{
+                                  width: 28, height: 28,
+                                  objectFit: "contain",
+                                  borderRadius: 0.75,
+                                  border: "1px solid rgba(15,23,42,0.10)",
+                                  background: "rgba(15,23,42,0.03)",
+                                  p: 0.25,
+                                }}
+                              />
+                            </InputAdornment>
+                          ) : undefined,
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              {form.logo_url && (
+                                <Tooltip title={t("settings.logoClear") || "Remove logo"}>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => setForm((s) => ({ ...s, logo_url: "" }))}
+                                    sx={{ mr: 0.25 }}
+                                  >
+                                    <CloseIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                              <Tooltip title={t("settings.logoUpload") || "Upload logo"}>
+                                <IconButton size="small" component="label" disabled={logoUploading}>
+                                  <CloudUpload fontSize="small" />
+                                  <input
+                                    hidden
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleLogoUpload}
+                                  />
+                                </IconButton>
+                              </Tooltip>
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
                     </Grid>
                     <Grid item xs={12} md={3}>
                       <FormControlLabel

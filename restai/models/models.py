@@ -1258,7 +1258,7 @@ class TeamBranding(BaseModel):
     """Team branding configuration for white-labeling."""
     primary_color: Union[str, None] = Field(default=None, max_length=20, description="Primary color hex code (e.g. '#1976d2')")
     secondary_color: Union[str, None] = Field(default=None, max_length=20, description="Secondary color hex code (e.g. '#ff9800')")
-    logo_url: Union[str, None] = Field(default=None, max_length=5000, description="Logo URL or data:image/... URI")
+    logo_url: Union[str, None] = Field(default=None, max_length=300000, description="Logo URL or data:image/... URI (the upload widget downscales to keep this well under the cap)")
     welcome_message: Union[str, None] = Field(default=None, max_length=1000, description="Welcome message shown on landing")
     app_name: Union[str, None] = Field(default=None, max_length=100, description="Custom app name (overrides platform default)")
     model_config = ConfigDict(from_attributes=True)
@@ -1489,6 +1489,7 @@ class OllamaModelPullResponse(BaseModel):
 class SettingsResponse(BaseModel):
     """Current platform settings."""
     app_name: str = Field(description="Application display name")
+    logo_url: Optional[str] = Field(default="", description="Login-page logo URL or data:image/... URI (empty = use default RESTai logo)")
     hide_branding: bool = Field(description="Whether to hide RESTai branding in the UI")
     proxy_enabled: bool = Field(description="Whether the LiteLLM proxy is enabled")
     proxy_url: Optional[str] = Field(default="", description="LiteLLM proxy URL")
@@ -1603,6 +1604,7 @@ class SettingsResponse(BaseModel):
 class SettingsUpdate(BaseModel):
     """Update platform settings."""
     app_name: Optional[str] = Field(default=None, description="Application display name")
+    logo_url: Optional[str] = Field(default=None, max_length=300000, description="Login-page logo URL or data:image/... URI")
     hide_branding: Optional[bool] = Field(default=None, description="Whether to hide RESTai branding in the UI")
     proxy_enabled: Optional[bool] = Field(default=None, description="Whether the LiteLLM proxy is enabled")
     proxy_url: Optional[str] = Field(default=None, description="LiteLLM proxy URL")

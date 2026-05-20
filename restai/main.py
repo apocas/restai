@@ -284,6 +284,7 @@ async def lifespan(fs_app: FastAPI):
             "proxy": bool(_sv("proxy_url")),
             "gpu": config.RESTAI_GPU,
             "app_name": _sv("app_name", "RESTai"),
+            "logo_url": _sv("logo_url", ""),
             "hide_branding": _sv("hide_branding", "false").lower() in ("true", "1"),
             "proxy_url": _sv("proxy_url", ""),
             "currency": _sv("currency", "EUR"),

@@ -49,6 +49,7 @@ export default function PlatformProvider({ children }) {
           sso_provider_names: data.sso_provider_names || {},
           proxy: data.proxy || null,
           app_name: data.app_name || "RESTai",
+          logo_url: data.logo_url || "",
           hide_branding: data.hide_branding || false,
           proxy_url: data.proxy_url || "",
           currency: data.currency || "USD",
