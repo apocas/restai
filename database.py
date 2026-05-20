@@ -78,6 +78,11 @@ def _stamp_alembic_head():
 
 if os.getenv("RESTAI_DB_SCHEMA"):
     Base.metadata.create_all(bind=engine)
+    # Schema-only bootstrap still needs to mark Alembic at HEAD —
+    # otherwise the next `make migrate` replays every revision from
+    # 001 against an already-current schema and dies on duplicate
+    # column / table errors.
+    _stamp_alembic_head()
 else:
     if "users" not in inspect(engine).get_table_names():
         print("Initializing database...")

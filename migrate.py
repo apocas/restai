@@ -35,9 +35,56 @@ def _alembic_cfg():
     return cfg
 
 
+def _autostamp_if_provisioned_but_unstamped(cfg):
+    """If the schema already looks provisioned (key tables exist) but
+    Alembic has no record of a baseline, stamp HEAD instead of letting
+    the upgrade replay every revision from 001 against the existing
+    schema (which dies with "Duplicate column" / "Table already exists"
+    the moment it hits the first additive migration).
+
+    Triggered by the case where `make database` was run by an older
+    revision of this codebase that didn't call `_stamp_alembic_head()`
+    after `create_all()` — the schema is at HEAD, but `alembic_version`
+    is empty or missing. Also covers schema-only dump restores.
+
+    Returns True when we stamped (caller should skip the upgrade).
+    """
+    from sqlalchemy import create_engine, inspect, text
+
+    engine = create_engine(get_database_url())
+    try:
+        insp = inspect(engine)
+        tables = set(insp.get_table_names())
+        # `users` is the canonical sentinel — every install since 001
+        # has it and database.py keys its own bootstrap on the same
+        # table. Without it, we treat this as a fresh DB and let alembic
+        # run from scratch.
+        if "users" not in tables:
+            return False
+        if "alembic_version" in tables:
+            with engine.connect() as conn:
+                row = conn.execute(
+                    text("SELECT version_num FROM alembic_version LIMIT 1")
+                ).fetchone()
+                if row and row[0]:
+                    return False  # already stamped, normal upgrade path
+    finally:
+        engine.dispose()
+
+    print(
+        "migrate: schema is already provisioned but alembic_version is empty — "
+        "stamping HEAD instead of replaying migrations from 001."
+    )
+    command.stamp(cfg, "head")
+    return True
+
+
 def upgrade():
     """Run database migrations to upgrade the database schema."""
-    command.upgrade(_alembic_cfg(), "head")
+    cfg = _alembic_cfg()
+    if _autostamp_if_provisioned_but_unstamped(cfg):
+        return
+    command.upgrade(cfg, "head")
 
 
 def downgrade():
