@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  Box, Card, Chip, CircularProgress, Grid, IconButton,
+  Avatar, Box, Card, Chip, CircularProgress, Grid, IconButton,
   LinearProgress, Tooltip, Typography, styled,
 } from "@mui/material";
 import TableRow from "@mui/material/TableRow";
@@ -9,29 +9,47 @@ import { useNavigate, useParams } from "react-router-dom";
 import useAuth from "app/hooks/useAuth";
 import { toast } from "react-toastify";
 import { useTranslation } from "react-i18next";
+import sha256 from "crypto-js/sha256";
 import {
-  Person, Settings, Delete, Group, Code, Psychology,
+  Person, Settings, Delete, Group, Psychology,
   AccountBalanceWallet, Receipt, AllInclusive, Image, Speaker,
   Star, Workspaces, ArrowDropDown, ArrowRight,
 } from "@mui/icons-material";
 import MUIDataTable from "mui-datatables";
 import ReactJson from "@microlink/react-json-view";
+import BAvatar from "boring-avatars";
 import api from "app/utils/api";
+import { PROJECT_TYPE_COLORS } from "app/utils/constant";
 import { FONT_MONO, sweep, pulse, shimmer, blink } from "app/components/page/pageStyles";
 
-// Same fuchsia family as the Teams list / edit pages.
-const ACCENT = "#c026d3";        // fuchsia-600
-const ACCENT_SOFT = "rgba(192,38,211,0.10)";
-
-const SECTION = {
-  members:    { c: "#7c3aed", soft: "rgba(124,58,237,0.10)" },
-  admins:     { c: "#dc2626", soft: "rgba(220,38,38,0.10)"  },
-  projects:   { c: ACCENT,    soft: ACCENT_SOFT             },
-  llms:       { c: "#1d4ed8", soft: "rgba(29,78,216,0.10)"  },
-  embeddings: { c: "#0d9488", soft: "rgba(13,148,136,0.10)" },
-  imageGen:   { c: "#f43f5e", soft: "rgba(244,63,94,0.10)"  },
-  audioGen:   { c: "#f59e0b", soft: "rgba(245,158,11,0.10)" },
+// Same per-type pixel-avatar palette as the projects list / library
+// cards so a project's pixel identity stays consistent across the app.
+const PROJECT_AVATAR_PALETTES = {
+  rag:   ["#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd", "#1e1b4b"],
+  agent: ["#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#064e3b"],
+  block: ["#6b7280", "#9ca3af", "#d1d5db", "#e5e7eb", "#1f2937"],
+  app:   ["#0891b2", "#22d3ee", "#67e8f9", "#a5f3fc", "#164e63"],
 };
+
+function ProjectPixelAvatar({ project, size = 32 }) {
+  return (
+    <Box sx={{ flexShrink: 0, lineHeight: 0 }}>
+      <BAvatar
+        name={project.name || String(project.id)}
+        size={size}
+        variant="pixel"
+        colors={PROJECT_AVATAR_PALETTES[project.type] || PROJECT_AVATAR_PALETTES.block}
+        square
+      />
+    </Box>
+  );
+}
+
+// One quiet platform accent. The previous file declared a 7-color
+// SECTION map that left every team page looking like a status board;
+// this matches the calmer Evals / Logs / Project sub-pages.
+const ACCENT = "#0891b2";        // cyan-600
+const ACCENT_SOFT = "rgba(8,145,178,0.10)";
 
 const Container = styled("div")(({ theme }) => ({
   margin: "24px 48px",
@@ -39,9 +57,8 @@ const Container = styled("div")(({ theme }) => ({
   [theme.breakpoints.down("sm")]: { margin: 16 },
 }));
 
-// ── Hero card — same navy/cyan mesh as ProjectInfo / AIHero so every
-// landing page in the app reads from one visual family. Body sections
-// below use fuchsia accents for team identity.
+// Hero card retains the navy/cyan mesh used everywhere else in the
+// app so the team landing page stays in the wider visual family.
 const HeroCard = styled(Card)(({ theme }) => ({
   position: "relative",
   padding: theme.spacing(4),
@@ -136,68 +153,59 @@ const heroIconBtnSx = {
   },
 };
 
-// ── Section card — single-layer flat panel with accent rail. No
-// nested TileCards inside it (that was what felt messy).
-const SectionCard = styled(Card, {
-  shouldForwardProp: (p) => p !== "accent",
-})(({ accent = ACCENT }) => ({
+// Body section card — mirrors `sectionShellSx` from the project
+// Integrations kit so team pages sit in the same visual family as the
+// rest of the platform: thin animated accent sweep at the top, soft
+// border, no hover lift (full-page surface, not a list tile).
+const sectionCardSx = {
   position: "relative",
-  borderRadius: 14,
+  borderRadius: 2,
   border: "1px solid rgba(15,23,42,0.08)",
   backgroundColor: "#ffffff",
   overflow: "hidden",
+  boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
   transition: "border-color 0.25s ease, box-shadow 0.25s ease",
   "&::before": {
     content: '""',
     position: "absolute",
-    left: 0, right: 0, top: 0, height: 4,
-    background: accent,
-    opacity: 0.85,
+    left: 0, right: 0, top: 0, height: 2,
+    background: `linear-gradient(90deg, transparent, ${ACCENT}, transparent)`,
+    transform: "translateX(-100%)",
+    animation: `${sweep} 6s linear infinite`,
     pointerEvents: "none",
+    opacity: 0.55,
     zIndex: 2,
   },
-  "&:hover": {
-    borderColor: `${accent}55`,
-    boxShadow: `0 18px 36px ${accent}1c, 0 4px 10px rgba(15,23,42,0.05)`,
-  },
-}));
+};
 
-function SectionHeader({ icon, title, subtitle, accent = ACCENT, count, action }) {
+// Section header strip — mono-uppercase title in slate (matching the
+// rest of the platform's section headers), small slate icon, optional
+// count pill. Plain dark text without the accent rainbow that used to
+// shout at the user.
+function SectionHeader({ icon: Icon, title, subtitle, count, action }) {
   return (
     <Box
       sx={{
-        px: 2.5, pt: 2, pb: 1.75,
+        px: 2.5, pt: 2, pb: 1.5,
         display: "flex",
         alignItems: "center",
         gap: 1.5,
-        borderBottom: "1px solid rgba(15,23,42,0.06)",
+        borderBottom: "1px solid",
+        borderColor: "divider",
         flexWrap: "wrap",
       }}
     >
-      <Box
-        sx={{
-          width: 32, height: 32, flexShrink: 0,
-          borderRadius: 1.25,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: `${accent}1a`,
-          color: accent,
-          "& svg": { fontSize: 18 },
-        }}
-      >
-        {icon}
-      </Box>
+      {Icon && <Icon sx={{ fontSize: 16, color: "text.secondary", flexShrink: 0 }} />}
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography
           sx={{
             fontFamily: FONT_MONO,
-            fontSize: "0.7rem",
-            letterSpacing: "0.12em",
+            fontSize: "0.74rem",
+            letterSpacing: "0.16em",
             textTransform: "uppercase",
             fontWeight: 800,
-            color: accent,
-            lineHeight: 1,
+            color: "#0f172a",
+            lineHeight: 1.1,
           }}
         >
           {title}
@@ -211,16 +219,15 @@ function SectionHeader({ icon, title, subtitle, accent = ACCENT, count, action }
       {count != null && (
         <Box
           sx={{
-            display: "inline-flex",
-            alignItems: "center",
-            px: 0.85, py: 0.3,
-            borderRadius: 0.75,
-            backgroundColor: `${accent}10`,
-            border: `1px solid ${accent}33`,
             fontFamily: FONT_MONO,
-            fontSize: "0.7rem",
+            fontSize: "0.68rem",
             fontWeight: 700,
-            color: accent,
+            color: "text.secondary",
+            px: 0.9, py: 0.25,
+            borderRadius: 0.75,
+            background: "rgba(15,23,42,0.04)",
+            border: "1px solid rgba(15,23,42,0.08)",
+            letterSpacing: "0.04em",
           }}
         >
           {count}
@@ -231,17 +238,11 @@ function SectionHeader({ icon, title, subtitle, accent = ACCENT, count, action }
   );
 }
 
-// Initial-letter avatar with deterministic per-name hue (members vs admins).
-const hueFor = (s) => {
-  let h = 0;
-  for (let i = 0; i < (s || "").length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
-  return h;
-};
-
-function UserAvatar({ name, size = 30, isAdmin = false }) {
+// Team / generic name avatar — initial in muted slate. Used only for
+// non-user surfaces (team hero) since teams don't have an email to
+// hash against Gravatar.
+function NameAvatar({ name, size = 30 }) {
   const initial = (name || "?").trim().charAt(0).toUpperCase();
-  const h = hueFor(name || "?");
-  const baseHue = isAdmin ? (340 + (h % 30)) : (260 + (h % 70));
   return (
     <Box
       sx={{
@@ -252,11 +253,10 @@ function UserAvatar({ name, size = 30, isAdmin = false }) {
         justifyContent: "center",
         color: "#fff",
         fontFamily: FONT_MONO,
-        fontWeight: 800,
+        fontWeight: 700,
         fontSize: size > 32 ? "1rem" : "0.78rem",
-        background: `linear-gradient(135deg, hsl(${baseHue}, 75%, 52%) 0%, hsl(${(baseHue + 30) % 360}, 75%, 42%) 100%)`,
-        boxShadow: `0 3px 8px hsla(${baseHue}, 75%, 50%, 0.35)`,
-        textShadow: "0 1px 2px rgba(0,0,0,0.18)",
+        background: "linear-gradient(135deg, #475569 0%, #334155 100%)",
+        boxShadow: "0 1px 2px rgba(15,23,42,0.15)",
       }}
     >
       {initial}
@@ -264,7 +264,29 @@ function UserAvatar({ name, size = 30, isAdmin = false }) {
   );
 }
 
-function ResourceRow({ avatar, primary, secondary, accent, onClick, onRemove, removeLabel }) {
+// Member / admin row avatar — Gravatar identicon, matching the
+// platform-wide pattern used on Users list / project members.
+// Admin ring is cyan (matches platform accent) to distinguish from
+// regular members without going back to the old red.
+function UserGravatar({ username, isAdmin = false, size = 30 }) {
+  const ring = isAdmin ? ACCENT : "rgba(15,23,42,0.12)";
+  return (
+    <Avatar
+      src={`https://www.gravatar.com/avatar/${sha256(username || "")}?d=identicon`}
+      alt={username}
+      sx={{
+        width: size, height: size,
+        flexShrink: 0,
+        border: `2px solid ${ring}`,
+        boxShadow: isAdmin
+          ? `0 0 0 1px #fff, 0 2px 6px ${ACCENT}33`
+          : "0 1px 2px rgba(15,23,42,0.08)",
+      }}
+    />
+  );
+}
+
+function ResourceRow({ avatar, primary, secondary, onClick, onRemove, removeLabel }) {
   return (
     <Box
       onClick={onClick}
@@ -277,9 +299,7 @@ function ResourceRow({ avatar, primary, secondary, accent, onClick, onRemove, re
         borderRadius: 1,
         cursor: onClick ? "pointer" : "default",
         transition: "background-color 0.15s ease",
-        "&:hover": onClick
-          ? { backgroundColor: `${accent}08` }
-          : { backgroundColor: "rgba(15,23,42,0.025)" },
+        "&:hover": { backgroundColor: "rgba(15,23,42,0.03)" },
       }}
     >
       {avatar}
@@ -333,7 +353,7 @@ function ResourceRow({ avatar, primary, secondary, accent, onClick, onRemove, re
   );
 }
 
-function IconWell({ icon, accent }) {
+function IconWell({ icon }) {
   return (
     <Box
       sx={{
@@ -342,9 +362,9 @@ function IconWell({ icon, accent }) {
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        background: `${accent}15`,
-        border: `1px solid ${accent}33`,
-        color: accent,
+        background: "rgba(15,23,42,0.04)",
+        border: "1px solid rgba(15,23,42,0.08)",
+        color: "text.secondary",
         "& svg": { fontSize: 15 },
       }}
     >
@@ -353,7 +373,7 @@ function IconWell({ icon, accent }) {
   );
 }
 
-function EmptyState({ icon: Icon, label, accent }) {
+function EmptyState({ icon: Icon, label }) {
   return (
     <Box
       sx={{
@@ -368,14 +388,14 @@ function EmptyState({ icon: Icon, label, accent }) {
         sx={{
           width: 36, height: 36,
           borderRadius: "50%",
-          background: `${accent}10`,
+          background: "rgba(15,23,42,0.04)",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
           animation: `${pulse} 3s ease-out infinite`,
         }}
       >
-        <Icon sx={{ fontSize: 16, color: accent }} />
+        <Icon sx={{ fontSize: 16, color: "text.disabled" }} />
       </Box>
       <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center" }}>
         {label}
@@ -384,11 +404,9 @@ function EmptyState({ icon: Icon, label, accent }) {
   );
 }
 
-// Collapsible section wrapper — controlled (parent owns the open state)
-// so we can lazy-load expensive data when first expanded.
-function CollapsiblePanel({ title, icon, accent = ACCENT, children, open, onToggle }) {
+function CollapsiblePanel({ title, icon: Icon, children, open, onToggle }) {
   return (
-    <SectionCard accent={accent} elevation={0}>
+    <Card variant="outlined" sx={sectionCardSx}>
       <Box
         onClick={onToggle}
         sx={{
@@ -398,43 +416,31 @@ function CollapsiblePanel({ title, icon, accent = ACCENT, children, open, onTogg
           gap: 1.5,
           cursor: "pointer",
           transition: "background-color 0.15s ease",
-          "&:hover": { backgroundColor: `${accent}06` },
-          borderBottom: open ? "1px solid rgba(15,23,42,0.06)" : "none",
+          "&:hover": { backgroundColor: "rgba(15,23,42,0.02)" },
+          borderBottom: open ? "1px solid" : "none",
+          borderColor: "divider",
         }}
       >
-        <Box
-          sx={{
-            width: 32, height: 32, flexShrink: 0,
-            borderRadius: 1.25,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: `${accent}1a`,
-            color: accent,
-            "& svg": { fontSize: 18 },
-          }}
-        >
-          {icon}
-        </Box>
+        {Icon && <Icon sx={{ fontSize: 16, color: "text.secondary" }} />}
         <Typography
           sx={{
             flex: 1,
             fontFamily: FONT_MONO,
             fontSize: "0.74rem",
-            letterSpacing: "0.12em",
+            letterSpacing: "0.16em",
             textTransform: "uppercase",
             fontWeight: 800,
-            color: accent,
+            color: "#0f172a",
           }}
         >
           {title}
         </Typography>
         {open
-          ? <ArrowDropDown sx={{ color: accent }} />
-          : <ArrowRight sx={{ color: accent }} />}
+          ? <ArrowDropDown sx={{ color: "text.secondary" }} />
+          : <ArrowRight sx={{ color: "text.secondary" }} />}
       </Box>
       {open && children}
-    </SectionCard>
+    </Card>
   );
 }
 
@@ -530,7 +536,7 @@ export default function TeamView() {
         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 12, gap: 2 }}>
           <Box
             sx={{
-              width: 64, height: 64,
+              width: 56, height: 56,
               borderRadius: "50%",
               background: ACCENT_SOFT,
               display: "inline-flex",
@@ -539,14 +545,14 @@ export default function TeamView() {
               animation: `${pulse} 2s ease-out infinite`,
             }}
           >
-            <CircularProgress size={28} sx={{ color: ACCENT }} />
+            <CircularProgress size={24} sx={{ color: ACCENT }} />
           </Box>
           <Box
             component="span"
             sx={{
               fontFamily: FONT_MONO,
               fontSize: "0.7rem",
-              color: "text.secondary",
+              color: "text.disabled",
               letterSpacing: "0.1em",
               textTransform: "uppercase",
             }}
@@ -579,7 +585,7 @@ export default function TeamView() {
       {/* ── HERO ──────────────────────────────────────────────── */}
       <HeroCard elevation={0}>
         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2.5, flexWrap: "wrap" }}>
-          <UserAvatar name={team.name} size={64} />
+          <NameAvatar name={team.name} size={64} />
           <Box sx={{ flex: 1, minWidth: 200 }}>
             <Box
               sx={{
@@ -684,14 +690,13 @@ export default function TeamView() {
               </IconButton>
             </Tooltip>
           )}
-          {/* Right-aligned spacer */}
           <Box sx={{ flex: 1 }} />
         </ActionBar>
       </HeroCard>
 
       {/* ── BUDGET BAR (only when capped) ────────────────────── */}
       {hasBudget && (
-        <SectionCard accent={barColor} elevation={0} sx={{ mb: 2.5 }}>
+        <Card variant="outlined" sx={{ ...sectionCardSx, mb: 2.5 }}>
           <Box sx={{ p: 2.5 }}>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
               <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
@@ -736,174 +741,185 @@ export default function TeamView() {
               }}
             />
           </Box>
-        </SectionCard>
+        </Card>
       )}
 
       {/* ── PEOPLE — Members + Admins side by side ──────────── */}
       <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
         <Grid item xs={12} md={6}>
-          <SectionCard accent={SECTION.members.c} elevation={0}>
+          <Card variant="outlined" sx={sectionCardSx}>
             <SectionHeader
-              icon={<Group />}
+              icon={Group}
               title={t("teams.edit.members")}
-              accent={SECTION.members.c}
               count={counts.users}
             />
             <Box sx={{ p: 1, maxHeight: 360, overflowY: "auto" }}>
               {(team.users || []).length === 0
-                ? <EmptyState icon={Person} label={t("teams.view.noMembers")} accent={SECTION.members.c} />
+                ? <EmptyState icon={Person} label={t("teams.view.noMembers")} />
                 : team.users.map((m) => (
                   <ResourceRow
                     key={m.id}
-                    avatar={<UserAvatar name={m.username} />}
+                    avatar={<UserGravatar username={m.username} />}
                     primary={m.username}
                     secondary={m.id === user.id ? t("teams.view.you") : `USER/${String(m.id).padStart(4, "0")}`}
-                    accent={SECTION.members.c}
                     onRemove={isTeamAdmin ? () => removeUser(m.username) : null}
                     removeLabel={t("teams.view.removeUser")}
                   />
                 ))}
             </Box>
-          </SectionCard>
+          </Card>
         </Grid>
         <Grid item xs={12} md={6}>
-          <SectionCard accent={SECTION.admins.c} elevation={0}>
+          <Card variant="outlined" sx={sectionCardSx}>
             <SectionHeader
-              icon={<Star />}
+              icon={Star}
               title={t("teams.edit.admins")}
-              accent={SECTION.admins.c}
               count={counts.admins}
             />
             <Box sx={{ p: 1, maxHeight: 360, overflowY: "auto" }}>
               {(team.admins || []).length === 0
-                ? <EmptyState icon={Star} label={t("teams.view.noAdmins")} accent={SECTION.admins.c} />
+                ? <EmptyState icon={Star} label={t("teams.view.noAdmins")} />
                 : team.admins.map((a) => (
                   <ResourceRow
                     key={a.id}
-                    avatar={<UserAvatar name={a.username} isAdmin />}
+                    avatar={<UserGravatar username={a.username} isAdmin />}
                     primary={a.username}
                     secondary={a.id === user.id ? t("teams.view.you") : `USER/${String(a.id).padStart(4, "0")}`}
-                    accent={SECTION.admins.c}
                     onRemove={isTeamAdmin ? () => removeAdmin(a.username) : null}
                     removeLabel={t("teams.view.removeAdmin")}
                   />
                 ))}
             </Box>
-          </SectionCard>
+          </Card>
         </Grid>
       </Grid>
 
-      {/* ── PROJECTS — full width, 2-col grid of items ──────── */}
+      {/* ── PROJECTS — full width, 3-col grid of items ──────── */}
       <Box sx={{ mb: 2.5 }}>
-        <SectionCard accent={SECTION.projects.c} elevation={0}>
+        <Card variant="outlined" sx={sectionCardSx}>
           <SectionHeader
-            icon={<Workspaces />}
+            icon={Workspaces}
             title={t("teams.edit.projectsHeading")}
             subtitle={t("teams.view.projectsSubtitle") || "Click any project to open"}
-            accent={SECTION.projects.c}
             count={counts.projects}
           />
           <Box sx={{ p: 1 }}>
             {(team.projects || []).length === 0
-              ? <EmptyState icon={Workspaces} label={t("teams.view.noProjects")} accent={SECTION.projects.c} />
+              ? <EmptyState icon={Workspaces} label={t("teams.view.noProjects")} />
               : (
                 <Grid container spacing={0.5}>
-                  {team.projects.map((p) => (
-                    <Grid item xs={12} sm={6} lg={4} key={p.id}>
-                      <ResourceRow
-                        avatar={<IconWell icon={<Code />} accent={SECTION.projects.c} />}
-                        primary={p.name}
-                        secondary={`PROJECT/${String(p.id).padStart(4, "0")}`}
-                        accent={SECTION.projects.c}
-                        onClick={() => navigate(`/project/${p.id}`)}
-                        onRemove={isTeamAdmin ? () => removeProject(p.id) : null}
-                        removeLabel={t("teams.view.removeProject")}
-                      />
-                    </Grid>
-                  ))}
+                  {team.projects.map((p) => {
+                    const typeColor = PROJECT_TYPE_COLORS[p.type]?.color || "text.disabled";
+                    return (
+                      <Grid item xs={12} sm={6} lg={4} key={p.id}>
+                        <ResourceRow
+                          avatar={<ProjectPixelAvatar project={p} />}
+                          primary={p.human_name || p.name}
+                          secondary={
+                            <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
+                              <Box
+                                component="span"
+                                sx={{
+                                  color: typeColor,
+                                  fontWeight: 700,
+                                  letterSpacing: "0.08em",
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                {p.type}
+                              </Box>
+                              <Box component="span" sx={{ opacity: 0.5 }}>·</Box>
+                              <Box component="span">
+                                {`PROJECT/${String(p.id).padStart(4, "0")}`}
+                              </Box>
+                            </Box>
+                          }
+                          onClick={() => navigate(`/project/${p.id}`)}
+                          onRemove={isTeamAdmin ? () => removeProject(p.id) : null}
+                          removeLabel={t("teams.view.removeProject")}
+                        />
+                      </Grid>
+                    );
+                  })}
                 </Grid>
               )}
           </Box>
-        </SectionCard>
+        </Card>
       </Box>
 
       {/* ── MODELS — 4 inline panels in a single row ───────── */}
       <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
         <Grid item xs={12} sm={6} lg={3}>
-          <SectionCard accent={SECTION.llms.c} elevation={0}>
-            <SectionHeader icon={<Psychology />} title={t("teams.edit.llms")} accent={SECTION.llms.c} count={counts.llms} />
+          <Card variant="outlined" sx={sectionCardSx}>
+            <SectionHeader icon={Psychology} title={t("teams.edit.llms")} count={counts.llms} />
             <Box sx={{ p: 1, maxHeight: 280, overflowY: "auto" }}>
               {(team.llms || []).length === 0
-                ? <EmptyState icon={Psychology} label={t("teams.view.noLlms")} accent={SECTION.llms.c} />
+                ? <EmptyState icon={Psychology} label={t("teams.view.noLlms")} />
                 : team.llms.map((l) => (
                   <ResourceRow
                     key={l.id}
-                    avatar={<IconWell icon={<Psychology />} accent={SECTION.llms.c} />}
+                    avatar={<IconWell icon={<Psychology />} />}
                     primary={l.name}
-                    accent={SECTION.llms.c}
                     onRemove={isTeamAdmin ? () => removeLLM(l) : null}
                     removeLabel={t("teams.view.removeLlm")}
                   />
                 ))}
             </Box>
-          </SectionCard>
+          </Card>
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
-          <SectionCard accent={SECTION.embeddings.c} elevation={0}>
-            <SectionHeader icon={<Psychology />} title={t("teams.edit.embeddings")} accent={SECTION.embeddings.c} count={counts.embeddings} />
+          <Card variant="outlined" sx={sectionCardSx}>
+            <SectionHeader icon={Psychology} title={t("teams.edit.embeddings")} count={counts.embeddings} />
             <Box sx={{ p: 1, maxHeight: 280, overflowY: "auto" }}>
               {(team.embeddings || []).length === 0
-                ? <EmptyState icon={Psychology} label={t("teams.view.noEmbeddings")} accent={SECTION.embeddings.c} />
+                ? <EmptyState icon={Psychology} label={t("teams.view.noEmbeddings")} />
                 : team.embeddings.map((e) => (
                   <ResourceRow
                     key={e.id}
-                    avatar={<IconWell icon={<Psychology />} accent={SECTION.embeddings.c} />}
+                    avatar={<IconWell icon={<Psychology />} />}
                     primary={e.name}
-                    accent={SECTION.embeddings.c}
                     onRemove={isTeamAdmin ? () => removeEmbedding(e) : null}
                     removeLabel={t("teams.view.removeEmbedding")}
                   />
                 ))}
             </Box>
-          </SectionCard>
+          </Card>
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
-          <SectionCard accent={SECTION.imageGen.c} elevation={0}>
-            <SectionHeader icon={<Image />} title={t("teams.edit.imageGen")} accent={SECTION.imageGen.c} count={counts.imageGen} />
+          <Card variant="outlined" sx={sectionCardSx}>
+            <SectionHeader icon={Image} title={t("teams.edit.imageGen")} count={counts.imageGen} />
             <Box sx={{ p: 1, maxHeight: 280, overflowY: "auto" }}>
               {(team.image_generators || []).length === 0
-                ? <EmptyState icon={Image} label={t("teams.view.noImageGen")} accent={SECTION.imageGen.c} />
+                ? <EmptyState icon={Image} label={t("teams.view.noImageGen")} />
                 : team.image_generators.map((g) => (
                   <ResourceRow
                     key={g}
-                    avatar={<IconWell icon={<Image />} accent={SECTION.imageGen.c} />}
+                    avatar={<IconWell icon={<Image />} />}
                     primary={g}
-                    accent={SECTION.imageGen.c}
                     onRemove={isTeamAdmin ? () => removeImageGen(g) : null}
                     removeLabel={t("teams.view.removeImageGen")}
                   />
                 ))}
             </Box>
-          </SectionCard>
+          </Card>
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
-          <SectionCard accent={SECTION.audioGen.c} elevation={0}>
-            <SectionHeader icon={<Speaker />} title={t("teams.edit.audioGen")} accent={SECTION.audioGen.c} count={counts.audioGen} />
+          <Card variant="outlined" sx={sectionCardSx}>
+            <SectionHeader icon={Speaker} title={t("teams.edit.audioGen")} count={counts.audioGen} />
             <Box sx={{ p: 1, maxHeight: 280, overflowY: "auto" }}>
               {(team.audio_generators || []).length === 0
-                ? <EmptyState icon={Speaker} label={t("teams.view.noAudioGen")} accent={SECTION.audioGen.c} />
+                ? <EmptyState icon={Speaker} label={t("teams.view.noAudioGen")} />
                 : team.audio_generators.map((g) => (
                   <ResourceRow
                     key={g}
-                    avatar={<IconWell icon={<Speaker />} accent={SECTION.audioGen.c} />}
+                    avatar={<IconWell icon={<Speaker />} />}
                     primary={g}
-                    accent={SECTION.audioGen.c}
                     onRemove={isTeamAdmin ? () => removeAudioGen(g) : null}
                     removeLabel={t("teams.view.removeAudioGen")}
                   />
                 ))}
             </Box>
-          </SectionCard>
+          </Card>
         </Grid>
       </Grid>
 
@@ -911,8 +927,7 @@ export default function TeamView() {
       {isTeamAdmin && (
         <CollapsiblePanel
           title={t("teams.view.transactions")}
-          icon={<Receipt />}
-          accent={ACCENT}
+          icon={Receipt}
           open={txOpen}
           onToggle={() => setTxOpen((o) => !o)}
         >
@@ -979,11 +994,12 @@ export default function TeamView() {
                           display: "inline-block",
                           px: 0.7, py: 0.2,
                           borderRadius: 0.75,
-                          backgroundColor: SECTION.llms.soft,
-                          color: SECTION.llms.c,
+                          backgroundColor: "rgba(15,23,42,0.05)",
+                          color: "text.secondary",
+                          border: "1px solid rgba(15,23,42,0.08)",
                           fontFamily: FONT_MONO,
                           fontSize: "0.7rem",
-                          fontWeight: 700,
+                          fontWeight: 600,
                         }}
                       >
                         {v}
