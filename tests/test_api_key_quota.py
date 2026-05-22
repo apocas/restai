@@ -56,8 +56,6 @@ def api_key(client):
     client.delete(f"/users/admin/apikeys/{key_id}", auth=ADMIN)
 
 
-# ─── unit tests ─────────────────────────────────────────────────────────
-
 def test_check_api_key_quota_noop_without_api_key_id():
     """Basic / cookie auth has no api_key_id — must be a no-op."""
     user = SimpleNamespace(api_key_id=None)
@@ -157,8 +155,6 @@ def test_first_of_next_month_rolls_mid_year():
     assert out == datetime(2026, 4, 1, tzinfo=timezone.utc)
 
 
-# ─── PATCH endpoint ─────────────────────────────────────────────────────
-
 def test_patch_sets_quota(client, api_key):
     r = client.patch(
         f"/users/admin/apikeys/{api_key}",
@@ -172,9 +168,7 @@ def test_patch_sets_quota(client, api_key):
 
 
 def test_patch_clears_quota_with_zero(client, api_key):
-    # First set a cap.
     client.patch(f"/users/admin/apikeys/{api_key}", json={"token_quota_monthly": 100}, auth=ADMIN)
-    # Then clear with 0.
     r = client.patch(
         f"/users/admin/apikeys/{api_key}",
         json={"token_quota_monthly": 0},
@@ -185,7 +179,6 @@ def test_patch_clears_quota_with_zero(client, api_key):
 
 
 def test_patch_reset_usage(client, api_key):
-    # Stamp some usage directly.
     db = open_db_wrapper()
     try:
         key = db.db.query(ApiKeyDatabase).filter(ApiKeyDatabase.id == api_key).first()

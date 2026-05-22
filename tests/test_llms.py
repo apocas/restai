@@ -41,7 +41,6 @@ def test_create_llm(client):
 
 
 def test_create_llm_non_admin(client):
-    # Create a non-admin user
     client.post(
         "/users",
         json={
@@ -65,7 +64,6 @@ def test_create_llm_non_admin(client):
     )
     assert response.status_code == 403
 
-    # Clean up user
     client.delete(
         f"/users/{test_user}",
         auth=("admin", RESTAI_DEFAULT_PASSWORD),
@@ -98,7 +96,6 @@ def test_update_llm(client):
     )
     assert response.status_code == 200
 
-    # Verify update
     response = client.get(
         f"/llms/{test_llm_id}",
         auth=("admin", RESTAI_DEFAULT_PASSWORD),

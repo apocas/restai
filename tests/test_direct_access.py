@@ -24,7 +24,6 @@ def client():
 def test_setup(client):
     """Create team, LLM, user, and wire them together."""
     global team_id
-    # Create LLM
     resp = client.post(
         "/llms",
         json={
@@ -37,7 +36,6 @@ def test_setup(client):
     )
     assert resp.status_code in (200, 201)
 
-    # Create user
     resp = client.post(
         "/users",
         json={"username": test_username, "password": test_password, "admin": False, "private": False},
@@ -45,7 +43,6 @@ def test_setup(client):
     )
     assert resp.status_code in (200, 201)
 
-    # Create team with user and LLM
     resp = client.post(
         "/teams",
         json={"name": team_name, "users": [test_username], "admins": [], "llms": [llm_name]},
@@ -62,7 +59,6 @@ def test_list_models_admin(client):
     data = resp.json()
     assert "llms" in data
     assert isinstance(data["llms"], list)
-    # Our LLM should be present
     names = [l["name"] for l in data["llms"]]
     assert llm_name in names
 
@@ -74,7 +70,6 @@ def test_list_models_user(client):
     data = resp.json()
     assert "llms" in data
     assert isinstance(data["llms"], list)
-    # User's team has our test LLM
     names = [l["name"] for l in data["llms"]]
     assert llm_name in names
 

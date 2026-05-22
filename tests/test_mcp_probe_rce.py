@@ -45,11 +45,7 @@ def _user_auth():
     return (USER_NORMAL, "testpass")
 
 
-# ─── Setup ──────────────────────────────────────────────────────────────
-
-
 def test_setup(client):
-    # Non-admin user
     r = client.post(
         "/users",
         json={"username": USER_NORMAL, "password": "testpass", "admin": False, "private": False},
@@ -99,9 +95,6 @@ def test_setup(client):
     assert r.status_code == 200, r.text
 
 
-# ─── Negative: stdio transport blocked for non-admins ──────────────────
-
-
 @pytest.mark.parametrize("payload", [
     {"host": "/bin/sh", "args": ["-c", "id"]},
     {"host": "/usr/bin/curl", "args": ["-o", "/tmp/x", "http://example.com"]},
@@ -142,16 +135,12 @@ def test_patch_project_stdio_mcp_blocked_for_non_admin(client):
         f"(status={r.status_code}, body={r.text[:200]})"
     )
 
-    # Confirm not persisted.
     r = client.get(f"/projects/{_state['project_id']}", auth=_admin_auth())
     opts = r.json().get("options") or {}
     saved = opts.get("mcp_servers") or []
     assert all(s.get("host") != "/bin/sh" for s in saved), (
         "stdio mcp_servers entry was persisted despite the 403"
     )
-
-
-# ─── Positive: network transports + admin stdio still work ─────────────
 
 
 @pytest.mark.parametrize("host", [
@@ -183,9 +172,6 @@ def test_probe_stdio_allowed_for_admin(client):
         auth=_admin_auth(),
     )
     assert r.status_code != 403, r.text
-
-
-# ─── Cleanup ──────────────────────────────────────────────────────────
 
 
 def test_cleanup(client):

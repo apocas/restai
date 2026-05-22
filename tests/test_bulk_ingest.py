@@ -82,7 +82,6 @@ def test_enqueue_creates_queued_rows(client, rag_project):
     assert len(queued) == 2
 
     try:
-        # Verify both rows are queued and have a tempfile on disk
         db = open_db_wrapper()
         try:
             rows = (
@@ -99,7 +98,6 @@ def test_enqueue_creates_queued_rows(client, rag_project):
         finally:
             db.db.close()
 
-        # List should now show them
         listing = client.get(f"/projects/{rag_project}/ingest-bulk", auth=ADMIN).json()
         ids = [j["id"] for j in listing["jobs"]]
         for jid in queued:
@@ -125,7 +123,6 @@ def test_delete_removes_tempfile_and_row(client, rag_project):
     r = client.delete(f"/projects/{rag_project}/ingest-bulk/{jid}", auth=ADMIN)
     assert r.status_code == 200
 
-    # Row gone, file gone
     db = open_db_wrapper()
     try:
         row = db.db.query(BulkIngestJobDatabase).filter(BulkIngestJobDatabase.id == jid).first()

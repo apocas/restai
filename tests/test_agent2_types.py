@@ -16,9 +16,6 @@ from restai.agent2.types import (
 )
 
 
-# ---------- construction ----------
-
-
 def test_text_block_construction():
     b = TextBlock(text="hello")
     assert b.text == "hello"
@@ -49,9 +46,6 @@ def test_image_block_construction():
     assert b.mime_type == "image/png"
 
 
-# ---------- Message.text_content ----------
-
-
 def test_message_text_content_joins_text_blocks():
     msg = Message(
         role="user",
@@ -75,9 +69,6 @@ def test_message_text_content_ignores_non_text_blocks():
 def test_message_text_content_empty():
     msg = Message(role="user", content=[])
     assert msg.text_content() == ""
-
-
-# ---------- block_to_dict / block_from_dict round-trip ----------
 
 
 def test_text_block_roundtrip():
@@ -121,9 +112,6 @@ def test_image_block_roundtrip():
     assert restored.mime_type == original.mime_type
 
 
-# ---------- message_to_dict / message_from_dict round-trip ----------
-
-
 def test_message_roundtrip():
     original = Message(
         role="assistant",
@@ -142,9 +130,6 @@ def test_message_roundtrip():
     assert isinstance(restored.content[1], ToolUseBlock)
     assert restored.content[0].text == "thinking..."
     assert restored.content[1].name == "calc"
-
-
-# ---------- detect_image_mime ----------
 
 
 def test_detect_image_mime_png():
@@ -171,9 +156,6 @@ def test_detect_image_mime_unknown_fallback():
     assert detect_image_mime(b64) == "image/png"
 
 
-# ---------- ImageBlock.from_data_url ----------
-
-
 def test_image_block_from_data_url_with_prefix():
     raw = b"\xff\xd8\xff" + b"\x00" * 61
     b64 = base64.b64encode(raw).decode()
@@ -189,9 +171,6 @@ def test_image_block_from_data_url_plain_base64():
     block = ImageBlock.from_data_url(b64)
     assert block.mime_type == "image/png"
     assert block.data == b64
-
-
-# ---------- user_text_message helper ----------
 
 
 def test_user_text_message():

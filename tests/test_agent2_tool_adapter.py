@@ -9,9 +9,6 @@ from restai.agent2.tool_adapter import (
 )
 
 
-# ---------- build_json_schema ----------
-
-
 def test_build_json_schema_simple_function():
     def foo(x: str, y: int = 5) -> str:
         return x * y
@@ -35,7 +32,6 @@ def test_build_json_schema_optional_params():
     assert "b" in schema["properties"]
     assert "a" in schema["required"]
     assert "b" not in schema["required"]
-    # Optional[int] unwraps to integer
     assert schema["properties"]["b"]["type"] == "integer"
 
 
@@ -48,9 +44,6 @@ def test_build_json_schema_no_annotations():
     assert "y" in schema["properties"]
     assert "x" in schema["required"]
     assert "y" not in schema["required"]
-
-
-# ---------- _python_type_to_json_type ----------
 
 
 def test_type_mapping_str():
@@ -75,9 +68,6 @@ def test_type_mapping_list():
 
 def test_type_mapping_dict():
     assert _python_type_to_json_type(dict) == {"type": "object"}
-
-
-# ---------- AdaptedTool.call ----------
 
 
 def test_adapted_tool_call_sync():

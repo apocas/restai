@@ -121,7 +121,6 @@ def test_logout_and_cleanup():
         assert response.status_code == 200
         assert response.json()["message"] == "Logged out successfully."
 
-        # Clean up test user
         response = client.delete(
             f"/users/{test_username}",
             auth=("admin", RESTAI_DEFAULT_PASSWORD),

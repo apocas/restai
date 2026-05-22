@@ -35,7 +35,6 @@ def test_mcp_setup(client):
     """Create user, team, LLM, project, and API keys for MCP tests."""
     global team_id, project_id, api_key, admin_api_key
 
-    # Create user
     r = client.post(
         "/users",
         json={"username": user_name, "password": user_pass, "is_admin": False, "is_private": False},
@@ -43,7 +42,6 @@ def test_mcp_setup(client):
     )
     assert r.status_code == 201, f"Failed to create user: {r.text}"
 
-    # Create LLM
     r = client.post(
         "/llms",
         json={
@@ -56,7 +54,6 @@ def test_mcp_setup(client):
     )
     assert r.status_code in (200, 201), f"Failed to create LLM: {r.text}"
 
-    # Create team with user and LLM
     r = client.post(
         "/teams",
         json={
@@ -70,7 +67,6 @@ def test_mcp_setup(client):
     assert r.status_code == 201, f"Failed to create team: {r.text}"
     team_id = r.json()["id"]
 
-    # Create project
     r = client.post(
         "/projects",
         json={
@@ -85,7 +81,6 @@ def test_mcp_setup(client):
     assert r.status_code == 201, f"Failed to create project: {r.text}"
     project_id = r.json()["project"]
 
-    # Assign project to user
     r = client.patch(
         f"/projects/{project_id}",
         json={"users": [user_name]},
@@ -93,7 +88,6 @@ def test_mcp_setup(client):
     )
     assert r.status_code == 200, f"Failed to assign project: {r.text}"
 
-    # Create API key for user
     r = client.post(
         f"/users/{user_name}/apikeys",
         json={"description": "mcp test key"},
@@ -102,7 +96,6 @@ def test_mcp_setup(client):
     assert r.status_code == 201, f"Failed to create API key: {r.text}"
     api_key = r.json()["api_key"]
 
-    # Create API key for admin
     r = client.post(
         "/users/admin/apikeys",
         json={"description": "mcp admin key"},
@@ -110,9 +103,6 @@ def test_mcp_setup(client):
     )
     assert r.status_code == 201, f"Failed to create admin API key: {r.text}"
     admin_api_key = r.json()["api_key"]
-
-
-# ── Authentication tests ─────────────────────────────────────────────────
 
 
 def test_mcp_auth_missing_header():

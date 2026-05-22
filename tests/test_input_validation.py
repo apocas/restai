@@ -104,7 +104,6 @@ def test_valid_names_accepted(client):
         # Should not be 422 (validation error) — may be 201 or other status
         assert response.status_code != 422, f"Valid username {name!r} was incorrectly rejected"
 
-    # Clean up created users
     for name in VALID_NAMES:
         client.delete(f"/users/{name}", auth=("admin", RESTAI_DEFAULT_PASSWORD))
 
@@ -174,6 +173,5 @@ def test_llm_valid_enums_accepted(client):
     )
     # Should not be 422 — may succeed (201) or fail for other reasons
     assert response.status_code != 422, f"Valid LLM enums were incorrectly rejected"
-    # Clean up if created
     if response.status_code == 201:
         client.delete("/llms/test-valid-llm", auth=("admin", RESTAI_DEFAULT_PASSWORD))

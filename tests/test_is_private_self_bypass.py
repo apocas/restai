@@ -54,14 +54,10 @@ def test_setup(client):
     assert r.status_code == 201, r.text
     _state["team_id"] = r.json()["id"]
 
-    # Make alice the team admin, bob a regular member.
     r = client.post(f"/teams/{_state['team_id']}/admins/{TEAM_ADMIN}", auth=ADMIN_AUTH)
     assert r.status_code == 200, r.text
     r = client.post(f"/teams/{_state['team_id']}/users/{PEER}", auth=ADMIN_AUTH)
     assert r.status_code == 200, r.text
-
-
-# ─── Negative: self-flip path ──────────────────────────────────────────
 
 
 def test_team_admin_cannot_flip_own_is_private(client):
@@ -77,7 +73,6 @@ def test_team_admin_cannot_flip_own_is_private(client):
     )
     assert r.status_code == 403, r.text
 
-    # Confirm not persisted.
     r = client.get(f"/users/{TEAM_ADMIN}", auth=ADMIN_AUTH)
     assert r.json()["is_private"] is True, "is_private was flipped despite the 403"
 
@@ -97,13 +92,9 @@ def test_non_team_user_cannot_flip_own_is_private(client):
     assert r.json()["is_private"] is True
 
 
-# ─── Positive: legitimate paths still work ─────────────────────────────
-
-
 def test_platform_admin_can_flip_anyone(client):
     """Sanity check the admin override — including flipping
     themselves, which the team-admin path can't do."""
-    # Flip alice (still private) via admin.
     r = client.patch(
         f"/users/{TEAM_ADMIN}",
         json={"is_private": False},
@@ -113,9 +104,6 @@ def test_platform_admin_can_flip_anyone(client):
 
     r = client.get(f"/users/{TEAM_ADMIN}", auth=ADMIN_AUTH)
     assert r.json()["is_private"] is False
-
-
-# ─── Cleanup ──────────────────────────────────────────────────────────
 
 
 def test_cleanup(client):

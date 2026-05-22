@@ -143,7 +143,6 @@ def test_cache_miss_different_question(client):
 
 def test_cache_clear_endpoint(client):
     """DELETE /projects/{id}/cache should clear the cache."""
-    # Clear cache
     r = client.delete(
         f"/projects/{project_id}/cache",
         auth=ADMIN,
@@ -151,7 +150,6 @@ def test_cache_clear_endpoint(client):
     assert r.status_code == 200
     assert r.json().get("cleared") is True
 
-    # Same question that was cached should now miss
     r = client.post(
         f"/projects/{project_id}/question",
         json={"question": "cache test question alpha"},
@@ -164,7 +162,6 @@ def test_cache_clear_endpoint(client):
 
 def test_cache_clear_when_not_enabled(client):
     """Clearing cache on a project without cache should return cleared=False."""
-    # Disable cache
     r = client.patch(
         f"/projects/{project_id}",
         json={"options": {"cache": False}},
@@ -192,12 +189,10 @@ def test_cache_threshold_bounds():
     from restai.models.models import ProjectOptions
     import pydantic
 
-    # Valid values
     ProjectOptions(cache_threshold=0.0)
     ProjectOptions(cache_threshold=1.0)
     ProjectOptions(cache_threshold=0.5)
 
-    # Invalid values
     try:
         ProjectOptions(cache_threshold=1.5)
         assert False, "Should reject threshold > 1.0"

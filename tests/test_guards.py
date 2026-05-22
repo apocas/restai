@@ -60,9 +60,6 @@ def test_guard_setup(client):
     project_id = r.json()["project"]
 
 
-# ── Guard response parsing tests ─────────────────────────────────────────
-
-
 def test_guard_parse_block_keywords():
     """Guard should block on known block keywords."""
     for word in ["BAD", "NO", "FALSE", "DENY", "BLOCK", "REJECT", "UNSAFE", "NOK"]:
@@ -106,9 +103,6 @@ def test_guard_result_dataclass():
     assert r2.blocked is False
 
 
-# ── Guard configuration tests ────────────────────────────────────────────
-
-
 def test_guard_output_option(client):
     """guard_output and guard_mode should be settable via project options."""
     r = client.patch(
@@ -129,16 +123,12 @@ def test_guard_output_option(client):
     assert opts.get("guard_output") == "some-guard-project"
     assert opts.get("guard_mode") == "warn"
 
-    # Reset
     r = client.patch(
         f"/projects/{project_id}",
         json={"options": {"guard_output": None, "guard_mode": "block"}},
         auth=ADMIN,
     )
     assert r.status_code == 200
-
-
-# ── Guard analytics endpoint tests ───────────────────────────────────────
 
 
 def test_guard_summary_empty(client):
@@ -175,7 +165,6 @@ def test_guard_log_and_query(client):
 
     db = open_db_wrapper()
     try:
-        # Insert test events
         for action in ["block", "pass", "block", "warn"]:
             event = GuardEventDatabase(
                 project_id=project_id,
@@ -189,7 +178,6 @@ def test_guard_log_and_query(client):
                 date=datetime.now(timezone.utc),
             )
             db.db.add(event)
-        # Add an output block
         event = GuardEventDatabase(
             project_id=project_id,
             guard_project="test-guard",
@@ -206,7 +194,6 @@ def test_guard_log_and_query(client):
     finally:
         db.db.close()
 
-    # Summary
     r = client.get(f"/projects/{project_id}/guards/summary", auth=ADMIN)
     assert r.status_code == 200
     data = r.json()
@@ -217,35 +204,27 @@ def test_guard_log_and_query(client):
     assert data["output_blocks"] >= 1
     assert data["block_rate"] > 0
 
-    # Daily
     r = client.get(f"/projects/{project_id}/guards/daily", auth=ADMIN)
     assert r.status_code == 200
     events = r.json()["events"]
     assert len(events) > 0
     assert events[0]["checks"] > 0
 
-    # Events (all)
     r = client.get(f"/projects/{project_id}/guards/events", auth=ADMIN)
     assert r.status_code == 200
     assert r.json()["total"] == 5
 
-    # Events filtered by action
     r = client.get(f"/projects/{project_id}/guards/events?action=block", auth=ADMIN)
     assert r.status_code == 200
     assert r.json()["total"] == 3
 
-    # Events filtered by phase
     r = client.get(f"/projects/{project_id}/guards/events?phase=output", auth=ADMIN)
     assert r.status_code == 200
     assert r.json()["total"] == 1
 
 
-# ── Teardown ─────────────────────────────────────────────────────────────
-
-
 def test_guard_teardown(client):
     """Clean up resources."""
-    # Clean up guard events first
     from restai.database import open_db_wrapper
     from restai.models.databasemodels import GuardEventDatabase
 

@@ -21,14 +21,12 @@ comment_id = None
 def test_setup(client):
     """Create test user and a project for comment tests."""
     global test_project_id
-    # Create user
     client.post(
         "/users",
         json={"username": test_username, "password": test_password, "admin": False, "private": False},
         auth=("admin", RESTAI_DEFAULT_PASSWORD),
     )
 
-    # Create a test LLM
     llm_name = f"comments_llm_{random.randint(0,999999)}"
     client.post(
         "/llms",
@@ -36,7 +34,6 @@ def test_setup(client):
         auth=("admin", RESTAI_DEFAULT_PASSWORD),
     )
 
-    # Create a team and add user + LLM
     team_name = f"comments_team_{random.randint(0,999999)}"
     resp = client.post(
         "/teams",
@@ -45,7 +42,6 @@ def test_setup(client):
     )
     team_id = resp.json()["id"]
 
-    # Create project
     proj_name = f"comments_proj_{random.randint(0,999999)}"
     resp = client.post(
         "/projects",
@@ -55,7 +51,6 @@ def test_setup(client):
     assert resp.status_code == 201
     test_project_id = resp.json()["project"]
 
-    # Assign test user to the project
     client.patch(
         f"/projects/{test_project_id}",
         json={"users": ["admin", test_username]},
@@ -117,7 +112,6 @@ def test_list_comments_order(client):
     )
     comments = resp.json()
     assert len(comments) == 2
-    # Newest first
     assert comments[0]["content"] == "Struggles with pricing questions though."
     assert comments[1]["content"] == "This project works great for product questions."
 
@@ -130,7 +124,6 @@ def test_update_own_comment(client):
     )
     assert resp.status_code == 200
 
-    # Verify update
     comments = client.get(
         f"/projects/{test_project_id}/comments",
         auth=("admin", RESTAI_DEFAULT_PASSWORD),
@@ -158,7 +151,6 @@ def test_non_owner_cannot_delete(client):
 
 
 def test_delete_own_comment(client):
-    # First create a comment as test_user, then delete it
     create_resp = client.post(
         f"/projects/{test_project_id}/comments",
         json={"content": "Temporary note."},
@@ -175,7 +167,6 @@ def test_delete_own_comment(client):
 
 def test_admin_can_delete_any(client):
     """Admin can delete other users' comments."""
-    # Get the test_user's remaining comment
     comments = client.get(
         f"/projects/{test_project_id}/comments",
         auth=("admin", RESTAI_DEFAULT_PASSWORD),

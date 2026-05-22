@@ -50,8 +50,6 @@ def _fake_db(project_obj, team_obj=None):
     return db
 
 
-# ─── send_email ─────────────────────────────────────────────────────────
-
 def test_send_email_requires_project_context():
     from restai.llms.tools.send_email import send_email
     out = send_email("subject", "body")
@@ -254,8 +252,6 @@ def test_send_email_team_overrides_platform():
     assert sent[0]["host"] == "team.example.com"
     assert any(s.get("to") == "team-admin@example.com" for s in sent)
 
-
-# ─── send_sms ───────────────────────────────────────────────────────────
 
 def test_send_sms_requires_project_context():
     from restai.llms.tools.send_sms import send_sms

@@ -27,7 +27,6 @@ def client():
 def test_audit_log_populated(client):
     """Perform mutations, then verify audit log has entries."""
     global team_id, project_id
-    # Create an LLM (mutation)
     client.post(
         "/llms",
         json={
@@ -39,7 +38,6 @@ def test_audit_log_populated(client):
         auth=ADMIN,
     )
 
-    # Create a team (mutation)
     resp = client.post(
         "/teams",
         json={"name": team_name, "users": [], "admins": [], "llms": [llm_name]},
@@ -48,7 +46,6 @@ def test_audit_log_populated(client):
     assert resp.status_code == 201
     team_id = resp.json()["id"]
 
-    # Create a project (mutation)
     resp = client.post(
         "/projects",
         json={"name": project_name, "type": "block", "team_id": team_id},
@@ -57,7 +54,6 @@ def test_audit_log_populated(client):
     assert resp.status_code == 201
     project_id = resp.json()["project"]
 
-    # Check audit log has entries
     resp = client.get("/audit", auth=ADMIN)
     assert resp.status_code == 200
     data = resp.json()
@@ -66,7 +62,6 @@ def test_audit_log_populated(client):
     assert data["total"] > 0
     assert len(data["entries"]) > 0
 
-    # Each entry should have required fields
     entry = data["entries"][0]
     assert "id" in entry
     assert "username" in entry
@@ -76,7 +71,6 @@ def test_audit_log_populated(client):
 
 def test_audit_log_admin_only(client):
     """Non-admin users cannot access the audit log."""
-    # Create a non-admin user
     client.post(
         "/users",
         json={
@@ -88,7 +82,6 @@ def test_audit_log_admin_only(client):
         auth=ADMIN,
     )
 
-    # Non-admin tries to access audit log
     resp = client.get("/audit", auth=(test_username, test_password))
     assert resp.status_code == 403
 
@@ -100,30 +93,24 @@ def test_audit_pagination(client):
     data = resp.json()
     assert "entries" in data
     assert "total" in data
-    # Should return at most 5 entries
     assert len(data["entries"]) <= 5
 
 
 def test_settings_change_writes_per_key_audit_row(client):
-    """A PATCH /settings call must produce one SETTING audit row per key
-    that actually changed. Secret keys must be logged with the
-    ':secret_changed' marker (no value)."""
+    """PATCH /settings emits one SETTING audit row per changed key; secret keys log ':secret_changed' (no value)."""
     import time
 
-    # 1. Read current value so we can compute a change + restore after.
     current = client.get("/settings", auth=ADMIN).json()
     original_currency = current.get("currency", "EUR")
     new_currency = "USD" if original_currency != "USD" else "EUR"
 
     try:
-        # 2. Patch a non-secret key.
         r = client.patch("/settings", json={"currency": new_currency}, auth=ADMIN)
         assert r.status_code == 200
 
         # Audit logging happens in a daemon thread — give it a beat.
         time.sleep(0.5)
 
-        # 3. Look for the per-key audit row.
         log = client.get("/audit?start=0&end=200&action=SETTING", auth=ADMIN).json()
         entries = log.get("entries", [])
         currency_rows = [e for e in entries if "settings/currency" in (e.get("resource") or "")]
@@ -131,8 +118,7 @@ def test_settings_change_writes_per_key_audit_row(client):
         # Non-secret keys include a fingerprint of the new value.
         assert new_currency in currency_rows[0]["resource"]
 
-        # 4. Patch a secret key — verify ':secret_changed' marker is used
-        # and the value itself isn't recorded.
+        # Secret key path: ':secret_changed' marker, never the value itself.
         r = client.patch("/settings", json={"sso_google_client_secret": "test-not-real-secret-xyz"}, auth=ADMIN)
         assert r.status_code == 200
         time.sleep(0.5)
@@ -144,7 +130,6 @@ def test_settings_change_writes_per_key_audit_row(client):
             "secret value leaked into audit resource"
         )
     finally:
-        # Restore — best-effort cleanup.
         client.patch("/settings", json={"currency": original_currency}, auth=ADMIN)
         client.patch("/settings", json={"sso_google_client_secret": ""}, auth=ADMIN)
 

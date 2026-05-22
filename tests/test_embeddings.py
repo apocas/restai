@@ -42,7 +42,6 @@ def test_create_embedding(client):
 
 
 def test_create_embedding_non_admin(client):
-    # Create a non-admin user
     client.post(
         "/users",
         json={
@@ -67,7 +66,6 @@ def test_create_embedding_non_admin(client):
     )
     assert response.status_code == 403
 
-    # Clean up user
     client.delete(
         f"/users/{test_user}",
         auth=("admin", RESTAI_DEFAULT_PASSWORD),
@@ -94,7 +92,6 @@ def test_update_embedding(client):
     )
     assert response.status_code == 200
 
-    # Verify update
     response = client.get(
         f"/embeddings/{test_embedding_id}",
         auth=("admin", RESTAI_DEFAULT_PASSWORD),

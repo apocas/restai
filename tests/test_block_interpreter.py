@@ -61,9 +61,6 @@ def _list(*items):
     }
 
 
-# ---------------------------------------------------------------- Logic
-
-
 def test_logic_null_returns_empty_string():
     # logic_null returns None; restai_set_output converts to ""
     workspace = _set_output({"type": "logic_null"})
@@ -92,9 +89,6 @@ def test_logic_ternary_false_branch():
         },
     })
     assert _run(workspace) == "no"
-
-
-# ---------------------------------------------------------------- Math
 
 
 @pytest.mark.parametrize("op,expected", [
@@ -204,9 +198,6 @@ def test_math_number_property_prime():
     assert _run(workspace) == "True"
 
 
-# ---------------------------------------------------------------- Text
-
-
 def test_text_getSubstring_first_last():
     """substring from first to last == whole string"""
     workspace = _set_output({
@@ -289,9 +280,6 @@ def test_text_append_statement():
         "variables": [{"id": "V1", "name": "greeting"}],
     }
     assert _run(workspace) == "Hello, world"
-
-
-# ---------------------------------------------------------------- Lists
 
 
 def test_lists_create_and_length():
@@ -447,9 +435,6 @@ def test_lists_setIndex_set_statement():
     assert _run(workspace) == "a,X,c"
 
 
-# ---------------------------------------------------------------- Flow control
-
-
 def test_controls_flow_break_in_repeat():
     """Counter-var increments inside a repeat-10 loop but breaks at iteration 3."""
     workspace = {
@@ -565,9 +550,6 @@ def test_controls_flow_continue_in_for_each():
     assert _run(workspace) == "12.0"
 
 
-# ---------------------------------------------------------------- Procedures
-
-
 def _proc_double():
     """procedures_defreturn double(x) = x * 2"""
     return {
@@ -610,8 +592,6 @@ def test_procedure_return_value():
 
 def test_procedure_scope_isolation():
     """A global variable named the same as a param is unchanged by the call."""
-    # Global `x` = 100. Define `bump(x)` that sets x = 999 (the param, not global).
-    # After the call, global x is still 100.
     workspace = {
         "blocks": {
             "blocks": [

@@ -47,7 +47,6 @@ def test_count_starts_at_zero(client):
 def test_count_increments_on_invite(client):
     """Count goes up when an invite is sent."""
     auth = ("admin", RESTAI_DEFAULT_PASSWORD)
-    # Send project invite to user1
     client.post(f"/projects/{project_id}/invitations", json={"username": user1}, auth=auth)
 
     resp = client.get("/invitations/count", auth=(user1, "pass123"))
@@ -57,7 +56,6 @@ def test_count_increments_on_invite(client):
 def test_count_increments_with_team_invite(client):
     """Count includes both team and project invites."""
     auth = ("admin", RESTAI_DEFAULT_PASSWORD)
-    # Also send team invite to user1 (for a new team)
     new_team = f"ic_team2_{suffix}"
     resp = client.post("/teams", json={"name": new_team}, auth=auth)
     new_team_id = resp.json()["id"]
@@ -66,7 +64,6 @@ def test_count_increments_with_team_invite(client):
     resp = client.get("/invitations/count", auth=(user1, "pass123"))
     assert resp.json()["count"] == 2
 
-    # Cleanup extra team
     client.delete(f"/teams/{new_team_id}", auth=auth)
 
 
@@ -95,13 +92,11 @@ def test_count_decrements_on_accept(client):
 def test_count_decrements_on_decline(client):
     """Count goes down when invite is declined."""
     auth = ("admin", RESTAI_DEFAULT_PASSWORD)
-    # Send invite to user2
     client.post(f"/projects/{project_id}/invitations", json={"username": user2}, auth=auth)
 
     resp = client.get("/invitations/count", auth=(user2, "pass123"))
     assert resp.json()["count"] == 1
 
-    # Decline
     resp = client.get("/invitations", auth=(user2, "pass123"))
     project_invites = [inv for inv in resp.json() if inv.get("type") == "project"]
     invite_id = project_invites[0]["id"]

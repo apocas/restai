@@ -224,7 +224,6 @@ def test_merge_entities(client):
     assert resp.status_code == 200
     assert resp.json()["merged_into"] == entity_a_id
 
-    # Verify the small Acme is gone
     db = DBWrapper()
     try:
         assert db.db.query(KGEntityDatabase).filter(KGEntityDatabase.id == small_acme_id).first() is None
@@ -239,7 +238,6 @@ def test_delete_entity(client):
     )
     assert resp.status_code == 204
 
-    # Verify it's gone
     resp = client.get(
         f"/projects/{project_id}/kg/entities/{entity_b_id}",
         auth=("admin", RESTAI_DEFAULT_PASSWORD),
