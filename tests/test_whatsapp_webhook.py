@@ -128,8 +128,6 @@ def _make_payload(from_phone: str = ALLOWED_SENDER, msg_type: str = "text",
     }).encode()
 
 
-# ─── GET handshake ──────────────────────────────────────────────────────
-
 def test_verify_handshake_ok(client, project_id):
     r = client.get("/webhooks/whatsapp", params={
         "hub.mode": "subscribe",
@@ -153,8 +151,6 @@ def test_verify_handshake_missing_params(client):
     r = client.get("/webhooks/whatsapp", params={"hub.mode": "subscribe"})
     assert r.status_code == 400
 
-
-# ─── POST routing & signature ───────────────────────────────────────────
 
 def test_post_unknown_phone_number_id_acks_silently(client):
     """If no project owns the phone_number_id, signature is never checked
@@ -280,8 +276,6 @@ def test_post_non_text_message_replies_text_only_notice(client, project_id, monk
     assert to == ALLOWED_SENDER
     assert "text" in reply.lower()
 
-
-# ─── verify_signature unit tests (no network) ──────────────────────────
 
 def test_verify_signature_rejects_missing_header():
     from restai.whatsapp import verify_signature

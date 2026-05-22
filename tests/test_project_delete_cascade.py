@@ -30,7 +30,6 @@ def test_project_delete_cascades_to_children():
     project_name = f"delcascade_proj_{suffix}"
 
     with TestClient(app) as c:
-        # Set up team + project
         r = c.post("/teams", json={"name": team_name}, auth=auth)
         assert r.status_code == 201, r.text
         team_id = r.json()["id"]
@@ -82,5 +81,4 @@ def test_project_delete_cascades_to_children():
         finally:
             db.db.close()
 
-        # Cleanup
         c.delete(f"/teams/{team_id}", auth=auth)

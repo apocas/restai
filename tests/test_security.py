@@ -25,7 +25,6 @@ def client():
         yield c
 
 
-# Shared state
 suffix = str(random.randint(0, 10000000))
 userA_name = f"sec_usera_{suffix}"
 userB_name = f"sec_userb_{suffix}"
@@ -54,9 +53,6 @@ USER_B = (userB_name, "passB123")
 USER_C = (userC_name, "passC123")
 
 
-# ── Setup ──────────────────────────────────────────────────────────────────
-
-
 def test_security_setup(client):
     """Create users, teams, LLMs, embeddings, and projects for security tests."""
     global teamA_id, teamB_id, projectA_id, projectB_id, llmA_id, llmB_id, embA_id, embB_id
@@ -74,7 +70,6 @@ def test_security_setup(client):
         )
         assert r.status_code == 201, f"Failed to create {uname}: {r.text}"
 
-    # Create LLMs
     for name in [llmA_name, llmB_name]:
         r = client.post(
             "/llms",
@@ -92,7 +87,6 @@ def test_security_setup(client):
         else:
             llmB_id = r.json()["id"]
 
-    # Create embeddings
     for name in [embA_name, embB_name]:
         r = client.post(
             "/embeddings",
@@ -168,9 +162,6 @@ def test_security_setup(client):
     projectB_id = r.json()["project"]
 
 
-# ── Authentication Edge Cases ─────────────────────────────────────────────
-
-
 def test_unauthenticated_access_returns_401(client):
     """All protected endpoints must return 401 without credentials."""
     for path in ["/projects", "/users", "/teams", "/llms", "/embeddings"]:
@@ -226,9 +217,6 @@ def test_bearer_with_invalid_apikey_returns_401(client):
     assert r.status_code == 401
 
 
-# ── Project Isolation ──────────────────────────────────────────────────────
-
-
 def test_user_cannot_get_other_users_project(client):
     r = client.get(f"/projects/{projectB_id}", auth=USER_A)
     assert r.status_code == 404
@@ -268,7 +256,6 @@ def test_user_cannot_question_other_users_private_project(client):
 
 def test_user_can_access_public_project(client):
     """Make projectB public, verify userA can access it for chat/question."""
-    # Make projectB public (as userB)
     r = client.patch(
         f"/projects/{projectB_id}",
         json={"public": True},
@@ -276,11 +263,9 @@ def test_user_can_access_public_project(client):
     )
     assert r.status_code == 200
 
-    # userA can now GET the public project
     r = client.get(f"/projects/{projectB_id}", auth=USER_A)
     assert r.status_code == 200
 
-    # Revert to private
     r = client.patch(
         f"/projects/{projectB_id}",
         json={"public": False},
@@ -291,10 +276,8 @@ def test_user_can_access_public_project(client):
 
 def test_user_cannot_edit_public_project_they_dont_own(client):
     """Even if a project is public, non-owners cannot edit or delete it."""
-    # Make projectB public
     client.patch(f"/projects/{projectB_id}", json={"public": True}, auth=USER_B)
 
-    # userA cannot PATCH it
     r = client.patch(
         f"/projects/{projectB_id}",
         json={"human_name": "hacked"},
@@ -302,11 +285,9 @@ def test_user_cannot_edit_public_project_they_dont_own(client):
     )
     assert r.status_code == 404
 
-    # userA cannot DELETE it
     r = client.delete(f"/projects/{projectB_id}", auth=USER_A)
     assert r.status_code == 404
 
-    # Revert
     client.patch(f"/projects/{projectB_id}", json={"public": False}, auth=USER_B)
 
 
@@ -322,9 +303,6 @@ def test_user_cannot_create_project_in_other_team(client):
         auth=USER_A,
     )
     assert r.status_code == 403
-
-
-# ── Team Isolation ─────────────────────────────────────────────────────────
 
 
 def test_user_cannot_view_other_team(client):
@@ -353,11 +331,9 @@ def test_member_cannot_admin_own_team(client):
 
 def test_team_admin_can_manage_team(client):
     """Make userA a team admin of teamA, verify they can edit it."""
-    # Promote userA to team admin
     r = client.post(f"/teams/{teamA_id}/admins/{userA_name}", auth=ADMIN)
     assert r.status_code == 200
 
-    # Now userA can edit teamA
     r = client.patch(
         f"/teams/{teamA_id}",
         json={"description": "edited by team admin"},
@@ -365,7 +341,6 @@ def test_team_admin_can_manage_team(client):
     )
     assert r.status_code == 200
 
-    # Demote userA back to regular member
     r = client.delete(f"/teams/{teamA_id}/admins/{userA_name}", auth=ADMIN)
     assert r.status_code == 200
 
@@ -387,9 +362,6 @@ def test_non_admin_cannot_create_team(client):
     assert r.status_code == 403
 
 
-# ── Team Deletion Authorization ───────────────────────────────────────────
-
-
 def test_user_cannot_delete_own_team(client):
     """Regular member cannot delete the team they belong to."""
     r = client.delete(f"/teams/{teamA_id}", auth=USER_A)
@@ -403,20 +375,14 @@ def test_user_cannot_delete_team_they_dont_belong_to(client):
 
 def test_team_admin_cannot_delete_team(client):
     """Even a team admin cannot delete the team (only platform admins can)."""
-    # Promote userA to team admin
     r = client.post(f"/teams/{teamA_id}/admins/{userA_name}", auth=ADMIN)
     assert r.status_code == 200
 
-    # Team admin still cannot delete
     r = client.delete(f"/teams/{teamA_id}", auth=USER_A)
     assert r.status_code == 403
 
-    # Demote back
     r = client.delete(f"/teams/{teamA_id}/admins/{userA_name}", auth=ADMIN)
     assert r.status_code == 200
-
-
-# ── User Isolation ─────────────────────────────────────────────────────────
 
 
 def test_user_cannot_view_other_user_profile(client):
@@ -452,9 +418,6 @@ def test_user_cannot_view_other_users_apikeys(client):
     assert r.status_code == 404
 
 
-# ── Privilege Escalation ───────────────────────────────────────────────────
-
-
 def test_user_cannot_self_grant_admin(client):
     r = client.patch(
         f"/users/{userA_name}",
@@ -466,7 +429,6 @@ def test_user_cannot_self_grant_admin(client):
 
 def test_user_cannot_self_remove_private_flag(client):
     """Non-admin users cannot remove the is_private flag once set by admin."""
-    # First set userA as private via admin
     r = client.patch(
         f"/users/{userA_name}",
         json={"is_private": True},
@@ -474,7 +436,6 @@ def test_user_cannot_self_remove_private_flag(client):
     )
     assert r.status_code == 200
 
-    # userA tries to remove the private flag — should be denied
     r = client.patch(
         f"/users/{userA_name}",
         json={"is_private": False},
@@ -490,7 +451,6 @@ def test_user_cannot_self_remove_private_flag(client):
     )
     assert r.status_code == 200
 
-    # Revert via admin
     client.patch(f"/users/{userA_name}", json={"is_private": False}, auth=ADMIN)
 
 
@@ -531,9 +491,6 @@ def test_non_admin_cannot_create_embedding(client):
         auth=USER_A,
     )
     assert r.status_code == 403
-
-
-# ── Team Resource Validation ──────────────────────────────────────────────
 
 
 def test_cannot_create_project_with_unauthorized_llm(client):
@@ -583,9 +540,6 @@ def test_cannot_create_rag_project_with_unauthorized_embedding():
         assert r.status_code in [403, 500], f"Expected denial, got {r.status_code}"
 
 
-# ── Tools Router Authorization ────────────────────────────────────────────
-
-
 def test_tools_mcp_probe_accessible_by_regular_user():
     """POST /tools/mcp/probe as regular user should not return 403 (documenting permissive access)."""
     with TestClient(app, raise_server_exceptions=False) as c:
@@ -594,7 +548,7 @@ def test_tools_mcp_probe_accessible_by_regular_user():
             json={"host": "http://localhost:9999"},
             auth=USER_A,
         )
-        # Connection will fail, but auth should pass (not 401/403)
+        # Connection will fail; the assertion is that auth let it through.
         assert r.status_code not in [401, 403], f"Expected auth to pass, got {r.status_code}"
 
 
@@ -628,9 +582,6 @@ def test_tools_classifier_requires_auth(client):
 def test_tools_agent_requires_auth(client):
     r = client.get("/tools/agent")
     assert r.status_code == 401
-
-
-# ── LLM/Embedding Enumeration ────────────────────────────────────────────
 
 
 def test_any_user_can_list_all_llms(client):
@@ -676,9 +627,6 @@ def test_llm_api_keys_are_masked(client):
             f"API key not masked: {api_key}"
 
 
-# ── Settings & Proxy Authorization ────────────────────────────────────────
-
-
 def test_non_admin_cannot_get_settings(client):
     r = client.get("/settings", auth=USER_A)
     assert r.status_code == 403
@@ -701,9 +649,6 @@ def test_non_admin_cannot_create_proxy_key(client):
         auth=USER_A,
     )
     assert r.status_code == 403
-
-
-# ── Users Listing Isolation ───────────────────────────────────────────────
 
 
 def test_non_admin_users_listing_only_shows_teammates(client):
@@ -732,9 +677,6 @@ def test_non_admin_listing_returns_limited_schema(client):
     for u in users:
         assert "is_admin" not in u, f"is_admin leaked for {u.get('username')}"
         assert "api_keys" not in u, f"api_keys leaked for {u.get('username')}"
-
-
-# ── Project Team Transfer ─────────────────────────────────────────────────
 
 
 def test_cannot_change_project_team_to_unauthorized_team(client):
@@ -767,7 +709,6 @@ def test_admin_can_change_project_team(client):
     )
     assert r.status_code == 200
 
-    # Move projectA to teamB as admin (keep same LLM)
     r = client.patch(
         f"/projects/{projectA_id}",
         json={"team_id": teamB_id},
@@ -775,7 +716,6 @@ def test_admin_can_change_project_team(client):
     )
     assert r.status_code == 200
 
-    # Revert: move back to teamA
     r = client.patch(
         f"/projects/{projectA_id}",
         json={"team_id": teamA_id},
@@ -783,7 +723,6 @@ def test_admin_can_change_project_team(client):
     )
     assert r.status_code == 200
 
-    # Remove llmA from teamB
     r = client.patch(
         f"/teams/{teamB_id}",
         json={"llms": [llmB_name]},
@@ -792,15 +731,10 @@ def test_admin_can_change_project_team(client):
     assert r.status_code == 200
 
 
-# ── Admin Override ─────────────────────────────────────────────────────────
-
-
 def test_admin_can_access_any_project(client):
-    # Admin can GET any project
     r = client.get(f"/projects/{projectB_id}", auth=ADMIN)
     assert r.status_code == 200
 
-    # Admin can PATCH any project
     r = client.patch(
         f"/projects/{projectB_id}",
         json={"human_name": "Admin edited"},
@@ -808,7 +742,6 @@ def test_admin_can_access_any_project(client):
     )
     assert r.status_code == 200
 
-    # Revert
     client.patch(
         f"/projects/{projectB_id}",
         json={"human_name": None},
@@ -829,11 +762,9 @@ def test_admin_can_access_any_team(client):
 
 
 def test_admin_can_manage_any_user(client):
-    # Admin can GET any user
     r = client.get(f"/users/{userB_name}", auth=ADMIN)
     assert r.status_code == 200
 
-    # Admin can PATCH any user
     r = client.patch(
         f"/users/{userB_name}",
         json={"is_private": True},
@@ -841,11 +772,7 @@ def test_admin_can_manage_any_user(client):
     )
     assert r.status_code == 200
 
-    # Revert
     client.patch(f"/users/{userB_name}", json={"is_private": False}, auth=ADMIN)
-
-
-# ── Projects listing isolation ─────────────────────────────────────────────
 
 
 def test_user_only_sees_own_projects(client):
@@ -860,26 +787,19 @@ def test_user_only_sees_own_projects(client):
 
 def test_user_sees_public_projects_in_listing(client):
     """Public projects should appear when filtering by public."""
-    # Make projectB public
     client.patch(f"/projects/{projectB_id}", json={"public": True}, auth=USER_B)
 
-    # Default listing only shows own projects
     r = client.get("/projects", auth=USER_A)
     assert r.status_code == 200
     own_ids = [p["id"] for p in r.json()["projects"]]
     assert projectB_id not in own_ids
 
-    # Public filter shows public projects
     r = client.get("/projects?filter=public", auth=USER_A)
     assert r.status_code == 200
     public_ids = [p["id"] for p in r.json()["projects"]]
     assert projectB_id in public_ids
 
-    # Revert
     client.patch(f"/projects/{projectB_id}", json={"public": False}, auth=USER_B)
-
-
-# ── Input Validation ──────────────────────────────────────────────────────
 
 
 def test_create_project_empty_name_fails(client):
@@ -912,7 +832,6 @@ def test_project_name_sanitization():
         # Should succeed with sanitized name or fail gracefully (not 500)
         assert r.status_code != 500, f"Server error on special chars: {r.text}"
         if r.status_code == 201:
-            # Clean up
             pid = r.json()["project"]
             c.delete(f"/projects/{pid}", auth=ADMIN)
 
@@ -970,11 +889,7 @@ def test_xss_in_username():
             # Verify the name was sanitized (no angle brackets)
             assert "<" not in created_name
             assert ">" not in created_name
-            # Clean up
             c.delete(f"/users/{created_name}", auth=ADMIN)
-
-
-# ── Statistics Isolation ──────────────────────────────────────────────────
 
 
 def test_statistics_non_admin_only_sees_own_projects():
@@ -988,29 +903,21 @@ def test_statistics_non_admin_only_sees_own_projects():
                 f"userA can see projectB in statistics"
 
 
-# ── Cleanup ────────────────────────────────────────────────────────────────
-
-
 def test_security_cleanup(client):
     """Clean up all resources created by security tests."""
-    # Delete projects
     for pid in [projectA_id, projectB_id]:
         if pid:
             client.delete(f"/projects/{pid}", auth=ADMIN)
 
-    # Delete teams
     for tid in [teamA_id, teamB_id]:
         if tid:
             client.delete(f"/teams/{tid}", auth=ADMIN)
 
-    # Delete LLMs
     for name in [llmA_name, llmB_name]:
         client.delete(f"/llms/{name}", auth=ADMIN)
 
-    # Delete embeddings
     for name in [embA_name, embB_name]:
         client.delete(f"/embeddings/{name}", auth=ADMIN)
 
-    # Delete users
     for uname in [userA_name, userB_name, userC_name]:
         client.delete(f"/users/{uname}", auth=ADMIN)

@@ -27,7 +27,6 @@ def client():
 def test_setup(client):
     """Create a team, LLM, and block project with system prompt and censorship."""
     global team_id, project_id
-    # Create LLM
     client.post(
         "/llms",
         json={
@@ -39,7 +38,6 @@ def test_setup(client):
         auth=ADMIN,
     )
 
-    # Create team with the LLM
     resp = client.post(
         "/teams",
         json={"name": team_name, "users": [], "admins": [], "llms": [llm_name]},
@@ -48,7 +46,6 @@ def test_setup(client):
     assert resp.status_code == 201
     team_id = resp.json()["id"]
 
-    # Create block project (no LLM required)
     resp = client.post(
         "/projects",
         json={"name": project_name, "type": "block", "team_id": team_id},
@@ -57,7 +54,6 @@ def test_setup(client):
     assert resp.status_code == 201
     project_id = resp.json()["project"]
 
-    # Set system prompt and censorship via PATCH
     resp = client.patch(
         f"/projects/{project_id}",
         json={
@@ -81,7 +77,6 @@ def test_clone_project(client):
     cloned_id = resp.json()["project"]
     assert cloned_id != project_id
 
-    # Verify cloned project exists and settings match
     resp = client.get(f"/projects/{cloned_id}", auth=ADMIN)
     assert resp.status_code == 200
     data = resp.json()

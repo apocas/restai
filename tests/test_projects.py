@@ -24,7 +24,6 @@ def client():
 
 
 def test_create_project(client):
-    # Discover available LLM and embedding
     llms_resp = client.get("/llms", auth=("admin", RESTAI_DEFAULT_PASSWORD))
     assert llms_resp.status_code == 200
     global test_llm
@@ -35,7 +34,6 @@ def test_create_project(client):
     global test_embedding
     test_embedding = embeddings_resp.json()[0]["name"]
 
-    # Create a team first
     team_response = client.post(
         "/teams",
         json={"name": test_team_name, "llms": [test_llm], "embeddings": [test_embedding]},
@@ -68,16 +66,13 @@ def test_create_project(client):
     project_id = response.json()["project"]
 
 def test_get_projects(client):
-    # Test getting all projects
     response = client.get("/projects", auth=("admin", RESTAI_DEFAULT_PASSWORD))
     assert response.status_code == 200
     assert len(response.json()["projects"]) > 0
 
-    # Test filtering public projects
     response = client.get("/projects?filter=public", auth=("admin", RESTAI_DEFAULT_PASSWORD))
     assert response.status_code == 200
 
-    # Test pagination
     response = client.get("/projects?start=0&end=5", auth=("admin", RESTAI_DEFAULT_PASSWORD))
     assert response.status_code == 200
     assert len(response.json()["projects"]) <= 5
@@ -110,7 +105,6 @@ def test_edit_project(client):
     assert response.status_code == 200
     assert response.json()["project"] == project_id
 
-    # Verify changes
     response = client.get(f"/projects/{project_id}", auth=("admin", RESTAI_DEFAULT_PASSWORD))
     assert response.status_code == 200
     data = response.json()
@@ -120,14 +114,12 @@ def test_edit_project(client):
     assert data["public"] == True
 
 def test_embeddings_endpoints(client):
-    # Test reset embeddings
     response = client.post(
         f"/projects/{project_id}/embeddings/reset",
         auth=("admin", RESTAI_DEFAULT_PASSWORD)
     )
     assert response.status_code == 200
 
-    # Test search embeddings
     response = client.post(
         f"/projects/{project_id}/embeddings/search",
         json={"query": "test query", "k": 5},
@@ -135,7 +127,6 @@ def test_embeddings_endpoints(client):
     )
     assert response.status_code == 200
 
-    # Test ingest text
     response = client.post(
         f"/projects/{project_id}/embeddings/ingest/text",
         json={"text": "This is a test document for embedding.", "source": "test_doc"},
@@ -143,7 +134,6 @@ def test_embeddings_endpoints(client):
     )
     assert response.status_code == 200
 
-    # Test ingest URL
     response = client.post(
         f"/projects/{project_id}/embeddings/ingest/url",
         json={"url": "http://info.cern.ch/", "source": "example"},
@@ -151,21 +141,18 @@ def test_embeddings_endpoints(client):
     )
     assert response.status_code == 200
 
-    # Test get embeddings
     response = client.get(
         f"/projects/{project_id}/embeddings",
         auth=("admin", RESTAI_DEFAULT_PASSWORD)
     )
     assert response.status_code == 200
 
-    # Test get embedding by source
     response = client.get(
         f"/projects/{project_id}/embeddings/source/" + base64.b64encode(b"test_doc").decode("utf-8"),
         auth=("admin", RESTAI_DEFAULT_PASSWORD)
     )
     assert response.status_code == 200
 
-    # Test delete embedding
     response = client.delete(
         f"/projects/{project_id}/embeddings/" + base64.b64encode(b"test_doc").decode("utf-8"),
         auth=("admin", RESTAI_DEFAULT_PASSWORD)
@@ -173,7 +160,6 @@ def test_embeddings_endpoints(client):
     assert response.status_code == 200
 
 def test_chat_and_question_endpoints(client):
-    # Test chat endpoint
     response = client.post(
         f"/projects/{project_id}/chat",
         json={"question": "Hello, how are you?"},
@@ -181,7 +167,6 @@ def test_chat_and_question_endpoints(client):
     )
     assert response.status_code == 200
 
-    # Test question endpoint
     response = client.post(
         f"/projects/{project_id}/question",
         json={"question": "What is this project about?"},
@@ -190,21 +175,18 @@ def test_chat_and_question_endpoints(client):
     assert response.status_code == 200
 
 def test_logs_endpoints(client):
-    # Test get logs
     response = client.get(
         f"/projects/{project_id}/logs",
         auth=("admin", RESTAI_DEFAULT_PASSWORD)
     )
     assert response.status_code == 200
 
-    # Test get daily token consumption
     response = client.get(
         f"/projects/{project_id}/tokens/daily",
         auth=("admin", RESTAI_DEFAULT_PASSWORD)
     )
     assert response.status_code == 200
 
-    # Test get monthly token consumption with specific month
     response = client.get(
         f"/projects/{project_id}/tokens/daily?year=2023&month=12",
         auth=("admin", RESTAI_DEFAULT_PASSWORD)
@@ -216,9 +198,7 @@ def test_delete_project(client):
     assert response.status_code == 200
     assert response.json()["project"] == project_id
 
-    # Verify project is deleted
     response = client.get(f"/projects/{project_id}", auth=("admin", RESTAI_DEFAULT_PASSWORD))
     assert response.status_code == 404
 
-    # Cleanup: delete the team
     client.delete(f"/teams/{test_team_id}", auth=("admin", RESTAI_DEFAULT_PASSWORD))

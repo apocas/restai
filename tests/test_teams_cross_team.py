@@ -28,8 +28,7 @@ def client():
         yield c
 
 
-# Shared module state so test functions can chain. Test runner is in
-# declaration order, so setup → negatives → positives → cleanup.
+# Test runner is in declaration order, so setup → negatives → positives → cleanup.
 _RNG = random.randint(0, 1000000)
 TEAM_A = f"xt_team_a_{_RNG}"
 TEAM_B = f"xt_team_b_{_RNG}"
@@ -54,9 +53,6 @@ def _admin_auth():
 
 def _alice_auth():
     return (ALICE, "testpass")
-
-
-# ─── Setup ──────────────────────────────────────────────────────────────
 
 
 def test_setup_users(client):
@@ -123,9 +119,8 @@ def test_setup_team_b_resources(client):
     _state["prj_b_id"] = r.json()["project"]
 
 
-# ─── Negative: per-endpoint cross-team attach ──────────────────────────
-# Alice is admin of team A only. She tries to attach team-B-owned
-# resources to team A and gets 403 each time. State unchanged after.
+# Alice is admin of team A only; attaching team-B-owned resources to
+# team A must 403 across every endpoint and leave state unchanged.
 
 
 def test_alice_cannot_attach_team_b_llm(client):
@@ -135,7 +130,6 @@ def test_alice_cannot_attach_team_b_llm(client):
     )
     assert r.status_code == 403, r.text
 
-    # Confirm not attached.
     r = client.get(f"/teams/{_state['team_a_id']}", auth=_admin_auth())
     assert r.status_code == 200
     llm_names = [(l["name"] if isinstance(l, dict) else l) for l in (r.json().get("llms") or [])]
@@ -166,9 +160,6 @@ def test_alice_cannot_attach_team_b_project(client):
     assert PRJ_B not in prj_names
 
 
-# ─── Negative: PATCH-batch attack (the parallel hole) ──────────────────
-
-
 def test_alice_cannot_attach_team_b_via_patch_batch(client):
     """Same attack vector through the batch-update endpoint. Without
     the `caller=` hook in `update_team_members`, this would silently
@@ -195,9 +186,6 @@ def test_alice_cannot_attach_team_b_via_patch_batch(client):
     assert PRJ_B not in prj_names
 
 
-# ─── Positive: multi-team admin can move resources across their own teams
-
-
 def test_multi_team_admin_can_attach(client):
     """Make Alice an admin of team B too; she can now attach team B's
     LLM/embedding to team A. This is the legitimate UX the fix must
@@ -218,9 +206,8 @@ def test_multi_team_admin_can_attach(client):
     assert r.status_code == 200, r.text
 
 
-# ─── Positive: platform admin bypasses ────────────────────────────────
-# Already covered implicitly by the existing `tests/test_teams.py` happy
-# path (which runs as admin), but worth a tight assertion here.
+# Already covered implicitly by `tests/test_teams.py` happy path
+# (which runs as admin); kept here for a tight cross-team assertion.
 
 
 def test_platform_admin_bypasses(client):
@@ -230,9 +217,6 @@ def test_platform_admin_bypasses(client):
     )
     # 200 = transferred. The project's team_id is now team A.
     assert r.status_code == 200, r.text
-
-
-# ─── Cleanup ──────────────────────────────────────────────────────────
 
 
 def test_cleanup(client):

@@ -24,8 +24,6 @@ import pytest
 from restai.utils.crypto import encrypt_field
 
 
-# ─── helper ─────────────────────────────────────────────────────────────
-
 def _wait_for(event: threading.Event, timeout: float = 2.0):
     assert event.wait(timeout), "background webhook thread did not run within timeout"
 
@@ -148,8 +146,6 @@ def test_emit_event_swallows_post_failure():
         # And no exception bubbles up — give the thread a moment to log.
         time.sleep(0.05)
 
-
-# ─── /projects/{id}/webhooks/test endpoint ─────────────────────────────
 
 @pytest.fixture(scope="module")
 def client():

@@ -70,7 +70,6 @@ def test_setup(client):
     assert r.status_code == 201
     project_id = r.json()["project"]
 
-    # Assign user to project
     r = client.patch(
         f"/projects/{project_id}",
         json={"users": [user_name]},

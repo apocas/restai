@@ -26,19 +26,15 @@ def test_setup(client):
     global team_id, project_id
     auth = ("admin", RESTAI_DEFAULT_PASSWORD)
 
-    # Create team
     resp = client.post("/teams", json={"name": team_name}, auth=auth)
     assert resp.status_code in (200, 201)
     team_id = resp.json()["id"]
 
-    # Create user in team
     client.post("/users", json={"username": user_in_team, "password": "pass123", "admin": False, "private": False}, auth=auth)
     client.post(f"/teams/{team_id}/users/{user_in_team}", auth=auth)
 
-    # Create user outside team
     client.post("/users", json={"username": user_outside, "password": "pass123", "admin": False, "private": False}, auth=auth)
 
-    # Create project in team (block type needs no LLM)
     resp = client.post("/projects", json={"name": project_name, "type": "block", "team_id": team_id}, auth=auth)
     assert resp.status_code == 201
     project_id = resp.json()["project"]
@@ -81,11 +77,9 @@ def test_send_invite_nonexistent_user(client):
 def test_duplicate_invite_not_created(client):
     """Sending the same invite twice should not create a duplicate."""
     auth = ("admin", RESTAI_DEFAULT_PASSWORD)
-    # First invite already sent in test_send_invite_to_team_member
-    # Send again
+    # First invite already sent in test_send_invite_to_team_member; retry must be a no-op.
     client.post(f"/projects/{project_id}/invitations", json={"username": user_in_team}, auth=auth)
 
-    # Check only 1 pending invite
     resp = client.get("/invitations", auth=(user_in_team, "pass123"))
     assert resp.status_code == 200
     project_invites = [inv for inv in resp.json() if inv.get("type") == "project" and inv.get("project_id") == project_id]
@@ -112,18 +106,15 @@ def test_invitation_count_includes_projects(client):
 
 def test_accept_project_invite(client):
     """Accepting a project invite adds the user to the project."""
-    # Get the invitation
     resp = client.get("/invitations", auth=(user_in_team, "pass123"))
     project_invites = [inv for inv in resp.json() if inv.get("type") == "project" and inv.get("project_id") == project_id]
     assert len(project_invites) >= 1
     invite_id = project_invites[0]["id"]
 
-    # Accept
     resp = client.post(f"/invitations/projects/{invite_id}/accept", json={}, auth=(user_in_team, "pass123"))
     assert resp.status_code == 200
     assert "Joined" in resp.json()["message"]
 
-    # Verify user has access
     resp = client.get(f"/projects/{project_id}", auth=(user_in_team, "pass123"))
     assert resp.status_code == 200
 
@@ -132,29 +123,23 @@ def test_decline_project_invite(client):
     """Declining a project invite does not add the user."""
     auth_admin = ("admin", RESTAI_DEFAULT_PASSWORD)
 
-    # Create another user in team
     decline_user = f"inv_decline_{suffix}"
     client.post("/users", json={"username": decline_user, "password": "pass123", "admin": False, "private": False}, auth=auth_admin)
     client.post(f"/teams/{team_id}/users/{decline_user}", auth=auth_admin)
 
-    # Send invite
     client.post(f"/projects/{project_id}/invitations", json={"username": decline_user}, auth=auth_admin)
 
-    # Get invitation
     resp = client.get("/invitations", auth=(decline_user, "pass123"))
     project_invites = [inv for inv in resp.json() if inv.get("type") == "project" and inv.get("project_id") == project_id]
     assert len(project_invites) >= 1
     invite_id = project_invites[0]["id"]
 
-    # Decline
     resp = client.post(f"/invitations/projects/{invite_id}/decline", json={}, auth=(decline_user, "pass123"))
     assert resp.status_code == 200
 
-    # Verify user does NOT have access
     resp = client.get(f"/projects/{project_id}", auth=(decline_user, "pass123"))
     assert resp.status_code == 404
 
-    # Cleanup
     client.delete(f"/users/{decline_user}", auth=auth_admin)
 
 

@@ -370,7 +370,6 @@ def test_non_admin_cannot_setup_other_user(client):
 
 def test_enforce_only_local_users(client):
     """API key auth should work regardless of 2FA enforcement."""
-    # Create an API key for the test user
     response = client.post(
         f"/users/{test_username}/apikeys",
         json={"description": "totp_test_key"},
@@ -434,12 +433,11 @@ def test_enforce_2fa_blocks_login_for_unenrolled_user(client):
 
 
 def test_cannot_disable_when_enforced(client):
-    # First enable 2FA for the user
     client.post(f"/users/{test_username}/totp/setup", json={}, auth=(test_username, test_password))
     code = pyotp.TOTP(totp_secret).now()
     client.post(f"/users/{test_username}/totp/enable", json={"code": code, "password": test_password}, auth=(test_username, test_password))
 
-    # Try to disable — should fail
+    # Try to disable — must 403 with the enforced-mode reason.
     response = client.post(
         f"/users/{test_username}/totp/disable",
         json={"password": test_password},

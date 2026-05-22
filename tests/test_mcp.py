@@ -182,9 +182,6 @@ def test_mcp_auth_valid_admin_key():
             db_wrapper.db.close()
 
 
-# ── Access control tests ─────────────────────────────────────────────────
-
-
 def test_mcp_user_has_project_access():
     """User should have access to their assigned project."""
     from restai.mcp import _authenticate
@@ -231,9 +228,6 @@ def test_mcp_admin_has_access_to_all():
             db_wrapper.db.close()
 
 
-# ── Server creation tests ────────────────────────────────────────────────
-
-
 def test_mcp_server_has_tools():
     """MCP server should have list_projects and query_project tools."""
     from restai.mcp import create_mcp_server
@@ -260,9 +254,6 @@ def test_mcp_server_produces_sse_app():
     mcp = create_mcp_server(MagicMock())
     sse_app = mcp.http_app(transport="sse")
     assert sse_app is not None
-
-
-# ── Teardown ─────────────────────────────────────────────────────────────
 
 
 def test_mcp_teardown(client):

@@ -26,7 +26,6 @@ def client():
 def test_setup(client):
     """Create team, LLM, and block project for prompt version tests."""
     global team_id, project_id
-    # Create LLM
     client.post(
         "/llms",
         json={
@@ -38,7 +37,6 @@ def test_setup(client):
         auth=ADMIN,
     )
 
-    # Create team
     resp = client.post(
         "/teams",
         json={"name": team_name, "users": [], "admins": [], "llms": [llm_name]},
@@ -47,7 +45,6 @@ def test_setup(client):
     assert resp.status_code == 201
     team_id = resp.json()["id"]
 
-    # Create block project
     resp = client.post(
         "/projects",
         json={"name": project_name, "type": "block", "team_id": team_id},
@@ -67,7 +64,6 @@ def test_list_prompts_initial(client):
 def test_auto_version_on_edit(client):
     """Editing the system prompt creates a prompt version automatically."""
     global version_id
-    # Set a system prompt
     resp = client.patch(
         f"/projects/{project_id}",
         json={"system": "First version of the prompt."},
@@ -75,7 +71,6 @@ def test_auto_version_on_edit(client):
     )
     assert resp.status_code == 200
 
-    # List prompt versions
     resp = client.get(f"/projects/{project_id}/prompts", auth=ADMIN)
     assert resp.status_code == 200
     versions = resp.json()
@@ -100,7 +95,6 @@ def test_get_version(client):
 
 def test_activate_version(client):
     """Update prompt, then activate the old version to restore it."""
-    # Change the prompt to something new
     resp = client.patch(
         f"/projects/{project_id}",
         json={"system": "Second version of the prompt."},
@@ -108,18 +102,15 @@ def test_activate_version(client):
     )
     assert resp.status_code == 200
 
-    # Verify the project now has the new prompt
     resp = client.get(f"/projects/{project_id}", auth=ADMIN)
     assert resp.json()["system"] == "Second version of the prompt."
 
-    # Activate the first version
     resp = client.post(
         f"/projects/{project_id}/prompts/{version_id}/activate",
         auth=ADMIN,
     )
     assert resp.status_code == 200
 
-    # Verify the prompt was restored
     resp = client.get(f"/projects/{project_id}", auth=ADMIN)
     assert resp.json()["system"] == "First version of the prompt."
 

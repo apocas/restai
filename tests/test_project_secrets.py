@@ -51,7 +51,6 @@ def project_id(client):
 
 
 def test_secret_crud_roundtrip(client, project_id):
-    # Create
     r = client.post(
         f"/projects/{project_id}/secrets",
         json={"name": "test_api_key", "value": "super-secret-plaintext", "description": "unit test"},
@@ -124,7 +123,6 @@ def test_secret_crud_roundtrip(client, project_id):
         )
         assert dup.status_code == 409
     finally:
-        # Cleanup
         client.delete(f"/projects/{project_id}/secrets/{secret_id}", auth=AUTH)
 
 
@@ -137,7 +135,6 @@ def test_resolve_missing_secret_returns_none(client, project_id):
 
 
 def test_secret_name_validation(client, project_id):
-    # Slashes / spaces etc. must reject (validate_safe_name).
     bad_names = ["has/slash", "has space", "../traversal"]
     for name in bad_names:
         r = client.post(

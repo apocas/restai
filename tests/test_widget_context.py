@@ -17,9 +17,6 @@ def _make_token(claims, secret=SECRET, **kwargs):
     return jwt.encode(claims, secret, algorithm="HS256", **kwargs)
 
 
-# ---------- verify_context_token ----------
-
-
 class TestVerifyWidgetContext:
 
     def test_valid_token(self):
@@ -104,9 +101,6 @@ class TestVerifyWidgetContext:
         token = _make_token(claims)
         result = verify_context_token(token, SECRET)
         assert result["meta"]["plan"] == "enterprise"
-
-
-# ---------- apply_context ----------
 
 
 class TestApplyWidgetContext:

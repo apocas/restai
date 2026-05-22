@@ -16,8 +16,6 @@ from unittest.mock import patch
 import pytest
 
 
-# ─── crawler_classic ────────────────────────────────────────────────────
-
 @pytest.mark.parametrize("blocked_url", [
     "http://127.0.0.1/",
     "http://localhost:9000/admin",
@@ -59,8 +57,6 @@ def test_crawler_classic_uses_timeout(monkeypatch):
     assert captured["timeout"] is not None and captured["timeout"] > 0
 
 
-# ─── _sync_url SSRF ─────────────────────────────────────────────────────
-
 def test_sync_url_skips_private_address(caplog):
     from restai import sync as sync_mod
 
@@ -100,8 +96,6 @@ def test_sync_url_skips_invalid_url():
         # Should return cleanly, no exception.
         sync_mod._sync_url(project=None, source=_FakeSource(), db=None, brain=None)
 
-
-# ─── tool loader path ──────────────────────────────────────────────────
 
 def test_load_tools_uses_absolute_userland_path():
     """Verify the loader reads from the install-root /tools directory, not

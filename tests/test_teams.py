@@ -24,7 +24,6 @@ test_embedding_id = None
 
 def test_setup_dependencies(client):
     global test_llm_id, test_embedding_id
-    # Create two test users
     for username in (test_user1, test_user2):
         response = client.post(
             "/users",
@@ -38,7 +37,6 @@ def test_setup_dependencies(client):
         )
         assert response.status_code == 201
 
-    # Create test LLM
     response = client.post(
         "/llms",
         json={
@@ -52,7 +50,6 @@ def test_setup_dependencies(client):
     assert response.status_code == 201
     test_llm_id = response.json()["id"]
 
-    # Create test embedding
     response = client.post(
         "/embeddings",
         json={
@@ -121,7 +118,6 @@ def test_update_team(client):
     )
     assert response.status_code == 200
 
-    # Verify
     response = client.get(
         f"/teams/{team_id}",
         auth=("admin", RESTAI_DEFAULT_PASSWORD),
@@ -171,7 +167,6 @@ def test_get_team_as_member(client):
 
 
 def test_get_team_as_non_member(client):
-    # Create a user who is not a team member
     outsider = "test_outsider_" + str(random.randint(0, 1000000))
     client.post(
         "/users",
@@ -190,7 +185,6 @@ def test_get_team_as_non_member(client):
     )
     assert response.status_code == 403
 
-    # Clean up
     client.delete(
         f"/users/{outsider}",
         auth=("admin", RESTAI_DEFAULT_PASSWORD),
@@ -258,7 +252,6 @@ def test_delete_team(client):
     )
     assert response.status_code == 200
 
-    # Verify deleted
     response = client.get(
         f"/teams/{team_id}",
         auth=("admin", RESTAI_DEFAULT_PASSWORD),
@@ -267,7 +260,6 @@ def test_delete_team(client):
 
 
 def test_cleanup_dependencies(client):
-    # Delete test users
     for username in (test_user1, test_user2):
         response = client.delete(
             f"/users/{username}",
@@ -275,14 +267,12 @@ def test_cleanup_dependencies(client):
         )
         assert response.status_code == 200
 
-    # Delete test LLM
     response = client.delete(
         f"/llms/{test_llm_id}",
         auth=("admin", RESTAI_DEFAULT_PASSWORD),
     )
     assert response.status_code == 200
 
-    # Delete test embedding
     response = client.delete(
         f"/embeddings/{test_embedding_id}",
         auth=("admin", RESTAI_DEFAULT_PASSWORD),

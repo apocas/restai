@@ -24,7 +24,6 @@ project_id = None
 def test_setup(client):
     """Create restricted user, LLM, team, and project."""
     global llm_id, team_id, project_id
-    # Create restricted user
     r = client.post("/users", json={
         "username": restricted_username,
         "password": restricted_password,
@@ -34,12 +33,10 @@ def test_setup(client):
     }, auth=ADMIN)
     assert r.status_code == 201
 
-    # Verify user is restricted
     r = client.get(f"/users/{restricted_username}", auth=ADMIN)
     assert r.status_code == 200
     assert r.json()["is_restricted"] is True
 
-    # Create LLM
     r = client.post("/llms", json={
         "name": llm_name,
         "class_name": "OpenAI",
@@ -49,7 +46,6 @@ def test_setup(client):
     assert r.status_code == 201
     llm_id = r.json()["id"]
 
-    # Create team with restricted user + LLM
     team_name = "restricted_team_" + str(random.randint(0, 1000000))
     r = client.post("/teams", json={
         "name": team_name,
@@ -60,7 +56,6 @@ def test_setup(client):
     assert r.status_code == 201
     team_id = r.json()["id"]
 
-    # Create project and assign restricted user
     proj_name = "restricted_proj_" + str(random.randint(0, 1000000))
     r = client.post("/projects", json={
         "name": proj_name,
@@ -75,8 +70,6 @@ def test_setup(client):
         "users": ["admin", restricted_username],
     }, auth=ADMIN)
 
-
-# --- Read operations (ALLOWED) ---
 
 def test_restricted_can_list_projects(client):
     r = client.get("/projects", auth=(restricted_username, restricted_password))
@@ -102,8 +95,6 @@ def test_restricted_can_list_comments(client):
     r = client.get(f"/projects/{project_id}/comments", auth=(restricted_username, restricted_password))
     assert r.status_code == 200
 
-
-# --- Write operations (BLOCKED) ---
 
 def test_restricted_cannot_create_project(client):
     r = client.post("/projects", json={
@@ -177,10 +168,7 @@ def test_restricted_cannot_unrestrict_self(client):
     assert r.status_code == 403
 
 
-# --- Admin can manage restricted flag ---
-
 def test_admin_can_toggle_restricted(client):
-    # Unrestrict
     r = client.patch(f"/users/{restricted_username}", json={
         "is_restricted": False,
     }, auth=ADMIN)
@@ -189,7 +177,6 @@ def test_admin_can_toggle_restricted(client):
     r = client.get(f"/users/{restricted_username}", auth=ADMIN)
     assert r.json()["is_restricted"] is False
 
-    # Re-restrict
     r = client.patch(f"/users/{restricted_username}", json={
         "is_restricted": True,
     }, auth=ADMIN)
@@ -201,7 +188,6 @@ def test_admin_can_toggle_restricted(client):
 
 def test_non_admin_cannot_set_restricted(client):
     """A non-admin non-restricted user cannot modify is_restricted on anyone."""
-    # Create a normal user
     normal_user = "normal_user_" + str(random.randint(0, 1000000))
     client.post("/users", json={
         "username": normal_user,
@@ -210,18 +196,14 @@ def test_non_admin_cannot_set_restricted(client):
         "private": False,
     }, auth=ADMIN)
 
-    # Normal user tries to set is_restricted on themselves
     r = client.patch(f"/users/{normal_user}", json={
         "is_restricted": True,
     }, auth=(normal_user, "normalpass"))
     assert r.status_code == 403
     assert "Only admins" in r.json()["detail"]
 
-    # Cleanup
     client.delete(f"/users/{normal_user}", auth=ADMIN)
 
-
-# --- Direct access (BLOCKED) ---
 
 def test_restricted_cannot_use_direct_chat(client):
     r = client.post("/v1/chat/completions", json={
@@ -238,8 +220,6 @@ def test_restricted_cannot_use_direct_embeddings(client):
     }, auth=(restricted_username, restricted_password))
     assert r.status_code == 403
 
-
-# --- Cleanup ---
 
 def test_cleanup(client):
     client.delete(f"/projects/{project_id}", auth=ADMIN)

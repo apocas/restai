@@ -53,8 +53,6 @@ def source_project(client):
     client.delete(f"/projects/{pid}", auth=ADMIN)
 
 
-# ─── Publish + list + get ──────────────────────────────────────────────
-
 def test_publish_private_template(client, source_project):
     r = client.post(
         f"/projects/{source_project['id']}/publish-template",
@@ -69,12 +67,10 @@ def test_publish_private_template(client, source_project):
     assert body["suggested_llm"] == source_project["llm"]
     tid = body["id"]
     try:
-        # It shows up in our list
         listing = client.get("/templates", auth=ADMIN).json()
         ids = [t["id"] for t in listing]
         assert tid in ids
 
-        # And individually
         r = client.get(f"/templates/{tid}", auth=ADMIN)
         assert r.status_code == 200
         assert r.json()["name"] == "test-private-tpl"
@@ -159,8 +155,6 @@ def test_update_requires_owner(client, source_project):
         client.delete(f"/templates/{tid}", auth=ADMIN)
         client.delete(f"/users/{other_username}", auth=ADMIN)
 
-
-# ─── Instantiate ───────────────────────────────────────────────────────
 
 def test_instantiate_creates_new_project(client, source_project):
     """Publish a template carrying a bespoke system prompt, then

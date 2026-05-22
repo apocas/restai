@@ -24,7 +24,6 @@ def client():
 def test_setup(client):
     """Create team, LLM, and a block project for sync endpoint tests."""
     global team_id, project_id
-    # Create LLM
     client.post(
         "/llms",
         json={
@@ -36,7 +35,6 @@ def test_setup(client):
         auth=ADMIN,
     )
 
-    # Create team with LLM
     resp = client.post(
         "/teams",
         json={"name": team_name, "users": [], "admins": [], "llms": [llm_name]},
@@ -45,7 +43,6 @@ def test_setup(client):
     assert resp.status_code in (200, 201)
     team_id = resp.json()["id"]
 
-    # Create a block project
     resp = client.post(
         "/projects",
         json={"name": proj_name, "type": "block", "team_id": team_id},
@@ -81,7 +78,6 @@ def test_sync_trigger_no_sources(client):
 
 def test_sync_status_persists(client):
     """Verify sync status reflects project options."""
-    # Initially no sync sources
     resp = client.get(
         f"/projects/{project_id}/sync/status",
         auth=ADMIN,
