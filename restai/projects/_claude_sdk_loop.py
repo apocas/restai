@@ -164,6 +164,7 @@ async def _drive(project, db, brain, user, *, prompt_text: str, chat_id: str,
     tool_call_started_at: dict[str, float] = {}
     pending: dict = {}
     tool_trace: list[dict] = []
+    harvested_image_urls: list[str] = []
     result_meta = {"text": "", "input_tokens": 0, "output_tokens": 0, "stop_reason": None}
 
     # With an image, send an Anthropic-shaped content block list (text +
@@ -225,7 +226,9 @@ async def _drive(project, db, brain, user, *, prompt_text: str, chat_id: str,
                     if tool_use_id is None:
                         continue
                     tool_call = pending.pop(tool_use_id, None)
-                    content_text = _tool_result_text(block)
+                    raw_content_text = _tool_result_text(block)
+                    content_text = agent_shared.truncate_tool_output(raw_content_text)
+                    harvested_image_urls.extend(agent_shared.harvest_image_urls(content_text))
                     started = tool_call_started_at.pop(tool_use_id, None)
                     latency_ms = int((_time.monotonic() - started) * 1000) if started else None
                     status = (
@@ -266,11 +269,22 @@ async def _drive(project, db, brain, user, *, prompt_text: str, chat_id: str,
             elif isinstance(message, SystemMessage):
                 continue
 
+    final_answer_text = result_meta["text"]
+
+    # Claude SDK emits ResultMessage.subtype = "error_max_turns" when
+    # max_turns is hit without a final response. Append the standard
+    # "say continue" notice.
+    if result_meta["stop_reason"] == "error_max_turns":
+        max_iters = getattr(project.props.options, "max_iterations", None)
+        final_answer_text = (final_answer_text or "").rstrip() + agent_shared.max_turns_notice(max_iters)
+
+    final_answer_text = agent_shared.append_unreferenced_image_urls(final_answer_text, harvested_image_urls)
+
     yield ("result", {
-        "answer": result_meta["text"],
+        "answer": final_answer_text,
         "tokens": {
             "input": result_meta["input_tokens"] or tokens_from_string(prompt_text),
-            "output": result_meta["output_tokens"] or tokens_from_string(result_meta["text"]),
+            "output": result_meta["output_tokens"] or tokens_from_string(final_answer_text),
         },
         "tool_trace": tool_trace or None,
         "stop_reason": result_meta["stop_reason"],
@@ -356,7 +370,7 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
 
     # Persist into shared agent_shared history so future /chat calls see it
     # even if agent_loop is switched to llamaindex / smolagents / openai_agents.
-    agent_shared.persist_chat_turn(
+    agent_shared.spawn_persist_chat_turn(
         agent_self.brain, chat_id,
         agent_shared.load_chat_history(agent_self.brain, chat_id),
         chatModel.question, output.get("answer", ""),
@@ -371,7 +385,8 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
         yield output
 
 
-async def question(agent_self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
+async def question(agent_self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper,
+                   *, system_prompt: str | None = None):
     """Drop-in for Agent.question() when agent_loop=claude."""
     chat_id = "ephemeral-" + uuid4().hex[:12]
     output = {
@@ -403,8 +418,8 @@ async def question(agent_self, project: Project, questionModel: QuestionModel, u
         async for kind, payload in _drive(
             project, db, agent_self.brain, user,
             prompt_text=prompt_text, chat_id=chat_id,
-            system_prompt=project.props.system or "", stream=questionModel.stream,
-            image_url=image_url,
+            system_prompt=system_prompt or project.props.system or "",
+            stream=questionModel.stream, image_url=image_url,
         ):
             if kind == "text":
                 streamed_any_text = True

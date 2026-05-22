@@ -269,8 +269,34 @@ def _extract_message_text(item: MessageOutputItem) -> str:
 async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: str,
                  stream: bool, chat_id: str, image_url: str | None = None):
     """Async generator yielding (kind, payload) tuples; same protocol as _claude_sdk_loop._drive."""
+    from restai.agent2.mcp_client import MCPSessionPool
+
     model_name, api_key, base_url = _resolve_openai_config(project, db)
     tools = _gather_tools(project, agent_self, db, chat_id)
+
+    mcp_servers = getattr(project.props.options, "mcp_servers", None) or []
+    mcp_pool = None
+    if mcp_servers:
+        try:
+            mcp_pool = MCPSessionPool()
+            await mcp_pool.__aenter__()
+            adapted_tools = await mcp_pool.connect_servers(mcp_servers)
+            for a in adapted_tools:
+                try:
+                    li_ft = agent_shared.adapted_to_function_tool(a)
+                    tools.append(_wrap_function_tool(
+                        li_ft, brain=agent_self.brain, chat_id=chat_id, project_id=project.props.id,
+                    ))
+                except Exception as e:
+                    logger.warning("Failed to wrap MCP tool %s: %s", getattr(a, "name", "?"), e)
+        except Exception as e:
+            logger.warning("MCP pool connect failed: %s", e)
+            if mcp_pool is not None:
+                try:
+                    await mcp_pool.__aexit__(None, None, None)
+                except Exception:
+                    pass
+                mcp_pool = None
 
     augmented = agent_shared.augment_system_prompt_with_memory_bank(project, db, system_prompt)
     augmented = agent_shared.augment_system_prompt_with_memory_search_hint(project, augmented)
@@ -310,6 +336,8 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
     )
 
     tool_started_at: dict[str, float] = {}
+    harvested_image_urls: list[str] = []
+    recent_assistant_texts: list[str] = []
     tool_args_cache: dict[str, tuple[str, str]] = {}  # call_id -> (tool_name, args_preview)
     tool_trace: list[dict] = []
     answer_buf: list[str] = []
@@ -348,7 +376,9 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
                         "id": key, "tool": name, "args": args_preview,
                     }})
             elif isinstance(item, ToolCallOutputItem):
-                call_id, output_text = _extract_tool_output(item)
+                call_id, raw_output_text = _extract_tool_output(item)
+                output_text = agent_shared.truncate_tool_output(raw_output_text)
+                harvested_image_urls.extend(agent_shared.harvest_image_urls(output_text))
                 key = call_id or (next(iter(tool_started_at), None) or f"call_{len(tool_trace)}")
                 started = tool_started_at.pop(key, None)
                 latency_ms = int((_time.monotonic() - started) * 1000) if started else None
@@ -368,9 +398,12 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
                         "latency_ms": latency_ms, "output": output_preview, "error": err_preview,
                     }})
             elif isinstance(item, MessageOutputItem):
-                # Non-streaming fallback only; in streaming the text already
-                # flowed via RawResponsesStreamEvent.
-                fallback_text_buf.append(_extract_message_text(item))
+                turn_text = _extract_message_text(item)
+                fallback_text_buf.append(turn_text)
+                if turn_text.strip():
+                    recent_assistant_texts.append(turn_text)
+                    if len(recent_assistant_texts) > 3:
+                        recent_assistant_texts.pop(0)
 
     answer = "".join(answer_buf).strip()
     if not answer:
@@ -379,6 +412,24 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         final = getattr(result, "final_output", None)
         if final is not None:
             answer = str(final).strip()
+
+    if agent_shared.looks_repetitive(recent_assistant_texts):
+        logger.warning("openai_agents loop: repetition guard fired for chat %s", chat_id)
+        answer = (answer or "").rstrip() + "\n\n" + agent_shared.REPETITION_NOTICE
+
+    # max-turns notice: openai_agents raises MaxTurnsExceeded inside
+    # the stream; if we didn't get a final MessageOutputItem AND the
+    # last RunItem was a tool call, assume we hit the cap.
+    if not fallback_text_buf and tool_trace:
+        answer = (answer or "").rstrip() + agent_shared.max_turns_notice(max_turns)
+
+    answer = agent_shared.append_unreferenced_image_urls(answer, harvested_image_urls)
+
+    if mcp_pool is not None:
+        try:
+            await mcp_pool.__aexit__(None, None, None)
+        except Exception:
+            pass
 
     yield ("result", {
         "answer": answer,
@@ -464,7 +515,7 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
 
     agent_self.check_output_guard(project, user, db, output)
 
-    agent_shared.persist_chat_turn(
+    agent_shared.spawn_persist_chat_turn(
         agent_self.brain, chat_id,
         agent_shared.load_chat_history(agent_self.brain, chat_id),
         chatModel.question, output.get("answer", ""),
@@ -479,7 +530,8 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
         yield output
 
 
-async def question(agent_self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
+async def question(agent_self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper,
+                   *, system_prompt: str | None = None):
     chat_id = "ephemeral-" + uuid4().hex[:12]
     output = {
         "question": questionModel.question,
@@ -509,7 +561,8 @@ async def question(agent_self, project: Project, questionModel: QuestionModel, u
     try:
         async for kind, payload in _drive(
             project, db, agent_self,
-            prompt_text=prompt_text, system_prompt=project.props.system or "",
+            prompt_text=prompt_text,
+            system_prompt=system_prompt or project.props.system or "",
             stream=questionModel.stream, chat_id=chat_id, image_url=image_url,
         ):
             if kind == "text":

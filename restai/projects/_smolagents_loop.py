@@ -290,15 +290,39 @@ def _build_model(project: Project, db: DBWrapper):
 async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: str,
                  stream: bool, chat_id: str, image_url: str | None = None):
     """Async generator yielding (kind, payload) tuples; same protocol as other loops."""
+    from restai.agent2.mcp_client import MCPSessionPool
+
     model = _build_model(project, db)
     tools = _gather_tools(project, agent_self, db, chat_id)
+
+    mcp_servers = getattr(project.props.options, "mcp_servers", None) or []
+    mcp_pool = None
+    if mcp_servers:
+        try:
+            mcp_pool = MCPSessionPool()
+            await mcp_pool.__aenter__()
+            adapted_tools = await mcp_pool.connect_servers(mcp_servers)
+            for a in adapted_tools:
+                try:
+                    li_ft = agent_shared.adapted_to_function_tool(a)
+                    tools.append(_wrap_function_tool(
+                        li_ft, brain=agent_self.brain, chat_id=chat_id, project_id=project.props.id,
+                    ))
+                except Exception as e:
+                    logger.warning("Failed to wrap MCP tool %s: %s", getattr(a, "name", "?"), e)
+        except Exception as e:
+            logger.warning("MCP pool connect failed: %s", e)
+            if mcp_pool is not None:
+                try:
+                    await mcp_pool.__aexit__(None, None, None)
+                except Exception:
+                    pass
+                mcp_pool = None
 
     augmented = agent_shared.augment_system_prompt_with_memory_bank(project, db, system_prompt)
     augmented = agent_shared.augment_system_prompt_with_memory_search_hint(project, augmented)
     augmented = agent_shared.prepend_current_time(augmented)
 
-    # MultiStepAgent.run is stateless across requests with no chat_history=
-    # parameter — append prior turns as text to system instructions.
     history = agent_shared.load_chat_history(agent_self.brain, chat_id)
     history_block = agent_shared.chat_history_as_text(history)
     if history_block:
@@ -315,6 +339,9 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
     )
 
     tool_started_at: dict[str, float] = {}
+    harvested_image_urls: list[str] = []
+    recent_assistant_texts: list[str] = []
+    hit_max_steps = False
     tool_args_cache: dict[str, str] = {}
     tool_trace: list[dict] = []
     answer_buf: list[str] = []
@@ -429,7 +456,9 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
             tool_id = getattr(ev, "id", None) or f"call_{len(tool_trace)}"
             started = tool_started_at.pop(tool_id, None)
             latency_ms = int((_time.monotonic() - started) * 1000) if started else None
-            observation = ev.observation or (str(ev.output) if ev.output is not None else "")
+            raw_observation = ev.observation or (str(ev.output) if ev.output is not None else "")
+            observation = agent_shared.truncate_tool_output(raw_observation)
+            harvested_image_urls.extend(agent_shared.harvest_image_urls(observation))
             status = "error" if observation.strip().startswith("ERROR:") else "ok"
             args_preview = tool_args_cache.pop(tool_id, "")
             output_preview = observation[:500]
@@ -446,11 +475,27 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
                     "latency_ms": latency_ms, "output": output_preview, "error": err_preview,
                 }})
         elif isinstance(ev, ActionStep):
-            # Step summaries carry token counts — accumulate.
             usage = getattr(ev, "token_usage", None)
             if usage is not None:
                 input_tokens += getattr(usage, "input_tokens", 0) or 0
                 output_tokens += getattr(usage, "output_tokens", 0) or 0
+            try:
+                turn_text = str(getattr(ev, "model_output", None) or "").strip()
+            except Exception:
+                turn_text = ""
+            if turn_text:
+                recent_assistant_texts.append(turn_text)
+                if len(recent_assistant_texts) > 3:
+                    recent_assistant_texts.pop(0)
+                if agent_shared.looks_repetitive(recent_assistant_texts):
+                    logger.warning("smolagents loop: repetition guard fired for chat %s", chat_id)
+                    answer_buf.append("\n\n" + agent_shared.REPETITION_NOTICE)
+                    if stream:
+                        yield ("text", "\n\n" + agent_shared.REPETITION_NOTICE)
+                    final_answer = (final_answer or "") + "\n\n" + agent_shared.REPETITION_NOTICE
+                    break
+            if getattr(ev, "error", None) is not None and "AgentMaxStepsError" in type(ev.error).__name__:
+                hit_max_steps = True
         elif isinstance(ev, PlanningStep):
             usage = getattr(ev, "token_usage", None)
             if usage is not None:
@@ -473,6 +518,17 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         answer = reasoning_block + ("\n\n" if reasoning_block else "") + str(final_answer).strip()
     else:
         answer = reasoning_block
+
+    if hit_max_steps and not (final_answer or "").strip().endswith(agent_shared.REPETITION_NOTICE.strip()):
+        answer = (answer or "").rstrip() + agent_shared.max_turns_notice(max_steps)
+
+    answer = agent_shared.append_unreferenced_image_urls(answer, harvested_image_urls)
+
+    if mcp_pool is not None:
+        try:
+            await mcp_pool.__aexit__(None, None, None)
+        except Exception:
+            pass
 
     yield ("result", {
         "answer": answer,
@@ -561,7 +617,7 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
 
     agent_self.check_output_guard(project, user, db, output)
 
-    agent_shared.persist_chat_turn(
+    agent_shared.spawn_persist_chat_turn(
         agent_self.brain, chat_id,
         agent_shared.load_chat_history(agent_self.brain, chat_id),
         chatModel.question, output.get("answer", ""),
@@ -576,7 +632,8 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
         yield output
 
 
-async def question(agent_self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
+async def question(agent_self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper,
+                   *, system_prompt: str | None = None):
     chat_id = "ephemeral-" + uuid4().hex[:12]
     output = {
         "question": questionModel.question,
@@ -606,7 +663,8 @@ async def question(agent_self, project: Project, questionModel: QuestionModel, u
     try:
         async for kind, payload in _drive(
             project, db, agent_self,
-            prompt_text=prompt_text, system_prompt=project.props.system or "",
+            prompt_text=prompt_text,
+            system_prompt=system_prompt or project.props.system or "",
             stream=questionModel.stream, chat_id=chat_id, image_url=image_url,
         ):
             if kind == "text":

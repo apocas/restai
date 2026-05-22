@@ -887,22 +887,34 @@ class Agent(ProjectBase):
         loop = (getattr(project.props.options, "agent_loop", None) or "restai").lower()
         if loop == "claude":
             from restai.projects import _claude_sdk_loop
-            async for chunk in _claude_sdk_loop.question(self, project, questionModel, user, db):
+            async for chunk in _claude_sdk_loop.question(
+                self, project, questionModel, user, db,
+                system_prompt=(questionModel.system or project.props.system),
+            ):
                 yield chunk
             return
         if loop == "llamaindex":
             from restai.projects import _llamaindex_loop
-            async for chunk in _llamaindex_loop.question(self, project, questionModel, user, db):
+            async for chunk in _llamaindex_loop.question(
+                self, project, questionModel, user, db,
+                system_prompt=(questionModel.system or project.props.system),
+            ):
                 yield chunk
             return
         if loop == "smolagents":
             from restai.projects import _smolagents_loop
-            async for chunk in _smolagents_loop.question(self, project, questionModel, user, db):
+            async for chunk in _smolagents_loop.question(
+                self, project, questionModel, user, db,
+                system_prompt=(questionModel.system or project.props.system),
+            ):
                 yield chunk
             return
         if loop == "openai_agents":
             from restai.projects import _openai_agents_loop
-            async for chunk in _openai_agents_loop.question(self, project, questionModel, user, db):
+            async for chunk in _openai_agents_loop.question(
+                self, project, questionModel, user, db,
+                system_prompt=(questionModel.system or project.props.system),
+            ):
                 yield chunk
             return
 

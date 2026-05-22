@@ -172,6 +172,8 @@ def _pick_agent_class(project: Project):
 async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: str,
                  stream: bool, chat_id: str, image_url: str | None = None):
     """Async generator yielding (kind, payload) tuples; same protocol as _claude_sdk_loop._drive."""
+    from restai.agent2.mcp_client import MCPSessionPool
+
     llm = _resolve_llm(project, agent_self, db)
     tools = _gather_tools(project, agent_self, db, chat_id)
 
@@ -179,9 +181,28 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
     augmented = agent_shared.augment_system_prompt_with_memory_search_hint(project, augmented)
     augmented = agent_shared.prepend_current_time(augmented)
 
-    # Hydrate prior turns or the model treats every turn as fresh —
-    # re-clones repos, repeats setup, ignores earlier user feedback.
     history = agent_shared.load_chat_history(agent_self.brain, chat_id)
+
+    mcp_servers = getattr(project.props.options, "mcp_servers", None) or []
+    mcp_pool = None
+    if mcp_servers:
+        try:
+            mcp_pool = MCPSessionPool()
+            await mcp_pool.__aenter__()
+            adapted_tools = await mcp_pool.connect_servers(mcp_servers)
+            for a in adapted_tools:
+                try:
+                    tools.append(agent_shared.adapted_to_function_tool(a))
+                except Exception as e:
+                    logger.warning("Failed to wrap MCP tool %s: %s", getattr(a, "name", "?"), e)
+        except Exception as e:
+            logger.warning("MCP pool connect failed: %s", e)
+            if mcp_pool is not None:
+                try:
+                    await mcp_pool.__aexit__(None, None, None)
+                except Exception:
+                    pass
+                mcp_pool = None
 
     AgentCls = _pick_agent_class(project)
     agent = AgentCls(
@@ -193,6 +214,8 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
     )
 
     tool_started_at: dict[str, float] = {}
+    harvested_image_urls: list[str] = []
+    recent_assistant_texts: list[str] = []
     tool_trace: list[dict] = []
     answer_buf: list[str] = []
     final_output = None
@@ -272,7 +295,9 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         elif isinstance(ev, ToolCallResult):
             started = tool_started_at.pop(ev.tool_id, None)
             latency_ms = int((_time.monotonic() - started) * 1000) if started else None
-            output_text = str(ev.tool_output) if ev.tool_output is not None else ""
+            raw_output_text = str(ev.tool_output) if ev.tool_output is not None else ""
+            output_text = agent_shared.truncate_tool_output(raw_output_text)
+            harvested_image_urls.extend(agent_shared.harvest_image_urls(output_text))
             status = "error" if output_text.strip().startswith("ERROR:") else "ok"
             try:
                 args_preview = _json.dumps(ev.tool_kwargs, default=str)
@@ -295,8 +320,22 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
                 }})
         elif isinstance(ev, AgentOutput):
             final_output = ev
+            try:
+                resp = getattr(final_output, "response", None)
+                turn_text = str(getattr(resp, "content", "") or resp).strip() if resp else ""
+            except Exception:
+                turn_text = ""
+            if turn_text:
+                recent_assistant_texts.append(turn_text)
+                if len(recent_assistant_texts) > 3:
+                    recent_assistant_texts.pop(0)
+                if agent_shared.looks_repetitive(recent_assistant_texts):
+                    logger.warning("llamaindex loop: repetition guard fired for chat %s", chat_id)
+                    answer_buf.append("\n\n" + agent_shared.REPETITION_NOTICE)
+                    if stream:
+                        yield ("text", "\n\n" + agent_shared.REPETITION_NOTICE)
+                    break
 
-    # Run ended mid-thinking; close the block so the buffer is well-formed.
     closer = _close_thinking_if_open(answer_buf, stream)
     if closer and stream:
         yield ("text", closer)
@@ -306,6 +345,14 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         resp = getattr(final_output, "response", None)
         if resp is not None:
             answer = str(getattr(resp, "content", "") or resp).strip()
+
+    answer = agent_shared.append_unreferenced_image_urls(answer, harvested_image_urls)
+
+    if mcp_pool is not None:
+        try:
+            await mcp_pool.__aexit__(None, None, None)
+        except Exception:
+            pass
 
     yield ("result", {
         "answer": answer,
@@ -391,9 +438,9 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
 
     agent_self.check_output_guard(project, user, db, output)
 
-    # Re-load canonical history before appending (concurrent run may have
-    # extended it).
-    agent_shared.persist_chat_turn(
+    # Fire-and-forget persist so a Starlette cancel during the final
+    # yield doesn't drop the just-completed turn.
+    agent_shared.spawn_persist_chat_turn(
         agent_self.brain, chat_id,
         agent_shared.load_chat_history(agent_self.brain, chat_id),
         chatModel.question, output.get("answer", ""),
@@ -408,7 +455,8 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
         yield output
 
 
-async def question(agent_self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper):
+async def question(agent_self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper,
+                   *, system_prompt: str | None = None):
     chat_id = "ephemeral-" + uuid4().hex[:12]
     output = {
         "question": questionModel.question,
@@ -438,7 +486,8 @@ async def question(agent_self, project: Project, questionModel: QuestionModel, u
     try:
         async for kind, payload in _drive(
             project, db, agent_self,
-            prompt_text=prompt_text, system_prompt=project.props.system or "",
+            prompt_text=prompt_text,
+            system_prompt=system_prompt or project.props.system or "",
             stream=questionModel.stream, chat_id=chat_id, image_url=image_url,
         ):
             if kind == "text":
