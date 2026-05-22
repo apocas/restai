@@ -1,9 +1,4 @@
-"""
-Pandas Excel reader.
-
-Pandas parser for .xlsx files.
-
-"""
+"""Pandas Excel reader for .xlsx files."""
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -12,18 +7,7 @@ from llama_index.core.schema import Document
 
 
 class PandasExcelReader(BaseReader):
-    r"""Pandas-based CSV parser.
-
-    Parses CSVs using the separator detection from Pandas `read_csv`function.
-    If special parameters are required, use the `pandas_config` dict.
-
-    Args:
-
-        pandas_config (dict): Options for the `pandas.read_excel` function call.
-            Refer to https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html
-            for more information. Set to empty dict by default, this means defaults will be used.
-
-    """
+    """Pandas-based Excel parser."""
 
     def __init__(
         self,
@@ -33,7 +17,6 @@ class PandasExcelReader(BaseReader):
         row_joiner: str = "\n",
         **kwargs: Any
     ) -> None:
-        """Init params."""
         super().__init__(*args, **kwargs)
         self._pandas_config = pandas_config or {}
         self._concat_rows = concat_rows
@@ -47,18 +30,7 @@ class PandasExcelReader(BaseReader):
         extra_info: Optional[Dict] = None,
         include_different_sheet_docs: bool = False,
     ) -> List[Document]:
-        """Parse file and extract values from a specific column.
-
-        Args:
-            file (Path): The path to the Excel file to read.
-            include_sheetname (bool): Whether to include the sheet name in the output.
-            sheet_name (Union[str, int, None]): The specific sheet to read from, default is None which reads all sheets.
-            extra_info (Dict): Additional information to be added to the Document object.
-            include_different_sheet_docs: To join the document as a whole or create different docs for different sheets.
-
-        Returns:
-            List[Document]: A list of`Document objects containing the values from the specified column in the Excel file.
-        """
+        """Parse Excel file and return Documents per sheet (or combined)."""
 
         import pandas as pd
 

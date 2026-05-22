@@ -1,40 +1,11 @@
 """LLM-driven app generation for the App Builder, two-step agent flow.
 
-Public entry points:
+Uses the project's own LLM (not the System LLM). Cost is recorded by the
+endpoint caller via the standard `log_inference` pipeline.
 
-- :func:`stream_plan` — chat-style planning. Takes the running message
-  history (`[{role, content}, ...]`); streams the LLM's reply as
-  ``("plan_chunk", text)`` deltas, then yields a single
-  ``("plan_complete", {"plan": <dict|None>, "reply": "<full text>"})``.
-  The plan dict is parsed from the trailing JSON block; ``None`` if the
-  AI replied with a question or otherwise didn't include a parsable plan.
-
-- :func:`stream_file_content` — generate the contents of one file given
-  the approved plan + the file's (path, purpose). Yields
-  ``("file_delta", text)`` deltas, then ``("file_done", final_content)``.
-
-- :func:`fix_file_with_ai` — single-file targeted edit (kept from the
-  prior version, prompt updated to the new SPA architecture so fixes
-  don't reintroduce PHP-rendered HTML).
-
-- :func:`validate_plan` — strict schema check on the plan dict (required
-  fields, allowed PHP locations, file count + size caps). Used by both
-  the plan endpoint (after parsing the LLM reply) and the execute
-  endpoint (defense in depth — the client could have edited the plan).
-
-All calls use the **project's own LLM** (selected at project create
-time), never the platform System LLM. Cost is recorded by the endpoint
-caller via the standard `log_inference` pipeline.
-
-Architecture contract enforced by the system prompts and the validators:
-- TypeScript renders ALL UI; PHP serves a JSON API only.
-- PHP files MUST live under ``public/api/``; ``index.php`` outside there
-  is allowed only as a thin SPA fallback router.
-- HTML lives in ``public/index.html`` (SPA shell). Routing is client-side
-  (hash router) so the app deploys to shared hosts without rewrite rules.
-- All SQL is parameter-bound. All API responses set
-  ``Content-Type: application/json`` and never emit HTML.
-- No external dependencies: no Composer, no npm packages at runtime.
+Architecture contract enforced by system prompts + validators: TypeScript
+renders all UI, PHP serves JSON only under public/api/, HTML in
+public/index.html SPA shell, parameter-bound SQL, no external deps.
 """
 
 from __future__ import annotations
@@ -382,9 +353,6 @@ Output: ONLY the new file contents. No code fences."""
 
 
 def _design_block_summary(design: Optional[dict]) -> str:
-    """Render the chosen design DNA as a short bullet list for the
-    per-file prompt. Empty string when no design block is set (older
-    builds without DNA, or Mode-B fixes that didn't carry it)."""
     if not design:
         return ""
     bits: list[str] = []
@@ -416,9 +384,7 @@ def _design_block_summary(design: Optional[dict]) -> str:
 
 
 def _role_guidance_for(path: str, design: Optional[dict] = None) -> str:
-    """Return a short, file-type-specific guidance block that gets
-    interpolated into _FILE_SYSTEM_TEMPLATE. Keep it tight — generic
-    rules already live in the contract."""
+    # Interpolated into _FILE_SYSTEM_TEMPLATE; keep tight (generic rules in contract).
     p = path.lower()
     if p == "public/index.html":
         return (
@@ -604,16 +570,11 @@ def _is_allowed_npm_import(spec: str) -> bool:
 
 
 def _js_string_and_comment_ranges(text: str) -> list[tuple[int, int]]:
-    """Return ``[(start, end), ...]`` byte ranges covering every JS/TS
-    string literal, template literal, line comment, and block comment.
-    Used by the static-architecture check to discriminate between a real
-    ``require('x')`` call and a docs page that contains an EXAMPLE of
-    `require('x')` inside a string / JSX text / comment.
+    """Byte ranges of every JS/TS string/template literal + comment.
 
-    Crude state machine — handles single/double quotes, backticks,
-    backslash escapes, ``//`` line comments, and ``/* */`` block comments.
-    Doesn't fully understand JSX text (which isn't quote-delimited), so
-    callers should also anchor patterns to JS-operator prefixes.
+    Used by static-architecture checks to skip code-shaped patterns inside
+    docs strings. Doesn't fully parse JSX text — callers must also anchor
+    patterns to JS-operator prefixes.
     """
     ranges: list[tuple[int, int]] = []
     i = 0
@@ -657,7 +618,6 @@ def _js_string_and_comment_ranges(text: str) -> list[tuple[int, int]]:
 
 
 def _pos_in_ranges(pos: int, ranges: list[tuple[int, int]]) -> bool:
-    """True when ``pos`` falls inside any of the half-open ranges."""
     for start, end in ranges:
         if start <= pos < end:
             return True
@@ -694,23 +654,13 @@ _CODE_LINE_RE = {
 
 
 def _strip_prose_from_code(content: str, ext: str) -> str:
-    """Strip prose preamble + trailing remarks from LLM-emitted file
-    content. Small models occasionally ignore the "no prose" instruction
-    and lead with "Here's the file:" or trail with "Let me know if you
-    need changes." That junk turns into syntax errors at build time.
+    """Strip LLM prose preamble + trailing remarks from emitted file content.
 
-    Heuristic: find the FIRST line that matches a known code-line shape
-    for the file's extension; everything before it is dropped.
-
-    Trailing-prose stripping is RISKY for content-shaped files where
-    legitimate string literals (`"Welcome."`) can match the prose
-    pattern, so it's only applied to source-code extensions where a
-    sentence-ending paragraph at end-of-file is unambiguously LLM
-    chatter, never code. JSON / SVG / Markdown / config files are
-    json-validated first and otherwise returned untouched.
+    Trailing-prose stripping is RISKY for content-shaped files (string
+    literals like "Welcome." match the prose pattern), so it's only applied
+    to source-code extensions. JSON/SVG/Markdown/config files are validated
+    first and otherwise returned untouched.
     """
-    # Files we will NEVER strip trailing prose from — they legitimately
-    # contain English sentences and capital-letter-leading values.
     no_trail_strip_exts = {".json", ".svg", ".md", ".markdown", ".txt", ".yml", ".yaml", ".xml"}
 
     # JSON: try to parse-and-reserialize in pristine form. If parses,
@@ -774,27 +724,14 @@ def _strip_prose_from_code(content: str, ext: str) -> str:
 
 
 def _is_inside_jsx_text(text: str, pos: int) -> bool:
-    """Cheap heuristic: a require/import keyword at ``pos`` is inside
-    JSX text content if there's an opening JSX tag on the same line
-    before it. Doesn't catch every case (e.g. multi-line JSX text), but
-    handles the common `<pre>const x = require('dockerode')</pre>`
-    documentation pattern that was producing false positives."""
+    """Heuristic: true when an opening JSX tag precedes pos on the same line."""
     line_start = text.rfind("\n", 0, pos) + 1
     pre = text[line_start:pos]
     return bool(_JSX_OPEN_TAG_RE.search(pre))
 
 
 def static_architecture_checks(path: str, content: str) -> list[str]:
-    """Cheap pre-write checks that catch architecture violations BEFORE
-    the file lands on disk. Returns a list of human-readable problems
-    (empty list = file is fine).
-
-    These are pattern-based, not full parsing — the goal is to reject
-    obvious architecture-rule violations the LLM produces despite the
-    system prompt. The execute endpoint surfaces each entry as a
-    file_error, which the auto-fix loop will then pick up with the exact
-    issue text.
-    """
+    """Pre-write architecture checks. Returns list of issues (empty = fine)."""
     issues: list[str] = []
     p = (path or "").replace("\\", "/").lstrip("/")
     ext = ""
@@ -910,8 +847,7 @@ def static_architecture_checks(path: str, content: str) -> list[str]:
 
 
 def validate_file_path(path: str) -> str:
-    """Reject traversal, disallowed extensions, reserved dirs. Returns the
-    normalised path. Raises ``ValueError`` on rejection."""
+    """Reject traversal / bad extensions / reserved dirs. Returns normalized path."""
     if not path or not isinstance(path, str):
         raise ValueError("missing path")
     p = path.replace("\\", "/").lstrip("/")
@@ -961,15 +897,7 @@ MAX_FILES_PER_PHASE = 8
 
 
 def validate_plan(plan: Any) -> dict:
-    """Strict plan-schema validation. Returns the cleaned plan with phases
-    normalised (every phase has ``name``, ``description``, ``files``).
-
-    Accepts two input shapes:
-    1. NEW (preferred): ``{phases: [{name, description?, files: [...]}, ...]}``
-    2. LEGACY: ``{files: [...]}`` — wrapped into a single "Build" phase
-       so older callers / older LLM outputs still work.
-
-    Raises ``ValueError`` on first failure."""
+    """Strict plan-schema validation. Accepts new phases shape OR legacy flat files."""
     if not isinstance(plan, dict):
         raise ValueError("plan must be an object")
     summary = plan.get("summary")
@@ -1069,11 +997,8 @@ def validate_plan(plan: Any) -> dict:
 
 
 def _clean_design(design: Any) -> Optional[dict]:
-    """Validate + normalise the optional `design` block. The block is
-    intentionally permissive — the LLM coins its own register name and
-    layout pattern; we only enforce shape (string lengths, hex-colour
-    format, sensible numeric ranges) so a malformed block can't blow
-    up the prompt template."""
+    # Intentionally permissive — LLM coins its own register name; we only
+    # enforce shape so a malformed block can't blow up the template.
     if not isinstance(design, dict):
         return None
     out: dict = {}
@@ -1115,17 +1040,7 @@ _FENCE_RE = re.compile(r"```(?:[a-zA-Z0-9_+-]*)?\s*\n?(.*?)\s*```", re.DOTALL)
 
 
 def extract_plan_from_reply(reply: str) -> Optional[dict]:
-    """Pull a plan dict out of an LLM reply.
-
-    Strategy:
-    1. Look for the LAST fenced ```json``` block (or any fenced block) and
-       try to parse it. We take the last one because the LLM may include
-       inline JSON examples earlier in the reply.
-    2. If that fails, find the outermost balanced object that contains a
-       ``"summary"`` key and try to parse it.
-
-    Returns None if no parsable plan was found (the AI may have asked a
-    clarifying question instead of producing a plan)."""
+    """Pull a plan dict from an LLM reply. Returns None if no plan was found."""
     if not reply:
         return None
 
@@ -1167,12 +1082,7 @@ def _resolve_llm(brain: Any, db: Any, project_llm_name: Optional[str]):
 
 
 def _stream_complete(llm, prompt: str) -> Iterable[str]:
-    """Iterate the LLM's deltas as plain text chunks.
-
-    We use ``stream_complete`` (sync iterator) because every LlamaIndex LLM
-    backend implements it and it's what `restai/projects/rag.py:236` uses.
-    Each ``token_response`` has ``.delta`` (the new text chunk).
-    """
+    # stream_complete (sync) is implemented across every LlamaIndex LLM backend.
     try:
         stream = llm.llm.stream_complete(prompt)
     except Exception as e:
@@ -1201,14 +1111,7 @@ def _stream_complete(llm, prompt: str) -> Iterable[str]:
 
 
 def _format_messages_for_complete(messages: list[dict]) -> str:
-    """Flatten a chat-style message list into a single prompt suitable
-    for ``llm.llm.complete`` / ``stream_complete``.
-
-    We use ``stream_complete`` rather than ``stream_chat`` because every
-    LlamaIndex LLM (including local Ollama, OpenAI-compatible, Anthropic,
-    etc.) implements it; ``stream_chat`` is patchier across providers.
-    The system prompt is injected by the caller and prepended here.
-    """
+    # Use complete (not chat) — chat is patchier across LlamaIndex providers.
     parts: list[str] = []
     for m in messages:
         role = (m.get("role") or "").strip().lower()
@@ -1231,16 +1134,10 @@ def stream_plan(
     *,
     project_id: Optional[int] = None,
 ) -> Generator[tuple[str, dict], None, None]:
-    """Stream the LLM's planning reply.
+    """Stream the LLM's planning reply. project_id appends a project snapshot.
 
-    When ``project_id`` is provided, an EXISTING PROJECT SNAPSHOT block
-    (file index + full content of shared-infra files) is appended to the
-    system prompt so refinement turns plan against real on-disk state
-    instead of guessing.
-
-    Yields ``("plan_chunk", {"text": delta})`` for each LLM delta, then a
-    single ``("plan_complete", {"plan": dict|None, "reply": str, "tokens":
-    {"input": int, "output": int}})``.
+    Yields ("plan_chunk", {"text": delta}) deltas then one
+    ("plan_complete", {"plan": dict|None, "reply": str, "tokens": {...}}).
     """
     if not isinstance(messages, list) or not messages:
         raise ValueError("messages must be a non-empty list")
@@ -1292,17 +1189,10 @@ def _pick_relevant_files(
     candidates: list[str],
     max_files: int = 6,
 ) -> list[str]:
-    """Choose which already-written files to attach to the prompt as
-    full content. Heuristics, in priority order:
+    """Pick already-written files to attach as full content (capped at max_files).
 
-    1. ALWAYS include shared infra files: `src/App.tsx`, `src/theme.ts`,
-       `src/api.ts`, `public/api/_db.php`, `public/index.html`. View
-       components import from App / theme / api; PHP API files
-       require_once _db.php; references to index.html are common.
-    2. Include files in the same directory as the target.
-    3. Fill remaining slots with most-recent (end of list) candidates.
-
-    Returns at most `max_files` paths."""
+    Order: shared infra (App/theme/api/_db/index.html) → same-directory → most-recent.
+    """
     chosen: list[str] = []
     seen = set()
 
@@ -1352,9 +1242,10 @@ _PLANNER_SHARED_INFRA = (
 
 
 def _build_project_snapshot(project_id: int) -> str:
-    """For follow-up planning: the file index + full content of the
-    shared-infra files actually present on disk. Returns "" when the
-    project is empty (initial build — no snapshot needed)."""
+    """File index + full shared-infra content for refinement planning.
+
+    Returns "" when the project is empty (no snapshot needed on initial build).
+    """
     from restai.app.storage import get_project_root, EDITABLE_EXTENSIONS
     root = get_project_root(project_id)
     if not root.exists():
@@ -1408,9 +1299,7 @@ def _read_file_contents_for_prompt(
     per_file_cap: int = 6000,
     total_cap: int = 24000,
 ) -> dict[str, str]:
-    """Read the actual on-disk content of `paths` for the prompt. Caps:
-    per-file truncation + total budget so we don't blow the context
-    window on a project with very long files."""
+    # Per-file + total caps bound prompt size on projects with long files.
     from restai.app.storage import get_project_root
     root = get_project_root(project_id)
     if not root.exists():
@@ -1533,15 +1422,10 @@ def generate_contracts(
     project_llm_name: Optional[str],
     plan: dict,
 ) -> tuple[str, dict]:
-    """Sketch the shared contracts for a build (interfaces, function
-    signatures, SQL schemas) BEFORE any code is generated. The output
-    is a Markdown string that gets passed into every per-file LLM call,
-    so cross-file references (function names, response shapes, column
-    names) stay consistent.
+    """Sketch shared contracts (interfaces / signatures / SQL) before code gen.
 
-    Returns ``(contracts_markdown, {"input": int, "output": int})``.
-    Returns ``("", {...})`` if the plan is too small to need contracts
-    (a single-file fix-up doesn't benefit from this pass)."""
+    Returns (contracts_md, tokens_dict). Returns ("", ...) for tiny plans.
+    """
     files = []
     for ph in plan.get("phases") or []:
         files.extend(ph.get("files") or [])
@@ -1642,13 +1526,7 @@ def generate_tests(
     plan: dict,
     contracts: str,
 ) -> tuple[str, dict]:
-    """Generate ONE PHP test file (`tests/api.php`) from the plan +
-    contracts. Returns ``(test_file_content, {"input", "output"})``.
-
-    Returns ``("", {...})`` and skips the LLM call when:
-    - no `public/api/*.php` files in the plan (backendless app — nothing to test)
-    - contracts pass produced empty output (plan was too small to bother)
-    """
+    """Generate tests/api.php from the plan + contracts. Skips when no APIs in plan."""
     if not contracts:
         return "", {"input": 0, "output": 0}
 
@@ -1762,16 +1640,8 @@ def inline_fix_files(
     target_paths: list[str],
     project_id: int,
 ) -> tuple[dict[str, str], dict]:
-    """Mid-build fix turn — repair files between phases.
-
-    Returns ``(file_contents_by_path, {"input": int, "output": int})``.
-    On parse / LLM failure returns ``({}, {...})`` so the build can
-    continue degraded rather than abort.
-
-    `target_paths` constrains what the LLM is allowed to rewrite (only
-    files written by THIS phase or earlier). Any file in the response
-    outside the target list is dropped.
-    """
+    """Mid-build fix turn. Returns ({path: content}, tokens). target_paths
+    constrains writes; out-of-list files are dropped. Returns ({}, ...) on failure."""
     if not target_paths or not issues:
         return {}, {"input": 0, "output": 0}
     llm = _resolve_llm(brain, db, project_llm_name)
@@ -1874,23 +1744,7 @@ def stream_file_content(
     project_id: Optional[int] = None,
     contracts: Optional[str] = None,
 ) -> Generator[tuple[str, dict], None, None]:
-    """Generate one file's contents from the approved plan.
-
-    `phase` is the current phase dict; when provided, the LLM gets
-    phase-scoped context.
-    `already_written` is the list of file paths written by previous
-    phases / earlier files in this phase, so the LLM can reference them
-    by exact path instead of guessing.
-    `project_id`, when provided, lets the function read the ACTUAL
-    content of relevant already-written files from disk and inject them
-    into the prompt — the LLM sees real code instead of just paths.
-    `contracts` is the optional sketch-then-fill output (TS interface
-    signatures, PHP function signatures, SQL CREATE TABLE) so every file
-    targets the same contracts.
-
-    Yields ``("file_delta", {"path", "text"})`` for each LLM delta, then
-    ``("file_done", {"path", "content", "tokens"})`` with the final full
-    text. The caller writes to disk + emits to SSE."""
+    """Generate one file's contents. Yields ("file_delta", ...) then ("file_done", ...)."""
     llm = _resolve_llm(brain, db, project_llm_name)
     path = validate_file_path(file_spec["path"])
     purpose = file_spec.get("purpose", "")
@@ -2022,12 +1876,7 @@ def fix_file_with_ai(
     current_content: str,
     instruction: str,
 ) -> tuple[str, dict]:
-    """Single-file targeted edit. Returns ``(new_content, {input, output})``.
-
-    Same SPA-architecture system prompt as the plan/execute flow so fixes
-    don't drift back to PHP-rendered HTML. Synchronous (non-streaming) —
-    the per-file fix UX is a quick edit, not a long-running flow.
-    """
+    """Single-file targeted edit. Sync (non-streaming)."""
     llm = _resolve_llm(brain, db, project_llm_name)
     validate_file_path(path)
     if len(current_content.encode("utf-8", errors="ignore")) > MAX_FILE_BYTES:
@@ -2068,8 +1917,7 @@ def fix_file_with_ai(
 
 
 def _estimate_tokens(brain: Any, text: str) -> int:
-    """Best-effort token count using Brain's tokenizer. Returns 0 on
-    failure rather than blowing up the cost-logging path."""
+    # Returns 0 on failure rather than blowing up the cost-logging path.
     if not text:
         return 0
     try:

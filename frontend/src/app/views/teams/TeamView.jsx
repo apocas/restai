@@ -22,8 +22,7 @@ import api from "app/utils/api";
 import { PROJECT_TYPE_COLORS } from "app/utils/constant";
 import { FONT_MONO, sweep, pulse, shimmer, blink } from "app/components/page/pageStyles";
 
-// Same per-type pixel-avatar palette as the projects list / library
-// cards so a project's pixel identity stays consistent across the app.
+// Per-type pixel-avatar palette shared with projects list / library cards.
 const PROJECT_AVATAR_PALETTES = {
   rag:   ["#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd", "#1e1b4b"],
   agent: ["#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#064e3b"],
@@ -45,9 +44,6 @@ function ProjectPixelAvatar({ project, size = 32 }) {
   );
 }
 
-// One quiet platform accent. The previous file declared a 7-color
-// SECTION map that left every team page looking like a status board;
-// this matches the calmer Evals / Logs / Project sub-pages.
 const ACCENT = "#0891b2";        // cyan-600
 const ACCENT_SOFT = "rgba(8,145,178,0.10)";
 
@@ -57,8 +53,6 @@ const Container = styled("div")(({ theme }) => ({
   [theme.breakpoints.down("sm")]: { margin: 16 },
 }));
 
-// Hero card retains the navy/cyan mesh used everywhere else in the
-// app so the team landing page stays in the wider visual family.
 const HeroCard = styled(Card)(({ theme }) => ({
   position: "relative",
   padding: theme.spacing(4),
@@ -153,10 +147,8 @@ const heroIconBtnSx = {
   },
 };
 
-// Body section card — mirrors `sectionShellSx` from the project
-// Integrations kit so team pages sit in the same visual family as the
-// rest of the platform: thin animated accent sweep at the top, soft
-// border, no hover lift (full-page surface, not a list tile).
+// Mirrors `sectionShellSx` from the project Integrations kit so team pages
+// match the rest of the platform.
 const sectionCardSx = {
   position: "relative",
   borderRadius: 2,
@@ -178,10 +170,6 @@ const sectionCardSx = {
   },
 };
 
-// Section header strip — mono-uppercase title in slate (matching the
-// rest of the platform's section headers), small slate icon, optional
-// count pill. Plain dark text without the accent rainbow that used to
-// shout at the user.
 function SectionHeader({ icon: Icon, title, subtitle, count, action }) {
   return (
     <Box
@@ -238,9 +226,7 @@ function SectionHeader({ icon: Icon, title, subtitle, count, action }) {
   );
 }
 
-// Team / generic name avatar — initial in muted slate. Used only for
-// non-user surfaces (team hero) since teams don't have an email to
-// hash against Gravatar.
+// Initial-in-slate avatar for team hero (teams lack a Gravatar email).
 function NameAvatar({ name, size = 30 }) {
   const initial = (name || "?").trim().charAt(0).toUpperCase();
   return (
@@ -264,10 +250,6 @@ function NameAvatar({ name, size = 30 }) {
   );
 }
 
-// Member / admin row avatar — Gravatar identicon, matching the
-// platform-wide pattern used on Users list / project members.
-// Admin ring is cyan (matches platform accent) to distinguish from
-// regular members without going back to the old red.
 function UserGravatar({ username, isAdmin = false, size = 30 }) {
   const ring = isAdmin ? ACCENT : "rgba(15,23,42,0.12)";
   return (
@@ -582,7 +564,6 @@ export default function TeamView() {
 
   return (
     <Container>
-      {/* ── HERO ──────────────────────────────────────────────── */}
       <HeroCard elevation={0}>
         <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2.5, flexWrap: "wrap" }}>
           <NameAvatar name={team.name} size={64} />
@@ -694,7 +675,6 @@ export default function TeamView() {
         </ActionBar>
       </HeroCard>
 
-      {/* ── BUDGET BAR (only when capped) ────────────────────── */}
       {hasBudget && (
         <Card variant="outlined" sx={{ ...sectionCardSx, mb: 2.5 }}>
           <Box sx={{ p: 2.5 }}>
@@ -744,7 +724,6 @@ export default function TeamView() {
         </Card>
       )}
 
-      {/* ── PEOPLE — Members + Admins side by side ──────────── */}
       <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
         <Grid item xs={12} md={6}>
           <Card variant="outlined" sx={sectionCardSx}>
@@ -794,7 +773,6 @@ export default function TeamView() {
         </Grid>
       </Grid>
 
-      {/* ── PROJECTS — full width, 3-col grid of items ──────── */}
       <Box sx={{ mb: 2.5 }}>
         <Card variant="outlined" sx={sectionCardSx}>
           <SectionHeader
@@ -847,7 +825,6 @@ export default function TeamView() {
         </Card>
       </Box>
 
-      {/* ── MODELS — 4 inline panels in a single row ───────── */}
       <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
         <Grid item xs={12} sm={6} lg={3}>
           <Card variant="outlined" sx={sectionCardSx}>
@@ -923,7 +900,6 @@ export default function TeamView() {
         </Grid>
       </Grid>
 
-      {/* ── TRANSACTIONS — admin-only collapsible at bottom ─── */}
       {isTeamAdmin && (
         <CollapsiblePanel
           title={t("teams.view.transactions")}

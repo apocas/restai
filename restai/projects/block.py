@@ -51,7 +51,6 @@ class Block(ProjectBase):
             yield output
             return
 
-        # Load session and add user message
         session = await get_session(self.brain, chat_id)
         session.messages.append(user_text_message(chat_model.question))
 

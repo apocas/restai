@@ -25,9 +25,6 @@ const Container = styled("div")(({ theme }) => ({
   [theme.breakpoints.down("sm")]: { margin: 16 },
 }));
 
-// Per-endpoint accents — every section card gets a coloured rail + glow
-// + chip tint so the page reads as four distinct surfaces, not one
-// monotone scroll. Same vocabulary as the project library cards.
 const ENDPOINT_ACCENTS = {
   chat:       { color: "#10b981", soft: "rgba(16,185,129,0.12)" }, // emerald
   embeddings: { color: "#6366f1", soft: "rgba(99,102,241,0.12)" }, // indigo
@@ -35,8 +32,6 @@ const ENDPOINT_ACCENTS = {
   audio:      { color: "#0891b2", soft: "rgba(8,145,178,0.12)"  }, // cyan
 };
 
-// ── Section card — same anatomy as the project library cards
-// (accent rail, hover glow), but bigger and laid out for docs.
 const SectionCard = styled(Card, {
   shouldForwardProp: (p) => p !== "accent",
 })(({ accent }) => ({
@@ -76,9 +71,6 @@ const SectionCard = styled(Card, {
   },
 }));
 
-// ── Terminal-style code block: dark slate background, traffic-light
-// dots in the title bar, language label, copy button. Matches the
-// "alive AI platform" vibe of the page hero.
 function CodeTerminal({ language, code }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
@@ -109,7 +101,6 @@ function CodeTerminal({ language, code }) {
           backgroundColor: "rgba(255,255,255,0.02)",
         }}
       >
-        {/* Traffic-light dots */}
         <Box sx={{ display: "flex", gap: 0.6, mr: 1 }}>
           {["#ff5f57", "#febc2e", "#28c840"].map((c) => (
             <Box
@@ -164,8 +155,6 @@ function CodeTerminal({ language, code }) {
           color: "#cbd5e1",
           overflowX: "auto",
           tabSize: 4,
-          // Subtle horizontal cyan glow at the bottom — a thin
-          // "connection" cue that ties this to the page hero.
           background:
             "linear-gradient(180deg, rgba(255,255,255,0) 70%, rgba(56,189,248,0.04))",
         }}
@@ -176,9 +165,6 @@ function CodeTerminal({ language, code }) {
   );
 }
 
-// ── Per-section block: header strip with icon + title + endpoint
-// pill, available-models row, then a code-sample area with language
-// tabs.
 function EndpointSection({
   accentKey, icon, title, endpoint, description, models,
   modelLabel, emptyWarning, samples,
@@ -254,7 +240,6 @@ function EndpointSection({
         </Typography>
       </Box>
 
-      {/* Available models */}
       <Box sx={{ px: 3, pb: 2.5 }}>
         {models && models.length > 0 ? (
           <Box>
@@ -300,7 +285,6 @@ function EndpointSection({
         )}
       </Box>
 
-      {/* Code samples — language tabs */}
       <Box sx={{ borderTop: "1px solid rgba(15,23,42,0.06)", backgroundColor: "rgba(15,23,42,0.015)" }}>
         <Tabs
           value={tab}
@@ -356,7 +340,6 @@ export default function DirectAccess() {
         const data = await api.get("/direct/models", user.token);
         setModels(data);
       } catch (error) {
-        // errors auto-toasted
       } finally {
         setLoading(false);
       }
@@ -394,7 +377,6 @@ export default function DirectAccess() {
         ]}
       />
 
-      {/* Base URL banner — terminal-style strip with copy */}
       <Box
         sx={{
           mb: 3,
@@ -451,7 +433,6 @@ export default function DirectAccess() {
         </Tooltip>
       </Box>
 
-      {/* Tip banner */}
       <Alert
         severity="info"
         variant="outlined"
@@ -470,7 +451,6 @@ export default function DirectAccess() {
         />
       </Alert>
 
-      {/* ── LLMs / Chat ───────────────────────────────────────── */}
       <EndpointSection
         accentKey="chat"
         icon={<Psychology />}
@@ -526,7 +506,6 @@ for chunk in stream:
         ]}
       />
 
-      {/* ── Embeddings ────────────────────────────────────────── */}
       <EndpointSection
         accentKey="embeddings"
         icon={<DataArray />}
@@ -580,7 +559,6 @@ for item in response.data:
         ]}
       />
 
-      {/* ── Image generation ──────────────────────────────────── */}
       <EndpointSection
         accentKey="images"
         icon={<Image />}
@@ -623,7 +601,6 @@ print(response.data[0].b64_json[:50] + "...")`,
         ]}
       />
 
-      {/* ── Audio transcription ───────────────────────────────── */}
       <EndpointSection
         accentKey="audio"
         icon={<Speaker />}

@@ -9,7 +9,6 @@ from restai.project import Project
 
 
 def check_budget(project: Project, db: DBWrapper):
-    """Pre-check budget before inference. Raises HTTP 402 if exhausted."""
     team = project.props.team
     if team is not None and team.budget >= 0:
         team_spending = db.get_team_spending(team.id)
@@ -30,7 +29,6 @@ def check_budget(project: Project, db: DBWrapper):
 
 
 def check_rate_limit(project: Project, db: DBWrapper):
-    """Pre-check rate limit before inference. Raises HTTP 429 if exceeded."""
     rate_limit = project.props.options.rate_limit
     if rate_limit is None:
         return
@@ -48,9 +46,6 @@ def check_rate_limit(project: Project, db: DBWrapper):
 
 
 def _first_of_next_month(now: datetime) -> datetime:
-    """Return the UTC first-of-next-month at 00:00. Monthly quotas roll
-    over on calendar boundaries — simplest semantics to reason about
-    when a customer asks 'when does my quota reset?'."""
     y, m = now.year, now.month
     if m == 12:
         return datetime(y + 1, 1, 1, tzinfo=timezone.utc)
@@ -62,10 +57,7 @@ def check_api_key_quota(user, db: DBWrapper):
     monthly token quota. No-op for basic/cookie auth (no api_key_id) and
     for keys with `token_quota_monthly = NULL` (unlimited).
 
-    Rolls the counter over lazily: if `quota_reset_at` is in the past,
-    zero `tokens_used_this_month` and set a new reset date before
-    checking the cap. Cheaper than a scheduled job and bounded to one
-    write per key per month."""
+    Rolls the counter over lazily on first check after `quota_reset_at`."""
     api_key_id = getattr(user, "api_key_id", None)
     if api_key_id is None:
         return
@@ -81,7 +73,6 @@ def check_api_key_quota(user, db: DBWrapper):
         db.db.commit()
 
     if (key.tokens_used_this_month or 0) >= key.token_quota_monthly:
-        # 429 (same as rate limit); detail string disambiguates.
         raise HTTPException(
             status_code=429,
             detail=(
@@ -93,9 +84,6 @@ def check_api_key_quota(user, db: DBWrapper):
 
 
 def record_api_key_tokens(api_key_id: int, tokens: int, db: DBWrapper) -> None:
-    """Bump ``tokens_used_this_month`` after a successful inference. Silent
-    on unknown key id — the key may have been deleted between auth and
-    log write."""
     if not api_key_id or tokens <= 0:
         return
     key = db.db.query(ApiKeyDatabase).filter(ApiKeyDatabase.id == api_key_id).first()

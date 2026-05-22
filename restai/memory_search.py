@@ -45,23 +45,16 @@ _REMOTE_CACHE_KEY = "__remote__"
 
 
 def _store_path() -> str:
-    """Local-mode root dir. Ignored when ``CHROMADB_HOST`` is set."""
     return os.path.join(EMBEDDINGS_PATH, "_memory")
 
 
 def _legacy_project_dir(project_id: int) -> str:
-    """Path used by an earlier per-project-subdir layout. Kept around
-    purely so `delete_project` can sweep stale dirs left over from that
-    layout — new code never writes there."""
+    """Legacy per-project-subdir layout. Kept so `delete_project` can sweep stale dirs."""
     return os.path.join(_store_path(), str(int(project_id)))
 
 
 def _get_client():
-    """Return the Chroma client appropriate for the current deployment.
-
-    Mirrors ``restai/vectordb/chromadb.py:_get_client`` so admins flipping
-    the ``CHROMADB_HOST`` setting get the same behavior across RAG and
-    memory search. `_cfg.X` reads the live DB value on every call."""
+    """Mirrors `restai/vectordb/chromadb.py:_get_client`. `_cfg.X` reads live DB on every call."""
     host = _cfg.CHROMADB_HOST
     if host:
         cached = _client_cache.get(_REMOTE_CACHE_KEY)
@@ -79,8 +72,6 @@ def _get_client():
 
 
 def _collection_name(project_id: int) -> str:
-    """Per-project collection name. Same in local and remote modes so
-    we have a single code path for indexing / search / delete."""
     return f"memory_{int(project_id)}"
 
 
@@ -136,9 +127,6 @@ def get_indexed_embedding_model(project_id: int) -> Optional[str]:
 def set_indexed_embedding_model(project_id: int, name: str) -> None:
     coll = _get_or_create_collection(project_id)
     _write_meta(coll, embedding_model=name)
-
-
-# ─── Index / search / delete ────────────────────────────────────────────
 
 
 def index_turn(
@@ -213,35 +201,23 @@ def search(
 
 
 def reset_collection(project_id: int) -> None:
-    """Drop and recreate the collection — used when the project's
-    embedding name changes (existing vectors are no longer dimensionally
-    or semantically comparable to new ones, so the only honest answer
-    is to rebuild)."""
+    """Drop + recreate when the project's embedding name changes (incompatible vectors)."""
     name = _collection_name(project_id)
     try:
         _get_client().delete_collection(name=name)
     except Exception:
         pass
-    # `get_or_create` will rebuild on next access.
 
 
 def delete_project(project_id: int) -> None:
-    """Cascade-delete the project's memory index. Drops the collection
-    on the active Chroma client (local or remote) and sweeps any stale
-    per-project dir from a previous layout. Tolerates a missing
-    collection so this is safe to call regardless of whether the
-    project ever indexed anything."""
+    """Cascade-delete the project's memory index. Tolerates missing collections."""
     name = _collection_name(project_id)
     try:
         _get_client().delete_collection(name=name)
     except Exception as e:
-        # Collection-not-found is the common case here; log at debug
-        # level so a project that never indexed doesn't pollute logs
-        # on delete.
+        # Collection-not-found is the common case.
         logger.debug("memory_search: delete_collection(%s) failed: %s", name, e)
-    # Local-mode legacy cleanup. Older versions stored per-project
-    # subdirs under <root>/<project_id>/; if one exists, wipe it.
-    # No-op for remote mode (the dir doesn't exist there).
+    # Legacy local-mode cleanup; no-op in remote mode.
     legacy = _legacy_project_dir(project_id)
     if os.path.isdir(legacy):
         try:

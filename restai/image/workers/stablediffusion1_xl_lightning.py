@@ -21,9 +21,7 @@ def worker(prompt, sharedmem):
     base = "stabilityai/stable-diffusion-xl-base-1.0"
     repo = "ByteDance/SDXL-Lightning"
     ckpt = "sdxl_lightning_4step_unet.safetensors"
-    # Derived from gpu_worker_devices in /admin/gpu (first index in
-    # the worker pool, "cuda:N"). Use _cfg.X — a `from … import …`
-    # would freeze the value at module load.
+    # Use `_cfg.X` — a `from ... import ...` would freeze the value at module load.
     default_device = _cfg.RESTAI_DEFAULT_DEVICE
 
     unet = UNet2DConditionModel.from_config(base, subfolder="unet").to(default_device, torch.float16)

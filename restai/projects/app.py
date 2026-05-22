@@ -18,17 +18,7 @@ _BUILDER_HINT = (
 
 
 class App(ProjectBase):
-    """App-builder project type.
-
-    Holds a generated TypeScript-frontend + PHP-backend + SQLite app on disk.
-    Source files live at <install_root>/apps/<project_id>/ and are edited via
-    the /builder UI; a Docker container previews them live and deploy ships
-    the result via FTP/SFTP or ZIP. The LLM attached to the project is used
-    only at builder-time for code generation — it is never called from this
-    handler. chat() / question() return a hint pointing the caller to the
-    builder rather than raising, so the existing chat UI doesn't choke when
-    a user lands on the playground for an app project.
-    """
+    """App-builder project type; chat/question return a builder hint instead of calling an LLM."""
 
     async def chat(self, project: Project, chat_model: ChatModel, user: User, db: DBWrapper):
         chat_id = chat_model.id or str(uuid4())

@@ -24,9 +24,8 @@ logging.basicConfig(level=config.LOG_LEVEL)
 
 router = APIRouter()
 
-# --- DB-backed rate limiter for auth endpoints ---
 _LOGIN_MAX_ATTEMPTS = 10
-_LOGIN_WINDOW_SECONDS = 300  # 5 minutes
+_LOGIN_WINDOW_SECONDS = 300
 
 
 def _check_login_rate_limit(request: Request, db_wrapper: DBWrapper):
@@ -36,7 +35,6 @@ def _check_login_rate_limit(request: Request, db_wrapper: DBWrapper):
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(seconds=_LOGIN_WINDOW_SECONDS)
 
-    # Count recent attempts for this IP
     count = (
         db_wrapper.db.query(LoginAttemptDatabase)
         .filter(
@@ -48,11 +46,10 @@ def _check_login_rate_limit(request: Request, db_wrapper: DBWrapper):
     if count >= _LOGIN_MAX_ATTEMPTS:
         raise HTTPException(status_code=429, detail="Too many login attempts. Try again later.")
 
-    # Record this attempt
     db_wrapper.db.add(LoginAttemptDatabase(ip=ip, attempted_at=now))
     db_wrapper.db.commit()
 
-    # Periodic cleanup: delete old entries (runs ~1% of requests to avoid overhead)
+    # Probabilistic cleanup (~1% of requests) to avoid query overhead per call.
     import random
     if random.random() < 0.01:
         db_wrapper.db.query(LoginAttemptDatabase).filter(
@@ -67,14 +64,7 @@ def _rate_limit_dependency(request: Request, db_wrapper: DBWrapper = Depends(get
 
 
 def _password_age_warning(user_db, db_wrapper) -> Optional[dict]:
-    """Return a soft warning dict when the user's password is older than
-    the admin-configured `password_max_age_days` setting. Returns None
-    when the feature is disabled (max_age=0), the user has no password
-    (SSO/LDAP), or the timestamp is missing (legacy row pre-migration).
-
-    Soft-only by design: we never block login on stale credentials —
-    forcing rotation creates worse outcomes than nudging it. The UI can
-    show a banner when this field appears in the response."""
+    """Soft warning when password older than `password_max_age_days`; never blocks login."""
     try:
         max_days = int(db_wrapper.get_setting_value("password_max_age_days", "0") or "0")
     except (TypeError, ValueError):
@@ -109,24 +99,14 @@ async def login(
     """Authenticate and receive a session cookie. If 2FA is enabled, returns a temporary token instead."""
     user_db = db_wrapper.get_user_by_username(user.username)
     if user_db and user_db.totp_enabled:
-        # Return temp token for TOTP verification (5 min expiry)
         totp_token = create_access_token(
             data={"username": user.username, "purpose": "totp_verify"},
             expires_delta=timedelta(minutes=5),
         )
         return {"requires_totp": True, "totp_token": totp_token}
 
-    # Platform-wide 2FA mandate: if the admin has flipped `enforce_2fa`
-    # and this user hasn't enrolled in TOTP yet, refuse to mint a
-    # session. Without this, the setting was only enforced on the
-    # /totp/disable endpoint and in UI status — the actual auth gate
-    # let un-enrolled users in with a full cookie, defeating the
-    # mandate entirely.
-    #
-    # Bootstrap: if everyone is locked out, an admin can temporarily
-    # disable enforce_2fa via the settings endpoint (admin endpoints
-    # honor existing sessions), have users enroll, then re-enable.
-    # Admins can also impersonate users to enroll on their behalf.
+    # Enforce platform-wide `enforce_2fa` at the auth gate (not just on disable).
+    # Bootstrap escape: admin can disable enforce_2fa via settings, have users enroll, re-enable.
     if user_db and not user_db.totp_enabled and db_wrapper.get_setting_value(
         "enforce_2fa", "false"
     ).lower() in ("true", "1"):
@@ -139,7 +119,6 @@ async def login(
             ),
         )
 
-    # Normal login — no 2FA
     jwt_token = create_access_token(
         data={"username": user.username}, expires_delta=timedelta(minutes=1440)
     )
@@ -168,7 +147,6 @@ async def verify_totp(
 ):
     """Complete 2FA login by verifying a TOTP code or recovery code."""
     _check_login_rate_limit(request, db_wrapper)
-    # Decode temp token
     try:
         data = jwt.decode(body.token, RESTAI_AUTH_SECRET, algorithms=["HS512"])
         if data.get("purpose") != "totp_verify":
@@ -181,12 +159,10 @@ async def verify_totp(
     if user_db is None or not user_db.totp_enabled or not user_db.totp_secret:
         raise HTTPException(status_code=401, detail="Invalid TOTP configuration")
 
-    # Try TOTP code first
     try:
         secret = decrypt_totp_secret(user_db.totp_secret)
         totp = pyotp.TOTP(secret)
         if totp.verify(body.code, valid_window=1):
-            # Valid TOTP code — create session
             jwt_token = create_access_token(
                 data={"username": username}, expires_delta=timedelta(minutes=1440)
             )
@@ -202,7 +178,6 @@ async def verify_totp(
     except Exception:
         pass
 
-    # Try recovery code
     if user_db.totp_recovery_codes:
         try:
             codes = json.loads(user_db.totp_recovery_codes)
@@ -212,7 +187,6 @@ async def verify_totp(
                     matched_code = stored_hash
                     break
             if matched_code is not None:
-                # Consume the recovery code
                 codes.remove(matched_code)
                 user_db.totp_recovery_codes = json.dumps(codes)
                 db_wrapper.db.commit()
@@ -262,14 +236,8 @@ async def impersonate_user(
     if target is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Mint a *purposed* restore token instead of copying admin's
-    # session JWT directly. The `purpose=impersonation_restore` claim
-    # locks this token to a single use case: the exit-impersonation
-    # endpoint. `get_current_username` rejects any cookie with a
-    # `purpose` claim, so even if `restai_token_admin` somehow got
-    # swapped into `restai_token` (browser quirk, hostile JS, manual
-    # devtools edit), it cannot authenticate as the admin user.
-    # Short expiry — impersonation is supposed to be brief.
+    # Purposed restore token (claim `impersonation_restore`); `get_current_username`
+    # rejects any cookie with a `purpose` claim so swap-into-restai_token can't auth as admin.
     admin_session_token = request.cookies.get("restai_token")
     if admin_session_token:
         restore_token = create_access_token(
@@ -284,7 +252,6 @@ async def impersonate_user(
             httponly=True,
         )
 
-    # Create token for target user
     jwt_token = create_access_token(
         data={"username": username},
         expires_delta=timedelta(minutes=1440),
@@ -315,10 +282,7 @@ async def exit_impersonation(
     if not admin_token:
         raise HTTPException(status_code=400, detail="Not currently impersonating")
 
-    # Validate the admin token is a valid JWT carrying the
-    # impersonation-restore purpose claim. A token without that
-    # claim — including a regular session JWT or anything an
-    # attacker might have synthesized from elsewhere — is rejected.
+    # Reject any token without the `impersonation_restore` purpose claim.
     try:
         data = jwt.decode(admin_token, RESTAI_AUTH_SECRET, algorithms=["HS512"])
     except jwt.PyJWTError:
@@ -329,15 +293,12 @@ async def exit_impersonation(
         response.delete_cookie(key="restai_token_admin")
         raise HTTPException(status_code=400, detail="Invalid admin token")
 
-    # Verify the token belongs to an admin user
     admin_user = db_wrapper.get_user_by_username(data.get("username", ""))
     if admin_user is None or not admin_user.is_admin:
         response.delete_cookie(key="restai_token_admin")
         raise HTTPException(status_code=400, detail="Invalid admin token")
 
-    # Mint a fresh, *non-purposed* session token for the admin —
-    # the purpose-bearing restore token must never end up in the
-    # session slot, where it'd be rejected by `get_current_username`.
+    # Fresh non-purposed session token; purpose-bearing tokens are rejected by `get_current_username`.
     admin_session_token = create_access_token(
         data={"username": admin_user.username},
         expires_delta=timedelta(minutes=1440),
@@ -361,15 +322,11 @@ async def exit_impersonation(
 async def logout(
     request: Request, response: Response, user: User = Depends(get_current_username)
 ):
-    """Clear the session cookie and log out.
+    """Clear session cookies and log out.
 
-    Both `restai_token` (current session) AND `restai_token_admin`
-    (the saved admin token used by the impersonation flow) are
-    deleted. Without clearing the admin cookie, an admin who
-    impersonates someone and then logs out leaves a dangling
-    admin-scoped JWT in the browser; whoever picks up the device
-    next can call `POST /auth/exit-impersonation` to swap that
-    cookie back into `restai_token` and become admin.
+    Both `restai_token` AND `restai_token_admin` deleted; otherwise an admin
+    who impersonates then logs out leaves a dangling admin-scoped JWT that
+    `POST /auth/exit-impersonation` could swap back into the session slot.
     """
     response.delete_cookie(key="restai_token")
     response.delete_cookie(key="restai_token_admin")

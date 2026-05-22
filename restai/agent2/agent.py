@@ -43,12 +43,7 @@ AgentMode = Literal["auto", "function_calling", "react"]
 
 
 class Agent2Runtime:
-    """A standalone (non-llamaindex) agent loop.
-
-    Construct one per run with the resolved provider, tools, system prompt,
-    and turn budget. Then call `run_iter()` to drive the loop and consume
-    `AgentEvent`s.
-    """
+    """Standalone (non-llamaindex) agent loop; one instance per run."""
 
     def __init__(
         self,
@@ -95,15 +90,11 @@ class Agent2Runtime:
         for turn in range(1, self.max_turns + 1):
             session.turn_count = turn
 
-            # Compress history if it's about to exceed the model's context
-            # window. Mutates session.messages in place; safe to call every
-            # turn — it's a no-op when we're under the threshold.
+            # Mutates session.messages in place; no-op when under the threshold.
             await self._maybe_compress_session(session)
 
             try:
                 if stream and self.mode != "react":
-                    # Streaming path: yield text_delta events as deltas arrive,
-                    # then return the assembled Message.
                     assistant_message = None
                     async for chunk in self._stream_turn_with_fallback(session, turn):
                         if isinstance(chunk, str):
@@ -148,10 +139,9 @@ class Agent2Runtime:
                 )
                 return
 
-            # Execute all tool calls from this turn in parallel — the LLM
-            # already decided they're independent by emitting them as a batch.
-            # Results are still appended (and yielded) in the original call
-            # order so the streaming protocol stays deterministic.
+            # Execute the turn's tool calls in parallel — the LLM decided they
+            # were independent by emitting them as a batch. Yield order matches
+            # call order so the streaming protocol stays deterministic.
             results = await asyncio.gather(
                 *(self._execute_tool_call(tc) for tc in tool_calls)
             )
@@ -160,11 +150,10 @@ class Agent2Runtime:
                 session.messages.append(tool_msg)
                 yield AgentEvent(type="tool_result", message=tool_msg, turn=turn)
 
-                # Hot-add newly created tools so they're usable this conversation
+                # Hot-add newly created tools so they're usable this conversation.
                 if tc.name == "create_tool" and not result_block.is_error and "created successfully" in result_block.content:
                     self._reload_project_tools()
 
-        # Hit the turn budget without producing a tool-free response
         yield AgentEvent(
             type="final",
             turn=session.turn_count,
@@ -174,14 +163,8 @@ class Agent2Runtime:
             },
         )
 
-    # ---------- per-turn helpers ----------
-
     async def _run_turn_with_fallback(self, session: AgentSession, turn: int) -> Message:
-        """Run one turn through the active mode, with native → ReAct fallback.
-
-        If the user picked auto mode and the first-turn native call fails,
-        swap to text-based ReAct for the rest of the run.
-        """
+        """Run one turn; in auto mode, swap native→ReAct on first-turn failure."""
         if self.mode == "react":
             return await self._react_turn(session)
         try:
@@ -201,13 +184,7 @@ class Agent2Runtime:
     async def _stream_turn_with_fallback(
         self, session: AgentSession, turn: int
     ) -> AsyncIterator[Union[str, Message]]:
-        """Streaming variant of `_run_turn_with_fallback`.
-
-        Yields text deltas as `str`, then the final `Message`. Native → ReAct
-        fallback only kicks in if the stream fails BEFORE any delta has been
-        emitted — once we've started streaming to the user we can't un-emit,
-        so mid-stream errors propagate.
-        """
+        """Streaming variant; native→ReAct fallback only before any delta is emitted."""
         emitted_any = False
         try:
             async for chunk in self._active_provider.stream_complete(
@@ -240,8 +217,7 @@ class Agent2Runtime:
             raise
 
     async def _maybe_compress_session(self, session: AgentSession) -> None:
-        """Run sliding-window + summary compression on the session if it's
-        over the context window. No-op when context_window is unknown."""
+        """Sliding-window + summary compression when over context window. No-op if window unknown."""
         cw = self._active_config.context_window
         if not cw:
             return
@@ -266,8 +242,7 @@ class Agent2Runtime:
         return self.config
 
     async def _native_turn(self, session: AgentSession) -> Message:
-        """Run one turn using native function calling. Provider sees the real
-        tools array; tool calls come back as structured ToolUseBlocks."""
+        """Native function calling — provider sees the tools array."""
         return await self._active_provider.complete(
             system_prompt=self.system_prompt,
             messages=session.messages,
@@ -276,9 +251,7 @@ class Agent2Runtime:
         )
 
     async def _react_turn(self, session: AgentSession) -> Message:
-        """Run one turn using text-based ReAct prompting. The provider does NOT
-        see a tools array — instead, the system prompt describes the tools and
-        the LLM emits Action/Action Input text that we parse out."""
+        """Text-based ReAct prompting; tools described in system prompt, none passed to provider."""
         react_system = build_react_system_prompt(self.system_prompt, self.tools)
         text_messages = self._react_messages(session.messages)
         response_msg = await self._active_provider.complete(
@@ -292,10 +265,10 @@ class Agent2Runtime:
 
     @staticmethod
     def _react_messages(messages: Sequence[Message]) -> list[Message]:
-        """Walk the session and rewrite any ToolUseBlock / ToolResultBlock into
-        plain text the model can read in ReAct format. The runtime keeps the
-        original blocks in `session.messages` so the project layer's reasoning
-        recorder still works — we only do the rewriting on the way to the LLM.
+        """Rewrite ToolUse/ToolResult blocks to plain text on the way to the LLM.
+
+        Original blocks stay in session.messages so the project layer's
+        reasoning recorder still works.
         """
         rewritten: list[Message] = []
         for msg in messages:
@@ -329,8 +302,7 @@ class Agent2Runtime:
 
     @staticmethod
     def _build_react_message(parsed: ReactParseResult) -> Message:
-        """Convert a parsed ReAct response into a synthetic assistant Message
-        the rest of the loop can treat identically to a native one."""
+        """Synthesize an assistant Message indistinguishable from a native turn's output."""
         if parsed.kind == "action" and parsed.action_name:
             blocks: list = []
             if parsed.thought:
@@ -353,7 +325,7 @@ class Agent2Runtime:
         return Message(role="assistant", content=[TextBlock(text=parsed.final_text or "")])
 
     def _reload_project_tools(self):
-        """Reload project-created tools from the DB and add any new ones to the runtime."""
+        """Reload project-created tools from DB and add new ones to the runtime."""
         project_id = getattr(self, "_project_id", None)
         brain = getattr(self, "_brain", None)
         if not project_id or not brain:
@@ -405,7 +377,7 @@ class Agent2Runtime:
                 is_error=True,
             )
 
-        # Truncate very long tool outputs to avoid blowing the context window
+        # Truncate to avoid blowing the context window.
         if len(result_text) > 20_000:
             omitted = len(result_text) - 20_000
             result_text = result_text[:20_000] + f"\n\n[... truncated {omitted} characters ...]"

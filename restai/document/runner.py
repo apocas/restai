@@ -5,12 +5,11 @@ from llama_index.readers.docling import DoclingReader
 import torch
 
 def worker(file_path: str, sharedmem):
-    """Worker process for loading documents using docling"""
+    """Worker process for loading documents using docling."""
     try:
         reader = DoclingReader()
         documents = reader.load_data(file_path=Path(file_path))
-        
-        # Convert documents to a format that can be shared via sharedmem
+
         docs_data = []
         for doc in documents:
             docs_data.append({
@@ -30,9 +29,9 @@ def worker(file_path: str, sharedmem):
             torch.cuda.empty_cache()
 
 def load_documents(manager, file_path: str):
-    """Load documents using docling in a separate process"""
+    """Load documents using docling in a separate process."""
     sharedmem = manager.dict()
-    
+
     p = Process(target=worker, args=(file_path, sharedmem))
     p.start()
     p.join()
@@ -44,7 +43,6 @@ def load_documents(manager, file_path: str):
     if not sharedmem.get('documents'):
         raise Exception("No documents were loaded")
 
-    # Convert back to Document objects
     from llama_index.core.schema import Document
     documents = []
     for doc_data in sharedmem['documents']:

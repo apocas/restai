@@ -1,4 +1,3 @@
-"""System-LLM helper for generating project system prompts from a short description."""
 from __future__ import annotations
 
 import logging
@@ -51,10 +50,7 @@ async def generate_system_prompt(
     description: str,
     project_type: Optional[str] = None,
 ) -> str:
-    """Use the system LLM to draft a project system prompt.
-
-    Raises ValueError if no system LLM is configured or the call fails.
-    """
+    """Raises ValueError if no system LLM configured or the call fails."""
     system_llm = brain.get_system_llm(db)
     if system_llm is None:
         raise ValueError("No system LLM is configured. Set one in Settings → Platform.")

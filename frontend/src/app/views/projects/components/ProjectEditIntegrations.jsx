@@ -63,7 +63,7 @@ export default function ProjectEditIntegrations({ state, setState, project }) {
       .finally(() => setWaTesting(false));
   };
 
-  if (state.type !== "rag" && state.type !== "agent") {
+  if (state.type !== "rag" && !state.type === "agent") {
     return (
       <ContentCard
         icon={<Hub />}

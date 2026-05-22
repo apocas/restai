@@ -14,17 +14,11 @@ function formatNumber(num) {
   return num.toLocaleString();
 }
 
-// Slow sweep used on the decorative accent strip (Users/Teams cards
-// that have no real sparkline data). Cheaper than an SVG animation and
-// visually implies "live" without being flashy.
 const sweep = keyframes`
   0%   { background-position:   0% 0; }
   100% { background-position: 200% 0; }
 `;
 
-// Inline SVG sparkline — no chart lib, so it stays cheap to render even
-// when six cards render at once. Values normalize to [0, 1] against the
-// local max so every card fills the box regardless of scale.
 function Sparkline({ values, accent }) {
   if (!values || values.length < 2) return null;
   const max = Math.max(...values, 1);
@@ -68,10 +62,6 @@ function Sparkline({ values, accent }) {
   );
 }
 
-// Stacked horizontal bar for categorical breakdowns (e.g. project
-// types). Each segment gets its own color and the widths are
-// proportional to counts. Used on the Projects card so it visually
-// matches the cards that have sparklines.
 function Breakdown({ items, accent }) {
   const total = items.reduce((s, i) => s + (i.count || 0), 0);
   if (total === 0) return null;
@@ -135,10 +125,6 @@ function Breakdown({ items, accent }) {
   );
 }
 
-// Decorative accent strip for cards that have neither a sparkline nor
-// a breakdown (Users, Teams). A gradient bar with a slow sweep so the
-// row carries the same visual weight as a sparkline without pretending
-// to show data that doesn't exist.
 function PulseBar({ accent }) {
   return (
     <Box sx={{ mt: 1.5 }}>
@@ -195,8 +181,8 @@ const StatRoot = styled(Card, {
   borderColor: theme.palette.divider,
   overflow: "hidden",
   transition: "transform 0.2s, box-shadow 0.2s, border-color 0.2s",
-  // Left accent bar as a pseudo-element so it paints under everything
-  // and can grow on hover without shifting layout.
+  // Pseudo-element so the accent paints under everything and can grow on
+  // hover without shifting layout.
   "&::before": {
     content: '""',
     position: "absolute",
@@ -270,9 +256,6 @@ function StatCard({ icon: Icon, value, label, accent, sparkline, breakdown }) {
         </Box>
       </Box>
 
-      {/* Footer: sparkline > breakdown > pulse bar, picked in that order so
-          every card has the same visual weight/height regardless of whether
-          its metric has time-series data. */}
       {hasSparkline ? (
         <Box sx={{ mt: 1.5, mx: -0.5, opacity: 0.85 }}>
           <Sparkline values={sparkline} accent={accent} />
@@ -295,30 +278,23 @@ export default function ProjectsStats({
   const { t } = useTranslation();
   const currencySymbol = CURRENCY_SYMBOLS[currency] || "$";
 
-  // Build per-metric sparkline sources from dailyTokens.
-  // Backend returns input_cost/output_cost (separate columns), not a
-  // pre-summed `cost` field — the old `d.cost || 0` always evaluated to 0,
-  // so the cost sparkline was rendering as a flat line.
+  // Backend returns input_cost/output_cost separately — `d.cost || 0` would
+  // always be 0 (flat-line sparkline).
   const tokenSeries = dailyTokens.map((d) => (d.input_tokens || 0) + (d.output_tokens || 0));
   const costSeries = dailyTokens.map((d) => (d.input_cost || 0) + (d.output_cost || 0));
-  // Per-day average latency (ms). Filter out zeros so quiet days don't pull
-  // the sparkline floor down to a meaningless baseline.
+  // Filter zeros so quiet days don't pull the sparkline floor down.
   const latencySeries = dailyTokens
     .map((d) => d.avg_latency_ms || 0)
     .filter((v) => v > 0);
 
-  // Prefer the platform-wide rolling average from /statistics/summary —
-  // averaging per-day averages would weight a 1-request day the same as a
-  // 10k-request day. Fall back to the per-day mean if summary is missing.
+  // Prefer the rolling avg from /statistics/summary — averaging per-day
+  // averages would weight a 1-req day the same as a 10k-req day.
   const avgLatency =
     summary?.avg_latency_ms ||
     (latencySeries.length > 0
       ? latencySeries.reduce((s, v) => s + v, 0) / latencySeries.length
       : null);
 
-  // Blue-family palette anchored on the theme's primary #1976d2.
-  // Cost keeps a red/rose accent — semantically money-coded — so it
-  // still pops against the blues and is immediately readable.
   const accentPrimary  = "#1976d2"; // theme primary
   const accentBlue600  = "#2563eb";
   const accentSky      = "#0ea5e9";
@@ -326,9 +302,6 @@ export default function ProjectsStats({
   const accentCyan     = "#06b6d4";
   const accentRose     = "#ef4444"; // cost — money = red
 
-  // Project type breakdown for the Projects card footer. Counts rag /
-  // agent / block from the projects list so the card matches height
-  // with the sparkline cards without rendering a fake time series.
   const typeCounts = projects.reduce(
     (acc, p) => {
       const t = (p.type || "").toLowerCase();

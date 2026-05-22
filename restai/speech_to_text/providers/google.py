@@ -1,18 +1,4 @@
-"""Google Cloud Speech-to-Text.
-
-Uses the `google-cloud-speech` package via API-key auth. Set the
-`api_key` option in the Speech-to-Text settings page. With an empty
-`api_key` the underlying SDK uses Google's Application Default
-Credentials (workload identity inside GKE, gcloud login on dev
-machines, etc.) — RESTai doesn't surface that as a configuration knob.
-
-Options recognized:
-- `api_key`         (optional) — Google API key with STT enabled.
-- `language_code`   (optional) — e.g. `"en-US"`. Falls back to the request's
-                                 `language` parameter, then `"en-US"`.
-- `model`           (optional) — `"latest_long"`, `"telephony"`, etc.
-- `sample_rate_hz`  (optional) — e.g. 16000. If omitted, autodetect.
-"""
+"""Google Cloud Speech-to-Text."""
 from __future__ import annotations
 
 

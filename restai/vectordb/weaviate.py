@@ -32,8 +32,7 @@ class WeaviateDB(VectorBase):
         self.embedding = embedding
         self.collection_name = _sanitize_collection_name(project.props.name)
 
-        # Pull live values via _cfg.X — admins changing these in the GUI
-        # take effect on the next VectorBase construction without a restart.
+        # Live read via `_cfg.X` — GUI changes apply on next construction without restart.
         host = _cfg.WEAVIATE_HOST
         port = int(_cfg.WEAVIATE_PORT)
         grpc_port = int(_cfg.WEAVIATE_GRPC_PORT)

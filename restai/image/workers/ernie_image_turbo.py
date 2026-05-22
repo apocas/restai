@@ -1,19 +1,4 @@
-"""Baidu ERNIE-Image-Turbo — DMD + RL distilled variant of ERNIE-Image.
-
-Same `ErnieImagePipeline` class as the base, swapped for the
-``baidu/ERNIE-Image-Turbo`` checkpoint. Distilled for short-step
-inference: 8 steps, no classifier-free guidance (CFG ~1.0).
-
-Defaults here target the Turbo settings; admins can flip back to the
-base via ``sharedmem["repo"] = "baidu/ERNIE-Image"`` and bumping
-``num_inference_steps``/``guidance_scale`` accordingly. (Or just use
-the `ernie_image` worker for that, which already defaults to 50/4.0.)
-
-Picks up automatically: `restai/image/registry.py:seed_local_generators`
-walks `image/workers/*.py` on every boot and creates a DB row.
-
-Shares `.venv-zimage` with the rest of the Z-Image / ERNIE family.
-"""
+"""Baidu ERNIE-Image-Turbo — DMD + RL distilled variant of ERNIE-Image."""
 import os
 
 

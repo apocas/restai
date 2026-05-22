@@ -21,10 +21,7 @@ async def test_webhook(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Fire a synthetic ``test`` event to the project's webhook URL.
-    Returns ``{ok: bool, reason?: str}``. ``ok=False`` when no URL is
-    configured, the URL is unsafe (private/internal), or the event
-    isn't in the project's subscribed set."""
+    """Fire a synthetic ``test`` event to the project's webhook URL."""
     proj = db_wrapper.get_project_by_id(projectID)
     if proj is None:
         raise HTTPException(status_code=404, detail="project not found")
@@ -49,11 +46,7 @@ async def rotate_webhook_secret(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Mint a fresh 32-byte URL-safe signing secret, encrypt it into the
-    project's options blob, and return the plaintext **once** — the
-    caller must capture it now; future GETs return only the masked
-    version. Existing receivers will need this value to verify
-    `X-RESTai-Signature` on subsequent fires."""
+    """Mint + encrypt a new signing secret; returns plaintext once."""
     proj = db_wrapper.get_project_by_id(projectID)
     if proj is None:
         raise HTTPException(status_code=404, detail="project not found")

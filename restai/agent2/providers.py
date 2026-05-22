@@ -1,10 +1,4 @@
-"""LLM provider implementations for agent2.
-
-These are thin wrappers around the raw `anthropic` and `openai` SDKs. They
-read configuration directly from RESTai's `LLMDatabase` rows (class_name +
-options dict) and translate between agent2's `Message` representation and
-the providers' wire formats.
-"""
+"""LLM provider implementations for agent2 (raw anthropic/openai SDKs)."""
 from __future__ import annotations
 
 import json
@@ -60,12 +54,7 @@ class Provider(ABC):
         tools: Sequence[AdaptedTool],
         config: ProviderConfig,
     ) -> AsyncIterator[Union[str, Message]]:
-        """Yield text deltas as `str`, then the final assembled `Message`.
-
-        Default implementation calls `complete()` and emits the full text as
-        a single chunk followed by the message — provides a working (but
-        non-streaming) fallback for providers that don't override.
-        """
+        """Yield text deltas as str, then the final Message. Default = non-streaming fallback."""
         msg = await self.complete(
             system_prompt=system_prompt,
             messages=messages,
@@ -81,8 +70,7 @@ class Provider(ABC):
 def _build_user_payload(
     text_parts: list[str], image_parts: list[dict], has_image: bool
 ) -> dict:
-    """OpenAI user message: list-form content when images are present, plain
-    string otherwise. Used by both OpenAIProvider and its Azure subclass."""
+    """OpenAI user message: list-form content with images, plain string otherwise."""
     if not has_image:
         return {"role": "user", "content": "\n".join(text_parts)}
     content: list[dict] = []
@@ -92,12 +80,8 @@ def _build_user_payload(
     return {"role": "user", "content": content}
 
 
-# ====================== OpenAI / OpenAI-compatible ======================
-
-
 class OpenAIProvider(Provider):
-    """Works for OpenAI, Ollama, Grok, OpenAILike, LiteLLM — anything
-    that exposes a `/v1/chat/completions` endpoint."""
+    """Any `/v1/chat/completions` endpoint: OpenAI, Ollama, Grok, OpenAILike, LiteLLM."""
 
     def __init__(self, config: ProviderConfig) -> None:
         try:
@@ -179,16 +163,14 @@ class OpenAIProvider(Provider):
             kwargs["max_tokens"] = config.max_output_tokens
 
         text_parts: list[str] = []
-        # OpenAI streams tool_calls fragmented by `index`; we accumulate
-        # name + arguments per index and assemble ToolUseBlocks at the end.
+        # OpenAI streams tool_calls fragmented by `index`; accumulate
+        # name + arguments per index and assemble ToolUseBlocks at end.
         tool_acc: dict[int, dict] = {}
         # Ollama 0.4+, OpenAI o1-series, OpenRouter and Anthropic-via-
-        # OpenAI-compat all surface chain-of-thought through a separate
-        # `reasoning_content` field (some builds use `reasoning`). We
-        # wrap that stream in `<think>…</think>` and inject it into the
-        # same text stream so the UI's existing splitThinking parser
-        # picks it up and renders the live "Thinking…" panel — no SSE
-        # protocol change, no per-provider branching downstream.
+        # OpenAI-compat surface chain-of-thought through `reasoning_content`
+        # (some builds use `reasoning`). Wrap in <think>…</think> and inject
+        # into the same text stream so the UI's existing splitThinking parser
+        # renders the live "Thinking…" panel — no SSE protocol change.
         thinking_open = False
 
         stream = await self._client.chat.completions.create(**kwargs)
@@ -228,10 +210,9 @@ class OpenAIProvider(Provider):
                     if getattr(fn, "arguments", None):
                         slot["arguments"] += fn.arguments
 
-        # Stream ended while still inside a thinking block (e.g. model
-        # produced thoughts followed only by a tool call, no content
-        # text). Close the tag so downstream parsers see a balanced
-        # block and `_record_step` / post_processing_reasoning find it.
+        # Stream ended inside an open thinking block (model produced thoughts
+        # followed only by a tool call, no content text). Close the tag so
+        # downstream parsers see a balanced block.
         if thinking_open:
             text_parts.append("</think>")
             yield "</think>"
@@ -284,8 +265,8 @@ class OpenAIProvider(Provider):
 
     @staticmethod
     def _append_user_message(payload: list[dict], message: Message) -> None:
-        # OpenAI requires list-form content (text + image_url parts) when any
-        # image is attached. Otherwise we keep the simple string form.
+        # OpenAI requires list-form content (text + image_url parts) when an
+        # image is attached. Otherwise keep the simple string form.
         has_image = any(isinstance(b, ImageBlock) for b in message.content)
         text_parts: list[str] = []
         image_parts: list[dict] = []
@@ -334,11 +315,9 @@ class OpenAIProvider(Provider):
                         },
                     }
                 )
-        # `content` is "" instead of None when the assistant message carries
-        # only tool calls. OpenAI accepts either form, but Ollama's
-        # OpenAI-compat shim is strict and rejects the conversation with
-        # `400 invalid message content type: <nil>` when it sees a null.
-        # Empty string keeps the message valid for both.
+        # `content` MUST be "" not None when assistant message carries only
+        # tool calls — Ollama's OpenAI-compat shim rejects null with
+        # `400 invalid message content type: <nil>`. OpenAI accepts either.
         payload: dict = {
             "role": "assistant",
             "content": "\n".join(text_parts) if text_parts else "",
@@ -348,14 +327,8 @@ class OpenAIProvider(Provider):
         return payload
 
 
-# ====================== Azure OpenAI ======================
-
-
 class AzureOpenAIProvider(OpenAIProvider):
-    """Azure OpenAI uses the same wire protocol as OpenAI but with a different
-    client constructor (resource endpoint + deployment name + api-version).
-    We inherit OpenAIProvider's serializers and only swap out the client.
-    """
+    """Same wire protocol as OpenAI; only the client constructor differs."""
 
     def __init__(
         self,
@@ -377,8 +350,8 @@ class AzureOpenAIProvider(OpenAIProvider):
         if not azure_endpoint:
             raise Agent2ProviderError("AzureOpenAI azure_endpoint is required")
 
-        # Note: deliberately NOT calling super().__init__ — the parent would
-        # construct an AsyncOpenAI; we need AsyncAzureOpenAI instead.
+        # Deliberately NOT calling super().__init__ — parent constructs
+        # AsyncOpenAI; we need AsyncAzureOpenAI instead.
         client_kwargs: dict = {
             "api_key": config.api_key,
             "api_version": api_version,
@@ -389,15 +362,8 @@ class AzureOpenAIProvider(OpenAIProvider):
         self._client = AsyncAzureOpenAI(**client_kwargs)
 
 
-# ====================== Bedrock (Converse API) ======================
-
-
 class BedrockProvider(Provider):
-    """AWS Bedrock via the Converse API (supports tool calling natively).
-
-    Uses `aioboto3` to talk to the bedrock-runtime service. Each `complete()`
-    call opens a fresh boto client (cheap) and closes it on exit.
-    """
+    """AWS Bedrock via Converse API (native tool calling) using aioboto3."""
 
     def __init__(
         self,
@@ -484,7 +450,6 @@ class BedrockProvider(Provider):
             return {"text": block.text}
         if isinstance(block, ImageBlock):
             import base64 as _b64
-            # Bedrock Converse expects raw bytes + a short format string.
             fmt = block.mime_type.split("/", 1)[-1].lower()
             if fmt == "jpg":
                 fmt = "jpeg"
@@ -529,9 +494,6 @@ class BedrockProvider(Provider):
                     )
                 )
         return Message(role="assistant", content=blocks)
-
-
-# ====================== Anthropic ======================
 
 
 class AnthropicProvider(Provider):
@@ -607,9 +569,6 @@ class AnthropicProvider(Provider):
         if config.temperature is not None:
             kwargs["temperature"] = config.temperature
 
-        # Anthropic's `messages.stream(...)` is an async context manager that
-        # exposes `text_stream` for incremental deltas plus `get_final_message()`
-        # for the fully-assembled response (text + tool_use blocks).
         async with self._client.messages.stream(**kwargs) as stream:
             async for text in stream.text_stream:
                 if text:
@@ -676,14 +635,9 @@ class AnthropicProvider(Provider):
         raise TypeError(f"Unknown block type: {type(block)}")
 
 
-# ====================== Provider factory ======================
-
-
-# Cache: keyed by (class_name, options-string, context_window) so the cache
-# entry naturally invalidates when an LLM is edited via the admin UI (the new
-# DB row produces a different key, missing the cache and rebuilding). The
-# stale entry stays in memory until process restart — bounded by edit
-# frequency, acceptable.
+# Cache keyed by (class_name, options-string, context_window) so editing an
+# LLM via admin UI naturally invalidates the entry (new DB row → new key).
+# Stale entries linger until process restart — bounded by edit frequency.
 _provider_cache: dict[tuple, tuple["Provider", "ProviderConfig"]] = {}
 
 
@@ -702,12 +656,7 @@ def _provider_cache_key(llm_db_row: Any) -> tuple:
 
 
 def build_provider_for_llm(llm_db_row: Any) -> tuple[Provider, ProviderConfig]:
-    """Build an agent2 Provider + ProviderConfig from a RESTai LLMDatabase row.
-
-    Cached on `(class_name, options, context_window)` — calls with the same
-    LLM row reuse the same Provider instance (and its underlying SDK client +
-    HTTP connection pool), saving ~13ms per call plus enabling HTTP keep-alive.
-    """
+    """Build agent2 Provider + Config from an LLMDatabase row (cached for HTTP keep-alive)."""
     if llm_db_row is None:
         raise Agent2ProviderError("LLM database row is None")
 
@@ -722,7 +671,6 @@ def build_provider_for_llm(llm_db_row: Any) -> tuple[Provider, ProviderConfig]:
 
 
 def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, ProviderConfig]:
-    """Uncached implementation. Called by `build_provider_for_llm` on cache miss."""
     from restai.models.models import LLMModel
 
     llm_model = LLMModel.model_validate(llm_db_row)
@@ -748,10 +696,8 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
         return OpenAIProvider(cfg), cfg
 
     if class_name in ("OpenAILike", "LiteLLM"):
-        # OpenAILike / LiteLLM often points at a self-hosted gateway that
-        # ignores the api_key field entirely (vLLM, llama.cpp, Ollama
-        # behind a proxy, etc.). Fall back to a placeholder so the OpenAI
-        # SDK doesn't refuse to construct the client.
+        # Self-hosted gateways (vLLM, llama.cpp, Ollama-behind-proxy) often
+        # ignore api_key; placeholder keeps the OpenAI SDK constructor happy.
         cfg = ProviderConfig(
             model=model,
             api_key=api_key or "not-needed",
@@ -763,10 +709,8 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
         return OpenAIProvider(cfg), cfg
 
     if class_name in ("Ollama", "OllamaCloud", "OllamaMultiModal", "OllamaMultiModal2"):
-        # Ollama exposes an OpenAI-compatible /v1 endpoint. For cloud the
-        # base_url defaults to https://ollama.com and the stored api_key
-        # is the real Bearer token; for self-hosted we use the placeholder
-        # "ollama" string the local daemon ignores.
+        # Ollama exposes OpenAI-compatible /v1. Cloud uses real Bearer token;
+        # self-hosted accepts any string ("ollama" is conventional).
         is_cloud = class_name == "OllamaCloud"
         ollama_base = base_url or ("https://ollama.com" if is_cloud else "http://localhost:11434")
         if not ollama_base.rstrip("/").endswith("/v1"):
@@ -804,7 +748,6 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
         return AnthropicProvider(cfg), cfg
 
     if class_name == "vLLM":
-        # vLLM exposes a native OpenAI-compatible /v1 endpoint
         vllm_url = (
             options.get("api_url")
             or options.get("api_base")
@@ -824,8 +767,8 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
         return OpenAIProvider(cfg), cfg
 
     if class_name in ("Gemini", "GeminiMultiModal"):
-        # Google's Gemini exposes an OpenAI-compatible endpoint that supports
-        # tool calling. Strip the optional "models/" prefix llamaindex sometimes uses.
+        # Gemini exposes an OpenAI-compat endpoint with tool calling. Strip the
+        # optional "models/" prefix llamaindex sometimes prepends.
         gemini_model = model
         if gemini_model.startswith("models/"):
             gemini_model = gemini_model[len("models/") :]
@@ -845,8 +788,8 @@ def _build_provider_for_llm_uncached(llm_db_row: Any) -> tuple[Provider, Provide
             or options.get("base_url")
         )
         api_version = options.get("api_version") or "2024-08-01-preview"
-        # Azure routes by deployment name, not by model name. Fall back to the
-        # 'model' field for backwards compatibility with how it's stored today.
+        # Azure routes by deployment name, not model name. Fall back to the
+        # 'model' field for backwards compat with how it's stored today.
         deployment = (
             options.get("azure_deployment")
             or options.get("deployment_name")

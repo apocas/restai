@@ -24,19 +24,17 @@ from llama_index.core.utilities.sql_wrapper import SQLDatabase
 from llama_index.core.indices.struct_store.sql_query import NLSQLTableQueryEngine
 from sqlalchemy import create_engine
 
-# SQLite is intentionally NOT in this list. NL→SQL on SQLite gave a
-# project admin (who controls the connection option) a file-read primitive
-# against anything the RESTai process could see — every traversal guard we
-# tried was bypassable in some way (`..` segments, slash-count semantics
-# for relative vs absolute, symlinks). Dropping SQLite entirely removes
-# the attack surface; if a user really needs file-backed RAG-SQL they can
-# put the data into Postgres/MySQL.
+# SQLite intentionally absent: NL→SQL on SQLite gave a project admin (who
+# controls the connection option) a file-read primitive against anything
+# the RESTai process could see — every traversal guard we tried was
+# bypassable (`..` segments, slash-count semantics, symlinks). Dropping
+# SQLite removes the attack surface; file-backed RAG-SQL needs Postgres/MySQL.
 _ALLOWED_DB_SCHEMES = {"postgresql", "postgresql+psycopg2", "mysql", "mysql+pymysql"}
 _ALLOWED_SCHEME_BASES = {s.split("+")[0] for s in _ALLOWED_DB_SCHEMES}
 
 
 def _validate_connection_string(conn: str):
-    """Reject connection strings with dangerous schemes or targeting localhost/metadata."""
+    """Reject schemes outside the allowlist."""
     from urllib.parse import urlparse
     try:
         parsed = urlparse(conn)
@@ -54,10 +52,7 @@ def _validate_connection_string(conn: str):
 
 
 class EntityBoostPostprocessor:
-    """Custom postprocessor that boosts retrieval scores for chunks whose source
-    contains entities mentioned in the user's query. Additive boost — does not
-    filter out non-matching chunks. Falls back gracefully if no entities found.
-    """
+    """Multiplicative score boost for chunks whose source contains query entities; never filters."""
 
     def __init__(self, brain, db, project_id: int, query: str, boost_factor: float = 1.5):
         self.brain = brain
@@ -75,9 +70,8 @@ class EntityBoostPostprocessor:
             from restai.knowledge_graph import find_entities_in_text, normalize_entity_name
             from restai.models.databasemodels import KGEntityDatabase, KGEntityMentionDatabase
 
-            # Primary path: word-boundary match the query against entities ALREADY
-            # in this project's graph. NER on short queries is unreliable; the DB
-            # knows what we have, so direct matching is more robust.
+            # Primary path: word-boundary match query against entities ALREADY
+            # in this project's graph. NER on short queries is unreliable.
             project_entities = (
                 self.db.db.query(KGEntityDatabase)
                 .filter(KGEntityDatabase.project_id == self.project_id)
@@ -93,7 +87,7 @@ class EntityBoostPostprocessor:
                 if e.normalized and f" {e.normalized} " in query_padded
             }
 
-            # Supplement with NER hits in case the query phrasing is different
+            # Supplement with NER hits for differently-phrased queries.
             try:
                 ner_hits = find_entities_in_text(self.query, self.brain)
                 if ner_hits:
@@ -132,7 +126,6 @@ class EntityBoostPostprocessor:
                         node.score = node.score * self.boost_factor
             except Exception:
                 pass
-        # Re-sort after boosting
         try:
             nodes.sort(key=lambda n: n.score or 0, reverse=True)
         except Exception:
@@ -316,7 +309,6 @@ class RAG(ProjectBase):
 
         model = self.brain.get_llm(project.props.llm, db)
 
-        # SQL query path: when a database connection is configured, use NL-to-SQL
         if project.props.options.connection:
             if questionModel.stream:
                 raise HTTPException(

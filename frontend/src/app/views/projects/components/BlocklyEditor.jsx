@@ -10,20 +10,15 @@ import { toolbox } from "./blockly/toolbox";
 export default function BlocklyEditor({ project, projects, onSave, onReady }) {
   const editorRef = useRef(null);
   const workspaceRef = useRef(null);
-  // Hidden <input type="file"> driven by the Import button. Keeping it
-  // outside the React render tree (no `display: none` on a JSX node we
-  // mount on every render) so its value can be reset between picks —
-  // otherwise re-selecting the same filename in a row wouldn't fire
-  // onChange.
+  // Ref-held so the input's value can be reset between picks — otherwise
+  // selecting the same filename twice in a row wouldn't re-fire onChange.
   const fileInputRef = useRef(null);
 
-  // Track whether projects have been fetched at least once
   const projectsLoaded = useRef(false);
   if (projects && projects.length > 0) {
     projectsLoaded.current = true;
   }
 
-  // Update the dynamic dropdown whenever projects change
   useEffect(() => {
     const filtered = (projects || []).filter((p) => p.name !== project.name);
     const names = filtered.map((p) => p.name);
@@ -32,19 +27,16 @@ export default function BlocklyEditor({ project, projects, onSave, onReady }) {
 
   useEffect(() => {
     if (!editorRef.current) return;
-    // Wait for the projects list to load before injecting,
-    // so saved dropdown values can be validated against real project names.
+    // Wait for projects so saved dropdown values can validate against names.
     if (!projectsLoaded.current) return;
 
-    // Set names before registering blocks / loading workspace
+    // Names MUST be set before registering blocks / loading the workspace.
     const filtered = (projects || []).filter((p) => p.name !== project.name);
     const names = filtered.map((p) => p.name);
     setProjectNames(names, filtered);
 
-    // Register custom block definitions (dropdown reads names dynamically)
     registerCustomBlocks();
 
-    // Inject workspace
     const workspace = Blockly.inject(editorRef.current, {
       toolbox,
       grid: { spacing: 20, length: 3, colour: "#ccc", snap: true },
@@ -53,7 +45,6 @@ export default function BlocklyEditor({ project, projects, onSave, onReady }) {
     });
     workspaceRef.current = workspace;
 
-    // Load saved state if it exists
     if (project.options?.blockly_workspace) {
       try {
         Blockly.serialization.workspaces.load(
@@ -65,7 +56,6 @@ export default function BlocklyEditor({ project, projects, onSave, onReady }) {
       }
     }
 
-    // Expose a loader function to the parent via onReady callback
     if (onReady) {
       onReady((newState) => {
         if (!workspaceRef.current) return;
@@ -91,9 +81,6 @@ export default function BlocklyEditor({ project, projects, onSave, onReady }) {
     onSave({ blockly_workspace: state });
   }, [onSave]);
 
-  // Export the current workspace to a downloadable JSON file. Filename
-  // includes the project name and an ISO date so the user can keep
-  // multiple snapshots without overwriting.
   const handleExport = useCallback(() => {
     if (!workspaceRef.current) return;
     try {
@@ -108,7 +95,7 @@ export default function BlocklyEditor({ project, projects, onSave, onReady }) {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      // Defer revoke so Safari/Firefox actually start the download.
+      // Defer revoke — Safari/Firefox need the URL alive briefly.
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast.success("Workspace exported.");
     } catch (e) {
@@ -117,12 +104,9 @@ export default function BlocklyEditor({ project, projects, onSave, onReady }) {
     }
   }, [project.name]);
 
-  // Triggered by the hidden file input. Reads the picked .json file,
-  // parses it, replaces the current workspace. Confirms before clobber
-  // so an accidental click doesn't nuke a session of unsaved blocks.
   const handleImportFile = useCallback((e) => {
     const file = e.target.files && e.target.files[0];
-    // Reset so picking the same filename twice in a row still triggers.
+    // Reset so picking the same filename twice still re-fires onChange.
     e.target.value = "";
     if (!file || !workspaceRef.current) return;
     if (!window.confirm(

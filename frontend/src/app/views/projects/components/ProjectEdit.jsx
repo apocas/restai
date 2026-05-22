@@ -12,9 +12,7 @@ import ProjectEditKnowledge from "./ProjectEditKnowledge";
 import ProjectEditSecurity from "./ProjectEditSecurity";
 import ProjectEditIntegrations from "./ProjectEditIntegrations";
 
-// Tab definitions. `key` stays stable (used internally for conditional
-// rendering); `name` is resolved via i18n at render time.
-// `system` is gated to rag/agent — block projects don't have a system prompt.
+// `system` tab is gated to rag/agent — block projects have no system prompt.
 const ALL_TABS = [
   { key: "General",       nameKey: "projects.edit.tabs.general",      Icon: Info },
   { key: "System",        nameKey: "projects.edit.tabs.system",       Icon: Description, agentOrRag: true },
@@ -26,7 +24,6 @@ const ALL_TABS = [
 export default function ProjectEdit({ project, projects, info }) {
   const auth = useAuth();
   const { t } = useTranslation();
-  // Tabs translated at render time so language switch re-renders them.
   const translatedTabs = ALL_TABS.map((tab) => ({
     ...tab,
     name: t(tab.nameKey),
@@ -38,27 +35,17 @@ export default function ProjectEdit({ project, projects, info }) {
   const [showVersions, setShowVersions] = useState(false);
   const [active, setActive] = useState("General");
   const navigate = useNavigate();
-  // Snapshot of the form state immediately after `setState(initialState)`
-  // runs in the load effect. Compared against `state` on every render to
-  // derive `dirty`. We intentionally compare via JSON.stringify rather
-  // than a deep-equals lib — the field set is small enough and avoids a
-  // dep, and any spurious reference change in `state.team` etc. would
-  // be reflected in the JSON anyway.
+  // Baseline snapshot for dirty-checking. JSON.stringify (no deep-equals dep)
+  // is fine — small field set, ref changes in nested objects still show up.
   const baselineRef = useRef(null);
   const [pendingNav, setPendingNav] = useState(null);
   const dirty = baselineRef.current != null && JSON.stringify(state) !== baselineRef.current;
-  // fieldErrors: map of field name → message, populated from a 422
-  // response on save. Cleared when the user types in that field or
-  // when a save succeeds. Handed down to tab components via prop.
   const [fieldErrors, setFieldErrors] = useState({});
 
-  // Filter the *translated* tabs so the mobile drawer shows the right
-  // language in its per-tab label. Using a different variable name
-  // than `t` to avoid shadowing the i18n helper.
   const tabs = translatedTabs.filter((tab) => {
     if (tab.ragOnly && project.type !== "rag") return false;
-    if (tab.agentOnly && project.type !== "agent") return false;
-    if (tab.agentOrRag && project.type !== "agent" && project.type !== "rag") return false;
+    if (tab.agentOnly && !project.type === "agent") return false;
+    if (tab.agentOrRag && !project.type === "agent" && project.type !== "rag") return false;
     return true;
   });
 
@@ -98,11 +85,9 @@ export default function ProjectEdit({ project, projects, info }) {
       opts.system = state.system;
     }
 
-    // Tools / agent_mode / max_iterations / auto_plan / mcp_servers
-    // are persisted from ProjectInfoTools' own Save button now. We
-    // intentionally don't touch those keys here — `state.options` was
-    // hydrated from the project on mount and preserves any values that
-    // were already set, so the Save on this page won't wipe them.
+    // Tools/agent_mode/max_iterations/auto_plan/mcp_servers persist via the
+    // ProjectInfoTools Save button. Don't touch them here — state.options was
+    // hydrated from the project so save preserves existing values.
 
     if (state.options.telegram_token !== undefined) opts.options.telegram_token = state.options.telegram_token;
     if (state.options.telegram_default_chat_id !== undefined) opts.options.telegram_default_chat_id = state.options.telegram_default_chat_id || null;
@@ -143,6 +128,7 @@ export default function ProjectEdit({ project, projects, info }) {
       opts.options.memory_search_enabled = state.options.memory_search_enabled || false;
       opts.options.browser_allowed_domains = state.options.browser_allowed_domains || null;
       opts.options.browser_allow_eval = !!state.options.browser_allow_eval;
+      opts.options.agent_loop = state.options.agent_loop || null;
     }
 
     if (project.type === "rag") {
@@ -163,18 +149,13 @@ export default function ProjectEdit({ project, projects, info }) {
 
     api.patch("/projects/" + project.id, opts, auth.user.token)
       .then(() => {
-        // Save succeeded — clear the dirty baseline so the navigate
-        // away doesn't trigger the unsaved-changes guard.
+        // Reset baseline so the navigate doesn't trigger the unsaved guard.
         baselineRef.current = JSON.stringify(state);
         setFieldErrors({});
         navigate("/project/" + project.id);
       })
       .catch((err) => {
-        // Pydantic-422 errors arrive with a `fieldErrors` map from
-        // api.js — stash them so the tab components can show inline
-        // helper text. Switch to General tab if that's where the
-        // offending fields live (the ones most likely to 422 —
-        // numeric bounds on k / score / rate_limit).
+        // Pydantic 422 → fieldErrors map from api.js; tabs render inline helpers.
         const fe = err && err.fieldErrors ? err.fieldErrors : {};
         setFieldErrors(fe);
       });
@@ -238,9 +219,8 @@ export default function ProjectEdit({ project, projects, info }) {
     };
 
     setState(initialState);
-    // Record the baseline synchronously with the same state we're about
-    // to install. The `state` React commits will be equal-by-value to
-    // `initialState`, so JSON.stringify of either yields the same string.
+    // Record baseline synchronously with the state we're installing —
+    // React's committed state will be value-equal to initialState.
     baselineRef.current = JSON.stringify(initialState);
 
     api.get("/users", auth.user.token).then((d) => setUsers(d.users)).catch(() => {});
@@ -267,10 +247,8 @@ export default function ProjectEdit({ project, projects, info }) {
     }
   }, [users, project]);
 
-  // Browser-level guard: warns on tab close, refresh, or address-bar
-  // navigation while there are unsaved edits. The custom message is
-  // ignored by every modern browser (they show a generic prompt) but
-  // setting `returnValue` is what actually triggers the dialog.
+  // beforeunload warning. Modern browsers ignore the custom message and
+  // show their own — setting `returnValue` is what triggers the dialog.
   useEffect(() => {
     if (!dirty) return undefined;
     const handler = (e) => {
@@ -282,9 +260,6 @@ export default function ProjectEdit({ project, projects, info }) {
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
 
-  // Intercepts the Cancel button (and any other in-app navigation we
-  // route through here) so the user gets a confirm dialog instead of
-  // silently losing edits. When dirty=false this just navigates.
   const requestNavigate = (path) => {
     if (dirty) {
       setPendingNav(path);
@@ -295,7 +270,7 @@ export default function ProjectEdit({ project, projects, info }) {
   const confirmDiscard = () => {
     const path = pendingNav;
     setPendingNav(null);
-    // Clear the baseline so the unmount doesn't fire beforeunload again.
+    // Reset baseline so the unmount doesn't re-fire beforeunload.
     baselineRef.current = JSON.stringify(state);
     if (path) navigate(path);
   };
@@ -327,8 +302,6 @@ export default function ProjectEdit({ project, projects, info }) {
         </Grid>
 
         <Grid item md={10} xs={12}>
-          {/* Each tab supplies its own ForensicCard chrome — no outer
-              wrapper needed. */}
           <Box>
             {active === "General" && (
               <ProjectEditGeneral

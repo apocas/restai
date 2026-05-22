@@ -14,16 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class SeleniumWebReader(BaseReader):
-    """BeautifulSoup web page reader.
-
-    Reads pages from the web.
-    Requires the `bs4` and `urllib` packages.
-
-    Args:
-        website_extractor (Optional[Dict[str, Callable]]): A mapping of website
-            hostname (e.g. google.com) to a function that specifies how to
-            extract text from the BeautifulSoup obj. See DEFAULT_WEBSITE_EXTRACTOR.
-    """
+    """Selenium-driven web page reader."""
 
     def __init__(
         self,
@@ -36,14 +27,11 @@ class SeleniumWebReader(BaseReader):
             page_load_timeout: Optional[float] = None,
     ) -> None:
 
-        """Load a list of URLs using Selenium and unstructured.
+        """Load URLs using Selenium and unstructured.
 
-        page_load_timeout: when set, every driver created by this
-        reader has Selenium's `set_page_load_timeout` applied so a
-        slow / hung page can't pin the agent forever. Selenium's
-        default is "no timeout"; callers handling untrusted URLs
-        (e.g. the agent's `crawler_selenium` tool) should always
-        pass an explicit value.
+        page_load_timeout: when set, Selenium's `set_page_load_timeout` is
+        applied so a slow/hung page can't pin the agent forever. Default is
+        no timeout; callers handling untrusted URLs should pass an explicit value.
         """
         if arguments is None:
             arguments = []
@@ -72,14 +60,7 @@ class SeleniumWebReader(BaseReader):
         self.page_load_timeout = page_load_timeout
 
     def _get_driver(self) -> Union["Chrome", "Firefox"]:
-        """Create and return a WebDriver instance based on the specified browser.
-
-        Raises:
-            ValueError: If an invalid browser is specified.
-
-        Returns:
-            Union[Chrome, Firefox]: A WebDriver instance for the specified browser.
-        """
+        """Create and return a WebDriver instance."""
         if self.browser.lower() == "chrome":
             from selenium.webdriver import Chrome
             from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -99,7 +80,6 @@ class SeleniumWebReader(BaseReader):
             binary = self.binary_location
             exec_path = self.executable_path
 
-            # Auto-detect snap Chromium if no explicit paths provided
             if binary is None and exec_path is None:
                 import shutil
                 import os
@@ -145,7 +125,6 @@ class SeleniumWebReader(BaseReader):
         from selenium.common.exceptions import NoSuchElementException
         from selenium.webdriver.common.by import By
 
-        """Build metadata based on the contents of the webpage"""
         metadata = {
             "source": url,
             "title": "No title found.",
@@ -172,23 +151,15 @@ class SeleniumWebReader(BaseReader):
             pass
         return metadata
 
-    # Scheme allowlist applied inside `load_data` so every consumer
-    # (crawler tool, URL-ingest router, sync cron) is uniformly
-    # protected. Without this, headless Chrome / Firefox happily
-    # render `file:///etc/passwd`, the contents land in the
-    # vector store, and the embeddings retrieval path becomes a
-    # generic local-file-read primitive.
+    # Scheme allowlist applied at the loader (not router) so headless Chrome
+    # can't render `file:///etc/passwd` into the vector store via any caller.
     _ALLOWED_SCHEMES = ("http://", "https://")
 
     def load_data(
         self,
         urls: list[str],
     ) -> List[Document]:
-        """Load the specified URLs using Selenium and create Document instances.
-
-        Returns:
-            List[Document]: A list of Document instances with loaded content.
-        """
+        """Load URLs with Selenium and return Document instances."""
 
         docs: List[Document] = list()
         driver = self._get_driver()
@@ -196,15 +167,10 @@ class SeleniumWebReader(BaseReader):
             try:
                 driver.set_page_load_timeout(self.page_load_timeout)
             except Exception:
-                # Older drivers may not support it; better to lose the
-                # bound than fail the whole call.
+                # Older drivers don't support it; lose the bound rather than fail the call.
                 pass
 
         for url in urls:
-            # Refuse anything that isn't a public web URL — file://,
-            # data:, javascript:, chrome://, view-source:, etc. The
-            # check is at the loader so a future caller can't bypass
-            # it by skipping a router-level guard.
             try:
                 lo = (url or "").strip().lower()
             except Exception:

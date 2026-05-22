@@ -100,7 +100,6 @@ class DBWrapper:
         self.db: Session = SessionLocal()
 
     def close(self):
-        """Release the underlying session back to the connection pool."""
         self.db.close()
 
     def create_user(
@@ -315,7 +314,6 @@ class DBWrapper:
         return self.db.query(WidgetDatabase).filter(WidgetDatabase.key_hash == key_hash).first()
 
     def get_widget_by_key(self, plaintext_key):
-        """Look up a widget by plaintext key using prefix-then-verify (salted hash)."""
         prefix = plaintext_key[:11]
         candidates = self.db.query(WidgetDatabase).filter(WidgetDatabase.key_prefix == prefix).all()
         for w in candidates:
@@ -1203,7 +1201,6 @@ class DBWrapper:
         return True
         
     def get_teams_for_user(self, user_id: int) -> List[TeamDatabase]:
-        """Get all teams where the user is a member or admin"""
         user = self.get_user_by_id(user_id)
         if user is None:
             return []
@@ -1227,7 +1224,6 @@ class DBWrapper:
         return row
 
     def get_setting_value(self, key: str, default: str = "") -> str:
-        """Get a setting value by key, returning default if not found or empty."""
         row = self.get_setting(key)
         return row.value if row and row.value else default
 
@@ -1439,16 +1435,13 @@ class DBWrapper:
 
 
     def _create_prompt_version(self, project_id: int, system_prompt: str, user_id: int = None):
-        """Create a new prompt version record, marking it as active."""
         from restai.models.databasemodels import PromptVersionDatabase
 
-        # Deactivate current active version
         self.db.query(PromptVersionDatabase).filter(
             PromptVersionDatabase.project_id == project_id,
             PromptVersionDatabase.is_active == True,
         ).update({"is_active": False})
 
-        # Get next version number
         max_version = (
             self.db.query(func.max(PromptVersionDatabase.version))
             .filter(PromptVersionDatabase.project_id == project_id)
@@ -1466,7 +1459,6 @@ class DBWrapper:
         self.db.add(version)
 
     def get_prompt_versions(self, project_id: int):
-        """Get all prompt versions for a project, newest first."""
         from restai.models.databasemodels import PromptVersionDatabase
         return (
             self.db.query(PromptVersionDatabase)
@@ -1476,12 +1468,10 @@ class DBWrapper:
         )
 
     def get_prompt_version(self, version_id: int):
-        """Get a specific prompt version by ID."""
         from restai.models.databasemodels import PromptVersionDatabase
         return self.db.query(PromptVersionDatabase).filter(PromptVersionDatabase.id == version_id).first()
 
     def get_active_prompt_version(self, project_id: int):
-        """Get the active prompt version for a project."""
         from restai.models.databasemodels import PromptVersionDatabase
         return (
             self.db.query(PromptVersionDatabase)
@@ -1723,7 +1713,5 @@ def get_db_wrapper():
 
 
 def open_db_wrapper() -> DBWrapper:
-    """Plain factory for non-FastAPI callers. Caller is responsible
-    for closing — typical pattern is `db = open_db_wrapper(); try: ...
-    finally: db.close()`."""
+    """Plain factory for non-FastAPI callers. Caller must close()."""
     return DBWrapper()

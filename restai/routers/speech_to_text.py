@@ -1,17 +1,4 @@
-"""Speech-to-text registry CRUD endpoints.
-
-Mirrors `restai/routers/image_generators.py`. The registry holds:
-
-- **Local** workers (auto-seeded on startup from `restai/audio/workers/*`).
-  Always selectable; admin can flip `enabled` and rename for display, but
-  cannot delete (re-seeded next boot).
-- **External** providers — `openai` (Whisper API + OpenAI-compat via
-  `options.base_url`), `google`, `deepgram`, `assemblyai`. Created freely
-  by the admin with per-row encrypted credentials.
-
-API key fields in `options` are masked as `"********"` on read; PATCH
-preserves the existing value when it sees that sentinel.
-"""
+"""Speech-to-text registry CRUD endpoints."""
 import json
 import logging
 import traceback
@@ -56,8 +43,7 @@ async def list_speech_to_text(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """List speech-to-text models. Non-admins see only those granted to a
-    team they're a member of (via `teams_audio_generators`)."""
+    """List speech-to-text models, filtered by team access for non-admins."""
     rows = db_wrapper.get_speech_to_text()
 
     if not user.is_admin:
@@ -131,8 +117,7 @@ async def update_speech_to_text(
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Update a speech-to-text model (admin only). Local rows ignore
-    provider/options changes — those come from the worker module."""
+    """Update a speech-to-text model (admin only); local rows ignore provider/options changes."""
     row: Optional[SpeechToTextDatabase] = db_wrapper.get_speech_to_text_by_id(model_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Speech-to-text model not found")
@@ -153,8 +138,7 @@ async def delete_speech_to_text(
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Delete a speech-to-text model (admin only). Local models cannot be
-    deleted — disable them via `enabled=false` instead."""
+    """Delete a speech-to-text model (admin only); local models cannot be deleted."""
     row: Optional[SpeechToTextDatabase] = db_wrapper.get_speech_to_text_by_id(model_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Speech-to-text model not found")

@@ -1,4 +1,5 @@
 """Pure-data types for the agent2 runtime. No llamaindex imports."""
+
 from __future__ import annotations
 
 import base64
@@ -29,23 +30,16 @@ class ToolResultBlock:
 
 @dataclass
 class ImageBlock:
-    """A base64-encoded image attached to a user message.
-
-    `data` is the raw base64 string (no data URL prefix). `mime_type` is the
-    standard MIME (e.g. 'image/png', 'image/jpeg'). Use `from_data_url()` or
-    `from_base64()` to construct one with auto-detection.
-    """
+    """Base64-encoded image attached to a user message (no data URL prefix)."""
     data: str
     mime_type: str
 
     @classmethod
     def from_data_url(cls, url: str) -> "ImageBlock":
-        # data:image/png;base64,iVBORw0KG...
         if url.startswith("data:") and ";base64," in url:
             header, _, body = url.partition(";base64,")
             mime = header[len("data:"):] or "image/png"
             return cls(data=body, mime_type=mime)
-        # Plain base64 — sniff
         return cls.from_base64(url)
 
     @classmethod
@@ -54,10 +48,7 @@ class ImageBlock:
 
 
 def detect_image_mime(b64_data: str) -> str:
-    """Sniff the MIME type from the leading bytes of a base64-encoded image.
-
-    Falls back to 'image/png' if the magic bytes don't match anything known.
-    """
+    """Sniff MIME from leading bytes; falls back to image/png."""
     try:
         head = base64.b64decode(b64_data[:64], validate=False)
     except Exception:
@@ -104,9 +95,6 @@ class AgentEvent:
 
 def user_text_message(text: str) -> Message:
     return Message(role="user", content=[TextBlock(text=text)])
-
-
-# ---------- JSON serialization (for memory persistence) ----------
 
 
 def block_to_dict(block: ContentBlock) -> dict:

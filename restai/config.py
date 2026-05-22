@@ -171,7 +171,6 @@ def build_redis_url():
 # the value at import time and break multi-worker config refreshes).
 
 def detect_gpu():
-    """Auto-detect GPU availability via nvidia-smi."""
     import subprocess
     try:
         result = subprocess.run(
@@ -183,13 +182,7 @@ def detect_gpu():
 
 
 def detect_gpu_info():
-    """Query detailed GPU information via nvidia-smi.
-
-    Returns a list of dicts with keys: index, name, brand, driver_version,
-    memory_total, memory_used, memory_free, temperature, utilization,
-    power_draw, power_limit, cuda_version, pci_bus_id.
-    Returns an empty list if nvidia-smi is unavailable.
-    """
+    """Query detailed GPU info via nvidia-smi. Empty list when unavailable."""
     import subprocess
 
     cuda_version = ""

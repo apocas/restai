@@ -166,13 +166,11 @@ async def lifespan(fs_app: FastAPI):
 
     @fs_app.get("/", tags=["Health"])
     async def get():
-        """Root endpoint — redirect to admin UI."""
         from starlette.responses import RedirectResponse
         return RedirectResponse(url="/admin")
 
     @fs_app.get("/version", tags=["Health"])
     async def get_version(_: User = Depends(get_current_username)):
-        """Get the current RESTai version."""
         return {
             "version": fs_app.version,
             "telemetry": _os.environ.get("ANONYMIZED_TELEMETRY", "True").lower() == "true",
@@ -182,7 +180,7 @@ async def lifespan(fs_app: FastAPI):
 
     @fs_app.get("/version/check", tags=["Health"])
     async def check_for_update(_: User = Depends(get_current_username)):
-        """Check GitHub for a newer release. Cached for 1 hour."""
+        # Cached for 1 hour.
         import time as _time
         import httpx
         from packaging.version import parse as parse_version
@@ -222,12 +220,10 @@ async def lifespan(fs_app: FastAPI):
 
     @fs_app.get("/health/live", tags=["Health"])
     async def health_live():
-        """Liveness probe. Returns 200 if the service is running."""
         return {"status": "ok"}
 
     @fs_app.get("/health/ready", tags=["Health"])
     async def health_ready():
-        """Readiness probe. Checks database and Redis connectivity."""
         health = {"status": "ok"}
         try:
             from sqlalchemy import text
@@ -262,7 +258,6 @@ async def lifespan(fs_app: FastAPI):
     async def get_setup(
         db_wrapper: DBWrapper = Depends(get_db_wrapper),
     ):
-        """Get platform setup information including SSO providers and feature flags."""
         sso_list = []
         if isinstance(config.OAUTH_PROVIDERS, dict):
             sso_list = list(config.OAUTH_PROVIDERS.keys())
@@ -304,7 +299,6 @@ async def lifespan(fs_app: FastAPI):
         user: User = Depends(get_current_username),
         db_wrapper: DBWrapper = Depends(get_db_wrapper),
     ):
-        """Get platform information including available LLMs, embeddings, and loaders."""
         from restai.vectordb.tools import get_available_vectorstores
 
         output = {
@@ -319,7 +313,6 @@ async def lifespan(fs_app: FastAPI):
             "auth_secret_weak": bool(getattr(fs_app.state, "auth_secret_weak", False)) if user.is_admin else False,
         }
 
-        # Filter LLMs and embeddings by team access for non-admin users
         allowed_llm_names = None
         allowed_emb_names = None
         if not user.is_admin:
@@ -436,7 +429,6 @@ async def lifespan(fs_app: FastAPI):
     if _SPA_BUILD_DIR is not None:
         @fs_app.get("/admin/{full_path:path}")
         async def serve_spa(full_path: str):
-            """Serve static files if they exist, otherwise index.html for SPA routing."""
             file_path = (_SPA_BUILD_DIR / full_path).resolve()
             build_root = _SPA_BUILD_DIR.resolve()
             # Prevent directory traversal — resolved path must stay inside build dir
@@ -522,13 +514,11 @@ app.add_middleware(AuditMiddleware)
 
 @app.get("/oauth/{provider}/login", tags=["Auth"])
 async def oauth_login(provider: str = PathParam(description="OAuth provider name"), request: Request = ...):
-    """Initiate OAuth login flow for the specified provider."""
     return await request.app.state.oauth_manager.handle_login(request, provider)
 
 
 @app.get("/oauth/{provider}/callback", tags=["Auth"])
 async def oauth_callback(provider: str = PathParam(description="OAuth provider name"), request: Request = ..., response: Response = ...):
-    """Handle OAuth callback from the specified provider."""
     return await request.app.state.oauth_manager.handle_callback(request, provider, response)
 
     

@@ -1,18 +1,4 @@
-"""Bulk file ingest queue for RAG projects.
-
-Three endpoints, all scoped to a project the user has access to:
-
-* ``POST /projects/{id}/ingest-bulk`` — accepts one or more files,
-  writes each to a tempfile, creates a ``queued`` row in
-  ``bulk_ingest_jobs``, and returns the job ids. Returns 202 because
-  the actual ingest happens in the cron.
-* ``GET /projects/{id}/ingest-bulk`` — paginated list of recent jobs
-  for the project, newest first, so the admin UI can poll / render a
-  progress table.
-* ``DELETE /projects/{id}/ingest-bulk/{jobID}`` — cancel/reap a job.
-  If it's still queued, marks as ``error`` ("cancelled") and deletes
-  the tempfile. Done/error rows are just deleted outright.
-"""
+"""Bulk file ingest queue for RAG projects."""
 from __future__ import annotations
 
 import os
@@ -33,8 +19,6 @@ from restai.models.models import User, sanitize_filename
 router = APIRouter()
 
 
-# On-disk staging area for queued uploads. One subdir so clean-up /
-# permissions are easy to reason about. Created lazily on first write.
 _QUEUE_DIR = os.path.join(tempfile.gettempdir(), "restai_bulk_ingest")
 
 
@@ -71,9 +55,7 @@ async def enqueue_bulk_ingest(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Accept one or more files and queue them for async ingestion.
-    Returns ``{"queued": [job_id, ...]}`` — poll the list endpoint for
-    status. Only RAG projects accept bulk ingest."""
+    """Queue files for async ingestion. RAG projects only."""
     check_not_restricted(user)
     if splitter not in ("sentence", "token"):
         raise HTTPException(status_code=422, detail="splitter must be 'sentence' or 'token'")
@@ -94,16 +76,12 @@ async def enqueue_bulk_ingest(
         safe_name = sanitize_filename(upload.filename or "upload.bin")
         contents = await upload.read()
         if len(contents) > max_bytes:
-            # Refuse the whole request so the admin doesn't end up with
-            # a half-queued batch — easier to reason about than silent
-            # partial success.
+            # Refuse the whole request to avoid half-queued batches.
             raise HTTPException(
                 status_code=413,
                 detail=f"'{safe_name}' exceeds max upload size ({max_bytes // (1024*1024)} MB)",
             )
 
-        # Tempfile name carries the project + job intent so an admin
-        # inspecting /tmp/restai_bulk_ingest/ can correlate.
         fd, path = tempfile.mkstemp(prefix=f"proj{projectID}_", suffix=f"_{safe_name}", dir=queue_dir)
         try:
             with os.fdopen(fd, "wb") as fh:
@@ -160,9 +138,7 @@ async def delete_bulk_ingest_job(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Cancel or reap a bulk-ingest job. Queued jobs get marked
-    cancelled + tempfile deleted. Done/error rows are deleted
-    outright."""
+    """Cancel or reap a bulk-ingest job."""
     check_not_restricted(user)
     job = (
         db_wrapper.db.query(BulkIngestJobDatabase)
@@ -175,7 +151,6 @@ async def delete_bulk_ingest_job(
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # Always try to remove the tempfile if it's still there.
     if job.file_path:
         try:
             os.unlink(job.file_path)

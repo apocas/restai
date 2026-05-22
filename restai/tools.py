@@ -65,10 +65,7 @@ def get_llm_class(llm_class_name: str):
         case "Grok":
             from llama_index.llms.anthropic import Anthropic
 
-            # Grok speaks the Anthropic protocol via x.ai. The api_key
-            # comes from the LLM's stored options (set in /admin/llms);
-            # this default block only fills the routing fields the SDK
-            # needs to construct the client.
+            # Grok speaks the Anthropic protocol via x.ai; api_key comes from LLM options.
             return Anthropic, {
                 "base_url": "https://api.x.ai/",
                 "model": "grok-beta",
@@ -247,8 +244,6 @@ def tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
 
 
 def get_logger(name: str, level=logging.INFO):
-    """To set up as many loggers as you want"""
-
     handler = logging.FileHandler("./logs/" + name + ".log")
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     handler.setFormatter(formatter)
@@ -365,7 +360,6 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
 
 
 def log_retrieval_events(project, sources, db):
-    """Log retrieval events for RAG source analytics."""
     from restai.models.databasemodels import RetrievalEventDatabase
 
     now = datetime.now(timezone.utc)

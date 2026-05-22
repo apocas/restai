@@ -387,10 +387,8 @@ async def route_delete_project(
 
         db_wrapper.delete_project(db_wrapper.get_project_by_id(projectID))
 
-        # Wipe app-builder source tree (no-op if not an app project).
-        # IMPORTANT: stop the running preview container FIRST. The container
-        # holds /var/www open via bind mount and racing the wipe leaves an
-        # empty `public/` directory behind.
+        # Wipe app-builder source tree. Must stop the preview container FIRST
+        # — it holds /var/www open via bind mount and racing the wipe empties public/.
         if proj.props.type == "app":
             from restai.app.storage import delete_project_root
             mgr = getattr(request.app.state.brain, "app_manager", None)
@@ -488,16 +486,11 @@ async def route_edit_project(
                 status_code=403, detail="User not allowed to use public models"
             )
 
-    # MCP servers added through this PATCH path are spawned by the
-    # agent runtime on every chat. A non-admin who can sneak a stdio
-    # transport (`host="/bin/sh"`, args=["-c", "..."]) into
-    # `options.mcp_servers` gets the same RCE primitive as
-    # `/tools/mcp/probe`. Same gate applies: stdio is admin-only.
+    # Stdio MCP transport sneaked into options.mcp_servers grants RCE same as /tools/mcp/probe.
     if projectModelUpdate.options and projectModelUpdate.options.mcp_servers:
         for srv in projectModelUpdate.options.mcp_servers:
             check_user_can_use_mcp_host(user, srv.host)
 
-    # Preserve masked-token values.
     if projectModelUpdate.options:
         existing_opts = json.loads(project.options) if project.options else {}
         for key in _SENSITIVE_OPTION_KEYS:
@@ -515,12 +508,7 @@ async def route_edit_project(
 
     projectModelUpdate._user_id = user.id
 
-    # Embedding swap is a vectordb side-effect, not a SQL one — drop
-    # the memory_search collection synchronously so the cron rebuilds
-    # from scratch on the next tick (instead of letting users see
-    # stale results for one minute). Detection uses the pre-fetched
-    # `project` row; equality with the incoming value short-circuits
-    # the case where the client PATCHes the same value back.
+    # Drop memory_search collection synchronously on embedding swap so cron rebuilds clean.
     if (
         projectModelUpdate.embeddings is not None
         and projectModelUpdate.embeddings != project.embeddings
@@ -571,15 +559,10 @@ async def route_create_project(
             status_code=403, detail="User does not have access to this team"
         )
 
-    # App-builder projects require a local Docker socket — bind mounts
-    # don't traverse a tcp:// daemon. Refuse fast so the user doesn't end
-    # up with a phantom project they can't preview.
+    # App-builder needs a local Docker socket; bind mounts don't traverse tcp://.
     if projectModel.type == "app":
         docker_url = (getattr(config, "DOCKER_URL", "") or "").strip()
-        # Empty docker_url is fine — the IDE still works for editing files
-        # and downloading the zip; only the live preview will be unavailable
-        # and the IDE shows that explicitly. Reject only the genuinely
-        # unsupported case: a remote daemon that would silently break.
+        # Empty docker_url ok (IDE still works, just no preview); reject only tcp://.
         if docker_url.startswith("tcp://"):
             raise HTTPException(
                 status_code=400,
@@ -667,16 +650,12 @@ async def route_create_project(
                 ),
             )
 
-        # Seed the on-disk source tree for app-builder projects so the IDE
-        # has something to edit on first load.
         if projectModel.type == "app":
             from restai.app.storage import seed_hello_world
             try:
                 seed_hello_world(project_db.id, projectModel.human_name or projectModel.name)
             except Exception:
-                # Don't roll back the project — user can re-seed by editing
-                # any file in the IDE; we'd rather have an empty tree than
-                # a phantom project.
+                # Don't roll back; user can re-seed by editing any file in the IDE.
                 logging.exception("app seed failed for project %s", project_db.id)
 
         return {"project": project.props.id}
@@ -750,7 +729,6 @@ async def find_embedding(
                 nodes = retriever.retrieve(embedding.text)
             except Exception as retrieval_err:
                 if "Nothing found on disk" in str(retrieval_err) or "hnsw" in str(retrieval_err).lower():
-                    # ChromaDB index not ready — likely being rebuilt after sync
                     raise HTTPException(status_code=503, detail="Vector index is being rebuilt. Please try again in a moment.")
                 raise
 
@@ -873,7 +851,6 @@ async def clone_project(
     if new_project is None:
         raise HTTPException(status_code=400, detail="Failed to clone project")
 
-    # Copy settings that create_project doesn't handle
     new_project.system = source.system
     new_project.censorship = source.censorship
     new_project.guard = source.guard
@@ -881,10 +858,8 @@ async def clone_project(
     new_project.public = source.public
     new_project.options = source.options
 
-    # User + team association already handled by create_project in one transaction
     db_wrapper.db.commit()
 
-    # Clone prompt versions
     source_versions = (
         db_wrapper.db.query(PromptVersionDatabase)
         .filter(PromptVersionDatabase.project_id == projectID)
@@ -902,7 +877,6 @@ async def clone_project(
             is_active=v.is_active,
         ))
 
-    # Clone eval datasets with test cases
     source_datasets = (
         db_wrapper.db.query(EvalDatasetDatabase)
         .filter(EvalDatasetDatabase.project_id == projectID)
@@ -917,7 +891,7 @@ async def clone_project(
             updated_at=dt.now(tz.utc),
         )
         db_wrapper.db.add(new_ds)
-        db_wrapper.db.flush()  # Get new_ds.id
+        db_wrapper.db.flush()
 
         source_cases = (
             db_wrapper.db.query(EvalTestCaseDatabase)
@@ -984,15 +958,11 @@ async def ingest_text(
         else:
             documents = extract_keywords_for_metadata(documents)
 
-        # for document in documents:
-        #    document.text = document.text.decode('utf-8')
-
         n_chunks = index_documents_classic(
             project, documents, ingest.splitter, ingest.chunks
         )
         project.vector.save()
 
-        # Invalidate cache when knowledge base changes
         if project.cache:
             project.cache.clear()
 
@@ -1109,16 +1079,7 @@ async def ingest_file(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Upload and ingest a file into the knowledge base.
-
-    `method` controls the document processing pipeline:
-    - `auto` (default) — tries Docling → MarkItDown → Classic in order
-    - `classic` — LlamaIndex file readers (fast, basic text extraction)
-    - `docling` — deep-learning document understanding (best for complex PDFs)
-    - `markitdown` — Microsoft MarkItDown (broad format support)
-
-    The deprecated `classic` boolean is still accepted for backward compatibility.
-    """
+    """Upload and ingest a file into the knowledge base."""
     check_not_restricted(user)
     if splitter not in ("sentence", "token"):
         raise HTTPException(status_code=422, detail="splitter must be 'sentence' or 'token'")
@@ -1140,7 +1101,7 @@ async def ingest_file(
     opts = json.loads(options)
 
     resolved_method = method or "auto"
-    # Backward compat: old `classic` bool overrides when method wasn't explicit
+    # Backcompat: `classic` bool overrides when `method` wasn't set.
     if classic is not None and method is None:
         resolved_method = "classic" if classic else "docling"
 
@@ -1176,7 +1137,6 @@ async def ingest_file(
             from restai.document.runner import load_documents
             documents = load_documents(request.app.state.manager, temp.name)
         else:
-            # classic
             used_method = "classic"
             loader = find_file_loader(ext, opts)
             try:
@@ -1276,7 +1236,6 @@ async def delete_embedding(
 
         ids = project.vector.delete_source(base64.b64decode(source).decode("utf-8"))
 
-        # Invalidate cache when knowledge base changes
         if project.cache:
             project.cache.clear()
 
@@ -1302,6 +1261,24 @@ async def chat_query(
         import time as _time
         start_time = _time.perf_counter()
 
+        # Resume in-flight stream for the chat_id; honors SSE Last-Event-ID.
+        if q_input.stream and q_input.id:
+            from restai import chat_resume as _resume
+            existing = await _resume.lookup(q_input.id)
+            if existing is not None:
+                last_id = 0
+                hdr = request.headers.get("last-event-id")
+                if hdr:
+                    try:
+                        last_id = int(hdr)
+                    except ValueError:
+                        last_id = 0
+                from starlette.responses import StreamingResponse as _SR
+                return _SR(
+                    existing.subscribe(last_event_id=last_id),
+                    media_type="text/event-stream",
+                )
+
         if not q_input.question and not q_input.image:
             raise HTTPException(status_code=400, detail="Missing question")
 
@@ -1320,6 +1297,42 @@ async def chat_query(
         if result is None:
             raise HTTPException(status_code=500, detail="No response generated")
         return result
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/projects/{projectID}/chat/stop", tags=["Chat"])
+async def chat_stop(
+    request: Request,
+    projectID: int = PathParam(description="Project ID"),
+    body: dict = ...,
+    user: User = Depends(get_current_username_project_public),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Cancel an in-flight streaming chat by chat_id.
+
+    Producer-side agent task is detached from the HTTP request so client
+    AbortController alone can't stop it (see `restai/chat_resume.py`).
+    """
+    try:
+        chat_id = (body or {}).get("id") if isinstance(body, dict) else None
+        if not chat_id:
+            raise HTTPException(status_code=400, detail="Missing chat id")
+        # Enforce same auth scope as /chat (404s cross-project chat_ids).
+        get_project(projectID, db_wrapper, request.app.state.brain)
+        from restai import chat_resume as _resume
+        sess = await _resume.lookup(chat_id)
+        if sess is None:
+            # Evict in case of half-state.
+            await _resume.evict(chat_id)
+            return {"stopped": False, "reason": "no in-flight session"}
+        await sess.cancel()
+        # Evict NOW so next /chat with same chat_id starts fresh (not resume of dead session).
+        await _resume.evict(chat_id)
+        return {"stopped": True}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
@@ -1572,7 +1585,6 @@ async def get_source_analytics(
 
     since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)
 
-    # Per-source stats
     rows = (
         db_wrapper.db.query(
             RetrievalEventDatabase.source,
@@ -1597,7 +1609,6 @@ async def get_source_analytics(
         for r in rows
     ]
 
-    # Find never-retrieved documents
     retrieved_sources = {r.source for r in rows}
     all_sources = set()
     if project.vector:
@@ -1640,7 +1651,6 @@ async def get_chunking_analytics(
     MAX_CHUNKS = 50000
     truncated = False
 
-    # Part A: Vectorstore chunk size distribution
     all_chunks = []
     if project.vector:
         try:
@@ -1679,7 +1689,6 @@ async def get_chunking_analytics(
     sorted_lengths = sorted(chunk_token_lengths)
     median_chunk_tokens = sorted_lengths[total_chunks_count // 2] if sorted_lengths else 0
 
-    # Part B: Retrieval event analysis
     since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)
 
     retrieval_rows = (
@@ -1733,7 +1742,6 @@ async def get_chunking_analytics(
     never_retrieved_chunks = len(all_chunk_ids - retrieved_chunk_ids) if all_chunk_ids else 0
     retrieval_rate = round(len(retrieved_chunk_ids) / max(len(all_chunk_ids), 1), 3) if all_chunk_ids else 0
 
-    # Part C: Recommendations
     recommendations = []
 
     if avg_retrieved_tokens and avg_chunk_tokens:
@@ -1881,7 +1889,6 @@ async def get_conversation_analytics(
         OutputDatabase.date <= end_date,
     ]
 
-    # Summary
     total_messages = db_wrapper.db.query(func.count(OutputDatabase.id)).filter(*base_filter).scalar() or 0
     total_conversations = db_wrapper.db.query(func.count(func.distinct(OutputDatabase.chat_id))).filter(
         *base_filter, OutputDatabase.chat_id.isnot(None)
@@ -1903,7 +1910,6 @@ async def get_conversation_analytics(
         "total_cost": round(total_cost, 4),
     }
 
-    # Daily
     daily_rows = (
         db_wrapper.db.query(
             func.date(OutputDatabase.date).label("date"),
@@ -1917,7 +1923,6 @@ async def get_conversation_analytics(
     )
     daily = [{"date": r.date, "conversations": r.conversations, "messages": r.messages} for r in daily_rows]
 
-    # Hourly distribution
     hourly_rows = (
         db_wrapper.db.query(
             func.extract("hour", OutputDatabase.date).label("hour"),
@@ -1931,7 +1936,6 @@ async def get_conversation_analytics(
     hourly_map = {int(r.hour): r.messages for r in hourly_rows}
     hourly = [{"hour": h, "messages": hourly_map.get(h, 0)} for h in range(24)]
 
-    # Top users
     top_user_rows = (
         db_wrapper.db.query(
             OutputDatabase.user_id,
@@ -1947,9 +1951,6 @@ async def get_conversation_analytics(
     )
     top_users = [{"user_id": r.user_id, "username": r.username, "messages": r.messages} for r in top_user_rows]
 
-    # Status breakdown — success vs error/budget/quota/rate_limit. The
-    # `status` column is set by `helper._log_inference_error` when a
-    # check fails before the LLM runs, and "success" when it doesn't.
     status_rows = (
         db_wrapper.db.query(
             OutputDatabase.status,
@@ -1961,8 +1962,6 @@ async def get_conversation_analytics(
     )
     status_breakdown = [{"status": (r.status or "success"), "count": r.count} for r in status_rows]
 
-    # Latency histogram — fixed buckets keyed by speed-of-light intuition.
-    # Anything <500ms feels instant; >10s is "the LLM is struggling".
     LATENCY_BUCKETS = [
         ("0-100ms", 0, 100),
         ("100-500ms", 100, 500),
@@ -1981,8 +1980,6 @@ async def get_conversation_analytics(
             q = q.filter(OutputDatabase.latency_ms < hi)
         latency_buckets.append({"bucket": label, "count": q.scalar() or 0})
 
-    # LLM split — useful for projects that rotated models or use a
-    # fallback chain. Most projects only show one row.
     llm_rows = (
         db_wrapper.db.query(
             OutputDatabase.llm,
@@ -2056,8 +2053,7 @@ async def get_conversation_replay(
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Return every OutputDatabase row for a chat_id, ordered oldest first.
-    Capped at 500 turns; payload sets `truncated=true` past that."""
+    """Return every OutputDatabase row for a chat_id (capped at 500 turns)."""
     try:
         validate_safe_name(chat_id)
     except Exception:
@@ -2284,14 +2280,11 @@ async def get_project_tools(
                 "message": "No MCP servers configured for this project",
             }
 
-        # Dictionary to store tools per MCP server
         all_tools = {}
 
-        # Connect to each MCP server and retrieve tools
         for mcp_server in project.props.options.mcp_servers:
             server_name = mcp_server.host
             try:
-                # Create MCP client
                 mcp_client = BasicMCPClient(
                     mcp_server.host,
                     args=mcp_server.args or [],
@@ -2303,10 +2296,8 @@ async def get_project_tools(
                     client=mcp_client,
                 )
 
-                # Use the asynchronous version instead of the synchronous one
                 tools = await mcp_tool_spec.to_tool_list_async()
 
-                # Get available tools
                 tools_info = []
 
                 for tool in tools:
@@ -2318,7 +2309,6 @@ async def get_project_tools(
                         }
                     )
 
-                # Add tools to the result
                 all_tools[server_name] = {"tools": tools_info}
 
             except BaseException as e:
@@ -2373,7 +2363,6 @@ async def send_project_invitation(
     if not in_team:
         return response
 
-    # Check no pending invite exists
     existing = (
         db_wrapper.db.query(ProjectInvitationDatabase)
         .filter(
@@ -2714,7 +2703,6 @@ async def fire_routine(
         request, brain, project, q, user, db_wrapper, background_tasks,
     )
 
-    # Execute queued background tasks (inference logging)
     for task in background_tasks.tasks:
         try:
             if inspect.iscoroutinefunction(task.func):
@@ -2724,7 +2712,6 @@ async def fire_routine(
         except Exception:
             pass
 
-    # Update routine state
     from datetime import datetime, timezone
     answer = result.get("answer", "") if isinstance(result, dict) else str(result)
     routine.last_run = datetime.now(timezone.utc)
@@ -2732,9 +2719,7 @@ async def fire_routine(
     routine.updated_at = datetime.now(timezone.utc)
     db_wrapper.db.commit()
 
-    # Append a manual-fire row to the execution log so admins can see
-    # admin-triggered runs alongside scheduled ones. `manual=True`
-    # distinguishes them from cron fires.
+    # Manual-fire row in the execution log; `manual=True` distinguishes from cron.
     try:
         from restai.models.databasemodels import RoutineExecutionLogDatabase
         db_wrapper.db.add(RoutineExecutionLogDatabase(
@@ -2758,9 +2743,7 @@ async def get_routine_history(
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Recent execution history for a routine, newest first. Includes
-    both cron-fired (manual=False) and admin-triggered (manual=True)
-    runs."""
+    """Recent execution history for a routine, newest first."""
     from restai.models.databasemodels import RoutineExecutionLogDatabase
     routine = db_wrapper.get_project_routine_by_id(routineID)
     if not routine or routine.project_id != projectID:
@@ -2787,18 +2770,13 @@ async def get_routine_history(
     }
 
 
-# ── Memory Bank (per-project shared conversation context) ────────────────
-
-
 @router.get("/projects/{projectID}/memory-bank", tags=["Memory Bank"])
 async def list_memory_bank(
     projectID: int = PathParam(description="Project ID"),
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Visualizer payload: every entry grouped by granularity, plus
-    aggregate stats (total tokens vs. budget) so the UI can show a
-    fill bar without a second round-trip."""
+    """Visualizer payload: entries grouped by granularity + aggregate stats."""
     from restai.models.databasemodels import ProjectMemoryBankEntryDatabase
     project = db_wrapper.get_project_by_id(projectID)
     if not project:
@@ -2853,9 +2831,7 @@ async def preview_memory_bank(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Return the exact text block that would be prepended to the system
-    prompt this turn — same code path the agent uses, so what the user
-    sees here is what the LLM sees."""
+    """Return the exact text block prepended to the system prompt this turn."""
     project = db_wrapper.get_project_by_id(projectID)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -2871,9 +2847,6 @@ async def preview_memory_bank(
     }
 
 
-# ── Memory Search (per-project conversation-history vector index) ────────
-
-
 @router.post("/projects/{projectID}/memory-search", tags=["Memory Search"])
 async def memory_search_query(
     request: Request,
@@ -2882,14 +2855,7 @@ async def memory_search_query(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Run the same `search_memories` builtin tool the agent calls and
-    return the raw text result. The Memory tab in the project edit UI
-    uses this to show admins exactly what an LLM sees when it invokes
-    the tool — no formatting drift, no second rendering path.
-
-    Body: ``{"query": "...", "k": 5}``. ``k`` is clamped to [1, 20] by
-    the tool itself; this endpoint just forwards.
-    """
+    """Run the agent's `search_memories` tool and return its raw text result."""
     project = db_wrapper.get_project_by_id(projectID)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -2902,8 +2868,6 @@ async def memory_search_query(
     except Exception:
         k = 5
 
-    # Same code path the agent runtime executes → guaranteed identical
-    # output (errors, header line, per-hit blocks, char cap, etc.).
     from restai.llms.tools.search_memories import search_memories
     brain = request.app.state.brain
     result = search_memories(
@@ -2932,9 +2896,6 @@ async def clear_memory_bank(
     )
     db_wrapper.db.commit()
     return {"deleted": int(deleted or 0)}
-
-
-# ── Agent-created project tools ──────────────────────────────────────────
 
 
 @router.get("/projects/{projectID}/custom-tools", tags=["Projects"])
@@ -2996,7 +2957,6 @@ async def update_project_custom_tool(
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
 
-    # Merge: use provided values or keep existing
     final_description = body.description if body.description is not None else tool.description
     final_parameters = body.parameters if body.parameters is not None else tool.parameters
     final_code = body.code if body.code is not None else tool.code
@@ -3011,7 +2971,6 @@ async def update_project_custom_tool(
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=400, detail=f"Invalid parameters JSON: {e}")
 
-    # Docker test-run if available
     brain = request.app.state.brain
     warning = None
     if getattr(brain, "docker_manager", None):
@@ -3022,7 +2981,6 @@ async def update_project_custom_tool(
     else:
         warning = "Docker is not configured; code was saved without sandbox validation."
 
-    # Save
     final_params_str = json.dumps(params_dict) if isinstance(params_dict, dict) else final_parameters
     db_wrapper.upsert_project_tool(
         project_id=projectID,
@@ -3032,7 +2990,6 @@ async def update_project_custom_tool(
         code=final_code,
     )
 
-    # Re-fetch to get updated timestamps
     updated = db_wrapper.get_project_tool_by_name(projectID, toolName)
     result = {
         "id": updated.id,
@@ -3063,9 +3020,6 @@ async def delete_project_custom_tool(
     return {"detail": f"Tool '{toolName}' deleted"}
 
 
-# ── Block AI helpers (system_llm powered) ───────────────────────────────
-
-
 @router.post("/projects/{projectID}/block/generate", tags=["Projects"])
 async def block_generate_workspace(
     request: Request,
@@ -3081,7 +3035,7 @@ async def block_generate_workspace(
     if project.props.type != "block":
         raise HTTPException(status_code=400, detail="Only block projects support workspace generation.")
 
-    # Collect names of other projects the user can call, to help the LLM produce valid restai_call_project blocks
+    # Names of projects the user can call (for valid restai_call_project blocks).
     all_projects = db_wrapper.db.query(ProjectDatabase).all()
     available_projects = [
         p.name for p in all_projects
@@ -3383,12 +3337,7 @@ async def kg_query(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Natural language query against the knowledge graph.
-
-    Extracts entities from the question, finds sources mentioning those entities,
-    fetches matching chunks from the vector store, then asks the project's LLM
-    to answer using only those chunks as context.
-    """
+    """Natural language query against the knowledge graph."""
     import re as _re
     from restai.knowledge_graph import find_entities_in_text, normalize_entity_name
     from restai.models.databasemodels import KGEntityDatabase, KGEntityMentionDatabase
@@ -3405,10 +3354,7 @@ async def kg_query(
 
     brain = request.app.state.brain
 
-    # Strategy: match the question text against entities ALREADY in this project's
-    # graph (DB-driven). NER on short user questions is unreliable; the DB knows
-    # exactly what entities exist, so substring matching against them is far more
-    # robust. NER results are merged in as a supplementary signal.
+    # Match question against entities already in the project graph; NER is supplementary.
     project_entities = (
         db_wrapper.db.query(KGEntityDatabase)
         .filter(KGEntityDatabase.project_id == projectID)
@@ -3429,12 +3375,11 @@ async def kg_query(
         norm = ent.normalized or ""
         if not norm:
             continue
-        # Word-boundary substring match — avoids "ace" matching inside "place"
+        # Word-boundary substring match — avoids "ace" inside "place".
         if f" {norm} " in question_lower:
             matched_entities.append(ent)
 
-    # Supplement with NER hits (in case the question uses a name that's not yet
-    # in the DB in exactly that form, but is a near-match)
+    # Supplement with NER hits for near-matches not in the DB by exact form.
     try:
         ner_hits = find_entities_in_text(question, brain)
         if ner_hits:
@@ -3455,7 +3400,6 @@ async def kg_query(
         logging.warning("NER fallback failed in kg/query: %s", e)
 
     if not matched_entities:
-        # Show the user a few example entities so they know what's available
         sample = [e.name for e in project_entities[:10]]
         return {
             "answer": (
@@ -3483,9 +3427,8 @@ async def kg_query(
             "source_count": 0,
         }
 
-    # Fetch chunks for matched sources from ChromaDB
     context_parts = []
-    for src in matched_sources[:10]:  # cap to avoid huge context
+    for src in matched_sources[:10]:
         try:
             chunk_data = project.vector.find_source(src)
             for doc_text in (chunk_data.get("documents") or [])[:5]:
@@ -3543,7 +3486,6 @@ async def kg_rebuild(
     if project.props.type != "rag":
         raise HTTPException(status_code=400, detail="Only available for RAG projects.")
 
-    # Wipe existing graph for this project
     db_wrapper.db.query(KGEntityRelationshipDatabase).filter(
         KGEntityRelationshipDatabase.project_id == projectID
     ).delete()
@@ -3577,24 +3519,8 @@ async def kg_rebuild(
     return {"message": f"Rebuild scheduled for {len(sources)} sources", "source_count": len(sources)}
 
 
-# Mobile-app integration (Android, iOS, ...)
-#
-# When a project admin toggles "Mobile integration" ON we mint a
-# read-only API key scoped to this single project and surface its
-# connection details as a QR code. Phones scan the QR and get instant
-# chat-only access. The QR payload is platform-neutral — any mobile
-# client that implements the protocol can pair.
-#
-# The key id is stashed on ProjectOptions so (a) multiple phones can
-# enrol by scanning the same QR and (b) the owner can revoke every
-# paired phone at once by regenerating the key.
-
 def _mobile_default_host(request: Request) -> str:
-    """Resolve the host URL mobile apps should hit.
-
-    Preference order: ``config.RESTAI_URL`` (admin-configured canonical URL)
-    → the scheme+host the current request came in on.
-    """
+    """Resolve the host URL mobile apps should hit."""
     configured = getattr(config, "RESTAI_URL", None)
     if configured:
         return str(configured).rstrip("/")
@@ -3609,12 +3535,7 @@ def _mobile_key_description(project_name: str) -> str:
 
 
 def _mobile_status_payload(request: Request, project_db, api_key_row, api_key_plaintext: Optional[str] = None) -> dict:
-    """Shape the GET/POST response. The plaintext key is always surfaced
-    when the integration is enabled so the admin UI can keep the QR code
-    visible and pair new phones later — decrypted from the row's
-    ``encrypted_key`` when a fresh plaintext isn't already at hand. Every
-    phone scanning the same QR shares the same read-only key, and the
-    admin can revoke the whole fleet via the Regenerate button."""
+    """Shape GET/POST response; surfaces plaintext key while enabled (for QR)."""
     enabled = api_key_row is not None
     payload = {
         "enabled": enabled,
@@ -3640,8 +3561,7 @@ def _mobile_status_payload(request: Request, project_db, api_key_row, api_key_pl
 
 
 def _get_mobile_api_key(db_wrapper: DBWrapper, project_db):
-    """Return the ApiKeyDatabase row currently paired with this project's
-    Mobile integration, or None. Looks up by id stored in project options."""
+    """Return the ApiKeyDatabase row paired with this project's Mobile integration."""
     opts = json.loads(project_db.options) if project_db.options else {}
     key_id = opts.get("mobile_api_key_id")
     if not key_id:
@@ -3665,8 +3585,7 @@ def _persist_mobile_key(db_wrapper: DBWrapper, project_db, api_key_id):
 
 
 def _mint_mobile_api_key(db_wrapper: DBWrapper, user, project_db) -> tuple:
-    """Create a read-only, project-scoped API key for mobile apps.
-    Returns (api_key_row, plaintext_key). The plaintext is shown only once."""
+    """Create a read-only project-scoped API key; returns (row, plaintext)."""
     import uuid as _uuid
     import secrets as _secrets
     from restai.utils.crypto import encrypt_api_key, hash_api_key
@@ -3695,8 +3614,7 @@ async def mobile_status(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Return Mobile integration status. Never returns the plaintext key —
-    that's only available at enable / regenerate time."""
+    """Return Mobile integration status (plaintext only at enable/regenerate time)."""
     project_db = db_wrapper.get_project_by_id(projectID)
     if project_db is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -3711,10 +3629,7 @@ async def mobile_enable(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Turn Mobile integration ON. Creates a read-only, project-scoped API
-    key and returns the plaintext so the frontend can render the QR code.
-    Idempotent — if already enabled, returns the existing key prefix with no
-    plaintext (to avoid re-exposing secrets)."""
+    """Turn Mobile integration ON; idempotent (no re-exposure of existing key)."""
     check_not_restricted(user)
     project_db = db_wrapper.get_project_by_id(projectID)
     if project_db is None:
@@ -3736,8 +3651,7 @@ async def mobile_disable(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Turn Mobile integration OFF. Revokes the project-scoped key so every
-    paired phone immediately loses access."""
+    """Turn Mobile integration OFF; revokes the key (all paired phones lose access)."""
     check_not_restricted(user)
     project_db = db_wrapper.get_project_by_id(projectID)
     if project_db is None:
@@ -3758,8 +3672,7 @@ async def mobile_regenerate(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Invalidate every currently-paired phone and mint a fresh key. The
-    old phones will get 401s on their next request until they rescan the QR."""
+    """Invalidate paired phones and mint a fresh key."""
     check_not_restricted(user)
     project_db = db_wrapper.get_project_by_id(projectID)
     if project_db is None:

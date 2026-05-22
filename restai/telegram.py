@@ -6,7 +6,6 @@ import requests
 
 TELEGRAM_API_BASE = "https://api.telegram.org/bot{token}"
 
-# Global registry of active polling threads: project_id -> TelegramPoller
 _pollers: dict[int, "TelegramPoller"] = {}
 _pollers_lock = threading.Lock()
 
@@ -44,13 +43,7 @@ def send_typing_action(token: str, chat_id: int):
 
 
 def delete_webhook(token: str) -> tuple[bool, str | None]:
-    """Clear any webhook configured on the bot. Telegram refuses
-    `getUpdates` while a webhook is active (it's an either/or model),
-    so the cron self-heals by calling this on a 409 that mentions
-    'webhook'. Idempotent — does nothing if no webhook is set.
-
-    Returns ``(ok, error_or_none)``.
-    """
+    """Clear any webhook (Telegram refuses getUpdates while one is active). Idempotent."""
     try:
         resp = requests.post(
             f"{TELEGRAM_API_BASE.format(token=token)}/deleteWebhook",
@@ -67,12 +60,7 @@ def delete_webhook(token: str) -> tuple[bool, str | None]:
 
 
 def get_updates(token: str, offset: int = 0, timeout: int = 30):
-    """Returns ``(updates, error)``.
-
-    - ``(list, None)`` on success (list may be empty for a long-poll timeout)
-    - ``(None, "<reason>")`` on failure — caller can log/surface the reason
-      instead of just "API error".
-    """
+    """Returns (updates, error). (list, None) on success, (None, reason) on failure."""
     try:
         resp = requests.get(
             f"{TELEGRAM_API_BASE.format(token=token)}/getUpdates",

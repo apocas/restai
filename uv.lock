@@ -892,6 +892,24 @@ wheels = [
 ]
 
 [[package]]
+name = "claude-agent-sdk"
+version = "0.2.84"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "mcp" },
+    { name = "sniffio" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/54/17/763f50bbfe1dfb41cabcbfdfef06b8bffcb489af67104154d9ed59c75531/claude_agent_sdk-0.2.84.tar.gz", hash = "sha256:89e71c7328fa9bcd350437872c44f2b98d456d54183eaecdc62dad5dd034e63d", size = 252061, upload-time = "2026-05-21T20:54:56.605Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b9/75/a7117b08795457ad3a66baea1430f997b859108a7009252e6df0fb198d07/claude_agent_sdk-0.2.84-py3-none-macosx_11_0_arm64.whl", hash = "sha256:5e013ef4928d8ab549e3d0d6a17737f7934a4c0bd6e198917cab3577f9e7a7da", size = 62717864, upload-time = "2026-05-21T20:55:01.846Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/5b/9479fd71fd909739512860608033f5baf3672e5576cc26d6afe6e4515ba6/claude_agent_sdk-0.2.84-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:2992119a238c3c54a5ba326c3f00fba58877cc8f65f54bbe45fc69ef25e08220", size = 64765063, upload-time = "2026-05-21T20:55:07.727Z" },
+    { url = "https://files.pythonhosted.org/packages/49/80/f6db4cce4a179b8a40a082956c167bbfdea5fadd30d20990431a34e3e19b/claude_agent_sdk-0.2.84-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:69b2039c660cfb04b61238257128691b8623df8cde7d0f83667dced78dded0b1", size = 72406627, upload-time = "2026-05-21T20:55:14.892Z" },
+    { url = "https://files.pythonhosted.org/packages/69/40/18c1bc8775cd41334f175b9dcb91bceedb942b7aaecce5b0d2676aa14c2d/claude_agent_sdk-0.2.84-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:f96841187f06f4840d3cfb0351c6536b9ad06b7c2c0b634f9066c91c0be9a366", size = 72570795, upload-time = "2026-05-21T20:55:22.26Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/04/49188f3c57014f576afd650a1ea94f0c0559b0e8f5632f044024d3c096a2/claude_agent_sdk-0.2.84-py3-none-win_amd64.whl", hash = "sha256:7967fd2214e2b28a04e2f2b158cef12339d4564d3ef3d24f7746e11f07675cd7", size = 73201347, upload-time = "2026-05-21T20:55:29.877Z" },
+]
+
+[[package]]
 name = "click"
 version = "8.3.2"
 source = { registry = "https://pypi.org/simple" }
@@ -4349,6 +4367,25 @@ wheels = [
 ]
 
 [[package]]
+name = "openai-agents"
+version = "0.17.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "griffelib" },
+    { name = "mcp" },
+    { name = "openai" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "types-requests" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fd/16/b79c1849125eb6d19cae98c21ff35caa2e55b5ec8d7a02b354b711917ef7/openai_agents-0.17.3.tar.gz", hash = "sha256:63b6dda6bd4fb51169e2a2cbd5d187a4e5ce823bbd15f965c8ed1d3b89072eec", size = 5406135, upload-time = "2026-05-19T01:28:15.971Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/80/ec/775a14cfd5f12f4ffe458c7ac9527831093c72e8c1aef682898fc6394106/openai_agents-0.17.3-py3-none-any.whl", hash = "sha256:a048bb0752d40913d18bccf6562f56260b603bb57c972597b6da58f60123f4bd", size = 841541, upload-time = "2026-05-19T01:28:13.334Z" },
+]
+
+[[package]]
 name = "openapi-pydantic"
 version = "0.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -6132,6 +6169,7 @@ dependencies = [
     { name = "bcrypt" },
     { name = "bs4" },
     { name = "chromadb" },
+    { name = "claude-agent-sdk" },
     { name = "ddgs" },
     { name = "deepeval" },
     { name = "deepgram-sdk" },
@@ -6183,6 +6221,7 @@ dependencies = [
     { name = "markitdown", extra = ["all"] },
     { name = "ollama" },
     { name = "openai" },
+    { name = "openai-agents" },
     { name = "opencv-python-headless" },
     { name = "openpyxl" },
     { name = "pandas" },
@@ -6203,6 +6242,7 @@ dependencies = [
     { name = "selenium" },
     { name = "sentry-sdk", extra = ["fastapi"] },
     { name = "slack-bolt" },
+    { name = "smolagents" },
     { name = "soundfile" },
     { name = "sqlalchemy" },
     { name = "starlette" },
@@ -6245,6 +6285,7 @@ requires-dist = [
     { name = "bcrypt", specifier = ">=4.2.0,<6" },
     { name = "bs4", specifier = ">=0.0.2,<0.1" },
     { name = "chromadb", specifier = ">=1.5.8,<2" },
+    { name = "claude-agent-sdk", specifier = ">=0.2.84,<0.3" },
     { name = "ddgs", specifier = ">=9.14.0,<10" },
     { name = "deepeval", specifier = ">=3.9.7,<4" },
     { name = "deepgram-sdk", specifier = ">=3.7.0,<5" },
@@ -6296,6 +6337,7 @@ requires-dist = [
     { name = "markitdown", extras = ["all"], specifier = ">=0.1.5,<0.2" },
     { name = "ollama", specifier = ">=0.6.1,<0.7" },
     { name = "openai", specifier = ">=1.109.0,<3" },
+    { name = "openai-agents", specifier = ">=0.5,<2" },
     { name = "opencv-python-headless", specifier = ">=4.8,<5" },
     { name = "openpyxl", specifier = ">=3.1.5,<4" },
     { name = "pandas", specifier = ">=2.2.3,<4" },
@@ -6316,6 +6358,7 @@ requires-dist = [
     { name = "selenium", specifier = ">=4.43.0,<5" },
     { name = "sentry-sdk", extras = ["fastapi"], specifier = ">=2.58.0,<3" },
     { name = "slack-bolt", specifier = ">=1.28.0,<2" },
+    { name = "smolagents", specifier = ">=1.0.0,<2" },
     { name = "soundfile", specifier = ">=0.13.1,<0.14" },
     { name = "sqlalchemy", specifier = ">=2.0.49,<3" },
     { name = "starlette", specifier = ">=0.46.0,<2" },
@@ -6777,6 +6820,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/14/33/7a00ac9b4a63afb4279b99a766f6cbe56c443526dcbf5db97b219e21fde9/smart_open-7.6.0.tar.gz", hash = "sha256:44717f46b5ff276fac03b88e5d13d1c416f064f3b7b081381b0fa8889004bd7e", size = 54548, upload-time = "2026-04-13T09:48:04.347Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/de/bc/2761410d0541e975f384bc89f062d716bf119499dd097eb1af33dcd3b1c0/smart_open-7.6.0-py3-none-any.whl", hash = "sha256:2a78f454610a826aa688065b54b4a0a9b12a5599fa61d5190e9bac2df5e5f53f", size = 64591, upload-time = "2026-04-13T09:48:02.687Z" },
+]
+
+[[package]]
+name = "smolagents"
+version = "1.25.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "jinja2" },
+    { name = "pillow" },
+    { name = "python-dotenv" },
+    { name = "requests" },
+    { name = "rich" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/44/b0/bb21276a171d99910649da5fd54f450033135858caf63257532bbac7b7fe/smolagents-1.25.0.tar.gz", hash = "sha256:f394a65cb1de76c5938624ca8ef56573460f55a9ab517c2a4b6c2c4dbc932228", size = 242056, upload-time = "2026-05-14T11:36:18.356Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d6/f9/8e3c92bdf5310c307d3d1ec105e8a6677c34b9c85650facc890569395efa/smolagents-1.25.0-py3-none-any.whl", hash = "sha256:fbb6716ef9ff164c9ca6238d8bd2559736c9e171a21443e2c61c400d443bdcde", size = 164726, upload-time = "2026-05-14T11:36:16.367Z" },
 ]
 
 [[package]]
@@ -7504,6 +7564,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f2/1e/a27cc02a0cd715118c71fa2aef2c687fdefc3c28d90fd0dd789c5118154c/typer-0.21.2.tar.gz", hash = "sha256:1abd95a3b675e17ff61b0838ac637fe9478d446d62ad17fa4bb81ea57cc54028", size = 120426, upload-time = "2026-02-10T19:33:46.182Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b8/cc/d59f893fbdfb5f58770c05febfc4086a46875f1084453621c35605cec946/typer-0.21.2-py3-none-any.whl", hash = "sha256:c3d8de54d00347ef90b82131ca946274f017cffb46683ae3883c360fa958f55c", size = 56728, upload-time = "2026-02-10T19:33:48.01Z" },
+]
+
+[[package]]
+name = "types-requests"
+version = "2.33.0.20260518"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e0/01/c5a19253fe1ac159159ddf9a3a07cec8bb5e486ec4d9002ad2821da0e5d2/types_requests-2.33.0.20260518.tar.gz", hash = "sha256:df7bd3bfe0ca8402dfb841e7d9be714bb5578203283d66d7dc4ef69343449a5e", size = 24752, upload-time = "2026-05-18T06:07:37.966Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1c/bc/b139710a3b6018f7fb2b9508b35c8af564e61bf2bf4fa619d088f3e16f85/types_requests-2.33.0.20260518-py3-none-any.whl", hash = "sha256:626d697d1adaaff76e2044dc8c5c051d8f21abc157bdfe204a75558076fe0bf0", size = 21391, upload-time = "2026-05-18T06:07:37.044Z" },
 ]
 
 [[package]]

@@ -13,10 +13,8 @@ import {
   breath, drift, tickerIn,
 } from "./forensic/styles";
 
-// ─── Memory-bank-specific constants ──────────────────────────────────────
 // Granularities walk a blue gradient (cyan → primary → deep) so depth in
-// time = depth in hue, with the theme's amber secondary as the contrast
-// for "month". This stays bank-local because no other tab needs it.
+// time = depth in hue; theme amber for "month" is the contrast.
 const GRAN = {
   conversation: { color: "#0891b2", label: "CONVERSATION" },  // cyan-600 — freshest
   day:          { color: "#1976d2", label: "DAY"          },  // theme primary blue
@@ -25,7 +23,6 @@ const GRAN = {
 };
 const GRAN_ORDER = ["conversation", "day", "week", "month"];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────
 function formatRelative(iso) {
   if (!iso) return "—";
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -35,7 +32,6 @@ function formatRelative(iso) {
   return `${Math.floor(diff / 86400)}D AGO`;
 }
 
-// ─── HUD components ──────────────────────────────────────────────────────
 function HUDRule({ children, sx }) {
   return (
     <Box sx={{
@@ -123,7 +119,6 @@ function TokenMeter({ used, max }) {
   );
 }
 
-// ─── Timeline rail (mini-map of every entry across time) ────────────────
 function TimelineRail({ entries, activeIdx, onSelect }) {
   // Map timestamps to a 0..1 axis. If all entries share a time, fall back
   // to even spacing so every dot is still distinguishable.
@@ -199,7 +194,6 @@ function TimelineRail({ entries, activeIdx, onSelect }) {
   );
 }
 
-// ─── The focused memory shard (the "orb in your hand") ──────────────────
 function FocusedShard({ entry, total, idx }) {
   if (!entry) return null;
   const meta = GRAN[entry.granularity] || GRAN.conversation;
@@ -321,7 +315,6 @@ function FocusedShard({ entry, total, idx }) {
   );
 }
 
-// ─── Lane (perspective-warped strip of all entries) ─────────────────────
 function Lane({ entries, activeIdx, onSelect }) {
   const laneRef = useRef(null);
   const activeRef = useRef(null);
@@ -446,7 +439,6 @@ function Lane({ entries, activeIdx, onSelect }) {
   );
 }
 
-// ─── Live render preview (collapsible) ──────────────────────────────────
 function LivePreview({ projectId, token, refreshKey }) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState(null);
@@ -522,7 +514,6 @@ function LivePreview({ projectId, token, refreshKey }) {
   );
 }
 
-// ─── Main component ─────────────────────────────────────────────────────
 export default function ProjectEditMemoryBank({ project }) {
   const auth = useAuth();
   const [data, setData] = useState(null);
@@ -574,7 +565,6 @@ export default function ProjectEditMemoryBank({ project }) {
 
   const refresh = () => setRefreshTick((t) => t + 1);
 
-  // ─── Outer panel ─────────────────────────────────────────────────────
   const headerActions = (
     <>
       <Tooltip title="Refresh">

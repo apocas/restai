@@ -1,7 +1,4 @@
-"""Audio transcription endpoints — `/audio/{generator}/transcript` and the
-OpenAI-compatible `/v1/audio/transcriptions`. Both go through the
-registry-backed dispatch (`restai/speech_to_text/dispatch.py`).
-"""
+"""Audio transcription endpoints."""
 import logging
 import os
 import shutil
@@ -32,8 +29,7 @@ async def route_list_generators(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """List speech-to-text models available to the caller (legacy path —
-    the new admin page uses /speech_to_text)."""
+    """List speech-to-text models available to the caller."""
     names = list_available_stt_models(db_wrapper)
     if not user.is_admin:
         teams = db_wrapper.get_teams_for_user(user.id)
@@ -46,9 +42,7 @@ async def route_list_generators(
 
 
 def _normalize_to_mp3(input_path: str, original_filename: str) -> tuple[str, str, bool]:
-    """Return ``(mp3_path, mp3_filename, owns_temp)``. Re-encodes via ffmpeg
-    when the input isn't already mp3. `owns_temp` is True when the caller
-    must delete `mp3_path` after use."""
+    """Return ``(mp3_path, mp3_filename, owns_temp)``; re-encodes via ffmpeg if needed."""
     file_ext = os.path.splitext(original_filename or "")[-1].lower()
     if file_ext == ".mp3":
         return input_path, original_filename, False
@@ -76,8 +70,7 @@ def _do_transcribe(
     contents: bytes,
     language: str | None,
 ) -> str:
-    """Common path: validate size, write upload to a tempfile, normalize to
-    mp3, hand to the registry dispatch, return the transcript."""
+    """Validate, write tempfile, normalize to mp3, dispatch, return transcript."""
     max_audio_mb = int(db_wrapper.get_setting_value("max_audio_upload_size", "10"))
     max_size_bytes = max_audio_mb * 1024 * 1024
     if len(contents) > max_size_bytes:

@@ -15,8 +15,6 @@ def worker(prompt, sharedmem):
 
     import restai.config as _cfg
 
-    # `_cfg.RESTAI_DEFAULT_DEVICE` is derived from `gpu_worker_devices`
-    # in /admin/gpu (first index in the worker pool, "cuda:N").
     device = _cfg.RESTAI_DEFAULT_DEVICE
 
     base = DiffusionPipeline.from_pretrained(

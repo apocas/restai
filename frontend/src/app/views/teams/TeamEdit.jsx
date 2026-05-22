@@ -16,9 +16,6 @@ import api from "app/utils/api";
 import PageHero from "app/components/page/PageHero";
 import { FONT_MONO, cleanCardSx, pulse } from "app/components/page/pageStyles";
 
-// One quiet platform accent (matches Evals/Logs/Project sub-pages).
-// Per-section rainbow was loud and inconsistent with the rest of the
-// app; sticking to a single cyan keeps the team pages on-brand.
 const ACCENT = "#0891b2";
 
 const Container = styled("div")(({ theme }) => ({
@@ -27,18 +24,13 @@ const Container = styled("div")(({ theme }) => ({
   [theme.breakpoints.down("sm")]: { margin: 16 },
 }));
 
-// Hover lift disabled — these are full-page surfaces, not list tiles
-// that should react to the cursor.
+// Hover lift disabled — full-page surface, not a list tile.
 const sectionCardSx = {
   ...cleanCardSx,
   p: 0,
   "&:hover": { transform: "none", borderColor: "divider", boxShadow: "none" },
 };
 
-// ── Header strip: small icon + plain bold title + optional count
-// pill. No accent-tinted background well, no monospace ALL-CAPS color
-// header, no double-card nesting. Reads as documentation, not a
-// console panel.
 function SectionHeader({ icon: Icon, title, subtitle, count, action }) {
   return (
     <Box
@@ -86,8 +78,6 @@ function SectionHeader({ icon: Icon, title, subtitle, count, action }) {
   );
 }
 
-// Minimalist Autocomplete picker — default MUI chips, neutral focus
-// ring. Helper text just below in muted slate.
 function PickerField({ label, placeholder, options, value, onChange, getOptionLabel = (o) => o.name, isOptionEqualToValue, helperText }) {
   return (
     <>
@@ -131,10 +121,6 @@ function TabPanel({ children, value, index }) {
   return <Box sx={{ p: 2.5 }}>{children}</Box>;
 }
 
-// Inner sub-section block — used for grouping pickers (Members /
-// Admins side-by-side, LLM / Embeddings grid). Slim divider + light
-// header instead of a nested card so we don't get the previous
-// double-bordered "matryoshka" look.
 function SubSection({ icon, title, count, children }) {
   return (
     <Box sx={{ p: 0 }}>
@@ -174,11 +160,8 @@ export default function TeamEdit() {
   });
   const [logoUploading, setLogoUploading] = useState(false);
 
-  // ── Logo upload: file → downscaled data URL ─────────────────────
-  // Entirely client-side; result feeds the existing logo_url string.
-  // Downscale so a giant phone screenshot doesn't bloat the row past
-  // the Pydantic max_length cap. PNGs stay PNG (preserves
-  // transparency for logos), everything else encodes as JPEG @ 0.88.
+  // Client-side downscale so a phone screenshot doesn't bust the Pydantic
+  // max_length cap. PNG stays PNG (transparency), other rasters → JPEG 0.88.
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -367,8 +350,6 @@ export default function TeamEdit() {
   const heroEyebrow = isNewTeam ? "TEAM/NEW" : `TEAM/${String(id).padStart(4, "0")}`;
   const heroTitle = isNewTeam ? t("teams.edit.newTitle") : team.name || t("teams.edit.editTitle");
 
-  // Muted slate stat glyphs (was a pastel rainbow). Reads as data,
-  // not decoration.
   const heroStats = [
     { glyph: "◆", color: "#cbd5e1", label: `${(team.users || []).length} member${(team.users || []).length === 1 ? "" : "s"}` },
     { glyph: "★", color: "#cbd5e1", label: `${(team.admins || []).length} admin${(team.admins || []).length === 1 ? "" : "s"}` },

@@ -20,10 +20,8 @@ const safeJson = (s) => {
   try { return JSON.parse(s); } catch { return null; }
 };
 
-// OutputDatabase row → MessageBubble message-shape. tool_trace becomes
-// the same `reasoning.steps[].actions[]` shape that live_tool_calls
-// produces — PlaygroundLanes pulls thoughts/tools out of this same
-// reasoning structure.
+// tool_trace becomes the same `reasoning.steps[].actions[]` shape that
+// live_tool_calls produces — PlaygroundLanes reads both via this shape.
 function turnToMessage(turn) {
   const traceEntries = safeJson(turn.tool_trace) || [];
   const reasoning = traceEntries.length
@@ -95,9 +93,6 @@ export default function ChatReplayDialog({ open, onClose, projectId, projectName
   const [truncated, setTruncated] = useState(false);
   const [error, setError] = useState(null);
   const [copiedId, setCopiedId] = useState(false);
-  // System-prompt drawer — collapsed by default since the lanes are
-  // the main act in a replay; users can pop it open if they need to
-  // see what guidance the assistant was running under.
   const [showSystem, setShowSystem] = useState(false);
 
   useEffect(() => {
@@ -193,7 +188,6 @@ export default function ChatReplayDialog({ open, onClose, projectId, projectName
         </Toolbar>
       </AppBar>
 
-      {/* Optional system-prompt drawer, collapsed by default. */}
       {systemPrompt && showSystem && (
         <Box sx={{
           flexShrink: 0,

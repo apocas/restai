@@ -1,4 +1,3 @@
-"""System-LLM helpers for block projects: natural language → workspace, and debug explanation."""
 from __future__ import annotations
 
 import json
@@ -159,7 +158,6 @@ EXAMPLE_CLASSIFIER = {
 
 
 def build_generation_prompt(description: str, available_projects: list[str]) -> str:
-    """Build the prompt that asks the LLM to produce a Blockly workspace JSON."""
     projects_hint = ""
     if available_projects:
         projects_hint = (
@@ -189,7 +187,7 @@ _CODE_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
 
 
 def parse_workspace_json(text: str) -> Optional[dict]:
-    """Extract a workspace dict from LLM output. Tolerant of code fences and surrounding prose."""
+    """Tolerant of code fences and surrounding prose."""
     if not text:
         return None
     text = text.strip()
@@ -228,10 +226,7 @@ async def generate_workspace_from_description(
     description: str,
     available_projects: list[str] = None,
 ) -> dict:
-    """Use the system LLM to produce a Blockly workspace from a plain-English description.
-
-    Raises ValueError if no system LLM configured or if parsing fails.
-    """
+    """Raises ValueError if no system LLM configured or parsing fails."""
     system_llm = brain.get_system_llm(db)
     if system_llm is None:
         raise ValueError("No system LLM is configured. Set one in Settings → Platform.")

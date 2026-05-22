@@ -1,21 +1,11 @@
 """Stateless per-project App-Builder runtime.
 
-Replacement for the old ``restai.app.manager.AppManager`` class. Same
-reasoning as ``restai.docker`` and ``restai.browser.runtime``: the
-in-memory ``_containers`` dict + manager init/shutdown lifecycle
-duplicated state we already had in the Docker daemon, drifted between
-uvicorn workers, and made the settings-reinit path racy.
+Flat module of functions; the Docker daemon is source-of-truth for
+container existence (looked up by `restai.app_project_id` label per call).
+Settings read live from restai.config — admin changes take effect on next call.
 
-Now: a flat module of functions. The Docker daemon is the source of
-truth for "is a container running for this project" — looked up by the
-``restai.app_project_id`` label per call. The Docker client is cached
-as a module-level lazy singleton; settings are read live from
-``restai.config`` so admin changes (image / idle timeout) take effect
-on the next call.
-
-App is bind-mount-based (project source at ``/var/www``), which limits
-us to a *local* Docker daemon — bind paths don't traverse to remote
-``tcp://`` daemons. ``is_enabled()`` enforces this.
+Bind-mount-based (project source at /var/www) — local Docker daemon only;
+bind paths don't traverse to remote tcp:// daemons. is_enabled() enforces this.
 """
 
 from __future__ import annotations
@@ -40,8 +30,6 @@ logger = logging.getLogger(__name__)
 _CONTAINER_PORT = 8080
 _HEALTH_TIMEOUT = 30
 _DEFAULT_IMAGE = "restai/app-runtime:2"
-
-# ── Client (lazy singleton) ───────────────────────────────────────────
 
 _client: Optional[_docker_sdk.DockerClient] = None
 _client_url: str = ""
@@ -85,10 +73,7 @@ def _get_client() -> Optional[_docker_sdk.DockerClient]:
         return _client
 
 
-# ── Container lookup / creation (label-based, no in-memory state) ─────
-
 def _resolve_container(project_id: int):
-    """Return the running container for this project, or None."""
     c = _get_client()
     if c is None:
         return None
@@ -204,8 +189,7 @@ def _project_lock(project_id: int) -> asyncio.Lock:
 
 
 def remove_container(project_id: int) -> None:
-    """Stop the per-project container if it exists. Idempotent.
-    Sync — used by the wipe paths in routers/projects.py and routers/app.py."""
+    """Stop the per-project container if it exists. Idempotent. Sync."""
     c = _get_client()
     if c is None:
         return
@@ -224,11 +208,8 @@ def remove_container(project_id: int) -> None:
             logger.warning("App: failed to stop %s: %s", container.short_id, e)
 
 
-# ── Public API ────────────────────────────────────────────────────────
-
 async def get_or_create(project_id: int):
-    """Return ``(container, host_port)``. Idempotent; safe under
-    concurrent callers thanks to the per-project asyncio lock."""
+    """Returns (container, host_port). Per-project asyncio lock ensures safety."""
     pid = int(project_id)
     async with _project_lock(pid):
         container = _resolve_container(pid)
@@ -240,14 +221,13 @@ async def get_or_create(project_id: int):
 
 
 async def restart(project_id: int):
-    """Stop + recreate the container. Returns the new ``(container, port)``."""
+    """Stop + recreate. Returns new (container, port)."""
     remove_container(project_id)
     return await get_or_create(project_id)
 
 
 def get_port(project_id: int) -> Optional[int]:
-    """Read-only lookup of the live container's host port. Doesn't create.
-    Used by the reverse proxy and the runtime status endpoint."""
+    """Read-only host-port lookup. Does not create."""
     container = _resolve_container(project_id)
     if container is None:
         return None
@@ -255,21 +235,15 @@ def get_port(project_id: int) -> Optional[int]:
 
 
 def get_container(project_id: int):
-    """Return the live ``Container`` object for direct exec calls
-    (used by the test runner in routers/app.py). Returns None when
-    nothing's running."""
+    """Live Container for direct exec calls; None when nothing's running."""
     return _resolve_container(project_id)
 
 
 def get_docker_client() -> Optional[_docker_sdk.DockerClient]:
-    """Expose the cached Docker client for low-level ``api.exec_*``
-    calls (the test runner uses this for streamed exec with timeout)."""
     return _get_client()
 
 
 def touch(project_id: int) -> None:  # noqa: ARG001
-    """No-op kept for API compatibility. The cleanup cron evicts by
-    container ``created_at`` label, not last-activity, so there's
-    nothing to update here. Restart bumps ``created_at`` via container
-    recreation."""
+    # No-op kept for API compatibility — cleanup cron evicts by container
+    # created_at label, not last-activity.
     return None

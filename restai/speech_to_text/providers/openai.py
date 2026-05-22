@@ -1,15 +1,4 @@
-"""OpenAI Whisper API + OpenAI-compat transcription.
-
-Works against:
-- OpenAI proper (`whisper-1`, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`).
-- Any OpenAI-spec-compatible endpoint (Groq, Together, vLLM transcription
-  servers, self-hosted gateways) when admin sets `options.base_url`.
-
-Options recognized:
-- `model`     (required) — e.g. `"whisper-1"`.
-- `api_key`   (required).
-- `base_url`  (optional) — overrides the default `https://api.openai.com/v1`.
-"""
+"""OpenAI Whisper API + OpenAI-compat transcription."""
 from __future__ import annotations
 
 import io
@@ -34,8 +23,7 @@ def transcribe(options: dict, audio_bytes: bytes, filename: str, language: str |
 
     client = OpenAI(**client_kwargs)
 
-    # The SDK expects a file-like with a name. Wrap bytes in BytesIO and
-    # tag the name so the server picks the right MIME by extension.
+    # SDK needs a file-like with a `name` so the server picks MIME by extension.
     buf = io.BytesIO(audio_bytes)
     buf.name = filename or "audio.mp3"
 

@@ -1,10 +1,4 @@
-"""STT registry helpers.
-
-`seed_local_stt_models` runs once on startup to ensure every worker module
-under `restai/audio/workers/*.py` has a corresponding DB row with
-`class_name="local"`. Idempotent — existing rows keep their `enabled`
-flag and admin-applied description / privacy.
-"""
+"""STT registry helpers."""
 from __future__ import annotations
 
 import logging
@@ -17,19 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 def seed_local_stt_models(db_wrapper) -> int:
-    """Ensure every local audio worker has a registry row. Returns the
-    number of rows created (0 when everything was already in place).
+    """Ensure every local audio worker has a registry row. Returns count created.
 
-    Workers physically live under `restai/audio/workers/` (legacy module
-    path); we don't move them to keep the diff small. Only the public
-    naming changed to "Speech-to-Text".
-
-    Idempotent and **race-safe**. With multiple uvicorn workers, two
-    processes can both see "no row" from the pre-check and then both
-    try to INSERT — one wins on the unique constraint, the other has
-    to roll back. Without the rollback the SQLAlchemy session enters
-    PendingRollbackError state and every subsequent query in lifespan
-    (e.g. retention cleanup, OAuth load) crashes the worker.
+    Race-safe under multi-worker uvicorn: two workers can both pass the
+    pre-check and INSERT; the second trips the unique constraint and we
+    MUST rollback() or the session enters PendingRollbackError and every
+    subsequent lifespan query crashes the worker.
     """
     workers_dir = os.path.normpath(
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "audio", "workers")
@@ -63,15 +50,11 @@ def seed_local_stt_models(db_wrapper) -> int:
             created += 1
             logger.info("Seeded local speech-to-text model: %s", modname)
         except IntegrityError:
-            # Another uvicorn worker beat us to the INSERT. Roll back
-            # so the session is reusable, then move on — the row is
-            # there, which is what we wanted.
+            # Another worker beat us to the INSERT; rollback to free the session.
             db_wrapper.db.rollback()
             logger.debug("Local STT model '%s' was concurrently seeded by another worker", modname)
         except Exception as e:
-            # Any other failure — make sure the session is clean
-            # before continuing, otherwise everything after this point
-            # in the lifespan handler crashes.
+            # Rollback or subsequent lifespan queries crash.
             try:
                 db_wrapper.db.rollback()
             except Exception:

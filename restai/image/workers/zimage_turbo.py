@@ -1,22 +1,7 @@
 """Z-Image-Turbo (Tongyi-MAI) image generator — bf16 from the official repo.
 
-A 6B-parameter DiT distilled for very fast inference (8 steps, no
-classifier-free guidance). Loaded straight from
-``Tongyi-MAI/Z-Image-Turbo`` in bf16; we lean on
-`enable_model_cpu_offload` to swap text encoder / transformer / VAE in
-and out of GPU one at a time so the active footprint stays at the
-single largest component instead of their sum. For very small cards
-set ``offload=sequential`` in sharedmem to swap at the submodule level
-(slower but much lower peak).
-
-Picks up automatically: `restai/image/registry.py:seed_local_generators`
-walks `image/workers/*.py` on every boot and creates a DB row for any
-new module. The admin can flip `enabled`/`privacy` in the Image
-Generators panel without code changes.
-
-The worker runs in `.venv-zimage` so it can use a bleeding-edge
-`diffusers` (Z-Image pipeline classes only landed in late-2025
-releases, well past the 0.31 pinned in the shared `.venv-sd`).
+Runs in `.venv-zimage` to use bleeding-edge `diffusers` (Z-Image pipeline
+classes only landed late-2025, past the 0.31 pinned in shared `.venv-sd`).
 """
 import os
 
@@ -50,15 +35,11 @@ def worker(prompt, sharedmem):
     torch_dtype = torch.bfloat16
 
     pipe = ZImagePipeline.from_pretrained(repo, torch_dtype=torch_dtype)
-    # Cycle modules in/out of VRAM so peak stays at the single largest
-    # component, not the sum. Sequential offload swaps at the submodule
-    # level (much lower peak, slower); model offload is the default.
     if (sharedmem.get("offload") or "model").lower() == "sequential":
         pipe.enable_sequential_cpu_offload()
     else:
         pipe.enable_model_cpu_offload()
 
-    # Z-Image-Turbo is distilled — short step count, low/no CFG.
     image = pipe(
         prompt=prompt,
         num_inference_steps=int(sharedmem.get("num_inference_steps") or 8),

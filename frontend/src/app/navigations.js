@@ -2,10 +2,8 @@ import { authRoles } from "app/auth/authRoles";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 import { useTranslation } from "react-i18next";
 
-// Default navigations without conditional items
-// Internal: the static nav tree. `nameKey`/`labelKey` are i18n keys; the
-// `name`/`label` fallbacks are used when i18n is not yet initialized or
-// a key is missing. `useNavigations()` below resolves the keys.
+// `nameKey`/`labelKey` are i18n keys; `name`/`label` are fallbacks used before
+// i18n initializes or when a key is missing.
 export const defaultNavigations = [
   { name: "Home", nameKey: "nav.home", path: "/home", icon: "dashboard" },
   {
@@ -105,22 +103,16 @@ export const defaultNavigations = [
   }
 ];
 
-// Pure function to build navigation structure based on gpu capability
-// This doesn't use any hooks
+// Hook-free so direct imports work; useNavigations() wraps this.
 export const buildNavigations = (hasGpu, hasProxy) => {
   const navigations = [...defaultNavigations.map(item => {
-    // Deep clone the Generators item so we can modify its children
+    // Deep clone Generators so we can mutate its children.
     if (item.name === "Generators") {
       return { ...item, children: [...item.children] };
     }
     return item;
   })];
 
-  // The Image Gen and Audio Gen playgrounds are reachable from the
-  // Image Generators / Speech-to-Text pages themselves (Playground
-  // button), so they don't need dedicated nav entries.
-
-  // Show AI Proxy after Tools when proxy is enabled
   if (hasProxy) {
     const toolsIndex = navigations.findIndex(item => item.path === "/projects/tools");
     navigations.splice(toolsIndex + 1, 0, {
@@ -134,9 +126,6 @@ export const buildNavigations = (hasGpu, hasProxy) => {
   return navigations;
 };
 
-// Walks the nav tree and swaps each `name`/`label` with its translated
-// counterpart. Keeps other fields untouched so downstream renderers
-// that read `item.icon`, `item.path`, etc. still work.
 const translateNav = (items, t) =>
   items.map((item) => {
     const out = { ...item };
@@ -146,7 +135,6 @@ const translateNav = (items, t) =>
     return out;
   });
 
-// Custom React hook that follows the rules of hooks
 export const useNavigations = () => {
   const { platformCapabilities } = usePlatformCapabilities();
   const { t } = useTranslation();
@@ -155,6 +143,5 @@ export const useNavigations = () => {
   return translateNav(buildNavigations(hasGpu, hasProxy), t);
 };
 
-// For compatibility with direct imports (non-component files)
-// This will not have dynamic GPU features but prevents errors
+// For direct imports (non-component files). No dynamic GPU features.
 export const navigations = defaultNavigations;

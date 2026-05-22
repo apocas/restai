@@ -1,9 +1,4 @@
-"""MarkItDown file loader — converts files to Markdown using Microsoft's
-markitdown library, then wraps the result in LlamaIndex Document objects.
-
-Also provides `auto_ingest()` which tries docling → markitdown → classic
-in order, returning the first that succeeds.
-"""
+"""MarkItDown file loader + `auto_ingest()` (docling → markitdown → classic fallback chain)."""
 from __future__ import annotations
 
 import logging
@@ -58,12 +53,7 @@ def auto_ingest(
     manager=None,
     opts: Optional[dict] = None,
 ) -> tuple[list[Document], str]:
-    """Try docling → markitdown → classic in order. Return (documents, method_used).
-
-    `manager` is the multiprocessing Manager needed by docling's subprocess runner.
-    `opts` is passed to the classic loader for format-specific options.
-    """
-    # 1. Docling — best quality for PDF/DOCX (layout-aware)
+    """Try docling → markitdown → classic. Return (documents, method_used)."""
     if manager is not None:
         try:
             from restai.document.runner import load_documents
@@ -75,7 +65,6 @@ def auto_ingest(
         except Exception as e:
             logger.info("auto_ingest: docling failed for %s (%s), trying markitdown", source, e)
 
-    # 2. MarkItDown — broad format support, lightweight
     try:
         docs = load_with_markitdown(file_path, source=source)
         if _has_content(docs):
@@ -84,7 +73,6 @@ def auto_ingest(
     except Exception as e:
         logger.info("auto_ingest: markitdown failed for %s (%s), trying classic", source, e)
 
-    # 3. Classic — LlamaIndex file readers (always works for supported formats)
     try:
         from restai.vectordb.tools import find_file_loader
 

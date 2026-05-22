@@ -38,9 +38,6 @@ const ToolbarRow = styled(Box)(({ theme }) => ({
   borderBottom: `1px solid ${theme.palette.divider}`,
 }));
 
-// Shown above the table when one or more rows are selected (bulkActions
-// opt-in). Sits between the toolbar and the table so the selection
-// count + action buttons are unmistakable.
 const BulkActionBar = styled(Box)(({ theme }) => ({
   padding: "10px 24px",
   display: "flex",
@@ -77,32 +74,6 @@ const EmptyState = styled(Box)(({ theme }) => ({
   gap: theme.spacing(1),
 }));
 
-/**
- * Generic data list with search, filter, sort, pagination.
- *
- * Props:
- *  - title: string — header title
- *  - subtitle: string — header description (optional)
- *  - data: array — rows
- *  - columns: [{ key, label, sortable, align, render(row), width }]
- *  - searchKeys: array of field paths to search (supports dot notation)
- *  - filters: [{ key, label, options: [{ value, label }], getValue(row) }]
- *  - onRowClick: (row) => void — makes rows clickable
- *  - rowKey: (row) => string — default: row.id
- *  - actions: (row) => ReactNode — right-side action buttons per row
- *  - headerAction: ReactNode — right-side header button (e.g. "New")
- *  - emptyMessage: string — fallback text when `emptyState` is not provided
- *  - emptyState: { icon, title, message, actionLabel, onAction } — rich
- *    empty-state block (shown when data.length === 0). `icon` is a
- *    component class (e.g. `Group`). Falls back to Inbox + emptyMessage
- *    when the prop is omitted.
- *  - bulkActions: [{ label, icon, color, onClick(selectedRows) }] — when
- *    non-empty, renders a select-column + a bulk-action bar. Parent
- *    handles the API calls; DataList just hands back selected rows and
- *    clears the selection after each action.
- *  - defaultSort: { key, direction }
- *  - pageSize: default 10
- */
 export default function DataList({
   title,
   subtitle,
@@ -128,9 +99,6 @@ export default function DataList({
   const [filterValues, setFilterValues] = useState({});
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(pageSize);
-  // Set of selected row keys. Stored as a Set so toggling is O(1) and
-  // the parent can read size via .size. Cleared whenever the filtered
-  // view changes so hidden rows don't silently stay selected.
   const [selectedKeys, setSelectedKeys] = useState(() => new Set());
 
   const getNested = (obj, path) => {
@@ -194,7 +162,6 @@ export default function DataList({
     }
   };
 
-  // ── Bulk selection helpers ─────────────────────────────────────────
   const bulkEnabled = bulkActions.length > 0;
   const pagedKeys = useMemo(() => paged.map(rowKey), [paged, rowKey]);
   const allPageSelected = pagedKeys.length > 0 && pagedKeys.every((k) => selectedKeys.has(k));
@@ -224,13 +191,10 @@ export default function DataList({
   const runBulkAction = (action) => {
     const selectedRows = data.filter((row) => selectedKeys.has(rowKey(row)));
     if (selectedRows.length === 0) return;
-    // Hand rows to the consumer; they're responsible for API calls and
-    // refreshing `data`. Clear selection so stale keys don't linger on
-    // rows that the parent just deleted.
+    // Clear selection so stale keys don't linger on rows the parent just deleted.
     Promise.resolve(action.onClick(selectedRows)).finally(clearSelection);
   };
 
-  // ── Render ─────────────────────────────────────────────────────────
   const hasToolbar = searchKeys.length > 0 || filters.length > 0;
   const selectedCount = selectedKeys.size;
   const searching = search.length > 0;
@@ -336,10 +300,6 @@ export default function DataList({
 
       {paged.length === 0 ? (
         <EmptyState>
-          {/* Three distinct empty-states:
-              1. Searched, no matches → "no matches" + clear-search CTA.
-              2. Data present but no rich empty-state provided → plain text.
-              3. No data at all, rich empty-state provided → icon + title + action. */}
           {searching && hasData ? (
             <>
               <SearchOff sx={{ fontSize: 48, opacity: 0.4 }} />
@@ -397,12 +357,9 @@ export default function DataList({
             <TableHead>
               <TableRow
                 sx={{
-                  // When the checkbox column is rendered, IT becomes the
-                  // first-of-type cell. Forcing 24px on it parks the
-                  // checkbox right under the page title's left edge,
-                  // making it look like the checkbox is "on top" of the
-                  // title text. Apply 24px only when there's no
-                  // checkbox column.
+                  // Checkbox column becomes first-of-type when present; forcing
+                  // 24px there parks it under the page title. Only apply 24px
+                  // when there's no checkbox column.
                   ...(bulkEnabled
                     ? { "& th:nth-of-type(2)": { paddingLeft: "16px" } }
                     : { "& th:first-of-type": { paddingLeft: "24px" } }),
@@ -416,8 +373,6 @@ export default function DataList({
                       backgroundColor: "action.hover",
                       borderBottom: "1px solid",
                       borderColor: "divider",
-                      // Push the checkbox a bit off the gutter so it
-                      // doesn't visually align with the page title.
                       pl: 1,
                     }}
                   >
@@ -472,7 +427,6 @@ export default function DataList({
                     clickable={onRowClick ? "true" : "false"}
                     selected={isSelected}
                     onClick={onRowClick ? (e) => {
-                      // Don't fire row click on action button clicks / checkbox clicks.
                       if (e.target.closest("button, a, input")) return;
                       onRowClick(row);
                     } : undefined}

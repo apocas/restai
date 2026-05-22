@@ -20,8 +20,7 @@ def _sanitize_table_name(name: str) -> str:
 
 
 def _get_sync_connection_string() -> str:
-    # Resolve through _cfg.X on every call so admins can change PGVector
-    # settings in the GUI without restarting workers.
+    # Resolve through `_cfg.X` each call so GUI changes apply without worker restart.
     return (
         f"postgresql+psycopg2://{_cfg.PGVECTOR_USER}:{_cfg.PGVECTOR_PASSWORD}"
         f"@{_cfg.PGVECTOR_HOST}:{_cfg.PGVECTOR_PORT}/{_cfg.PGVECTOR_DB}"

@@ -15,8 +15,6 @@ import { H4 } from "app/components/Typography";
 import ProjectTabNav from "app/views/projects/components/ProjectTabNav";
 import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
 
-// Match the margin pattern of the rest of the modernized pages so the
-// hero and content share the same horizontal frame.
 const Container = styled("div")(({ theme }) => ({
   margin: "24px 48px",
   [theme.breakpoints.down("md")]: { margin: "24px 32px" },
@@ -97,8 +95,6 @@ export default function SettingsPage() {
     app_docker_idle_timeout: 1800,
     system_llm: "",
     enforce_2fa: false,
-    // Vector DB backends — defaults match SettingsResponse so the form
-    // shows sensible values before /settings GET returns.
     vectordb_chromadb_enabled: true,
     vectordb_chromadb_host: "",
     vectordb_chromadb_port: "",
@@ -116,8 +112,6 @@ export default function SettingsPage() {
     vectordb_pinecone_enabled: false,
     vectordb_pinecone_api_key: "",
     vectordb_pinecone_index: "",
-    // LDAP — defaults match SettingsResponse so the form is well-formed
-    // before /settings GET returns.
     ldap_enabled: false,
     ldap_server_host: "",
     ldap_server_port: "",
@@ -130,8 +124,6 @@ export default function SettingsPage() {
     ldap_use_tls: false,
     ldap_ca_cert_file: "",
     ldap_ciphers: "",
-    // SMTP — platform-level email defaults. Teams override via
-    // Integrations tab on the team edit page.
     smtp_host: "",
     smtp_port: "587",
     smtp_user: "",
@@ -146,10 +138,8 @@ export default function SettingsPage() {
   const [telemetryEnabled, setTelemetryEnabled] = useState(null);
   const [expanded, setExpanded] = useState({ google: false, microsoft: false, github: false, oidc: false, ldap: false });
 
-  // Refs for deep-linkable sections. Hash like `#microsoft` auto-opens
-  // the Authentication tab, expands the Microsoft card, and scrolls to
-  // it. Useful for copy-pasting "go to my SSO setup" links in Slack /
-  // support tickets.
+  // Hash like `#microsoft` auto-opens Authentication, expands the card, and
+  // scrolls to it (deep-linkable from Slack / support tickets).
   const sectionRefs = {
     google: useRef(null),
     microsoft: useRef(null),
@@ -158,8 +148,6 @@ export default function SettingsPage() {
     ldap: useRef(null),
   };
 
-  // Map each deep-linkable hash to the tab it lives on. Extend this
-  // when you add a new section that deserves a bookmark.
   const _SECTION_TAB = {
     google: "authentication",
     microsoft: "authentication",
@@ -170,18 +158,13 @@ export default function SettingsPage() {
 
   const toggleExpanded = (section) => () => {
     setExpanded((prev) => ({ ...prev, [section]: !prev[section] }));
-    // Reflect the current section in the URL so the user can bookmark /
-    // share it. `replaceState` instead of `pushState` so expand/collapse
-    // clicks don't pollute history.
+    // replaceState (not pushState) so expand/collapse doesn't pollute history.
     if (typeof window !== "undefined") {
       const targetHash = expanded[section] ? "" : `#${section}`;
       window.history.replaceState(null, "", window.location.pathname + window.location.search + targetHash);
     }
   };
 
-  // Drive the tab + section state from `window.location.hash`. Runs on
-  // mount and on hashchange so users who paste a deep-link mid-session
-  // (or hit the browser back button) land on the right section.
   useEffect(() => {
     const applyHash = () => {
       const hash = (window.location.hash || "").replace(/^#/, "");
@@ -190,7 +173,7 @@ export default function SettingsPage() {
       if (targetTab) setActive(targetTab);
       if (hash in sectionRefs) {
         setExpanded((prev) => ({ ...prev, [hash]: true }));
-        // Give React a beat to render the expanded card before scrolling.
+        // Wait for the expand to render before scrolling.
         setTimeout(() => {
           sectionRefs[hash].current?.scrollIntoView({ behavior: "smooth", block: "start" });
         }, 80);
@@ -221,10 +204,8 @@ export default function SettingsPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Login-page logo upload. Same downscale flow as TeamEdit so the
-  // result fits the Pydantic 300k cap. PNG stays PNG (preserves
-  // transparency), other rasters go through canvas at JPEG q=0.88,
-  // SVGs are inlined verbatim.
+  // Same downscale flow as TeamEdit so the result fits the Pydantic 300k cap.
+  // PNG stays PNG (transparency), other rasters → canvas JPEG q=0.88, SVGs verbatim.
   const [logoUploading, setLogoUploading] = useState(false);
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -328,7 +309,6 @@ export default function SettingsPage() {
         </Grid>
 
         <Grid item md={10} xs={12}>
-          {/* ===== GENERAL TAB ===== */}
           {active === "general" && (
             <Grid container spacing={3}>
               <Grid item xs={12}>
@@ -430,7 +410,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* LLM Proxy */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.proxy")}</Typography>
@@ -496,7 +475,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* MCP */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>{t("settings.sections.mcp")}</Typography>
@@ -587,7 +565,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* Agentic Browser — Playwright + Chromium per-chat container */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.browser")}</Typography>
@@ -639,7 +616,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* App Builder — per-project PHP+TS+SQLite preview container */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.appBuilder")}</Typography>
@@ -698,7 +674,6 @@ export default function SettingsPage() {
             </Grid>
           )}
 
-          {/* ===== VECTORDBS TAB ===== */}
           {active === "vectordbs" && (
             <Grid container spacing={3}>
               <Grid item xs={12}>
@@ -707,7 +682,6 @@ export default function SettingsPage() {
                 </Typography>
               </Grid>
 
-              {/* ChromaDB */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.chromadb")}</Typography>
@@ -735,7 +709,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* PGVector */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.pgvector")}</Typography>
@@ -834,7 +807,6 @@ export default function SettingsPage() {
             </Grid>
           )}
 
-          {/* ===== NOTIFICATIONS TAB ===== */}
           {active === "notifications" && (
             <Grid container spacing={3}>
               <Grid item xs={12}>
@@ -843,7 +815,6 @@ export default function SettingsPage() {
                 </Typography>
               </Grid>
 
-              {/* Email (SMTP) */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.email")}</Typography>
@@ -881,7 +852,6 @@ export default function SettingsPage() {
             </Grid>
           )}
 
-          {/* ===== AUTHENTICATION TAB ===== */}
           {active === "authentication" && (
             <Grid container spacing={3}>
               <Grid item xs={12}>
@@ -910,7 +880,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* SSO general */}
               <Grid item xs={12}>
                 <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
                   <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>Single Sign-On</Typography>
@@ -955,7 +924,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* LDAP */}
               <Grid item xs={12}>
                 <Card elevation={1} ref={sectionRefs.ldap}>
                   <CollapsibleCardHeader icon={Security} title={t("settings.sections.ldap")} section="ldap" />
@@ -1037,7 +1005,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* SSO — Google */}
               <Grid item xs={12}>
                 <Card elevation={1} ref={sectionRefs.google}>
                   <CollapsibleCardHeader icon={Security} title="Google" section="google" />
@@ -1063,7 +1030,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* SSO — Microsoft */}
               <Grid item xs={12}>
                 <Card elevation={1} ref={sectionRefs.microsoft}>
                   <CollapsibleCardHeader icon={Security} title="Microsoft" section="microsoft" />
@@ -1092,7 +1058,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* SSO — GitHub */}
               <Grid item xs={12}>
                 <Card elevation={1} ref={sectionRefs.github}>
                   <CollapsibleCardHeader icon={Security} title="GitHub" section="github" />
@@ -1118,7 +1083,6 @@ export default function SettingsPage() {
                 </Card>
               </Grid>
 
-              {/* SSO — Generic OIDC */}
               <Grid item xs={12}>
                 <Card elevation={1} ref={sectionRefs.oidc}>
                   <CollapsibleCardHeader icon={Security} title={t("settings.sections.oidc")} section="oidc" />
@@ -1157,7 +1121,6 @@ export default function SettingsPage() {
             </Grid>
           )}
 
-          {/* Save button — always visible */}
           <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>
             <Button variant="contained" color="primary" onClick={handleSave} disabled={saving}>
               {saving ? t("settings.helpers.saving") : t("settings.helpers.saveSettings")}

@@ -111,7 +111,6 @@ export default function MessageBubble({ message, onBranch }) {
 
   return (
     <Box sx={{ mb: 2 }}>
-      {/* Question */}
       {(message.question || (message._files && message._files.length) || message._image) && (
         <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
           <QuestionBubble>
@@ -142,7 +141,6 @@ export default function MessageBubble({ message, onBranch }) {
               <Typography variant="body2">{message.question}</Typography>
             )}
 
-            {/* Chips for non-image attachments */}
             {message._files && message._files.some((f) => !f.isImage) && (
               <Box sx={{ mt: message.question || message._image ? 1 : 0, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                 {message._files.filter((f) => !f.isImage).map((f, i) => (
@@ -166,16 +164,11 @@ export default function MessageBubble({ message, onBranch }) {
         </Box>
       )}
 
-      {/* Answer */}
       {message.answer !== null && message.answer !== undefined && (() => {
-        // Pull <think> content out of the answer for a separate panel.
-        // Live during streaming (openThought), collapsed once closed.
         const { thoughts, answer: answerText, openThought } = splitThinking(message.answer);
         const hasLiveThought = openThought !== null && openThought.trim().length > 0;
-        // Final-message path: post_processing_reasoning has already
-        // moved <think> blocks into reasoning.steps[*].action="reasoning".
-        // Pick those up so we render thoughts even when message.answer
-        // no longer carries them.
+        // post_processing_reasoning has moved <think> blocks into
+        // reasoning.steps[*].action="reasoning"; pick those up too.
         const reasoningSteps = (message.reasoning && message.reasoning.steps) || [];
         const thoughtSteps = reasoningSteps.filter((s) =>
           (s.actions || []).some((a) => a.action === "reasoning"));
@@ -183,8 +176,7 @@ export default function MessageBubble({ message, onBranch }) {
           (s.actions || []).some((a) => a.action !== "reasoning"));
         const persistedThoughts = thoughtSteps.flatMap((s) =>
           (s.actions || []).filter((a) => a.action === "reasoning").map((a) => a.output));
-        // Combine streaming-time thoughts + post-stream persisted ones.
-        // De-dupe in case the same content comes through both paths.
+        // De-dupe streaming + persisted thoughts since both paths can fire.
         const allThoughts = [...thoughts];
         for (const p of persistedThoughts) {
           if (p && !allThoughts.includes(p)) allThoughts.push(p);
@@ -193,22 +185,12 @@ export default function MessageBubble({ message, onBranch }) {
         <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
           <Box sx={{ maxWidth: "80%" }}>
             <AnswerBubble>
-              {/* Plan-and-execute progress — only present when the
-                  backend's auto_plan emitted a multi-step plan. Each
-                  entry shows a status icon (pending/running/done) and
-                  the step name. The synthesis turn is the last entry.
-                  Auto-expanded while the run is still in progress
-                  (any step !== "done"). */}
               {(() => {
                 const planNames = Array.isArray(message.plan) ? message.plan : null;
                 if (!planNames || planNames.length === 0) return null;
                 const stepStates = Array.isArray(message.step_summaries) ? message.step_summaries : [];
-                // Two shapes can arrive here:
-                // 1) Live streaming: stepStates already carries
-                //    {name, status, summary?} from the SSE events.
-                // 2) Persisted final message: the backend stores
-                //    [{name, result}] — treat all as "done" since the
-                //    run completed by the time the bubble renders.
+                // Streaming shape: {name, status, summary?} from SSE.
+                // Persisted shape: [{name, result}] — all done by render time.
                 const isStreamingShape = stepStates.length > 0 && "status" in stepStates[0];
                 let rows;
                 if (isStreamingShape) {
@@ -285,9 +267,8 @@ export default function MessageBubble({ message, onBranch }) {
                   </Accordion>
                 );
               })()}
-              {/* Live thinking panel — dim italic, auto-expand while
-                  streaming an unterminated <think> block; collapsed
-                  after the model closes it. Mirrors `ollama run`. */}
+              {/* Mirrors `ollama run` — dim italic, auto-expand while
+                  the <think> block is still open, collapse on close. */}
               {(allThoughts.length > 0 || hasLiveThought) && (
                 <Accordion
                   disableGutters
@@ -352,9 +333,7 @@ export default function MessageBubble({ message, onBranch }) {
                   {answerText}
                 </ReactMarkdown>
               </Typography>
-              {/* Live tool-call panel during streaming. Disappears on
-                  stream close — the persisted toolSteps accordion
-                  below takes over. */}
+              {/* Disappears on stream close — toolSteps accordion takes over. */}
               {Array.isArray(message.live_tool_calls) && message.live_tool_calls.length > 0 && (
                 <Accordion
                   disableGutters
@@ -425,7 +404,6 @@ export default function MessageBubble({ message, onBranch }) {
                 </Accordion>
               )}
 
-              {/* Sources — inside the bubble */}
               {message.sources && message.sources.length > 0 && (
                 <Accordion
                 disableGutters
@@ -458,7 +436,6 @@ export default function MessageBubble({ message, onBranch }) {
               )}
             </AnswerBubble>
 
-            {/* Metadata chips — outside bubble */}
             <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap", alignItems: "center" }}>
               {message.guard && (
                 <Chip icon={<Shield />} label="Guard" size="small" color="warning" variant="outlined" />

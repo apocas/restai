@@ -1,14 +1,4 @@
-"""Deepgram speech-to-text.
-
-Uses the official `deepgram-sdk` (synchronous client). Reads the API key
-from `options.api_key`; model + language + smart_format are configurable.
-
-Options recognized:
-- `api_key`        (required).
-- `model`          (optional, default `"nova-2"`).
-- `language`       (optional) — falls back to the request `language`.
-- `smart_format`   (optional, default true).
-"""
+"""Deepgram speech-to-text."""
 from __future__ import annotations
 
 

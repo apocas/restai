@@ -1,15 +1,4 @@
-"""MCP (Model Context Protocol) integration for agent2.
-
-Uses the raw `mcp` Python SDK directly — no llamaindex involvement. The
-existing agent type uses `llama_index.tools.mcp.BasicMCPClient` and
-`McpToolSpec`; agent2 talks to the same MCP servers via the underlying
-`mcp.client.session.ClientSession` and the various transports
-(`sse_client`, `stdio_client`, `streamablehttp_client`).
-
-Sessions are stateful and use async context managers, so we use
-`AsyncExitStack` to keep them alive for the duration of an agent run and
-clean them up regardless of how the run terminates.
-"""
+"""MCP integration for agent2 via raw `mcp` SDK; sessions kept alive via AsyncExitStack."""
 from __future__ import annotations
 
 import contextlib
@@ -43,16 +32,7 @@ def _parse_allowed_tools(csv: Optional[str]) -> Optional[set[str]]:
 
 
 class MCPSessionPool:
-    """Holds open MCP sessions for the duration of one agent2 run.
-
-    Use as an async context manager:
-
-        async with MCPSessionPool() as pool:
-            tools = await pool.connect_servers(servers_config)
-            ...
-
-    All sessions are closed automatically on exit (success or exception).
-    """
+    """Async context manager holding MCP sessions open for one agent2 run."""
 
     def __init__(self) -> None:
         self._stack = contextlib.AsyncExitStack()
@@ -69,14 +49,7 @@ class MCPSessionPool:
             logger.warning("Error while closing MCP sessions: %s", e)
 
     async def connect_servers(self, servers: Iterable[Any]) -> list[AdaptedTool]:
-        """Connect to every configured MCP server and return their tools as
-        AdaptedTools, ready to be merged with the built-in tool list.
-
-        Each `server` is expected to expose `host`, `args`, `env`, `headers`,
-        and `tools` attributes (matching `restai.models.models.MCPServer`).
-        Connection failures for individual servers are logged but do not abort
-        the run — agent2 will simply have fewer tools.
-        """
+        """Connect to MCP servers; individual failures logged but never abort the run."""
         adapted: list[AdaptedTool] = []
         for srv in servers or []:
             host = getattr(srv, "host", None)
@@ -107,13 +80,10 @@ class MCPSessionPool:
 
         return adapted
 
-    # ---------- transport helpers ----------
-
     async def _open_http_session(self, url: str, headers: Optional[dict]):
-        """Try streamable HTTP first (newer MCP transport) and fall back to SSE."""
+        """Try streamable HTTP first (newer transport), fall back to SSE."""
         from mcp.client.session import ClientSession
 
-        # Streamable HTTP — preferred for new servers
         try:
             from mcp.client.streamable_http import streamablehttp_client
 
@@ -128,7 +98,6 @@ class MCPSessionPool:
         except Exception as http_err:
             logger.debug("streamable HTTP failed for %s, trying SSE: %s", url, http_err)
 
-        # SSE — older MCP transport
         from mcp.client.sse import sse_client
 
         ctx = sse_client(url, headers=headers or None)
@@ -150,8 +119,6 @@ class MCPSessionPool:
         self._sessions.append(session)
         return session
 
-    # ---------- tool listing / wrapping ----------
-
     async def _list_session_tools(self, session, allowed: Optional[set[str]]) -> list[AdaptedTool]:
         result = await session.list_tools()
         adapted: list[AdaptedTool] = []
@@ -171,7 +138,7 @@ class MCPSessionPool:
 
 
 def _flatten_mcp_content(content) -> str:
-    """Convert an MCP CallToolResult.content list into a plain text string."""
+    """Convert CallToolResult.content list into a plain text string."""
     if content is None:
         return ""
     parts: list[str] = []
@@ -180,7 +147,6 @@ def _flatten_mcp_content(content) -> str:
         if text:
             parts.append(text)
             continue
-        # Non-text content (image / resource / etc) — stringify metadata
         ctype = getattr(c, "type", None) or type(c).__name__
         mime = getattr(c, "mimeType", None)
         if mime:
@@ -194,8 +160,6 @@ def _flatten_mcp_content(content) -> str:
 
 
 def _make_mcp_adapted_tool(session, name: str, description: str, input_schema: dict) -> AdaptedTool:
-    """Build an AdaptedTool whose `fn` calls back into the live MCP session."""
-
     async def call_via_mcp(**kwargs):
         try:
             result = await session.call_tool(name, kwargs)

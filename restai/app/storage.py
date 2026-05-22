@@ -1,13 +1,10 @@
 """Filesystem helpers for app-builder projects.
 
-Each `app` project's source tree lives at ``<apps_root>/<project_id>/`` where
-``apps_root`` is either ``$RESTAI_APPS_PATH`` (typical in Docker/k8s where it
-points at a persistent volume) or ``<install_root>/apps`` for local dev.
+Per-project tree at <apps_root>/<project_id>/ where apps_root is
+$RESTAI_APPS_PATH or <install_root>/apps.
 
-All functions that take a ``relative_path`` argument enforce a traversal guard:
-the resolved absolute path must stay inside the project root or
-``HTTPException(400)`` is raised. Callers must NEVER concatenate paths
-themselves — always go through :func:`resolve_path`.
+Every function taking `relative_path` enforces a traversal guard via
+`resolve_path` — callers must NEVER concatenate paths themselves.
 """
 
 from __future__ import annotations
@@ -50,12 +47,7 @@ _LOCKS: dict[int, asyncio.Lock] = {}
 
 
 def get_apps_root() -> Path:
-    """Return the directory under which all per-project app trees live.
-
-    Resolved on every call so RESTAI_APPS_PATH changes between requests
-    (multi-worker, settings reload) take effect immediately. Created on first
-    miss — RESTai owns this directory exclusively.
-    """
+    """Resolved on every call so RESTAI_APPS_PATH changes take effect immediately."""
     raw = _cfg.RESTAI_APPS_PATH
     if raw:
         root = Path(raw)
@@ -69,8 +61,7 @@ def get_apps_root() -> Path:
 
 
 def get_project_root(project_id: int) -> Path:
-    """Return ``<apps_root>/<project_id>/``. Does NOT create the directory —
-    callers that intend to write should use :func:`ensure_project_root`."""
+    """Does NOT create the directory — writers should use `ensure_project_root`."""
     return get_apps_root() / str(int(project_id))
 
 
@@ -81,8 +72,7 @@ def ensure_project_root(project_id: int) -> Path:
 
 
 def project_lock(project_id: int) -> asyncio.Lock:
-    """Lazy, per-project asyncio lock. Use as ``async with project_lock(id):``
-    around any file mutation so concurrent saves serialize."""
+    """Lazy per-project lock; wrap file mutations to serialize concurrent saves."""
     pid = int(project_id)
     lock = _LOCKS.get(pid)
     if lock is None:
@@ -92,12 +82,7 @@ def project_lock(project_id: int) -> asyncio.Lock:
 
 
 def resolve_path(project_id: int, relative_path: str) -> Path:
-    """Resolve ``<project_root>/<relative_path>`` and raise 400 if it would
-    escape the project root.
-
-    This is the single chokepoint for path validation in the app router —
-    every endpoint that accepts a path from the request MUST call this.
-    """
+    """Single chokepoint for path validation; raises 400 on traversal."""
     if relative_path is None:
         raise HTTPException(status_code=400, detail="path is required")
     # Reject NUL bytes outright — surprises sqlite, posix, and Docker exec.
@@ -118,7 +103,6 @@ def resolve_path(project_id: int, relative_path: str) -> Path:
 
 
 def is_editable(path: Path) -> bool:
-    """True if the IDE should expose ``path`` as an editable text file."""
     suffix = path.suffix.lower()
     if suffix in EDITABLE_EXTENSIONS:
         return True
@@ -129,18 +113,12 @@ def is_editable(path: Path) -> bool:
 
 
 def compute_etag(data: bytes) -> str:
-    """Stable, content-addressed ETag. SHA-256/12 — collision-resistant for
-    the IDE's "did the file change underneath me?" check, short enough for
-    headers."""
+    # SHA-256/12 — collision-resistant for IDE concurrency, short enough for headers.
     return hashlib.sha256(data).hexdigest()[:12]
 
 
 def list_tree(project_id: int) -> list[dict]:
-    """Recursive file listing under the project root, sorted (dirs first,
-    then files alphabetically). Hidden dirs (``HIDDEN_DIR_NAMES``) are
-    omitted. The SQLite database file is included so the user knows it
-    exists, but ``editable=False`` since it isn't text.
-    """
+    """Sorted (dirs first then files alpha). Hidden dirs omitted."""
     root = get_project_root(project_id)
     if not root.exists():
         return []
@@ -183,8 +161,7 @@ def list_tree(project_id: int) -> list[dict]:
 
 
 def read_file(project_id: int, relative_path: str) -> tuple[bytes, str]:
-    """Return ``(content, etag)`` for ``relative_path``. 404 on missing,
-    400 on traversal, 413 if larger than ``MAX_FILE_BYTES``."""
+    """Returns (content, etag). 404 missing, 400 traversal, 413 oversize."""
     target = resolve_path(project_id, relative_path)
     if not target.exists() or not target.is_file():
         raise HTTPException(status_code=404, detail="file not found")
@@ -201,14 +178,7 @@ def write_file(
     data: bytes,
     if_match: Optional[str] = None,
 ) -> str:
-    """Write ``data`` to ``relative_path``. Returns the new ETag.
-
-    If ``if_match`` is provided and the file already exists with a different
-    ETag, raises 409 (the IDE's optimistic-concurrency story). 413 if the
-    payload is larger than ``MAX_FILE_BYTES``. 400 if the extension is not in
-    ``EDITABLE_EXTENSIONS`` — protects against turning the file API into an
-    arbitrary binary upload.
-    """
+    """Returns new ETag. if_match=409 on mismatch, 413 oversize, 400 bad extension."""
     if len(data) > MAX_FILE_BYTES:
         raise HTTPException(status_code=413, detail="file exceeds size cap")
     target = resolve_path(project_id, relative_path)
@@ -229,9 +199,7 @@ def write_file(
 
 
 def delete_project_root(project_id: int) -> None:
-    """Best-effort wipe of the project's source tree. Used on project
-    deletion. Never raises — file deletion failure shouldn't block the DB
-    cascade."""
+    # Best-effort wipe; never raises so DB cascade isn't blocked.
     try:
         shutil.rmtree(get_project_root(project_id), ignore_errors=True)
     except Exception:
@@ -239,15 +207,7 @@ def delete_project_root(project_id: int) -> None:
 
 
 def seed_hello_world(project_id: int, project_name: str) -> None:
-    """Seed a minimal SPA scaffold matching the App Builder architecture
-    contract: TypeScript renders all UI, PHP serves a JSON API only, SQLite
-    schema lives in PHP.
-
-    Idempotent — never overwrites an existing file. The ``database.sqlite``
-    file is created lazily by ``public/api/_db.php`` on the first request,
-    matching how the deployed app must behave (so the seed exercises the
-    same path as production).
-    """
+    """Idempotent SPA scaffold seed (TS renders UI, PHP serves JSON, SQLite via PHP)."""
     root = ensure_project_root(project_id)
 
     safe_title = project_name.replace("</", "<\\/")  # cheap HTML safety

@@ -30,24 +30,15 @@ const Container = styled("div")(({ theme }) => ({
   [theme.breakpoints.down("sm")]: { margin: 16 },
 }));
 
-// Cron = scheduled clockwork / machinery → amber accent. Distinct from
-// the other modernized pages (chat=emerald, embeddings=indigo,
-// images=violet, audio=cyan, classifier=purple, proxy=cyan).
 const ACCENT = "#f59e0b";
 const ACCENT_SOFT = "rgba(245,158,11,0.10)";
 
-// ── Per-status visual config (dot colour + label colour + icon).
 const STATUS_META = {
   success: { color: "#10b981", soft: "rgba(16,185,129,0.12)", icon: CheckCircleIcon },
   error:   { color: "#ef4444", soft: "rgba(239,68,68,0.12)",  icon: ErrorIcon },
   warning: { color: "#f59e0b", soft: "rgba(245,158,11,0.12)", icon: WarningIcon },
 };
 
-// Job types are derived from the log entries themselves — see the
-// union-from-entries effect in CronLogs.
-
-// ── Tile card — same accent-rail vocabulary as the project library
-// cards / direct-access / proxy / classifier pages.
 const TileCard = styled(Card, {
   shouldForwardProp: (p) => p !== "accent",
 })(({ accent = ACCENT }) => ({
@@ -86,7 +77,6 @@ const TileCard = styled(Card, {
   },
 }));
 
-// ── Status pill: dot + label, tinted by status.
 function StatusPill({ status }) {
   const meta = STATUS_META[status] || { color: "#6b7280", soft: "rgba(107,114,128,0.12)" };
   return (
@@ -128,8 +118,6 @@ function StatusPill({ status }) {
   );
 }
 
-// ── Mini summary stat for the toolbar (success/error/warning counts in
-// the current page).
 function StatusSummary({ icon: Icon, count, color, label }) {
   return (
     <Tooltip title={label} arrow>
@@ -158,8 +146,6 @@ function StatusSummary({ icon: Icon, count, color, label }) {
   );
 }
 
-// ── Terminal-style block for log message + traceback. Same look as the
-// other modernized pages.
 function LogBlock({ label, content, accent }) {
   return (
     <Box
@@ -276,9 +262,8 @@ export default function CronLogs() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, filterJob, filterStatus, t]);
 
-  // Job types: harvested from whatever log entries we see, unioned
-  // across pagination so the dropdown grows the more you browse.
-  // No backend index needed — the data drives the filter.
+  // Jobs harvested from visible entries, unioned across pagination — no
+  // backend index needed, data drives the filter dropdown.
   useEffect(() => {
     const fromLogs = new Set(entries.map((e) => e.job).filter(Boolean));
     if (!fromLogs.size) return;
@@ -317,7 +302,6 @@ export default function CronLogs() {
     downloadCsv(`cron-logs-${stamp}.csv`, csv);
   };
 
-  // Page-local search across job + message.
   const filtered = entries.filter((e) => {
     if (!search.trim()) return true;
     const needle = search.trim().toLowerCase();
@@ -325,8 +309,6 @@ export default function CronLogs() {
            (e.message || "").toLowerCase().includes(needle);
   });
 
-  // Status tally for the toolbar — based on the current page (server
-  // already filters by status if a filter is set).
   const tally = entries.reduce(
     (acc, e) => {
       acc.total++;

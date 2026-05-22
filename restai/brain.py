@@ -34,7 +34,6 @@ class Brain:
         self.embeddings_cache = {}
         self._classifier_cache = {}
         self._ner_cache = {}
-        # chat_id -> list[message dict]
         self._agent2_sessions: dict[str, list[dict]] = {}
 
         # Tools are lazy-loaded when first requested via get_tools(). The
@@ -123,9 +122,7 @@ class Brain:
         return client
 
     def _image_cache_local(self) -> dict:
-        """In-process fallback when Redis isn't configured. Single-worker only —
-        data is invisible to other workers / nodes, but better than failing in
-        a dev setup."""
+        """In-process fallback when Redis isn't configured. Single-worker only."""
         store = getattr(self, "_image_cache_local_store", None)
         if store is None:
             store = {}
@@ -267,10 +264,9 @@ class Brain:
         return self.get_llm(name, db)
 
     def post_processing_reasoning(self, output):
-        # Each <think>…</think> block becomes a separate reasoning step.
-        # Recording them as steps is required even when reasoning is already
-        # populated from tool calls — the UI's "Thinking" panel and the
-        # empty-answer fallback in agent.py both depend on it.
+        # Recording <think> blocks as steps is required even when reasoning
+        # is already populated from tool calls — the UI's "Thinking" panel
+        # and the empty-answer fallback in agent.py both depend on it.
         think_pattern = re.compile(r"<think>(.*?)</think>", re.DOTALL)
         thoughts = [m.group(1).strip() for m in think_pattern.finditer(output.get("answer") or "")]
         thoughts = [t for t in thoughts if t]
@@ -408,7 +404,6 @@ class Brain:
     DEFAULT_NER_MODEL = "dslim/bert-base-NER"
 
     def extract_entities_from_text(self, text: str, model_name: Optional[str] = None) -> list[dict]:
-        """Run named-entity recognition on text. Returns list of {word, entity_group, score, ...}."""
         model = model_name or self.DEFAULT_NER_MODEL
         if model not in self._ner_cache:
             logging.info("Loading NER model '%s' (first use, may download from HuggingFace)...", model)

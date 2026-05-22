@@ -1,19 +1,4 @@
-"""Image-generator registry CRUD endpoints.
-
-Mirrors `restai/routers/llms.py` so the admin UX (list / create / edit /
-delete + team grants) carries over without surprises. The registry holds
-both:
-
-- **Local** workers (auto-seeded on startup from `restai/image/workers/*`).
-  Always selectable; admin can flip `enabled` and rename for display, but
-  cannot delete (re-seeded next boot).
-- **External** providers — `openai` (incl. OpenAI-spec compatibles via
-  `options.base_url`) and `google` (Imagen / Nano Banana). Created freely
-  by the admin with per-row encrypted credentials.
-
-API key fields in `options` are masked as `"********"` on read; the PATCH
-handler preserves the existing value when it sees that sentinel back.
-"""
+"""Image-generator registry CRUD endpoints."""
 import json
 import logging
 import traceback
@@ -41,8 +26,7 @@ _SENSITIVE_OPT_KEYS = {"api_key", "key", "password", "secret"}
 
 
 def _mask_options(options: Optional[dict]) -> Optional[dict]:
-    """Replace sensitive fields with the `"********"` sentinel before
-    serializing to the client. Same set the encrypt helpers use."""
+    """Replace sensitive fields with the `"********"` sentinel before serializing."""
     if not options:
         return options
     try:
@@ -60,8 +44,7 @@ async def list_image_generators(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """List image generators. Non-admins see only those granted to a team
-    they're a member of (matches the LLM listing pattern)."""
+    """List image generators, filtered by team access for non-admins."""
     rows = db_wrapper.get_image_generators()
 
     if not user.is_admin:
@@ -103,8 +86,6 @@ async def create_image_generator(
     if db_wrapper.get_image_generator_by_name(body.name):
         raise HTTPException(status_code=409, detail=f"Image generator '{body.name}' already exists")
     if body.class_name == "local":
-        # Local generators are auto-seeded; admin shouldn't create them
-        # by hand (the name has to match a real worker module).
         raise HTTPException(
             status_code=400,
             detail="Local generators are auto-discovered from restai/image/workers/*; you can't create them manually.",
@@ -138,16 +119,13 @@ async def update_image_generator(
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Update an image generator (admin only). For local generators the
-    `enabled`/`description`/`privacy` fields are accepted; `class_name` and
-    `options` changes are ignored — those come from the worker module."""
+    """Update an image generator (admin only); local rows ignore class_name/options changes."""
     row: Optional[ImageGeneratorDatabase] = db_wrapper.get_image_generator_by_id(generator_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Image generator not found")
 
     if row.class_name == "local":
-        # Strip class_name + options changes for local rows so an admin
-        # can't accidentally point a local row at an external provider.
+        # Prevent repointing a local row to an external provider.
         body.class_name = None
         body.options = None
 
@@ -163,9 +141,7 @@ async def delete_image_generator(
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Delete an image generator (admin only). Local generators cannot be
-    deleted — they would just be re-seeded on the next boot. Disable them
-    via `enabled=false` instead."""
+    """Delete an image generator (admin only); local generators cannot be deleted."""
     row: Optional[ImageGeneratorDatabase] = db_wrapper.get_image_generator_by_id(generator_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Image generator not found")

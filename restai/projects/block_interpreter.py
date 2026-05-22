@@ -1,21 +1,7 @@
 """Server-side Blockly workspace interpreter.
 
-Walks a Blockly JSON tree and executes each block in Python. Supports the
-RESTai custom blocks (Get Input, Set Output, Call Project, Classifier, Log)
-plus the Blockly 12 general-purpose built-in blocks matching MIT App
-Inventor's breadth (Logic, Control, Math, Text, Lists, Variables,
-Procedures).
-
-Dispatch is via two tables built in `__init__` (`_stmt_handlers`,
-`_value_handlers`) keyed by the block's `type` string. Unknown types fall
-back to best-effort value evaluation (for side-effect-only custom blocks)
-or return `None`, matching the pre-refactor behavior.
-
-Flow control:
-- `_BlockBreak` / `_BlockContinue` propagate out of statement handlers and
-  are caught by the enclosing loop handler.
-- `_BlockReturn(value)` propagates out until caught by a procedure call
-  handler.
+Flow control: _BlockBreak/_BlockContinue propagate out of statement handlers
+to the enclosing loop; _BlockReturn(value) propagates to the procedure call.
 """
 import inspect
 import logging
@@ -32,15 +18,15 @@ MAX_ITERATIONS = 10000
 
 
 class _BlockBreak(Exception):
-    """Raised by `controls_flow_statements(BREAK)` to exit the nearest loop."""
+    """controls_flow_statements(BREAK) — exits the nearest loop."""
 
 
 class _BlockContinue(Exception):
-    """Raised by `controls_flow_statements(CONTINUE)` to skip to the next iteration."""
+    """controls_flow_statements(CONTINUE) — skips to next iteration."""
 
 
 class _BlockReturn(Exception):
-    """Raised by `procedures_ifreturn` to unwind to the enclosing procedure call."""
+    """procedures_ifreturn — unwinds to the enclosing procedure call."""
 
     def __init__(self, value):
         self.value = value
@@ -61,14 +47,13 @@ class BlockInterpreter:
         self.logs: list[str] = []
         self._iterations = 0
         self.chat_id = chat_id
-        self.context = context  # Verified context dict (from widget JWT or playground)
+        self.context = context
         self._fake_request = type("_FakeRequest", (), {
             "app": type("App", (), {"state": type("State", (), {"brain": brain})()})()
         })()
-        # Procedure registry: name -> {"block": def_block, "params": [{"id": ..., "name": ...}], "has_return": bool}
+        # Procedure registry: name -> {block, params, has_return}.
         self.procedures: dict[str, dict] = {}
-        # Frame stack for procedure-local variables. The top frame is checked
-        # self.variables (globals).
+        # Frame stack for procedure-local vars; top frame checked before globals.
         self._scope_stack: list[dict] = []
 
         self._stmt_handlers = {
@@ -85,8 +70,7 @@ class BlockInterpreter:
             "text_print": self._stmt_text_print,
             "lists_setIndex": self._stmt_lists_setIndex,
             "lists_getIndex": self._stmt_lists_getIndex_remove,
-            # Procedure definitions are registered at execute() start and are
-            # a no-op when encountered in the statement stream.
+            # Defs registered at execute() start; no-op in the stmt stream.
             "procedures_defnoreturn": self._stmt_noop,
             "procedures_defreturn": self._stmt_noop,
             "procedures_callnoreturn": self._stmt_procedures_call,
@@ -152,8 +136,6 @@ class BlockInterpreter:
                 detail="Block execution exceeded maximum iterations.",
             )
 
-    # Variable scope helpers
-
     def _get_var(self, var_id: str) -> Any:
         """Look up a variable: top procedure frame first, then globals."""
         if self._scope_stack:
@@ -163,8 +145,7 @@ class BlockInterpreter:
         return self.variables.get(var_id, "")
 
     def _set_var(self, var_id: str, value: Any) -> None:
-        """Write to the top procedure frame if the var is scoped there (a
-        parameter of the current procedure), else to globals."""
+        """Write to top procedure frame if scoped there, else globals."""
         if self._scope_stack:
             frame = self._scope_stack[-1]
             if var_id in frame:
@@ -172,23 +153,19 @@ class BlockInterpreter:
                 return
         self.variables[var_id] = value
 
-    # Procedure registration
-
     def _register_procedures(self):
-        """Scan top-level + next-chained blocks, register every procedure def
-        into `self.procedures`. Called once at the start of `execute()`."""
+        """Scan top-level + chained blocks; register every procedure def."""
         def _walk(block):
             if block is None:
                 return
             btype = block.get("type", "")
             if btype in ("procedures_defnoreturn", "procedures_defreturn"):
                 extra = block.get("extraState", {}) or {}
-                # Blockly 12 procedure def blocks carry:
-                #   fields.NAME = proc name
-                #   extraState.params = [{name, id}, ...]  (or 'arguments' in older versions)
+                # Blockly 12 proc-def blocks carry:
+                #   fields.NAME = name
+                #   extraState.params = [{name, id}, ...] (older: 'arguments')
                 name = block.get("fields", {}).get("NAME", "") or extra.get("name", "")
                 params = extra.get("params") or extra.get("arguments") or []
-                # Normalise: ensure each has name + id
                 norm_params = []
                 for p in params:
                     if isinstance(p, dict):
@@ -210,11 +187,9 @@ class BlockInterpreter:
 
     async def execute(self) -> str:
         blocks = self.workspace.get("blocks", {}).get("blocks", [])
-        # Initialise declared variables
         for var in self.workspace.get("variables", []):
             self.variables[var["id"]] = ""
-        # Pre-register procedure definitions so calls can resolve them
-        # regardless of lexical order in the workspace.
+        # Pre-register procs so calls resolve regardless of lexical order.
         self._register_procedures()
         for block in blocks:
             try:
@@ -224,8 +199,6 @@ class BlockInterpreter:
                 pass
         return self.output_text
 
-    # Statement execution
-
     async def _exec_statement(self, block: dict):
         self._tick()
         btype = block.get("type", "")
@@ -234,8 +207,8 @@ class BlockInterpreter:
         if handler is not None:
             await handler(block)
         else:
-            # Unknown statement — try evaluating as a value (side-effect blocks
-            # like restai_call_project can be dropped into the statement stream).
+            # Unknown statement → try as value (side-effect blocks like
+            # restai_call_project can appear in the statement stream).
             try:
                 await self._eval_value(block)
             except (_BlockBreak, _BlockContinue, _BlockReturn):
@@ -243,13 +216,11 @@ class BlockInterpreter:
             except Exception:
                 pass
 
-        # Follow the next chain.
         nxt = block.get("next", {}).get("block")
         if nxt:
             await self._exec_statement(nxt)
 
     async def _stmt_noop(self, block: dict):
-        """For procedure definitions: body is only executed via calls."""
         return
 
     async def _stmt_variables_set(self, block: dict):
@@ -268,7 +239,6 @@ class BlockInterpreter:
         logger.info("Block log: %s", msg)
 
     async def _stmt_text_print(self, block: dict):
-        # text_print behaves like restai_log for our server-side interpreter.
         val = await self._eval_input(block, "TEXT")
         msg = str(val) if val is not None else ""
         self.logs.append(msg)
@@ -287,7 +257,7 @@ class BlockInterpreter:
         raise _BlockBreak()
 
     async def _stmt_controls_if(self, block: dict):
-        # Blockly if/elseif/else: inputs IF0, DO0, IF1, DO1, ... ELSE
+        # if/elseif/else inputs: IF0, DO0, IF1, DO1, ... ELSE.
         i = 0
         executed = False
         while True:
@@ -388,7 +358,6 @@ class BlockInterpreter:
                     break
 
     async def _stmt_lists_setIndex(self, block: dict):
-        """lists_setIndex: mutate the list at an index (SET or INSERT)."""
         lst = await self._eval_input(block, "LIST")
         if not isinstance(lst, list):
             return
@@ -413,8 +382,7 @@ class BlockInterpreter:
         """lists_getIndex in statement position — only MODE=REMOVE lands here."""
         mode = block.get("fields", {}).get("MODE", "GET")
         if mode != "REMOVE":
-            # GET / GET_REMOVE are values; if they appear as statements they'd be
-            # a side-effect-only evaluation. Fall through silently.
+            # GET / GET_REMOVE are values; tolerate side-effect-only eval.
             await self._eval_lists_getIndex(block)
             return
         lst = await self._eval_input(block, "VALUE")
@@ -437,13 +405,10 @@ class BlockInterpreter:
             val = await self._eval_input(block, "VALUE")
             raise _BlockReturn(val)
 
-    # Value evaluation
-
     async def _eval_input(self, block: dict, input_name: str) -> Any:
         inp = block.get("inputs", {}).get(input_name)
         if inp and inp.get("block"):
             return await self._eval_value(inp["block"])
-        # Shadow / field fallback
         if inp and inp.get("shadow"):
             return await self._eval_value(inp["shadow"])
         return None
@@ -464,13 +429,9 @@ class BlockInterpreter:
             result = await result
         return result
 
-    # Variables
-
     def _eval_variables_get(self, block: dict) -> Any:
         var_id = block.get("fields", {}).get("VAR", {}).get("id", "")
         return self._get_var(var_id)
-
-    # Text helpers (existing + new)
 
     async def _eval_text_join(self, block: dict) -> str:
         items = block.get("extraState", {}).get("itemCount", 0)
@@ -594,8 +555,6 @@ class BlockInterpreter:
         val = await self._eval_input(block, "TEXT")
         s = str(val) if val is not None else ""
         return s[::-1]
-
-    # Math helpers (existing + new)
 
     async def _eval_math_arithmetic(self, block: dict):
         a = await self._eval_input(block, "A")
@@ -758,10 +717,10 @@ class BlockInterpreter:
             if op == "MODE":
                 if not nums:
                     return []
-                # Blockly's "mode" returns a list of all most-frequent values.
+                # Blockly "mode" returns a list of all most-frequent values.
                 try:
                     return statistics.multimode(nums)
-                except AttributeError:  # Python <3.8 fallback
+                except AttributeError:
                     return [statistics.mode(nums)]
             if op == "STD_DEV":
                 return statistics.pstdev(nums) if len(nums) > 0 else 0
@@ -815,8 +774,6 @@ class BlockInterpreter:
             return 0
         return math.degrees(math.atan2(y, x))
 
-    # Logic helpers (existing + new)
-
     async def _eval_logic_compare(self, block: dict):
         a = await self._eval_input(block, "A")
         b = await self._eval_input(block, "B")
@@ -862,8 +819,6 @@ class BlockInterpreter:
         if cond:
             return await self._eval_input(block, "THEN")
         return await self._eval_input(block, "ELSE")
-
-    # List helpers
 
     async def _eval_lists_create_with(self, block: dict) -> list:
         count = block.get("extraState", {}).get("itemCount", 0)
@@ -927,7 +882,6 @@ class BlockInterpreter:
         if mode == "GET_REMOVE":
             return lst.pop(idx)
         if mode == "REMOVE":
-            # Typically a statement but return None if used as value
             del lst[idx]
             return None
         return lst[idx]
@@ -960,7 +914,6 @@ class BlockInterpreter:
             if not delim:
                 return list(s)
             return s.split(delim)
-        # JOIN
         if not isinstance(inp, list):
             inp = [inp] if inp is not None else []
         return delim.join(str(x) for x in inp)
@@ -982,7 +935,7 @@ class BlockInterpreter:
         elif type_ == "IGNORE_CASE":
             def key(x):
                 return str(x).lower()
-        else:  # TEXT
+        else:
             def key(x):
                 return str(x)
         try:
@@ -996,17 +949,8 @@ class BlockInterpreter:
             return []
         return list(reversed(lst))
 
-    # Sequence index resolution (1-based Blockly semantics → 0-based Python)
-
     def _resolve_list_index(self, length: int, where: str, at_val, for_insert: bool = False):
-        """Return a 0-based Python index matching Blockly's semantics.
-
-        - FROM_START: 1 → 0, 2 → 1, ...
-        - FROM_END: 1 → length-1, 2 → length-2, ...
-        - FIRST: 0
-        - LAST: length-1 (for insert: length)
-        - RANDOM: random valid index, or None on empty list
-        """
+        """1-based Blockly index → 0-based Python index."""
         if where == "FIRST":
             return 0
         if where == "LAST":
@@ -1028,11 +972,10 @@ class BlockInterpreter:
         return None
 
     def _resolve_sequence_slice(self, length: int, where: str, at_val, end: bool):
-        """Return a 0-based Python slice bound for Blockly's 1-based substring/sublist.
+        """0-based Python slice bound for Blockly's 1-based substring/sublist.
 
-        Used by `text_getSubstring` and `lists_getSublist`. `end=True` means we
-        want the exclusive upper bound (so a LAST/FROM_END position should be
-        inclusive on the right side — we add 1).
+        `end=True` means exclusive upper bound; LAST/FROM_END is right-inclusive
+        (add 1) on the end side.
         """
         if where == "FIRST":
             return 0 if not end else (1 if length > 0 else 0)
@@ -1043,13 +986,10 @@ class BlockInterpreter:
         except (TypeError, ValueError):
             return None
         if where == "FROM_START":
-            # 1-based start (WHERE1) or inclusive end (WHERE2)
             return (at - 1) if not end else at
         if where == "FROM_END":
             return (length - at) if not end else (length - at + 1)
         return None
-
-    # Procedures
 
     async def _invoke_procedure(self, call_block: dict, want_return: bool):
         extra = call_block.get("extraState", {}) or {}
@@ -1059,8 +999,7 @@ class BlockInterpreter:
             logger.warning("Procedure '%s' not found", name)
             return None
 
-        # Collect arg values: call block inputs are ARG0, ARG1, ... in the
-        # order of the def's params.
+        # Call block inputs ARG0, ARG1, ... match the def's param order.
         params = proc["params"]
         frame: dict = {}
         for i, p in enumerate(params):
@@ -1069,7 +1008,6 @@ class BlockInterpreter:
 
         self._scope_stack.append(frame)
         try:
-            # Execute body statements (STACK input on the def block).
             stack_input = proc["block"].get("inputs", {}).get("STACK")
             if stack_input and stack_input.get("block"):
                 try:
@@ -1078,7 +1016,6 @@ class BlockInterpreter:
                     return e.value if want_return else None
 
             if want_return:
-                # Evaluate the RETURN input after a clean body fall-through.
                 return await self._eval_input(proc["block"], "RETURN")
             return None
         finally:
@@ -1086,8 +1023,6 @@ class BlockInterpreter:
 
     async def _eval_procedures_callreturn(self, block: dict):
         return await self._invoke_procedure(block, want_return=True)
-
-    # RESTai custom blocks
 
     async def _eval_call_project(self, block: dict) -> str:
         project_name = block.get("fields", {}).get("PROJECT_NAME", "")
@@ -1100,15 +1035,10 @@ class BlockInterpreter:
             logger.warning("Call Project: project '%s' not found", project_name)
             return ""
 
-        # Re-apply the same access rule the API router uses for
-        # `/projects/{id}/...`. The Block project's auth dep only
-        # validated access to the *entry* project (the Block one);
-        # without this check, anyone with edit access to a Block
-        # could wire `restai_call_project` to a confidential
-        # project they have no membership in (different team or
-        # tenant) and exfiltrate its chat / RAG output. Refuse
-        # silently — `""` matches the "project not found" path so
-        # the attacker can't enumerate which names exist.
+        # Re-apply API auth rule. Without this check, anyone with edit access
+        # to a Block could wire restai_call_project to a confidential project
+        # they have no membership in and exfiltrate its output. Silent refuse
+        # via "" matches the "not found" path so names can't be enumerated.
         from restai.auth import user_can_access_project
         if not user_can_access_project(self.user, project_db.id, self.db):
             logger.warning(
@@ -1122,7 +1052,6 @@ class BlockInterpreter:
             logger.warning("Call Project: project '%s' could not be loaded", project_name)
             return ""
 
-        # Propagate context to the sub-project's system prompt
         if self.context:
             project = project.with_context(self.context)
 
@@ -1147,8 +1076,8 @@ class BlockInterpreter:
                     self.user, self.db, background_tasks,
                 )
 
-            # Execute queued background tasks (inference logging) since we're
-            # not inside a FastAPI response lifecycle that would run them.
+            # Drain background tasks (inference logging) manually since we're
+            # outside the FastAPI response lifecycle.
             for task in background_tasks.tasks:
                 try:
                     if inspect.iscoroutinefunction(task.func):

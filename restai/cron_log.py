@@ -1,29 +1,8 @@
 """DB-backed logging helper for cron scripts.
 
-Usage:
-    from restai.cron_log import CronLogger
-
-    def main():
-        log = CronLogger("sync")
-        try:
-            # ... do work ...
-            log.info("Synced 3 sources")
-            log.finish(items_processed=3)
-        except Exception as e:
-            log.error(f"Failed: {e}", details=traceback.format_exc())
-            log.finish()
-
-The constructor also installs a `logging.Handler` on the root logger so any
-`logger.info()` / `logger.warning()` / `logger.error()` call from anywhere in
-the codebase during the cron run is mirrored into the DB log entry. That
-gives the admin the same view in `/admin/cron-logs` that they would have
-gotten by tailing the console.
-
-The constructor ALSO installs a SIGTERM handler so that when the cron
-runner (or any orchestrator) sends SIGTERM on deadline, we get a chance
-to flush the in-progress log row with an explicit "interrupted" marker
-before the process exits. Without this, a SIGTERM would just terminate
-the process without running atexit/__del__ — invisible in the admin log.
+The constructor installs a root-logger handler so all log calls during the
+cron run mirror into the DB entry, plus a SIGTERM handler so deadline-kills
+get an "interrupted" row before process exit.
 """
 from __future__ import annotations
 
@@ -35,8 +14,6 @@ import traceback
 
 
 class _CronLogHandler(logging.Handler):
-    """Forwards every log record into a CronLogger's message buffer."""
-
     def __init__(self, owner: "CronLogger"):
         super().__init__(level=logging.INFO)
         self._owner = owner
@@ -57,8 +34,6 @@ class _CronLogHandler(logging.Handler):
 
 
 class CronLogger:
-    """Collects log messages during a cron run and writes a single DB entry on finish."""
-
     def __init__(self, job: str):
         self.job = job
         self._start = time.time()
@@ -93,8 +68,7 @@ class CronLogger:
         sys.exit(143)  # 128 + 15 (SIGTERM) — POSIX convention.
 
     def _capture(self, level: str | None, message: str, exc_info=None) -> None:
-        """Record a message from the logging handler — separate from the
-        public info()/warning()/error() so prefixes aren't doubled."""
+        # Separate from public info()/warning()/error() so prefixes aren't doubled.
         if level == "ERROR":
             self._messages.append(f"ERROR: {message}")
             self._has_error = True
@@ -123,7 +97,6 @@ class CronLogger:
             self._details = details
 
     def finish(self, items_processed: int = 0):
-        """Write the log entry to the database."""
         if self._finished:
             return
         self._finished = True
@@ -160,14 +133,13 @@ class CronLogger:
             finally:
                 db.db.close()
         except Exception:
-            # If DB write fails, at least print to stdout
             import logging
             logging.getLogger(__name__).warning(
                 "Failed to write cron log to DB for job '%s'", self.job
             )
 
     def __del__(self):
-        """Safety net: if finish() was never called (script crashed), write an error entry."""
+        # Safety net: finish() never called (script crashed).
         if not self._finished:
             self.error("Script exited without calling finish()")
             self.finish()

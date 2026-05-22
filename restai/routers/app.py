@@ -1,9 +1,4 @@
-"""HTTP endpoints for the App-Builder file IDE.
-
-All endpoints live under ``/projects/{projectID}/app/...`` and require the
-caller to be a member of the project's team. Path arguments are validated
-through :mod:`restai.app.storage`'s traversal guard.
-"""
+"""HTTP endpoints for the App-Builder file IDE."""
 
 from __future__ import annotations
 
@@ -44,7 +39,7 @@ logger = logging.getLogger(__name__)
 def _require_app_project(
     request: Request, projectID: int, db_wrapper: DBWrapper
 ):
-    """Resolve the project and assert it is an `app` type project."""
+    """Resolve the project and assert it's `app` type."""
     project = request.app.state.brain.find_project(projectID, db_wrapper)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -57,9 +52,7 @@ def _require_app_project(
 
 
 class FilePayload(BaseModel):
-    """Payload for PUT /app/files. Body carries the file contents as a UTF-8
-    string. Binary writes via this endpoint are intentionally not supported —
-    deploy assets via the FTP/SFTP path instead."""
+    """Payload for PUT /app/files; UTF-8 only, no binary."""
 
     content: str = Field(description="Full file content (UTF-8 text)")
 
@@ -85,16 +78,11 @@ async def route_app_get_file(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Return file contents + ETag.
-
-    The ETag is content-addressed (sha256/12). Pass it back as `If-Match` on
-    PUT so a stale tab can't silently overwrite a fresher edit.
-    """
+    """Return file contents + content-addressed ETag (use as If-Match on PUT)."""
     _require_app_project(request, projectID, db_wrapper)
     data, etag = read_file(projectID, path)
     response.headers["ETag"] = etag
-    # UTF-8 decode; fail explicit on binary so the IDE never silently corrupts
-    # a binary file by treating it as text.
+    # Fail explicit on binary so the IDE doesn't silently corrupt binary files.
     try:
         text = data.decode("utf-8")
     except UnicodeDecodeError:
@@ -112,8 +100,7 @@ async def route_app_put_file(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Write file contents. Requires `If-Match` header when the file already
-    exists; first-write of a new file is unconditional."""
+    """Write file contents; If-Match required for existing files."""
     check_not_restricted(user)
     _require_app_project(request, projectID, db_wrapper)
     if_match = request.headers.get("if-match") or request.headers.get("If-Match")
@@ -134,10 +121,7 @@ async def route_app_delete_file(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Delete a single file inside the project tree. Directories are not
-    removed by this endpoint — the IDE doesn't support it yet, and shelling
-    out to recursive removal from the API is the kind of thing we'd rather
-    not invite a future bug into."""
+    """Delete a single file (directories not supported)."""
     check_not_restricted(user)
     _require_app_project(request, projectID, db_wrapper)
     from restai.app.storage import resolve_path
@@ -151,39 +135,17 @@ async def route_app_delete_file(
     return {"path": path, "deleted": True}
 
 
-# SQLite DB editor.
-#
-# All endpoints operate on `<install_root>/apps/<id>/database.sqlite` via
-# stdlib `sqlite3`. We never `docker exec sqlite3` — Docker isn't required
-# for the DB editor to work (the file is on host disk), and shelling out
-# is more attack surface for no benefit.
-#
-# Safety:
-# - Table names are NOT user-validated text; they MUST appear in
-#   `sqlite_master`. The list endpoint reads sqlite_master and the row
-#   endpoints re-check on every call.
-# - Column names are read from `PRAGMA table_info(<table>)` and re-checked
-#   against the request payload. Anything outside the allowlist is rejected.
-# - Values are always bound; the only string interpolation that touches SQL
-#   is the table/column name, which has been validated against the actual
-#   schema two lines up.
-# - Reserved tables (`sqlite_*`, internal) are filtered.
+# SQLite DB editor safety:
+# - Table names must appear in `sqlite_master` (re-checked per call).
+# - Column names come from PRAGMA table_info, re-checked against payload.
+# - Values always bound; only table/column names string-interpolated (validated).
+# - Reserved tables (`sqlite_*`) filtered.
 
-
-# SQLite's own table-name rule is permissive (almost anything in quotes),
-# but exposing weird names through a JSON API invites bugs. Stick to a
-# conservative identifier shape — generated apps stick to it anyway.
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 class RowUpsertPayload(BaseModel):
-    """Body for POST/PUT /app/db/rows.
-
-    `rowid` is required on PUT (which row to update) and forbidden on POST
-    (insert). `values` is a column->value dict; columns missing from the
-    payload are left unchanged on PUT, and SQLite supplies the default on
-    POST. Values are JSON-native — we don't try to type-coerce, the caller
-    sends what they want bound."""
+    """Body for POST/PUT /app/db/rows."""
 
     table: str = Field(description="Table name")
     values: dict = Field(default_factory=dict, description="Column → value")
@@ -196,9 +158,7 @@ class RowDeletePayload(BaseModel):
 
 
 def _db_path(project_id: int) -> str:
-    """Resolve the project's SQLite file path. The file may not exist on
-    every project (the seed creates it but a user could delete it from the
-    file editor). Endpoints surface that as 404."""
+    """Resolve the project's SQLite file path (may not exist; surfaced as 404)."""
     root = get_project_root(int(project_id))
     return str((root / "database.sqlite").resolve())
 
@@ -213,9 +173,8 @@ def _open_db(project_id: int) -> sqlite3.Connection:
     path = _db_path(project_id)
     if not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="database.sqlite not found")
-    # `isolation_level=None` so we control transactions; not strictly needed
-    # but keeps row updates from getting wrapped in a long-lived implicit
-    # transaction that conflicts with the PHP container.
+    # `isolation_level=None` so we control transactions and avoid implicit
+    # long-lived txns conflicting with the PHP container.
     conn = sqlite3.connect(path, isolation_level=None, timeout=5.0)
     conn.row_factory = sqlite3.Row
     return conn
@@ -229,17 +188,15 @@ def _list_tables(conn: sqlite3.Connection) -> list[str]:
 
 
 def _table_columns(conn: sqlite3.Connection, table: str) -> list[dict]:
-    """PRAGMA table_info(<table>) — returns [{name, type, notnull, pk, dflt_value}]."""
-    # PRAGMA can't be parameterised by table name, but we already validated
-    # the identifier shape and we'll cross-check against the master list.
+    """PRAGMA table_info(<table>) — [{name, type, notnull, pk, dflt_value}]."""
+    # PRAGMA can't be parameterised; identifier shape validated + master-list cross-check.
     cur = conn.execute(f"PRAGMA table_info('{table}')")
     cols = [dict(zip([d[0] for d in cur.description], row)) for row in cur.fetchall()]
     return cols
 
 
 def _resolve_table(conn: sqlite3.Connection, table: str) -> str:
-    """Validate the table name shape AND existence. Returns the canonical
-    name (same as input — but ensures it really exists)."""
+    """Validate the table name shape AND existence."""
     _check_identifier(table, "table")
     if table not in _list_tables(conn):
         raise HTTPException(status_code=404, detail="table not found")
@@ -267,8 +224,7 @@ async def route_app_db_tables(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """List user tables in the app's SQLite database, with row counts and
-    column metadata."""
+    """List user tables with row counts + column metadata."""
     _require_app_project(request, projectID, db_wrapper)
     try:
         conn = _open_db(projectID)
@@ -282,7 +238,7 @@ async def route_app_db_tables(
                 count_row = conn.execute(f'SELECT COUNT(*) FROM "{name}"').fetchone()
                 count = int(count_row[0])
             except sqlite3.Error:
-                count = -1  # signals "could not count"
+                count = -1
             tables.append({
                 "name": name,
                 "row_count": count,
@@ -306,9 +262,7 @@ async def route_app_db_rows(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Paginated SELECT * from <table>. Returns rows keyed by their internal
-    `rowid` so the caller can update / delete them without needing to know
-    the table's primary key."""
+    """Paginated SELECT keyed by internal `rowid` so caller can update/delete without PK."""
     _require_app_project(request, projectID, db_wrapper)
     conn = _open_db(projectID)
     try:
@@ -317,9 +271,7 @@ async def route_app_db_rows(
         col_names = [c["name"] for c in cols_info]
         total_row = conn.execute(f'SELECT COUNT(*) FROM "{canonical}"').fetchone()
         total = int(total_row[0]) if total_row else 0
-        # Explicit alias: in tables with `INTEGER PRIMARY KEY`, sqlite folds
-        # `rowid` into the PK column, leaving `r["rowid"]` undefined. The
-        # alias guarantees the key is always there.
+        # `INTEGER PRIMARY KEY` folds rowid into the PK column; alias guarantees presence.
         cur = conn.execute(
             f'SELECT rowid AS __restai_rowid__, * FROM "{canonical}" LIMIT ? OFFSET ?',
             (int(limit), int(offset)),
@@ -436,16 +388,8 @@ async def route_app_db_delete_row(
         conn.close()
 
 
-# AI generation: full app scaffold + per-file targeted edit.
-#
-# Both run on the project's own LLM (selected at project create time),
-# NOT the platform System LLM. Token cost flows through the regular
-# log_inference pipeline so per-project budgets and per-key quotas
-# apply naturally.
-#
-# `check_budget` and `check_rate_limit` are called up-front so a project
-# that's hit its monthly cap can't burn LLM cycles via this path either.
-
+# AI generation runs on the project's own LLM (not System LLM); budget+quota
+# checked up-front so exhausted projects get 402 without burning LLM cycles.
 
 class FixFilePayload(BaseModel):
     path: str = Field(description="Project-relative file path")
@@ -453,22 +397,12 @@ class FixFilePayload(BaseModel):
 
 
 class PlanPayload(BaseModel):
-    """Body for POST /app/generate/plan.
-
-    Server-stateful chat: the project's planning thread lives in the
-    `app_chat_messages` table and the wizard hydrates it on open. Each
-    plan call sends ONE new user message; the server appends it, builds
-    the full prompt from the persisted history, runs the LLM, then
-    appends the assistant reply (with parsed plan if any).
-    """
+    """Body for POST /app/generate/plan."""
     message: str = Field(min_length=1, max_length=20000, description="The new user message to add to the chat thread")
 
 
 class ExecutePayload(BaseModel):
-    """Body for POST /app/generate/execute — the approved plan + an
-    overwrite flag. Files are checked-and-written one at a time; if a
-    file exists and overwrite=false, that file is skipped (the rest of
-    the plan still runs)."""
+    """Body for POST /app/generate/execute."""
     plan: dict = Field(description="The full approved plan dict from /generate/plan")
     overwrite: bool = Field(default=False, description="If false, skip files that already exist on disk")
 
@@ -484,10 +418,7 @@ def _record_ai_cost(
     tokens: dict,
     status: str,
 ):
-    """Log the generation as an inference row so per-project budgets +
-    per-key monthly quotas tick. We deliberately do NOT call check_budget
-    here — the caller does that up-front (so an exhausted project gets a
-    clean 402 instead of burning the LLM cycles before the failure)."""
+    """Log generation as inference row for budgets/quotas; check_budget is caller's job."""
     from restai.tools import log_inference
     output = {
         "question": question,
@@ -502,37 +433,22 @@ def _record_ai_cost(
     try:
         log_inference(project, user, output, db_wrapper, latency_ms=None)
     except Exception:
-        # Don't fail the user's generate just because logging hiccupped.
         logger.exception("log_inference failed for app AI on project %s", project.props.id)
 
 
 def _sse_frame(event: str, data: dict) -> str:
-    """Format a Server-Sent Events frame. Mirrors the framing in
-    `route_app_deploy` exactly so the frontend has one parser to maintain."""
+    """Format a Server-Sent Events frame."""
     import json as _json
     return f"event: {event}\ndata: {_json.dumps(data, ensure_ascii=False)}\n\n"
 
 
 def _app_chat_id(project_id: int) -> str:
-    """The agent2.memory chat_id for this project's planning thread.
-
-    Project-scoped (not user-scoped): every team member working on the
-    same app project sees the same conversation, exactly like other
-    project-level features. Backend is Redis when configured, with an
-    in-process LRU fallback — same store the agent project type uses
-    for chat sessions, no new infrastructure.
-    """
+    """Project-scoped (not user-scoped) chat_id for the planning thread."""
     return f"app-plan-{int(project_id)}"
 
 
 def _serialize_app_messages(session) -> list[dict]:
-    """Flatten an AgentSession into the wire format the wizard expects.
-
-    Each assistant message's text is the FULL reply including the
-    fenced JSON tail; we re-extract the structured plan on read with
-    `extract_plan_from_reply` so we never need a separate column for
-    it (the source of truth is always the message text).
-    """
+    """Flatten AgentSession to wire format; plan re-extracted from message text."""
     from restai.app.ai import extract_plan_from_reply
     out: list[dict] = []
     for m in session.messages:
@@ -554,11 +470,7 @@ async def route_app_chat_history(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Return the project's persisted planning chat in chronological order.
-
-    Backed by agent2.memory (Redis when configured, in-process fallback)
-    — the same session store agent and block projects use. The wizard
-    hydrates from this on open so the user lands back in the conversation."""
+    """Return the project's persisted planning chat in chronological order."""
     _require_app_project(request, projectID, db_wrapper)
     from restai.agent2.memory import get_session
     session = await get_session(request.app.state.brain, _app_chat_id(projectID))
@@ -572,8 +484,7 @@ async def route_app_chat_clear(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Wipe the project's planning chat. Used by the wizard's Reset
-    button. Doesn't touch the project files — only the conversation."""
+    """Wipe the planning chat; doesn't touch project files."""
     check_not_restricted(user)
     _require_app_project(request, projectID, db_wrapper)
     from restai.agent2.memory import clear_session
@@ -594,9 +505,7 @@ async def route_app_generate_plan(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Chat-style planning. Streams the LLM's reply as `plan_chunk` SSE
-    events, terminates with `plan_complete` (which carries the parsed plan
-    dict, or null if the AI replied with a clarifying question)."""
+    """Chat-style planning, SSE-streamed."""
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
 
@@ -610,9 +519,6 @@ async def route_app_generate_plan(
     from restai.agent2.memory import get_session, save_session
     from restai.agent2.types import Message, TextBlock, user_text_message
 
-    # Load the persisted thread from agent2.memory (Redis when configured,
-    # in-process LRU fallback). Same store agent/block projects use — no
-    # new infrastructure for the App Builder.
     chat_id = _app_chat_id(projectID)
     session = await get_session(request.app.state.brain, chat_id)
 
@@ -687,9 +593,7 @@ async def route_app_generate_plan(
                     had_plan = final_plan is not None
                 yield _sse_frame(name, data or {})
         finally:
-            # Persist the assistant reply (the FULL text including the
-            # fenced JSON tail). The plan dict is re-extracted on read by
-            # `extract_plan_from_reply` — single source of truth.
+            # Persist FULL assistant reply (incl. fenced JSON tail) as single source of truth.
             try:
                 if final_reply:
                     session.messages.append(
@@ -722,18 +626,14 @@ async def route_app_generate_plan(
 @router.post("/projects/{projectID}/app/generate/dry-run", tags=["App Builder"])
 async def route_app_generate_dry_run(
     request: Request,
-    payload: ExecutePayload,  # same shape as execute — accepts {plan, overwrite}
+    payload: ExecutePayload,
     projectID: int = PathParam(description="Project ID"),
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Diff preview: show what files will change WITHOUT calling the LLM
-    or writing anything. Used by the wizard's "Preview changes" expander
-    so the user can confirm the plan targets the right files before
-    burning tokens on Approve & Build."""
+    """Diff preview without calling the LLM or writing anything."""
     _require_app_project(request, projectID, db_wrapper)
 
-    # Validate the plan shape (same defense in depth as execute does).
     from restai.app.ai import validate_plan
     try:
         clean_plan = validate_plan(payload.plan)
@@ -753,17 +653,14 @@ async def route_app_generate_dry_run(
 
 
 def _build_dry_run_diff(root, clean_plan: dict) -> list[dict]:
-    """Sync helper for the dry-run endpoint — dispatched via executor
-    because each `read_bytes()` is blocking I/O."""
+    """Sync helper for the dry-run endpoint (dispatched via executor)."""
     out: list[dict] = []
     root_resolved = root.resolve()
     for ph_idx, phase in enumerate(clean_plan.get("phases", []), 1):
         for file_spec in phase.get("files", []):
             path = file_spec["path"]
             target = root / path
-            # Defense-in-depth against symlink escapes: validate_plan
-            # already rejected `..` paths upstream, but a symlink inside
-            # the project root could still point outside.
+            # Defense-in-depth vs symlink escapes (a symlink inside root could point outside).
             try:
                 if not target.resolve().is_relative_to(root_resolved):
                     continue
@@ -806,10 +703,7 @@ async def route_app_generate_execute(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Build the approved plan, file by file. Streams per-file progress.
-    Per-file overwrite check: if `payload.overwrite` is false, files that
-    already exist on disk are skipped (emit `file_error`) and the rest of
-    the plan continues. Cancellable between files via client disconnect."""
+    """Build the approved plan file by file; SSE progress + per-file overwrite check."""
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
 
@@ -826,7 +720,7 @@ async def route_app_generate_execute(
         ensure_project_root, project_lock, write_file, get_project_root,
     )
 
-    # Defense in depth — the client could have edited the plan.
+    # Defense in depth — client could have edited the plan.
     try:
         clean_plan = validate_plan(payload.plan)
     except ValueError as e:
@@ -845,17 +739,14 @@ async def route_app_generate_execute(
 
         written: list[str] = []
         failed: list[dict] = []
-        # Total file count across all phases for global progress display.
         total_files = sum(len(ph.get("files", [])) for ph in phases)
         total_tokens = {"input": 0, "output": 0}
-        global_idx = 0  # 1-indexed across all phases
-        contracts_text = ""  # populated by the sketch-then-fill pass below
+        global_idx = 0
+        contracts_text = ""
 
         try:
-            # ── Sketch-then-fill: generate shared contracts BEFORE any
-            # code. The contracts (TS interfaces, function signatures,
-            # SQL schemas) get injected into every per-file LLM prompt
-            # so cross-file references stay consistent.
+            # Sketch-then-fill: shared contracts generated BEFORE code,
+            # injected into per-file prompts for cross-file consistency.
             yield _sse_frame("contracts_start", {
                 "message": "Sketching shared contracts (TS interfaces, PHP signatures, SQL schemas)…",
             })
@@ -876,14 +767,7 @@ async def route_app_generate_execute(
                 "preview": (contracts_text or "")[:500],
             })
 
-            # NOTE: test-pack generation used to live here (before file
-            # gen) and burned 10–30 s of LLM time before the user saw
-            # any file activity. The tests file is only consumed by
-            # /app/validate (which runs after the wizard finishes), so
-            # it doesn't need to be on disk before the first phase.
-            # Moved to after the phase loop, just before the preview
-            # restart — see the `tests_start` block below.
-
+            # Test-pack generation moved to AFTER the phase loop (was 10-30s up-front waste).
             for ph_idx, phase in enumerate(phases, 1):
                 if await request.is_disconnected():
                     yield _sse_frame("error", {"message": "client disconnected"})
@@ -920,7 +804,6 @@ async def route_app_generate_execute(
                         "phase_file_total": len(ph_files),
                     })
 
-                    # Per-file overwrite check.
                     if target.exists() and not overwrite:
                         failed.append({"path": path, "error": "exists (overwrite not set)"})
                         phase_failed.append({"path": path, "error": "exists (overwrite not set)"})
@@ -929,8 +812,6 @@ async def route_app_generate_execute(
                         })
                         continue
 
-                    # Snapshot of files written so far so the LLM can
-                    # reference them by exact path.
                     already_written_snapshot = list(written)
 
                     events: _queue.Queue = _queue.Queue()
@@ -983,11 +864,8 @@ async def route_app_generate_execute(
                     if file_failed or not final_content_holder:
                         continue
 
-                    # Static architecture check — reject obviously broken
-                    # output BEFORE it hits disk (PHP that emits HTML, TS
-                    # that imports npm, HTML with PHP tags, etc.). Each
-                    # violation becomes a file_error that the auto-fix
-                    # loop picks up.
+                    # Static arch check rejects obviously broken output before disk
+                    # (PHP emitting HTML, TS importing npm, etc.).
                     from restai.app.ai import static_architecture_checks
                     arch_issues = static_architecture_checks(
                         path, final_content_holder["content"],
@@ -999,12 +877,11 @@ async def route_app_generate_execute(
                         yield _sse_frame("file_error", {"path": path, "error": err_msg})
                         continue
 
-                    # Tally cost.
                     t = final_content_holder.get("tokens", {})
                     total_tokens["input"] += int(t.get("input", 0) or 0)
                     total_tokens["output"] += int(t.get("output", 0) or 0)
 
-                    # Write under the per-project lock so we don't race the IDE.
+                    # Write under per-project lock so IDE writes don't race.
                     try:
                         async with project_lock(projectID):
                             new_etag = write_file(
@@ -1036,14 +913,8 @@ async def route_app_generate_execute(
                     "failed": phase_failed,
                 })
 
-                # Per-phase runtime probes — run after each phase so the
-                # user (and the next phase's LLM, indirectly via the
-                # auto-fix loop on completion) sees real failures
-                # immediately. Files are bind-mounted so the container
-                # has the latest source already; PHP picks up changes
-                # without restart, esbuild watches src/ and recompiles.
-                # Probes are best-effort: never block the build, never
-                # raise.
+                # Per-phase runtime probes after each phase; bind-mounted files mean
+                # PHP picks up changes and esbuild recompiles automatically. Best-effort.
                 try:
                     phase_runtime_issues = _runtime_probes(request, projectID)
                 except Exception:
@@ -1055,17 +926,8 @@ async def route_app_generate_execute(
                     "issues": phase_runtime_issues,
                 })
 
-                # ── Per-phase inline auto-fix ───────────────────────
-                # If the phase_check surfaced issues that point at files
-                # we've already written, take ONE focused fix turn before
-                # the next phase starts. This prevents broken phase-N
-                # files from poisoning phase N+1's LLM context.
-                #
-                # Cap: 1 inline fix per phase (no recursion). Skip when:
-                #   - no issues, OR
-                #   - all issues point at files outside `written`
-                #     (those will be fixed by a future phase or the
-                #     end-of-build auto-fix loop).
+                # Per-phase inline auto-fix: ONE focused fix turn if issues
+                # touch already-written files (prevents poisoning next phase's context).
                 fix_targets: list[str] = []
                 fix_relevant_issues: list[dict] = []
                 written_set = set(written)
@@ -1084,8 +946,6 @@ async def route_app_generate_execute(
                     })
                     try:
                         from restai.app.ai import inline_fix_files
-                        # Sync helper — push to a worker so the SSE
-                        # generator stays async.
                         fixed_map, fix_tokens = await _asyncio.get_event_loop().run_in_executor(
                             None,
                             inline_fix_files,
@@ -1102,7 +962,6 @@ async def route_app_generate_execute(
                     fixed_paths: list[str] = []
                     fix_errors: list[dict] = []
                     for fp, fc in (fixed_map or {}).items():
-                        # Architecture check on the fixed content too.
                         from restai.app.ai import static_architecture_checks
                         arch_issues = static_architecture_checks(fp, fc)
                         if arch_issues:
@@ -1124,15 +983,7 @@ async def route_app_generate_execute(
                         "errors": fix_errors,
                     })
 
-            # ── Test pack generation (post-phases, pre-validate).
-            # Produces tests/api.php that hits each /api/ endpoint and
-            # asserts JSON shape per the contracts. The test runner
-            # (called from /app/validate) feeds failures into the
-            # auto-fix loop with line-attributed evidence. Skips for
-            # backendless apps (no /api/ files in plan). Sandwiched
-            # here — between the last file write and the preview
-            # restart — so the wait happens with everything already
-            # on disk and the user has a clear "wrapping up" beat.
+            # Test pack: produces tests/api.php for /app/validate to feed auto-fix loop.
             yield _sse_frame("tests_start", {
                 "message": "Generating end-to-end test pack (tests/api.php)…",
             })
@@ -1164,13 +1015,8 @@ async def route_app_generate_execute(
                 except Exception as e:
                     logger.warning("test file write failed: %s", e)
 
-            # Restart preview so esbuild picks up the new src tree.
-            # Critical: emit `preview_restarting` BEFORE the await so the
-            # wizard knows to wait, and `preview_ready` AFTER. Previously
-            # `complete` shipped while the restart was still in flight,
-            # so the auto-validate that follows hit either a stale
-            # container or a half-booted one — fast-pathing to "looks
-            # good" against reality that was actually broken.
+            # Restart preview; emit `preview_restarting` BEFORE await and `preview_ready`
+            # AFTER, else auto-validate hits stale/half-booted container.
             mgr = getattr(request.app.state.brain, "app_manager", None)
             if mgr is not None and mgr.get_port(projectID) is not None:
                 yield _sse_frame("preview_restarting", {
@@ -1276,18 +1122,10 @@ async def route_app_fix_file(
     return {"path": payload.path, "etag": new_etag, "size": len(new_content)}
 
 
-# Deploy: download zip + push via FTP/SFTP.
-#
-# Generated apps are deliberately standalone (no RESTai dependency at
-# runtime), so "deploy" really is just "copy these files to a host".
-# Most cheap PHP hosts only offer FTP/SFTP — that's exactly what we
-# wire up here.
-
-
 @router.get(
     "/projects/{projectID}/app/download",
     tags=["App Builder"],
-    response_class=Response,  # bypass FastAPI's JSON encoder
+    response_class=Response,
 )
 async def route_app_download(
     request: Request,
@@ -1297,14 +1135,7 @@ async def route_app_download(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Stream a ZIP of the project's source tree.
-
-    Defaults are tuned for "deploy this to my shared host":
-    - `node_modules`, `.git`, `__pycache__`, dotfiles → never shipped
-    - `src/*.ts` → excluded (the deployed app only needs `public/dist/app.js`)
-    - `database.sqlite` → excluded (dev DB, would clobber prod data on overwrite)
-    Toggle either via the query flags.
-    """
+    """Stream a ZIP of the project's source tree."""
     project = _require_app_project(request, projectID, db_wrapper)
     from fastapi.responses import StreamingResponse
     from restai.app.deploy import ZipFilters, stream_zip
@@ -1321,15 +1152,13 @@ async def route_app_download(
         media_type="application/zip",
         headers={
             "Content-Disposition": f'attachment; filename="{safe_name}.zip"',
-            # Hint: the response is fully bytes, no caching.
             "Cache-Control": "no-store",
         },
     )
 
 
 class DeployTestPayload(BaseModel):
-    """Payload for the connection-test endpoint. Lets the user verify
-    credentials without committing to a real upload."""
+    """Payload for the connection-test endpoint."""
     protocol: str = Field(default="sftp", description="'sftp' or 'ftp'")
     host: str = Field(description="Hostname (no scheme, no port)")
     port: int | None = Field(default=None, ge=1, le=65535)
@@ -1340,9 +1169,7 @@ class DeployTestPayload(BaseModel):
 
 
 def _resolve_deploy_credentials(project, payload_password: str) -> str:
-    """Allow the UI to send `''` for the password to mean 'use what's
-    stored on the project'. Avoids forcing the user to retype the
-    password every time they hit Test Connection."""
+    """Empty password means 'use what's stored on the project'."""
     if payload_password:
         return payload_password
     opts = project.props.options
@@ -1360,8 +1187,7 @@ async def route_app_deploy_test(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Connect to the deploy target, list the remote directory, return
-    success/failure. No file transfer — safe to call repeatedly."""
+    """Test deploy connection (no file transfer)."""
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
 
@@ -1382,8 +1208,6 @@ async def route_app_deploy_test(
 class DeployRunPayload(BaseModel):
     include_source: bool = Field(default=False)
     include_db: bool = Field(default=False)
-    # Optional credential overrides — in the common case the user has
-    # already saved them on the project and we read from there.
     protocol: str | None = Field(default=None)
     host: str | None = Field(default=None)
     port: int | None = Field(default=None, ge=1, le=65535)
@@ -1401,13 +1225,7 @@ async def route_app_deploy(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Push the project's files to the configured host. Streams progress
-    as Server-Sent Events: ``event: <type>\\ndata: <json>\\n\\n``.
-
-    Reads stored credentials from `project.options.ftp_*` by default;
-    the request body can override individual fields if the user wants to
-    deploy to a one-off host without saving the credentials.
-    """
+    """Push project files to the configured host; SSE-streamed progress."""
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
 
@@ -1474,7 +1292,6 @@ async def route_app_deploy(
                 yield f"event: error\ndata: {_json.dumps({'message': str(e)})}\n\n"
                 had_error = True
 
-            # Audit row + log_inference (so it shows up in project activity).
             try:
                 from restai.audit import _log_to_db as _audit
                 _audit(
@@ -1489,9 +1306,6 @@ async def route_app_deploy(
     return StreamingResponse(stream(), media_type="text/event-stream")
 
 
-# Reset + post-build validation
-
-
 @router.post("/projects/{projectID}/app/reset", tags=["App Builder"])
 async def route_app_reset(
     request: Request,
@@ -1499,15 +1313,7 @@ async def route_app_reset(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Wipe everything for this app project and start fresh.
-
-    - Stops the preview container (so the bind-mount releases the tree).
-    - Deletes every file under <install_root>/apps/<id>/.
-    - Clears the planning chat memory.
-    - Re-seeds the hello-world SPA scaffold.
-    - Restarts the preview container so esbuild rebuilds the new src.
-
-    Used by the Reset Project button when the user wants a clean slate."""
+    """Wipe everything and re-seed; used by the Reset Project button."""
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
     from restai.app.storage import (
@@ -1515,8 +1321,7 @@ async def route_app_reset(
     )
     from restai.agent2.memory import clear_session
 
-    # 1) Stop the container before wiping — Docker bind mount otherwise
-    # holds public/ open and rmtree leaves orphan dirs.
+    # Stop container before wiping; bind-mount otherwise holds public/ open.
     mgr = getattr(request.app.state.brain, "app_manager", None)
     if mgr is not None:
         try:
@@ -1524,20 +1329,15 @@ async def route_app_reset(
         except Exception:
             logger.exception("reset: failed to stop container before wipe")
 
-    # 2) Wipe disk.
     delete_project_root(projectID)
 
-    # 3) Clear chat memory.
     try:
         await clear_session(request.app.state.brain, _app_chat_id(projectID))
     except Exception:
         logger.exception("reset: failed to clear chat memory")
 
-    # 4) Re-seed.
     seed_hello_world(projectID, project.props.human_name or project.props.name)
 
-    # 5) Optionally restart container if the runtime was already enabled.
-    # The frontend will trigger a preview reload after this returns.
     if mgr is not None:
         try:
             await mgr.get_or_create(projectID)
@@ -1553,17 +1353,13 @@ async def route_app_reset(
     return {"reset": True}
 
 
-# Soft cap on what we feed into the validator. A 200KB code review is
-# already pushing it; we'd rather skip the bottom of the file than burn
-# tokens on it.
+# Soft cap on validator payload; truncate bottom of file rather than burn tokens.
 _VALIDATE_MAX_BYTES = 120 * 1024
 _VALIDATE_MAX_FILES = 30
 
 
 def _collect_review_files(project_id: int) -> list[dict]:
-    """Read up to _VALIDATE_MAX_FILES editable files from the project,
-    truncating per-file content so the total payload stays under
-    _VALIDATE_MAX_BYTES. Returns [{path, content}] in tree order."""
+    """Read editable files (capped) for the validator."""
     from restai.app.storage import (
         get_project_root, EDITABLE_EXTENSIONS,
     )
@@ -1576,7 +1372,6 @@ def _collect_review_files(project_id: int) -> list[dict]:
         if not fp.is_file():
             continue
         rel = fp.relative_to(root).as_posix()
-        # Skip hidden / build-output / vendored.
         if (
             rel.startswith("public/dist/")
             or rel.startswith("node_modules/")
@@ -1591,7 +1386,6 @@ def _collect_review_files(project_id: int) -> list[dict]:
             data = fp.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        # Per-file budget: never let any single file blow the whole budget.
         per_file_cap = max(2048, (_VALIDATE_MAX_BYTES - used) // max(1, _VALIDATE_MAX_FILES - len(out)))
         if len(data) > per_file_cap:
             data = data[:per_file_cap] + "\n/* [truncated for review] */"
@@ -1602,28 +1396,16 @@ def _collect_review_files(project_id: int) -> list[dict]:
     return out
 
 
-# Runtime-probe limits. Per-request timeout and per-response body cap so
-# a hung backend can't stall the validate endpoint and a 50MB error page
-# can't blow the LLM context.
-_RUNTIME_PROBE_TIMEOUT = 6  # seconds, per request
-_RUNTIME_PROBE_BODY_CAP = 1500  # chars of error body to surface
+# Runtime-probe limits prevent hung backends + 50MB error pages from breaking validate.
+_RUNTIME_PROBE_TIMEOUT = 6
+_RUNTIME_PROBE_BODY_CAP = 1500
 _DRY_RUN_PREVIEW_BYTES = 64 * 1024
-# Test runner output: `FAIL <endpoint> [<method>]: <message>` per the _TESTS_SYSTEM contract.
+# `FAIL <endpoint> [<method>]: <message>` per _TESTS_SYSTEM contract.
 _TEST_FAIL_RE = re.compile(r"^FAIL\s+(\S+)(?:\s+(\S+))?\s*:\s*(.*)$", re.MULTILINE)
 
 
 def _run_tests(request: Request, project_id: int) -> list[dict]:
-    """Execute `tests/api.php` inside the dev container and convert FAIL
-    lines into auto-fix-eligible issues attributed to each endpoint.
-
-    Returns ``[]`` when there's no test file, no container, or all
-    assertions passed.
-
-    Each FAIL line in the test pack's stdout has the shape
-    ``FAIL <endpoint> [<method>]: <message>``. The endpoint is parsed
-    out as the issue's `path` so the auto-fix loop targets the actual
-    broken file, not the test file.
-    """
+    """Execute `tests/api.php` and convert FAIL lines into auto-fix-eligible issues."""
     from restai.app.storage import get_project_root
     root = get_project_root(project_id)
     test_file = root / "tests" / "api.php"
@@ -1640,9 +1422,7 @@ def _run_tests(request: Request, project_id: int) -> list[dict]:
     if docker_client is None:
         return []
 
-    # Run with a wall-clock guard. exec_run wrapper has no native
-    # timeout, so we use the lower-level exec_create + exec_start
-    # streamed inside a thread that we abandon after 60 s.
+    # exec_run has no native timeout; use lower-level exec_create+exec_start in a thread abandoned after 60s.
     import threading as _threading
     import queue as _queue
     out_q: _queue.Queue = _queue.Queue(maxsize=1)
@@ -1686,9 +1466,7 @@ def _run_tests(request: Request, project_id: int) -> list[dict]:
         endpoint = m.group(1).strip()
         method = (m.group(2) or "").strip()
         msg = m.group(3).strip()
-        # Drop FAIL lines whose endpoint isn't a recognisable project
-        # path — attributing them to tests/ would only get them filtered
-        # by the auto-fix immutability guard.
+        # Drop FAIL lines whose endpoint isn't a project path; else filtered by immutability guard.
         if not endpoint.startswith("public/") and not endpoint.startswith("/"):
             continue
         endpoint_attr = endpoint.lstrip("/")
@@ -1699,8 +1477,7 @@ def _run_tests(request: Request, project_id: int) -> list[dict]:
             "message": f"{prefix}Test failure: {msg}",
         })
 
-    # If exit code was non-zero but no FAIL lines parsed, surface stderr
-    # so the user/auto-fix loop sees something actionable.
+    # Non-zero exit + no parsed FAIL lines → surface stderr for auto-fix loop.
     if exit_code not in (0, None) and not issues:
         snippet = text[-600:] if text else "(no output)"
         issues.append({
@@ -1712,24 +1489,7 @@ def _run_tests(request: Request, project_id: int) -> list[dict]:
 
 
 def _runtime_probes(request: Request, project_id: int) -> list[dict]:
-    """Hit the live preview container and surface real runtime errors as
-    issues. Three checks:
-
-    1. ``GET /`` — the SPA shell. Non-200 or missing mount point → issue.
-    2. ``GET /api/<file>.php`` for every public/api/*.php that isn't a
-       _underscore-prefixed include. 5xx, non-JSON content-type, or a
-       JSON ``{"error": ...}`` body all become issues. PHP fatal errors
-       and parse errors typically come through as 500 + HTML, which this
-       catches cleanly.
-    3. esbuild log via ``docker exec`` into the dev container. Any line
-       containing "ERROR" / "error:" gets surfaced — a TypeScript file
-       that won't compile is the #1 reason a build "looks fine on disk"
-       but the iframe is blank.
-
-    Returns a list of issue dicts in the same shape as the LLM review
-    issues (path/severity/message). Empty list when the runtime is
-    disabled or all probes pass.
-    """
+    """Hit the live preview container and surface runtime errors as issues."""
     import os as _os
     import requests as _requests
     from restai.app.storage import get_project_root
@@ -1741,13 +1501,9 @@ def _runtime_probes(request: Request, project_id: int) -> list[dict]:
         return issues
     port = mgr.get_port(project_id)
     if not port:
-        # Container hasn't been spun yet (e.g. user opened the wizard
-        # before viewing the preview). Skip silently — static analysis
-        # still runs.
         return issues
     base = f"http://127.0.0.1:{port}"
 
-    # ── Probe 1: SPA shell ──────────────────────────────────────────
     try:
         r = _requests.get(base + "/", timeout=_RUNTIME_PROBE_TIMEOUT)
         if r.status_code >= 500:
@@ -1824,12 +1580,8 @@ def _runtime_probes(request: Request, project_id: int) -> list[dict]:
                     "message": f"GET /api/{php.name} returned content-type {ct or 'none'!r} (not application/json). PHP must `header('Content-Type: application/json');`. Body:\n{body_snip}",
                 })
                 continue
-            # Endpoint is JSON — but if it returned an `error` field with
-            # a 4xx, that's still useful runtime evidence (e.g. missing
-            # required field on a route that the SPA will hit).
             if 400 <= r.status_code < 500:
-                # 405 (method not allowed for GET on a POST-only route) is
-                # expected and not interesting; only flag 4xx with errors.
+                # Skip 405 (GET on POST-only route is expected).
                 if r.status_code != 405:
                     try:
                         body = r.json()

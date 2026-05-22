@@ -1,33 +1,4 @@
-"""Browser micro-server — runs INSIDE the Playwright container.
-
-Wraps `playwright.sync_api` over stdlib `http.server`. Zero third-party
-deps beyond Playwright itself (which is pre-installed in
-`mcr.microsoft.com/playwright/python`). One module-level BrowserContext
-per container keeps cookies + navigation state alive across tool calls.
-
-Endpoints:
-- POST /health      — liveness probe, returns `{ok: true}`.
-- POST /goto        — {url} → {final_url, title}
-- POST /content     — {selector?, format?} → {content, length}
-- POST /click       — {selector} → {url_after, nearby_text}
-- POST /fill        — {selector, value} → {ok}
-- POST /select      — {selector, option} → {ok}
-- POST /screenshot  — {selector?} → {png_b64, width, height}
-- POST /wait        — {selector, timeout?} → {found}
-- POST /download    — {selector, timeout?} → {path, size, mime}
-- POST /eval        — {js} → {result}
-- POST /storage/load — {state: {...}}
-- POST /storage/dump — {} → {state: {...}}
-- POST /close       — shuts the context (page stays disposable); used by host on cleanup.
-
-JSON-in, JSON-out. Errors surface as {"error": "..."} with HTTP 500.
-
-This file is copied into the container at `/opt/restai_browser/micro_server.py`
-by the host-side `BrowserManager` at container startup (via `put_archive`).
-It is **not** imported by the host-side RESTai process — it lives in the
-container's Python runtime only, so it can import `playwright.sync_api`
-without demanding Playwright as a host dep.
-"""
+"""Browser micro-server — runs INSIDE the Playwright container."""
 from __future__ import annotations
 
 import base64
@@ -53,17 +24,14 @@ _DOWNLOAD_DIR = "/home/user/downloads"
 os.makedirs(_DOWNLOAD_DIR, exist_ok=True)
 
 
-# ─── Playwright lifecycle ────────────────────────────────────────────
-
 _lock = threading.Lock()
 _pw = None
 _browser = None
 _context = None
-_page = None  # current active page
+_page = None
 
 
 def _ensure_context():
-    """Lazy-start Playwright + a persistent BrowserContext on first use."""
     global _pw, _browser, _context, _page
     with _lock:
         if _context is not None:
@@ -92,15 +60,12 @@ def _ensure_context():
 
 
 def _page_or_new():
-    """Return the live page, making a new one if the previous closed."""
     global _page
     _ensure_context()
     if _page is None or _page.is_closed():
         _page = _context.new_page()
     return _page
 
-
-# ─── HTML sanitation before returning content to the agent ───────────
 
 _SCRIPT_RE = re.compile(r"<script\b[^<]*(?:(?!</script>)<[^<]*)*</script>", re.IGNORECASE | re.DOTALL)
 _STYLE_RE = re.compile(r"<style\b[^<]*(?:(?!</style>)<[^<]*)*</style>", re.IGNORECASE | re.DOTALL)
@@ -120,19 +85,14 @@ def _sanitize_html(html: str) -> str:
 
 
 def _to_markdown(html: str) -> str:
-    """Quick HTML → markdown-ish rendering. Not perfect but cheap."""
-    # Very lightweight: strip tags, collapse whitespace. The LLM is smart
-    # enough to work with this for most purposes.
+    """Quick HTML to markdown-ish rendering."""
     text = re.sub(r"<br\s*/?>", "\n", html, flags=re.IGNORECASE)
     text = re.sub(r"</(p|div|section|article|li|tr|h[1-6])>", "\n", text, flags=re.IGNORECASE)
     text = re.sub(r"<(p|div|section|article|li|tr|h[1-6])[^>]*>", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"<[^>]+>", "", text)  # strip remaining tags
+    text = re.sub(r"<[^>]+>", "", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
-
-
-# ─── Handlers ────────────────────────────────────────────────────────
 
 
 def _handle_goto(payload: dict) -> dict:
@@ -160,7 +120,7 @@ def _handle_content(payload: dict) -> dict:
         out = html
     elif fmt == "text":
         out = _to_markdown(html)
-    else:  # markdown (= cleaned text for now)
+    else:
         out = _to_markdown(html)
     if len(out) > _MAX_CONTENT_BYTES:
         out = out[:_MAX_CONTENT_BYTES] + "\n… (truncated)"
@@ -261,7 +221,6 @@ def _handle_eval(payload: dict) -> dict:
         raise ValueError("js is required")
     page = _page_or_new()
     result = page.evaluate(js)
-    # JSON-safe coercion — Playwright returns dicts/lists/primitives.
     try:
         json.dumps(result)
     except Exception:
@@ -277,7 +236,6 @@ def _handle_storage_load(payload: dict) -> dict:
         raise ValueError("state dict required")
     _ensure_context()
     with _lock:
-        # Close the old context + page, open a new one with the state.
         try:
             if _page and not _page.is_closed():
                 _page.close()
@@ -335,9 +293,6 @@ _ROUTES = {
 }
 
 
-# ─── HTTP plumbing ───────────────────────────────────────────────────
-
-
 class _Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         _log.info("%s %s", self.path, args)
@@ -363,7 +318,6 @@ class _Handler(BaseHTTPRequestHandler):
             self._respond(500, {"error": f"{type(e).__name__}: {e}"})
 
     def do_GET(self):
-        # Convenience: /health as GET too for docker HEALTHCHECK.
         if self.path.split("?", 1)[0] == "/health":
             self._respond(200, {"ok": True})
             return

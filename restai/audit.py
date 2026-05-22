@@ -1,5 +1,3 @@
-"""Audit logging middleware — records all mutation requests (POST/PATCH/DELETE)."""
-
 import base64
 import logging
 import threading
@@ -58,7 +56,6 @@ def _extract_username(request: Request) -> tuple:
 
 
 def _log_to_db(username, action, resource, status_code):
-    """Write audit entry to database in a background thread."""
     try:
         from restai.database import open_db_wrapper
         from restai.models.databasemodels import AuditLogDatabase
@@ -97,7 +94,6 @@ class AuditMiddleware(BaseHTTPMiddleware):
 
         _, username = _extract_username(request)
 
-        # Background thread to avoid blocking the response.
         threading.Thread(
             target=_log_to_db,
             args=(username, request.method, path, response.status_code),

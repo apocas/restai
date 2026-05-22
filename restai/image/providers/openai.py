@@ -1,18 +1,4 @@
-"""OpenAI + OpenAI-compatible image generation.
-
-Works for:
-- OpenAI proper (`gpt-image-1`, `gpt-image-1.5`, `dall-e-3`, etc.).
-- Any OpenAI-spec-compatible endpoint (Together, Groq, vLLM image servers,
-  self-hosted proxies) when the admin sets `options.base_url`.
-
-Options recognized:
-- `model`       (required) — model id passed to `client.images.generate`.
-- `api_key`     (required) — bearer token for the endpoint.
-- `base_url`    (optional) — overrides the default `https://api.openai.com/v1`.
-- `size`        (optional) — e.g. `"1024x1024"`, forwarded verbatim.
-- `quality`     (optional) — `"standard"` | `"hd"` (or provider-specific).
-- `n`           (optional, default 1) — number of images; we only return the first.
-"""
+"""OpenAI + OpenAI-compatible image generation."""
 from __future__ import annotations
 
 import base64
@@ -29,8 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def _extract_openai_message(err: APIStatusError) -> str:
-    """OpenAI proper returns `{"error": {"message": "..."}}`; compat
-    servers often return something else. Fall back gracefully."""
+    """Extract error message; OpenAI-compat servers vary in shape so fall back gracefully."""
     body = getattr(err, "body", None)
     if isinstance(body, dict):
         inner = body.get("error")
@@ -68,15 +53,14 @@ def generate(options: dict, image_model: ImageModel) -> tuple[bytes, str]:
     except APIStatusError as e:
         message = _extract_openai_message(e)
         upstream = e.status_code or 502
-        # Forward 4xx (caller config / auth / quota issue), translate 5xx
-        # to 502 since the failure is upstream, not ours.
+        # Forward 4xx (caller-side); translate 5xx to 502 since the failure is upstream.
         status = upstream if 400 <= upstream < 500 else 502
         logger.warning("OpenAI image generation failed (%s): %s", upstream, message)
         raise ImageProviderError(status, f"OpenAI image API: {message}") from e
 
     data = result.data[0]
 
-    # gpt-image-* defaults to b64_json; dall-e-3 returns a URL. Handle both.
+    # gpt-image-* returns b64_json; dall-e-3 returns a URL.
     if getattr(data, "b64_json", None):
         return base64.b64decode(data.b64_json), "image/png"
     if getattr(data, "url", None):

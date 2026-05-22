@@ -15,12 +15,6 @@ const shimmer = keyframes`
   100% { background-position:   0% 50%; }
 `;
 
-// Mesh gradient done with layered radial gradients — no image asset needed.
-// Three blobs drift slightly via the animated `background-position` so it
-// feels alive without being noisy.
-// Navy / MUI-blue gradient mesh — matches the app's active "blue"
-// theme (primary #1976d2). Kept punchy with cyan and sky highlights
-// so it still reads as "AI platform" and not a stock-photo banner.
 const HeroRoot = styled(Box)(({ theme }) => ({
   position: "relative",
   borderRadius: 20,
@@ -37,8 +31,6 @@ const HeroRoot = styled(Box)(({ theme }) => ({
   backgroundSize: "200% 200%, 200% 200%, 200% 200%, 200% 200%, 100% 100%",
   animation: `${shimmer} 20s ease-in-out infinite`,
   [theme.breakpoints.down("md")]: { padding: theme.spacing(3) },
-  // Subtle grain on top so the gradient doesn't look like a default
-  // Stripe/Linear login page — it picks up a little texture.
   "&::after": {
     content: '""',
     position: "absolute",
@@ -89,8 +81,6 @@ function formatLatency(ms) {
   return ms >= 1000 ? (ms / 1000).toFixed(1) + "s" : Math.round(ms) + "ms";
 }
 
-// Greeting is time-of-day aware so admins opening the dashboard at
-// 9am and at 11pm get a subtly different cue that the thing is alive.
 function greeting(t) {
   const h = new Date().getHours();
   if (h < 5)  return t("dashboard.hero.greetLate");
@@ -103,12 +93,8 @@ export default function AIHero({ summary, dailyTokens, modelsCount }) {
   const { t } = useTranslation();
   const auth = useAuth();
 
-  // Backend groups daily-tokens rows by `func.date(OutputDatabase.date)` (UTC),
-  // and the response only contains rows for days with activity. Looking up
-  // by index ("last entry == today") was wrong on quiet days — when nothing
-  // happened today, the last entry is whichever older day actually had
-  // traffic, and it would get rendered as "today". Match by ISO date string
-  // against UTC so empty days correctly fall back to 0.
+  // Match by ISO date against UTC — the response only has rows for days
+  // with activity, so index-based "last == today" is wrong on quiet days.
   const todayKey = new Date().toISOString().slice(0, 10);
   const yesterdayKey = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
   const today = dailyTokens?.find((d) => d.date === todayKey);
@@ -117,15 +103,11 @@ export default function AIHero({ summary, dailyTokens, modelsCount }) {
   const yesterdayTokens = yesterday
     ? (yesterday.input_tokens || 0) + (yesterday.output_tokens || 0)
     : 0;
-  // Prefer the platform-wide rolling average from /statistics/summary —
-  // a single number is cheaper to reason about than averaging per-day
-  // averages (which would weight quiet days the same as busy ones).
+  // Prefer summary's rolling avg — averaging per-day means weights quiet days same as busy.
   const avgLatency = summary?.avg_latency_ms || null;
 
-  // Rolling "tokens since you opened the page" counter. Pace is derived
-  // from today's actual throughput (today's tokens / seconds elapsed since
-  // 00:00 UTC). If today has no activity yet, we don't fake a pace —
-  // pretending 200 tok/s when the system is quiet is misleading.
+  // Pace derived from today's actual throughput. Skip when today is quiet
+  // — faking 200 tok/s during silence misleads.
   const [liveTicker, setLiveTicker] = useState(0);
   const startRef = useRef(Date.now());
   useEffect(() => {
@@ -133,7 +115,7 @@ export default function AIHero({ summary, dailyTokens, modelsCount }) {
     startRef.current = Date.now();
     if (!todayTokens) return;
     const now = new Date();
-    // Use UTC seconds-into-day to match backend's UTC date grouping.
+    // UTC seconds-into-day to match backend's UTC date grouping.
     const secondsIntoDay =
       now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds();
     const tps = secondsIntoDay > 0 ? todayTokens / secondsIntoDay : 0;
@@ -243,9 +225,6 @@ export default function AIHero({ summary, dailyTokens, modelsCount }) {
             </StatChip>
           )}
 
-          {/* Need both sides to compare. Showing "↘ -100%" on a quiet morning
-              when nothing has been logged yet today is technically true but
-              contextually misleading — the day isn't over. */}
           {yesterdayTokens > 0 && todayTokens > 0 && (
             <StatChip>
               <Box

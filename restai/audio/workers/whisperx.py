@@ -11,7 +11,7 @@ def get_python_executable():
 
 
 def get_environment_variables():
-    env = {}  # Initialize env dictionary
+    env = {}
     project_root = os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     )
@@ -35,8 +35,6 @@ def worker(prompt, sharedmem):
     file_path = sharedmem["file_path"]
     filename = sharedmem["filename"]
 
-    # Derived from gpu_worker_devices in /admin/gpu (first index of
-    # the worker pool, "cuda:N", or "cuda:0" when the pool is empty).
     device = config.RESTAI_DEFAULT_DEVICE
 
     batch_size = 16
@@ -73,7 +71,6 @@ def worker(prompt, sharedmem):
     diarize_segments = diarize_model(audio)
     result = whisperx.assign_word_speakers(diarize_segments, result)
 
-    # Concatenate all segment texts to build the complete transcription
     full_text = " ".join([segment["text"] for segment in result["segments"]])
 
     sharedmem["output"] = {

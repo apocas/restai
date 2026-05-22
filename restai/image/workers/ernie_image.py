@@ -1,23 +1,7 @@
 """Baidu ERNIE-Image — 8B-parameter DiT image generator.
 
-Loaded straight from ``baidu/ERNIE-Image`` in bf16 via diffusers'
-`ErnieImagePipeline`. Designed for 24 GB consumer GPUs;
-`enable_model_cpu_offload` cycles text encoder / transformer / VAE so
-peak VRAM stays well below the sum of components.
-
-The repo ships two checkpoints:
-- **ERNIE-Image** (default here): SFT, ~50 inference steps, CFG ~4.0.
-- **ERNIE-Image-Turbo**: RL-distilled, ~8 inference steps. Set
-  ``sharedmem["repo"] = "baidu/ERNIE-Image-Turbo"`` and lower
-  ``num_inference_steps``/``guidance_scale`` accordingly via the
-  Image Generators panel.
-
-Picks up automatically: `restai/image/registry.py:seed_local_generators`
-walks `image/workers/*.py` on every boot and creates a DB row.
-
-Shares `.venv-zimage` with the Z-Image family — both need a bleeding-
-edge `diffusers` (the `ErnieImagePipeline` class only landed in
-late-2025 releases).
+Shares `.venv-zimage` with the Z-Image family — both need bleeding-edge
+`diffusers` (the `ErnieImagePipeline` class only landed late-2025).
 """
 import os
 
@@ -62,7 +46,7 @@ def worker(prompt, sharedmem):
         width=int(sharedmem.get("width") or 1024),
         num_inference_steps=int(sharedmem.get("num_inference_steps") or 50),
         guidance_scale=float(sharedmem.get("guidance_scale") or 4.0),
-        use_pe=bool(sharedmem.get("use_pe", True)),  # built-in prompt enhancer
+        use_pe=bool(sharedmem.get("use_pe", True)),
         generator=torch.Generator(device="cuda:0").manual_seed(
             int(sharedmem.get("seed") or 0)
         ),

@@ -1,26 +1,4 @@
-"""Project template library.
-
-Five endpoints:
-
-* ``POST /projects/{id}/publish-template`` — snapshot the calling
-  project's system prompt + options + Blockly workspace into a new
-  template row.
-* ``GET /templates`` — list templates the user can see (own private +
-  team scope + public).
-* ``GET /templates/{id}`` — fetch one (subject to the same visibility
-  rules).
-* ``PATCH /templates/{id}`` — owner-only metadata edit (rename, change
-  visibility, retitle).
-* ``DELETE /templates/{id}`` — owner-only.
-* ``POST /templates/{id}/instantiate`` — create a fresh project from
-  the template, in a team the user picks.
-
-Visibility model: `private` (creator only), `team` (members of the
-template's team_id), `public` (any logged-in user). Stored on the
-template row, not on a tag — instantiation uses the *target* team
-(picked by the instantiator), not the source team, so a public
-template can be instantiated into any team the user belongs to.
-"""
+"""Project template library."""
 from __future__ import annotations
 
 import json
@@ -56,8 +34,7 @@ router = APIRouter()
 
 
 def _to_response(t: ProjectTemplateDatabase) -> ProjectTemplateResponse:
-    """Adapt the DB row to the wire shape, resolving creator_username +
-    team_name lazily so the response is self-contained for the UI."""
+    """Adapt DB row to wire shape with creator_username + team_name."""
     return ProjectTemplateResponse(
         id=t.id,
         name=t.name,
@@ -116,12 +93,8 @@ async def publish_template(
     if body.visibility == "team" and not src.team_id:
         raise HTTPException(status_code=400, detail="Cannot publish team-visibility template — source project has no team")
 
-    # Scrub credential-bearing fields out of the snapshot before
-    # persistence. Templates are config blueprints, not credential
-    # vaults — without this, a publisher's WhatsApp / SMTP / Twilio /
-    # webhook secrets would transplant onto every instantiator's
-    # project and let attackers send messages from the publisher's
-    # verified sender identities.
+    # Scrub credentials — templates are config blueprints; without this, publisher's
+    # WhatsApp/SMTP/Twilio/webhook secrets transplant onto every instantiator's project.
     from restai.utils.crypto import strip_sensitive_project_options
     scrubbed_options = strip_sensitive_project_options(src.options)
 
@@ -133,7 +106,7 @@ async def publish_template(
         suggested_embeddings=src.embeddings,
         system_prompt=src.system,
         options_json=scrubbed_options,
-        blockly_workspace=None,  # block projects store this inside options
+        blockly_workspace=None,
         visibility=body.visibility,
         creator_id=user.id,
         team_id=src.team_id if body.visibility == "team" else None,
@@ -152,8 +125,7 @@ async def list_templates(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Return every template the user can see — own privates + team
-    scope + public — newest first."""
+    """Return templates visible to the user, newest first."""
     query = db_wrapper.db.query(ProjectTemplateDatabase)
     if project_type:
         query = query.filter(ProjectTemplateDatabase.project_type == project_type)
@@ -218,7 +190,6 @@ async def delete_template(
     return {"deleted": templateID}
 
 
-# ─── Instantiate → new project ─────────────────────────────────────────
 @router.post(
     "/templates/{templateID}/instantiate",
     status_code=201,
@@ -230,9 +201,7 @@ async def instantiate_template(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Create a brand-new project pre-populated with the template's
-    snapshot. Caller picks the target team + LLM + embeddings since the
-    source LLM may not be accessible from their team."""
+    """Create a new project from the template; caller picks target team + LLM + embeddings."""
     check_not_restricted(user)
     t = db_wrapper.db.query(ProjectTemplateDatabase).filter(ProjectTemplateDatabase.id == templateID).first()
     if t is None:
@@ -240,12 +209,9 @@ async def instantiate_template(
     if not _can_see(t, user):
         raise HTTPException(status_code=404, detail="Template not found")
 
-    # Caller must be a member of the target team (admins skip this).
     if not user.is_admin and body.team_id not in _user_team_ids(user):
         raise HTTPException(status_code=403, detail="You are not a member of the target team")
 
-    # Name uniqueness — the project create flow enforces this too, but
-    # surface a clearer 409 here.
     if db_wrapper.get_project_by_name(body.name):
         raise HTTPException(status_code=409, detail="A project with this name already exists")
 
@@ -264,7 +230,6 @@ async def instantiate_template(
         team_id=body.team_id,
     )
     if new_project is None:
-        # create_project returns None on team/llm/embeddings access failure.
         raise HTTPException(
             status_code=400,
             detail="Failed to create project from template — check that the team has access to the chosen LLM/embeddings",
@@ -272,12 +237,7 @@ async def instantiate_template(
 
     new_project.system = t.system_prompt
     if t.options_json:
-        # Belt-and-suspenders: scrub on read too, so any template row
-        # that was written before this fix landed in the codebase
-        # (i.e. while still carrying secrets) can't leak them to a
-        # new project at instantiation time. Idempotent — calling
-        # `strip_sensitive_project_options` on an already-clean blob
-        # is a no-op.
+        # Belt-and-suspenders: scrub on read so legacy template rows can't leak secrets.
         from restai.utils.crypto import strip_sensitive_project_options
         new_project.options = strip_sensitive_project_options(t.options_json)
     db_wrapper.db.commit()

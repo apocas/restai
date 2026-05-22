@@ -49,10 +49,7 @@ def verify_signature(raw_body: bytes, sig_header: Optional[str], app_secret: str
 
 
 def send_message(access_token: str, phone_number_id: str, to: str, text: str) -> dict:
-    """Send a free-form text message. Returns the Meta API response on
-    success; raises on HTTP errors so callers can surface the failure
-    (e.g. 24h-window violations). Splits at the 4096-char limit and
-    sends each chunk as a separate message — same as our Telegram client."""
+    """Splits at the 4096-char limit and sends each chunk as a separate message."""
     if not access_token or not phone_number_id:
         raise ValueError("access_token and phone_number_id are required")
     if to is None or to == "":
@@ -92,11 +89,7 @@ def send_message(access_token: str, phone_number_id: str, to: str, text: str) ->
 
 
 def validate_token(access_token: str, phone_number_id: str) -> dict:
-    """Probe Meta's API to confirm the credentials work without sending
-    a real message. Returns ``{ok, display_name, verified_name,
-    quality_rating}`` on success and ``{ok: False, error: <str>}`` on
-    failure — never raises, so the admin's Test Connection button can
-    show a friendly message either way."""
+    """Probe API to confirm credentials. Never raises; returns {ok, ...} dict."""
     if not access_token or not phone_number_id:
         return {"ok": False, "error": "access_token and phone_number_id are required"}
     url = f"{_GRAPH_BASE}/{phone_number_id}"

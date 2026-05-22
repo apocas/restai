@@ -19,11 +19,7 @@ class ProjectBase(ABC):
         raise HTTPException(status_code=400, detail="Question mode not available for this project type.")
 
     def check_input_guard(self, project: Project, question_text: str, user: User, db: DBWrapper, output: dict) -> bool:
-        """Check input guard. Returns True if the request should be blocked (in block mode).
-
-        Modifies output dict in-place (sets answer, guard flag).
-        Logs guard events via background-compatible function.
-        """
+        """Returns True if the request should be blocked; mutates output dict in place."""
         if not project.props.guard:
             return False
 
@@ -45,7 +41,6 @@ class ProjectBase(ABC):
         if result.blocked and guard_mode == "block":
             output["answer"] = project.props.censorship or self.brain.defaultCensorship
             output["guard"] = True
-            # Distinct status for the log viewer.
             output["status"] = "guard_block"
             self.brain.post_processing_counting(output)
             return True
@@ -56,11 +51,7 @@ class ProjectBase(ABC):
         return False
 
     def check_output_guard(self, project: Project, user: User, db: DBWrapper, output: dict) -> None:
-        """Check the output guard against the answer in `output`. Mutates the
-        output dict in place — sets `answer` to censorship and `guard=True` if
-        a configured output guard blocks in `block` mode; just sets `guard=True`
-        in `warn` mode. No-op when `guard_output` isn't configured or the
-        answer is empty."""
+        """Run output guard against output['answer']; mutates output in place."""
         guard_name = project.props.options.guard_output if project.props.options else None
         if not guard_name or not output.get("answer"):
             return

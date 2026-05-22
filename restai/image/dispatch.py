@@ -1,14 +1,4 @@
-"""Image-generator dispatch — look up a generator by name in the registry
-and hand off to its provider.
-
-Callers:
-- `restai/routers/image.py` — REST + OpenAI-compat endpoints.
-- `restai/llms/tools/draw_image.py` — agent-side `draw_image` builtin.
-
-Both share this single source of truth so admins don't have to maintain
-two lists, and so adding a new external provider only means adding a new
-module under `restai/image/providers/`.
-"""
+"""Image-generator dispatch — look up a generator by name and hand off to its provider."""
 from __future__ import annotations
 
 import json
@@ -31,9 +21,8 @@ class GeneratorDisabledError(Exception):
 class ImageProviderError(Exception):
     """Raised when a provider's upstream API returns a non-2xx response.
 
-    Carries the upstream HTTP status so the router can forward it to the
-    caller cleanly (e.g. 403 from OpenAI for an unverified org becomes a
-    403 from us, not a generic 500 + traceback)."""
+    Carries the upstream HTTP status so the router can forward it cleanly.
+    """
 
     def __init__(self, status_code: int, message: str):
         super().__init__(message)
@@ -42,7 +31,7 @@ class ImageProviderError(Exception):
 
 
 def _load_options(row: ImageGeneratorDatabase) -> dict:
-    """Parse + decrypt the row's options blob. Safe to call repeatedly."""
+    """Parse + decrypt the row's options blob."""
     from restai.utils.crypto import decrypt_sensitive_options, LLM_SENSITIVE_KEYS
 
     try:
@@ -58,16 +47,13 @@ def _load_options(row: ImageGeneratorDatabase) -> dict:
 
 
 def list_available_generators(db_wrapper) -> list[str]:
-    """Names of all enabled generators — for the list endpoint + UI."""
+    """Names of all enabled generators."""
     rows = db_wrapper.get_image_generators()
     return [r.name for r in rows if r.enabled]
 
 
 def generate_image(name: str, image_model: ImageModel, brain, db_wrapper) -> tuple[bytes, str]:
-    """Resolve `name` to a generator row and run it. Returns
-    ``(raw_bytes, mime_type)``. Raises `UnknownGeneratorError` when the
-    name doesn't match anything, `GeneratorDisabledError` when it matches
-    but the admin flipped `enabled=false`."""
+    """Resolve `name` to a generator row and run it. Returns ``(raw_bytes, mime_type)``."""
     row = db_wrapper.get_image_generator_by_name(name)
     if row is None:
         raise UnknownGeneratorError(name)

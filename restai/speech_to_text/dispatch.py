@@ -1,15 +1,4 @@
-"""Speech-to-text dispatch — look up a model by name in the registry and
-route to its provider.
-
-Callers:
-- `restai/routers/audio.py` — `POST /audio/{generator}/transcript`.
-
-The dispatch takes a path to an audio file on disk (the router writes the
-upload to a tempfile, ffmpeg-converts to mp3 if needed, and hands us the
-final path). External providers (OpenAI, Google, Deepgram, AssemblyAI)
-read the bytes; the local branch hands the path to the existing
-`restai.audio.runner.generate` which spawns a worker subprocess.
-"""
+"""Speech-to-text dispatch — look up a model by name and route to its provider."""
 from __future__ import annotations
 
 import json
@@ -57,8 +46,7 @@ def transcribe_audio(
     brain,
     db_wrapper,
 ) -> str:
-    """Resolve `name` to a model row and run transcription on the file at
-    `audio_path`. Returns the transcript string."""
+    """Resolve `name` to a model row and run transcription on `audio_path`."""
     row = db_wrapper.get_speech_to_text_by_name(name)
     if row is None:
         raise UnknownModelError(name)
@@ -67,7 +55,6 @@ def transcribe_audio(
 
     options = _load_options(row)
 
-    # External providers operate on raw bytes — slurp the file once.
     if row.class_name in ("openai", "google", "deepgram", "assemblyai"):
         with open(audio_path, "rb") as f:
             audio_bytes = f.read()
@@ -82,16 +69,13 @@ def transcribe_audio(
         return _t(options, audio_bytes, filename, language)
 
     if row.class_name == "local":
-        # Lightweight `Brain` (cron) never loads audio generators, so
-        # `get_audio_generators` returns empty there and we bail before
-        # touching the multiprocessing manager.
+        # Lightweight Brain (cron) returns empty here; bail before touching multiprocessing.
         generators = brain.get_audio_generators([name]) if hasattr(brain, "get_audio_generators") else []
         if not generators:
             raise UnknownModelError(name)
         from restai.multiprocessing import get_manager
         manager = get_manager()
-        # The legacy runner expects a FastAPI UploadFile. Wrap the file
-        # path in a minimal stand-in so we don't have to rewrite it.
+        # Legacy runner expects a FastAPI UploadFile; wrap the path in a stand-in.
         from restai.audio.runner import generate as _runner
 
         class _DiskUpload:

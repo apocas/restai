@@ -13,11 +13,6 @@ import { FONT_MONO, pulse, sweep } from "app/components/page/pageStyles";
 
 const HiddenInput = styled("input")({ display: "none" });
 
-// Two-panel palette — A is cyan, B is violet. Picked so they read as
-// peer color-coded lanes (not "primary vs secondary") and never share
-// hue with the playground's lane theme (output is navy, thoughts purple,
-// tools cyan — keeping these slightly different so a side-by-side
-// comparison doesn't visually fuse with the lane chrome).
 const RIG_THEME = {
   A: { accent: "#0e7490", soft: "rgba(14,116,144,0.08)", glow: "rgba(14,116,144,0.18)", label: "RIG · A" },
   B: { accent: "#7c3aed", soft: "rgba(124,58,237,0.08)", glow: "rgba(124,58,237,0.18)", label: "RIG · B" },
@@ -36,7 +31,6 @@ const Rig = styled(Box, { shouldForwardProp: (p) => p !== "accent" })(
     border: "1px solid rgba(15,23,42,0.08)",
     overflow: "hidden",
     transition: "border-color 0.25s ease, box-shadow 0.25s ease",
-    // Left accent rail — the visual hook telling you which rig is which.
     "&::before": {
       content: '""',
       position: "absolute",
@@ -99,10 +93,6 @@ const VersionSelect = styled(Select, { shouldForwardProp: (p) => p !== "accent" 
   })
 );
 
-// Compact preview of the selected prompt so the user knows what's
-// running before they hit fire. Click the OpenInFull icon to pop a
-// full-text modal-less expander. Single-line truncation by default,
-// expanded shows the full prompt under the header.
 function PromptPreview({ text, accent, expanded, onToggle }) {
   if (!text) {
     return (
@@ -213,11 +203,9 @@ export default function CompareMode({ project }) {
     if (!selectedA || !selectedB) return;
     const c = counter + 1;
     setCounter(c);
-    // sharedQuestion props are read once each time their `ts` changes;
-    // ChatPanel's effect fires on truthy `sharedQuestion.text` (or image).
-    // We map sharedFiles → the same shape ChatPanel uses.
+    // ChatPanel reads sharedQuestion when `ts` changes; legacy single-image shape.
     const attach = sharedFiles.length
-      ? { image: sharedFiles[0].dataUrl /* legacy single-image shape */ }
+      ? { image: sharedFiles[0].dataUrl }
       : {};
     setQuestionA({ text, ts: c, ...attach });
     setQuestionB({ text, ts: c, ...attach });
@@ -290,14 +278,12 @@ export default function CompareMode({ project }) {
       height: "100%",
       gap: 1.5,
     }}>
-      {/* Two parallel rigs */}
       <Box sx={{
         flex: 1, minHeight: 0,
         display: "flex",
         gap: 1.5,
         position: "relative",
       }}>
-        {/* Center swap chevron — sits in the gutter between the two rigs */}
         <Tooltip title="Swap A ↔ B">
           <IconButton
             size="small"
@@ -409,8 +395,6 @@ export default function CompareMode({ project }) {
         })}
       </Box>
 
-      {/* Optional notice when both panels run the same version. Cheap
-          guardrail — comparing v3 against v3 just burns tokens twice. */}
       {sameVersion && (
         <Box sx={{
           flex: "0 0 auto",
@@ -431,7 +415,6 @@ export default function CompareMode({ project }) {
         </Box>
       )}
 
-      {/* Attachment thumbnails */}
       {sharedFiles.length > 0 && (
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, px: 0.5 }}>
           {sharedFiles.map((f, i) => (
@@ -479,7 +462,6 @@ export default function CompareMode({ project }) {
         </Box>
       )}
 
-      {/* Shared firing console — the single input that feeds both rigs */}
       <Box sx={{
         flex: "0 0 auto",
         display: "flex",
@@ -490,7 +472,6 @@ export default function CompareMode({ project }) {
         background: "linear-gradient(180deg, rgba(15,23,42,0.02), rgba(15,23,42,0))",
         border: "1px solid rgba(15,23,42,0.08)",
       }}>
-        {/* Twin lights */}
         <Box sx={{
           display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",

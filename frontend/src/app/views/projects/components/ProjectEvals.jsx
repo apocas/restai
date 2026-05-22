@@ -19,20 +19,15 @@ import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
 import { FONT_MONO, sweep, pulse } from "app/components/page/pageStyles";
 
-// Evals = experiments / lab / measurement → teal reads as
-// "scientific". Distinct from cron-amber, audit-indigo, logs-violet,
-// routines-emerald, proxy-cyan, classifier-violet, guards-rose.
 const ACCENT = "#14b8a6";
 const ACCENT_SOFT = "rgba(20,184,166,0.10)";
 
-// Per-metric chart colour palette.
 const METRIC_COLORS = {
   answer_relevancy: "#3b82f6",  // blue   — relevance
   faithfulness:     "#10b981",  // green  — grounded
   correctness:      "#f59e0b",  // amber  — match expected
 };
 
-// Per-status meta — mirrors the StatusPill pattern from cron / audit.
 const STATUS_META = {
   pending:   { color: "#94a3b8", soft: "rgba(148,163,184,0.12)", icon: HourglassEmpty, label: "PENDING" },
   running:   { color: "#0891b2", soft: "rgba(8,145,178,0.12)",   icon: PlayArrow,      label: "RUNNING" },
@@ -40,7 +35,6 @@ const STATUS_META = {
   failed:    { color: "#ef4444", soft: "rgba(239,68,68,0.12)",   icon: Cancel,         label: "FAILED" },
 };
 
-// ── Tile card (shared with the rest of the modernized pages).
 const TileCard = styled(Card, {
   shouldForwardProp: (p) => p !== "accent",
 })(({ accent = ACCENT }) => ({
@@ -161,8 +155,6 @@ function StatusPill({ status }) {
   );
 }
 
-// ── Per-metric mini-bar for the run summary cells. Coloured fill
-// proportional to the score; mono % on the right.
 function MetricScoreBar({ name, score }) {
   const color = METRIC_COLORS[name] || ACCENT;
   const pct = (score * 100).toFixed(0);
@@ -233,8 +225,6 @@ const formatRelative = (iso) => {
   return `${Math.floor(diff / 86400)}d ago`;
 };
 
-// Custom tooltip for the score-trend chart — same dark slate as the
-// guard analytics chart.
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload || payload.length === 0) return null;
   return (
@@ -294,8 +284,6 @@ function ChartTooltip({ active, payload, label }) {
   );
 }
 
-// Generic empty-state with pulsing accent halo. Used by every empty
-// section in the page.
 function EmptyState({ icon: Icon = Science, label, hint, accent = ACCENT, action }) {
   return (
     <Box
@@ -333,8 +321,6 @@ function EmptyState({ icon: Icon = Science, label, hint, accent = ACCENT, action
   );
 }
 
-// Dialog with an accent rail at the top, matching the proxy-key
-// dialog styling.
 function AccentDialog({ open, onClose, title, subtitle, accent = ACCENT, children, actions, maxWidth = "sm" }) {
   return (
     <Dialog
@@ -415,7 +401,6 @@ export default function ProjectEvals({ project }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id]);
 
-  // Poll while any run is in-flight.
   useEffect(() => {
     const running = runs.some((r) => r.status === "running" || r.status === "pending");
     if (!running) return;
@@ -483,7 +468,6 @@ export default function ProjectEvals({ project }) {
     setRunMetrics((prev) => prev.includes(metric) ? prev.filter((m) => m !== metric) : [...prev, metric]);
   };
 
-  // Build chart data from completed runs (oldest → newest).
   const { chartData, chartMetrics } = useMemo(() => {
     const completed = runs.filter((r) => r.status === "completed" && r.summary).slice().reverse();
     const data = completed.map((r) => ({
@@ -498,7 +482,6 @@ export default function ProjectEvals({ project }) {
 
   return (
     <Grid container spacing={3}>
-      {/* ── Datasets ─────────────────────────────────────────── */}
       <Grid item xs={12} md={6}>
         <TileCard elevation={0} accent={ACCENT}>
           <TileHeader
@@ -613,7 +596,6 @@ export default function ProjectEvals({ project }) {
           )}
         </TileCard>
 
-        {/* Selected dataset's test cases */}
         {selectedDataset && (
           <Box sx={{ mt: 3 }}>
             <TileCard elevation={0} accent={ACCENT}>
@@ -740,7 +722,6 @@ export default function ProjectEvals({ project }) {
         )}
       </Grid>
 
-      {/* ── Runs + chart + selected results ──────────────────── */}
       <Grid item xs={12} md={6}>
         <TileCard elevation={0} accent={ACCENT}>
           <TileHeader
@@ -852,7 +833,6 @@ export default function ProjectEvals({ project }) {
           )}
         </TileCard>
 
-        {/* Score trend chart */}
         {chartData.length > 1 && (
           <Box sx={{ mt: 3 }}>
             <TileCard elevation={0} accent={ACCENT}>
@@ -894,7 +874,6 @@ export default function ProjectEvals({ project }) {
                     ))}
                   </LineChart>
                 </ResponsiveContainer>
-                {/* Mono legend strip */}
                 <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap", mt: 1 }}>
                   {chartMetrics.map((m) => (
                     <Box
@@ -918,7 +897,6 @@ export default function ProjectEvals({ project }) {
           </Box>
         )}
 
-        {/* Selected run results */}
         {selectedRun && selectedRun.results && (
           <Box sx={{ mt: 3 }}>
             <TileCard elevation={0} accent={ACCENT}>
@@ -1057,7 +1035,6 @@ export default function ProjectEvals({ project }) {
         )}
       </Grid>
 
-      {/* ── Create Dataset Dialog ─────────────────────────────── */}
       <AccentDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
@@ -1099,7 +1076,6 @@ export default function ProjectEvals({ project }) {
         />
       </AccentDialog>
 
-      {/* ── Add Test Case Dialog ──────────────────────────────── */}
       <AccentDialog
         open={addCaseOpen}
         onClose={() => setAddCaseOpen(false)}
@@ -1141,7 +1117,6 @@ export default function ProjectEvals({ project }) {
         />
       </AccentDialog>
 
-      {/* ── Run Evaluation Dialog ─────────────────────────────── */}
       <AccentDialog
         open={runOpen}
         onClose={() => setRunOpen(false)}

@@ -1,11 +1,4 @@
-"""Adapt RESTai's existing FunctionTool objects (which are llamaindex wrappers
-around plain Python functions) into a llamaindex-free representation usable by
-the agent2 runtime.
-
-We extract the underlying callable + name + description from each tool and
-build a JSON schema from the function signature using only stdlib introspection.
-The agent2 layer never imports llamaindex types directly.
-"""
+"""Adapt RESTai FunctionTool objects into llamaindex-free AdaptedTools for agent2."""
 from __future__ import annotations
 
 import inspect
@@ -55,19 +48,17 @@ _PRIMITIVE_TYPE_MAP = {
 
 
 def _python_type_to_json_type(annotation: Any) -> dict:
-    """Best-effort mapping from a Python type hint to a JSON schema fragment."""
     if annotation is inspect.Parameter.empty or annotation is Any:
         return {"type": "string"}
 
     origin = get_origin(annotation)
     args = get_args(annotation)
 
-    # Optional[X] / Union[X, None] → unwrap and treat as X (LLMs handle nullable poorly)
+    # Optional[X] / Union[X, None] → unwrap as X (LLMs handle nullable poorly)
     if origin is Union:
         non_none = [a for a in args if a is not type(None)]
         if len(non_none) == 1:
             return _python_type_to_json_type(non_none[0])
-        # Multi-type union → fall back to string
         return {"type": "string"}
 
     if origin in (list, tuple):
@@ -82,12 +73,11 @@ def _python_type_to_json_type(annotation: Any) -> dict:
     if annotation in _PRIMITIVE_TYPE_MAP:
         return {"type": _PRIMITIVE_TYPE_MAP[annotation]}
 
-    # Unknown / custom class — fall back to string
     return {"type": "string"}
 
 
 def build_json_schema(fn: Callable) -> dict:
-    """Build a flat OpenAI-compatible JSON schema from a Python function signature."""
+    """Build an OpenAI-compatible JSON schema from a function signature."""
     try:
         sig = inspect.signature(fn)
     except (TypeError, ValueError):
@@ -112,7 +102,7 @@ def build_json_schema(fn: Callable) -> dict:
         if param.default is inspect.Parameter.empty:
             required.append(name)
         else:
-            # Mention the default in the description so the LLM has context
+            # Surface default in description so the LLM has context.
             try:
                 prop = {**prop, "description": f"Default: {param.default!r}"}
             except Exception:
@@ -126,12 +116,11 @@ def build_json_schema(fn: Callable) -> dict:
 def _extract_metadata(
     tool: Any,
 ) -> tuple[Optional[str], Optional[str], Optional[Callable], Optional[dict]]:
-    """Pull (name, description, fn, schema) out of a llamaindex FunctionTool.
+    """Pull (name, description, fn, schema) from a llamaindex FunctionTool.
 
-    The schema is preferred from the tool's existing pydantic-derived metadata
-    (`metadata.get_parameters_dict()`) — that handles complex type hints,
-    Optional, nested models, Field descriptions, etc. correctly. Falls back to
-    None so the caller can synthesize one with `build_json_schema`.
+    Prefers pydantic-derived metadata via `metadata.get_parameters_dict()`
+    since it handles complex hints / Optional / nested models / Field descriptions
+    that `build_json_schema` would lose.
     """
     name = None
     description = None
@@ -161,16 +150,15 @@ def _extract_metadata(
     return name, description, fn, schema
 
 
-# Cache fully-built AdaptedTools by source-tool identity. Built-in tools live
-# on `brain.tools` for the process lifetime so identity is stable, and the
-# expensive part of adaptation (`metadata.get_parameters_dict()` → pydantic
-# `model_json_schema()`) is uncached upstream — repeating it on every
-# request is the dominant per-request cost in `_build_runtime`.
+# Cache by source-tool identity. Built-in tools live on `brain.tools` for the
+# process lifetime so identity is stable; the per-request cost of repeating
+# `metadata.get_parameters_dict()` → pydantic `model_json_schema()` is the
+# dominant cost in `_build_runtime`.
 _adapted_tool_cache: dict[int, AdaptedTool] = {}
 
 
 def adapt_function_tools(tools: list) -> list[AdaptedTool]:
-    """Convert RESTai/llamaindex FunctionTools into AdaptedTools for agent2."""
+    """Convert llamaindex FunctionTools into AdaptedTools for agent2."""
     adapted: list[AdaptedTool] = []
     for tool in tools:
         key = id(tool)
@@ -196,7 +184,7 @@ def adapt_function_tools(tools: list) -> list[AdaptedTool]:
             except Exception:
                 schema = {"type": "object", "properties": {}, "required": []}
 
-        # Detect if the function accepts **kwargs (for context injection)
+        # Detect **kwargs for context injection.
         has_var_keyword = False
         try:
             sig = inspect.signature(fn)

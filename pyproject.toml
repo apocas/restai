@@ -63,6 +63,7 @@ dependencies = [
     "deepeval>=3.9.7,<4",
     "llama-index-llms-anthropic>=0.11.2,<0.12",
     "llama-index-llms-litellm>=0.7.1,<0.8",
+    "claude-agent-sdk>=0.2.84,<0.3",
     "psycopg2-binary>=2.9.11,<3",
     "sentry-sdk[fastapi]>=2.58.0,<3",
     "llama-index-llms-gemini>=0.6.2,<0.7",
@@ -96,6 +97,8 @@ dependencies = [
     "google-cloud-speech>=2.27.0,<3",
     "deepgram-sdk>=3.7.0,<5",
     "assemblyai>=0.34.0,<1",
+    "smolagents>=1.0.0,<2",
+    "openai-agents>=0.5,<2",
 ]
 
 [project.scripts]

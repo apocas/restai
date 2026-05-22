@@ -15,7 +15,6 @@ import jwt
 
 logger = logging.getLogger(__name__)
 
-# JWT claims that are never exposed as template variables
 _JWT_RESERVED = {"exp", "iat", "nbf", "iss", "aud", "jti"}
 
 # Keys that could be used to override system behavior
@@ -32,7 +31,7 @@ def verify_context_token(
     secret: str,
     max_ttl: int = _MAX_TTL_SECONDS,
 ) -> dict:
-    """Verify a signed JWT context token and return clean claims. Raises ValueError on failure."""
+    """Returns clean claims. Raises ValueError on failure."""
     if not token or not secret:
         raise ValueError("Missing token or secret")
 
@@ -103,7 +102,6 @@ def apply_context(
 
 
 def _resolve_dotted_key(context: dict, dotted_key: str) -> str:
-    """Resolve a dotted key path like 'meta.plan' against the context dict."""
     parts = dotted_key.split(".")
     current: Any = context
     for part in parts:
@@ -115,7 +113,6 @@ def _resolve_dotted_key(context: dict, dotted_key: str) -> str:
 
 
 def _flatten_dict(d: dict, prefix: str) -> list[tuple[str, Any]]:
-    """Flatten a nested dict into dotted key-value pairs."""
     items = []
     for key, value in d.items():
         full_key = f"{prefix}.{key}"

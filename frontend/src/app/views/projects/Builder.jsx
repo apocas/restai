@@ -58,9 +58,8 @@ const SplitLayout = styled(Box, {
   shouldForwardProp: (prop) => prop !== "previewCollapsed",
 })(({ theme, previewCollapsed }) => ({
   display: "grid",
-  // minmax(0, 1fr) caps each track at the available space — without it,
-  // a wide child (Monaco editor, long pre/code blocks) inflates the
-  // column and shoves the preview off-screen on un-collapse.
+  // minmax(0, 1fr) caps each track — without it a wide child (Monaco, long
+  // pre/code) inflates the column and pushes the preview off-screen.
   gridTemplateColumns: previewCollapsed
     ? "260px minmax(0, 1fr) 44px"
     : "260px minmax(0, 1fr) minmax(0, 1fr)",
@@ -89,9 +88,6 @@ const Pane = styled(Paper)(({ theme }) => ({
   minHeight: 320,
 }));
 
-// Recursive tree node — keeps it simple. Indentation by depth, click to
-// select a file. Directories expand/collapse on click. The MUI x-tree-view
-// package isn't installed and adding it for Phase 2 felt like overreach.
 function TreeNode({ node, depth, selectedPath, onSelect, expanded, toggleExpand }) {
   const isDir = node.type === "dir";
   const isOpen = expanded.has(node.path);
@@ -161,21 +157,13 @@ export default function ProjectBuilderView() {
   const [fileError, setFileError] = useState(null);
   const lastLoadedPath = useRef(null);
 
-  // Preview iframe state — runtime status, force-reload counter, restarting flag.
   const [runtime, setRuntime] = useState({ enabled: false, running: false, port: null });
   const [previewNonce, setPreviewNonce] = useState(0);
   const [restarting, setRestarting] = useState(false);
 
-  // Top-level mode toggle: "code" (file tree + editor) vs "db" (SQLite editor).
-  // Preview iframe stays visible on the right in both modes.
   const [mode, setMode] = useState("code");
-  // When the user wants more horizontal room for the editor, collapse the
-  // preview pane to a thin strip with just the toggle button.
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
 
-  // AI dialogs — both use the project's own LLM (the one picked at create
-  // time). The Generate wizard runs the chat-style plan-then-execute flow;
-  // Fix-AI is a quick per-file targeted edit.
   const [wizardOpen, setWizardOpen] = useState(false);
   const [fixOpen, setFixOpen] = useState(false);
   const [fixInstruction, setFixInstruction] = useState("");
@@ -202,7 +190,7 @@ export default function ProjectBuilderView() {
     return api.get(`/projects/${id}/app/runtime/status`, auth.user.token)
       .then((d) => setRuntime(d || { enabled: false, running: false, port: null }))
       .catch(() => {
-        // 503 means runtime is just disabled — don't surface as a hard error.
+        // 503 = runtime disabled. Not a hard error.
         setRuntime({ enabled: false, running: false, port: null });
       });
   }, [id, auth.user?.token]);
@@ -213,7 +201,6 @@ export default function ProjectBuilderView() {
     try {
       await api.post(`/projects/${id}/app/restart`, {}, auth.user.token);
       toast.success(t("projects.app.restarted", "Preview container restarted"));
-      // Force iframe reload + refresh runtime status.
       setPreviewNonce((n) => n + 1);
       fetchRuntime();
     } catch (e) {
@@ -227,9 +214,6 @@ export default function ProjectBuilderView() {
     setPreviewNonce((n) => n + 1);
   }, []);
 
-  // Called by the wizard when an Approve & Build run finishes — refresh
-  // the file tree, drop the active file selection (it may have been
-  // overwritten), nudge the preview iframe so the user sees the new app.
   const onWizardBuilt = useCallback(() => {
     setSelected(null);
     setContent("");
@@ -240,8 +224,7 @@ export default function ProjectBuilderView() {
     fetchRuntime();
   }, [fetchTree, fetchRuntime]);
 
-  // Hard reset: wipe files + chat memory, re-seed the hello-world.
-  // Two-step confirm because this is destructive and irreversible.
+  // Confirm prompt is mandatory — wipes files + chat memory, irreversible.
   const [resetting, setResetting] = useState(false);
   const onResetProject = useCallback(async () => {
     if (resetting) return;
@@ -252,7 +235,6 @@ export default function ProjectBuilderView() {
     try {
       await api.post(`/projects/${id}/app/reset`, {}, auth.user.token);
       toast.success(t("projects.app.resetDone", "Project reset to a fresh scaffold"));
-      // Treat as if the wizard built — drop selection, refresh tree, reload preview.
       onWizardBuilt();
     } catch (e) {
       toast.error(e?.message || "reset failed");
@@ -273,7 +255,6 @@ export default function ProjectBuilderView() {
       toast.success(t("projects.app.aiFixed", "File updated by AI"));
       setFixOpen(false);
       setFixInstruction("");
-      // Re-fetch the file so the editor shows the new content + correct ETag.
       api.get(
         `/projects/${id}/app/files?path=${encodeURIComponent(selected.path)}`,
         auth.user.token
@@ -333,7 +314,6 @@ export default function ProjectBuilderView() {
       if (newEtag) setEtag(newEtag);
       setDirty(false);
       toast.success(t("projects.app.saved", "Saved"));
-      // Nudge the live preview so a PHP edit shows up immediately.
       setPreviewNonce((n) => n + 1);
     } catch (e) {
       setFileError(e?.message || "save failed");
@@ -364,7 +344,6 @@ export default function ProjectBuilderView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Ctrl/Cmd+S saves the active file.
   useEffect(() => {
     const onKey = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
@@ -472,9 +451,7 @@ export default function ProjectBuilderView() {
           project={project}
           token={auth.user.token}
           onProjectReload={() => {
-            // After saving credentials, refetch the project so the form
-            // shows the canonical (masked) password and any normalized
-            // values come back from the API.
+            // After save, refetch so the form gets canonical (masked) values.
             api.get("/projects/" + id, auth.user.token)
               .then((d) => setProject(d))
               .catch(() => {});
@@ -484,7 +461,6 @@ export default function ProjectBuilderView() {
       <SplitLayout previewCollapsed={previewCollapsed}>
         {mode === "code" ? (
           <>
-            {/* Left: file tree */}
             <Pane variant="outlined">
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <Typography variant="subtitle2">
@@ -515,7 +491,6 @@ export default function ProjectBuilderView() {
               )}
             </Pane>
 
-            {/* Middle: editor */}
             <Pane variant="outlined">
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
                 <Typography variant="subtitle2" sx={{ fontFamily: "monospace" }}>
@@ -569,14 +544,12 @@ export default function ProjectBuilderView() {
             </Pane>
           </>
         ) : (
-          // DB mode: AppDbEditor spans the leftmost two columns; the
-          // preview pane keeps the right column so DB edits show up live.
+          // AppDbEditor takes the left two columns; preview keeps the right.
           <Box sx={{ gridColumn: { xs: "1 / -1", md: "1 / 3" } }}>
             <AppDbEditor projectId={id} token={auth.user.token} />
           </Box>
         )}
 
-        {/* Right: live preview (collapsible — collapsed = thin vertical strip) */}
         {previewCollapsed ? (
           <Pane
             className="preview"
@@ -665,9 +638,8 @@ export default function ProjectBuilderView() {
               key={previewNonce}
               src={previewBase + "?_nonce=" + previewNonce}
               title={t("projects.app.preview", "Live preview")}
-              // sandbox without allow-top-navigation so a misbehaving generated
-              // app cannot redirect the parent admin frame; allow-same-origin
-              // so cookies and localStorage work as the user expects.
+              // No allow-top-navigation — a misbehaving app can't redirect the
+              // parent. allow-same-origin so cookies/localStorage still work.
               sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"
               sx={{
                 flexGrow: 1,
@@ -684,7 +656,6 @@ export default function ProjectBuilderView() {
       </SplitLayout>
       )}
 
-      {/* AI: chat-style plan-then-execute wizard. Uses the project's own LLM. */}
       <AppGenerateWizard
         open={wizardOpen}
         onClose={() => setWizardOpen(false)}
@@ -694,7 +665,6 @@ export default function ProjectBuilderView() {
         onAfterBuild={onWizardBuilt}
       />
 
-      {/* AI: per-file targeted edit modal. Cheap, scoped. */}
       <Dialog open={fixOpen} onClose={() => !fixLoading && setFixOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>
           <AutoAwesome fontSize="small" sx={{ verticalAlign: "middle", mr: 1 }} />

@@ -54,33 +54,28 @@ const sanitizeRestaiName = (s) => (s || "").replace(/[^A-Za-z0-9._:-]/g, "_");
 export default function OllamaModels() {
   const navigate = useNavigate();
   const auth = useAuth();
-  // "local" connects to a self-hosted ollama daemon; "cloud" hits
-  // ollama.com directly with a Bearer key — no daemon needed. Each mode
-  // owns its own inputs and connection state so switching tabs doesn't
-  // implicitly reuse the wrong credentials.
+  // "local" hits a self-hosted ollama daemon; "cloud" hits ollama.com with
+  // a Bearer key. Each mode keeps its own inputs/connection state so switching
+  // tabs doesn't reuse the wrong credentials.
   const [mode, setMode] = useState("local");
 
   const [loading, setLoading] = useState(false);
   const [models, setModels] = useState([]);
   const [connected, setConnected] = useState(false);
 
-  // Local-instance state
   const [ollamaConfig, setOllamaConfig] = useState({
     host: "localhost",
     port: 11434
   });
 
-  // Ollama Cloud state
   const [cloudApiKey, setCloudApiKey] = useState("");
 
   const [addingModel, setAddingModel] = useState(null);
   const [newModelName, setNewModelName] = useState("");
   const [pullingModel, setPullingModel] = useState(false);
 
-  // The Add-to-System form renders below the (often long) model table —
-  // without an explicit scroll the user clicks "Add" on a row at the top
-  // of the table and sees nothing happen, because the new card opens
-  // off-screen at the bottom. Scroll it into view when it appears.
+  // The Add-to-System form opens below the (often long) model table; clicking
+  // "Add" on a top row otherwise looks like a no-op. Scroll it into view.
   const addingModelRef = useRef(null);
 
   useEffect(() => {
@@ -89,7 +84,7 @@ export default function OllamaModels() {
 
   useEffect(() => {
     if (!addingModel) return;
-    // Wait one tick so the card is mounted before we measure its position.
+    // Wait a tick so the card mounts before measuring its position.
     const id = requestAnimationFrame(() => {
       addingModelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
@@ -107,10 +102,8 @@ export default function OllamaModels() {
   const handleModeChange = (_e, newMode) => {
     if (newMode === null) return;
     setMode(newMode);
-    // Switching modes invalidates the previous connection — different
-    // backend, different credentials. Clear the model list so the operator
-    // doesn't accidentally add a local model under cloud auth (or vice
-    // versa) by clicking through stale results.
+    // Mode switch invalidates the connection (different backend + creds).
+    // Clear so we don't add a model under the wrong auth.
     setModels([]);
     setConnected(false);
     setAddingModel(null);
@@ -221,10 +214,8 @@ export default function OllamaModels() {
       const renamed = restaiName !== upstreamName;
 
       if (isEmbeddingModel(addingModel)) {
-        // Cloud embeddings aren't a thing today (Ollama Cloud only ships
-        // LLMs), so block this path until/unless that changes — silently
-        // POSTing an `OllamaEmbeddings` row pointing at ollama.com would
-        // 401 on first inference and confuse the operator.
+        // Ollama Cloud doesn't expose embedding models — block here so we
+        // don't create an OllamaEmbeddings row that would 401 on first use.
         if (isCloud) {
           toast.error("Ollama Cloud doesn't expose embedding models. Pick an LLM instead.");
           return;
@@ -244,10 +235,8 @@ export default function OllamaModels() {
           privacy: "private",
         };
 
-        // Capture the numeric id from the create response — the
-        // /embedding/:id route expects an int, not the embedding's
-        // name. Without this we ship the name to a typed-int Path
-        // param and the embedding-info page 422s on load.
+        // /embedding/:id is a typed-int path param — must use the created id,
+        // not the embedding's name, or the info page 422s on load.
         const created = await api.post("/embeddings", embeddingData, auth.user.token);
 
         toast.success(
@@ -260,7 +249,6 @@ export default function OllamaModels() {
         return;
       }
 
-      // LLM flow
       const options = {
         model: upstreamName,
         temperature: 0.1,
@@ -268,10 +256,8 @@ export default function OllamaModels() {
         request_timeout: 120,
         base_url: baseUrl,
       };
-      // Cloud LLMs ride on a dedicated class (OllamaCloud) that wraps the
-      // base Ollama provider with Bearer auth — no special-case branching
-      // in the orchestrator. The api_key lives in LLM_SENSITIVE_KEYS so
-      // it's encrypted at rest.
+      // OllamaCloud class wraps base Ollama with Bearer auth so the orchestrator
+      // doesn't branch. api_key is in LLM_SENSITIVE_KEYS (encrypted at rest).
       if (isCloud) options.api_key = cloudApiKey.trim();
 
       const isMultiModal = upstreamName.includes('llava') || addingModel.details?.families?.includes('clip');
@@ -288,9 +274,7 @@ export default function OllamaModels() {
         description: `Ollama model ${upstreamName} from ${sourceLabel}`
       };
 
-      // Capture the numeric id from the create response so we can land
-      // the user on the new LLM's info page — /llm/:id expects an int
-      // path param, not the model name.
+      // /llm/:id is a typed-int path param — use the created id, not the name.
       const created = await api.post("/llms", modelData, auth.user.token);
 
       toast.success(
@@ -417,7 +401,6 @@ export default function OllamaModels() {
             </Card>
           </Grid>
 
-          {/* Pull-new-model only applies to local — cloud catalog is server-side */}
           {connected && mode === "local" && (
             <Grid item xs={12}>
               <Card elevation={3} sx={{ p: 3 }}>

@@ -1,5 +1,3 @@
-"""Internal MCP server exposing RESTai projects as tools."""
-
 import json
 import logging
 from typing import Optional
@@ -15,23 +13,14 @@ logger = logging.getLogger(__name__)
 
 
 def _authenticate():
-    """Authenticate the current MCP request via Bearer API key.
-
-    Uses FastMCP's get_http_request() to access the underlying HTTP request,
-    then validates the API key against the database.
-
-    Returns:
-        Tuple of (User, DBWrapper) on success.
-    Raises:
-        PermissionError on authentication failure.
-    """
+    """Authenticate the MCP request via Bearer API key. Returns (User, DBWrapper)."""
     request = get_http_request()
     auth_header = request.headers.get("authorization", "")
 
     if not auth_header.startswith("Bearer "):
         raise PermissionError("Missing or invalid Authorization header. Use: Bearer <api_key>")
 
-    token = auth_header[7:]  # Strip "Bearer "
+    token = auth_header[7:]
     db_wrapper = open_db_wrapper()
     user_db, api_key_row = db_wrapper.get_user_by_apikey(token)
     if user_db is None:
@@ -53,11 +42,6 @@ def _authenticate():
 
 
 def create_mcp_server(app_ref) -> FastMCP:
-    """Create the MCP server with project tools.
-
-    Args:
-        app_ref: FastAPI app instance (for accessing brain via app.state.brain).
-    """
     mcp = FastMCP(
         name="RESTai",
         instructions=(

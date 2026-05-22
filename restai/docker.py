@@ -34,8 +34,6 @@ from restai import config as _cfg
 
 logger = logging.getLogger(__name__)
 
-# ── Constants ─────────────────────────────────────────────────────────
-
 ARTIFACTS_DIR = "/artifacts"
 _SEEN_FILE = f"{ARTIFACTS_DIR}/.seen"
 MAX_OUTPUT = 50_000
@@ -43,15 +41,12 @@ ARTIFACT_MAX_BYTES_PER_FILE = 10 * 1024 * 1024
 ARTIFACT_MAX_BYTES_PER_SCAN = 50 * 1024 * 1024
 PUT_FILES_CHUNK = 64 * 1024  # tar chunk for upload, < MAX_ARG_STRLEN
 
-# ── Client (lazy singleton) ───────────────────────────────────────────
-
 _client: Optional[_docker_sdk.DockerClient] = None
 _client_url: str = ""
 
 
 def _get_client() -> Optional[_docker_sdk.DockerClient]:
-    """Return a connected DockerClient, or None if Docker isn't configured.
-    Cached per-process; rebuilt on `docker_url` change."""
+    """Cached per-process DockerClient; rebuilt on `docker_url` change."""
     global _client, _client_url
     if not is_enabled():
         return None
@@ -76,20 +71,14 @@ def is_enabled() -> bool:
 
 
 def client_info() -> dict:
-    """Server info from the docker daemon, for the admin connection-test
-    endpoint. Raises if not connectable."""
     c = _get_client()
     if c is None:
         raise RuntimeError("Docker is not configured")
     return c.info()
 
 
-# ── Container lookup / creation (label-based, no in-memory state) ─────
-
 def _resolve_container(chat_id: str):
-    """Return the running container for this chat_id, or None.
-    Looked up by the `restai.chat_id=<id>` label every call — Docker
-    daemon is the source of truth, no in-memory tracking."""
+    """Looked up by `restai.chat_id=<id>` label every call — daemon is source of truth."""
     c = _get_client()
     if c is None or not chat_id:
         return None
@@ -106,8 +95,26 @@ def _resolve_container(chat_id: str):
     return None
 
 
+def chat_workspace_dir(chat_id: str) -> str:
+    """Host-side scratch dir bind-mounted into the container at
+    /home/user/agent_workspace. Used by agent projects running with
+    `agent_loop=claude` so the SDK's Read/Write/Edit tools (which run
+    on the host) write into a directory the in-container terminal
+    builtin can also see — they share files through this one path."""
+    import os
+    safe_id = (chat_id or "ephemeral").replace("/", "_").replace("..", "_")
+    base = os.environ.get("RESTAI_AGENT_WORKSPACE_ROOT") or "/var/tmp"
+    return os.path.join(base, f"restai-chat-{safe_id}")
+
+
+def _ensure_chat_workspace(chat_id: str) -> str:
+    import os
+    path = chat_workspace_dir(chat_id)
+    os.makedirs(path, mode=0o755, exist_ok=True)
+    return path
+
+
 def _create_container(chat_id: str):
-    """Spin up a fresh per-chat container with current settings."""
     c = _get_client()
     if c is None:
         raise RuntimeError("Docker is not configured")
@@ -115,6 +122,12 @@ def _create_container(chat_id: str):
     network = getattr(_cfg, "DOCKER_NETWORK", "none") or "none"
     read_only = bool(getattr(_cfg, "DOCKER_READ_ONLY", True))
     from restai.instance import get_instance_id
+
+    # Ensure the host workspace dir exists BEFORE the mount — docker
+    # silently mounts an empty volume otherwise, and the SDK's writes
+    # land in a directory the in-container terminal can't see.
+    workspace_host = _ensure_chat_workspace(chat_id)
+
     container = c.containers.run(
         image,
         command="tail -f /dev/null",
@@ -130,10 +143,16 @@ def _create_container(chat_id: str):
         cpu_quota=50000,
         network_mode=network,
         tmpfs={"/tmp": "size=1G", "/home/user": "size=1G"},
+        volumes={
+            workspace_host: {"bind": "/home/user/agent_workspace", "mode": "rw"},
+        },
         read_only=read_only,
         remove=True,
     )
-    logger.info("Created container %s for chat_id=%s", container.short_id, chat_id)
+    logger.info(
+        "Created container %s for chat_id=%s (workspace=%s)",
+        container.short_id, chat_id, workspace_host,
+    )
     return container
 
 
@@ -144,11 +163,23 @@ def _get_or_create(chat_id: str):
     return _create_container(chat_id)
 
 
+def _rm_chat_workspace(chat_id: str) -> None:
+    import shutil
+    import os
+    path = chat_workspace_dir(chat_id)
+    if not os.path.isdir(path):
+        return
+    try:
+        shutil.rmtree(path, ignore_errors=True)
+    except Exception as e:
+        logger.debug("Failed to rm chat workspace %s: %s", path, e)
+
+
 def remove_container(chat_id: str) -> None:
-    """Stop the per-chat container if it exists. Idempotent."""
     container = _resolve_container(chat_id)
     if container is None:
         _drop_db_activity(chat_id)
+        _rm_chat_workspace(chat_id)
         return
     try:
         container.stop(timeout=5)
@@ -156,9 +187,8 @@ def remove_container(chat_id: str) -> None:
     except Exception as e:
         logger.warning("Failed to stop container for chat_id=%s: %s", chat_id, e)
     _drop_db_activity(chat_id)
+    _rm_chat_workspace(chat_id)
 
-
-# ── Activity heartbeat (DB-backed, multi-worker safe) ─────────────────
 
 def _touch_db_activity(chat_id: str, container_id: Optional[str]) -> None:
     if not chat_id:
@@ -188,8 +218,6 @@ def _drop_db_activity(chat_id: str) -> None:
         logger.debug("docker_chat_activity delete failed for %s: %s", chat_id, e)
 
 
-# ── Exec helpers ──────────────────────────────────────────────────────
-
 def _exec_with_retry(chat_id: str, container, command_argv, **exec_kwargs):
     """One retry on transient OCI errors (setns, runc blips). Caller
     decides what to do on final failure."""
@@ -218,8 +246,6 @@ def _exec_with_retry(chat_id: str, container, command_argv, **exec_kwargs):
             break
     raise last_err
 
-
-# ── Public exec API (the bits agent code calls) ───────────────────────
 
 def exec_command(chat_id: str, command: str, env: Optional[dict] = None) -> str:
     """Run a shell command in the per-chat sandbox container.
@@ -357,8 +383,6 @@ def put_files(chat_id: str, files: list[tuple[str, bytes]],
     logger.info("Uploaded %d file(s) to chat_id=%s at %s", len(manifest), chat_id, target_dir)
     return manifest
 
-
-# ── /artifacts/ collection (dedup state lives in the container) ───────
 
 def collect_new_artifacts(chat_id: str) -> list[dict]:
     """List + read everything new in /artifacts/ since the last call.

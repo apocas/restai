@@ -32,7 +32,6 @@ class OAuthManager:
             provider_config["register"](self.oauth)
 
     def reinit(self):
-        """Re-register OAuth providers from current config."""
         self.oauth = OAuth()
         for _, provider_config in OAUTH_PROVIDERS.items():
             provider_config["register"](self.oauth)
@@ -43,7 +42,6 @@ class OAuthManager:
     async def handle_login(self, request, provider):
         if provider not in OAUTH_PROVIDERS:
             raise HTTPException(404)
-        # Custom redirect_uri overrides the auto-generated one.
         redirect_uri = OAUTH_PROVIDERS[provider].get("redirect_uri") or request.url_for(
             "oauth_callback", provider=provider
         )

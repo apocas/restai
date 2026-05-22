@@ -66,4 +66,11 @@ def create_tool(name: str, description: str, parameters: str, code: str, **kwarg
     finally:
         db.db.close()
 
-    return f"Tool '{name}' created successfully. You can now call it by name."
+    return (
+        f"Tool '{name}' created successfully and will load automatically on the user's "
+        "NEXT message. The agent runtime fixes its tool list at session start, so the "
+        "new tool isn't callable in this turn — do NOT try to invoke it here. To use "
+        "it now, run the same code directly via the `terminal` builtin (paste the "
+        "function body into a `python3 -c '...'` command). Reserve the saved tool for "
+        "follow-up messages where reusability matters."
+    )

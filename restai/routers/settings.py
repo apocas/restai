@@ -47,8 +47,7 @@ async def patch_settings(
     actor = getattr(user, "username", None) or "(admin)"
 
     def _audit_change(key: str, new_str: str) -> None:
-        # Encrypted/secret keys log a marker only; non-secrets get a
-        # short fingerprint so admins can verify intent without the value.
+        # Secrets log marker only; non-secrets get a short fingerprint.
         try:
             old = db_wrapper.get_setting_value(key, "")
         except Exception:
@@ -93,21 +92,14 @@ async def patch_settings(
     if sso_fields:
         reinit_oauth(request.app)
 
-    # Docker settings are read live from `restai.config` on every call
-    # in `restai/docker.py` — no manager reinit needed. Flush only the
-    # cached DockerClient (different `docker_url` would need a new TCP
-    # connection); other settings just take effect on the next exec.
+    # Docker settings read live from `restai.config` per call; only flush DockerClient on url change.
     docker_fields = {"docker_enabled", "docker_url", "docker_image", "docker_timeout", "docker_network", "docker_read_only"}
     if docker_fields & updates.keys():
         from restai import docker as _docker_mod
         _docker_mod._client = None
         _docker_mod._client_url = ""
 
-    # Browser / App runtimes read settings live from `restai.config` on
-    # every call (see `restai/browser/runtime.py` + `restai/app/runtime.py`)
-    # — no manager reinit needed. Flush the cached DockerClient when
-    # `docker_url` changed (handled in the docker_fields branch above);
-    # other settings just take effect on the next call.
+    # Browser/App runtimes read settings live per call; flush cached DockerClient.
     browser_fields = {"browser_enabled", "browser_image", "browser_network", "browser_timeout"}
     if browser_fields & updates.keys():
         from restai.browser import runtime as _browser_mod
@@ -120,8 +112,7 @@ async def patch_settings(
         _app_mod._client = None
         _app_mod._client_url = ""
 
-    # Chroma keeps a process-level client cache; flush so the next
-    # request reads fresh settings.
+    # Chroma keeps a process-level client cache; flush on vectordb_* changes.
     if any(k.startswith("vectordb_") for k in updates.keys()):
         try:
             from restai.vectordb import chromadb as _chroma_mod
@@ -232,9 +223,7 @@ async def list_all_routines(
     _=Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Cross-project routine inventory for the admin Routines page.
-    Joins each routine to its parent project so the UI doesn't have to
-    fan out N project lookups."""
+    """Cross-project routine inventory for the admin Routines page."""
     from restai.models.databasemodels import ProjectRoutineDatabase, ProjectDatabase
 
     rows = (
@@ -267,10 +256,7 @@ async def admin_toggle_routine(
     user=Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Admin-only toggle for any routine, regardless of project membership.
-    The per-project PATCH already exists at `/projects/{id}/routines/{rid}`
-    but requires the caller to be in the project's team — admins managing
-    the global Routines page need to flip rows they don't own."""
+    """Admin-only routine toggle, bypasses project membership."""
     from datetime import datetime, timezone
     from restai.models.databasemodels import ProjectRoutineDatabase
 

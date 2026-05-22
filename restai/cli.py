@@ -1,12 +1,9 @@
-"""RESTai CLI — run the platform from a pip install."""
-
 import argparse
 import os
 import sys
 
 
 def _load_env(env_file):
-    """Load environment variables from a .env file."""
     if not env_file:
         return
     if not os.path.isfile(env_file):
@@ -30,7 +27,6 @@ def _load_env(env_file):
 
 
 def cmd_serve(args):
-    """Start the RESTai server."""
     _load_env(args.env_file)
 
     if args.port:
@@ -53,7 +49,6 @@ def cmd_serve(args):
 
 
 def cmd_migrate(args):
-    """Run database migrations."""
     _load_env(args.env_file)
 
     from alembic.config import Config
@@ -96,7 +91,6 @@ def cmd_migrate(args):
 
 
 def cmd_init(args):
-    """Initialize the database with tables, admin user, and default models."""
     _load_env(args.env_file)
 
     import importlib
@@ -105,7 +99,6 @@ def cmd_init(args):
 
 
 def _run_script(args, script_path):
-    """Run a standalone script."""
     _load_env(args.env_file)
     import importlib.util
     spec = importlib.util.spec_from_file_location("script", script_path)

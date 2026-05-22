@@ -52,7 +52,6 @@ const LogBox = styled(Paper)(({ theme }) => ({
 
 const apiBase = process.env.REACT_APP_RESTAI_API_URL || "";
 
-// Pretty timestamp for the log box.
 function ts() {
   return new Date().toISOString().slice(11, 19);
 }
@@ -60,7 +59,6 @@ function ts() {
 export default function AppDeploy({ projectId, project, token, onProjectReload }) {
   const { t } = useTranslation();
 
-  // Saved options on the project — initial values for the form.
   const opts = project?.options || {};
   const [form, setForm] = useState({
     protocol: opts.ftp_protocol || "sftp",
@@ -80,8 +78,6 @@ export default function AppDeploy({ projectId, project, token, onProjectReload }
   const [log, setLog] = useState([]); // [{ts, type, text}]
   const abortRef = useRef(null);
 
-  // Re-seed the form whenever the parent re-fetches the project (e.g. after
-  // a successful save) so the displayed values match what's persisted.
   useEffect(() => {
     if (!project) return;
     const o = project.options || {};
@@ -93,8 +89,7 @@ export default function AppDeploy({ projectId, project, token, onProjectReload }
       user: o.ftp_user || "",
       path: o.ftp_path || "/",
       use_passive: o.ftp_use_passive !== false,
-      // Don't overwrite password: the API masks it on read, and the user
-      // may have typed a fresh value.
+      // Don't overwrite password: API masks on read, user may have typed.
     }));
   }, [project]);
 
@@ -107,9 +102,8 @@ export default function AppDeploy({ projectId, project, token, onProjectReload }
   const saveCredentials = useCallback(async () => {
     setSavingCreds(true);
     try {
-      // Don't PATCH the password if the user didn't change it (the API
-      // serves the saved value as "****..." and the project-edit router
-      // preserves untouched mask values on PATCH).
+      // Skip the password on PATCH unless user typed — API masks saved value
+      // as "****..." and the router preserves untouched mask values.
       const optionsPatch = {
         ftp_protocol: form.protocol,
         ftp_host: form.host,
@@ -121,12 +115,9 @@ export default function AppDeploy({ projectId, project, token, onProjectReload }
       if (form.password) {
         optionsPatch.ftp_password = form.password;
       }
-      // PATCH /projects/{id} expects {options: {...}} merged into existing
-      // options (the router preserves keys not sent).
       await api.patch(`/projects/${projectId}`, { options: optionsPatch }, token);
       toast.success(t("projects.app.deploy.saved", "Deploy settings saved"));
-      // Clear the password field — it's now persisted, no point keeping it
-      // in component state where it could leak to a future submit.
+      // Wipe field state once persisted so it can't leak into a future submit.
       setForm((prev) => ({ ...prev, password: "" }));
       if (onProjectReload) onProjectReload();
     } catch (e) {
@@ -172,9 +163,7 @@ export default function AppDeploy({ projectId, project, token, onProjectReload }
     }
   }, [projectId, token, form, t, appendLog]);
 
-  // Triggered by a plain anchor click — letting the browser handle the
-  // streaming download is simpler than wrestling with fetch + Blob, and
-  // it shows the download progress in the browser's UI for free.
+  // Plain anchor — browser handles streaming download and shows progress.
   const downloadHref = `${apiBase}/projects/${projectId}/app/download?include_source=${includeSource}&include_db=${includeDb}`;
 
   const startDeploy = useCallback(() => {
@@ -189,7 +178,6 @@ export default function AppDeploy({ projectId, project, token, onProjectReload }
     const body = JSON.stringify({
       include_source: includeSource,
       include_db: includeDb,
-      // Send overrides so the user can do an ad-hoc deploy without saving.
       protocol: form.protocol,
       host: form.host,
       port: form.port ? Number(form.port) : null,
@@ -199,9 +187,8 @@ export default function AppDeploy({ projectId, project, token, onProjectReload }
       use_passive: form.use_passive,
     });
 
-    // We need SSE WITH a POST body and Authorization header — the native
-    // EventSource doesn't support either. Use fetch + ReadableStream and
-    // parse `event:` / `data:` frames by hand.
+    // EventSource doesn't support POST + Authorization header — use fetch
+    // + ReadableStream and parse `event:`/`data:` frames by hand.
     fetch(`${apiBase}/projects/${projectId}/app/deploy`, {
       method: "POST",
       headers: {
@@ -271,7 +258,6 @@ export default function AppDeploy({ projectId, project, token, onProjectReload }
 
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2, minHeight: "60vh" }}>
-      {/* Download (no creds needed) */}
       <Pane variant="outlined">
         <Typography variant="subtitle2">
           <Download fontSize="small" sx={{ verticalAlign: "middle", mr: 1 }} />
@@ -296,9 +282,8 @@ export default function AppDeploy({ projectId, project, token, onProjectReload }
             variant="contained"
             startIcon={<Download />}
             href={downloadHref}
-            // Anchor needs Basic auth in the URL? No — same-origin admin
-            // session cookies authenticate the request. (token is the
-            // Basic header; the server accepts the session cookie too.)
+            // Same-origin session cookie authenticates the anchor request —
+            // the server accepts cookie or Basic header.
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -307,7 +292,6 @@ export default function AppDeploy({ projectId, project, token, onProjectReload }
         </Box>
       </Pane>
 
-      {/* Deploy via FTP/SFTP */}
       <Pane variant="outlined">
         <Typography variant="subtitle2">
           <CloudUpload fontSize="small" sx={{ verticalAlign: "middle", mr: 1 }} />

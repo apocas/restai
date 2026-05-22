@@ -43,7 +43,7 @@ export default function ProjectDetails({ project, projects, info }) {
   const tabs = ALL_TABS.filter((t) => {
     if (t.ragOnly && project.type !== "rag") return false;
     if (t.kgOnly && !project.options?.enable_knowledge_graph) return false;
-    if (t.agentOnly && project.type !== "agent") return false;
+    if (t.agentOnly && !project.type === "agent") return false;
     if (t.memoryBankOnly && !project.options?.memory_bank_enabled) return false;
     if (t.memorySearchOnly && !project.options?.memory_search_enabled) return false;
     return true;

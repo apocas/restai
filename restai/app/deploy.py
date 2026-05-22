@@ -1,20 +1,10 @@
 """Bundle + ship helpers for App Builder projects.
 
-Two outputs:
-- :func:`stream_zip` produces a streaming ZIP of the project's source tree
-  (used by the download endpoint).
-- :func:`deploy_sftp` / :func:`deploy_ftp` push the same file set to a
-  remote host via SFTP (paramiko) or plain FTP (stdlib ftplib). Both are
-  generators of progress events suitable for a Server-Sent Events stream.
+stream_zip produces a streaming ZIP of the project tree; deploy_sftp /
+deploy_ftp push the same file set as generators of progress events.
 
-Generated apps are deliberately small (target 10-50 files), so the
-"in-memory zip + sync upload" approach is fine — we don't need parallel
-transfers or resumable uploads at this scale.
-
-SSRF guard: ``restai.helper._is_private_ip`` is applied to the deploy
-host before any socket is opened. We DO NOT want a project owner to be
-able to talk to the AWS metadata service or internal infra by typing
-"169.254.169.254" into the host field.
+SSRF guard: restai.helper._is_private_ip is applied to the deploy host
+before any socket opens — refuses AWS metadata / internal LAN targets.
 """
 
 from __future__ import annotations
@@ -41,19 +31,15 @@ _NEVER_SHIP_FILE_NAMES = {".DS_Store", "Thumbs.db"}
 
 @dataclass(frozen=True)
 class ZipFilters:
-    """Knobs the user toggles in the Download dialog."""
     include_source: bool = False  # `src/*.ts` etc.; the deployed app only needs `dist/`
     include_db: bool = False      # `database.sqlite` — usually don't ship the dev DB to prod
 
 
 def _iter_project_files(root: Path, filters: ZipFilters) -> Iterable[tuple[Path, str]]:
-    """Yield ``(absolute_path, archive_name)`` for every file we want to
-    ship. Walks the project root, skipping never-ship directories outright
-    so we don't walk into `node_modules`."""
     if not root.exists():
         return
     for dirpath, dirnames, filenames in os.walk(root):
-        # In-place mutate dirnames so os.walk doesn't descend.
+        # Mutate dirnames in place so os.walk skips never-ship dirs entirely.
         dirnames[:] = [d for d in dirnames if d not in _NEVER_SHIP_DIRS]
         rel_dir = Path(dirpath).relative_to(root)
         for fn in filenames:
@@ -73,12 +59,7 @@ def _iter_project_files(root: Path, filters: ZipFilters) -> Iterable[tuple[Path,
 
 
 def stream_zip(root: Path, filters: ZipFilters) -> Generator[bytes, None, None]:
-    """Generator of ZIP bytes for FastAPI's ``StreamingResponse``.
-
-    Builds the archive in memory before yielding (a 50-file project with
-    text files is at most a few hundred KB). Could be promoted to a true
-    streaming writer later — premature optimization for now.
-    """
+    """Generator of ZIP bytes for FastAPI's StreamingResponse. Builds in-memory."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for abs_path, name in _iter_project_files(root, filters):
@@ -96,19 +77,9 @@ def stream_zip(root: Path, filters: ZipFilters) -> Generator[bytes, None, None]:
         yield chunk
 
 
-# ────────────────────────────────────────────────────────────────────
-# Deploy targets
-# ────────────────────────────────────────────────────────────────────
-
-
 def _resolve_host_safe(host: str) -> str:
-    """Resolve `host` and refuse private/loopback/link-local addresses.
-
-    Same SSRF guard pattern that `restai/helper.py:_is_private_ip` uses
-    for inbound URL fetchers. Local dev against `localhost` is genuinely
-    useful for testing; the caller can opt in with the `allow_private`
-    flag at the deploy_* level if they really mean it.
-    """
+    """Same SSRF guard pattern as restai/helper.py:_is_private_ip. Local dev
+    is opt-in via allow_private on the deploy_* call sites."""
     from restai.helper import _is_private_ip
     try:
         if _is_private_ip(host):
@@ -124,8 +95,6 @@ def _resolve_host_safe(host: str) -> str:
 
 
 def _norm_remote_dir(p: Optional[str]) -> str:
-    """Normalize the remote target to an absolute POSIX path. The deploy
-    endpoints pass `ftp_path` straight through; default to '/' if blank."""
     if not p:
         return "/"
     p = p.strip()
@@ -148,15 +117,7 @@ def deploy_sftp(
     remote_dir: str,
     allow_private: bool = False,
 ) -> Generator[dict, None, None]:
-    """Yield progress events while uploading to an SFTP server.
-
-    Events: ``{"event": "connect" | "mkdir" | "upload" | "done" | "error", ...}``.
-
-    Uses paramiko's high-level :class:`SSHClient` + :meth:`open_sftp` so we
-    get the auth handshake for free. Host keys are NOT verified — first
-    deploys to brand-new hosts would otherwise need a manual fingerprint
-    dance. SSRF guard fires before any socket opens.
-    """
+    """Yields {"event": ...} progress dicts. Host keys NOT verified (first-deploy UX)."""
     if not allow_private:
         _resolve_host_safe(host)
 
@@ -199,7 +160,7 @@ def deploy_sftp(
 
 
 def _sftp_makedirs(sftp, path: str) -> None:
-    """`mkdir -p` over SFTP. paramiko has no built-in equivalent."""
+    # mkdir -p over SFTP; paramiko has no built-in equivalent.
     if not path or path == "/":
         return
     parts = path.strip("/").split("/")
@@ -232,12 +193,7 @@ def deploy_ftp(
     use_passive: bool = True,
     allow_private: bool = False,
 ) -> Generator[dict, None, None]:
-    """Same shape as :func:`deploy_sftp` but for plain FTP. Many shared
-    hosts only offer FTP, not SFTP.
-
-    Note: FTP transmits credentials in cleartext. The UI warns about this
-    explicitly; if the host supports SFTP, the user should pick SFTP.
-    """
+    """Plain-FTP variant of deploy_sftp. Credentials are cleartext (UI warns)."""
     if not allow_private:
         _resolve_host_safe(host)
 
@@ -287,7 +243,7 @@ def deploy_ftp(
 
 
 def _ftp_makedirs(ftp, path: str) -> None:
-    """`mkdir -p` over FTP. ftplib's MKD only makes one level."""
+    # mkdir -p over FTP; ftplib's MKD only makes one level.
     from ftplib import error_perm
     if not path or path == "/":
         return
@@ -302,9 +258,6 @@ def _ftp_makedirs(ftp, path: str) -> None:
             pass
 
 
-# Connection test -----------------------------------------------------
-
-
 def test_connection(
     *,
     protocol: str,
@@ -316,10 +269,7 @@ def test_connection(
     use_passive: bool = True,
     allow_private: bool = False,
 ) -> dict:
-    """Open a connection, list the remote dir, close. No transfers.
-
-    Returns ``{"ok": True, "message": "..."}`` on success, or
-    ``{"ok": False, "error": "..."}``."""
+    """Open + list + close. Returns {"ok": True, "message": ...} or {"ok": False, "error": ...}."""
     if not host:
         return {"ok": False, "error": "host is required"}
     try:

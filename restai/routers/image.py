@@ -1,11 +1,4 @@
-"""Image generation REST endpoints.
-
-Both the public `POST /image/{generator}/generate` and the
-OpenAI-compatible `POST /v1/images/generations` route through the
-registry-backed dispatch (`restai/image/dispatch.py`). No more hardcoded
-provider switches — adding a new external provider means dropping a
-module under `restai/image/providers/` and wiring it in `dispatch.py`.
-"""
+"""Image generation REST endpoints."""
 import base64 as _base64
 import logging
 import time
@@ -53,7 +46,7 @@ async def route_list_generators(
 
 
 def _generate(generator: str, image_model: ImageModel, brain, db_wrapper) -> bytes:
-    """Resolve + run a generator, surfacing dispatch errors as HTTPExceptions."""
+    """Run a generator, surfacing dispatch errors as HTTPExceptions."""
     try:
         data, _mime = generate_image(generator, image_model, brain, db_wrapper)
         return data
@@ -77,8 +70,7 @@ async def route_generate_image(
 ):
     """Generate an image using the specified generator."""
     if user.is_private:
-        # Local generators are still fine for private users; only block
-        # external providers (which would leak the prompt to a third party).
+        # Block external providers for private users (prompt would leak to a third party).
         row = db_wrapper.get_image_generator_by_name(generator)
         if row is None or row.class_name != "local":
             raise HTTPException(status_code=403, detail="User is private")
@@ -111,9 +103,7 @@ async def openai_compatible_generate(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """OpenAI-compatible image generation endpoint. The `model` field is
-    matched against the registry by name (no normalization — the admin
-    decides what name a generator is exposed under)."""
+    """OpenAI-compatible image generation endpoint."""
     check_not_restricted(user)
 
     if user.is_private:

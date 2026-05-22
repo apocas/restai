@@ -1,18 +1,8 @@
-"""Ollama Cloud (https://ollama.com) LLM wrapper.
+"""Ollama Cloud LLM wrapper.
 
-Thin subclass of llama-index's `Ollama` that knows how to talk to the
-hosted Ollama Cloud service. Cloud auth differs from a local daemon in
-exactly one way — every request needs an `Authorization: Bearer <key>`
-header — but the underlying `Ollama` class doesn't expose a `headers` /
-`api_key` kwarg of its own. It does accept a pre-built `client` /
-`async_client`, so we build authenticated `ollama.Client` instances at
-init time and hand them in.
-
-Keeping this in `restai/llms/` (next to `OllamaMultiModalInternal`)
-instead of branching inside `Brain.load_llm` keeps the load path
-class-name → instantiate symmetric across providers — no special cases
-in the orchestrator that have to grow every time a new "X Cloud"
-variant ships.
+llama-index's Ollama class doesn't expose `headers`/`api_key` kwargs but
+accepts a pre-built `client`/`async_client`, so we build authenticated
+ollama.Client instances at init time and hand them in.
 """
 from typing import Any, Optional
 
@@ -24,20 +14,7 @@ DEFAULT_REQUEST_TIMEOUT = 120.0
 
 
 class OllamaCloud(Ollama):
-    """Ollama LLM authenticated against Ollama Cloud.
-
-    Stored in the LLM `options` blob:
-
-        {
-            "model": "gpt-oss:120b-cloud",
-            "api_key": "<ollama_...>",      # required, encrypted at rest
-            "base_url": "https://ollama.com" # optional override
-            # ...standard Ollama kwargs
-        }
-
-    `api_key` is in `LLM_SENSITIVE_KEYS`, so DBWrapper encrypts it with
-    Fernet on write and decrypts on read.
-    """
+    """Ollama LLM authenticated against Ollama Cloud. api_key is Fernet-encrypted at rest."""
 
     def __init__(
         self,

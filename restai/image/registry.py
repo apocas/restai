@@ -1,10 +1,4 @@
-"""Image-generator registry helpers.
-
-`seed_local_generators` runs once at startup to ensure every worker module
-under `restai/image/workers/*.py` has a corresponding DB row with
-`class_name="local"`. Idempotent — existing rows keep their `enabled`
-flag and any admin-provided description.
-"""
+"""Image-generator registry helpers."""
 from __future__ import annotations
 
 import logging
@@ -17,14 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 def seed_local_generators(db_wrapper) -> int:
-    """Ensure every local worker module has a registry row. Returns the
-    number of rows created (0 when everything was already in place).
+    """Ensure every local worker module has a registry row. Returns count of rows created.
 
-    Race-safe under multi-worker uvicorn: when two workers both pass
-    the pre-check and both INSERT, the second one trips the unique
-    constraint and we **must** rollback() before continuing or the
-    SQLAlchemy session is left in PendingRollbackError state and
-    every subsequent query in the lifespan handler crashes the worker.
+    Race-safe under multi-worker uvicorn: when two workers both pass the
+    pre-check and INSERT, the second trips the unique constraint and we
+    MUST rollback() or the SQLAlchemy session is left in
+    PendingRollbackError state and every subsequent query crashes.
     """
     workers_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "workers")
     if not os.path.isdir(workers_dir):
@@ -36,9 +28,7 @@ def seed_local_generators(db_wrapper) -> int:
             continue
         existing = db_wrapper.get_image_generator_by_name(modname)
         if existing is not None:
-            # Don't clobber admin-applied changes (description, enabled,
-            # privacy). Just make sure class_name is still `local` — if
-            # it drifted somehow, reset it.
+            # Don't clobber admin-applied changes; only reset class_name if it drifted.
             if existing.class_name != "local":
                 existing.class_name = "local"
                 try:
@@ -59,9 +49,7 @@ def seed_local_generators(db_wrapper) -> int:
             created += 1
             logger.info("Seeded local image generator: %s", modname)
         except IntegrityError:
-            # Another uvicorn worker beat us to the INSERT. Roll back
-            # the poisoned session and move on — the row exists, which
-            # is the desired state.
+            # Another worker beat us to the INSERT; rollback the poisoned session.
             db_wrapper.db.rollback()
             logger.debug("Local image generator '%s' was concurrently seeded by another worker", modname)
         except Exception as e:

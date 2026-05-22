@@ -302,7 +302,6 @@ async def start_eval_run(
     db.db.commit()
     db.db.refresh(run)
 
-    # Run evaluation in background
     from restai.eval import run_evaluation
 
     async def _run_eval():

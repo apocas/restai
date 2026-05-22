@@ -1,14 +1,4 @@
-"""agent project type — direct LLM chat with optional tool calling.
-
-Built on the agent2 runtime (`restai.agent2`), which is the non-llamaindex
-agent loop. Supports built-in tools, MCP servers, multimodal image input,
-fallback LLMs, output guards, history compression, ReAct fallback for
-tool-callless models, and token-by-token streaming.
-
-Agent projects without any tools configured behave like a plain LLM chat —
-the runtime exits after one turn with no extra overhead. Add tools or MCP
-servers in the project's Tools tab to turn them into actual agents.
-"""
+"""agent project type — direct LLM chat with optional tool calling, on agent2 runtime."""
 import asyncio
 import contextlib
 import json
@@ -28,68 +18,30 @@ from restai.agent2 import (
 from restai.agent2.memory import get_session, save_session
 
 
-# Module-level set of background save tasks. Lives outside any request so
-# fire-and-forget saves aren't GC'd before they complete. Tasks self-evict
-# on done. The fallback save in the chat finally block uses this — without
-# it, request-side cancellation (Starlette middleware teardown) would skip
-# the synchronous `save_session(...)` call and the next chat turn would
-# load stale messages, manifesting as the agent "losing its thoughts".
-import asyncio as _agent_asyncio
-_PENDING_SESSION_SAVES: set = set()
-
-
-def _spawn_session_save(brain, chat_id, session) -> None:
-    """Schedule a session persist that outlives request cancellation.
-
-    Safe to call from a finally block: doesn't await, so doesn't raise
-    when the current task is already cancelling. The Redis write usually
-    finishes in <10ms — well before the user's next turn picks up the
-    chat — so the lack of synchronous completion is acceptable.
-    """
-    if not chat_id or session is None or not getattr(session, "messages", None):
-        return
-    try:
-        loop = _agent_asyncio.get_running_loop()
-    except RuntimeError:
-        return
-    try:
-        task = loop.create_task(save_session(brain, chat_id, session))
-    except Exception as e:
-        logging.warning("agent2: failed to schedule fallback session save: %s", e)
-        return
-    _PENDING_SESSION_SAVES.add(task)
-    task.add_done_callback(_PENDING_SESSION_SAVES.discard)
 from restai.agent2.tool_adapter import AdaptedTool
 from restai.agent2.types import ImageBlock, ToolUseBlock
 from restai.database import DBWrapper
 from restai.models.models import ChatModel, QuestionModel, User
 from restai.project import Project
 from restai.projects.base import ProjectBase
+from restai.projects.agent_shared import (
+    augment_system_prompt_with_memory_bank as _augment_system_prompt_with_memory_bank,
+    augment_system_prompt_with_memory_search_hint as _augment_system_prompt_with_memory_search_hint,
+    prepend_current_time as _prepend_current_time,
+    route_attachments as _route_attachments,
+    spawn_session_save as _spawn_session_save,
+)
 from restai.tools import tokens_from_string
-from restai import memory_bank
-
-
-_IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
-
-
-def _is_image_attachment(f) -> bool:
-    """True if the attachment should go through the multimodal vision flow."""
-    mime = (getattr(f, "mime_type", None) or "").lower()
-    if mime.startswith("image/"):
-        return True
-    name = (getattr(f, "name", "") or "").lower()
-    return name.endswith(_IMAGE_EXTS)
 
 
 def _looks_repetitive(texts: list[str], min_chars: int = 60, prefix_ratio: float = 0.6,
                       min_prefix_chars: int = 50) -> bool:
-    """True when the last N assistant texts share enough common prefix to
-    qualify as a self-prompted loop (model rambling without progress —
-    classic open-model failure on long horizons). Two signals must hold:
-      - shared prefix is at least `min_prefix_chars` (avoids tripping on
-        short common openers like "I will check...")
-      - shared prefix is >= `prefix_ratio` of the shortest turn (the
-        repeating part dominates each turn's content)
+    """Detect classic open-model self-prompting loop: last 3 turns share
+    enough common prefix to qualify as rambling without progress.
+
+    Both signals required: shared prefix >= min_prefix_chars (don't trip on
+    short openers like "I will check...") AND >= prefix_ratio of shortest
+    turn (the repeating part dominates each turn).
     """
     if len(texts) < 3:
         return False
@@ -108,193 +60,8 @@ def _looks_repetitive(texts: list[str], min_chars: int = 60, prefix_ratio: float
     return len(prefix) >= prefix_ratio * min(len(n) for n in norms)
 
 
-def _prepend_current_time(base_system_prompt: str | None) -> str | None:
-    """Stamp the current UTC time at the top of the system prompt so
-    time-sensitive reasoning ('how recent is this snapshot', 'what day
-    is it', 'is the maintenance window still open') has a ground truth.
-    Without this the model falls back to its training-cutoff date, which
-    is the root cause of countless 'is this stale?' confusions in
-    tool-using agents."""
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc)
-    stamp = f"[Current time: {now.strftime('%Y-%m-%d %H:%M UTC (%A)')}]"
-    if base_system_prompt:
-        return f"{stamp}\n\n{base_system_prompt}"
-    return stamp
-
-
-def _augment_system_prompt_with_memory_bank(project, db, base_system_prompt: str | None) -> str | None:
-    """When the project has memory_bank_enabled, prepend the rendered memory
-    bank block to the system prompt. Cheap on the no-bank-yet path: a single
-    indexed query that returns zero rows yields an empty string immediately.
-    Failures degrade silently — the worst case is the LLM not seeing memory
-    on this turn, never a broken request."""
-    try:
-        if not getattr(project.props.options, "memory_bank_enabled", False):
-            return base_system_prompt
-        max_tokens = int(getattr(project.props.options, "memory_bank_max_tokens", 2000) or 2000)
-        block = memory_bank.render_for_prompt(db, project.props.id, max_tokens)
-    except Exception:
-        return base_system_prompt
-    if not block:
-        return base_system_prompt
-    if base_system_prompt:
-        return f"{block}\n\n{base_system_prompt}"
-    return block
-
-
-def _project_tool_names(project) -> set[str]:
-    """Lowercased set of tool names enabled on the project."""
-    try:
-        raw = (getattr(project.props.options, "tools", None) or "")
-    except Exception:
-        raw = ""
-    return {t.strip().lower() for t in raw.split(",") if t.strip()}
-
-
-def _project_has_terminal(project) -> bool:
-    """True iff the project has the `terminal` tool enabled. Only that tool
-    (the Docker-sandbox shell) reads files from `/home/user/uploads/` — for
-    projects without it, pushing attachments into a container is dead weight
-    and can even fail loudly (container creation, tar size limits), so we
-    short-circuit the upload entirely."""
-    return "terminal" in _project_tool_names(project)
-
-
-def _augment_system_prompt_with_memory_search_hint(
-    project, base_system_prompt: str | None
-) -> str | None:
-    """Prepend a short directive block telling the LLM to use the
-    `search_memories` tool when the user references prior context.
-
-    Tool docstrings live inside the tool-call schema — the model uses
-    them to figure out HOW to call a tool but rarely proactively
-    decides WHEN. Without an explicit nudge in the system prompt the
-    model defaults to "I don't have access to previous conversations"
-    or guesses from the (lossy) memory bank summary even when targeted
-    recall would be the better answer. This block bias-shifts toward
-    active retrieval on ambiguous queries.
-
-    Gated on BOTH:
-      - `memory_search_enabled` is on for the project, AND
-      - `search_memories` is actually in the project's tool list. If
-        the tool isn't listed, the hint would reference something the
-        model can't call — worse than no hint at all.
-
-    Failures degrade silently (return `base_system_prompt` unchanged).
-    """
-    try:
-        if not getattr(project.props.options, "memory_search_enabled", False):
-            return base_system_prompt
-        if "search_memories" not in _project_tool_names(project):
-            return base_system_prompt
-    except Exception:
-        return base_system_prompt
-
-    hint = (
-        "[Memory Search]\n"
-        "You have a `search_memories` tool that semantically searches every "
-        "past conversation in this project. When the user references something "
-        "that might have come up before — \"have we discussed X\", \"what did "
-        "we decide about Y\", \"remind me of Z\", \"did we ever try W\" — call "
-        "`search_memories` BEFORE answering. Don't guess at history when a "
-        "search will tell you the truth."
-    )
-    if base_system_prompt:
-        return f"{hint}\n\n{base_system_prompt}"
-    return hint
-
-
-def _route_attachments(files, chat_id, prompt, brain, existing_image=None, project=None):
-    """Route non-image file attachments to the Docker sandbox (or politely
-    drop them when `terminal` isn't configured).
-
-    `helper._normalize_image_inputs` canonicalizes the two image-input
-    paths before we're called: by the time this function runs, any image
-    that arrived in `files[]` has already been promoted to
-    `chatModel.image` and removed from `files`. So `files` here should
-    only contain non-image attachments. The image branch below is kept as
-    a defensive fallback for direct callers that bypass the helper.
-
-    Returns ``(augmented_prompt, image_data_url_or_existing)``. If the
-    caller already passed an explicit `image` on the request, it wins
-    over anything in `files` (backward-compat with the old `image` field).
-    """
-    if not files:
-        return prompt, existing_image
-
-    images = [f for f in files if _is_image_attachment(f)]
-    docs = [f for f in files if not _is_image_attachment(f)]
-
-    image_url = existing_image
-    if images and image_url is None:
-        primary = images[0]
-        mime = primary.mime_type or "image/png"
-        image_url = f"data:{mime};base64,{primary.content}"
-
-    if docs and project is not None and _project_has_terminal(project):
-        prompt, _ = _upload_files_and_augment_prompt(docs, chat_id, prompt, brain)
-    elif docs:
-        # File attachments came in but this project can't read them — let
-        # the LLM know instead of silently dropping them.
-        names = ", ".join(f.name for f in docs[:5])
-        if len(docs) > 5:
-            names += f", …(+{len(docs) - 5} more)"
-        prompt += (
-            "\n\n[Attached file(s) ignored: this project has no tool that can "
-            f"process them ({names}). Enable the `terminal` tool on the "
-            "project to let the agent read uploaded files.]"
-        )
-
-    return prompt, image_url
-
-
-def _upload_files_and_augment_prompt(files, chat_id, prompt, brain):
-    """Push user-attached files into the agent's sandbox container and return
-    the original prompt augmented with a manifest the LLM can see.
-
-    Returns ``(prompt, warning_or_none)``. When Docker isn't configured we
-    skip the upload and append a note so the LLM knows the files weren't
-    available.
-    """
-    if not files:
-        return prompt, None
-
-    docker = getattr(brain, "docker_manager", None)
-    if docker is None:
-        note = "\n\n[The user attached files but the agent sandbox (Docker) isn't configured on this RESTai instance, so the files cannot be processed.]"
-        return prompt + note, "no_docker"
-
-    import base64
-    decoded: list[tuple[str, bytes]] = []
-    for f in files:
-        try:
-            raw = base64.b64decode(f.content, validate=False)
-        except Exception:
-            continue
-        if raw:
-            decoded.append((f.name, raw))
-
-    if not decoded:
-        return prompt, None
-
-    try:
-        manifest = docker.put_files(chat_id or "ephemeral", decoded)
-    except Exception as e:
-        return prompt + f"\n\n[File upload to sandbox failed: {e}]", "upload_failed"
-
-    if not manifest:
-        return prompt, None
-
-    lines = ["", "[Files attached by the user (available in /home/user/uploads/ — use the terminal tool to inspect them):]"]
-    for entry in manifest:
-        lines.append(f"  - {entry['path']}  ({entry['size']} bytes)")
-    return prompt + "\n" + "\n".join(lines), None
-
-
 def _make_project_tool_adapted(tool_row, brain) -> AdaptedTool:
-    """Create an AdaptedTool from a ProjectToolDatabase row.
-    The tool runs code in the Docker sandbox."""
+    """Adapt a ProjectToolDatabase row — code runs in the Docker sandbox."""
     import json as _json
 
     try:
@@ -326,8 +93,7 @@ def _make_project_tool_adapted(tool_row, brain) -> AdaptedTool:
 
 
 def _wrap_image_error(err: Exception, has_image: bool) -> Exception:
-    """Wrap an LLM provider error with a clearer message when an image was
-    likely the cause (the model doesn't support vision)."""
+    """Wrap provider errors with a clearer message when an image is likely the cause."""
     if not has_image:
         return err
     return HTTPException(
@@ -346,17 +112,13 @@ class Agent(ProjectBase):
     async def _run_planner(
         self, project, prompt: str, db: DBWrapper
     ) -> list[str] | None:
-        """One-shot LLM call that decides if `prompt` should be split into
-        subtasks. Returns a list of 2-6 short subtask names if multi-step,
-        or None to skip planning. Failures fall back to None (no plan)
-        so a planner glitch never breaks the chat.
-        """
+        """One-shot LLM call that returns 2-6 subtask names or None to skip planning."""
         llm_wrapper = self.brain.get_llm(project.props.llm, db)
         if llm_wrapper is None or not hasattr(llm_wrapper, "llm"):
             return None
 
-        # Per-step iteration budget shown to the planner so it can size
-        # the plan: total work-loops will be len(plan) * max_iterations.
+        # Per-step budget shown to the planner so it can size the plan:
+        # total work-loops = len(plan) * max_iterations.
         cap = int(getattr(project.props.options, "max_iterations", 10) or 10)
         planner_prompt = (
             "You are a task planner. Decide if the user's request needs multiple distinct steps.\n\n"
@@ -380,8 +142,7 @@ class Agent(ProjectBase):
             logging.warning("Planner LLM call failed (skipping plan): %s", e)
             return None
 
-        # Strip <think>…</think> blocks (Qwen3, deepseek-r1, …) and any
-        # fenced markdown wrappers before parsing JSON.
+        # Strip <think>…</think> (Qwen3, deepseek-r1) + fenced markdown wrappers.
         text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
         if text.startswith("```"):
             text = text.strip("`").strip()
@@ -417,14 +178,9 @@ class Agent(ProjectBase):
         stream: bool,
         output: dict,
     ):
-        """Run a multi-step plan: each subtask is its own bounded
-        `_drive_runtime` invocation against a SHARED session, then a
-        synthesis turn produces the final answer. Yields fully-formatted
-        SSE strings (the caller just passes them through to the wire).
-
-        Aggregates reasoning steps, tool traces, and a per-step summary
-        log into `output` so the frontend can render the checklist + the
-        usual thoughts/tools panels.
+        """Run multi-step plan: each subtask is its own bounded _drive_runtime
+        call against a SHARED session, then a synthesis turn produces the
+        final answer. Yields pre-formatted SSE strings.
         """
         output["plan"] = plan
         output["step_summaries"] = []
@@ -452,9 +208,9 @@ class Agent(ProjectBase):
                     "(Other `memory_search` calls — user preferences, project facts, past work on the same topic — are fine when they help the step.)"
                 )
             else:
-                # Re-state the plan + summaries of completed steps inline so
-                # the model never has to hunt through session history (or
-                # worse, run memory_search) to remember context.
+                # Re-state plan + completed-step summaries inline so the model
+                # never hunts through session history (or worse, runs
+                # memory_search) for context.
                 done_recap = "\n".join(
                     f"  {i+1}. {s['name']} — {(s.get('result') or '').strip()[:300]}"
                     for i, s in enumerate(output["step_summaries"])
@@ -498,8 +254,8 @@ class Agent(ProjectBase):
                     {"step_done": {"index": idx, "summary": step_text[:300]}}
                 ) + "\n\n"
 
-        # Final synthesis: index = len(plan) so the UI shows it as a
-        # virtual extra step at the bottom of the checklist.
+        # Final synthesis: index = len(plan) so UI renders as virtual extra
+        # step at the bottom of the checklist.
         if stream:
             yield "data: " + json.dumps(
                 {"step_start": {"index": len(plan), "name": "Synthesize final answer"}}
@@ -609,7 +365,7 @@ class Agent(ProjectBase):
 
     @staticmethod
     def _count_tokens(output: dict) -> None:
-        """Lightweight tiktoken-based token estimate."""
+        """tiktoken-based token estimate."""
         try:
             output["tokens"] = {
                 "input": tokens_from_string(output.get("question") or ""),
@@ -620,10 +376,7 @@ class Agent(ProjectBase):
             output["tokens"] = {"input": 0, "output": 0, "accuracy": "low"}
 
     def _finalize_reasoning(self, output: dict, reasoning_buf: list, steps: list) -> None:
-        """Build the reasoning dict from tool steps if any, then let
-        `post_processing_reasoning` extract `<think>...</think>` blocks from
-        the answer if no tool reasoning was recorded. Strips think tags from
-        the answer either way."""
+        """Build reasoning dict; post_processing_reasoning strips <think> tags from answer."""
         if steps:
             output["reasoning"] = {"output": "\n".join(reasoning_buf), "steps": steps}
         self.brain.post_processing_reasoning(output)
@@ -639,47 +392,38 @@ class Agent(ProjectBase):
         project: Project,
         output: dict,
     ):
-        """Drive the runtime's event loop, yield text deltas as `str`, mutate
-        `output["answer"]` and `output["reasoning"]` along the way. Used by
-        both `chat()` and `question()` to share the (otherwise identical)
-        per-event handling."""
+        """Drive the runtime's event loop; yield text deltas + mutate output dict."""
         import re as _re
 
         steps: list = []
         reasoning_buf: list = []
-        # Pair tool calls with their results so the reasoning panel renders correctly
+        # Pair tool calls with their results for the reasoning panel.
         pending_tool_calls: dict = {}
-        # Per-call timing + structured trace. Keyed by tool_use_id so we
-        # can compute latency = tool_result_ts - tool_use_ts. Flushed
-        # into `output["tool_trace"]` when we finalize — the log viewer
-        # renders this as a timeline.
+        # Per-call timing + structured trace, keyed by tool_use_id so latency
+        # = tool_result_ts - tool_use_ts. Flushed to output["tool_trace"]; log
+        # viewer renders as a timeline.
         import time as _time
         tool_call_started_at: dict = {}
         tool_trace: list = []
-        # `draw_image` tool URLs collected from tool results — appended to the
-        # final answer if the LLM didn't echo them (some models summarize tool
-        # results instead of quoting them, which would silently swallow the
-        # image link).
+        # Capture draw_image URLs from tool results — appended to final answer
+        # if the LLM doesn't echo them (some models summarize tool results
+        # instead of quoting and would silently swallow the image link).
         image_urls: list[str] = []
         _image_url_re = _re.compile(
             r"!\[[^\]]*\]\((https?://[^)\s]+/image/cache/[A-Fa-f0-9]+\.[A-Za-z0-9]+|/image/cache/[A-Fa-f0-9]+\.[A-Za-z0-9]+)\)"
         )
 
-        # Repetition guard: track text content of last 3 assistant turns.
-        # When the model gets stuck self-prompting ("Let me look at a few
-        # more files: …" repeated for dozens of turns without invoking a
-        # tool), `_looks_repetitive` flags it and we abort cleanly with
-        # a final answer instead of letting it consume max_iterations.
+        # Repetition guard: when the model gets stuck self-prompting ("Let me
+        # look at a few more files: …" repeated for dozens of turns without
+        # invoking a tool), abort cleanly instead of burning max_iterations.
         recent_assistant_texts: list[str] = []
 
-        # Mirror every text_delta into a local buffer. The "final" event
-        # is the canonical source for output["answer"], but if the
-        # runtime is interrupted (timeout, abort, upstream EOS without
-        # final_text) we'd otherwise lose everything the user already
-        # saw streaming — including thinking content. Falling back to
-        # the streamed buffer lets `_finalize_reasoning` still extract
-        # `<think>…</think>` blocks so the persisted message keeps the
-        # thoughts the user watched in the live panel.
+        # Mirror every text_delta. The "final" event is canonical for
+        # output["answer"], but if the runtime is interrupted (timeout, abort,
+        # upstream EOS without final_text) we'd otherwise lose everything the
+        # user already saw streaming — including thinking content. Falling
+        # back to this buffer lets _finalize_reasoning still extract <think>
+        # blocks so persisted messages keep the thoughts the user watched.
         streamed_text_buf: list[str] = []
 
         async for event in runtime.run_iter(
@@ -747,12 +491,9 @@ class Agent(ProjectBase):
                         content = getattr(block, "content", "") or ""
                         if tool_call is not None:
                             self._record_step(steps, reasoning_buf, tool_call, content)
-                            # Per-tool trace row. Latency comes from the
-                            # assistant → tool_result gap. Status is
-                            # best-effort: the convention across our
-                            # builtin tools is to return `"ERROR: ..."`
-                            # or `"OK: ..."`, so a prefix check is good
-                            # enough without wrapping every tool.
+                            # Per-tool trace row. Status is best-effort: our
+                            # builtins return `"ERROR: ..."` / `"OK: ..."` so
+                            # a prefix check works without wrapping every tool.
                             started = tool_call_started_at.pop(tool_use_id, None)
                             latency_ms = (
                                 int((_time.monotonic() - started) * 1000) if started is not None else None
@@ -787,22 +528,18 @@ class Agent(ProjectBase):
                                     "error": err_preview,
                                 }
                             })
-                            # Capture every image-cache URL the tool emitted so
-                            # we can guarantee it ends up in front of the user.
+                            # Capture image-cache URLs to guarantee they reach the user.
                             for m in _image_url_re.finditer(content):
                                 url = m.group(1)
                                 if url not in image_urls:
                                     image_urls.append(url)
 
-                # /artifacts/ injection. After every tool_result event,
-                # drain Brain's pending-artifact tray for this chat and
-                # append the bytes as a synthetic user message before the
-                # next LLM turn happens. Images become ImageBlocks (the
-                # only multimodal block both Anthropic and OpenAI-compat
-                # providers serialize uniformly today); other types fall
-                # back to a text mention so the model still knows the
-                # file exists. Errors here are best-effort — never let
-                # an artifact-injection bug kill the chat.
+                # /artifacts/ injection: drain the per-chat artifact tray and
+                # append bytes as a synthetic user message before the next
+                # turn. Images become ImageBlocks (only multimodal block both
+                # Anthropic and OpenAI-compat serialize uniformly today);
+                # other types fall back to text mention. Best-effort — never
+                # let an artifact-injection bug kill the chat.
                 try:
                     from restai.agent2 import artifacts as _artifacts
                     chat_id_now = getattr(runtime, "_chat_id", None) or ""
@@ -839,8 +576,7 @@ class Agent(ProjectBase):
                                     intro_lines.append(f"    (attach failed; treating as text mention)")
                             else:
                                 intro_lines.append(f"  - {name} ({mime}, {kb} KB)")
-                        # Lead with the text manifest so the model has
-                        # explicit context for what each image is.
+                        # Lead with text manifest for explicit image context.
                         msg_blocks = [_TxtBlk(text="\n".join(intro_lines))] + blocks
                         try:
                             session.messages.append(_Msg(role="user", content=msg_blocks))
@@ -851,16 +587,14 @@ class Agent(ProjectBase):
 
             elif event.type == "final":
                 output["answer"] = event.data.get("final_text", "") or ""
-                # Capture stop_reason for the post-loop max-turns
-                # handling — we used to overwrite answer with the
-                # fallback string here, which clobbered any thinking
-                # the model had streamed before hitting the cap.
+                # Capture stop_reason for post-loop max-turns handling — we
+                # used to overwrite answer with the fallback string here,
+                # clobbering any thinking the model streamed before the cap.
                 output["_stop_reason"] = event.data.get("stop_reason")
 
-        # If the LLM dropped a draw_image URL on its way to writing the final
-        # answer, splice it back in. Most models echo the markdown verbatim
-        # when instructed; this is the belt-and-braces safety net for the
-        # ones that summarize ("Image generated!") without the link.
+        # Belt-and-braces: splice back any draw_image URL the LLM dropped on
+        # its way to the final answer (some models summarize "Image
+        # generated!" instead of echoing the markdown link).
         if image_urls:
             answer = output.get("answer") or ""
             missing = [u for u in image_urls if u not in answer]
@@ -870,23 +604,18 @@ class Agent(ProjectBase):
 
         stop_reason = output.pop("_stop_reason", None)
 
-        # Recover everything the user saw streaming. Two distinct cases:
-        #   (a) Runtime exited without a `final` event (interrupted,
-        #       upstream EOS, timeout) → output["answer"] is empty.
-        #   (b) Runtime hit max_turns. `final_text` is set to ONLY the
-        #       LAST turn's text, but the buffer has every turn's text
-        #       including earlier `<think>…</think>` blocks. Without
-        #       this, multi-turn thoughts get silently dropped.
-        # `_finalize_reasoning` then extracts the `<think>` blocks into
-        # reasoning.steps via post_processing_reasoning.
+        # Recover what the user saw streaming. Two cases:
+        #  (a) Runtime exited without a `final` event (interrupted, EOS,
+        #      timeout) → output["answer"] empty.
+        #  (b) max_turns hit: final_text is ONLY the last turn's text but the
+        #      buffer holds every turn including earlier <think> blocks —
+        #      without this, multi-turn thoughts get silently dropped.
         buffer_text = "".join(streamed_text_buf)
         if buffer_text and (not (output.get("answer") or "") or stop_reason == "max_turns"):
             output["answer"] = buffer_text
 
-        # If the runtime hit max_turns, surface a notice so the user
-        # knows why the agent stopped and can ask to continue. Append
-        # rather than overwrite — partial work (thinking + tool output)
-        # the model produced should remain visible.
+        # Append (don't overwrite) the max_turns notice so partial work
+        # (thinking + tool output) remains visible.
         if stop_reason == "max_turns":
             cap = getattr(project.props.options, "max_iterations", None) or "max"
             notice = (
@@ -898,14 +627,11 @@ class Agent(ProjectBase):
 
         self._finalize_reasoning(output, reasoning_buf, steps)
 
-        # Capture thoughts from EARLIER turns too. The runtime's
-        # `final_text` only carries the last turn's text, so any
-        # `<think>…</think>` blocks emitted in turns 1..N-1 would be
-        # invisible to post_processing_reasoning. We pull them out of
-        # the streamed buffer (which has every delta the user saw),
-        # dedupe against thoughts already recorded, and prepend them
-        # to reasoning.steps so the panel shows the full chain in
-        # chronological order.
+        # Capture <think> blocks from EARLIER turns too. final_text only
+        # carries the last turn so thoughts from turns 1..N-1 would be
+        # invisible to post_processing_reasoning. Pull from the streamed
+        # buffer, dedupe against already-recorded thoughts, prepend so the
+        # panel reads thoughts → tools → final in chronological order.
         if buffer_text:
             think_re = _re.compile(r"<think>(.*?)</think>", _re.DOTALL)
             buffer_thoughts = [m.group(1).strip() for m in think_re.finditer(buffer_text)]
@@ -926,19 +652,16 @@ class Agent(ProjectBase):
                         {"actions": [{"output": t, "action": "reasoning"}], "output": t}
                         for t in new_thoughts
                     ]
-                    # Prepend so timeline reads thoughts → tools → final.
                     existing["steps"] = new_steps + existing["steps"]
                     joined_new = "\n\n".join(new_thoughts)
                     existing["output"] = (
                         joined_new + ("\n\n" + existing.get("output", "") if existing.get("output") else "")
                     )
 
-        # Only fire the "didn't produce a final answer" notice when we
-        # genuinely have nothing — no answer text AND no captured
-        # thoughts. Without this guard, a model that produced lots of
-        # thinking but got interrupted before the final answer would
-        # see its thoughts persisted into reasoning yet have the bubble
-        # body clobbered by the fallback string.
+        # Fallback notice only when we genuinely have nothing — no answer
+        # AND no captured thoughts. Without the thoughts check, a model that
+        # produced lots of thinking but got interrupted before the final
+        # answer would have its bubble body clobbered by the fallback.
         reasoning_steps_now = (output.get("reasoning") or {}).get("steps") or []
         has_thoughts = any(
             (a.get("action") == "reasoning")
@@ -952,12 +675,33 @@ class Agent(ProjectBase):
                    "Check the tool-call panel for what was retrieved, then try rephrasing."
             )
 
-        # Hand the tool trace off to log_inference via the output dict.
-        # Empty list → None so we don't bloat the DB with "[]" rows.
+        # Empty list → omit so we don't bloat the DB with "[]" rows.
         if tool_trace:
             output["tool_trace"] = tool_trace
 
     async def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
+        loop = (getattr(project.props.options, "agent_loop", None) or "restai").lower()
+        if loop == "claude":
+            from restai.projects import _claude_sdk_loop
+            async for chunk in _claude_sdk_loop.chat(self, project, chatModel, user, db):
+                yield chunk
+            return
+        if loop == "llamaindex":
+            from restai.projects import _llamaindex_loop
+            async for chunk in _llamaindex_loop.chat(self, project, chatModel, user, db):
+                yield chunk
+            return
+        if loop == "smolagents":
+            from restai.projects import _smolagents_loop
+            async for chunk in _smolagents_loop.chat(self, project, chatModel, user, db):
+                yield chunk
+            return
+        if loop == "openai_agents":
+            from restai.projects import _openai_agents_loop
+            async for chunk in _openai_agents_loop.chat(self, project, chatModel, user, db):
+                yield chunk
+            return
+
         chat_id = chatModel.id or str(uuid4())
 
         output = {
@@ -981,14 +725,12 @@ class Agent(ProjectBase):
 
         streamed_any_text = False
         try:
-            # Skip MCPSessionPool entirely when no MCP servers are
-            # configured. The pool's __aexit__ closes stdio sessions
-            # and is a meaningful await point — entering it
-            # unconditionally meant Starlette's post-response cancel
-            # often landed inside the cleanup, generating misleading
-            # "MCP cleanup" warnings even for projects that never used
-            # MCP. AsyncExitStack lets us conditionally enter without
-            # duplicating the body.
+            # Skip MCPSessionPool entirely when no MCP servers configured.
+            # The pool's __aexit__ closes stdio sessions and is a meaningful
+            # await point — unconditional entry meant Starlette's post-response
+            # cancel often landed inside cleanup, generating misleading "MCP
+            # cleanup" warnings for projects that never used MCP. AsyncExitStack
+            # lets us conditionally enter without duplicating the body.
             mcp_servers = project.props.options.mcp_servers or []
             async with contextlib.AsyncExitStack() as _mcp_stack:
                 mcp_tools = []
@@ -1033,10 +775,9 @@ class Agent(ProjectBase):
                 )
                 image_block = ImageBlock.from_data_url(image_url) if image_url else None
 
-                # Plan-and-execute (opt-in). Only kicks in on the first
-                # turn of a fresh session — follow-up messages run as
-                # normal single-loop chat so the user can refine without
-                # paying the planner cost again.
+                # Plan-and-execute (opt-in) only on first turn of a fresh
+                # session — follow-ups run as single-loop chat so users can
+                # refine without paying the planner cost again.
                 use_plan = (
                     bool(getattr(project.props.options, "auto_plan", False))
                     and not getattr(session, "messages", None)
@@ -1082,8 +823,8 @@ class Agent(ProjectBase):
                     self.check_output_guard(project, user, db, output)
 
                     if chatModel.stream:
-                        # Emit the final answer text only if streaming didn't
-                        # already deliver it (e.g. fell back to ReAct mid-run).
+                        # Emit final answer only when streaming didn't already
+                        # deliver it (e.g. fell back to ReAct mid-run).
                         if not streamed_any_text and output.get("answer"):
                             yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
                         yield "data: " + json.dumps(output) + "\n"
@@ -1100,26 +841,23 @@ class Agent(ProjectBase):
                         yield "event: close\n\n"
                         streamed_any_text = True
                 finally:
-                    # Fallback persist for the cancellation-mid-run case.
-                    # If `save_session` above never ran (CancelledError
-                    # raised inside `_drive_runtime`, client disconnect
-                    # mid-stream, middleware teardown), schedule it as a
-                    # background task so the session DOES land before the
-                    # next chat turn. Without this, the next turn loads
-                    # the pre-turn session and the agent "loses its
-                    # thoughts" — re-asks for files it already cat'd,
-                    # re-clones repos it already has, etc.
+                    # Fallback persist for cancellation-mid-run. If
+                    # save_session above never ran (CancelledError inside
+                    # _drive_runtime, client disconnect mid-stream, middleware
+                    # teardown), schedule it as a background task so the
+                    # session DOES land before the next chat turn. Without
+                    # this, the next turn loads the pre-turn session and the
+                    # agent "loses its thoughts" — re-asks for files it
+                    # already cat'd, re-clones repos it already has, etc.
                     if not saved_session:
                         _spawn_session_save(self.brain, chat_id, session)
         except BaseException as e:
-            # Catch ExceptionGroup from MCP session pool cleanup failures
-            # to prevent "No response returned" crashes.
-            #
+            # Catch ExceptionGroup from MCP session pool cleanup failures to
+            # prevent "No response returned" crashes.
             # CancelledError after a response was already produced is
-            # Starlette's post-response teardown racing against any
-            # in-flight cleanup (MCP __aexit__ or otherwise). Re-raise
-            # per anyio convention so the cancellation completes
-            # cleanly; nothing useful to log and nothing to recover.
+            # Starlette's post-response teardown racing in-flight cleanup
+            # (MCP __aexit__ or otherwise). Re-raise per anyio convention so
+            # cancellation completes cleanly.
             import asyncio as _asyncio
             if isinstance(e, _asyncio.CancelledError) and "answer" in output:
                 raise
@@ -1128,12 +866,12 @@ class Agent(ProjectBase):
                 output["answer"] = project.props.censorship or "An error occurred processing your request."
 
         # Non-streaming yield MUST be outside the `async with MCPSessionPool()`
-        # block. When the caller does `async for line in gen: return line`, the
-        # generator is abandoned after the first yield. If that yield happens
-        # inside the async-with, the pool's __aexit__ runs in a GC/finalizer
-        # task → "exit cancel scope in different task" → corrupted HTTP response.
+        # block. When the caller does `async for line in gen: return line`,
+        # the generator is abandoned after the first yield. If that yield
+        # happens inside the async-with, the pool's __aexit__ runs in a
+        # GC/finalizer task → "exit cancel scope in different task" →
+        # corrupted HTTP response.
         if chatModel.stream:
-            # If streaming failed before emitting anything, emit the error as SSE
             if "answer" in output and not streamed_any_text:
                 yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
                 yield "data: " + json.dumps(output) + "\n"
@@ -1146,6 +884,28 @@ class Agent(ProjectBase):
     async def question(
         self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper
     ):
+        loop = (getattr(project.props.options, "agent_loop", None) or "restai").lower()
+        if loop == "claude":
+            from restai.projects import _claude_sdk_loop
+            async for chunk in _claude_sdk_loop.question(self, project, questionModel, user, db):
+                yield chunk
+            return
+        if loop == "llamaindex":
+            from restai.projects import _llamaindex_loop
+            async for chunk in _llamaindex_loop.question(self, project, questionModel, user, db):
+                yield chunk
+            return
+        if loop == "smolagents":
+            from restai.projects import _smolagents_loop
+            async for chunk in _smolagents_loop.question(self, project, questionModel, user, db):
+                yield chunk
+            return
+        if loop == "openai_agents":
+            from restai.projects import _openai_agents_loop
+            async for chunk in _openai_agents_loop.question(self, project, questionModel, user, db):
+                yield chunk
+            return
+
         output = {
             "question": questionModel.question,
             "type": "agent",
@@ -1169,9 +929,7 @@ class Agent(ProjectBase):
         system_prompt = _augment_system_prompt_with_memory_search_hint(project, system_prompt)
         system_prompt = _prepend_current_time(system_prompt)
 
-        # Same skip-when-empty pattern as `chat()` above — see comment
-        # there. Eliminates spurious "MCP cleanup" warnings for
-        # projects that never used MCP.
+        # See chat() above for the skip-when-empty rationale.
         mcp_servers = project.props.options.mcp_servers or []
         async with contextlib.AsyncExitStack() as _mcp_stack:
             mcp_tools = []
@@ -1200,8 +958,8 @@ class Agent(ProjectBase):
             runtime._project_id = project.props.id
             streamed_any_text = False
 
-            # Ephemeral chat id so file uploads still land in a sandbox the
-            # terminal tool can read from inside this same invocation.
+            # Ephemeral chat id so file uploads land in a sandbox the terminal
+            # tool can read within this single invocation.
             eph_chat = f"q_{uuid4().hex[:12]}"
             runtime._chat_id = eph_chat
             prompt_text, image_url = _route_attachments(

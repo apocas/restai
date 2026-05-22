@@ -1,21 +1,9 @@
 """Stateless per-chat agentic-browser runtime.
 
-Replacement for the old ``restai.browser.manager.BrowserManager`` class.
-Same reasoning as ``restai/docker.py``: in-memory ``_containers`` dict
-plus an ``init/shutdown`` lifecycle duplicated state we already get for
-free by querying the Docker daemon, drifted between uvicorn workers,
-and made the settings-reinit path racy.
-
-Now: a flat module of functions. The Docker daemon is the source of
-truth for "does this chat have a browser container" — looked up by the
-``restai.browser_chat_id`` label per call. The Docker client connection
-is cached as a module-level lazy singleton; settings are read live from
-``restai.config`` so admin changes (image / network / timeout) take
-effect on the next call.
-
-Storage-state persistence (cookies / localStorage keyed by
-``(project_id, domain)``) keeps its Redis-with-in-process-fallback
-shape. The Redis client itself is the same lazy-singleton pattern.
+Docker daemon is the source of truth for "does this chat have a browser
+container" — looked up by the ``restai.browser_chat_id`` label per call.
+Prior in-memory state drifted between uvicorn workers and made the
+settings-reinit path racy.
 """
 from __future__ import annotations
 
@@ -36,18 +24,14 @@ from restai import config as _cfg
 
 logger = logging.getLogger(__name__)
 
-# ── Constants ─────────────────────────────────────────────────────────
-
 _CONTAINER_PORT = 7000
 _MICRO_SERVER_PATH_HOST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "micro_server.py")
 _MICRO_SERVER_PATH_CONTAINER = "/opt/restai_browser/micro_server.py"
 _HEALTH_TIMEOUT = 60
 _STORAGE_STATE_REDIS_PREFIX = "restai_browser_state:"
-_STORAGE_STATE_TTL = 30 * 24 * 60 * 60  # 30 days
+_STORAGE_STATE_TTL = 30 * 24 * 60 * 60
 
 _DEFAULT_IMAGE = "mcr.microsoft.com/playwright/python:v1.48.0-jammy"
-
-# ── Client (lazy singletons) ──────────────────────────────────────────
 
 _client: Optional[_docker_sdk.DockerClient] = None
 _client_url: str = ""
@@ -58,7 +42,7 @@ _storage_redis_client = None
 _storage_redis_url: Optional[str] = None
 
 # Per-chat asyncio lock so two parallel browser_* calls in the same chat
-# don't race-create two containers. Lazily populated.
+# don't race-create two containers.
 _chat_locks: dict[str, asyncio.Lock] = {}
 
 
@@ -69,7 +53,7 @@ def is_enabled() -> bool:
 
 
 def _get_client() -> Optional[_docker_sdk.DockerClient]:
-    """Cached DockerClient. Rebuilt on docker_url change."""
+    """Cached DockerClient; rebuilt on docker_url change."""
     global _client, _client_url
     if not is_enabled():
         return None
@@ -87,8 +71,6 @@ def _get_client() -> Optional[_docker_sdk.DockerClient]:
             _client_url = ""
         return _client
 
-
-# ── Storage-state persistence (Redis + in-process fallback) ───────────
 
 def _redis():
     global _storage_redis_client, _storage_redis_url
@@ -139,8 +121,6 @@ def save_storage_state(project_id: int, domain: str, state: dict) -> None:
     _storage_local[key] = state
 
 
-# ── Container lookup / creation (label-based, no in-memory state) ─────
-
 def _resolve_container(chat_id: str):
     c = _get_client()
     if c is None or not chat_id:
@@ -172,9 +152,7 @@ def _discover_port(container) -> Optional[int]:
 
 
 def _parse_playwright_version(image: str) -> Optional[str]:
-    """Pluck Playwright version out of the image tag so the in-container
-    pip install pins to the version whose browser binaries are baked in.
-    Example: ``...:v1.48.0-jammy`` → ``1.48.0``. Unknown tag → None."""
+    """Pin in-container pip install to the version whose browser binaries are baked in."""
     try:
         tag = image.split(":", 1)[1]
     except (IndexError, AttributeError):
@@ -189,10 +167,7 @@ def _parse_playwright_version(image: str) -> Optional[str]:
 
 
 def _ensure_playwright_pkg(container, image: str) -> None:
-    """The Microsoft Playwright image ships browser binaries but NOT the
-    `playwright` pip package. Install on first create; fast (<10s)
-    because PLAYWRIGHT_BROWSERS_PATH already points at the prebuilt
-    Chromium so `playwright install` is skipped."""
+    """Install the `playwright` pip package — the MS image ships binaries but not the pkg."""
     probe = container.exec_run(["sh", "-c", "python3 -c 'import playwright' 2>/dev/null"])
     if probe.exit_code == 0:
         return
@@ -318,8 +293,6 @@ def remove_container(chat_id: str) -> None:
         logger.warning("Browser: failed to stop container for chat_id=%s: %s", chat_id, e)
 
 
-# ── Activity heartbeat (DB-backed, multi-worker safe) ─────────────────
-
 def _touch_db_activity(chat_id: str, container_id: Optional[str]) -> None:
     if not chat_id:
         return
@@ -348,11 +321,8 @@ def _drop_db_activity(chat_id: str) -> None:
         logger.debug("browser_chat_activity delete failed for %s: %s", chat_id, e)
 
 
-# ── Public API ────────────────────────────────────────────────────────
-
 def call(chat_id: str, path: str, payload: Optional[dict] = None) -> dict:
-    """Post JSON to the in-container micro-server and return parsed
-    response. Sync — used by the synchronous browser_* tools."""
+    """Post JSON to the in-container micro-server and return parsed response."""
     if not chat_id:
         chat_id = "ephemeral"
     container, port = _get_or_create(chat_id)
@@ -362,7 +332,7 @@ def call(chat_id: str, path: str, payload: Optional[dict] = None) -> dict:
     try:
         resp = requests.post(url, json=payload or {}, timeout=90)
     except requests.exceptions.RequestException:
-        # Container might have died — drop + retry once.
+        # Container might have died; drop + retry once.
         remove_container(chat_id)
         container, port = _get_or_create(chat_id)
         _touch_db_activity(chat_id, container.id)

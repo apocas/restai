@@ -1,22 +1,4 @@
-"""WhatsApp Business Cloud API webhook.
-
-Single shared webhook URL routes inbound messages to projects by
-``entry[0].changes[0].value.metadata.phone_number_id``. Each project's
-HMAC signature is verified against its own ``whatsapp_app_secret``, so
-multitenancy is kept honest by per-project secrets rather than by URL
-namespacing.
-
-Two endpoints under ``/webhooks/whatsapp``:
-
-* ``GET`` — Meta's subscription handshake. Echoes ``hub.challenge`` when
-  ``hub.verify_token`` matches *any* project's stored verify token.
-* ``POST`` — inbound message delivery. Verifies the signature, looks up
-  the project by phone-number id, runs the agent with
-  ``chat_id=f"whatsapp_{from_phone}"``, and posts the reply back via
-  Meta's Graph API. Always returns ``200`` within the request — heavy
-  work goes to ``BackgroundTasks`` because Meta retries aggressively on
-  any non-2xx (or any response taking more than ~10s).
-"""
+"""WhatsApp Business Cloud API webhook."""
 from __future__ import annotations
 
 import asyncio
@@ -46,8 +28,7 @@ def _project_options(proj: ProjectDatabase) -> dict:
 
 
 def _find_project_by_verify_token(db, verify_token: str) -> Optional[ProjectDatabase]:
-    """Search every project for a matching whatsapp_verify_token. Slow
-    O(N) but only runs during the one-time Meta subscription handshake."""
+    """Search every project for matching whatsapp_verify_token (only runs on Meta handshake)."""
     for proj in db.db.query(ProjectDatabase).all():
         opts = _project_options(proj)
         token = decrypt_field(opts.get("whatsapp_verify_token") or "")
@@ -57,9 +38,7 @@ def _find_project_by_verify_token(db, verify_token: str) -> Optional[ProjectData
 
 
 def _find_project_by_phone_id(db, phone_number_id: str) -> Optional[ProjectDatabase]:
-    """Look up the project whose whatsapp_phone_number_id matches. The
-    field is stored in plaintext (it's not a secret) so we can do a
-    direct LIKE filter, then confirm in Python."""
+    """Look up the project whose whatsapp_phone_number_id matches."""
     for proj in db.db.query(ProjectDatabase).all():
         opts = _project_options(proj)
         if (opts.get("whatsapp_phone_number_id") or "") == phone_number_id:
@@ -68,8 +47,7 @@ def _find_project_by_phone_id(db, phone_number_id: str) -> Optional[ProjectDatab
 
 
 def _parse_allowlist(raw: str) -> set[str]:
-    """Same shape as Telegram's allowlist parser, but kept as strings —
-    WhatsApp ids are E.164 phone numbers, not ints."""
+    """Parse CSV allowlist of E.164 phone numbers."""
     out: set[str] = set()
     if not raw:
         return out
@@ -87,10 +65,7 @@ async def verify_webhook(
     hub_challenge: Optional[str] = Query(None, alias="hub.challenge"),
     hub_verify_token: Optional[str] = Query(None, alias="hub.verify_token"),
 ):
-    """Meta's webhook subscription handshake. We echo back ``hub.challenge``
-    only when the supplied ``hub.verify_token`` matches one of the
-    project-configured verify tokens. Returns 403 otherwise so Meta
-    surfaces a clear failure to the admin in Business Suite."""
+    """Meta webhook subscription handshake; echoes hub.challenge on matching verify_token."""
     if hub_mode != "subscribe" or not hub_challenge or not hub_verify_token:
         raise HTTPException(status_code=400, detail="missing required hub.* params")
 
@@ -108,9 +83,7 @@ async def verify_webhook(
 
 @router.post("/webhooks/whatsapp")
 async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
-    """Receive inbound WhatsApp messages. Always returns 200 unless the
-    signature fails — Meta retries on non-2xx, which would cause
-    duplicate messages."""
+    """Receive inbound WhatsApp messages. Always returns 200 unless signature fails (Meta retries on non-2xx)."""
     raw = await request.body()
     sig = request.headers.get("X-Hub-Signature-256") or request.headers.get("x-hub-signature-256")
 
@@ -168,8 +141,7 @@ async def receive_webhook(request: Request, background_tasks: BackgroundTasks):
 
 def _handle_message_safe(project_id: int, phone_number_id: str, access_token: str,
                           allowed: set[str], message: dict) -> None:
-    """Background task wrapper — never raises so a single bad message
-    can't poison the BackgroundTasks queue."""
+    """Background wrapper that never raises (so one bad message can't poison the queue)."""
     try:
         _handle_message(project_id, phone_number_id, access_token, allowed, message)
     except Exception:
@@ -183,8 +155,7 @@ def _handle_message(project_id: int, phone_number_id: str, access_token: str,
     if not from_phone:
         return
 
-    # Allowlist gate — applies to all message types so the polite reply
-    # is consistent. Empty allowlist = open access.
+    # Allowlist gate; empty allowlist = open access.
     if allowed and from_phone not in allowed:
         logger.info(f"WhatsApp sender {from_phone} not in allowlist for project {project_id}")
         try:
@@ -198,8 +169,6 @@ def _handle_message(project_id: int, phone_number_id: str, access_token: str,
         return
 
     if msg_type != "text":
-        # MVP scope is text-only. Replying once keeps the user from
-        # waiting silently for an answer the agent will never produce.
         logger.info(f"WhatsApp inbound type={msg_type!r} from {from_phone} — replying with text-only notice")
         try:
             send_message(
@@ -233,9 +202,7 @@ def _handle_message(project_id: int, phone_number_id: str, access_token: str,
 
 
 async def _run_agent(project_id: int, text: str, from_phone: str) -> Optional[str]:
-    """Invoke the project's chat pipeline. Mirrors the Telegram cron's
-    helper — same `chat_id=f"<channel>_{user_id}"` convention so each
-    customer keeps a sticky conversation across messages."""
+    """Invoke the project's chat pipeline with sticky chat_id per sender."""
     from restai.brain import Brain
     from restai.helper import chat_main
     from fastapi import BackgroundTasks as _BG
@@ -267,17 +234,13 @@ async def _run_agent(project_id: int, text: str, from_phone: str) -> Optional[st
         db.db.close()
 
 
-# ─── Admin: Test Connection ─────────────────────────────────────────────
 @router.post("/projects/{projectID}/whatsapp/test")
 async def test_whatsapp_connection(
     projectID: int,
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Hits Meta's ``GET /{phone_number_id}`` to confirm the project's
-    credentials are valid without sending a real message. Surfaces the
-    display name + verified status to the admin's "Test Connection"
-    button on the project edit page."""
+    """Confirm WhatsApp credentials via Meta's GET /{phone_number_id} (no message sent)."""
     proj = db_wrapper.get_project_by_id(projectID)
     if proj is None:
         raise HTTPException(status_code=404, detail="project not found")

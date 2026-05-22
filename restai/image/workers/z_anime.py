@@ -1,24 +1,4 @@
-"""SeeSee21 Z-Anime — anime-style fine-tune of Z-Image Base (6B DiT).
-
-Full fine-tune of Alibaba's Z-Image Base (NOT a Turbo derivative or
-LoRA merge), shipped as a diffusers checkpoint under the ``diffusers/``
-subfolder of ``SeeSee21/Z-Anime``. Uses the standard `ZImagePipeline`
-class.
-
-Defaults here target the base checkpoint (28-50 steps, CFG 3-5).
-The repo also publishes 8-step and 4-step distill variants — the
-admin can point at them via the Image Generators panel:
-- 8-step distill: `sharedmem["num_inference_steps"] = 8`,
-  `sharedmem["guidance_scale"] = 1.0`
-- 4-step distill: `sharedmem["num_inference_steps"] = 4`,
-  `sharedmem["guidance_scale"] = 1.0`
-
-Picks up automatically: `restai/image/registry.py:seed_local_generators`
-walks `image/workers/*.py` on every boot and creates a DB row.
-
-Shares `.venv-zimage` with `zimage_turbo` and `ernie_image` — same
-bleeding-edge `diffusers` requirement.
-"""
+"""SeeSee21 Z-Anime — anime-style fine-tune of Z-Image Base (6B DiT)."""
 import os
 
 
@@ -39,7 +19,7 @@ def flush():
 
 
 _DEFAULT_REPO = "SeeSee21/Z-Anime"
-_DEFAULT_SUBFOLDER = "diffusers"  # repo lays out HF + ComfyUI + diffusers variants
+_DEFAULT_SUBFOLDER = "diffusers"
 
 
 def worker(prompt, sharedmem):

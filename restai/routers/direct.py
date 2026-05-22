@@ -42,7 +42,6 @@ ROLE_MAP = {
     "tool": MessageRole.TOOL,
 }
 
-# Parameters forwarded directly to the LLM provider as kwargs
 _FORWARD_PARAMS = (
     "temperature", "top_p", "frequency_penalty", "presence_penalty",
     "stop", "seed", "response_format", "logprobs", "top_logprobs",
@@ -76,7 +75,6 @@ def _build_kwargs(body: OpenAIChatCompletionRequest) -> dict:
             kwargs[param] = val
     if body.max_tokens is not None:
         kwargs["max_tokens"] = body.max_tokens
-    # Tool calling
     if body.tools:
         kwargs["tools"] = [
             {
@@ -101,7 +99,6 @@ def _extract_finish_reason(response) -> str:
             return response.raw.choices[0].finish_reason or "stop"
         except (AttributeError, IndexError, TypeError):
             pass
-    # Check for tool calls in additional_kwargs
     if hasattr(response, "message") and hasattr(response.message, "additional_kwargs"):
         if response.message.additional_kwargs.get("tool_calls"):
             return "tool_calls"
@@ -117,7 +114,6 @@ def _extract_tool_calls(response) -> Optional[list[dict]]:
         return None
     result = []
     for tc in raw_calls:
-        # Handle both dict and object forms
         if isinstance(tc, dict):
             func = tc.get("function", {})
             result.append({
@@ -129,7 +125,6 @@ def _extract_tool_calls(response) -> Optional[list[dict]]:
                 },
             })
         else:
-            # Object with attributes (e.g. openai ChatCompletionMessageToolCall)
             result.append({
                 "id": getattr(tc, "id", f"call_{uuid.uuid4().hex[:8]}"),
                 "type": "function",
@@ -241,7 +236,6 @@ async def chat_completions(
             system_fingerprint=fingerprint,
         )
     else:
-        # Streaming response
         include_usage = (
             body.stream_options.get("include_usage", False)
             if body.stream_options else False
@@ -272,7 +266,6 @@ async def chat_completions(
                         }
                         yield f"data: {json.dumps(chunk)}\n\n"
 
-                    # Try to extract finish_reason from streaming chunks
                     if hasattr(token_response, "raw") and token_response.raw:
                         try:
                             fr = token_response.raw.choices[0].finish_reason
@@ -281,7 +274,6 @@ async def chat_completions(
                         except (AttributeError, IndexError, TypeError):
                             pass
 
-                # Check for tool calls in the final aggregated response
                 tool_call_delta = None
                 if hasattr(token_response, "message") and hasattr(token_response.message, "additional_kwargs"):
                     raw_calls = token_response.message.additional_kwargs.get("tool_calls")
@@ -289,7 +281,6 @@ async def chat_completions(
                         last_finish_reason = "tool_calls"
                         tool_call_delta = _extract_tool_calls(token_response)
 
-                # Send tool calls chunk if present
                 if tool_call_delta:
                     tc_chunk = {
                         "id": completion_id,
@@ -309,7 +300,6 @@ async def chat_completions(
                     }
                     yield f"data: {json.dumps(tc_chunk)}\n\n"
 
-                # Send final chunk with finish_reason
                 final_chunk = {
                     "id": completion_id,
                     "object": "chat.completion.chunk",
@@ -326,7 +316,6 @@ async def chat_completions(
                 }
                 yield f"data: {json.dumps(final_chunk)}\n\n"
 
-                # Send usage chunk if requested
                 if include_usage:
                     input_tokens = tokens_from_string(
                         " ".join(m.content or "" for m in body.messages)
@@ -349,7 +338,6 @@ async def chat_completions(
 
                 yield "data: [DONE]\n\n"
             finally:
-                # Log after stream completes
                 input_tokens = tokens_from_string(
                     " ".join(m.content or "" for m in body.messages)
                 )
@@ -456,6 +444,8 @@ async def embeddings(
     )
 
 
+
+
 @router.get("/direct/models")
 async def list_accessible_models(
     request: Request,
@@ -466,7 +456,6 @@ async def list_accessible_models(
     import os
 
     if user.is_admin:
-        # Admins see everything
         all_llms = db_wrapper.get_llms()
         llms = [{"name": l.name} for l in all_llms]
 
@@ -476,9 +465,6 @@ async def list_accessible_models(
         image_generators = []
         audio_generators = []
         if hasattr(request.app.state.brain, "generators"):
-            # Hosted image generators (DALL-E, Imagen, etc.) register
-            # themselves through the image-generator registry; admins
-            # enable them in /admin/image-generators per team.
             image_generators = [
                 g.__module__.split("restai.image.workers.")[1]
                 for g in request.app.state.brain.get_generators()
@@ -497,7 +483,6 @@ async def list_accessible_models(
             "audio_generators": audio_generators,
         }
 
-    # Non-admin: aggregate from teams
     teams = db_wrapper.get_teams_for_user(user.id)
     llm_names = set()
     embedding_names = set()

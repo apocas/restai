@@ -64,17 +64,8 @@ async def ldap_auth(request: Request, form_data: UserLogin, db_wrapper: DBWrappe
     if not ENABLE_LDAP:
         raise HTTPException(400, detail="LDAP authentication is not enabled")
 
-    # Refuse empty / whitespace-only passwords BEFORE any LDAP call.
-    # Many AD / OpenLDAP deployments default to performing an
-    # *anonymous bind* when the password is the empty string, which
-    # the server returns as a successful bind — even though no
-    # credential was verified. The handler used to treat that
-    # success as authentication and mint a JWT for the resolved
-    # user, giving an attacker a full session with no password at
-    # all. Rejecting an empty password here closes the bypass even
-    # if the LDAP server itself is misconfigured to allow anonymous
-    # bind. Same shape of error the failed-bind path returns below
-    # so we don't leak whether the username exists.
+    # Refuse empty passwords before LDAP call — AD/OpenLDAP often perform
+    # successful anonymous binds on empty password, opening a no-password ATO.
     if not form_data.password or not form_data.password.strip():
         raise HTTPException(400, f"Authentication failed for {form_data.user}")
 
@@ -287,10 +278,7 @@ async def route_update_user_apikey(
     _: User = Depends(get_current_username_user),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Update an API key's description or monthly token quota. Setting
-    ``token_quota_monthly`` to ``0`` or ``null`` clears the cap
-    (unlimited). ``reset_usage=true`` zeros the current-month counter
-    and pushes ``quota_reset_at`` forward one calendar month."""
+    """Update API key description or monthly token quota."""
     from restai.models.databasemodels import ApiKeyDatabase
     from restai.budget import _first_of_next_month
     user = db_wrapper.get_user_by_username(username)
@@ -307,7 +295,6 @@ async def route_update_user_apikey(
     if body.description is not None:
         key.description = body.description
     if body.token_quota_monthly is not None:
-        # Zero or explicit null → clear the cap (unlimited).
         key.token_quota_monthly = body.token_quota_monthly or None
     if body.reset_usage:
         from datetime import datetime, timezone
@@ -423,15 +410,8 @@ async def route_update_user(
         if not user.is_admin and user_update.is_admin is True:
             raise HTTPException(status_code=403, detail="Insuficient permissions")
 
-        # `is_private` gates access to public LLM / image endpoints.
-        # Allowed to flip:
-        #   - Platform admins.
-        #   - Team admins, but ONLY for OTHER users in a team they
-        #     administer. A team admin must NOT be able to flip
-        #     their own `is_private` — they're in their own team's
-        #     admins list, which used to let them self-bypass the
-        #     privacy boundary by going through the team-admin
-        #     branch. Self-flip is reserved for platform admins.
+        # is_private gates public LLM/image access; team admins MUST NOT flip
+        # their own is_private (would self-bypass the privacy boundary).
         if user_update.is_private is not None and user_update.is_private != user_to_update.is_private:
             can_change = user.is_admin
             if not can_change and user.username != user_to_update.username:
@@ -452,7 +432,6 @@ async def route_update_user(
         if not user.is_admin and user_update.projects is not None:
             raise HTTPException(status_code=403, detail="Only admins can modify project assignments")
 
-        # If changing password and user has 2FA enabled, require TOTP code
         if user_update.password and user_to_update.totp_enabled:
             if not user_update.totp_code:
                 raise HTTPException(status_code=400, detail="TOTP code required to change password when 2FA is enabled")
@@ -525,17 +504,11 @@ async def totp_setup(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Generate a new TOTP secret and recovery codes. Does NOT enable
-    2FA yet — call /enable with a valid code to activate.
+    """Generate a new TOTP secret and recovery codes; does not enable 2FA.
 
-    Step-up auth required:
-      - Always: current password.
-      - If 2FA is currently enabled: also a valid current TOTP code
-        (or recovery code) — without this, a session-only attacker
-        could overwrite the legitimate user's secret with one they
-        control, locking the user out and pivoting to persistent
-        ATO. Mirrors what `/totp/enable` and `/totp/disable` already
-        do for their own mutations.
+    Step-up: always requires password; if 2FA is already enabled, also
+    requires a current TOTP/recovery code (else session-only attacker
+    could overwrite the secret and pivot to persistent ATO).
     """
     import pyotp
     import json
@@ -547,14 +520,10 @@ async def totp_setup(
     if user_db is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Step-up: password (always)
     if not verify_password(body.password, user_db.hashed_password or ""):
         raise HTTPException(status_code=403, detail="Invalid password")
 
-    # Step-up: current TOTP code, ONLY if 2FA is already enabled.
-    # Accept either a 6-digit live TOTP code OR a recovery code so a
-    # user who has lost their authenticator can still rotate the
-    # secret legitimately.
+    # Step-up TOTP if 2FA is already enabled; accept live code OR recovery code.
     if user_db.totp_enabled and user_db.totp_secret:
         if not body.code:
             raise HTTPException(
@@ -564,7 +533,6 @@ async def totp_setup(
         existing_secret = decrypt_totp_secret(user_db.totp_secret)
         ok = pyotp.TOTP(existing_secret).verify(body.code, valid_window=1)
         if not ok:
-            # Try the recovery-code path. Mirrors `/auth/verify-totp`.
             try:
                 stored_codes = json.loads(user_db.totp_recovery_codes or "[]")
             except Exception:
@@ -585,7 +553,6 @@ async def totp_setup(
     provisioning_uri = pyotp.TOTP(secret).provisioning_uri(username, issuer_name=app_name)
     recovery_codes = generate_recovery_codes()
 
-    # Store encrypted secret and hashed recovery codes (but don't enable yet)
     user_db.totp_secret = encrypt_totp_secret(secret)
     user_db.totp_recovery_codes = json.dumps([hash_recovery_code(c) for c in recovery_codes])
     db_wrapper.db.commit()
@@ -664,11 +631,7 @@ async def get_permission_matrix(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Return the users x projects permission matrix.
-
-    Admins see everything. Team leaders see only users and projects
-    belonging to their teams. Regular users get 403.
-    """
+    """Return the users x projects permission matrix."""
     admin_team_ids = {t.id for t in (user.admin_teams or [])}
 
     if not user.is_admin and not admin_team_ids:
@@ -688,7 +651,6 @@ async def get_permission_matrix(
         )
         rows = db_wrapper.db.query(users_projects).all()
     else:
-        # Team leader: filter to their teams
         all_projects = (
             db_wrapper.db.query(ProjectDatabase)
             .outerjoin(TeamDatabase, ProjectDatabase.team_id == TeamDatabase.id)
@@ -698,7 +660,6 @@ async def get_permission_matrix(
         )
         project_ids = {p.id for p in all_projects}
 
-        # Users who belong to those teams (members + admins, single query via union)
         from sqlalchemy import union
         members_q = db_wrapper.db.query(teams_users.c.user_id).filter(teams_users.c.team_id.in_(admin_team_ids))
         admins_q = db_wrapper.db.query(teams_admins.c.user_id).filter(teams_admins.c.team_id.in_(admin_team_ids))

@@ -9,14 +9,7 @@ from restai.models.models import User
 
 
 def resolve_team_for_llm(user: User, llm_name: str, db: DBWrapper) -> Optional[int]:
-    """Resolve which team grants the user access to an LLM.
-
-    Returns:
-        None  - admin bypass (no team_id needed)
-        int   - team_id that grants access
-    Raises:
-        HTTPException 403 if no access
-    """
+    """Returns team_id granting access, None for admin bypass, raises 403 on no access."""
     if user.is_admin:
         return None
 
@@ -24,7 +17,6 @@ def resolve_team_for_llm(user: User, llm_name: str, db: DBWrapper) -> Optional[i
     for team in teams:
         for llm in team.llms:
             if llm.name == llm_name:
-                # Check team budget
                 if team.budget >= 0:
                     spending = db.get_team_spending(team.id)
                     if team.budget - spending <= 0:
@@ -35,7 +27,6 @@ def resolve_team_for_llm(user: User, llm_name: str, db: DBWrapper) -> Optional[i
 
 
 def resolve_team_for_image_generator(user: User, generator_name: str, db: DBWrapper) -> Optional[int]:
-    """Resolve which team grants the user access to an image generator."""
     if user.is_admin:
         return None
 
@@ -53,7 +44,6 @@ def resolve_team_for_image_generator(user: User, generator_name: str, db: DBWrap
 
 
 def resolve_team_for_audio_generator(user: User, generator_name: str, db: DBWrapper) -> Optional[int]:
-    """Resolve which team grants the user access to an audio generator."""
     if user.is_admin:
         return None
 
@@ -71,7 +61,6 @@ def resolve_team_for_audio_generator(user: User, generator_name: str, db: DBWrap
 
 
 def resolve_team_for_embedding(user: User, embedding_name: str, db: DBWrapper) -> Optional[int]:
-    """Resolve which team grants the user access to an embedding model."""
     if user.is_admin:
         return None
 
@@ -100,7 +89,6 @@ def log_direct_usage(
     input_cost: float,
     output_cost: float,
 ):
-    """Log direct access usage to OutputDatabase with project_id=NULL."""
     entry = OutputDatabase(
         user_id=user_id,
         project_id=None,

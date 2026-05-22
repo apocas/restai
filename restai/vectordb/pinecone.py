@@ -25,8 +25,7 @@ class PineconeDB(VectorBase):
         self.embedding = embedding
         self.namespace = _sanitize_namespace(project.props.name)
 
-        # Live read via _cfg.X — admin can rotate the API key in
-        # Settings → VectorDBs without restarting workers.
+        # Live read via `_cfg.X` — admin can rotate the API key without restart.
         self.pc = Pinecone(api_key=_cfg.PINECONE_API_KEY)
         self.pinecone_index = self.pc.Index(_cfg.PINECONE_INDEX)
         self.index = self._vector_init(brain)

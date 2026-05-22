@@ -29,7 +29,6 @@ class _SmtpConfig:
 
 
 def _coalesce(*values) -> str:
-    """Return the first non-empty value, else ``""``."""
     for v in values:
         if v not in (None, ""):
             return v
@@ -87,7 +86,7 @@ def send_email(
     team_id: Optional[int] = None,
     db=None,
 ) -> Tuple[bool, str]:
-    """Send a plain-text email. Returns (ok, detail). Never raises."""
+    """Returns (ok, detail). Never raises."""
     cfg = _resolve_smtp_config(team_id, db)
 
     if not cfg.host:

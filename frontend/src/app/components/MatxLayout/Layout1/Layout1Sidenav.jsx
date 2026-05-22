@@ -8,15 +8,9 @@ import Sidenav from "app/components/Sidenav";
 
 import { sidenavCompactWidth, sideNavWidth } from "app/utils/constant";
 
-// Sidebar root — width is purely CSS-driven from the data-mode attribute.
-// `data-mode="compact"` shrinks to 80px and a CSS :hover rule expands
-// back to 260 (so labels reveal). `data-just-toggled="true"` is a brief
-// gate set right after the user clicks the toggle, so the click feels
-// instant even if the cursor is still inside the sidebar.
-//
-// All label / chevron / badge visibility is also CSS-driven via the
-// same data attributes — every nav item has classes like .nav-label
-// and .nav-trailing that the root selectors hide / show.
+// Width is CSS-driven via data-mode. `data-just-toggled="true"` briefly
+// blocks the hover-expand right after a click so collapsing feels instant
+// even with the cursor still inside the sidebar.
 const SidebarRoot = styled(Box)(() => ({
   position: "fixed",
   top: 0,
@@ -35,7 +29,6 @@ const SidebarRoot = styled(Box)(() => ({
   `,
   borderRight: "1px solid rgba(255,255,255,0.06)",
   boxShadow: "4px 0 24px rgba(0,0,0,0.18)",
-  // Faint grain so the gradient doesn't feel like a Stripe login.
   "&::after": {
     content: '""',
     position: "absolute",
@@ -48,34 +41,26 @@ const SidebarRoot = styled(Box)(() => ({
     opacity: 0.6,
   },
 
-  // ── Compact mode ────────────────────────────────────────────
   '&[data-mode="compact"]': {
     width: sidenavCompactWidth,
   },
-  // Hover-expand (only when not freshly toggled).
   '&[data-mode="compact"]:not([data-just-toggled="true"]):hover': {
     width: sideNavWidth,
   },
 
-  // Hide chrome when in compact mode AND (not hovered OR just-toggled).
-  // The :where selector is just a syntactic shortcut so the long
-  // condition chain stays readable.
   '&[data-mode="compact"]:not(:hover) :where(.nav-label, .nav-trailing, .nav-section-tail, .nav-bullet-text, .brand-name, .brand-actions), &[data-mode="compact"][data-just-toggled="true"] :where(.nav-label, .nav-trailing, .nav-section-tail, .nav-bullet-text, .brand-name, .brand-actions)': {
     display: "none !important",
   },
-  // Section labels collapse to a centred 14×2 tick.
   '&[data-mode="compact"]:not(:hover) .nav-section, &[data-mode="compact"][data-just-toggled="true"] .nav-section': {
     justifyContent: "center !important",
     padding: "0 !important",
     "& .nav-section-tick": { width: 14, height: 2 },
   },
-  // Nav items: drop margins/padding and centre icons in the 80-px column.
   '&[data-mode="compact"]:not(:hover) .nav-item, &[data-mode="compact"][data-just-toggled="true"] .nav-item': {
     justifyContent: "center !important",
     padding: "0 !important",
     margin: "2px 8px !important",
   },
-  // Brand collapses to just the logo, centred.
   '&[data-mode="compact"]:not(:hover) .brand-root, &[data-mode="compact"][data-just-toggled="true"] .brand-root': {
     justifyContent: "center !important",
     padding: "20px 0 18px !important",
@@ -103,9 +88,8 @@ const Layout1Sidenav = () => {
 
   const handleToggle = () => {
     const goingToCompact = !isCompact;
-    // Suppress hover-expand only when collapsing — full→compact with
-    // the cursor still inside the sidebar would otherwise re-expand.
-    // Compact→full doesn't need suppression (sidebar's expanding anyway).
+    // Suppress hover only when collapsing; full→compact with cursor inside
+    // would otherwise re-expand. Compact→full doesn't need suppression.
     if (goingToCompact) {
       lockRef.current = true;
       setJustToggled(true);

@@ -1,16 +1,4 @@
-"""AssemblyAI speech-to-text.
-
-Uses the official `assemblyai` SDK. Reads the API key from
-`options.api_key`; speech model and language detection are configurable.
-
-Options recognized:
-- `api_key`           (required).
-- `speech_model`      (optional, default `"best"`) — `"best"` or `"nano"`.
-- `language_code`     (optional) — e.g. `"en_us"`. Falls back to request
-                                   `language`. Set `"en"` plus `language_detection=true`
-                                   for auto-detect.
-- `language_detection` (optional, default false).
-"""
+"""AssemblyAI speech-to-text."""
 from __future__ import annotations
 
 

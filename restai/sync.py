@@ -1,5 +1,3 @@
-"""Knowledge Base Sync — source-specific sync functions used by the cron script and manual trigger."""
-
 import json
 import logging
 import os
@@ -14,8 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 def _extract_entities_for_documents(project, documents, db, brain):
-    """Group documents by source metadata and extract entities for each source.
-    Only runs if knowledge graph is enabled on the project."""
     if not project.props.options.enable_knowledge_graph:
         return
     if not brain:
@@ -37,7 +33,6 @@ def _extract_entities_for_documents(project, documents, db, brain):
 
 
 def _sync_source(project, source, db, brain=None):
-    """Sync a single SyncSource into the project's knowledge base."""
     if source.type == "url":
         _sync_url(project, source, db, brain)
     elif source.type == "s3":
@@ -53,7 +48,6 @@ def _sync_source(project, source, db, brain=None):
 
 
 def _sync_url(project, source, db, brain=None):
-    """Sync a web URL source."""
     from urllib.parse import urlparse
     from restai.helper import _is_private_ip
     from restai.loaders.url import SeleniumWebReader
@@ -62,9 +56,6 @@ def _sync_url(project, source, db, brain=None):
     logger.info(f"Syncing URL source '{source.name}': {source.url}")
 
     # SSRF guard — refuse loopback / private / link-local destinations.
-    # An admin-configured source still shouldn't be allowed to point the
-    # cron's headless browser at the cloud metadata service or an
-    # internal LAN host.
     try:
         hostname = urlparse(source.url).hostname
     except Exception:
@@ -103,7 +94,6 @@ def _sync_url(project, source, db, brain=None):
 
 
 def _sync_s3(project, source, db, brain=None):
-    """Sync files from an S3 bucket."""
     from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
     from modules.loaders import find_file_loader
 
@@ -178,7 +168,6 @@ def _sync_s3(project, source, db, brain=None):
 
 
 def _sync_confluence(project, source, db, brain=None):
-    """Sync pages from a Confluence Cloud space."""
     import requests
     from llama_index.core.schema import Document
     from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
@@ -266,7 +255,6 @@ def _sync_confluence(project, source, db, brain=None):
 
 
 def _sync_sharepoint(project, source, db, brain=None):
-    """Sync files from a SharePoint Online document library via Microsoft Graph API."""
     import requests as req
     from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
     from modules.loaders import find_file_loader
@@ -375,7 +363,6 @@ def _sync_sharepoint(project, source, db, brain=None):
 
 
 def _sync_gdrive(project, source, db, brain=None):
-    """Sync files from a Google Drive folder via service account."""
     import requests as req
     from llama_index.core.schema import Document
     from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
@@ -518,10 +505,8 @@ def _sync_gdrive(project, source, db, brain=None):
     logger.info(f"Google Drive source '{source.name}' synced: {len(all_documents)} files, {n_chunks} chunks")
 
 
-# --- Manual trigger (used by the "Sync Now" button in the frontend) ---
-
 def run_sync_now(project_id: int, brain):
-    """Run a one-off sync in a background thread. Ignores intervals — syncs all sources immediately."""
+    """Run a one-off sync in a background thread, ignoring intervals."""
     def _run():
         from restai.models.databasemodels import ProjectDatabase
 

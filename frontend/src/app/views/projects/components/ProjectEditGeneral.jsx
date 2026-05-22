@@ -16,6 +16,7 @@ const MODEL_ACCENT  = "#8b5cf6";
 const CACHE_ACCENT  = "#f59e0b";
 const MEM_ACCENT    = "#ec4899";
 const BROWSER_ACCENT = "#14b8a6";
+const LOOP_ACCENT   = "#6366f1";
 
 const HelpTip = ({ text }) => (
   <Tooltip title={text} placement="top" arrow>
@@ -244,6 +245,31 @@ export default function ProjectEditGeneral({
             )}
           </Box>
         </Section>
+
+        {/* ── AGENT LOOP (agent only) ───────────────────────── */}
+        {state.type === "agent" && (
+          <Section accent={LOOP_ACCENT}>
+            <SectionHeader
+              title="Agent Loop"
+              accent={LOOP_ACCENT}
+              subtitle="Underlying agent runtime. 'RESTai' is our in-house loop and works with any platform LLM. 'Claude SDK' drives the Anthropic Claude Agent SDK directly — requires an Anthropic-class LLM. 'LlamaIndex' drops to the upstream llama-index AgentWorkflow — works with any platform LLM. 'smolagents' uses HuggingFace's ToolCallingAgent — talks directly to OpenAI-compatible endpoints (OpenAI, Ollama, vLLM, Grok, Azure); only Anthropic / Gemini / Bedrock go through a LiteLLM fallback. 'OpenAI SDK' drives the OpenAI Agents SDK directly — requires an OpenAI-class LLM."
+            />
+            <TextField
+              select
+              fullWidth size="small"
+              InputLabelProps={{ shrink: true }}
+              label="Agent Loop"
+              value={opts.agent_loop || "restai"}
+              onChange={(e) => setState({ ...state, options: { ...state.options, agent_loop: e.target.value } })}
+            >
+              <MenuItem value="restai">RESTai (default — works with any LLM)</MenuItem>
+              <MenuItem value="claude">Claude SDK (requires Anthropic LLM)</MenuItem>
+              <MenuItem value="llamaindex">LlamaIndex (upstream AgentWorkflow — any LLM)</MenuItem>
+              <MenuItem value="smolagents">smolagents (HuggingFace — most LLMs)</MenuItem>
+              <MenuItem value="openai_agents">OpenAI SDK (requires OpenAI LLM)</MenuItem>
+            </TextField>
+          </Section>
+        )}
 
         {/* ── MEMORY (agent only) ───────────────────────────── */}
         {state.type === "agent" && (

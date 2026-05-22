@@ -35,7 +35,6 @@ def generate(
     else:
         raise Exception("No file provided. Please upload an audio file.")
 
-    # Save sharedmem to a temp file for IPC
     sharedmem_file = tempfile.NamedTemporaryFile(delete=False)
     with open(sharedmem_file.name, "wb") as f:
         pickle.dump(dict(sharedmem), f)
@@ -51,24 +50,20 @@ def generate(
                     venv_python = module.get_python_executable()
                 else:
                     print("No venv_python provided, using main python env.")
-                    venv_python = sys.executable  # fallback to current python
+                    venv_python = sys.executable
 
-            # Set PYTHONPATH so the worker subprocess can import the restai package
             env = os.environ.copy()
             project_root = os.path.dirname(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             )
             env["PYTHONPATH"] = project_root
 
-            # Set CUDA_VISIBLE_DEVICES from settings if configured
             from restai import config
             if config.GPU_WORKER_DEVICES:
                 env["CUDA_VISIBLE_DEVICES"] = config.GPU_WORKER_DEVICES
 
-            # Suppress tqdm / huggingface_hub progress bars when the
-            # parent's stdout isn't a terminal — under systemd/docker
-            # the carriage-return + ANSI escapes get logged as
-            # `[NNN blob data]` lines. Interactive runs keep the bars.
+            # When parent stdout isn't a TTY (systemd/docker), tqdm/HF
+            # carriage-return + ANSI escapes get logged as `[NNN blob data]` lines.
             if not sys.stdout.isatty():
                 env.setdefault("TQDM_DISABLE", "1")
                 env.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
@@ -90,7 +85,6 @@ def generate(
                 env=env,
             )
 
-        # Load sharedmem back
         with open(sharedmem_file.name, "rb") as f:
             sharedmem_result = pickle.load(f)
 

@@ -16,7 +16,6 @@ def generate(manager, worker, imageModel, options: dict = None, venv_python: str
     sharedmem["prompt"] = imageModel.prompt
     sharedmem["options"] = options
 
-    # Save sharedmem to a temp file for IPC
     sharedmem_file = tempfile.NamedTemporaryFile(delete=False)
     with open(sharedmem_file.name, "wb") as f:
         pickle.dump(dict(sharedmem), f)
@@ -30,33 +29,26 @@ def generate(manager, worker, imageModel, options: dict = None, venv_python: str
                 if hasattr(module, 'get_python_executable'):
                     venv_python = module.get_python_executable()
                 else:
-                    venv_python = sys.executable  # fallback to current python
-            
-            # Set PYTHONPATH so the worker subprocess can import the restai package
+                    venv_python = sys.executable
+
             env = os.environ.copy()
-            # Project root is 3 levels up from this file (restai/restai/image/runner.py)
+            # Project root is 3 levels up: restai/restai/image/runner.py
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             env["PYTHONPATH"] = project_root
 
-            # Set CUDA_VISIBLE_DEVICES from settings if configured
             from restai import config
             if config.GPU_WORKER_DEVICES:
                 env["CUDA_VISIBLE_DEVICES"] = config.GPU_WORKER_DEVICES
 
-            # When the parent's stdout isn't a terminal (systemd, docker,
-            # k8s) the carriage-return + ANSI escapes that tqdm /
-            # huggingface_hub use for progress bars get logged by
-            # journald as `[NNN blob data]` lines. Disable progress bars
-            # in the worker subprocess so journald sees plain text.
-            # Interactive runs (TTY) keep the bars.
+            # When parent stdout isn't a TTY (systemd/docker/k8s), tqdm/HF
+            # carriage-return + ANSI escapes get logged by journald as
+            # `[NNN blob data]` lines. Disable progress bars so journald sees plain text.
             if not sys.stdout.isatty():
                 env.setdefault("TQDM_DISABLE", "1")
                 env.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
 
-            # Inherit parent stdout/stderr so diffusers progress bars and
-            # tracebacks land in the API console live. We used to capture
-            # output and only surface it on failure, which left the admin
-            # staring at a silent terminal for 30+ s while the model ran.
+            # Inherit parent stdout/stderr so diffusers progress bars and tracebacks
+            # land in the API console live (capturing left admins staring at a silent terminal).
             result = subprocess.run([
                 venv_python,
                 os.path.join(os.path.dirname(__file__), "worker_entry.py"),
@@ -69,7 +61,6 @@ def generate(manager, worker, imageModel, options: dict = None, venv_python: str
                 logging.error(f"Image worker {worker_module} failed (exit {result.returncode}) — traceback above.")
                 raise subprocess.CalledProcessError(result.returncode, result.args)
 
-        # Load sharedmem back
         with open(sharedmem_file.name, "rb") as f:
             sharedmem_result = pickle.load(f)
 

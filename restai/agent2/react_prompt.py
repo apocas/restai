@@ -1,12 +1,4 @@
-"""Text-based ReAct mode for agent2.
-
-Used as a fallback when an LLM doesn't support native function calling. The
-runtime augments the system prompt with tool descriptions + a strict response
-format, sends NO `tools=` array to the provider, and parses the LLM's plain
-text reply for `Action:` / `Action Input:` / `Final Answer:` patterns.
-
-This module is pure functions + a small parse-result dataclass — no I/O.
-"""
+"""Text-based ReAct fallback for LLMs without native function calling."""
 from __future__ import annotations
 
 import json
@@ -43,11 +35,7 @@ Rules:
 """
 
 
-# ---------- system prompt rendering ----------
-
-
 def _condense_property(name: str, prop: dict) -> str:
-    """Render one JSON-schema property as `name: type` (with optional default)."""
     ptype = prop.get("type", "any")
     if ptype == "array":
         items = prop.get("items") or {}
@@ -60,7 +48,6 @@ def _condense_property(name: str, prop: dict) -> str:
 
 
 def format_tool_for_react(tool: AdaptedTool) -> str:
-    """Render one tool as a compact prompt-friendly description block."""
     schema = tool.input_schema or {}
     properties = schema.get("properties") or {}
     required = set(schema.get("required") or [])
@@ -79,11 +66,9 @@ def format_tool_for_react(tool: AdaptedTool) -> str:
 
 
 def build_react_system_prompt(base_system: str, tools: Sequence[AdaptedTool]) -> str:
-    """Compose the augmented system prompt the LLM sees in ReAct mode."""
     base = (base_system or "You are a helpful assistant.").strip()
 
     if not tools:
-        # No tools — degenerate case; just ask the model to answer directly.
         return (
             base
             + "\n\nYou have no tools available. Respond directly with:\n"
@@ -97,9 +82,6 @@ def build_react_system_prompt(base_system: str, tools: Sequence[AdaptedTool]) ->
         tool_descriptions=descriptions,
         tool_names=names,
     )
-
-
-# ---------- response parser ----------
 
 
 @dataclass
@@ -125,7 +107,6 @@ _FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL)
 
 
 def _strip_fences(text: str) -> str:
-    """If the text contains a ```json``` block, return its inner JSON; else return text."""
     m = _FENCE_RE.search(text)
     if m:
         return m.group(1)
@@ -136,12 +117,7 @@ _JSON_DECODER = json.JSONDecoder()
 
 
 def _try_load_json(text: str) -> Optional[dict]:
-    """Try to parse a JSON object out of `text`. Returns the dict or None.
-
-    Uses `json.JSONDecoder.raw_decode` to consume exactly one JSON value
-    starting at the first `{`, which tolerates trailing junk after the
-    object (a common LLM output pattern).
-    """
+    """Parse one JSON object from text; tolerates trailing junk via raw_decode."""
     text = (text or "").strip()
     if not text:
         return None
@@ -165,13 +141,7 @@ def _try_load_json(text: str) -> Optional[dict]:
 
 
 def parse_react_response(text: str) -> ReactParseResult:
-    """Parse a raw LLM response in ReAct format.
-
-    Returns one of:
-        ReactParseResult(kind="action", thought, action_name, action_input)
-        ReactParseResult(kind="final", thought, final_text)
-        ReactParseResult(kind="text", final_text)   # parser couldn't find structured output
-    """
+    """Parse a raw LLM response in ReAct format."""
     if not text:
         return ReactParseResult(kind="text", final_text="")
 
@@ -184,9 +154,7 @@ def parse_react_response(text: str) -> ReactParseResult:
     # If both Action and Final Answer appear, action wins (model is still working)
     if action_match:
         name = action_match.group(1).strip()
-        # Strip surrounding quotes / backticks the model sometimes adds
         name = name.strip().strip("`'\"")
-        # Cut off anything after a newline or stray backtick block
         name = name.split("\n", 1)[0].strip()
 
         input_dict: dict = {}
@@ -218,6 +186,6 @@ def parse_react_response(text: str) -> ReactParseResult:
             final_text=final_match.group(1).strip(),
         )
 
-    # No structured output found — treat the whole response as a final answer
-    # so the loop terminates instead of hanging.
+    # Fall back to treating the whole response as final so the loop terminates
+    # instead of hanging.
     return ReactParseResult(kind="text", final_text=text.strip())

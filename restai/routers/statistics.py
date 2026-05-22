@@ -185,9 +185,6 @@ async def get_daily_tokens(
                     "output_tokens": row.output_tokens or 0,
                     "input_cost": row.input_cost or 0,
                     "output_cost": row.output_cost or 0,
-                    # Float, not int. The dashboard sparkline + hero chip
-                    # expect a number that can be 0; null would force callers
-                    # to do extra defensive checks for empty days.
                     "avg_latency_ms": round(row.avg_latency_ms) if row.avg_latency_ms else 0,
                 }
                 for row in daily
@@ -306,7 +303,6 @@ async def get_user_activity(
         func.count(func.distinct(OutputDatabase.chat_id))
     ).filter(*base_filter, OutputDatabase.chat_id.isnot(None)).scalar() or 0
 
-    # Daily
     daily_rows = (
         db_wrapper.db.query(
             func.date(OutputDatabase.date).label("date"),
@@ -319,7 +315,6 @@ async def get_user_activity(
         .all()
     )
 
-    # Top projects
     project_rows = (
         db_wrapper.db.query(
             OutputDatabase.project_id,
@@ -335,7 +330,6 @@ async def get_user_activity(
         .all()
     )
 
-    # Hourly
     hourly_rows = (
         db_wrapper.db.query(
             func.extract("hour", OutputDatabase.date).label("hour"),

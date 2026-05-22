@@ -58,7 +58,6 @@ async def api_get_llms(
     all_llms = db_wrapper.get_llms()
 
     if not user.is_admin:
-        # Get LLM names accessible via user's teams
         allowed_names = set()
         for team in user.teams:
             for llm in (team.llms if hasattr(team, 'llms') and team.llms else []):

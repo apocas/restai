@@ -24,10 +24,7 @@ def adjust_pauses_for_hf_pipeline_output(pipeline_output, split_threshold=0.12):
             else:
                 distribute = pause_duration / 2
 
-            # Adjust current chunk end time
             adjusted_chunks[i]["timestamp"] = (current_start, current_end + distribute)
-
-            # Adjust next chunk start time
             adjusted_chunks[i + 1]["timestamp"] = (next_start - distribute, next_end)
     pipeline_output["chunks"] = adjusted_chunks
 

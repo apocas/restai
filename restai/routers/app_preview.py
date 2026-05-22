@@ -1,13 +1,4 @@
-"""Reverse proxy for the App-Builder live preview.
-
-Forwards every request under ``/projects/{projectID}/app/preview/{path:path}``
-to the project's per-project Docker container. Same-origin so the IDE iframe
-stays under the RESTai cookie / CSP, no CORS gymnastics.
-
-Spins the container on first hit (via ``brain.app_manager.get_or_create``),
-records every request as activity (so the cleanup cron doesn't kill an
-actively-used preview).
-"""
+"""Reverse proxy for the App-Builder live preview."""
 
 from __future__ import annotations
 
@@ -33,23 +24,18 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-# RFC 7230 hop-by-hop headers — must NOT be forwarded across a proxy. Plus
-# Host (we'll set our own) and Content-Length (httpx recomputes). Lower-case
-# because we normalize on the way in.
+# RFC 7230 hop-by-hop headers — must NOT be forwarded across a proxy.
+# Plus Host (we set our own) and Content-Length (httpx recomputes).
 _HOP_BY_HOP = {
     "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
     "te", "trailers", "transfer-encoding", "upgrade",
     "host", "content-length",
 }
 
-# Response headers to drop on the way back. X-Frame-Options would block the
-# iframe embed; strip it so the IDE can render the preview. CSP is left
-# intact — the generated app's own CSP, if any, applies inside the iframe.
+# Drop X-Frame-Options so the iframe embed works. CSP left intact.
+# Drop transfer-encoding so Starlette doesn't double-chunk.
 _RESPONSE_HEADERS_TO_STRIP = {
     "x-frame-options",
-    # The container speaks HTTP/1.1; we forward as ASGI. Drop transfer
-    # encoding so Starlette can recompute (otherwise some clients see a
-    # double "chunked" header).
     "transfer-encoding",
     "connection",
     "keep-alive",
@@ -69,11 +55,9 @@ def _filter_request_headers(headers) -> dict:
 def _rewrite_set_cookie(value: str, mount: str) -> str:
     """Rewrite ``Set-Cookie`` ``Path=`` to live under the proxy mount.
 
-    Generated PHP that calls ``session_start()`` will set ``Path=/`` — under
-    the proxy that means the cookie scopes to the entire RESTai domain,
-    which is wrong (it would be sent to /admin, /api/v1, etc.) AND clashes
-    with RESTai's own cookies. Rewriting to the mount path scopes it to
-    the iframe.
+    PHP session_start() sets Path=/ — under the proxy that scopes the
+    cookie to the entire RESTai domain (sent to /admin, /api/v1, etc.)
+    and clashes with RESTai's own cookies.
     """
     parts = [p.strip() for p in value.split(";")]
     new_parts: list[str] = []
@@ -100,8 +84,7 @@ def _filter_response_headers(items: Iterable[tuple[str, str]], mount: str) -> li
         if lower == "set-cookie":
             out.append((name, _rewrite_set_cookie(value, mount)))
         elif lower == "location":
-            # Redirects to / inside the container should land back on the
-            # mount, not on the RESTai root.
+            # Redirects to / inside the container should land back on the mount.
             if value.startswith("/"):
                 out.append((name, mount.rstrip("/") + value))
             else:
@@ -112,8 +95,7 @@ def _filter_response_headers(items: Iterable[tuple[str, str]], mount: str) -> li
 
 
 async def _ensure_app_running(request: Request, projectID: int, db_wrapper: DBWrapper):
-    """Resolve the project, assert it's an `app`, and start its container if
-    needed. Returns the host port the container listens on."""
+    """Resolve the project, assert app type, start container if needed; returns host port."""
     brain = request.app.state.brain
     project = brain.find_project(projectID, db_wrapper)
     if project is None:
@@ -182,16 +164,12 @@ async def _proxy(request: Request, projectID: int, path: str, db_wrapper: DBWrap
     body = await request.body()
     forward_headers = _filter_request_headers(request.headers)
     forward_headers["Host"] = f"127.0.0.1:{port}"
-    # Helpful for the generated app to know it's behind a proxy.
     forward_headers["X-Forwarded-Prefix"] = mount.rstrip("/")
     forward_headers["X-Forwarded-Proto"] = request.url.scheme
     if request.client:
         forward_headers["X-Forwarded-For"] = request.client.host
 
     try:
-        # New client per request: simple, safe, the connection cost is
-        # negligible against localhost. We can pool later if it ever shows
-        # up in profiles.
         async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=120.0), follow_redirects=False) as client:
             upstream = await client.request(
                 request.method,
@@ -259,10 +237,7 @@ async def route_app_runtime_status(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Cheap status check — no side effects. Tells the IDE whether the
-    runtime is enabled, whether a container is running, and the host port
-    if so. The iframe uses this before issuing the heavy first preview
-    fetch (which would spin the container)."""
+    """Cheap status check — no side effects."""
     brain = request.app.state.brain
     project = brain.find_project(projectID, db_wrapper)
     if project is None:

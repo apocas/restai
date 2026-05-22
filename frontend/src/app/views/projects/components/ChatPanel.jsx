@@ -15,10 +15,8 @@ const HiddenInput = styled("input")({ display: "none" });
 
 const url = process.env.REACT_APP_RESTAI_API_URL || "";
 
-// Map a status code + optional server detail to user-friendly copy.
-// Called from both the streaming and non-streaming error paths so the
-// user sees consistent messaging regardless of transport. Translated
-// via `t()` so every locale can re-word these from `chat.error.*`.
+// Called from both streaming and non-streaming error paths so messaging is
+// consistent regardless of transport.
 function formatChatError(t, status, detail) {
   const d = (detail || "").toString().trim();
   switch (status) {
@@ -61,6 +59,12 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
   // status ∈ "pending" | "running" | "done"
   const [streamingPlan, setStreamingPlan] = useState(null);
   const [streamingToolCalls, setStreamingToolCalls] = useState([]);
+  // Mirror of streamingToolCalls in a ref so `onclose` can read the
+  // latest value without going through a setter callback (which gets
+  // double-invoked under React 18 StrictMode). Useful only for the
+  // hand-off into the committed message — the rendered state still
+  // comes from `streamingToolCalls`.
+  const streamingToolCallsRef = useRef([]);
   const scrollRef = useRef(null);
   // AbortController for the in-flight streaming fetch. Kept in a ref so
   // the Stop button can access the live controller without triggering
@@ -75,19 +79,15 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
   // per-conversation container reuse model.
   const sessionChatIdRef = useRef(null);
 
-  // Branching: each branch is { name: string, messages: array }
-  // branches is empty when there's only one thread (no branching yet)
   const [branches, setBranches] = useState([]);
   const [activeBranchIdx, setActiveBranchIdx] = useState(-1); // -1 = no branches
 
-  // Save current messages into the active branch
   const saveCurrentBranch = useCallback((currentMessages) => {
     if (activeBranchIdx >= 0) {
       setBranches(prev => prev.map((b, i) => i === activeBranchIdx ? { ...b, messages: currentMessages } : b));
     }
   }, [activeBranchIdx]);
 
-  // Sync messages into active branch whenever they change
   useEffect(() => {
     if (activeBranchIdx >= 0 && messages.length > 0) {
       saveCurrentBranch(messages);
@@ -98,7 +98,6 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     const branchPoint = messages.slice(0, messageIndex + 1);
 
     if (branches.length === 0) {
-      // First branch: create "Main" (full current conversation) + the new branch
       const mainBranch = { name: "Main", messages: [...messages] };
       const newNum = 1;
       const newBranch = { name: `Branch ${newNum}`, messages: [...branchPoint] };
@@ -106,7 +105,6 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       setMessages([...branchPoint]);
       setActiveBranchIdx(1);
     } else {
-      // Save current branch, then create a new one
       const newNum = branches.length;
       const newBranch = { name: `Branch ${newNum}`, messages: [...branchPoint] };
       setBranches(prev => {
@@ -121,7 +119,6 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
 
   const switchBranch = useCallback((targetIdx) => {
     if (targetIdx === activeBranchIdx) return;
-    // Save current, load target
     setBranches(prev => {
       const updated = [...prev];
       if (activeBranchIdx >= 0 && updated[activeBranchIdx]) {
@@ -137,12 +134,10 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     setBranches(prev => {
       const updated = prev.filter((_, i) => i !== targetIdx);
       if (updated.length <= 1) {
-        // Only one branch left, dissolve branching
         if (updated.length === 1) setMessages([...updated[0].messages]);
         setActiveBranchIdx(-1);
         return [];
       }
-      // Adjust active index
       let newActive = activeBranchIdx;
       if (targetIdx === activeBranchIdx) {
         newActive = Math.min(targetIdx, updated.length - 1);
@@ -166,7 +161,6 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     }
   }, [messages, streamingText, autoScroll]);
 
-  // Handle shared question from compare mode
   useEffect(() => {
     if (sharedQuestion && sharedQuestion.text) {
       // Legacy sharedQuestion.image (data URL) is converted into a single
@@ -233,6 +227,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     setStreamingText("");
     setStreamingPlan(null);
     setStreamingToolCalls([]);
+    streamingToolCallsRef.current = [];
 
     let accumulated = "";
     let finalOutput = null;
@@ -273,7 +268,6 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         try {
           const data = JSON.parse(ev.data);
           if (data.answer !== undefined && data.type !== undefined) {
-            // Final output with full metadata
             finalOutput = data;
             if (data.id && !sessionChatIdRef.current) {
               sessionChatIdRef.current = data.id;
@@ -314,25 +308,40 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
             });
           } else if (data.tool_call_started) {
             const { id, tool, args } = data.tool_call_started;
-            setStreamingToolCalls((cur) => [
-              ...cur,
-              { id, tool, args, status: "running", startedAt: Date.now() },
-            ]);
+            setStreamingToolCalls((cur) => {
+              const next = [...cur, { id, tool, args, status: "running", startedAt: Date.now() }];
+              streamingToolCallsRef.current = next;
+              return next;
+            });
           } else if (data.tool_call_completed) {
             const { id, status, latency_ms, output, error } = data.tool_call_completed;
-            setStreamingToolCalls((cur) =>
-              cur.map((entry) =>
+            setStreamingToolCalls((cur) => {
+              const next = cur.map((entry) =>
                 entry.id === id
                   ? { ...entry, status, latency_ms, output, error }
                   : entry
-              )
-            );
+              );
+              streamingToolCallsRef.current = next;
+              return next;
+            });
           }
         } catch (e) {
-          // Non-JSON chunk, ignore
         }
       },
       onclose() {
+        // Snapshot the live tool calls BEFORE clearing them — PlaygroundLanes'
+        // Tools lane reads `msg.live_tool_calls` for both the in-flight
+        // placeholder and the committed turn after streaming ends. Without
+        // this hand-off, the lane goes empty the moment the final message
+        // replaces the placeholder (the backend's `tool_trace` field is
+        // for the logs table, not the lane derivation).
+        //
+        // Read from the ref (kept in sync inside the tool_call_started /
+        // tool_call_completed handlers) rather than the closure variable
+        // — the closure captured the value from the render when
+        // handleSubmit was called (empty array).
+        const finalToolCalls = streamingToolCallsRef.current.slice();
+        streamingToolCallsRef.current = [];
         setStreamingText("");
         setStreamingPlan(null);
         setStreamingToolCalls([]);
@@ -340,7 +349,13 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
           setMessages(prev => {
             const updated = [...prev];
             const placeholder = updated[updated.length - 1] || {};
-            updated[updated.length - 1] = { ...finalOutput, _files: placeholder._files };
+            updated[updated.length - 1] = {
+              ...finalOutput,
+              _files: placeholder._files,
+              live_tool_calls: finalToolCalls.length > 0
+                ? finalToolCalls
+                : (finalOutput.live_tool_calls || placeholder.live_tool_calls || []),
+            };
             return updated;
           });
           if (finalOutput.guard) {
@@ -369,15 +384,22 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         streamAbortRef.current = null;
         if (onQuestionSent) onQuestionSent();
         // We intentionally do NOT throw here — fetchEventSource's
-        // auto-reconnect is a feature for resilience. The chat_id is
-        // minted client-side (see sessionChatIdRef in sendMessage) and
-        // included in every POST body, so reconnects land on the same
-        // backend chat → same DockerManager container, no state loss.
+        // auto-reconnect is wanted: on a perceived drop it re-POSTs
+        // with the SSE `Last-Event-ID` header set, and the backend's
+        // chat_resume layer (restai/chat_resume.py) attaches the new
+        // connection to the in-flight session, replays missed events
+        // from the buffer, then tails live. So no duplicated LLM
+        // invocation, no re-cloned repos. When the stream cleanly
+        // ended this onclose runs after the final event has already
+        // been processed, so a benign reconnect arrives, immediately
+        // finds the session already in `done` state, and returns the
+        // tail (zero events) before closing again.
       },
       onerror(err) {
         setStreamingText("");
         setStreamingPlan(null);
         setStreamingToolCalls([]);
+        streamingToolCallsRef.current = [];
         // Intentional user abort — keep whatever text we accumulated
         // as the final answer and exit quietly, no error bubble, no
         // toast. Aborting via AbortController surfaces here as a
@@ -442,7 +464,6 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       return;
     }
 
-    // Non-streaming path
     const fileRefs = (attachments || []).map((f) => ({
       name: f.name, size: f.size, mime_type: f.mime_type,
       isImage: f.isImage, dataUrl: f.isImage ? f.dataUrl : null,
@@ -515,13 +536,73 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     }
   };
 
-  // Stop the in-flight stream. onerror handles the aborted branch and
-  // keeps whatever text was accumulated. No-op when nothing's in flight.
+  // Stop the in-flight stream. Three things happen, in order:
+  //  1. POST /chat/stop server-side — the agent runs as a detached
+  //     producer task (for SSE resume), so client-side abort alone
+  //     can't kill it. The stop endpoint cancels the producer task
+  //     and marks the session done with a final 'stopped' marker.
+  //  2. controller.abort() — closes our SSE subscriber.
+  //  3. Commit the live streaming state (thoughts text / plan / tool
+  //     calls) into the placeholder message BEFORE clearing it, and
+  //     flip isLoading off ourselves. With the resume layer in the
+  //     middle, fetchEventSource's onerror/onclose don't always fire
+  //     promptly after abort, so we can't rely on them to (a) flip
+  //     the button or (b) preserve the lanes the user was watching.
+  // No-op when nothing's in flight.
   const handleStopStreaming = () => {
     const controller = streamAbortRef.current;
+    const chatId = sessionChatIdRef.current;
+    if (chatId) {
+      // Fire-and-forget — we don't want the abort to block on the POST.
+      // Worst case the producer keeps running until its natural end;
+      // the inflight UI clears either way.
+      api.post(`/projects/${project.id}/chat/stop`, { id: chatId }, auth.user.token)
+        .catch(() => { /* server already stopped, or stale chat_id */ });
+    }
     if (controller) {
       try { controller.abort(); } catch {}
     }
+
+    // Snapshot the live state so the Thoughts / Tools / Plan lanes
+    // keep what the user was watching when they hit stop. Read the
+    // ref (not streamingToolCalls state) because that ref is the
+    // source of truth — see the comment in onclose.
+    const stoppedToolCalls = streamingToolCallsRef.current.slice();
+    const stoppedText = streamingText;
+    const stoppedPlan = streamingPlan;
+
+    setMessages(prev => {
+      if (prev.length === 0) return prev;
+      const placeholder = prev[prev.length - 1] || {};
+      // If onclose/onerror already committed a real answer, leave the
+      // committed message alone — don't overwrite a successful turn
+      // with a "stopped" suffix.
+      if (placeholder.answer != null && placeholder.answer !== "") {
+        return prev;
+      }
+      const updated = [...prev];
+      const prevId = updated.length > 1 ? updated[updated.length - 2]?.id : undefined;
+      const stoppedSuffix = `_${t("chat.stoppedSuffix")}_`;
+      updated[updated.length - 1] = {
+        ...placeholder,
+        answer: stoppedText ? `${stoppedText}\n\n${stoppedSuffix}` : stoppedSuffix,
+        sources: placeholder.sources || [],
+        id: prevId,
+        live_tool_calls: stoppedToolCalls.length > 0
+          ? stoppedToolCalls
+          : (placeholder.live_tool_calls || []),
+        plan: stoppedPlan?.plan || placeholder.plan,
+        step_summaries: stoppedPlan?.steps || placeholder.step_summaries,
+      };
+      return updated;
+    });
+
+    setIsLoading(false);
+    setStreamingText("");
+    setStreamingPlan(null);
+    setStreamingToolCalls([]);
+    streamingToolCallsRef.current = [];
+    streamAbortRef.current = null;
   };
 
   const handleKeyDown = (e) => {
@@ -587,6 +668,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     setStreamingText("");
     setStreamingPlan(null);
     setStreamingToolCalls([]);
+    streamingToolCallsRef.current = [];
     setFiles([]);
     setBranches([]);
     setActiveBranchIdx(-1);
@@ -596,7 +678,8 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     sessionChatIdRef.current = null;
   };
 
-  const showUpload = project.type === "agent" || project.type === "block";
+  const isAgent = project.type === "agent";
+  const showUpload = isAgent || project.type === "block";
 
   // Fill the parent's height (parent owns its own height — Card,
   // Lane, Grid item, whatever). `compact` no longer caps at a fixed
@@ -608,7 +691,6 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: rootHeight, minHeight: rootMinHeight }}>
-      {/* Branch tabs */}
       {branches.length > 0 && (
         <Box sx={{ display: "flex", gap: 0.5, px: 2, py: 1, borderBottom: 1, borderColor: "divider", flexWrap: "wrap", alignItems: "center" }}>
           <CallSplit sx={{ fontSize: 16, color: "text.secondary", mr: 0.5 }} />
@@ -679,7 +761,6 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         </Box>
       )}
 
-      {/* Attachments preview — thumbnails for images, chips for files */}
       {!hideInput && files.length > 0 && (
         <Box sx={{ px: 2, pb: 1, display: "flex", flexWrap: "wrap", gap: 0.75, alignItems: "center" }}>
           {files.map((f, i) => (
@@ -733,7 +814,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         />
         {showUpload && (
           <>
-            <Tooltip title={project.type === "agent" ? t("chat.attachFiles") : t("chat.attachImage")}>
+            <Tooltip title={isAgent ? t("chat.attachFiles") : t("chat.attachImage")}>
               <label htmlFor={`attach-${project.id}-${systemOverride ? "b" : "a"}`}>
                 <Fab color="default" size="small" component="span">
                   <AttachFile fontSize="small" />
@@ -744,8 +825,8 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
               onChange={handleAttachFiles}
               id={`attach-${project.id}-${systemOverride ? "b" : "a"}`}
               type="file"
-              multiple={project.type === "agent"}
-              accept={project.type === "agent" ? undefined : "image/*"}
+              multiple={isAgent}
+              accept={isAgent ? undefined : "image/*"}
             />
           </>
         )}

@@ -52,11 +52,7 @@ async def get_teams(
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Get all teams the user has access to.
-    
-    - Platform admins see all teams
-    - Regular users see teams they are members of
-    """
+    """Get all teams the user has access to."""
     try:
         if user.is_admin:
             teams = db_wrapper.get_teams()
@@ -76,10 +72,7 @@ async def get_team(
     user: User = Depends(get_current_username_team_member),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Get a specific team by ID.
-    
-    User must be a member or admin of the team, or a platform admin.
-    """
+    """Get a specific team by ID."""
     try:
         team = db_wrapper.get_team_by_id(team_id)
         if team is None:
@@ -133,10 +126,7 @@ async def update_team(
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Update team details.
-    
-    Only team admins and platform admins can update team details.
-    """
+    """Update team details."""
     check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
@@ -167,10 +157,7 @@ async def delete_team(
     user: User = Depends(get_current_username_platform_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Delete a team.
-    
-    Only platform admins can delete teams.
-    """
+    """Delete a team."""
     check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
@@ -192,10 +179,7 @@ async def add_user_to_team(
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Add a user to a team.
-    
-    Only team admins and platform admins can add users to a team.
-    """
+    """Add a user to a team."""
     check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
@@ -221,10 +205,7 @@ async def remove_user_from_team(
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Remove a user from a team.
-    
-    Only team admins and platform admins can remove users from a team.
-    """
+    """Remove a user from a team."""
     check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
@@ -250,10 +231,7 @@ async def add_admin_to_team(
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Add an admin to a team.
-    
-    Only team admins and platform admins can add admins to a team.
-    """
+    """Add an admin to a team."""
     check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
@@ -279,10 +257,7 @@ async def remove_admin_from_team(
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Remove an admin from a team.
-    
-    Only team admins and platform admins can remove admins from a team.
-    """
+    """Remove an admin from a team."""
     check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
@@ -308,10 +283,7 @@ async def add_project_to_team(
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Add a project to a team.
-    
-    Only team admins and platform admins can add projects to a team.
-    """
+    """Add a project to a team."""
     check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)
@@ -339,10 +311,7 @@ async def remove_project_from_team(
     user: User = Depends(get_current_username_team_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
-    """Remove a project from a team.
-    
-    Only team admins and platform admins can remove projects from a team.
-    """
+    """Remove a project from a team."""
     check_not_restricted(user)
     try:
         team = db_wrapper.get_team_by_id(team_id)

@@ -33,9 +33,8 @@ function splitThinking(text) {
   return { thoughts, answer, openThought };
 }
 
-// ───────────────────────────────────────────────────────────────────────
-// Lane palette — one accent per channel. Picked so the playground reads
-// as three distinct mental modes: cognition / action / deliverable.
+// One accent per channel so the playground reads as three mental modes:
+// cognition / action / deliverable.
 const LANE_THEME = {
   thoughts: { accent: "#7c3aed", soft: "rgba(124,58,237,0.08)", label: "THOUGHTS", icon: Psychology },
   tools:    { accent: "#0891b2", soft: "rgba(8,145,178,0.08)",  label: "TOOLS",    icon: TerminalOutlined },
@@ -44,11 +43,9 @@ const LANE_THEME = {
 
 const RAIL_WIDTH = 32;
 
-// ── Rail: the vertical handle that lives on the LEFT edge of every
-// lane. Clicking it collapses/expands the lane. Stays visible (28-32px
-// wide) even when collapsed so the user has somewhere to click to
-// re-open. Uses CSS writing-mode for the rotated label — feels more
-// console-y than a rotated transform and stays readable at 11px.
+// Rail stays visible (28-32px) even when collapsed so the user has
+// somewhere to click to re-open. CSS writing-mode for the rotated label
+// stays readable at 11px; a rotated transform doesn't.
 const RailButton = styled("button", {
   shouldForwardProp: (p) => p !== "accent" && p !== "open" && p !== "active",
 })(({ accent, open, active }) => ({
@@ -71,7 +68,6 @@ const RailButton = styled("button", {
   color: open ? accent : "rgba(15,23,42,0.45)",
   fontWeight: 700,
   transition: "background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease",
-  // Tactile accent stripe down the rail itself — only when open.
   "&::before": {
     content: '""',
     position: "absolute",
@@ -81,7 +77,6 @@ const RailButton = styled("button", {
     opacity: 0.9,
     transition: "background 0.18s ease",
   },
-  // Live channel? Animate the stripe.
   "&::after": active ? {
     content: '""',
     position: "absolute",
@@ -119,7 +114,6 @@ const CountPill = styled("span", {
   textAlign: "center",
 }));
 
-// ── Lane container — left rail + (when open) the header + scroll body.
 function Lane({ id, count, isLive, open, onToggle, flex, autoScroll, children }) {
   const theme = LANE_THEME[id];
   const Icon = theme.icon;
@@ -171,7 +165,6 @@ function Lane({ id, count, isLive, open, onToggle, flex, autoScroll, children })
 
       {open && (
         <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
-          {/* Header strip — count + live dot */}
           <Box
             sx={{
               flexShrink: 0,
@@ -225,7 +218,6 @@ function Lane({ id, count, isLive, open, onToggle, flex, autoScroll, children })
   );
 }
 
-// ── Tag for the per-item turn marker (T1 · 14:32 etc).
 const TurnTag = styled("span", {
   shouldForwardProp: (p) => p !== "accent",
 })(({ accent }) => ({
@@ -236,9 +228,6 @@ const TurnTag = styled("span", {
   color: accent,
   textTransform: "uppercase",
 }));
-
-// ───────────────────────────────────────────────────────────────────────
-// Lane content renderers
 
 function ThoughtsLaneItem({ entry, accent, idx }) {
   const isLive = !!entry.isLive;
@@ -297,8 +286,7 @@ function ToolsLaneItem({ entry, accent }) {
       ? <RadioButtonUnchecked sx={{ fontSize: 14, color: "#dc2626" }} />
       : <CheckCircle sx={{ fontSize: 14, color: "#16a34a" }} />;
 
-  // Render the actual tool I/O via the existing Terminal component so
-  // styles stay identical to the current playground panel.
+  // Reuse Terminal so styles stay identical to the playground panel.
   const terminalMessage = {
     reasoning: {
       steps: [{
@@ -361,9 +349,6 @@ function ToolsLaneItem({ entry, accent }) {
   );
 }
 
-// Tiny reusable styles inside the Output lane — keeps user/assistant
-// turns visually distinct without going full bubble (lanes already give
-// us the visual containment).
 function OutputLaneItem({ entry, accent, onBranch, onCopy, copied, isLast }) {
   if (entry.role === "user") {
     const meta = entry.meta;
@@ -415,7 +400,6 @@ function OutputLaneItem({ entry, accent, onBranch, onCopy, copied, isLast }) {
     );
   }
 
-  // assistant
   const pending = entry.pending;
   const hasContent = entry.text && entry.text.trim().length > 0;
   return (
@@ -481,7 +465,6 @@ function OutputLaneItem({ entry, accent, onBranch, onCopy, copied, isLast }) {
         )}
       </Box>
 
-      {/* Plan checklist if the auto-planner ran on this turn */}
       {Array.isArray(entry.plan) && entry.plan.length > 0 && (() => {
         const stepStates = Array.isArray(entry.stepSummaries) ? entry.stepSummaries : [];
         const isStreamingShape = stepStates.length > 0 && "status" in stepStates[0];
@@ -624,9 +607,6 @@ function OutputLaneItem({ entry, accent, onBranch, onCopy, copied, isLast }) {
   );
 }
 
-// ───────────────────────────────────────────────────────────────────────
-// Derive — extract Thoughts/Tools/Output streams from messages + live state.
-
 function deriveLanes(messages, streamingText, streamingPlan, streamingToolCalls) {
   const thoughts = [];
   const tools = [];
@@ -712,8 +692,6 @@ function deriveLanes(messages, streamingText, streamingPlan, streamingToolCalls)
     });
   });
 
-  // Streaming bubble — extra in-flight turn that lives on top of the
-  // last placeholder until the final SSE event lands.
   const hasStream = !!(streamingText || streamingPlan || (streamingToolCalls && streamingToolCalls.length > 0));
   if (hasStream) {
     const liveTurnIdx = Math.max(messages.length - 1, 0);
@@ -741,8 +719,7 @@ function deriveLanes(messages, streamingText, streamingPlan, streamingToolCalls)
       });
     });
 
-    // Replace the last placeholder assistant entry (if any) with the
-    // streaming text — avoids "Thinking…" duplicating beside live text.
+    // Replace the placeholder so "Thinking…" doesn't duplicate beside live text.
     const lastOut = output[output.length - 1];
     if (lastOut && lastOut.role === "assistant" && lastOut.pending) {
       output[output.length - 1] = {
@@ -771,12 +748,8 @@ function deriveLanes(messages, streamingText, streamingPlan, streamingToolCalls)
   };
 }
 
-// ───────────────────────────────────────────────────────────────────────
-// Public
-
-// Start state: only the Output lane is visible. Thoughts / Tools rails
-// remain visible (28-32px) so the user can manually expand any time;
-// they also auto-expand once on first content (handled below).
+// Thoughts/Tools rails stay visible (28-32px) when collapsed so the user
+// can manually expand; they also auto-expand once on first content.
 const INITIAL_OPEN = { thoughts: false, tools: false, output: true };
 
 export default function PlaygroundLanes({
@@ -794,16 +767,13 @@ export default function PlaygroundLanes({
   autoExpand = true,
 }) {
   const [open, setOpen] = useState(INITIAL_OPEN);
-  // One-shot auto-expand: when content first appears in a lane, pop it
-  // open. After that, leave it strictly under user control — once
-  // they've collapsed a noisy lane they shouldn't get fought every
-  // turn.
+  // One-shot auto-expand: pop the lane open on first content, then leave it
+  // under user control so a collapsed lane stays collapsed.
   const [autoExpandedOnce, setAutoExpandedOnce] = useState({ thoughts: false, tools: false });
   const [copiedKey, setCopiedKey] = useState(null);
 
-  // Don't allow collapsing all three at once — leave at least one open
-  // so there's somewhere to look. The rail of any closed lane stays
-  // clickable so the user can re-open it.
+  // Block collapsing all three — leave at least one open so there's
+  // somewhere to look.
   const toggle = useCallback((lane) => {
     setOpen((cur) => {
       const next = { ...cur, [lane]: !cur[lane] };
@@ -812,8 +782,7 @@ export default function PlaygroundLanes({
       }
       return next;
     });
-    // Treat any manual toggle as "user has taken over" — flag the lane
-    // as already auto-expanded so we don't re-pop it on the next thought.
+    // Manual toggle counts as user takeover so we don't re-pop on next content.
     if (lane === "thoughts" || lane === "tools") {
       setAutoExpandedOnce((cur) => ({ ...cur, [lane]: true }));
     }
@@ -824,9 +793,8 @@ export default function PlaygroundLanes({
     [messages, streamingText, streamingPlan, streamingToolCalls],
   );
 
-  // First-content auto-expand for Thoughts. Skipped when autoExpand is
-  // false (replay) so the dialog opens Output-only no matter how much
-  // thinking the agent did in the past.
+  // Skipped when autoExpand is false (replay) so the dialog opens
+  // Output-only regardless of past thinking.
   useEffect(() => {
     if (!autoExpand) return;
     if (!autoExpandedOnce.thoughts && lanes.thoughts.length > 0) {
@@ -835,7 +803,6 @@ export default function PlaygroundLanes({
     }
   }, [lanes.thoughts.length, autoExpandedOnce.thoughts, autoExpand]);
 
-  // First-content auto-expand for Tools.
   useEffect(() => {
     if (!autoExpand) return;
     if (!autoExpandedOnce.tools && lanes.tools.length > 0) {
@@ -844,8 +811,6 @@ export default function PlaygroundLanes({
     }
   }, [lanes.tools.length, autoExpandedOnce.tools, autoExpand]);
 
-  // Reset on session clear so the next fresh chat gets the same initial
-  // experience (Output-only, Thoughts/Tools pop open once when used).
   useEffect(() => {
     if (messages.length === 0) {
       setOpen(INITIAL_OPEN);

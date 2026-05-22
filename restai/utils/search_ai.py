@@ -77,7 +77,6 @@ ENTITIES = {
 
 
 def _describe_schema() -> str:
-    """Human-readable description of the entities/fields/ops for the LLM prompt."""
     lines = []
     for ent, spec in ENTITIES.items():
         lines.append(f"\n{ent}:")
@@ -151,7 +150,7 @@ def parse_llm_response(text: str) -> Optional[dict]:
 
 
 def validate_query(parsed: dict) -> tuple[dict, list[str]]:
-    """Validate and clamp a parsed query. Returns (cleaned_query, warnings)."""
+    """Returns (cleaned_query, warnings)."""
     warnings: list[str] = []
     if not isinstance(parsed, dict):
         raise ValueError("Query must be an object")
@@ -253,7 +252,6 @@ def _apply_filter(query, model, entity: str, f: dict):
 
 
 def _apply_rbac(query, entity: str, user):
-    """Apply permission scoping to the query based on the user's role."""
     if getattr(user, "is_admin", False):
         return query
 
@@ -293,7 +291,6 @@ def _apply_rbac(query, entity: str, user):
 
 
 def _row_to_result(entity: str, row) -> dict:
-    """Normalize a DB row into a compact result dict for the frontend."""
     if entity == "projects":
         return {
             "entity": "projects",
@@ -358,7 +355,6 @@ def execute_query(db_wrapper, user, cleaned: dict) -> list[dict]:
 
 
 async def run_search(brain, db_wrapper, user, query_text: str) -> dict:
-    """Translate the natural-language query with the system LLM and execute it."""
     system_llm = brain.get_system_llm(db_wrapper)
     if system_llm is None:
         raise ValueError("No system LLM is configured. Set one in Settings → Platform.")

@@ -4,7 +4,6 @@ def get_version_from_pyproject():
         return version("restai-core")
     except Exception:
         pass
-    # Fallback: read from pyproject.toml (dev mode)
     try:
         import tomli
         from pathlib import Path

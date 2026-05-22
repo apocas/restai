@@ -61,7 +61,6 @@ class Cache:
         return True
 
     def clear(self):
-        """Clear all cached entries without deleting the cache itself."""
         try:
             self.client.delete_collection(self.project.props.name + "_cache")
             self.collection = self.client.get_or_create_collection(
@@ -71,7 +70,6 @@ class Cache:
             pass
 
     def count(self):
-        """Return the number of cached entries."""
         return self.collection.count()
 
     def delete(self):

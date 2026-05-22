@@ -194,7 +194,6 @@ def get_current_username_project(
 
 
 def check_not_read_only(user: User):
-    """Raise 403 if the user's API key is read-only."""
     if user.is_read_only:
         raise HTTPException(status_code=403, detail="This API key is read-only and cannot perform write operations")
 
@@ -245,13 +244,11 @@ def check_user_can_use_mcp_host(user: User, host: str) -> None:
 
 
 def check_not_restricted(user: User):
-    """Raise 403 if the user is restricted."""
     if user.is_restricted and not user.is_admin:
         raise HTTPException(status_code=403, detail="Restricted users cannot perform this operation")
 
 
 def get_widget_from_request(request: Request, db_wrapper):
-    """Authenticate a widget request via X-Widget-Key header. Validates domain."""
     from urllib.parse import urlparse
 
     widget_key = request.headers.get("X-Widget-Key")
@@ -300,7 +297,6 @@ def get_widget_from_request(request: Request, db_wrapper):
 
 
 def _domain_matches(host: str, allowed: list) -> bool:
-    """Check if host matches any allowed domain pattern (supports *.example.com)."""
     if not host:
         return False
     host = host.lower()

@@ -753,6 +753,10 @@ class ProjectOptions(BaseModel):
         default=None,
         description="Agent execution mode (agent projects only): 'auto' tries native function calling and falls back to text-based ReAct on first-turn error; 'function_calling' always uses native (errors propagate); 'react' always uses text-based ReAct prompting."
     )
+    agent_loop: Union[Literal["restai", "claude", "llamaindex", "smolagents", "openai_agents"], None] = Field(
+        default=None,
+        description="Agent loop implementation (agent projects only): 'restai' (default, our agent2 runtime — works with any platform LLM); 'claude' (Claude Agent SDK — requires an Anthropic-class LLM, talks directly to Anthropic); 'llamaindex' (upstream llama-index AgentWorkflow — FunctionAgent / ReActAgent over the project's llama-index LLM, works with any platform LLM); 'smolagents' (HuggingFace smolagents ToolCallingAgent — uses OpenAI-compatible endpoints natively for OpenAI / Ollama / vLLM / Grok / Azure; LiteLLM fallback only for Anthropic / Gemini / Bedrock); 'openai_agents' (OpenAI Agents SDK — requires an OpenAI-class LLM, talks directly to OpenAI). More options will be added over time."
+    )
     memory_bank_enabled: bool = Field(
         default=False,
         description="Agent projects only. When enabled, all conversations in this project contribute to a shared 'memory bank' that is injected into the system prompt of every chat. Compressed dynamically (per-conversation → per-day → per-week → per-month) to fit within memory_bank_max_tokens. Disabled by default; surfaces a privacy disclaimer in the UI because every project member sees summaries derived from every other member's conversations."

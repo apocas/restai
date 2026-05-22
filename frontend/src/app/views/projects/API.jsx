@@ -16,9 +16,6 @@ const Container = styled("div")(({ theme }) => ({
   [theme.breakpoints.down("sm")]: { margin: 16 },
 }));
 
-// Sleek dark code well — kept the navy terminal look that already
-// pairs well with the playground's terminal lane, just retuned the
-// border radius/inset so it nests cleanly inside the white card.
 const CodeBlock = styled(Box)(() => ({
   background: "#0f172a",
   color: "#e2e8f0",
@@ -65,8 +62,6 @@ function replaceVars(code, project) {
     .replaceAll("<PROJECT>", project.id || "1")
     .replaceAll("<QUESTION>", question);
 }
-
-// ── Code templates ──────────────────────────────────────────────────────
 
 const snippets = {
   curl: {
@@ -370,8 +365,6 @@ puts result["answer"]`,
   },
 };
 
-// ── Copy button ─────────────────────────────────────────────────────────
-
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
@@ -399,9 +392,6 @@ function CopyButton({ text }) {
   );
 }
 
-// ── Endpoint section — header strip + code block, sits inside the
-// outer documentation card. Reuses the section vocabulary other
-// sub-pages use (mono eyebrow, then content).
 function EndpointSection({ title, description, endpoint, method, code, icon }) {
   return (
     <Box sx={{ pt: 2.5, pb: 0.5 }}>
@@ -444,8 +434,6 @@ function EndpointSection({ title, description, endpoint, method, code, icon }) {
   );
 }
 
-// ── Main ────────────────────────────────────────────────────────────────
-
 export default function ProjectAPI() {
   const { id } = useParams();
   const [project, setProject] = useState({});
@@ -480,19 +468,12 @@ export default function ProjectAPI() {
 
       <ProjectTrailBar project={project} label="API" />
 
-      {/* Single contained documentation card — matches the cleanCard
-          vocabulary used by Evals / Guards / Logs. Inside: a
-          sticky-style toolbar with language tabs, then per-endpoint
-          sections separated by a hairline divider. */}
       <Card variant="outlined" sx={{
         ...cleanCardSx,
         p: 0,
-        // Override the hover lift — this is the entire page surface,
-        // it shouldn't jiggle on cursor entry.
+        // Page surface — no hover jiggle.
         "&:hover": { transform: "none", borderColor: "divider", boxShadow: "none" },
       }}>
-        {/* Toolbar — monospace eyebrow + language tabs. Matches the
-            section-shell pattern used elsewhere in project edits. */}
         <Box sx={{
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
@@ -561,7 +542,6 @@ export default function ProjectAPI() {
             icon={<QuestionAnswer sx={{ fontSize: 18, color: "#0e7490" }} />}
           />
 
-          {/* Hairline rule between endpoint sections. */}
           <Box sx={{ height: 1, background: "rgba(15,23,42,0.06)", my: 1 }} />
 
           <EndpointSection

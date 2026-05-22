@@ -50,9 +50,7 @@ SUPPORTED_EVENTS = {
 
 
 def _project_webhook_config(opts: dict) -> tuple[str, str, set[str]]:
-    """Pull (url, secret, allowed_events) out of a project options blob.
-    Returns ('', '', set()) when the project hasn't configured webhooks
-    so callers can early-exit cheaply."""
+    """Returns ('', '', set()) when the project hasn't configured webhooks."""
     url = (opts.get("webhook_url") or "").strip()
     if not url:
         return "", "", set()
@@ -67,8 +65,7 @@ def _project_webhook_config(opts: dict) -> tuple[str, str, set[str]]:
 
 
 def _safe_url(url: str) -> Optional[str]:
-    """Return the URL only if it's safe to fetch (https? scheme + public
-    hostname). Returns None and logs a warning otherwise."""
+    """Returns the URL only if it's safe (http(s) scheme, public hostname)."""
     try:
         parsed = urlparse(url)
     except Exception:
@@ -103,18 +100,7 @@ def _post_in_thread(url: str, body: bytes, headers: dict) -> None:
 
 def emit_event(project_id: int, project_name: str, opts: dict,
                event_type: str, data: Any) -> bool:
-    """Send an event webhook for one project.
-
-    Args:
-        project_id: numeric project id
-        project_name: project name (included in payload for receiver UX)
-        opts: the project's options dict (already JSON-decoded)
-        event_type: one of SUPPORTED_EVENTS
-        data: event-specific payload (must be JSON-serializable)
-
-    Returns ``True`` when a request was queued, ``False`` when it was
-    skipped (no url configured, event filtered out, or unsafe url).
-    """
+    """Send an event webhook. Returns True when queued, False when skipped."""
     if event_type not in SUPPORTED_EVENTS:
         logger.warning("emit_event: unknown event_type %r — refusing to send", event_type)
         return False
@@ -150,10 +136,7 @@ def emit_event(project_id: int, project_name: str, opts: dict,
 
 
 def emit_event_for_project_id(project_id: int, event_type: str, data: Any) -> bool:
-    """Convenience wrapper that fetches the project options from the DB
-    itself. Use this from places (cron jobs, BackgroundTasks) that
-    don't already hold a project handle. Returns True/False like
-    ``emit_event``."""
+    """Convenience wrapper that fetches project options from the DB."""
     try:
         from restai.database import open_db_wrapper
     except Exception:

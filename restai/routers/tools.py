@@ -71,7 +71,7 @@ async def get_tools(request: Request, _: User = Depends(get_current_username)):
 
 
 def _validate_mcp_host(host: str, args: list = None):
-    """Validate MCP server host — reject empty hosts and shell metacharacters in args."""
+    """Reject empty hosts and shell metacharacters in MCP args."""
     if not host or not host.strip():
         raise HTTPException(status_code=400, detail="MCP server host is required")
     if args:
@@ -91,14 +91,10 @@ async def probe_mcp_server(
 ):
     """Probe an MCP server or gateway to discover available tools/services."""
     _validate_mcp_host(probe_request.host, probe_request.args)
-    # Stdio MCP transport spawns a subprocess on this server with the
-    # user-supplied `host` as the executable. Restrict it to platform
-    # admins; non-admins must use http(s)/sse transports. Without
-    # this gate, any authenticated user (including SSO-auto-provisioned
-    # accounts) gets RCE as the RESTai service account.
+    # Stdio MCP transport spawns subprocess with `host` as executable — admins only,
+    # else any authenticated user gets RCE as the RESTai service account.
     check_user_can_use_mcp_host(user, probe_request.host)
     try:
-        # Detect MCP gateway (returns a services list instead of being a direct MCP server)
         if probe_request.host.startswith("http"):
             import httpx
             try:
@@ -118,7 +114,7 @@ async def probe_mcp_server(
                                 "services": data["services"],
                             }
             except Exception:
-                pass  # Not a gateway, fall through to MCP probe
+                pass
 
         from llama_index.tools.mcp import BasicMCPClient, McpToolSpec
 
@@ -156,15 +152,7 @@ async def get_ollama_models(
     ollama_instance: OllamaInstanceModel,
     _: User = Depends(get_current_username),
 ):
-    """
-    Connect to an Ollama instance and retrieve all available models.
-    
-    Args:
-        ollama_instance: OllamaInstanceModel with host and port
-        
-    Returns:
-        List of models information from the Ollama instance
-    """
+    """Connect to an Ollama instance and retrieve all available models."""
     try:
         from ollama import Client
 
@@ -257,21 +245,7 @@ async def get_ollama_cloud_models(
     cloud_instance: OllamaCloudInstanceModel,
     _: User = Depends(get_current_username),
 ):
-    """List models available on Ollama Cloud (https://ollama.com).
-
-    Authenticates via Bearer token. The same `Client.list()` call works
-    against the cloud endpoint as against a local Ollama daemon, so we
-    reuse the local-instance response shape — frontend renders both with
-    the same table.
-
-    Cloud-only models are returned with a `:cloud` suffix
-    (e.g. `gpt-oss:120b-cloud`). `client.show(model)` is skipped for cloud
-    listings: the cloud catalog is large enough that one show() call per
-    model would balloon a single page render to dozens of round-trips,
-    and the cloud API doesn't surface per-model `embedding_length` /
-    `capabilities` reliably anyway. The frontend's heuristic naming check
-    (`name.includes('embed')`) covers the only place that matters.
-    """
+    """List models available on Ollama Cloud."""
     try:
         from ollama import Client
 
@@ -321,8 +295,6 @@ async def get_ollama_cloud_models(
     except Exception as e:
         logging.error(e)
         traceback.print_tb(e.__traceback__)
-        # Surface the underlying error verbatim — most failures here are
-        # auth (401) or network, both of which the admin needs to see.
         raise HTTPException(
             status_code=502,
             detail=f"Failed to connect to Ollama Cloud at {cloud_instance.host}: {str(e)}"
@@ -334,26 +306,16 @@ async def pull_ollama_model(
     model_request: OllamaModelPullRequest,
     _: User = Depends(get_current_username),
 ):
-    """
-    Pull (download/install) a model to an Ollama instance.
-    
-    Args:
-        model_request: Contains the model name to pull and the Ollama instance details
-        
-    Returns:
-        Status of the pull operation
-    """
+    """Pull (download/install) a model to an Ollama instance."""
     try:
         from ollama import Client
-        
-        # Configure Ollama client to use the specified host/port
+
         ollama_host = f"http://{model_request.host}:{model_request.port}"
-        
+
         client = Client(
           host=ollama_host,
         )
-        
-        # Pull the requested model
+
         pull_response = client.pull(model_request.name)
         
         return OllamaModelPullResponse(

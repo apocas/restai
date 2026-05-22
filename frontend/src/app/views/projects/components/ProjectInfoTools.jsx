@@ -9,8 +9,7 @@ import api from "app/utils/api";
 import ProjectEditTools from "./ProjectEditTools";
 import ContentCard from "app/components/page/ContentCard";
 
-// MCP server "headers" arrive from the API as an object and live in the
-// editor as a single `KEY: VALUE`-per-line textarea.
+// API gives headers as an object; editor stores them as `KEY: VALUE`-per-line.
 function parseHeadersText(text) {
   const h = {};
   if (!text) return h;
@@ -28,34 +27,18 @@ function parseHeadersText(text) {
 const isStdioServer = (host) =>
   host && !host.startsWith("http://") && !host.startsWith("https://");
 
-/**
- * Self-contained Tools editor for the project Info page.
- *
- * Renders the existing `ProjectEditTools` form (kept as the rendering
- * primitive) and owns its own state, fetches its own tool catalog +
- * MCP probes, and persists via PATCH /projects/{id} with options
- * merged on top of `project.options` (so we never wipe unrelated keys
- * like memory_bank, browser_, ftp_, etc.).
- */
 export default function ProjectInfoTools({ project }) {
   const auth = useAuth();
-  // Local copy of project, so save-then-refresh updates the chips
-  // without forcing the parent to refetch.
+  // Local copy so save-then-refresh updates the chips without parent refetch.
   const [proj, setProj] = useState(project);
-  // Form state — same shape as ProjectEditTools expects.
   const [state, setState] = useState({});
-  // Tool catalog for the Autocomplete (`/tools/agent`).
   const [tools, setTools] = useState([]);
-  // MCP servers in editor shape (host, args, env, headersText, tools,
-  // availableTools, loading, error).
   const [mcpServers, setMcpServers] = useState([]);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null); // {sev, msg}
 
   useEffect(() => { setProj(project); }, [project]);
 
-  // Mount + when project changes: hydrate form state from project,
-  // load tool catalog, hydrate MCP servers and stagger their probes.
   useEffect(() => {
     if (!proj?.id) return;
     setState({
@@ -78,8 +61,7 @@ export default function ProjectInfoTools({ project }) {
         error: null,
       }));
       setMcpServers(servers);
-      // Stagger initial probes so a project with many servers doesn't
-      // hammer the network on mount.
+      // Stagger probes so a many-server project doesn't hammer the network.
       servers.forEach((server, index) => {
         if (!server.host) return;
         setTimeout(() => {
@@ -195,12 +177,9 @@ export default function ProjectInfoTools({ project }) {
     setMcpServers(updated);
   };
 
-  // PATCH options merged on top of current proj.options. The PATCH
-  // endpoint replaces the entire options blob with whatever we send
-  // (Pydantic builds a full ProjectOptions, defaults fill in missing
-  // fields), so any key we omit gets reset. To avoid wiping unrelated
-  // tabs (Knowledge / Security / Integrations / etc.) we start from
-  // `proj.options` and only overwrite the tool-related keys.
+  // PATCH replaces the whole options blob (Pydantic fills defaults for
+  // missing fields), so we must spread proj.options first and only
+  // overwrite the tool-related keys — otherwise unrelated tabs get reset.
   const handleSave = () => {
     setSaving(true);
     const filteredMcpServers = mcpServers
@@ -239,12 +218,12 @@ export default function ProjectInfoTools({ project }) {
     <ContentCard
       icon={<Build />}
       title="Tools"
-      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · BUILTINS · MCP · AGENT LOOP`}
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · BUILTINS · MCP`}
     >
       <ProjectEditTools
         state={state}
         setState={setState}
-        handleChange={() => { /* unused by the form */ }}
+        handleChange={() => {}}
         project={proj}
         mcpServers={mcpServers}
         setMcpServers={setMcpServers}

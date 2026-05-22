@@ -30,14 +30,13 @@ _PBKDF2_ITERATIONS = 100_000
 
 
 def hash_api_key(plaintext: str) -> str:
-    """Hash an API key with PBKDF2-SHA256 + random salt."""
     salt = os.urandom(16)
     dk = hashlib.pbkdf2_hmac("sha256", plaintext.encode(), salt, _PBKDF2_ITERATIONS)
     return _PBKDF2_PREFIX + salt.hex() + "$" + dk.hex()
 
 
 def verify_api_key_hash(plaintext: str, stored_hash: str) -> bool:
-    """Verify a plaintext API key against a stored hash (PBKDF2 or legacy SHA256)."""
+    """Accepts PBKDF2 or legacy SHA256."""
     if stored_hash.startswith(_PBKDF2_PREFIX):
         rest = stored_hash[len(_PBKDF2_PREFIX):]
         parts = rest.split("$", 1)
@@ -64,13 +63,12 @@ def generate_recovery_codes(count: int = 8) -> list[str]:
     return ["".join(secrets.choice(alphabet) for _ in range(8)) for _ in range(count)]
 
 def hash_recovery_code(code: str) -> str:
-    """Hash a recovery code with PBKDF2-SHA256 + random salt."""
     salt = os.urandom(16)
     dk = hashlib.pbkdf2_hmac("sha256", code.strip().lower().encode(), salt, _PBKDF2_ITERATIONS)
     return _PBKDF2_PREFIX + salt.hex() + "$" + dk.hex()
 
 def verify_recovery_code(code: str, stored_hash: str) -> bool:
-    """Verify a recovery code against a stored hash (PBKDF2 or legacy SHA256)."""
+    """Accepts PBKDF2 or legacy SHA256."""
     if stored_hash.startswith(_PBKDF2_PREFIX):
         rest = stored_hash[len(_PBKDF2_PREFIX):]
         parts = rest.split("$", 1)
@@ -125,10 +123,9 @@ _SYNC_SOURCE_SECRET_KEYS = (
 
 
 def strip_sensitive_project_options(options_blob):
-    """Return a copy with every credential-bearing field removed; used by template
-    publish/instantiate so secrets never cross project owners.
+    """Drop credential-bearing fields. Used by template publish/instantiate.
 
-    Accepts a JSON string OR a dict; returns the same shape it got."""
+    Accepts a JSON string OR dict; returns the same shape."""
     if not options_blob:
         return options_blob
 

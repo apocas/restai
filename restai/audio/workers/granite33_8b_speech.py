@@ -16,7 +16,6 @@ def worker(prompt, sharedmem):
 
     file_path = sharedmem["file_path"]
 
-    # Derived from gpu_worker_devices in /admin/gpu.
     device = _cfg.RESTAI_DEFAULT_DEVICE
 
     model_name = "ibm-granite/granite-speech-3.3-8b"
@@ -29,14 +28,11 @@ def worker(prompt, sharedmem):
     )
 
     wav, sr = torchaudio.load(file_path, normalize=True)
-    # Convert to mono if needed
     if wav.shape[0] > 1:
         wav = wav.mean(dim=0, keepdim=True)
-    # Resample to 16kHz if needed
     if sr != 16000:
         wav = torchaudio.transforms.Resample(sr, 16000)(wav)
 
-    # Build prompt
     language = None
     if sharedmem.get("options") and "language" in sharedmem["options"]:
         language = sharedmem["options"]["language"]

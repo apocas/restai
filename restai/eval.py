@@ -1,5 +1,3 @@
-"""Evaluation engine for AI projects using DeepEval metrics."""
-
 import json
 import logging
 import time
@@ -23,8 +21,6 @@ VALID_METRICS = {"answer_relevancy", "faithfulness", "correctness"}
 
 
 class DeepEvalLLM(DeepEvalBaseLLM):
-    """Adapter wrapping a LlamaIndex LLM for use with DeepEval."""
-
     def __init__(self, model: LLM, *args, **kwargs):
         self._llm = model
         super().__init__(*args, **kwargs)
@@ -44,7 +40,6 @@ class DeepEvalLLM(DeepEvalBaseLLM):
 
 
 def eval_rag(question, response, llm):
-    """Legacy single-question RAG evaluation (kept for backward compatibility)."""
     if response is not None:
         actual_output = response.response
         retrieval_context = [node.get_content() for node in response.source_nodes]
@@ -66,7 +61,6 @@ def eval_rag(question, response, llm):
 
 
 def _build_metric(metric_name: str, eval_llm: DeepEvalLLM):
-    """Create a DeepEval metric instance by name."""
     if metric_name == "answer_relevancy":
         return AnswerRelevancyMetric(
             threshold=0.5, model=eval_llm, include_reason=True, async_mode=False
@@ -93,7 +87,6 @@ def _build_metric(metric_name: str, eval_llm: DeepEvalLLM):
 
 
 async def _get_project_answer(project, question: str, brain, user, db):
-    """Call a project's question method directly and return (answer_text, sources_list, latency_ms)."""
     from restai.models.models import QuestionModel
 
     q = QuestionModel(question=question, stream=False)
@@ -141,12 +134,7 @@ async def _get_project_answer(project, question: str, brain, user, db):
 
 
 async def run_evaluation(run_id: int, app):
-    """Execute an evaluation run in the background.
-
-    Args:
-        run_id: ID of the EvalRunDatabase record to execute.
-        app: FastAPI app instance (for accessing brain via app.state.brain).
-    """
+    """Execute an evaluation run in the background."""
     from restai.database import open_db_wrapper
     from restai.models.models import User
 

@@ -25,14 +25,11 @@ const Container = styled("div")(({ theme }) => ({
   [theme.breakpoints.down("sm")]: { margin: 16 },
 }));
 
-// Routines = scheduled automations that "run things". Emerald reads as
-// "live / active". Distinct from cron-logs amber and audit indigo.
 const ACCENT = "#10b981";
 const ACCENT_SOFT = "rgba(16,185,129,0.10)";
 
-// "Recently fired" threshold — anything inside this window gets a green
-// pulsing dot in the table to show it's actively cycling. Tuned a bit
-// generously since some routines run every few hours.
+// Window for the green "recently fired" pulse dot. Long-side so routines
+// with multi-hour intervals still light up between fires.
 const RECENT_MS = 1000 * 60 * 60; // 1h
 
 const TileCard = styled(Card, {
@@ -101,9 +98,6 @@ function StatusSummary({ icon: Icon, count, color, label }) {
   );
 }
 
-// Render minutes as "1h 30m", "45m", "2d", etc. Keeps the column tight
-// without losing precision for both short (5 min poll) and long (daily)
-// schedules.
 function formatInterval(mins) {
   if (mins == null) return "—";
   if (mins < 60) return `${mins}m`;
@@ -117,9 +111,6 @@ function formatInterval(mins) {
   return h === 0 ? `${d}d` : `${d}d ${h}h`;
 }
 
-// Bucket the interval into a colour band — short polls get a hot
-// colour, long-running daily-style routines a cooler one. Helps an
-// admin see at a glance whether they have any chatty schedules.
 function intervalAccent(mins) {
   if (mins == null) return { color: "#6b7280", soft: "rgba(107,114,128,0.10)" };
   if (mins < 15)        return { color: "#ef4444", soft: "rgba(239,68,68,0.10)"  };  // <15m  red
@@ -176,7 +167,6 @@ export default function Routines() {
     return Date.now() - new Date(iso).getTime() < RECENT_MS;
   };
 
-  // Tally based on the full set (toolbar gives the global pulse).
   const tally = useMemo(() => {
     const acc = { enabled: 0, disabled: 0, recent: 0, never: 0 };
     for (const r of routines) {
@@ -360,7 +350,6 @@ export default function Routines() {
                       opacity: r.enabled ? 1 : 0.65,
                     }}
                   >
-                    {/* Project: type chip + name link + open icon */}
                     <TableCell sx={{ pl: 3, py: 1.25 }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <ProjectTypeChip type={r.project_type} />
@@ -407,7 +396,6 @@ export default function Routines() {
                       </Box>
                     </TableCell>
 
-                    {/* Interval — colour-banded pill */}
                     <TableCell align="center">
                       <Box
                         component="span"
@@ -429,7 +417,6 @@ export default function Routines() {
                       </Box>
                     </TableCell>
 
-                    {/* Last run — ISO + relative + recent dot */}
                     <TableCell sx={{ whiteSpace: "nowrap", py: 1.25 }}>
                       {r.last_run ? (
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -484,7 +471,6 @@ export default function Routines() {
                       )}
                     </TableCell>
 
-                    {/* Enabled switch */}
                     <TableCell align="center" sx={{ pr: 3 }}>
                       <Switch
                         checked={r.enabled}

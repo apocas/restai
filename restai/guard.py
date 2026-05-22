@@ -71,7 +71,6 @@ class Guard:
 
     @staticmethod
     def _parse_response(answer: str) -> bool:
-        """Parse guard response. Returns True if blocked."""
         first_line = answer.strip().split("\n")[0].strip().upper()
         for kw in BLOCK_KEYWORDS:
             if kw in first_line:

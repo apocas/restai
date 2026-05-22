@@ -78,8 +78,7 @@ def _month_key(dt: datetime) -> str:
 
 
 def _system_llm_complete(brain: Any, db: Any, prompt: str) -> Optional[str]:
-    """Run a one-shot completion via the System LLM. Returns None on any
-    failure so callers can degrade gracefully (skip this entry, not crash)."""
+    """Returns None on any failure so callers can degrade gracefully."""
     llm = brain.get_system_llm(db)
     if llm is None:
         return None
@@ -124,7 +123,6 @@ _INCREMENTAL_INSTRUCTIONS = (
 
 
 def _format_messages_for_summary(rows: list[OutputDatabase]) -> str:
-    """Render OutputDatabase rows as a chat transcript for the summarizer."""
     lines = []
     for r in rows[:MAX_TURNS_PER_SUMMARY]:
         q = (r.question or "").strip()
@@ -264,7 +262,6 @@ def _digest_entries(
     db_wrapper: Any,
     entries: list[ProjectMemoryBankEntryDatabase],
 ) -> Optional[str]:
-    """Merge multiple existing summaries into a single coarser digest."""
     if not entries:
         return None
     parts = []
@@ -438,11 +435,7 @@ _GRANULARITY_HEADERS = {
 
 
 def render_for_prompt(db_wrapper: Any, project_id: int, max_tokens: int) -> str:
-    """Produce the memory bank block that gets prepended to the system prompt.
-
-    Returns an empty string when there are no entries (so callers can
-    cheaply check `if block:` before bothering to splice it in).
-    """
+    """Returns empty string when there are no entries."""
     sess = db_wrapper.db
     rows = (
         sess.query(ProjectMemoryBankEntryDatabase)
@@ -491,8 +484,7 @@ def render_for_prompt(db_wrapper: Any, project_id: int, max_tokens: int) -> str:
 
 
 def list_enabled_projects(db_wrapper: Any) -> Iterable[ProjectDatabase]:
-    """Yield projects with memory_bank_enabled=True. Done by inspecting the
-    options JSON blob — there's no dedicated column."""
+    """Yield projects with memory_bank_enabled=True (read from options JSON)."""
     import json
 
     rows = (
@@ -514,9 +506,7 @@ def chat_ids_needing_refresh(
     project_id: int,
     idle_minutes: int = CONVERSATION_IDLE_MINUTES,
 ) -> list[str]:
-    """Return chat_ids that have new OutputDatabase rows since the last
-    summarization and are now idle (last activity older than `idle_minutes`).
-    """
+    """Chat_ids with new rows since last summarization, now idle longer than `idle_minutes`."""
     sess = db_wrapper.db
     cutoff = _now() - timedelta(minutes=idle_minutes)
 

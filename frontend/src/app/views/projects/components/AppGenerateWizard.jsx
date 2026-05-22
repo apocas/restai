@@ -623,12 +623,9 @@ export default function AppGenerateWizard({ open, onClose, projectId, project, t
     setStreaming(false);
     abortRef.current = null;
 
-    // Auto-retry: if the LLM described what it would build but forgot
-    // the required JSON plan block, immediately re-prompt for the JSON.
-    // Skip if the reply looks like a clarifying question (ends with '?'
-    // or has explicit asking markers). Capped at one retry per turn —
-    // isAutoRetry from opts ensures a retry that ALSO returns no JSON
-    // doesn't loop forever.
+    // Auto-retry when the LLM described the build but forgot the required JSON
+    // plan block. Skip when the reply looks like a clarifying question. Capped
+    // at one retry per turn via isAutoRetry — otherwise loops forever.
     if (!isAutoRetry && !finalPlan && finalReply) {
       const trimmed = finalReply.trim();
       const looksLikeQuestion =

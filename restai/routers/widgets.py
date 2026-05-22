@@ -14,7 +14,6 @@ from restai.models.models import ChatModel, User, WidgetChatRequest, WidgetChatR
 
 router = APIRouter()
 
-# Per-widget-key rate limiter
 _widget_requests = defaultdict(list)
 _widget_lock = threading.Lock()
 _WIDGET_MAX_REQUESTS = 30
@@ -49,7 +48,6 @@ async def widget_config(
     widget = get_widget_from_request(request, db_wrapper)
     config = json.loads(widget.config) if widget.config else {}
 
-    # Apply context placeholders to welcome message
     context_header = request.headers.get("X-Widget-Context")
     if context_header and widget.context_secret and config.get("welcomeMessage"):
         try:
@@ -62,7 +60,7 @@ async def widget_config(
                 config["welcomeMessage"], context, prepend_block=False,
             )
         except ValueError:
-            pass  # invalid token — return config as-is without substitution
+            pass
 
     return config
 
@@ -84,7 +82,6 @@ async def widget_chat(
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Handle signed context injection
     context_header = request.headers.get("X-Widget-Context")
     if context_header and widget.context_secret:
         from restai.utils.crypto import decrypt_field
@@ -99,12 +96,10 @@ async def widget_chat(
         prepend = w_config.get("context_prefix", True)
         project = project.with_context(context, prepend_block=prepend)
 
-    # Inherit creator's projects/teams so block widgets can delegate
-    # via `Call Project` (block_interpreter.py:1136 access guard).
-    # `api_key_allowed_projects=None` for the same reason — narrowing
-    # the API-key scope would re-trigger the guard for delegated
-    # targets. The widget→project binding is already enforced upstream
-    # in `get_widget_from_request`.
+    # Inherit creator's projects/teams so block widgets can delegate via `Call Project`
+    # (block_interpreter.py access guard). `api_key_allowed_projects=None` for the same
+    # reason — narrowing scope would re-trigger the guard for delegated targets. Widget→project
+    # binding is already enforced upstream in `get_widget_from_request`.
     creator = db_wrapper.get_user_by_id(widget.creator_id)
     if creator is None:
         raise HTTPException(status_code=500, detail="Widget creator not found")
@@ -127,11 +122,9 @@ async def widget_chat(
 
     try:
         if use_stream:
-            # Streaming: wrap the SSE response to sanitize output
             response = await chat_main(
                 request, brain, project, chat_input, user, db_wrapper, background_tasks, start_time=start_time,
             )
-            # response is a StreamingResponse — wrap its body_iterator
             return StreamingResponse(
                 _sanitize_stream(response.body_iterator),
                 media_type="text/event-stream",
@@ -172,10 +165,8 @@ async def _sanitize_stream(body_iterator):
                 try:
                     data = json.loads(line[6:])
                     if "text" in data and "answer" not in data:
-                        # Incremental text chunk — safe to forward
                         yield f"data: {json.dumps({'text': data['text']})}\n\n"
                     elif "answer" in data:
-                        # Final summary — sanitize
                         yield f"data: {json.dumps({'answer': data.get('answer', ''), 'id': data.get('id')})}\n\n"
                 except (json.JSONDecodeError, TypeError):
                     pass

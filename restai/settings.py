@@ -145,8 +145,7 @@ def ensure_settings_table(engine):
 
 
 def seed_defaults(db_wrapper):
-    """Insert any missing default rows. Safe to run on every boot — never
-    overwrites existing values."""
+    """Insert missing default rows. Never overwrites existing values."""
     existing = {s.key for s in db_wrapper.get_settings()}
     for key, default in SETTINGS_DEFAULTS.items():
         if key not in existing:
@@ -154,8 +153,7 @@ def seed_defaults(db_wrapper):
 
 
 def update_setting(db_wrapper, key: str, value: str):
-    """Persist a single setting. No process-local mirror — every consumer
-    reads through `restai.config` which routes to the DB on demand."""
+    # No process-local mirror — consumers read via restai.config which routes to DB.
     db_wrapper.upsert_setting(key, value)
 
 

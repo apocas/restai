@@ -1,9 +1,8 @@
-"""Knowledge graph helpers: entity extraction, persistence, dedup, merge.
+"""Knowledge graph: entity extraction, persistence, dedup, merge.
 
-Stores extracted entities at the source level (not chunk level) in three tables:
-- kg_entities: unique entities per project (deduped by normalized name + type)
-- kg_entity_mentions: which sources each entity appears in
-- kg_entity_relationships: co-occurrence edges between entities
+Source-level (not chunk-level) storage in three tables: kg_entities (unique
+per project), kg_entity_mentions (entity x source), kg_entity_relationships
+(co-occurrence edges).
 """
 import logging
 import re
@@ -28,7 +27,6 @@ TYPE_NORMALIZATION = {
 
 
 def normalize_entity_name(name: str) -> str:
-    """Lowercase + collapse whitespace + strip punctuation around the edges."""
     s = (name or "").strip().lower()
     s = re.sub(r"\s+", " ", s)
     s = re.sub(r"^[^\w]+|[^\w]+$", "", s)
@@ -40,7 +38,6 @@ def _normalize_type(t: str) -> str:
 
 
 def find_entities_in_text(text: str, brain, model_name: Optional[str] = None) -> list[tuple[str, str]]:
-    """Run NER and return [(canonical_name, type), ...] deduped within this call."""
     if not text:
         return []
     raw = brain.extract_entities_from_text(text, model_name=model_name)
@@ -60,17 +57,13 @@ def find_entities_in_text(text: str, brain, model_name: Optional[str] = None) ->
 
 
 def extract_and_persist(project_id: int, source: str, text: str, brain, db) -> int:
-    """Extract entities from text and persist them. Returns the count of distinct entities found.
-
-    `db` is the DBWrapper instance (uses db.db for the SQLAlchemy session).
-    """
+    """Extract entities and persist. Returns count of distinct entities found."""
     if not text:
         return 0
     raw = brain.extract_entities_from_text(text, model_name=None)
     if not raw:
         return 0
 
-    # Aggregate counts within this source
     per_source_counts: Counter = Counter()
     canonical_names: dict[tuple[str, str], str] = {}
     for ent in raw:
@@ -93,7 +86,6 @@ def extract_and_persist(project_id: int, source: str, text: str, brain, db) -> i
     session = db.db
     entity_ids: dict[tuple[str, str], int] = {}
 
-    # Upsert entities
     for (normalized, etype), count in per_source_counts.items():
         existing = (
             session.query(KGEntityDatabase)
@@ -122,7 +114,6 @@ def extract_and_persist(project_id: int, source: str, text: str, brain, db) -> i
             session.flush()
             entity_ids[(normalized, etype)] = ent.id
 
-    # Upsert mentions (entity × source)
     for (normalized, etype), count in per_source_counts.items():
         eid = entity_ids[(normalized, etype)]
         existing_mention = (
@@ -144,7 +135,6 @@ def extract_and_persist(project_id: int, source: str, text: str, brain, db) -> i
                 created_at=now,
             ))
 
-    # Co-occurrence edges: for every pair of distinct entities in this source,
     ids_in_source = sorted(entity_ids.values())
     for i, a in enumerate(ids_in_source):
         for b in ids_in_source[i + 1:]:
@@ -173,7 +163,6 @@ def extract_and_persist(project_id: int, source: str, text: str, brain, db) -> i
 
 
 def extract_and_persist_safe(project_id: int, source: str, text: str, brain, db_factory) -> None:
-    """Background-task safe wrapper. Creates a fresh DB session and handles errors."""
     try:
         db = db_factory()
         try:
@@ -188,10 +177,7 @@ def extract_and_persist_safe(project_id: int, source: str, text: str, brain, db_
 
 
 def merge_entities(db, primary_id: int, secondary_id: int) -> bool:
-    """Merge secondary entity into primary. Moves all mentions and relationships, then deletes secondary.
-
-    Returns True if successful, False if either entity doesn't exist or they're the same.
-    """
+    """Merge secondary into primary. Moves mentions + relationships, deletes secondary."""
     if primary_id == secondary_id:
         return False
     session = db.db
@@ -202,7 +188,6 @@ def merge_entities(db, primary_id: int, secondary_id: int) -> bool:
 
     now = datetime.now(timezone.utc)
 
-    # Move mentions: if a mention of the same source exists for primary, sum counts; otherwise repoint
     secondary_mentions = (
         session.query(KGEntityMentionDatabase)
         .filter(KGEntityMentionDatabase.entity_id == secondary_id)
@@ -223,7 +208,6 @@ def merge_entities(db, primary_id: int, secondary_id: int) -> bool:
         else:
             sm.entity_id = primary_id
 
-    # Move relationships: any edge involving secondary → repoint to primary, dedup
     secondary_edges = (
         session.query(KGEntityRelationshipDatabase)
         .filter(
@@ -238,7 +222,6 @@ def merge_entities(db, primary_id: int, secondary_id: int) -> bool:
         if new_from == new_to:
             session.delete(edge)
             continue
-        # Normalize order so we can dedup
         a, b = sorted([new_from, new_to])
         existing = (
             session.query(KGEntityRelationshipDatabase)
@@ -264,7 +247,6 @@ def merge_entities(db, primary_id: int, secondary_id: int) -> bool:
 
 
 def compute_potential_duplicates(db, project_id: int, threshold: float = 0.85, limit: int = 100) -> list[dict]:
-    """Find entity pairs with similar names within the same type."""
     session = db.db
     entities = (
         session.query(KGEntityDatabase)
@@ -281,7 +263,7 @@ def compute_potential_duplicates(db, project_id: int, threshold: float = 0.85, l
             for j in range(i + 1, len(ents)):
                 a, b = ents[i], ents[j]
                 if a.normalized == b.normalized:
-                    continue  # Already merged
+                    continue
                 ratio = SequenceMatcher(None, a.normalized, b.normalized).ratio()
                 if ratio >= threshold:
                     candidates.append({

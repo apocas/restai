@@ -1,13 +1,4 @@
-"""Project secrets CRUD — the credential vault the Agentic Browser uses.
-
-Values are encrypted at rest and always masked (`"********"`) in API
-responses. The `PATCH` handler preserves the existing value when it sees
-that sentinel — same round-trip pattern LLMs and image generators use.
-
-Every endpoint requires project membership + non-restricted + admin-ish
-(team admin / platform admin) per `check_not_restricted` and the
-existing project-access dependency.
-"""
+"""Project secrets CRUD — credential vault for the Agentic Browser."""
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path
@@ -26,7 +17,7 @@ router = APIRouter()
 
 
 def _mask(row: ProjectSecretDatabase) -> dict:
-    """Shape a DB row as the API response — value always masked."""
+    """Shape DB row as API response with masked value."""
     return {
         "id": row.id,
         "project_id": row.project_id,

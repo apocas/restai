@@ -24,12 +24,7 @@ _cached_id: Optional[str] = None
 
 
 def get_instance_id() -> str:
-    """Return the persistent UUID for this RESTai install.
-
-    Cached after first read; lazily created on first call if missing.
-    Safe to call from any worker / cron subprocess — the value lives in
-    the `telemetry_instance_id` settings row, shared across them.
-    """
+    """Persistent UUID for this install, cached after first read."""
     global _cached_id
     if _cached_id is not None:
         return _cached_id

@@ -1,5 +1,3 @@
-"""Data retention cleanup — deletes old records from event tables."""
-
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -16,10 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def run_retention_cleanup(db_wrapper: DBWrapper):
-    """Delete records older than DATA_RETENTION_DAYS from all event tables.
-
-    Called on startup. If DATA_RETENTION_DAYS is 0 or not set, does nothing.
-    """
+    """Delete records older than DATA_RETENTION_DAYS. No-op when 0/unset."""
     try:
         days = int(db_wrapper.get_setting_value("data_retention_days", "0"))
     except (ValueError, TypeError):

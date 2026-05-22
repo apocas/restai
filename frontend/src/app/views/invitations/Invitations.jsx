@@ -96,9 +96,7 @@ export default function Invitations() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t]);
 
-  // Remove the row from local state immediately so the user gets
-  // instant feedback; reconcile on response. On error we refetch to
-  // restore the canonical list.
+  // Optimistic remove for instant feedback; revert + refetch on error.
   const actOnInvitation = (inv, action) => {
     const invKey = `${inv.type || "team"}:${inv.id}`;
     const snapshot = invitations;
@@ -120,7 +118,6 @@ export default function Invitations() {
         window.dispatchEvent(new Event("invitations-changed"));
       })
       .catch(() => {
-        // Revert and refetch so stale state doesn't linger.
         setInvitations(snapshot);
         toast.error(t("invitations.failed", {
           action: action === "accept" ? t("invitations.accept").toLowerCase() : t("invitations.decline").toLowerCase(),

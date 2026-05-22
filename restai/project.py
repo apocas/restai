@@ -19,11 +19,7 @@ class Project:
             find_embeddings_path(self.props.name)
 
     def with_context(self, context: dict, prepend_block: bool = True) -> "Project":
-        """Return a new Project with context injected into the system prompt.
-
-        Used by the playground (raw dict), widget endpoint (verified JWT claims),
-        and block interpreter (propagated to sub-projects).
-        """
+        """Return a new Project with context injected into the system prompt."""
         if not context:
             return self
         from restai.utils.widget_context import apply_context
@@ -44,18 +40,10 @@ class Project:
 
     @classmethod
     def reset_memory_index(cls, project_id: int) -> None:
-        """Drop the project's per-project memory_search Chroma
-        collection. Used when the project's embedding model changes —
-        existing vectors were computed with the old model and aren't
-        comparable to anything the new one produces, so the only
-        honest answer is to rebuild from scratch on the next cron
-        tick. Best-effort; a missing collection is fine.
+        """Drop memory_search collection on embedding model change.
 
-        Classmethod (not instance method) because the caller — the
-        edit-project router — has the SQLAlchemy row, not a runtime
-        Project instance, and instantiating one just to call this
-        would force a vectorstore load the swap is about to
-        invalidate.
+        Classmethod so the edit-project router can call it without instantiating
+        a Project (which would load a vectorstore the swap is about to invalidate).
         """
         try:
             from restai import memory_search
