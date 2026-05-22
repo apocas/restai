@@ -22,7 +22,6 @@ def client():
 
 def test_setup(client):
     """Create test users for admin endpoint tests."""
-    # Create a non-admin user
     resp = client.post(
         "/users",
         json={

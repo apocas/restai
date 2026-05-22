@@ -40,7 +40,6 @@ def _make_llm_row(
 
 
 def _clear_cache_for_row(row):
-    """Remove a specific row's entry from the provider cache."""
     key = _provider_cache_key(row)
     _provider_cache.pop(key, None)
 
@@ -91,7 +90,6 @@ def test_build_provider_unsupported():
     row = _make_llm_row(class_name="FakeProvider")
     _clear_cache_for_row(row)
     with pytest.raises(Exception):
-        # class_name validation in LLMModel will reject "FakeProvider"
         build_provider_for_llm(row)
 
 

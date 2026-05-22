@@ -16,9 +16,6 @@ def _make_tool(name: str, description: str = "", schema: dict | None = None) -> 
     )
 
 
-# ---------- parse_react_response ----------
-
-
 def test_parse_action_basic():
     text = 'Thought: think\nAction: search\nAction Input: {"q": "hello"}'
     result = parse_react_response(text)
@@ -73,9 +70,6 @@ def test_parse_action_no_action_input():
     assert result.action_input == {}
 
 
-# ---------- build_react_system_prompt ----------
-
-
 def test_build_react_system_prompt_with_tools():
     tools = [_make_tool("search", "Search the web"), _make_tool("calc", "Calculate")]
     prompt = build_react_system_prompt("You are helpful.", tools)
@@ -95,9 +89,6 @@ def test_build_react_system_prompt_empty_tools():
 def test_build_react_system_prompt_default_base():
     prompt = build_react_system_prompt("", [_make_tool("x")])
     assert "You are a helpful assistant." in prompt
-
-
-# ---------- format_tool_for_react ----------
 
 
 def test_format_tool_for_react_output():

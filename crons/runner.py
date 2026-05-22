@@ -32,7 +32,6 @@ JOB_TIMEOUT = 600  # seconds per job
 
 
 def discover_crons():
-    """Return sorted list of cron script paths in this directory."""
     scripts = []
 
     for filename in sorted(os.listdir(CRONS_DIR)):
@@ -56,7 +55,6 @@ def _is_daemon(script_path):
 
 
 def run_all():
-    """Launch all cron scripts in parallel, each in its own subprocess."""
     scripts = discover_crons()
 
     if not scripts:
@@ -71,7 +69,6 @@ def run_all():
         if _is_daemon(script_path):
             continue
 
-        # Per-job lock: skip if a previous instance is still running
         lock_path = os.path.join(ROOT, f".cron-{name}.lock")
         lock_fp = open(lock_path, "w")
         try:

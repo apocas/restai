@@ -219,7 +219,6 @@ async def _process_message(brain, db, project_id, text, chat_id):
 
 
 def send_typing(token, chat_id):
-    """Send typing indicator to Telegram chat."""
     import requests
     try:
         requests.post(

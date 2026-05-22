@@ -22,7 +22,6 @@ from restai.brain import Brain
 
 
 async def _fire_routine(brain, db, routine, project):
-    """Execute a routine's message through the project's question pipeline."""
     from fastapi import BackgroundTasks
     from restai.helper import question_main
     from restai.models.models import QuestionModel, User

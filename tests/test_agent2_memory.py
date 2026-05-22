@@ -18,7 +18,6 @@ from restai.agent2.types import (
 
 
 def _make_brain():
-    """Create a minimal mock brain with no Redis configured."""
     brain = SimpleNamespace(_agent2_sessions=OrderedDict(), _agent2_redis=None, _agent2_redis_url=None)
     return brain
 
@@ -52,7 +51,6 @@ def test_save_and_get_session_round_trip(_mock):
 def test_lru_eviction(_mock):
     brain = _make_brain()
 
-    # Save LOCAL_SESSION_CAP + 1 sessions
     async def fill():
         for i in range(LOCAL_SESSION_CAP + 1):
             msg = Message(role="user", content=[TextBlock(text=f"msg-{i}")])
@@ -61,11 +59,9 @@ def test_lru_eviction(_mock):
 
     asyncio.run(fill())
 
-    # The oldest session (chat-0) should have been evicted
     oldest = asyncio.run(get_session(brain, "chat-0"))
     assert oldest.messages == [], "Oldest session should have been evicted"
 
-    # The newest session should still be present
     newest = asyncio.run(get_session(brain, f"chat-{LOCAL_SESSION_CAP}"))
     assert len(newest.messages) == 1
     assert newest.messages[0].content[0].text == f"msg-{LOCAL_SESSION_CAP}"

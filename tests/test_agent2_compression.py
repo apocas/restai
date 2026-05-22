@@ -41,9 +41,6 @@ def _user_tool_result() -> Message:
     )
 
 
-# ---------- count_session_tokens ----------
-
-
 def test_count_session_tokens_nonempty():
     msgs = [_user("Hello, how are you?"), _assistant("I am fine, thank you.")]
     tokens = count_session_tokens(msgs)
@@ -52,9 +49,6 @@ def test_count_session_tokens_nonempty():
 
 def test_count_session_tokens_empty():
     assert count_session_tokens([]) == 0
-
-
-# ---------- find_user_turn_boundaries ----------
 
 
 def test_find_user_turn_boundaries_basic():
@@ -83,11 +77,6 @@ def test_find_user_turn_boundaries_skips_tool_result_user():
 
 def test_find_user_turn_boundaries_empty():
     assert find_user_turn_boundaries([]) == []
-
-
-# ---------- split_for_compression ----------
-
-
 def test_split_for_compression_enough_turns():
     msgs = [
         _user("q1"), _assistant("a1"),
@@ -175,9 +164,6 @@ def test_split_for_compression_exact_keep_n_uses_safe_fallback():
     assert to_compress + to_keep == msgs
 
 
-# ---------- hard_truncate ----------
-
-
 def test_hard_truncate_drops_oldest():
     msgs = [
         _user("A" * 1000), _assistant("B" * 1000),
@@ -227,9 +213,6 @@ def test_hard_truncate_returns_largest_fitting_suffix():
     assert count_session_tokens(truncated) <= budget
 
 
-# ---------- _approx_char_count ----------
-
-
 def test_approx_char_count_text():
     msgs = [_user("hello"), _assistant("world")]
     count = _approx_char_count(msgs)
@@ -243,9 +226,6 @@ def test_approx_char_count_tool_result():
     )
     count = _approx_char_count([msg])
     assert count >= len("result text")
-
-
-# ---------- compress_session ----------
 
 
 def test_compress_session_returns_false_no_context_window():

@@ -1078,7 +1078,6 @@ async def route_app_fix_file(
     check_rate_limit(project, db_wrapper)
     check_api_key_quota(user, db_wrapper)
 
-    # traversal guard, size cap, 404 on missing).
     current_bytes, current_etag = read_file(projectID, payload.path)
     try:
         current_text = current_bytes.decode("utf-8")
@@ -1262,7 +1261,6 @@ async def route_app_deploy(
     )
 
     async def stream():
-        # SSE framing: each event is `event:<name>\ndata:<json>\n\n`.
         # Per-project lock so two parallel deploys can't race.
         async with project_lock(projectID):
             if proto == "sftp":
@@ -1595,7 +1593,6 @@ def _runtime_probes(request: Request, project_id: int) -> list[dict]:
                     except Exception:
                         pass
 
-    # ── Probe 3: esbuild log via docker exec ───────────────────────
     try:
         container = mgr.get_container(int(project_id))
         if container is not None:
@@ -1605,14 +1602,9 @@ def _runtime_probes(request: Request, project_id: int) -> list[dict]:
             )
             if res.exit_code == 0 and res.output:
                 log = res.output.decode("utf-8", errors="replace").strip()
-                # esbuild prints lines like:
-                #   ✘ [ERROR] Could not resolve "./views/Home"
-                #     src/app.ts:3:21:
-                # Anything matching ERROR / "error:" is fatal for the bundle.
                 lower = log.lower()
                 if log and ("✘ [error]" in lower or "[error]" in lower or "error:" in lower):
-                    # Trim to most recent ~3000 chars (esbuild appends, we
-                    # want the tail = current state).
+                    # esbuild appends; tail is current state.
                     snippet = log[-3000:]
                     issues.append({
                         "path": "src/",
@@ -1687,11 +1679,7 @@ async def route_app_validate(
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Have the project's LLM review the generated app for bugs and
-    architecture violations. Returns a structured report.
-
-    Called automatically by the wizard after Approve & Build completes;
-    can also be triggered manually."""
+    """Have the project's LLM review the generated app; returns structured report."""
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
 
@@ -1704,27 +1692,16 @@ async def route_app_validate(
     if not files:
         return {"ok": False, "summary": "No source files to review.", "issues": []}
 
-    # Live runtime probes run BEFORE the LLM so we can:
-    #   1. Surface concrete failures (HTTP 500, esbuild errors, non-JSON
-    #      API responses) as issues that don't depend on the LLM noticing.
-    #   2. Feed them to the LLM as evidence so the static review can
-    #      target the actual broken thing instead of guessing.
-    # Probes degrade gracefully — if the runtime is disabled or the
-    # container is down, we just get an empty list and fall back to the
-    # LLM-only review.
+    # Runtime probes BEFORE LLM: surface facts + feed them as evidence to the review.
     runtime_issues: list[dict] = []
     try:
         runtime_issues = _runtime_probes(request, projectID)
     except Exception:
         logger.exception("validate: runtime probes crashed")
 
-    # Run the LLM-generated test pack (if it exists) and merge its
-    # failures into the runtime evidence. Tests carry endpoint-attributed
-    # failures so the auto-fix loop targets real files, not the test
-    # file itself. Best-effort: never block the build.
+    # Run LLM-generated test pack (best-effort) and merge into runtime evidence.
     try:
-        # esbuild may still be compiling after the last execute; give it
-        # a beat to settle so the test pack hits a stable backend.
+        # Let esbuild finish so test pack hits stable backend.
         import asyncio as _asyncio_v
         await _asyncio_v.sleep(1.5)
         test_issues = await _asyncio_v.get_event_loop().run_in_executor(
@@ -1735,10 +1712,7 @@ async def route_app_validate(
     except Exception:
         logger.exception("validate: test runner crashed")
 
-    # FAST PATH: when runtime probes + test runner found NOTHING, the app
-    # is observably working. Skip the LLM "static review" entirely — it's
-    # a known source of false positives that wreck working apps via the
-    # auto-fix loop. Real bugs surface as runtime evidence on the next
+    # FAST PATH: probes clean → skip LLM static review (known false-positive source).
     if not runtime_issues:
         return {
             "ok": True,
@@ -1765,8 +1739,7 @@ async def route_app_validate(
     user_prompt = "".join(parts)
     full_prompt = _VALIDATE_SYSTEM + "\n\n" + user_prompt
 
-    # Use the project's LLM, non-streaming (we want the JSON in one shot).
-    from restai.app.ai import _resolve_llm, _FENCE_RE  # internal but stable
+    from restai.app.ai import _resolve_llm, _FENCE_RE
     import json as _json_pkg
     try:
         llm = _resolve_llm(request.app.state.brain, db_wrapper, project.props.llm)
@@ -1776,10 +1749,7 @@ async def route_app_validate(
     try:
         result = llm.llm.complete(full_prompt)
     except Exception as e:
-        # Degrade gracefully: LLM hiccups (timeouts, 5xx from the provider,
-        # quota errors) shouldn't black-hole the runtime evidence we already
-        # collected. Return what we have so the wizard can still show it
-        # and the auto-fix loop can act on the runtime/test failures.
+        # Degrade gracefully: return runtime evidence even when the LLM is unreachable.
         logger.exception("validate: LLM call failed; returning runtime evidence only")
         clean_issues = []
         seen: set[tuple[str, str]] = set()
@@ -1813,7 +1783,7 @@ async def route_app_validate(
 
     parsed: dict = {"ok": False, "summary": "Validator returned unparseable output.", "issues": []}
     try:
-        # Tolerate prose around the JSON: take outermost braces.
+        # Tolerate prose around the JSON; take outermost braces.
         start, end = raw.find("{"), raw.rfind("}")
         if start >= 0 and end > start:
             cand = _json_pkg.loads(raw[start : end + 1])
@@ -1822,7 +1792,6 @@ async def route_app_validate(
     except Exception:
         pass
 
-    # Normalise the response.
     parsed.setdefault("ok", False)
     parsed.setdefault("summary", "")
     issues = parsed.get("issues") or []
@@ -1838,10 +1807,7 @@ async def route_app_validate(
             "message": str(it.get("message", "") or "")[:1000],
         })
 
-    # Merge runtime evidence into the final issue list. Dedupe on
-    # (path, message) to avoid double-reporting when the LLM already
-    # mentioned the same thing. Runtime issues take priority — they're
-    # observed facts, not interpretations.
+    # Merge runtime evidence into final issues, dedup on (path, message).
     seen = {(it["path"], it["message"]) for it in clean_issues}
     runtime_count = 0
     for it in runtime_issues:
@@ -1856,8 +1822,7 @@ async def route_app_validate(
         })
         runtime_count += 1
 
-    # If runtime probes found anything, the build can't be "ok" regardless
-    # of what the LLM said.
+    # Runtime failures override LLM verdict.
     if runtime_count > 0:
         parsed["ok"] = False
         if not parsed.get("summary"):
@@ -1867,7 +1832,6 @@ async def route_app_validate(
 
     parsed["issues"] = clean_issues
 
-    # Cost log.
     try:
         in_tokens = len(request.app.state.brain.tokenizer(full_prompt)) if hasattr(request.app.state.brain, "tokenizer") else 0
         out_tokens = len(request.app.state.brain.tokenizer(raw)) if hasattr(request.app.state.brain, "tokenizer") else 0

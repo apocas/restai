@@ -134,7 +134,6 @@ def main():
 
 
 def _get_bot_conversations(client):
-    """Get all conversation IDs the bot is a member of."""
     channel_ids = []
     cursor = None
 
@@ -156,7 +155,6 @@ def _get_bot_conversations(client):
 
 
 def _update_slack_ts(db, project_id, ts):
-    """Persist the latest processed message timestamp."""
     proj_db = db.db.query(ProjectDatabase).filter(ProjectDatabase.id == project_id).first()
     if proj_db:
         opts = json.loads(proj_db.options) if proj_db.options else {}
