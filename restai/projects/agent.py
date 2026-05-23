@@ -254,6 +254,17 @@ class Agent(ProjectBase):
                     {"step_done": {"index": idx, "summary": step_text[:300]}}
                 ) + "\n\n"
 
+            # Repetition guard fired inside the step — abort the whole
+            # plan (don't run remaining steps, skip synthesis). The
+            # step's warning message becomes the final answer.
+            if step_output.get("aborted_repetition"):
+                output["aborted_repetition"] = True
+                output["answer"] = step_text
+                output["reasoning"] = {"steps": aggregated_reasoning_steps}
+                if aggregated_tool_trace:
+                    output["tool_trace"] = aggregated_tool_trace
+                return
+
         # Final synthesis: index = len(plan) so UI renders as virtual extra
         # step at the bottom of the checklist.
         if stream:
@@ -445,7 +456,12 @@ class Agent(ProjectBase):
                         turn_text = msg.text_content() or ""
                     except Exception:
                         turn_text = ""
-                    if turn_text.strip():
+                    # Tool call = real progress; reset the spinning
+                    # detector. Only consecutive PURE-TEXT turns count
+                    # toward the rolling buffer.
+                    if any(isinstance(b, ToolUseBlock) for b in (msg.content or [])):
+                        recent_assistant_texts.clear()
+                    elif turn_text.strip():
                         recent_assistant_texts.append(turn_text)
                         if len(recent_assistant_texts) > 3:
                             recent_assistant_texts.pop(0)
@@ -461,6 +477,9 @@ class Agent(ProjectBase):
                                 "output across last 3 assistant turns"
                             )
                             output["answer"] = warning_msg
+                            # Plan-loop / chat() see this flag and abort the
+                            # entire run instead of moving on to the next step.
+                            output["aborted_repetition"] = True
                             if stream:
                                 yield ("text", "\n\n" + warning_msg)
                             return
@@ -852,15 +871,15 @@ class Agent(ProjectBase):
                     if not saved_session:
                         _spawn_session_save(self.brain, chat_id, session)
         except BaseException as e:
-            # Catch ExceptionGroup from MCP session pool cleanup failures to
-            # prevent "No response returned" crashes.
-            # CancelledError after a response was already produced is
-            # Starlette's post-response teardown racing in-flight cleanup
-            # (MCP __aexit__ or otherwise). Re-raise per anyio convention so
-            # cancellation completes cleanly.
+            # CancelledError MUST always propagate — the user pressed Stop
+            # (or Starlette is tearing down), and swallowing it would let
+            # the agent keep running tool calls + LLM requests in the
+            # background. Per anyio convention, never absorb cancellation.
             import asyncio as _asyncio
-            if isinstance(e, _asyncio.CancelledError) and "answer" in output:
+            if isinstance(e, _asyncio.CancelledError):
                 raise
+            # Catches ExceptionGroup from MCP session-pool cleanup failures
+            # to prevent "No response returned" crashes.
             if "answer" not in output:
                 logging.warning("Agent chat failed during post-response cleanup: %s", e)
                 output["answer"] = project.props.censorship or "An error occurred processing your request."

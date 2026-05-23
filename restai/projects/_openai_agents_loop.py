@@ -376,6 +376,8 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
                         "id": key, "tool": name, "args": args_preview,
                     }})
             elif isinstance(item, ToolCallOutputItem):
+                # Tool ran = real progress; reset the spinning detector.
+                recent_assistant_texts.clear()
                 call_id, raw_output_text = _extract_tool_output(item)
                 output_text = agent_shared.truncate_tool_output(raw_output_text)
                 harvested_image_urls.extend(agent_shared.harvest_image_urls(output_text))

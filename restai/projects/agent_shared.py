@@ -191,18 +191,20 @@ def truncate_tool_output(text: str, max_chars: int = TOOL_OUTPUT_MAX_CHARS) -> s
     return text[:max_chars] + f"\n\n[…truncated {len(text) - max_chars} chars]"
 
 
-def looks_repetitive(texts: list[str], min_chars: int = 60,
-                     prefix_ratio: float = 0.6, min_prefix_chars: int = 50) -> bool:
+def looks_repetitive(texts: list[str], min_chars: int = 120,
+                     prefix_ratio: float = 0.75, min_prefix_chars: int = 100) -> bool:
     """Detect classic open-model self-prompting loop: last 3 turns share
     enough common prefix to qualify as rambling without progress.
 
-    Both signals required: shared prefix >= min_prefix_chars (don't trip
-    on short openers like "I will check...") AND >= prefix_ratio of the
-    shortest turn (the repeating part dominates each turn). Lifted from
-    `agent.py` so external loops can share the same heuristic."""
+    Tightened thresholds (vs the original `_looks_repetitive` in
+    `agent.py`) because a textual heuristic alone misfires on legitimate
+    multi-step exploration where the model opens each turn with a short
+    task-summary preamble before diverging into distinct work. Callers
+    should ALSO reset the rolling buffer whenever a tool actually
+    executes — a tool call is hard evidence of progress."""
     if len(texts) < 3:
         return False
-    norms = [(t or "").strip().lower()[:300] for t in texts[-3:]]
+    norms = [(t or "").strip().lower()[:600] for t in texts[-3:]]
     if any(len(n) < min_chars for n in norms):
         return False
     prefix = norms[0]

@@ -453,6 +453,8 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
                 if final_answer is None and ev.output is not None:
                     final_answer = str(ev.output)
                 continue
+            # Tool ran = real progress; reset the spinning detector.
+            recent_assistant_texts.clear()
             tool_id = getattr(ev, "id", None) or f"call_{len(tool_trace)}"
             started = tool_started_at.pop(tool_id, None)
             latency_ms = int((_time.monotonic() - started) * 1000) if started else None

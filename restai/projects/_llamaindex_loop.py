@@ -293,6 +293,8 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
                     "id": ev.tool_id, "tool": ev.tool_name, "args": args_preview,
                 }})
         elif isinstance(ev, ToolCallResult):
+            # Tool ran = real progress; reset the spinning detector.
+            recent_assistant_texts.clear()
             started = tool_started_at.pop(ev.tool_id, None)
             latency_ms = int((_time.monotonic() - started) * 1000) if started else None
             raw_output_text = str(ev.tool_output) if ev.tool_output is not None else ""
