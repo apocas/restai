@@ -254,12 +254,12 @@
     },
     "library": {
       "title": "Biblioteca de proyectos",
-      "subtitle": "Explore proyectos compartidos. Clone cualquier proyecto para personalizarlo.",
+      "subtitle": "Proyectos compartidos en sus equipos. Clone cualquier proyecto para personalizarlo.",
       "communityTemplates": "Plantillas de la comunidad",
       "communityTemplatesDesc": "Paquetes de inicio de proyectos reutilizables — instancie uno para crear un nuevo proyecto en cualquiera de sus equipos. Guarde los suyos desde el botón \"Guardar como plantilla\" de cualquier proyecto.",
       "noTemplates": "Aún no hay plantillas disponibles.",
-      "noSharedProjects": "No se encontraron proyectos compartidos.",
-      "markPublicHint": "Marque un proyecto como \"Compartido\" en sus ajustes para que aparezca aquí.",
+      "noSharedProjects": "No se encontraron proyectos compartidos en sus equipos.",
+      "markPublicHint": "Marque un proyecto como \"Compartido\" en sus ajustes para compartirlo con todos en el equipo.",
       "by": "por {{author}}",
       "uses_one": "{{count}} uso",
       "uses_other": "{{count}} usos"

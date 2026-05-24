@@ -119,7 +119,14 @@ async def route_get_projects(
     query = db_wrapper.db.query(ProjectDatabase)
 
     if v_filter == "public":
-        query = query.filter(ProjectDatabase.public == True)
+        user_team_ids = {t.id for t in (user.teams or [])} | {t.id for t in (user.admin_teams or [])}
+        if user.is_admin:
+            query = query.filter(ProjectDatabase.public == True)
+        else:
+            query = query.filter(
+                ProjectDatabase.public == True,
+                ProjectDatabase.team_id.in_(user_team_ids) if user_team_ids else False,
+            )
     elif not user.is_admin:
         accessible_ids = user.get_project_ids()
         if user.admin_teams:

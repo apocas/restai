@@ -254,24 +254,17 @@ def test_user_cannot_question_other_users_private_project(client):
     assert r.status_code == 404
 
 
-def test_user_can_access_public_project(client):
-    """Make projectB public, verify userA can access it for chat/question."""
-    r = client.patch(
-        f"/projects/{projectB_id}",
-        json={"public": True},
-        auth=USER_B,
-    )
-    assert r.status_code == 200
+def test_shared_project_visible_to_same_team_not_cross_team(client):
+    """Shared (public=True) scopes to the project's team, not the entire platform."""
+    client.patch(f"/projects/{projectB_id}", json={"public": True}, auth=USER_B)
 
     r = client.get(f"/projects/{projectB_id}", auth=USER_A)
-    assert r.status_code == 200
+    assert r.status_code == 404, "Cross-team user should NOT see a shared project"
 
-    r = client.patch(
-        f"/projects/{projectB_id}",
-        json={"public": False},
-        auth=USER_B,
-    )
-    assert r.status_code == 200
+    r = client.get(f"/projects/{projectB_id}", auth=USER_B)
+    assert r.status_code == 200, "Same-team user should see their shared project"
+
+    client.patch(f"/projects/{projectB_id}", json={"public": False}, auth=USER_B)
 
 
 def test_user_cannot_edit_public_project_they_dont_own(client):
@@ -785,19 +778,19 @@ def test_user_only_sees_own_projects(client):
     assert projectB_name not in project_names
 
 
-def test_user_sees_public_projects_in_listing(client):
-    """Public projects should appear when filtering by public."""
+def test_shared_listing_scoped_to_user_teams(client):
+    """filter=public only returns shared projects from the user's own teams."""
     client.patch(f"/projects/{projectB_id}", json={"public": True}, auth=USER_B)
-
-    r = client.get("/projects", auth=USER_A)
-    assert r.status_code == 200
-    own_ids = [p["id"] for p in r.json()["projects"]]
-    assert projectB_id not in own_ids
 
     r = client.get("/projects?filter=public", auth=USER_A)
     assert r.status_code == 200
     public_ids = [p["id"] for p in r.json()["projects"]]
-    assert projectB_id in public_ids
+    assert projectB_id not in public_ids, "Cross-team shared project should NOT appear"
+
+    r = client.get("/projects?filter=public", auth=USER_B)
+    assert r.status_code == 200
+    public_ids = [p["id"] for p in r.json()["projects"]]
+    assert projectB_id in public_ids, "Own-team shared project should appear"
 
     client.patch(f"/projects/{projectB_id}", json={"public": False}, auth=USER_B)
 

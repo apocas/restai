@@ -254,12 +254,12 @@
     },
     "library": {
       "title": "Projektbibliotek",
-      "subtitle": "Gennemse delte projekter. Klon et projekt for at tilpasse det til dine behov.",
+      "subtitle": "Projekter delt inden for dine teams. Klon et projekt for at tilpasse det til dine behov.",
       "communityTemplates": "Fællesskabsskabeloner",
       "communityTemplatesDesc": "Genanvendelige startpakker til projekter — instantiér en i et nyt projekt i et af dine teams. Gem dine egne fra et projekts \"Gem som skabelon\"-knap.",
       "noTemplates": "Ingen skabeloner tilgængelige endnu.",
-      "noSharedProjects": "Ingen delte projekter fundet.",
-      "markPublicHint": "Markér et projekt som \"Delt\" i dets indstillinger, for at det vises her.",
+      "noSharedProjects": "Ingen delte projekter fundet i dine teams.",
+      "markPublicHint": "Markér et projekt som \"Delt\" i dets indstillinger for at dele det med alle i teamet.",
       "by": "af {{author}}",
       "uses_one": "{{count}} brug",
       "uses_other": "{{count}} brug"

@@ -327,11 +327,13 @@ def get_current_username_project_public(
         return user
 
     p: Optional[ProjectDatabase] = db_wrapper.get_project_by_id(projectID)
-    if p is not None and p.public:
-        if not user.has_api_key_project_access(projectID):
-            raise HTTPException(status_code=403, detail="API key does not have access to this project")
-        user.level = "public"
-        return user
+    if p is not None and p.public and p.team_id:
+        user_team_ids = {t.id for t in (user.teams or [])} | {t.id for t in (user.admin_teams or [])}
+        if p.team_id in user_team_ids:
+            if not user.has_api_key_project_access(projectID):
+                raise HTTPException(status_code=403, detail="API key does not have access to this project")
+            user.level = "public"
+            return user
 
     raise HTTPException(status_code=404, detail=ERROR_MESSAGES.NOT_FOUND)
 

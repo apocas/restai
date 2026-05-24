@@ -254,12 +254,12 @@
     },
     "library": {
       "title": "Projektbibliothek",
-      "subtitle": "Durchsuchen Sie geteilte Projekte. Klonen Sie jedes Projekt, um es an Ihre Bedürfnisse anzupassen.",
+      "subtitle": "Projekte, die in Ihren Teams geteilt werden. Klonen Sie jedes Projekt, um es anzupassen.",
       "communityTemplates": "Community-Vorlagen",
       "communityTemplatesDesc": "Wiederverwendbare Projekt-Starterpakete — instanziieren Sie eines in einem neuen Projekt in einem Ihrer Teams. Speichern Sie Ihre eigenen über die Schaltfläche \"Als Vorlage speichern\" eines beliebigen Projekts.",
       "noTemplates": "Noch keine Vorlagen verfügbar.",
-      "noSharedProjects": "Keine geteilten Projekte gefunden.",
-      "markPublicHint": "Markieren Sie ein Projekt in seinen Einstellungen als \"Geteilt\", damit es hier erscheint.",
+      "noSharedProjects": "Keine geteilten Projekte in Ihren Teams gefunden.",
+      "markPublicHint": "Markieren Sie ein Projekt als \"Geteilt\", um es mit allen im Team zu teilen.",
       "by": "von {{author}}",
       "uses_one": "{{count}} Verwendung",
       "uses_other": "{{count}} Verwendungen"

@@ -254,12 +254,12 @@
     },
     "library": {
       "title": "Libreria di progetti",
-      "subtitle": "Sfoglia progetti condivisi. Clona qualsiasi progetto per personalizzarlo.",
+      "subtitle": "Progetti condivisi nei tuoi team. Clona qualsiasi progetto per personalizzarlo.",
       "communityTemplates": "Modelli della community",
       "communityTemplatesDesc": "Pacchetti di avvio di progetti riutilizzabili — istanziane uno per creare un nuovo progetto in uno dei tuoi team. Salva i tuoi dal pulsante \"Salva come modello\" di qualsiasi progetto.",
       "noTemplates": "Nessun modello disponibile ancora.",
-      "noSharedProjects": "Nessun progetto condiviso trovato.",
-      "markPublicHint": "Contrassegna un progetto come \"Condiviso\" nelle sue impostazioni per farlo apparire qui.",
+      "noSharedProjects": "Nessun progetto condiviso trovato nei tuoi team.",
+      "markPublicHint": "Contrassegna un progetto come \"Condiviso\" nelle sue impostazioni per condividerlo con tutti nel team.",
       "by": "di {{author}}",
       "uses_one": "{{count}} utilizzo",
       "uses_other": "{{count}} utilizzi"

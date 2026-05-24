@@ -415,12 +415,12 @@
     },
     "library": {
       "title": "Biblioteca de projetos",
-      "subtitle": "Explore projetos partilhados. Clone qualquer projeto para o personalizar.",
+      "subtitle": "Projetos partilhados nas suas equipas. Clone qualquer projeto para o personalizar.",
       "communityTemplates": "Modelos da comunidade",
       "communityTemplatesDesc": "Pacotes iniciais reutilizáveis de projetos — instancie um para criar um novo projeto em qualquer uma das suas equipas. Guarde os seus a partir do botão \"Guardar como modelo\" de qualquer projeto.",
       "noTemplates": "Ainda não há modelos disponíveis.",
-      "noSharedProjects": "Nenhum projeto partilhado encontrado.",
-      "markPublicHint": "Marque um projeto como \"Partilhado\" nas definições para aparecer aqui.",
+      "noSharedProjects": "Nenhum projeto partilhado encontrado nas suas equipas.",
+      "markPublicHint": "Marque um projeto como \"Partilhado\" nas definições para o partilhar com todos na equipa.",
       "by": "por {{author}}",
       "uses_one": "{{count}} uso",
       "uses_other": "{{count}} usos"

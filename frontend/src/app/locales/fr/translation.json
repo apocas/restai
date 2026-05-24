@@ -254,12 +254,12 @@
     },
     "library": {
       "title": "Bibliothèque de projets",
-      "subtitle": "Parcourez les projets partagés. Clonez n'importe quel projet pour le personnaliser selon vos besoins.",
+      "subtitle": "Projets partagés au sein de vos équipes. Clonez n'importe quel projet pour le personnaliser.",
       "communityTemplates": "Modèles de la communauté",
       "communityTemplatesDesc": "Packs de démarrage réutilisables — instanciez-en un pour créer un nouveau projet dans l'une de vos équipes. Enregistrez les vôtres via le bouton « Enregistrer comme modèle » de tout projet.",
       "noTemplates": "Aucun modèle disponible pour le moment.",
-      "noSharedProjects": "Aucun projet partagé trouvé.",
-      "markPublicHint": "Marquez un projet comme « Partagé » dans ses paramètres pour qu'il apparaisse ici.",
+      "noSharedProjects": "Aucun projet partagé trouvé dans vos équipes.",
+      "markPublicHint": "Marquez un projet comme « Partagé » dans ses paramètres pour le partager avec tous les membres de l'équipe.",
       "by": "par {{author}}",
       "uses_one": "{{count}} utilisation",
       "uses_other": "{{count}} utilisations"

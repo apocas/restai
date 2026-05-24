@@ -415,12 +415,12 @@
     },
     "library": {
       "title": "Project Library",
-      "subtitle": "Browse shared projects. Clone any project to customize it for your needs.",
+      "subtitle": "Projects shared within your teams. Clone any project to customize it for your needs.",
       "communityTemplates": "Community Templates",
       "communityTemplatesDesc": "Reusable project starter packs — instantiate one into a new project in any of your teams. Save your own from any project's \"Save as template\" button.",
       "noTemplates": "No templates available yet.",
-      "noSharedProjects": "No shared projects found.",
-      "markPublicHint": "Mark a project as \"Shared\" in its settings to make it appear here.",
+      "noSharedProjects": "No shared projects found in your teams.",
+      "markPublicHint": "Mark a project as \"Shared\" in its settings to share it with everyone in the team.",
       "by": "by {{author}}",
       "uses_one": "{{count}} use",
       "uses_other": "{{count}} uses"

@@ -254,12 +254,12 @@
     },
     "library": {
       "title": "Projectbibliotheek",
-      "subtitle": "Bekijk gedeelde projecten. Kloon elk project om het aan te passen aan uw behoeften.",
+      "subtitle": "Projecten gedeeld binnen uw teams. Kloon elk project om het aan te passen.",
       "communityTemplates": "Community-sjablonen",
       "communityTemplatesDesc": "Herbruikbare starterpacks — instantieer er een als nieuw project in een van uw teams. Bewaar uw eigen sjablonen via de knop \"Opslaan als sjabloon\" op elk project.",
       "noTemplates": "Nog geen sjablonen beschikbaar.",
-      "noSharedProjects": "Geen gedeelde projecten gevonden.",
-      "markPublicHint": "Markeer een project als \"Gedeeld\" in de instellingen om het hier te laten verschijnen.",
+      "noSharedProjects": "Geen gedeelde projecten gevonden in uw teams.",
+      "markPublicHint": "Markeer een project als \"Gedeeld\" in de instellingen om het te delen met iedereen in het team.",
       "by": "door {{author}}",
       "uses_one": "{{count}} gebruik",
       "uses_other": "{{count}} gebruiken"

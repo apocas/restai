@@ -105,7 +105,7 @@ export default function ProjectEditGeneral({
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
             {state.public !== undefined && (
               <FormControlLabel
-                label={<span>Shared<HelpTip text="When enabled, all users on the platform can access this project" /></span>}
+                label={<span>Shared<HelpTip text="When enabled, all members of the project's team can access this project" /></span>}
                 control={<Switch checked={state.public} name="public" onChange={handleChange} />}
               />
             )}
