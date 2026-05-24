@@ -75,6 +75,10 @@ class ChatClient(private val cred: QrPayload) {
             val source = resp.body?.source() ?: error("empty body")
             var finalConvId: String? = conversationId
             val fullText = StringBuilder()
+            // Buffer for stripping <think>…</think> blocks that may span
+            // multiple SSE chunks. While inside a think block, text is
+            // silently consumed; only non-think text reaches onDelta.
+            var insideThink = false
 
             while (!source.exhausted()) {
                 val line = source.readUtf8Line() ?: break
@@ -85,20 +89,33 @@ class ChatClient(private val cred: QrPayload) {
                 try {
                     val json = JSONObject(payload)
                     when {
-                        json.has("text") -> {
+                        // Skip tool/plan/event-only frames — only render
+                        // plain text deltas and the final answer.
+                        json.has("tool_call_started") ||
+                        json.has("tool_call_completed") ||
+                        json.has("plan") -> { /* silently skip */ }
+
+                        json.has("text") && !json.has("answer") -> {
                             val chunk = json.getString("text")
-                            fullText.append(chunk)
-                            onDelta(chunk)
+                            // Strip <think>…</think> reasoning blocks so the
+                            // user only sees the actual output.
+                            val cleaned = stripThinkTags(chunk, insideThink)
+                            insideThink = cleaned.second
+                            val visible = cleaned.first
+                            if (visible.isNotEmpty()) {
+                                fullText.append(visible)
+                                onDelta(visible)
+                            }
                         }
                         json.has("answer") -> {
                             finalConvId = json.optString("id", finalConvId ?: "")
-                            val answer = json.getString("answer")
+                            var answer = json.getString("answer")
+                            // Final answer may still contain think tags — strip.
+                            answer = answer.replace(Regex("<think>[\\s\\S]*?</think>"), "").trim()
                             if (answer.isNotEmpty()) {
                                 fullText.clear()
                                 fullText.append(answer)
                             }
-                            // final metadata line seen — bail out as soon as
-                            // possible instead of waiting for the close event.
                             break
                         }
                     }
@@ -108,6 +125,35 @@ class ChatClient(private val cred: QrPayload) {
             }
             return ChatResult(finalConvId, fullText.toString())
         }
+    }
+
+    /**
+     * Strip `<think>…</think>` blocks from a streaming chunk, handling the
+     * case where the open tag arrives in one chunk and the close tag in a
+     * later one. Returns (visible_text, still_inside_think).
+     */
+    private fun stripThinkTags(chunk: String, wasInside: Boolean): Pair<String, Boolean> {
+        var inside = wasInside
+        val out = StringBuilder()
+        var i = 0
+        while (i < chunk.length) {
+            if (inside) {
+                val close = chunk.indexOf("</think>", i)
+                if (close == -1) return Pair(out.toString(), true)
+                i = close + 8
+                inside = false
+            } else {
+                val open = chunk.indexOf("<think>", i)
+                if (open == -1) {
+                    out.append(chunk, i, chunk.length)
+                    break
+                }
+                out.append(chunk, i, open)
+                i = open + 7
+                inside = true
+            }
+        }
+        return Pair(out.toString(), inside)
     }
 
     /** Lightweight probe to confirm the stored credentials still work. */
