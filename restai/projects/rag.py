@@ -16,7 +16,7 @@ from restai.database import DBWrapper
 from restai.eval import eval_rag
 from restai.guard import Guard
 from restai.llm import LLM
-from restai.models.models import QuestionModel, ChatModel, User
+from restai.models.models import ChatModel, User
 from restai.project import Project
 from restai.tools import tokens_from_string
 from restai.projects.base import ProjectBase
@@ -135,13 +135,22 @@ class EntityBoostPostprocessor:
 
 class RAG(ProjectBase):
 
-    async def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
-        if project.vector is None:
+    async def chat(
+        self,
+        project: Project,
+        chatModel: ChatModel,
+        user: User,
+        db: DBWrapper,
+    ):
+        type_str = "chat"
+
+        # NL→SQL needs no vectorstore; only fail-out when neither is available.
+        if project.vector is None and not project.props.options.connection:
             yield {
                 "question": chatModel.question,
                 "answer": "Knowledge base unavailable — vector store connection failed. Please check that the vector database is running.",
                 "sources": [],
-                "type": "chat",
+                "type": type_str,
                 "tokens": {"input": 0, "output": 0},
                 "project": project.props.name,
                 "guard": False,
@@ -149,17 +158,84 @@ class RAG(ProjectBase):
             return
 
         model: Optional[LLM] = self.brain.get_llm(project.props.llm, db)
+
+        sysTemplate = (
+            chatModel.system or project.props.system or self.brain.defaultSystem
+        )
+
+        # NL→SQL early-return arm — replaces the old `question()` SQL path.
+        if project.props.options.connection:
+            if chatModel.stream:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Streaming is not supported for SQL queries.",
+                )
+
+            output = {
+                "question": chatModel.question,
+                "type": type_str,
+                "sources": [],
+                "guard": False,
+                "tokens": {"input": 0, "output": 0},
+                "project": project.props.name,
+            }
+
+            if self.check_input_guard(project, chatModel.question, user, db, output):
+                yield output
+                return
+
+            conn_str = project.props.options.connection
+            _validate_connection_string(conn_str)
+            engine = create_engine(conn_str)
+            try:
+                sql_database = SQLDatabase(engine)
+
+                tables = None
+                if chatModel.tables is not None:
+                    tables = chatModel.tables
+                elif project.props.options.tables:
+                    tables = [t.strip() for t in project.props.options.tables.split(',')]
+
+                question = sysTemplate + "\n Question: " + chatModel.question
+
+                query_engine = NLSQLTableQueryEngine(
+                    llm=model.llm,
+                    sql_database=sql_database,
+                    tables=tables,
+                )
+
+                response = query_engine.query(question)
+
+                output["answer"] = response.response
+                output["sources"] = [response.metadata['sql_query']]
+                output["tokens"] = {
+                    "input": tokens_from_string(output["question"]),
+                    "output": tokens_from_string(output["answer"]),
+                }
+                yield output
+                return
+            finally:
+                engine.dispose()
+
+        # Vector path — used by both stateful chat and ephemeral
+        # (shim-routed) one-shot turns. Per-request RAG knobs from
+        # `chatModel` override the project defaults; either side absent
+        # falls back to the other.
         context_window = model.props.context_window if model else 4096
         token_limit = int(context_window * 0.75)
-        chat: Chat = Chat(chatModel, self.brain.chat_store, token_limit=token_limit, llm=model.llm if model else None)
+        chat: Chat = Chat(
+            chatModel,
+            self.brain.chat_store,
+            token_limit=token_limit,
+            llm=model.llm if model else None,
+        )
 
         output = {
             "id": chat.chat_id,
             "question": chatModel.question,
             "sources": [],
-            "cached": False,
             "guard": False,
-            "type": "chat",
+            "type": type_str,
             "project": project.props.name,
         }
 
@@ -167,15 +243,12 @@ class RAG(ProjectBase):
             yield output
             return
 
-        threshold = project.props.options.score or 0.0
-        k = project.props.options.k or 1
+        k = chatModel.k or project.props.options.k or 1
+        threshold = chatModel.score if chatModel.score is not None else (project.props.options.score or 0.0)
+        use_colbert = chatModel.colbert_rerank if chatModel.colbert_rerank is not None else project.props.options.colbert_rerank
+        use_llm_rerank = chatModel.llm_rerank if chatModel.llm_rerank is not None else project.props.options.llm_rerank
 
-        sysTemplate = project.props.system or self.brain.defaultSystem
-
-        if project.props.options.colbert_rerank or project.props.options.llm_rerank:
-            final_k = k * 2
-        else:
-            final_k = k
+        final_k = k * 2 if (use_colbert or use_llm_rerank) else k
 
         retriever = VectorIndexRetriever(
             index=project.vector.index,
@@ -191,7 +264,7 @@ class RAG(ProjectBase):
                 )
             )
 
-        if project.props.options.colbert_rerank:
+        if use_colbert:
             postprocessors.append(
                 ColbertRerank(
                     top_n=k,
@@ -201,7 +274,7 @@ class RAG(ProjectBase):
                 )
             )
 
-        if project.props.options.llm_rerank:
+        if use_llm_rerank:
             postprocessors.append(
                 LLMRerank(
                     choice_batch_size=k,
@@ -265,8 +338,17 @@ class RAG(ProjectBase):
                 else:
                     output["answer"] = response.response
 
-                    if project.cache:
-                        project.cache.add(chatModel.question, response.response)
+                # Eval scoring — non-streaming only, opt-in via chatModel.eval.
+                if chatModel.eval and not chatModel.stream:
+                    try:
+                        metric = eval_rag(
+                            chatModel.question,
+                            response,
+                            self.brain.get_llm("openai_gpt4", db).llm,
+                        )
+                        output["evaluation"] = {"reason": metric.reason, "score": metric.score}
+                    except Exception:
+                        pass
 
                 self.brain.post_processing_reasoning(output)
                 self.brain.post_processing_counting(output)
@@ -278,218 +360,3 @@ class RAG(ProjectBase):
                 yield "event: error\n\n"
             raise e
 
-    async def question(
-        self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper
-    ):
-        if project.vector is None and not project.props.options.connection:
-            yield {
-                "question": questionModel.question,
-                "answer": "Knowledge base unavailable — vector store connection failed. Please check that the vector database is running.",
-                "sources": [],
-                "type": "question",
-                "tokens": {"input": 0, "output": 0},
-                "project": project.props.name,
-                "guard": False,
-            }
-            return
-
-        output = {
-            "question": questionModel.question,
-            "type": "question",
-            "sources": [],
-            "cached": False,
-            "guard": False,
-            "tokens": {"input": 0, "output": 0},
-            "project": project.props.name,
-        }
-
-        if self.check_input_guard(project, questionModel.question, user, db, output):
-            yield output
-            return
-
-        model = self.brain.get_llm(project.props.llm, db)
-
-        if project.props.options.connection:
-            if questionModel.stream:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Streaming is not supported for SQL queries."
-                )
-
-            conn_str = project.props.options.connection
-            _validate_connection_string(conn_str)
-            engine = create_engine(conn_str)
-            try:
-                sql_database = SQLDatabase(engine)
-
-                tables = None
-                if hasattr(questionModel, 'tables') and questionModel.tables is not None:
-                    tables = questionModel.tables
-                elif project.props.options.tables:
-                    tables = [table.strip() for table in project.props.options.tables.split(',')]
-
-                sysTemplate = (
-                    questionModel.system or project.props.system or self.brain.defaultSystem
-                )
-                question = sysTemplate + "\n Question: " + questionModel.question
-
-                query_engine = NLSQLTableQueryEngine(
-                    llm=model.llm,
-                    sql_database=sql_database,
-                    tables=tables,
-                )
-
-                response = query_engine.query(question)
-
-                output["answer"] = response.response
-                output["sources"] = [response.metadata['sql_query']]
-                output["tokens"] = {
-                    "input": tokens_from_string(output["question"]),
-                    "output": tokens_from_string(output["answer"])
-                }
-                yield output
-                return
-            finally:
-                engine.dispose()
-
-        sysTemplate = (
-            questionModel.system or project.props.system or self.brain.defaultSystem
-        )
-
-        k = questionModel.k or project.props.options.k or 2
-        threshold = questionModel.score or project.props.options.score or 0.0
-
-        if (
-            questionModel.colbert_rerank
-            or questionModel.llm_rerank
-            or project.props.options.colbert_rerank
-            or project.props.options.llm_rerank
-        ):
-            final_k = k * 2
-        else:
-            final_k = k
-
-        retriever = VectorIndexRetriever(
-            index=project.vector.index,
-            similarity_top_k=final_k,
-        )
-
-        qa_prompt_tmpl = (
-            "Context information is below.\n"
-            "---------------------\n"
-            "{context_str}\n"
-            "---------------------\n"
-            "Given the context information and not prior knowledge, "
-            "answer the query.\n"
-            "Query: {query_str}\n"
-            "Answer: "
-        )
-
-        qa_prompt = PromptTemplate(qa_prompt_tmpl)
-
-        model.llm.system_prompt = sysTemplate
-
-        response_synthesizer = get_response_synthesizer(
-            llm=model.llm, text_qa_template=qa_prompt, streaming=questionModel.stream
-        )
-
-        postprocessors = []
-
-        if project.props.options.enable_knowledge_graph:
-            postprocessors.append(
-                EntityBoostPostprocessor(
-                    brain=self.brain, db=db, project_id=project.props.id, query=questionModel.question,
-                )
-            )
-
-        if questionModel.colbert_rerank or project.props.options.colbert_rerank:
-            postprocessors.append(
-                ColbertRerank(
-                    top_n=k,
-                    model="colbert-ir/colbertv2.0",
-                    tokenizer="colbert-ir/colbertv2.0",
-                    keep_retrieval_score=True,
-                )
-            )
-
-        if questionModel.llm_rerank or project.props.options.llm_rerank:
-            postprocessors.append(
-                LLMRerank(
-                    choice_batch_size=k,
-                    top_n=k,
-                    llm=model.llm,
-                )
-            )
-
-        postprocessors.append(SimilarityPostprocessor(similarity_cutoff=threshold))
-
-        query_engine = RetrieverQueryEngine(
-            retriever=retriever,
-            response_synthesizer=response_synthesizer,
-            node_postprocessors=postprocessors,
-        )
-
-        try:
-            response = query_engine.query(questionModel.question)
-
-            if hasattr(response, "source_nodes"):
-                for node in response.source_nodes:
-                    output["sources"].append(
-                        {
-                            "source": node.metadata.get("source", "unknown"),
-                            "keywords": node.metadata["keywords"],
-                            "score": node.score,
-                            "id": node.node_id,
-                            "text": node.text,
-                        }
-                    )
-
-            if questionModel.eval and not questionModel.stream:
-                metric = eval_rag(
-                    questionModel.question,
-                    response,
-                    self.brain.get_llm("openai_gpt4", db).llm,
-                )
-                output["evaluation"] = {"reason": metric.reason, "score": metric.score}
-
-            if questionModel.stream:
-                parts = []
-                if hasattr(response, "response_gen"):
-                    for text in response.response_gen:
-                        parts.append(text)
-                        yield "data: " + json.dumps({"text": text}) + "\n\n"
-
-                answer = "".join(parts).strip()
-                if not answer or len(response.source_nodes) == 0:
-                    censorship = project.props.censorship or self.brain.defaultCensorship
-                    output["answer"] = censorship
-                    if not parts:
-                        yield "data: " + json.dumps({"text": censorship}) + "\n\n"
-                else:
-                    output["answer"] = answer
-
-                self.brain.post_processing_reasoning(output)
-                self.brain.post_processing_counting(output)
-
-                yield "data: " + json.dumps(output) + "\n"
-                yield "event: close\n\n"
-            else:
-                if len(response.source_nodes) == 0:
-                    output["answer"] = (
-                        project.props.censorship or self.brain.defaultCensorship
-                    )
-                else:
-                    output["answer"] = response.response
-
-                    if project.cache:
-                        project.cache.add(questionModel.question, response.response)
-
-                self.brain.post_processing_reasoning(output)
-                self.brain.post_processing_counting(output)
-
-                yield output
-        except Exception as e:
-            if questionModel.stream:
-                yield "data: Inference failed\n"
-                yield "event: error\n\n"
-            raise e

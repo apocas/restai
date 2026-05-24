@@ -14,7 +14,6 @@ const ChatRoot = styled(Card)({
 
 export default function ChatContainer({ project }) {
   const [mode, setMode] = useState(0); // 0 = chat, 1 = compare
-  const [chatMode, setChatMode] = useState(true);
   const [streaming, setStreaming] = useState(true);
   // Auto-scroll on (default). Off lets the user scroll up to read older
   // turns while the model is still streaming without getting yanked back
@@ -58,10 +57,6 @@ export default function ChatContainer({ project }) {
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           {mode === 0 && (
             <>
-              <FormControlLabel
-                control={<Switch size="small" checked={chatMode} onChange={(e) => setChatMode(e.target.checked)} />}
-                label={<Typography variant="caption">{chatMode ? "Chat" : "QA"}</Typography>}
-              />
               <FormControlLabel
                 control={<Switch size="small" checked={streaming} onChange={(e) => setStreaming(e.target.checked)} />}
                 label={<Typography variant="caption">Stream</Typography>}
@@ -118,7 +113,6 @@ export default function ChatContainer({ project }) {
         {mode === 0 && (
           <ChatPanel
             project={project}
-            chatMode={chatMode}
             streaming={streaming}
             context={parsedContext}
             autoScroll={autoScroll}

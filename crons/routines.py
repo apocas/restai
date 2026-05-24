@@ -23,8 +23,8 @@ from restai.brain import Brain
 
 async def _fire_routine(brain, db, routine, project):
     from fastapi import BackgroundTasks
-    from restai.helper import question_main
-    from restai.models.models import QuestionModel, User
+    from restai.helper import chat_main
+    from restai.models.models import ChatModel, User
 
     creator = db.get_user_by_id(project.props.creator) if project.props.creator else None
     if creator is None:
@@ -35,13 +35,13 @@ async def _fire_routine(brain, db, routine, project):
 
     user = User.model_validate(creator)
 
-    q = QuestionModel(question=routine.message)
+    q = ChatModel(question=routine.message)
     background_tasks = BackgroundTasks()
 
     class _FakeRequest:
         app = type("App", (), {"state": type("State", (), {"brain": brain})()})()
 
-    result = await question_main(
+    result = await chat_main(
         _FakeRequest(), brain, project, q, user, db, background_tasks,
     )
 

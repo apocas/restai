@@ -257,7 +257,6 @@ export default function ChatReplayDialog({ open, onClose, projectId, projectName
             streamingText=""
             streamingPlan={null}
             streamingToolCalls={[]}
-            chatMode={false}
             onBranch={undefined}
             autoScroll={false}
             autoExpand={false}

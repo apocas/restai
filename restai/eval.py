@@ -87,9 +87,9 @@ def _build_metric(metric_name: str, eval_llm: DeepEvalLLM):
 
 
 async def _get_project_answer(project, question: str, brain, user, db):
-    from restai.models.models import QuestionModel
+    from restai.models.models import ChatModel
 
-    q = QuestionModel(question=question, stream=False)
+    q = ChatModel(question=question, stream=False, id=None)
     start = time.perf_counter()
 
     match project.props.type:
@@ -106,7 +106,7 @@ async def _get_project_answer(project, question: str, brain, user, db):
             return "", [], 0
 
     try:
-        output_generator = handler.question(project, q, user, db)
+        output_generator = handler.chat(project, q, user, db)
         result = None
         async for line in output_generator:
             result = line

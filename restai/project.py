@@ -1,4 +1,3 @@
-from restai.cache import Cache
 from restai.models.models import ProjectModel
 from restai.vectordb.tools import find_embeddings_path
 
@@ -9,11 +8,6 @@ class Project:
         self.vector = None
         self.props = model
         self.context = None  # Verified context dict (from widget JWT or playground)
-
-        if self.props.options.cache:
-            self.cache = Cache(self)
-        else:
-            self.cache = None
 
         if self.props.type == "rag":
             find_embeddings_path(self.props.name)
@@ -35,8 +29,6 @@ class Project:
     def delete(self):
         if self.vector:
             self.vector.delete()
-        if self.cache:
-            self.cache.delete()
 
     @classmethod
     def reset_memory_index(cls, project_id: int) -> None:

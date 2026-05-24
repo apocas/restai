@@ -17,7 +17,6 @@ import {
 } from "@mui/material";
 import {
   Build,
-  Cached,
   Chat,
   ExpandMore,
   Groups,
@@ -83,9 +82,6 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
             )}
             {project.team && (
               <Chip icon={<Groups />} label={project.team.name} size="small" variant="outlined" />
-            )}
-            {project.options?.cache && (
-              <Chip icon={<Cached />} label="Cache" size="small" variant="outlined" color="info" />
             )}
             {project.guard && (
               <Chip icon={<Shield />} label={`Guard: ${project.guard}`} size="small" variant="outlined" color="warning" />
@@ -191,13 +187,6 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
                   variant="outlined"
                 />
               </DetailItem>
-              {project.options?.cache && (
-                <DetailItem label="Cache Threshold">
-                  <Typography variant="body2">
-                    {project.options.cache_threshold ?? 0.85}
-                  </Typography>
-                </DetailItem>
-              )}
               {project.options?.rate_limit && (
                 <DetailItem label="Rate Limit">
                   <Typography variant="body2">

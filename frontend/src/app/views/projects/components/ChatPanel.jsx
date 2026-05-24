@@ -41,7 +41,7 @@ function formatChatError(t, status, detail) {
   }
 }
 
-export default function ChatPanel({ project, systemOverride, sharedQuestion, onQuestionSent, chatMode = false, compact = false, streaming = false, context = null, autoScroll = true, laneLayout = false, hideInput = false }) {
+export default function ChatPanel({ project, systemOverride, sharedQuestion, onQuestionSent, compact = false, streaming = false, context = null, autoScroll = true, laneLayout = false, hideInput = false }) {
   const { t } = useTranslation();
   const auth = useAuth();
   const [messages, setMessages] = useState([]);
@@ -189,30 +189,21 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     if (systemOverride) body.system = systemOverride;
     if (context) body.context = context;
 
-    const endpoint = chatMode ? "chat" : "question";
-    if (chatMode) {
-      // Mint the chat_id CLIENT-SIDE if we don't already have one for
-      // this session. Locking it on the frontend means:
-      //   1. fetchEventSource auto-reconnects (clean close / network
-      //      blip / mid-stream cancel) all carry the same id, so the
-      //      backend reuses the same chat session and the SAME
-      //      DockerManager container. No phantom new containers.
-      //   2. We don't depend on the backend's `final` SSE event
-      //      delivering the id — even an interrupted response keeps
-      //      continuity for the next user turn.
-      // crypto.randomUUID is on every modern browser; the timestamp
-      // fallback is purely belt-and-braces for ancient runtimes.
-      const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
-      const carriedId = (lastMsg && lastMsg.id) || sessionChatIdRef.current;
-      if (!sessionChatIdRef.current) {
-        const minted = carriedId
-          || (typeof crypto !== "undefined" && crypto.randomUUID
-              ? crypto.randomUUID()
-              : `c-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
-        sessionChatIdRef.current = minted;
-      }
-      body.id = sessionChatIdRef.current;
+    const endpoint = "chat";
+    // Mint the chat_id CLIENT-SIDE if we don't already have one. Locking
+    // it on the frontend means fetchEventSource auto-reconnects all carry
+    // the same id (backend reuses session + DockerManager container), and
+    // an interrupted response still keeps continuity for the next turn.
+    const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+    const carriedId = (lastMsg && lastMsg.id) || sessionChatIdRef.current;
+    if (!sessionChatIdRef.current) {
+      const minted = carriedId
+        || (typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `c-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+      sessionChatIdRef.current = minted;
     }
+    body.id = sessionChatIdRef.current;
 
     // Preview refs for the chat log. Keep the image dataUrl inline, but strip
     // contentBase64 so we don't hold onto megabytes of attachment bytes.
@@ -444,7 +435,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         throw err; // Stop reconnecting
       },
     });
-  }, [project.id, auth.user.token, systemOverride, chatMode, messages, onQuestionSent, context]);
+  }, [project.id, auth.user.token, systemOverride, messages, onQuestionSent, context]);
 
   const sendMessage = useCallback(async (text, attachments) => {
     if (isLoading) return;
@@ -480,8 +471,8 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     if (systemOverride) body.system = systemOverride;
     if (context) body.context = context;
 
-    const endpoint = chatMode ? "chat" : "question";
-    if (chatMode && messages.length > 0) {
+    const endpoint = "chat";
+    if (messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
       if (lastMsg.id) body.id = lastMsg.id;
     }
@@ -526,7 +517,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       setFiles([]);
       if (onQuestionSent) onQuestionSent();
     }
-  }, [isLoading, streaming, project.id, auth.user.token, systemOverride, chatMode, messages, onQuestionSent, sendMessageStream, context]);
+  }, [isLoading, streaming, project.id, auth.user.token, systemOverride, messages, onQuestionSent, sendMessageStream, context]);
 
   const handleSend = () => {
     const text = inputText.trim();
@@ -715,8 +706,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
           streamingText={streamingText}
           streamingPlan={streamingPlan}
           streamingToolCalls={streamingToolCalls}
-          chatMode={chatMode}
-          onBranch={chatMode ? handleBranch : undefined}
+          onBranch={handleBranch}
           autoScroll={autoScroll}
         />
       ) : (
@@ -742,7 +732,7 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
                 <MessageBubble
                   key={`${activeBranchIdx}-${i}`}
                   message={msg}
-                  onBranch={chatMode && msg.answer ? () => handleBranch(i) : undefined}
+                  onBranch={msg.answer ? () => handleBranch(i) : undefined}
                 />
               ))}
               {(streamingText || streamingPlan || streamingToolCalls.length > 0) && (

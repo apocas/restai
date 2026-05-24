@@ -1059,22 +1059,17 @@ class BlockInterpreter:
         background_tasks = BackgroundTasks()
 
         try:
-            if self.chat_id:
-                from restai.models.models import ChatModel
-                from restai.helper import chat_main
-                q = ChatModel(question=str(text) if text else "", id=self.chat_id, image=self.image)
-                result = await chat_main(
-                    self._fake_request, self.brain, project, q,
-                    self.user, self.db, background_tasks,
-                )
-            else:
-                from restai.models.models import QuestionModel
-                from restai.helper import question_main
-                q = QuestionModel(question=str(text) if text else "", image=self.image)
-                result = await question_main(
-                    self._fake_request, self.brain, project, q,
-                    self.user, self.db, background_tasks,
-                )
+            from restai.models.models import ChatModel
+            from restai.helper import chat_main
+            q = ChatModel(
+                question=str(text) if text else "",
+                id=self.chat_id if self.chat_id else None,
+                image=self.image,
+            )
+            result = await chat_main(
+                self._fake_request, self.brain, project, q,
+                self.user, self.db, background_tasks,
+            )
 
             # Drain background tasks (inference logging) manually since we're
             # outside the FastAPI response lifecycle.

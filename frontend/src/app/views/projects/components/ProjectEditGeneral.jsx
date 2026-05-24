@@ -1,7 +1,6 @@
-import { Fragment } from "react";
 import {
   Alert, Autocomplete, Box, FormControlLabel, MenuItem,
-  Slider, Switch, TextField, Tooltip, Typography,
+  Switch, TextField, Tooltip,
 } from "@mui/material";
 import { HelpOutline, Settings } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
@@ -13,7 +12,6 @@ import { SectionHeader, sectionShellSx } from "./integrationsKit";
 const ID_ACCENT     = "#0ea5e9";
 const ACCESS_ACCENT = "#10b981";
 const MODEL_ACCENT  = "#8b5cf6";
-const CACHE_ACCENT  = "#f59e0b";
 const MEM_ACCENT    = "#ec4899";
 const BROWSER_ACCENT = "#14b8a6";
 const LOOP_ACCENT   = "#6366f1";
@@ -61,13 +59,12 @@ export default function ProjectEditGeneral({
   });
 
   const accessLive = !!(state.public || (state.selectedUsers && state.selectedUsers.length > 0));
-  const cacheOn = !!opts.cache;
 
   return (
     <ContentCard
       icon={<Settings />}
       title="General"
-      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · IDENTITY · ACCESS · MODEL · CACHE · MEMORY`}
+      subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · IDENTITY · ACCESS · MODEL · MEMORY`}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
 
@@ -212,39 +209,6 @@ export default function ProjectEditGeneral({
               )}
           </Section>
         )}
-
-        {/* ── CACHE ─────────────────────────────────────────── */}
-        <Section accent={CACHE_ACCENT}>
-          <SectionHeader
-            title="Cache"
-            accent={CACHE_ACCENT}
-            subtitle="Reuse answers for semantically similar questions to cut cost and latency."
-          />
-          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
-            <FormControlLabel
-              label={<span>Enable cache<HelpTip text="Caches similar questions to avoid redundant LLM calls" /></span>}
-              control={<Switch checked={cacheOn} name="cache" onChange={handleChange} />}
-            />
-            {cacheOn && (
-              <Box sx={{ minWidth: 280 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center" }}>
-                  Threshold<HelpTip text="How similar a new question must be to a cached one to reuse the answer (higher = stricter match)" />
-                  <Box component="span" sx={{ ml: "auto", fontFamily: FONT_MONO, fontSize: "0.78rem", fontWeight: 700, color: CACHE_ACCENT }}>
-                    {Math.round((opts.cache_threshold ?? 0.85) * 100)}%
-                  </Box>
-                </Typography>
-                <Slider
-                  name="cache_threshold"
-                  value={(opts.cache_threshold ?? 0.85) * 100}
-                  onChange={handleChange}
-                  step={1} min={0} max={100}
-                  size="small"
-                  sx={{ color: CACHE_ACCENT }}
-                />
-              </Box>
-            )}
-          </Box>
-        </Section>
 
         {/* ── AGENT LOOP (agent only) ───────────────────────── */}
         {state.type === "agent" && (

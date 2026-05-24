@@ -21,7 +21,7 @@ from restai.agent2.memory import get_session, save_session
 from restai.agent2.tool_adapter import AdaptedTool
 from restai.agent2.types import ImageBlock, ToolUseBlock
 from restai.database import DBWrapper
-from restai.models.models import ChatModel, QuestionModel, User
+from restai.models.models import ChatModel, User
 from restai.project import Project
 from restai.projects.base import ProjectBase
 from restai.projects.agent_shared import (
@@ -698,7 +698,13 @@ class Agent(ProjectBase):
         if tool_trace:
             output["tool_trace"] = tool_trace
 
-    async def chat(self, project: Project, chatModel: ChatModel, user: User, db: DBWrapper):
+    async def chat(
+        self,
+        project: Project,
+        chatModel: ChatModel,
+        user: User,
+        db: DBWrapper,
+    ):
         loop = (getattr(project.props.options, "agent_loop", None) or "restai").lower()
         if loop == "claude":
             from restai.projects import _claude_sdk_loop
@@ -744,12 +750,6 @@ class Agent(ProjectBase):
 
         streamed_any_text = False
         try:
-            # Skip MCPSessionPool entirely when no MCP servers configured.
-            # The pool's __aexit__ closes stdio sessions and is a meaningful
-            # await point — unconditional entry meant Starlette's post-response
-            # cancel often landed inside cleanup, generating misleading "MCP
-            # cleanup" warnings for projects that never used MCP. AsyncExitStack
-            # lets us conditionally enter without duplicating the body.
             mcp_servers = project.props.options.mcp_servers or []
             async with contextlib.AsyncExitStack() as _mcp_stack:
                 mcp_tools = []
@@ -761,8 +761,9 @@ class Agent(ProjectBase):
                         mcp_tools = []
 
                 try:
+                    base_system = chatModel.system or project.props.system
                     sys_prompt = _augment_system_prompt_with_memory_bank(
-                        project, db, project.props.system,
+                        project, db, base_system,
                     )
                     sys_prompt = _augment_system_prompt_with_memory_search_hint(
                         project, sys_prompt,
@@ -794,9 +795,6 @@ class Agent(ProjectBase):
                 )
                 image_block = ImageBlock.from_data_url(image_url) if image_url else None
 
-                # Plan-and-execute (opt-in) only on first turn of a fresh
-                # session — follow-ups run as single-loop chat so users can
-                # refine without paying the planner cost again.
                 use_plan = (
                     bool(getattr(project.props.options, "auto_plan", False))
                     and not getattr(session, "messages", None)
@@ -860,14 +858,6 @@ class Agent(ProjectBase):
                         yield "event: close\n\n"
                         streamed_any_text = True
                 finally:
-                    # Fallback persist for cancellation-mid-run. If
-                    # save_session above never ran (CancelledError inside
-                    # _drive_runtime, client disconnect mid-stream, middleware
-                    # teardown), schedule it as a background task so the
-                    # session DOES land before the next chat turn. Without
-                    # this, the next turn loads the pre-turn session and the
-                    # agent "loses its thoughts" — re-asks for files it
-                    # already cat'd, re-clones repos it already has, etc.
                     if not saved_session:
                         _spawn_session_save(self.brain, chat_id, session)
         except BaseException as e:
@@ -900,138 +890,3 @@ class Agent(ProjectBase):
                 output["answer"] = project.props.censorship or "No response generated."
             yield output
 
-    async def question(
-        self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper
-    ):
-        loop = (getattr(project.props.options, "agent_loop", None) or "restai").lower()
-        if loop == "claude":
-            from restai.projects import _claude_sdk_loop
-            async for chunk in _claude_sdk_loop.question(
-                self, project, questionModel, user, db,
-                system_prompt=(questionModel.system or project.props.system),
-            ):
-                yield chunk
-            return
-        if loop == "llamaindex":
-            from restai.projects import _llamaindex_loop
-            async for chunk in _llamaindex_loop.question(
-                self, project, questionModel, user, db,
-                system_prompt=(questionModel.system or project.props.system),
-            ):
-                yield chunk
-            return
-        if loop == "smolagents":
-            from restai.projects import _smolagents_loop
-            async for chunk in _smolagents_loop.question(
-                self, project, questionModel, user, db,
-                system_prompt=(questionModel.system or project.props.system),
-            ):
-                yield chunk
-            return
-        if loop == "openai_agents":
-            from restai.projects import _openai_agents_loop
-            async for chunk in _openai_agents_loop.question(
-                self, project, questionModel, user, db,
-                system_prompt=(questionModel.system or project.props.system),
-            ):
-                yield chunk
-            return
-
-        output = {
-            "question": questionModel.question,
-            "type": "agent",
-            "sources": [],
-            "guard": False,
-            "tokens": {"input": 0, "output": 0},
-            "project": project.props.name,
-        }
-
-        if self.check_input_guard(project, questionModel.question, user, db, output):
-            if questionModel.stream:
-                yield "data: " + json.dumps({"text": output.get("answer", "")}) + "\n\n"
-                yield "data: " + json.dumps(output) + "\n"
-                yield "event: close\n\n"
-            else:
-                yield output
-            return
-
-        system_prompt = questionModel.system or project.props.system
-        system_prompt = _augment_system_prompt_with_memory_bank(project, db, system_prompt)
-        system_prompt = _augment_system_prompt_with_memory_search_hint(project, system_prompt)
-        system_prompt = _prepend_current_time(system_prompt)
-
-        # See chat() above for the skip-when-empty rationale.
-        mcp_servers = project.props.options.mcp_servers or []
-        async with contextlib.AsyncExitStack() as _mcp_stack:
-            mcp_tools = []
-            if mcp_servers:
-                mcp_pool = await _mcp_stack.enter_async_context(MCPSessionPool())
-                try:
-                    mcp_tools = await mcp_pool.connect_servers(mcp_servers)
-                except Exception:
-                    mcp_tools = []
-
-            try:
-                runtime = self._build_runtime(
-                    project, db, system_prompt, extra_tools=mcp_tools
-                )
-            except Agent2UnsupportedLLMError as e:
-                output["answer"] = str(e)
-                if questionModel.stream:
-                    yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
-                    yield "data: " + json.dumps(output) + "\n"
-                    yield "event: close\n\n"
-                else:
-                    yield output
-                return
-
-            runtime._brain = self.brain
-            runtime._project_id = project.props.id
-            streamed_any_text = False
-
-            # Ephemeral chat id so file uploads land in a sandbox the terminal
-            # tool can read within this single invocation.
-            eph_chat = f"q_{uuid4().hex[:12]}"
-            runtime._chat_id = eph_chat
-            prompt_text, image_url = _route_attachments(
-                getattr(questionModel, "files", None), eph_chat, questionModel.question, self.brain,
-                existing_image=questionModel.image, project=project,
-            )
-            image_block = ImageBlock.from_data_url(image_url) if image_url else None
-
-            try:
-                async for kind, payload in self._drive_runtime(
-                    runtime,
-                    prompt=prompt_text,
-                    session=None,
-                    image_block=image_block,
-                    stream=questionModel.stream,
-                    project=project,
-                    output=output,
-                ):
-                    if kind == "text":
-                        streamed_any_text = True
-                        yield "data: " + json.dumps({"text": payload}) + "\n\n"
-                    else:
-                        yield "data: " + json.dumps(payload) + "\n\n"
-
-                self._count_tokens(output)
-                self.check_output_guard(project, user, db, output)
-            except Exception as e:
-                wrapped = _wrap_image_error(e, bool(questionModel.image))
-                err_msg = project.props.censorship or f"Agent failed: {wrapped}"
-                output["answer"] = err_msg
-                self._count_tokens(output)
-                if questionModel.stream:
-                    yield "data: " + json.dumps({"text": err_msg}) + "\n\n"
-                    yield "data: " + json.dumps(output) + "\n"
-                    yield "event: close\n\n"
-                    return
-
-        if questionModel.stream:
-            if not streamed_any_text and output.get("answer"):
-                yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
-            yield "data: " + json.dumps(output) + "\n"
-            yield "event: close\n\n"
-        else:
-            yield output

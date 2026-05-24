@@ -82,21 +82,6 @@ export default function ProjectInfoKnowledge({ project }) {
                 variant="outlined"
               />
             </DetailItem>
-            <DetailItem label={t("projects.edit.knowledge.infoKnowledge.cache")}>
-              <Chip
-                label={project.options?.cache ? t("common.enabled") : t("common.disabled")}
-                size="small"
-                color={project.options?.cache ? "success" : "default"}
-                variant="outlined"
-              />
-            </DetailItem>
-            {project.options?.cache && (
-              <DetailItem label={t("projects.edit.knowledge.infoKnowledge.cacheThreshold")}>
-                <Typography variant="body2">
-                  {project.options.cache_threshold ?? 0.85}
-                </Typography>
-              </DetailItem>
-            )}
             {project.options?.connection && (
               <DetailItem label={t("projects.edit.knowledge.infoKnowledge.sqlConnection")}>
                 <Chip label={t("projects.edit.knowledge.infoKnowledge.configured")} size="small" color="info" variant="outlined" />

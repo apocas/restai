@@ -4,7 +4,7 @@ import {
 } from "@mui/material";
 import {
   Psychology, TerminalOutlined, ChatBubbleOutline,
-  ContentCopy, Speed, Shield, Cached, CallSplit,
+  ContentCopy, Speed, Shield, CallSplit,
   AttachFile, CheckCircle, Loop, RadioButtonUnchecked,
   Person,
 } from "@mui/icons-material";
@@ -574,7 +574,6 @@ function OutputLaneItem({ entry, accent, onBranch, onCopy, copied, isLast }) {
       {entry.metadata && !pending && (
         <Box sx={{ display: "flex", gap: 0.5, mt: 0.75, flexWrap: "wrap" }}>
           {entry.metadata.guard && <Chip icon={<Shield />} label="Guard" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: "0.68rem" }} />}
-          {entry.metadata.cached && <Chip icon={<Cached />} label="Cached" size="small" color="info" variant="outlined" sx={{ height: 20, fontSize: "0.68rem" }} />}
           {entry.metadata.tokens && (entry.metadata.tokens.input > 0 || entry.metadata.tokens.output > 0) && (
             <Chip label={`${entry.metadata.tokens.input + entry.metadata.tokens.output} tok`}
               size="small" variant="outlined" sx={{ height: 20, fontSize: "0.68rem" }} />
@@ -687,7 +686,7 @@ function deriveLanes(messages, streamingText, streamingPlan, streamingToolCalls)
       meta: msg._meta || null,
       metadata: {
         latency_ms: msg.latency_ms, tokens: msg.tokens,
-        cached: msg.cached, guard: msg.guard, id: msg.id,
+        guard: msg.guard, id: msg.id,
       },
     });
   });
@@ -757,7 +756,6 @@ export default function PlaygroundLanes({
   streamingText,
   streamingPlan,
   streamingToolCalls,
-  chatMode,
   onBranch,
   autoScroll = true,
   // Playground wants Thoughts/Tools to pop open the first time content
@@ -889,7 +887,7 @@ export default function PlaygroundLanes({
               key={i}
               entry={entry}
               accent={LANE_THEME.output.accent}
-              onBranch={chatMode && entry.role === "assistant" && entry.text && !entry.isLive ? onBranch : null}
+              onBranch={entry.role === "assistant" && entry.text && !entry.isLive ? onBranch : null}
               onCopy={handleCopy}
               copied={!!copiedKey}
               isLast={i === lanes.output.length - 1}

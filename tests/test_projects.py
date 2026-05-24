@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 
 from restai.config import RESTAI_DEFAULT_PASSWORD
 from restai.main import app
-from restai.models.models import ProjectModelCreate, ProjectModelUpdate, FindModel, TextIngestModel, URLIngestModel, ChatModel, QuestionModel
+from restai.models.models import ProjectModelCreate, ProjectModelUpdate, FindModel, TextIngestModel, URLIngestModel, ChatModel
 
 project_id = None
 test_team_id = None

@@ -141,39 +141,25 @@ class FileAttachment(BaseModel):
     mime_type: Union[str, None] = Field(default=None, max_length=100, description="Optional MIME type hint (e.g. application/pdf)")
 
 
-class QuestionModel(InteractionModel):
-    """Send a one-shot question to a project."""
-    system: Union[str, None] = Field(default=None, description="System prompt override for this question")
-    colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking of retrieved documents")
-    llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking of retrieved documents")
-    tables: Union[list[str], None] = Field(default=None, description="Restrict SQL queries to specific database tables (for RAG projects with a database connection)")
-    negative: Union[str, None] = Field(default=None, description="Negative prompt to steer the response away from certain content")
-    image: Union[str, None] = Field(default=None, description="Base64-encoded image for vision models")
-    files: Union[list[FileAttachment], None] = Field(default=None, max_length=10, description="Up to 10 files to upload into the agent sandbox at /home/user/uploads/")
-    lite: bool = Field(default=False, description="Return a lightweight response without full source details")
-    eval: bool = Field(default=False, description="Enable response evaluation and scoring")
-    k: Optional[int] = Field(None, ge=1, le=25, description="Number of documents to retrieve from the knowledge base")
-    score: Union[float, None] = Field(default=None, description="Minimum similarity score threshold for retrieved documents")
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "question": "What are the main features of RESTai?",
-            "stream": False,
-            "k": 4,
-            "score": 0.3,
-            "lite": False,
-            "eval": False
-        }
-    })
-
-
 _CHAT_ID_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
 class ChatModel(InteractionModel):
-    """Send a chat message to a project. Maintains conversation state via the id field."""
-    id: Union[str, None] = Field(default=None, max_length=128, description="Conversation ID for maintaining chat state. Omit to start a new conversation.")
+    """Send a chat message (or one-shot question) to a project. Maintains
+    conversation state via the ``id`` field; omit ``id`` for an ephemeral
+    one-shot turn."""
+    id: Union[str, None] = Field(default=None, max_length=128, description="Conversation ID for maintaining chat state. Omit to start a new conversation (ephemeral one-shot turn).")
     image: Union[str, None] = Field(default=None, description="Base64-encoded image for vision models")
     files: Union[list[FileAttachment], None] = Field(default=None, max_length=10, description="Up to 10 files to upload into the agent sandbox at /home/user/uploads/")
+    system: Union[str, None] = Field(default=None, description="System prompt override for this turn (Agent + RAG)")
+    colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking of retrieved documents (RAG only)")
+    llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking of retrieved documents (RAG only)")
+    tables: Union[list[str], None] = Field(default=None, description="Restrict NL→SQL to specific tables (RAG with connection only)")
+    negative: Union[str, None] = Field(default=None, description="Negative prompt to steer the response away from certain content (RAG only)")
+    lite: bool = Field(default=False, description="Return a lightweight response without full source details (RAG only)")
+    eval: bool = Field(default=False, description="Enable response evaluation and scoring (RAG only, non-streaming)")
+    k: Optional[int] = Field(None, ge=1, le=25, description="Number of documents to retrieve from the knowledge base (RAG only)")
+    score: Union[float, None] = Field(default=None, description="Minimum similarity score threshold for retrieved documents (RAG only)")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "question": "Tell me about the RAG project type.",
@@ -683,16 +669,6 @@ class ProjectOptions(BaseModel):
     redact_inference_logs: bool = Field(default=False, description="Redact secrets (API keys, tokens, credentials) from inference logs before persisting")
     colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking of retrieved documents")
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking of retrieved documents")
-    cache: Union[bool, None] = Field(default=None, description="Enable response caching")
-    cache_threshold: Union[float, None] = Field(default=0.85, description="Similarity threshold for cache hits (0.0 to 1.0)")
-
-    @field_validator('cache_threshold')
-    @classmethod
-    def validate_cache_threshold(cls, v):
-        if v is not None and (v < 0.0 or v > 1.0):
-            raise ValueError("cache_threshold must be between 0.0 and 1.0")
-        return v
-
     tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables for natural language to SQL queries")
     tools: Union[str, None] = Field(default=None, description="Comma-separated list of enabled tool names")
     score: float = Field(default=0.0, description="Minimum similarity score threshold for retrieved documents")
@@ -1125,8 +1101,6 @@ class ProjectModelUpdate(BaseModel):
     tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables")
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking")
     colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking")
-    cache: Union[bool, None] = Field(default=None, description="Enable response caching")
-    cache_threshold: Union[float, None] = Field(default=None, description="Similarity threshold for cache hits")
     guard: Union[str, None] = Field(default=None, description="Name of the LLM used as a content guard")
     human_name: Union[str, None] = Field(default=None, max_length=200, description="Human-readable display name")
     human_description: Union[str, None] = Field(default=None, max_length=2000, description="Human-readable project description")

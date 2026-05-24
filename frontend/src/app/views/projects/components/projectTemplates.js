@@ -19,7 +19,7 @@ export const PROJECT_TEMPLATES = [
     category: "data",
     color: "#2196f3",
     system: "You are a document analysis assistant. Answer questions based only on the provided context from the knowledge base. If the answer is not found in the context, clearly state that. Always cite relevant sections when possible.",
-    options: { k: 4, score: 0.3, cache: true, cache_threshold: 0.9 },
+    options: { k: 4, score: 0.3 },
   },
   {
     id: "image-analyzer",

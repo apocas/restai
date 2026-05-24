@@ -3,7 +3,7 @@ import {
   Box, Chip, Collapse, IconButton, Typography, styled, Tooltip,
   Accordion, AccordionSummary, AccordionDetails,
 } from "@mui/material";
-import { ContentCopy, ExpandMore, Shield, Cached, Speed, TerminalOutlined, CallSplit, AttachFile, Psychology, CheckCircle, RadioButtonUnchecked, Loop } from "@mui/icons-material";
+import { ContentCopy, ExpandMore, Shield, Speed, TerminalOutlined, CallSplit, AttachFile, Psychology, CheckCircle, RadioButtonUnchecked, Loop } from "@mui/icons-material";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Terminal from "./Terminal";
@@ -439,9 +439,6 @@ export default function MessageBubble({ message, onBranch }) {
             <Box sx={{ display: "flex", gap: 0.5, mt: 0.5, flexWrap: "wrap", alignItems: "center" }}>
               {message.guard && (
                 <Chip icon={<Shield />} label="Guard" size="small" color="warning" variant="outlined" />
-              )}
-              {message.cached && (
-                <Chip icon={<Cached />} label="Cached" size="small" color="info" variant="outlined" />
               )}
               {message.tokens && (message.tokens.input > 0 || message.tokens.output > 0) && (
                 <Chip

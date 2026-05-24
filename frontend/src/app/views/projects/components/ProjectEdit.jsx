@@ -120,8 +120,6 @@ export default function ProjectEdit({ project, projects, info }) {
     opts.options.rate_limit = state.options.rate_limit ? parseInt(state.options.rate_limit) : null;
     opts.options.guard_output = state.options.guard_output || null;
     opts.options.guard_mode = state.options.guard_mode || "block";
-    opts.options.cache = state.options.cache;
-    opts.options.cache_threshold = parseFloat(state.options.cache_threshold) || 0.85;
     if (project.type === "agent") {
       opts.options.memory_bank_enabled = state.options.memory_bank_enabled || false;
       opts.options.memory_bank_max_tokens = parseInt(state.options.memory_bank_max_tokens) || 2000;
@@ -164,10 +162,8 @@ export default function ProjectEdit({ project, projects, info }) {
   const handleChange = (event) => {
     if (event && event.persist) event.persist();
 
-    if (["logging", "redact_inference_logs", "cache", "llm_rerank", "colbert_rerank", "enable_knowledge_graph", "memory_bank_enabled", "memory_search_enabled", "browser_allow_eval"].includes(event.target.name)) {
+    if (["logging", "redact_inference_logs", "llm_rerank", "colbert_rerank", "enable_knowledge_graph", "memory_bank_enabled", "memory_search_enabled", "browser_allow_eval"].includes(event.target.name)) {
       setState({ ...state, options: { ...state.options, [event.target.name]: event.target.checked } });
-    } else if (event.target.name === "cache_threshold") {
-      setState({ ...state, options: { ...state.options, cache_threshold: event.target.value / 100 } });
     } else if (event.target.name === "k") {
       setState({ ...state, options: { ...state.options, k: parseInt(event.target.value) } });
     } else if (event.target.name === "score") {
@@ -206,8 +202,6 @@ export default function ProjectEdit({ project, projects, info }) {
         logging: false,
         colbert_rerank: false,
         llm_rerank: false,
-        cache: false,
-        cache_threshold: 0.85,
         score: 0.0,
         k: 4,
         tools: null,

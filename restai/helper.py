@@ -13,7 +13,7 @@ from restai.projects.agent import Agent
 from restai.projects.app import App
 from restai.projects.block import Block
 from restai.projects.rag import RAG
-from restai.models.models import QuestionModel, User, ChatModel
+from restai.models.models import User, ChatModel
 from restai.brain import Brain
 import requests
 from fastapi import HTTPException, Request
@@ -122,7 +122,7 @@ def _attachment_meta(files):
 
 
 def _normalize_image_inputs(model) -> None:
-    """Canonicalize image input on a Chat/QuestionModel in place.
+    """Canonicalize image input on a ChatModel in place.
 
     Historically a user could attach an image either via `.image` (the
     single-image slot) or via `.files[]` (a FileAttachment whose mime or
@@ -535,7 +535,7 @@ async def chat_main(
                 proj_logic = Agent(brain)
                 if chat_input.image:
                     chat_input.image = resolve_image(chat_input.image)
-                    _image = chat_input.image  # keep log-image in sync with resolved form
+                    _image = chat_input.image
             case "block":
                 proj_logic = Block(brain)
             case "app":
@@ -562,22 +562,22 @@ async def chat_main(
             output_generator = proj_logic.chat(project, chat_input, user, db)
             async for line in output_generator:
                 latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-                # Splice request metadata into the output dict so the log
-                # row carries the image + attachments without each project
-                # type having to remember to copy them in.
                 if _image and not line.get("image"):
                     line["image"] = _image
                 if _attachments and not line.get("attachments"):
                     line["attachments"] = _attachments
-                # Log synchronously, NOT via background_tasks.add_task —
-                # those only fire after the response body has been
-                # successfully written, so a client disconnect between
-                # `return line` and serialization would skip them and
-                # silently lose audit / cost / quota counting.
                 log_inference(
                     project, user, line, db,
                     latency_ms=latency_ms, system_prompt=_sys, context=_ctx,
                 )
+                # RAG-only retrieval-event logging.
+                if (
+                    isinstance(line, dict)
+                    and line.get("sources")
+                    and project.props.type == "rag"
+                ):
+                    from restai.tools import log_retrieval_events
+                    background_tasks.add_task(log_retrieval_events, project, line["sources"], db)
                 return line
             return None
     except HTTPException as e:
@@ -596,410 +596,5 @@ async def chat_main(
             system_prompt=_sys, context=_ctx, start_time=start_time,
         )
         raise
-
-
-async def question_main(
-    request: Request,
-    brain: Brain,
-    project: Project,
-    q_input: QuestionModel,
-    user: User,
-    db: DBWrapper,
-    background_tasks: BackgroundTasks,
-    start_time: float = None,
-):
-    # Canonicalize image input: see `_normalize_image_inputs` doc. Ensures
-    # `.image` is the single source of truth for every project type.
-    _normalize_image_inputs(q_input)
-
-    # Request metadata captured so every error path can log a row that
-    # reflects what the user sent (including images + attachments that
-    # the LLM never saw because we rejected the request up-front).
-    _files = getattr(q_input, "files", None)
-    _image = _pick_image_for_log(q_input.image, _files)
-    _attachments = _attachment_meta(_files)
-    _question = q_input.question
-    _sys = project.props.system
-    _ctx = q_input.context
-
-    try:
-        check_budget(project, db)
-    except HTTPException as e:
-        _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="budget", error=getattr(e, "detail", str(e)),
-            system_prompt=_sys, context=_ctx, start_time=start_time,
-        )
-        raise
-
-    try:
-        check_rate_limit(project, db)
-    except HTTPException as e:
-        _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="rate_limit", error=getattr(e, "detail", str(e)),
-            system_prompt=_sys, context=_ctx, start_time=start_time,
-        )
-        raise
-
-    try:
-        check_api_key_quota(user, db)
-    except HTTPException as e:
-        _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="quota", error=getattr(e, "detail", str(e)),
-            system_prompt=_sys, context=_ctx, start_time=start_time,
-        )
-        raise
-
-    project = _apply_context(project, q_input)
-
-    cached = await process_cache(project, q_input)
-    if cached:
-        latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-        if _image and not cached.get("image"):
-            cached["image"] = _image
-        if _attachments and not cached.get("attachments"):
-            cached["attachments"] = _attachments
-        # Sync log — see note in chat_main: BackgroundTasks fire only
-        # after the body is sent, so client disconnect would lose this.
-        log_inference(
-            project, user, cached, db,
-            latency_ms=latency_ms, system_prompt=_sys, context=_ctx,
-        )
-        return cached
-
-    result = None
-    match project.props.type:
-        case "rag":
-            result = await question_rag(
-                request, brain, project, q_input, user, db, background_tasks, start_time, _sys, _ctx
-            )
-        case "agent":
-            result = await question_agent(
-                brain, project, q_input, user, db, background_tasks, start_time, _sys, _ctx
-            )
-        case "block":
-            result = await question_block(
-                brain, project, q_input, user, db, background_tasks, start_time, _sys, _ctx
-            )
-        case "app":
-            result = await question_app(
-                brain, project, q_input, user, db, background_tasks, start_time, _sys, _ctx
-            )
-        case _:
-            _log_inference_error(
-                project, user, db,
-                question=_question, image=_image, attachments=_attachments,
-                status="error", error="Invalid project type",
-                system_prompt=_sys, context=_ctx, start_time=start_time,
-            )
-            raise HTTPException(status_code=400, detail="Invalid project type")
-
-    if result and project.cache and isinstance(result, dict) and "answer" in result:
-        try:
-            project.cache.add(q_input.question, result["answer"])
-        except Exception:
-            pass
-
-    if result and isinstance(result, dict) and result.get("sources") and project.props.type == "rag":
-        from restai.tools import log_retrieval_events
-        background_tasks.add_task(log_retrieval_events, project, result["sources"], db)
-
-    return result
-
-
-async def question_rag(
-    _: Request,
-    brain: Brain,
-    project: Project,
-    q_input: QuestionModel,
-    user: User,
-    db: DBWrapper,
-    background_tasks: BackgroundTasks,
-    start_time: float = None,
-    system_prompt: str = None,
-    context: dict = None,
-):
-    _files = getattr(q_input, "files", None)
-    _image = _pick_image_for_log(q_input.image, _files)
-    _attachments = _attachment_meta(_files)
-    _question = q_input.question
-
-    try:
-        proj_logic = RAG(brain)
-
-        if project.props.type != "rag":
-            raise HTTPException(
-                status_code=400, detail="Only available for RAG projects."
-            )
-
-        if q_input.stream:
-            return await create_streaming_response_with_logging(
-                proj_logic.question(project, q_input, user, db),
-                project,
-                user,
-                db,
-                background_tasks,
-                start_time=start_time,
-                system_prompt=system_prompt,
-                context=context,
-                question=_question,
-                image=_image,
-                attachments=_attachments,
-            )
-        else:
-            output_generator = proj_logic.question(project, q_input, user, db)
-            async for line in output_generator:
-                latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-                if _image and not line.get("image"):
-                    line["image"] = _image
-                if _attachments and not line.get("attachments"):
-                    line["attachments"] = _attachments
-                # Sync log — see chat_main note. BackgroundTasks would lose
-                # this row on client disconnect.
-                log_inference(
-                    project, user, line, db,
-                    latency_ms=latency_ms, system_prompt=system_prompt, context=context,
-                )
-                return line
-    except HTTPException as e:
-        _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="error", error=getattr(e, "detail", str(e)),
-            system_prompt=system_prompt, context=context, start_time=start_time,
-        )
-        raise
-    except Exception as e:
-        logging.exception(e)
-        _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="error", error=str(e),
-            system_prompt=system_prompt, context=context, start_time=start_time,
-        )
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-async def process_cache(project: Project, q_input: QuestionModel):
-    output = {
-        "question": q_input.question,
-        "type": "question",
-        "sources": [],
-        "tokens": {"input": 0, "output": 0},
-    }
-
-    if project.cache:
-        answer = project.cache.verify(q_input.question)
-        if answer is not None:
-            output.update(
-                {
-                    "answer": answer,
-                    "cached": True,
-                }
-            )
-
-            return output
-
-    return None
-
-
-async def question_agent(
-    brain: Brain,
-    project: Project,
-    q_input: QuestionModel,
-    user: User,
-    db: DBWrapper,
-    background_tasks: BackgroundTasks,
-    start_time: float = None,
-    system_prompt: str = None,
-    context: dict = None,
-):
-    _files = getattr(q_input, "files", None)
-    _image = _pick_image_for_log(q_input.image, _files)
-    _attachments = _attachment_meta(_files)
-    _question = q_input.question
-
-    try:
-        proj_logic: Agent = Agent(brain)
-
-        if project.props.type != "agent":
-            raise HTTPException(
-                status_code=400, detail="Only available for AGENT projects."
-            )
-
-        if q_input.image:
-            q_input.image = resolve_image(q_input.image)
-            _image = q_input.image
-
-        if q_input.stream:
-            return await create_streaming_response_with_logging(
-                proj_logic.question(project, q_input, user, db),
-                project,
-                user,
-                db,
-                background_tasks,
-                start_time=start_time,
-                system_prompt=system_prompt,
-                context=context,
-                question=_question,
-                image=_image,
-                attachments=_attachments,
-            )
-        else:
-            output_generator = proj_logic.question(project, q_input, user, db)
-            async for line in output_generator:
-                latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-                if _image and not line.get("image"):
-                    line["image"] = _image
-                if _attachments and not line.get("attachments"):
-                    line["attachments"] = _attachments
-                # Sync log — see chat_main note. BackgroundTasks would lose
-                # this row on client disconnect.
-                log_inference(
-                    project, user, line, db,
-                    latency_ms=latency_ms, system_prompt=system_prompt, context=context,
-                )
-                return line
-
-    except HTTPException as e:
-        _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="error", error=getattr(e, "detail", str(e)),
-            system_prompt=system_prompt, context=context, start_time=start_time,
-        )
-        raise
-    except Exception as e:
-        logging.exception(e)
-        _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="error", error=str(e),
-            system_prompt=system_prompt, context=context, start_time=start_time,
-        )
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-async def question_block(
-    brain: Brain,
-    project: Project,
-    q_input: QuestionModel,
-    user: User,
-    db: DBWrapper,
-    background_tasks: BackgroundTasks,
-    start_time: float = None,
-    system_prompt: str = None,
-    context: dict = None,
-):
-    _files = getattr(q_input, "files", None)
-    _image = _pick_image_for_log(q_input.image, _files)
-    _attachments = _attachment_meta(_files)
-    _question = q_input.question
-
-    try:
-        proj_logic = Block(brain)
-
-        if project.props.type != "block":
-            raise HTTPException(
-                status_code=400, detail="Only available for BLOCK projects."
-            )
-
-        if q_input.image:
-            q_input.image = resolve_image(q_input.image)
-            _image = q_input.image
-
-        output_generator = proj_logic.question(project, q_input, user, db)
-        async for line in output_generator:
-            latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-            if _image and not line.get("image"):
-                line["image"] = _image
-            if _attachments and not line.get("attachments"):
-                line["attachments"] = _attachments
-            # Sync log — see chat_main note. BackgroundTasks would lose
-            # this row on client disconnect.
-            log_inference(
-                project, user, line, db,
-                latency_ms=latency_ms, system_prompt=system_prompt, context=context,
-            )
-            return line
-
-    except HTTPException as e:
-        _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="error", error=getattr(e, "detail", str(e)),
-            system_prompt=system_prompt, context=context, start_time=start_time,
-        )
-        raise
-    except Exception as e:
-        logging.exception(e)
-        _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="error", error=str(e),
-            system_prompt=system_prompt, context=context, start_time=start_time,
-        )
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-async def question_app(
-    brain: Brain,
-    project: Project,
-    q_input: QuestionModel,
-    user: User,
-    db: DBWrapper,
-    background_tasks: BackgroundTasks,
-    start_time: float = None,
-    system_prompt: str = None,
-    context: dict = None,
-):
-    _files = getattr(q_input, "files", None)
-    _image = _pick_image_for_log(q_input.image, _files)
-    _attachments = _attachment_meta(_files)
-    _question = q_input.question
-
-    try:
-        proj_logic = App(brain)
-
-        if project.props.type != "app":
-            raise HTTPException(
-                status_code=400, detail="Only available for APP projects."
-            )
-
-        output_generator = proj_logic.question(project, q_input, user, db)
-        async for line in output_generator:
-            latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
-            if _image and not line.get("image"):
-                line["image"] = _image
-            if _attachments and not line.get("attachments"):
-                line["attachments"] = _attachments
-            log_inference(
-                project, user, line, db,
-                latency_ms=latency_ms, system_prompt=system_prompt, context=context,
-            )
-            return line
-
-    except HTTPException as e:
-        _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="error", error=getattr(e, "detail", str(e)),
-            system_prompt=system_prompt, context=context, start_time=start_time,
-        )
-        raise
-    except Exception as e:
-        logging.exception(e)
-        _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="error", error=str(e),
-            system_prompt=system_prompt, context=context, start_time=start_time,
-        )
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 

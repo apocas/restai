@@ -21,7 +21,7 @@ from llama_index.core.llms import ChatMessage
 from llama_index.core.tools import FunctionTool
 
 from restai.database import DBWrapper
-from restai.models.models import ChatModel, QuestionModel, User
+from restai.models.models import ChatModel, User
 from restai.project import Project
 from restai.projects import agent_shared
 from restai.tools import tokens_from_string
@@ -398,7 +398,7 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
     try:
         async for kind, payload in _drive(
             project, db, agent_self,
-            prompt_text=prompt_text, system_prompt=project.props.system or "",
+            prompt_text=prompt_text, system_prompt=(chatModel.system or project.props.system or ""),
             stream=chatModel.stream, chat_id=chat_id, image_url=image_url,
         ):
             if kind == "text":
@@ -456,85 +456,3 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
     else:
         yield output
 
-
-async def question(agent_self, project: Project, questionModel: QuestionModel, user: User, db: DBWrapper,
-                   *, system_prompt: str | None = None):
-    chat_id = "ephemeral-" + uuid4().hex[:12]
-    output = {
-        "question": questionModel.question,
-        "type": "agent",
-        "sources": [],
-        "guard": False,
-        "tokens": {"input": 0, "output": 0},
-        "project": project.props.name,
-        "agent_loop": "llamaindex",
-    }
-
-    if agent_self.check_input_guard(project, questionModel.question, user, db, output):
-        if questionModel.stream:
-            yield "data: " + _json.dumps({"text": output.get("answer", "")}) + "\n\n"
-            yield "data: " + _json.dumps(output) + "\n"
-            yield "event: close\n\n"
-        else:
-            yield output
-        return
-
-    prompt_text, image_url = agent_shared.route_attachments(
-        getattr(questionModel, "files", None), chat_id, questionModel.question, agent_self.brain,
-        existing_image=getattr(questionModel, "image", None), project=project,
-    )
-
-    streamed_any_text = False
-    try:
-        async for kind, payload in _drive(
-            project, db, agent_self,
-            prompt_text=prompt_text,
-            system_prompt=system_prompt or project.props.system or "",
-            stream=questionModel.stream, chat_id=chat_id, image_url=image_url,
-        ):
-            if kind == "text":
-                streamed_any_text = True
-                if questionModel.stream:
-                    yield "data: " + _json.dumps({"text": payload}) + "\n\n"
-            elif kind == "event":
-                if questionModel.stream:
-                    yield "data: " + _json.dumps(payload) + "\n\n"
-            elif kind == "result":
-                output["answer"] = payload["answer"]
-                output["tokens"] = payload["tokens"]
-                if payload.get("tool_trace"):
-                    output["tool_trace"] = payload["tool_trace"]
-    except HTTPException as e:
-        err = f"llamaindex loop config error: {e.detail}"
-        output["answer"] = err
-        output["status"] = "error"
-        if questionModel.stream:
-            yield "data: " + _json.dumps({"text": err}) + "\n\n"
-            yield "data: " + _json.dumps(output) + "\n"
-            yield "event: close\n\n"
-        else:
-            yield output
-        return
-    except Exception as e:
-        logger.exception("llamaindex loop failed for project %s", project.props.name)
-        err = f"llamaindex loop error: {e}"
-        output["answer"] = err
-        output["status"] = "error"
-        if questionModel.stream:
-            if not streamed_any_text:
-                yield "data: " + _json.dumps({"text": err}) + "\n\n"
-            yield "data: " + _json.dumps(output) + "\n"
-            yield "event: close\n\n"
-        else:
-            yield output
-        return
-
-    agent_self.check_output_guard(project, user, db, output)
-
-    if questionModel.stream:
-        if not streamed_any_text and output.get("answer"):
-            yield "data: " + _json.dumps({"text": output["answer"]}) + "\n\n"
-        yield "data: " + _json.dumps(output) + "\n"
-        yield "event: close\n\n"
-    else:
-        yield output

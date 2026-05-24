@@ -1,11 +1,10 @@
-import json
 import logging
 from uuid import uuid4
 
 from fastapi import HTTPException
 
 from restai.database import DBWrapper
-from restai.models.models import ChatModel, QuestionModel, User
+from restai.models.models import ChatModel, User
 from restai.project import Project
 from restai.projects.base import ProjectBase
 from restai.projects.block_interpreter import BlockInterpreter
@@ -30,16 +29,23 @@ class Block(ProjectBase):
             )
         return workspace
 
-    async def chat(self, project: Project, chat_model: ChatModel, user: User, db: DBWrapper):
+    async def chat(
+        self,
+        project: Project,
+        chat_model: ChatModel,
+        user: User,
+        db: DBWrapper,
+    ):
         from restai.agent2.memory import get_session, save_session
         from restai.agent2.types import Message, TextBlock, user_text_message
 
         workspace = self._get_workspace(project)
+        type_str = "block"
         chat_id = chat_model.id or str(uuid4())
 
         output = {
             "question": chat_model.question,
-            "type": "block",
+            "type": type_str,
             "sources": [],
             "guard": False,
             "tokens": {"input": 0, "output": 0},
@@ -71,31 +77,5 @@ class Block(ProjectBase):
             Message(role="assistant", content=[TextBlock(text=output["answer"])])
         )
         await save_session(self.brain, chat_id, session)
-
-        yield output
-
-    async def question(self, project: Project, question_model: QuestionModel, user: User, db: DBWrapper):
-        workspace = self._get_workspace(project)
-
-        interpreter = BlockInterpreter(
-            workspace_json=workspace,
-            input_text=question_model.question,
-            brain=self.brain,
-            user=user,
-            db=db,
-            image=question_model.image,
-            context=getattr(project, "context", None),
-        )
-        result = await interpreter.execute()
-
-        output = {
-            "question": question_model.question,
-            "type": "block",
-            "sources": [],
-            "guard": False,
-            "tokens": {"input": 0, "output": 0},
-            "project": project.props.name,
-            "answer": result,
-        }
 
         yield output

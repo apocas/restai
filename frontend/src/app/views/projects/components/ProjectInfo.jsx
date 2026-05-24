@@ -6,7 +6,7 @@ import {
 import ProjectTypeChip from "app/components/ProjectTypeChip";
 import {
   Edit, Delete, Code, Article, SportsEsports, ViewInAr, Science, Security,
-  ContentCopy, ClearAll, Speed, Shield, Cached, Groups, Psychology, BookmarkAdd,
+  ContentCopy, Speed, Shield, Groups, Psychology, BookmarkAdd,
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import { useTranslation } from "react-i18next";
@@ -266,9 +266,6 @@ export default function ProjectInfo({ project }) {
               {project.guard && (
                 <Chip icon={<Shield />} label={`Guard: ${project.guard}`} size="small" sx={pillWarnSx} />
               )}
-              {project.options?.cache && (
-                <Chip icon={<Cached />} label="Cache" size="small" sx={pillInfoSx} />
-              )}
               {project.options?.rate_limit && (
                 <Chip icon={<Speed />} label={`${project.options.rate_limit} req/min`} size="small" sx={pillSx} />
               )}
@@ -330,19 +327,6 @@ export default function ProjectInfo({ project }) {
 
           <Box sx={{ flex: 1 }} />
 
-          {project.options?.cache && (
-            <Tooltip title="Clear Cache">
-              <IconButton
-                size="small"
-                sx={heroIconBtnSx}
-                onClick={() => {
-                  api.delete("/projects/" + project.id + "/cache", auth.user.token).catch(() => {});
-                }}
-              >
-                <ClearAll fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
           <Tooltip title={t("projects.actions.saveAsTemplate")}>
             <IconButton size="small" sx={heroIconBtnSx} onClick={() => { setTplName(project.human_name || project.name); setTplOpen(true); }}>
               <BookmarkAdd fontSize="small" />

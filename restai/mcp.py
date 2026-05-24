@@ -6,7 +6,7 @@ from fastmcp import FastMCP
 from fastmcp.server.dependencies import get_http_request
 
 from restai.database import open_db_wrapper
-from restai.models.models import QuestionModel, User
+from restai.models.models import ChatModel, User
 from restai.models.databasemodels import ProjectDatabase
 
 logger = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ def create_mcp_server(app_ref) -> FastMCP:
             image: Optional base64-encoded image for vision-capable projects.
         """
         from fastapi import BackgroundTasks
-        from restai.helper import question_main
+        from restai.helper import chat_main
         from restai.brain import Brain
 
         user, db_wrapper = _authenticate()
@@ -106,11 +106,11 @@ def create_mcp_server(app_ref) -> FastMCP:
             if project is None:
                 return f"Error: Could not load project '{project_name}'."
 
-            q_input = QuestionModel(question=question, image=image, stream=False)
+            q_input = ChatModel(question=question, image=image, stream=False)
             background_tasks = BackgroundTasks()
             http_request = get_http_request()
 
-            result = await question_main(
+            result = await chat_main(
                 http_request,
                 brain,
                 project,

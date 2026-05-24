@@ -46,15 +46,6 @@ export default function ProjectRAG({ project }) {
           <Chip label={project.options?.llm_rerank ? "Enabled" : "Disabled"} size="small"
             color={project.options?.llm_rerank ? "success" : "default"} variant="outlined" />
         </DetailItem>
-        <DetailItem label="Cache">
-          <Chip label={project.options?.cache ? "Enabled" : "Disabled"} size="small"
-            color={project.options?.cache ? "success" : "default"} variant="outlined" />
-        </DetailItem>
-        {project.options?.cache && (
-          <DetailItem label="Cache Threshold">
-            <Typography variant="body2">{project.options?.cache_threshold ?? 0.85}</Typography>
-          </DetailItem>
-        )}
       </Grid>
     </Card>
   );

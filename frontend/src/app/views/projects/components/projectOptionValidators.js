@@ -30,12 +30,6 @@ export const clientValidators = {
       return "Token budget must be between 200 and 10000.";
     return "";
   },
-  cache_threshold: (v) => {
-    if (v == null || v === "") return "";
-    const n = Number(v);
-    if (!Number.isFinite(n) || n < 0 || n > 1) return "Threshold must be between 0.0 and 1.0.";
-    return "";
-  },
 };
 
 // Combined lookup: server error wins over client validator so the

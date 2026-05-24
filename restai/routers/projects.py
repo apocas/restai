@@ -31,7 +31,7 @@ from restai.auth import (
     check_user_can_use_mcp_host,
 )
 from restai.database import get_db_wrapper, DBWrapper
-from restai.helper import chat_main, question_main
+from restai.helper import chat_main
 from restai.loaders.url import SeleniumWebReader
 from restai.models.models import (
     FindModel,
@@ -43,7 +43,6 @@ from restai.models.models import (
     ProjectsResponse,
     ProjectCommentCreate,
     ProjectCommentUpdate,
-    QuestionModel,
     ChatModel,
     TextIngestModel,
     URLIngestModel,
@@ -912,22 +911,6 @@ async def clone_project(
     return {"project": new_project.id}
 
 
-@router.delete("/projects/{projectID}/cache", tags=["Projects"])
-async def clear_project_cache(
-    request: Request,
-    projectID: int = PathParam(description="Project ID"),
-    user: User = Depends(get_current_username_project),
-    db_wrapper: DBWrapper = Depends(get_db_wrapper),
-):
-    """Clear the project's response cache."""
-    check_not_restricted(user)
-    project = get_project(projectID, db_wrapper, request.app.state.brain)
-    if project.cache:
-        project.cache.clear()
-        return {"cleared": True, "project": projectID}
-    return {"cleared": False, "detail": "Cache not enabled for this project"}
-
-
 @router.post(
     "/projects/{projectID}/embeddings/ingest/text", response_model=IngestResponse, tags=["Knowledge"]
 )
@@ -962,9 +945,6 @@ async def ingest_text(
             project, documents, ingest.splitter, ingest.chunks
         )
         project.vector.save()
-
-        if project.cache:
-            project.cache.clear()
 
         if project.props.options.enable_knowledge_graph:
             full_text = "\n".join(d.text for d in documents)
@@ -1042,10 +1022,6 @@ async def ingest_url(
             project, documents, ingest.splitter, ingest.chunks
         )
         project.vector.save()
-
-        # Invalidate cache when knowledge base changes
-        if project.cache:
-            project.cache.clear()
 
         if project.props.options.enable_knowledge_graph:
             full_text = "\n".join(d.text for d in documents)
@@ -1158,9 +1134,6 @@ async def ingest_file(
 
         project.vector.save()
 
-        if project.cache:
-            project.cache.clear()
-
         if project.props.options.enable_knowledge_graph:
             full_text = "\n".join(d.text for d in documents)
             background_tasks.add_task(
@@ -1235,9 +1208,6 @@ async def delete_embedding(
             )
 
         ids = project.vector.delete_source(base64.b64decode(source).decode("utf-8"))
-
-        if project.cache:
-            project.cache.clear()
 
         return {"deleted": len(ids)}
     except Exception as e:
@@ -1340,16 +1310,19 @@ async def chat_stop(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/projects/{projectID}/question", tags=["Chat"])
+@router.post("/projects/{projectID}/question", tags=["Chat"], deprecated=True)
 async def question_query_endpoint(
     request: Request,
     projectID: int = PathParam(description="Project ID"),
-    q_input: QuestionModel = ...,
+    q_input: ChatModel = ...,
     background_tasks: BackgroundTasks = ...,
     user: User = Depends(get_current_username_project_public),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Send a one-shot question to a project."""
+    """**Deprecated** — forwards to `/chat` with an ephemeral chat_id.
+
+    Accepts the same body as `/chat` (ChatModel). The response shape is
+    preserved (`type: "question"`) for backwards compatibility."""
     try:
         import time as _time
         start_time = _time.perf_counter()
@@ -1360,13 +1333,15 @@ async def question_query_endpoint(
         project = get_project(projectID, db_wrapper, request.app.state.brain)
 
         if user.level == "public":
-            q_input = QuestionModel(
+            q_input = ChatModel(
                 question=q_input.question,
                 image=q_input.image,
                 negative=q_input.negative,
             )
 
-        result = await question_main(
+        q_input.id = None
+
+        result = await chat_main(
             request,
             request.app.state.brain,
             project,
@@ -2693,13 +2668,12 @@ async def fire_routine(
         raise HTTPException(status_code=404, detail="Project not found")
 
     from fastapi import BackgroundTasks
-    from restai.helper import question_main
     import inspect
 
-    q = QuestionModel(question=routine.message)
+    q = ChatModel(question=routine.message)
     background_tasks = BackgroundTasks()
 
-    result = await question_main(
+    result = await chat_main(
         request, brain, project, q, user, db_wrapper, background_tasks,
     )
 
