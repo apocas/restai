@@ -5,13 +5,13 @@ import {
   TextField, Tooltip, Typography,
 } from "@mui/material";
 import {
-  Check, Clear, Lock, Search, Star, AccountTree, People, GroupAdd, Key,
+  Check, Clear, Lock, Search, Star, AccountTree, People, Shield, Key,
 } from "@mui/icons-material";
 import Breadcrumb from "app/components/Breadcrumb";
 import useAuth from "app/hooks/useAuth";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
-import { forensicCardSx } from "app/views/projects/components/forensic/styles";
+import { forensicCardSx, FONT_MONO } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: 10,
@@ -25,9 +25,16 @@ const ContentBox = styled("div")(({ theme }) => ({
 }));
 
 const ROW_HEIGHT = 44;
-const USER_COL_WIDTH = 220;
+const USER_COL_WIDTH = 240;
 const PROJECT_COL_WIDTH = 56;
 const HEADER_HEIGHT = 160;
+
+const ROLE_COLORS = {
+  platformAdmin: "#e65100",
+  teamAdmin:     "#1565c0",
+  direct:        "#2e7d32",
+  restricted:    "#9e9e9e",
+};
 
 const StatCard = ({ icon, value, label, color }) => (
   <Card elevation={0} sx={{
@@ -47,6 +54,69 @@ const StatCard = ({ icon, value, label, color }) => (
     </Box>
   </Card>
 );
+
+function RoleBadges({ user }) {
+  const badges = [];
+  if (user.is_admin) {
+    badges.push(
+      <Tooltip key="admin" title="Platform Admin — full access to all resources" arrow>
+        <Star sx={{ fontSize: 15, color: ROLE_COLORS.platformAdmin }} />
+      </Tooltip>
+    );
+  }
+  if (user.admin_team_ids?.length > 0 && !user.is_admin) {
+    badges.push(
+      <Tooltip key="team-admin" title={`Team Admin — manages ${user.admin_team_ids.length} team${user.admin_team_ids.length > 1 ? "s" : ""}`} arrow>
+        <Shield sx={{ fontSize: 15, color: ROLE_COLORS.teamAdmin }} />
+      </Tooltip>
+    );
+  }
+  if (user.is_restricted) {
+    badges.push(
+      <Tooltip key="restricted" title="Restricted — read-only access, cannot create or edit" arrow>
+        <Lock sx={{ fontSize: 13, color: ROLE_COLORS.restricted }} />
+      </Tooltip>
+    );
+  }
+  return <>{badges}</>;
+}
+
+function AccessCell({ user, project, hasDirectAccess, isHover, onHover, onLeave }) {
+  const isAdmin = user.is_admin;
+  const isTeamAdmin = !isAdmin && user.admin_team_ids?.includes(project.team_id);
+  const hasAccess = isAdmin || isTeamAdmin || hasDirectAccess;
+
+  let icon = null;
+  let tip = "";
+
+  if (isAdmin) {
+    icon = <Star sx={{ fontSize: 14, color: ROLE_COLORS.platformAdmin, opacity: 0.5 }} />;
+    tip = `${user.username} has platform admin access to all projects`;
+  } else if (isTeamAdmin) {
+    icon = <Shield sx={{ fontSize: 14, color: ROLE_COLORS.teamAdmin, opacity: 0.7 }} />;
+    tip = `${user.username} is a team admin of ${project.team_name || "this team"}`;
+  } else if (hasDirectAccess) {
+    icon = <Check sx={{ fontSize: 16, color: ROLE_COLORS.direct }} />;
+    tip = `${user.username} has direct assignment to ${project.name}`;
+  }
+
+  return (
+    <Tooltip title={tip} arrow placement="top" disableHoverListener={!hasAccess}>
+      <Box
+        onMouseEnter={onHover}
+        onMouseLeave={onLeave}
+        sx={{
+          height: ROW_HEIGHT,
+          borderBottom: "1px solid", borderColor: "divider",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          bgcolor: isHover ? "action.hover" : "transparent",
+        }}
+      >
+        {icon}
+      </Box>
+    </Tooltip>
+  );
+}
 
 export default function PermissionMatrix() {
   const { t } = useTranslation();
@@ -84,10 +154,8 @@ export default function PermissionMatrix() {
       .sort((a, b) => a.name.localeCompare(b.name));
     if (hasNoTeam) sorted.push({ id: "none", name: t("permissions.noTeam") });
     return sorted;
-  }, [data]);
+  }, [data, t]);
 
-  // Big tenants: a 50+ project × every-user matrix is unreadable AND
-  // expensive to render. Force the picker to a single team.
   const tooManyProjects = (data?.projects?.length || 0) > 50;
   useEffect(() => {
     if (tooManyProjects && selectedTeamId === "all" && teams.length > 0) {
@@ -98,7 +166,6 @@ export default function PermissionMatrix() {
   const { filteredUsers, filteredProjects, accessSet, stats } = useMemo(() => {
     if (!data) return { filteredUsers: [], filteredProjects: [], accessSet: new Set(), stats: {} };
 
-    // Apply team filter first
     let teamFilteredProjects = data.projects;
     if (selectedTeamId === "none") {
       teamFilteredProjects = data.projects.filter((p) => p.team_id == null);
@@ -106,7 +173,6 @@ export default function PermissionMatrix() {
       teamFilteredProjects = data.projects.filter((p) => p.team_id === selectedTeamId);
     }
 
-    // Then apply search filter
     const q = search.trim().toLowerCase();
     const userMatch = q && data.users.some((u) => u.username.toLowerCase().includes(q));
     const projectMatch = q && teamFilteredProjects.some((p) => p.name.toLowerCase().includes(q));
@@ -115,6 +181,8 @@ export default function PermissionMatrix() {
     const projectsToShow = !q ? teamFilteredProjects : (projectMatch ? teamFilteredProjects.filter((p) => p.name.toLowerCase().includes(q)) : teamFilteredProjects);
 
     const set = new Set(data.assignments.map((a) => `${a.user_id}:${a.project_id}`));
+
+    const teamAdminCount = data.users.filter((u) => !u.is_admin && u.admin_team_ids?.length > 0).length;
 
     return {
       filteredUsers: usersToShow,
@@ -125,6 +193,7 @@ export default function PermissionMatrix() {
         projects: teamFilteredProjects.length,
         assignments: data.assignments.length,
         admins: data.users.filter((u) => u.is_admin).length,
+        teamAdmins: teamAdminCount,
       },
     };
   }, [data, search, selectedTeamId]);
@@ -164,12 +233,22 @@ export default function PermissionMatrix() {
       </Box>
 
       <ContentBox>
-        {/* Stats */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={6} md={3}><StatCard icon={<People />} value={stats.users} label={t("permissions.stats.users")} color="linear-gradient(135deg, #42a5f5 0%, #1976d2 100%)" /></Grid>
-          <Grid item xs={6} md={3}><StatCard icon={<AccountTree />} value={stats.projects} label={t("permissions.stats.projects")} color="linear-gradient(135deg, #66bb6a 0%, #2e7d32 100%)" /></Grid>
-          <Grid item xs={6} md={3}><StatCard icon={<Key />} value={stats.assignments} label={t("permissions.stats.assignments")} color="linear-gradient(135deg, #ffa726 0%, #e65100 100%)" /></Grid>
-          <Grid item xs={6} md={3}><StatCard icon={<Star />} value={stats.admins} label={t("permissions.stats.admins")} color="linear-gradient(135deg, #ef5350 0%, #c62828 100%)" /></Grid>
+          <Grid item xs={6} sm={4} md={2.4}>
+            <StatCard icon={<People />} value={stats.users} label={t("permissions.stats.users")} color="linear-gradient(135deg, #42a5f5 0%, #1976d2 100%)" />
+          </Grid>
+          <Grid item xs={6} sm={4} md={2.4}>
+            <StatCard icon={<AccountTree />} value={stats.projects} label={t("permissions.stats.projects")} color="linear-gradient(135deg, #66bb6a 0%, #2e7d32 100%)" />
+          </Grid>
+          <Grid item xs={6} sm={4} md={2.4}>
+            <StatCard icon={<Key />} value={stats.assignments} label={t("permissions.stats.assignments")} color="linear-gradient(135deg, #ffa726 0%, #e65100 100%)" />
+          </Grid>
+          <Grid item xs={6} sm={4} md={2.4}>
+            <StatCard icon={<Star />} value={stats.admins} label={t("permissions.stats.admins")} color="linear-gradient(135deg, #ef5350 0%, #c62828 100%)" />
+          </Grid>
+          <Grid item xs={6} sm={4} md={2.4}>
+            <StatCard icon={<Shield />} value={stats.teamAdmins} label="Team Admins" color="linear-gradient(135deg, #42a5f5 0%, #1565c0 100%)" />
+          </Grid>
         </Grid>
 
         <Card elevation={0} sx={{ ...forensicCardSx, p: 2, mb: 3 }}>
@@ -214,7 +293,6 @@ export default function PermissionMatrix() {
           </Grid>
         </Card>
 
-        {/* Matrix */}
         <Card elevation={0} sx={forensicCardSx}>
           {filteredUsers.length === 0 || filteredProjects.length === 0 ? (
             <Box sx={{ p: 6, textAlign: "center", color: "text.secondary" }}>
@@ -228,7 +306,6 @@ export default function PermissionMatrix() {
               overflow: "auto",
               position: "relative",
             }}>
-              {/* Top-left corner */}
               <Box sx={{
                 position: "sticky", top: 0, left: 0, zIndex: 3,
                 height: HEADER_HEIGHT, bgcolor: "background.paper",
@@ -240,7 +317,6 @@ export default function PermissionMatrix() {
                 </Typography>
               </Box>
 
-              {/* Project headers (rotated) */}
               {filteredProjects.map((p, colIdx) => (
                 <Tooltip key={p.id} title={`${p.name}${p.team_name ? ` (${p.team_name})` : ""}`} placement="top" arrow>
                   <Box
@@ -277,10 +353,8 @@ export default function PermissionMatrix() {
                 </Tooltip>
               ))}
 
-              {/* User rows */}
               {filteredUsers.map((u, rowIdx) => (
                 <Box key={u.id} sx={{ display: "contents" }}>
-                  {/* Username cell (sticky left) */}
                   <Box
                     onClick={() => navigate(`/user/${u.username}`)}
                     onMouseEnter={() => setHoverRow(rowIdx)}
@@ -290,7 +364,7 @@ export default function PermissionMatrix() {
                       height: ROW_HEIGHT,
                       bgcolor: hoverRow === rowIdx ? "action.hover" : "background.paper",
                       borderBottom: "1px solid", borderRight: "1px solid", borderColor: "divider",
-                      display: "flex", alignItems: "center", gap: 1, px: 1.5,
+                      display: "flex", alignItems: "center", gap: 0.75, px: 1.5,
                       cursor: "pointer",
                       "&:hover": { bgcolor: "action.hover" },
                     }}
@@ -298,65 +372,44 @@ export default function PermissionMatrix() {
                     <Typography variant="body2" fontWeight={u.is_admin ? 600 : 400} noWrap sx={{ flex: 1 }}>
                       {u.username}
                     </Typography>
-                    {u.is_admin && (
-                      <Tooltip title={t("permissions.platformAdminTip")} arrow>
-                        <Star sx={{ fontSize: 16, color: "#ffa726" }} />
-                      </Tooltip>
-                    )}
-                    {u.is_restricted && (
-                      <Tooltip title={t("permissions.restrictedTip")} arrow>
-                        <Lock sx={{ fontSize: 14, color: "text.disabled" }} />
-                      </Tooltip>
-                    )}
+                    <RoleBadges user={u} />
                   </Box>
 
-                  {/* Access cells */}
-                  {filteredProjects.map((p, colIdx) => {
-                    const hasAccess = u.is_admin || accessSet.has(`${u.id}:${p.id}`);
-                    const isHover = hoverRow === rowIdx || hoverCol === colIdx;
-                    return (
-                      <Tooltip
-                        key={p.id}
-                        title={u.is_admin ? t("permissions.adminAccess", { user: u.username, project: p.name }) : hasAccess ? t("permissions.directAccess", { user: u.username, project: p.name }) : ""}
-                        arrow
-                        placement="top"
-                      >
-                        <Box
-                          onMouseEnter={() => { setHoverRow(rowIdx); setHoverCol(colIdx); }}
-                          onMouseLeave={() => { setHoverRow(null); setHoverCol(null); }}
-                          sx={{
-                            height: ROW_HEIGHT,
-                            borderBottom: "1px solid", borderColor: "divider",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            bgcolor: isHover ? "action.hover" : "transparent",
-                          }}
-                        >
-                          {u.is_admin ? (
-                            <Star sx={{ fontSize: 16, color: "#ffa72660" }} />
-                          ) : hasAccess ? (
-                            <Check sx={{ fontSize: 18, color: "#66bb6a" }} />
-                          ) : null}
-                        </Box>
-                      </Tooltip>
-                    );
-                  })}
+                  {filteredProjects.map((p, colIdx) => (
+                    <AccessCell
+                      key={p.id}
+                      user={u}
+                      project={p}
+                      hasDirectAccess={accessSet.has(`${u.id}:${p.id}`)}
+                      isHover={hoverRow === rowIdx || hoverCol === colIdx}
+                      onHover={() => { setHoverRow(rowIdx); setHoverCol(colIdx); }}
+                      onLeave={() => { setHoverRow(null); setHoverCol(null); }}
+                    />
+                  ))}
                 </Box>
               ))}
             </Box>
           )}
         </Card>
 
-        <Box sx={{ mt: 2, display: "flex", gap: 3, flexWrap: "wrap", color: "text.secondary" }}>
+        <Box sx={{
+          mt: 2, display: "flex", gap: 3, flexWrap: "wrap",
+          color: "text.secondary", alignItems: "center",
+        }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Check sx={{ fontSize: 16, color: "#66bb6a" }} />
+            <Check sx={{ fontSize: 16, color: ROLE_COLORS.direct }} />
             <Typography variant="caption">{t("permissions.legendDirect")}</Typography>
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Star sx={{ fontSize: 16, color: "#ffa726" }} />
+            <Shield sx={{ fontSize: 16, color: ROLE_COLORS.teamAdmin }} />
+            <Typography variant="caption">Team Admin (all team projects)</Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Star sx={{ fontSize: 16, color: ROLE_COLORS.platformAdmin }} />
             <Typography variant="caption">{t("permissions.legendAdmin")}</Typography>
           </Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Lock sx={{ fontSize: 14, color: "text.disabled" }} />
+            <Lock sx={{ fontSize: 14, color: ROLE_COLORS.restricted }} />
             <Typography variant="caption">{t("permissions.legendRestricted")}</Typography>
           </Box>
         </Box>

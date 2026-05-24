@@ -679,6 +679,11 @@ async def get_permission_matrix(
             .all()
         )
 
+    team_admin_map = {}
+    for u in all_users:
+        admin_tids = {t.id for t in (u.admin_teams or [])}
+        team_admin_map[u.id] = admin_tids
+
     return {
         "users": [
             {
@@ -686,6 +691,7 @@ async def get_permission_matrix(
                 "username": u.username,
                 "is_admin": bool(u.is_admin),
                 "is_restricted": bool(getattr(u, "is_restricted", False)),
+                "admin_team_ids": list(team_admin_map.get(u.id, set())),
             }
             for u in all_users
         ],
