@@ -6,22 +6,18 @@ import {
 } from "@mui/material";
 import {
   Check, Clear, Lock, Search, Star, AccountTree, People, Shield, Key,
+  Security,
 } from "@mui/icons-material";
-import Breadcrumb from "app/components/Breadcrumb";
+import PageHero from "app/components/page/PageHero";
 import useAuth from "app/hooks/useAuth";
 import { useTranslation } from "react-i18next";
 import api from "app/utils/api";
-import { forensicCardSx, FONT_MONO } from "app/views/projects/components/forensic/styles";
+import { FONT_MONO, cleanCardSx } from "app/components/page/pageStyles";
 
 const Container = styled("div")(({ theme }) => ({
-  margin: 10,
+  margin: "24px 48px",
+  [theme.breakpoints.down("md")]: { margin: "24px 32px" },
   [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
-}));
-
-const ContentBox = styled("div")(({ theme }) => ({
-  margin: "30px",
-  [theme.breakpoints.down("sm")]: { margin: "16px" }
 }));
 
 const ROW_HEIGHT = 44;
@@ -36,44 +32,25 @@ const ROLE_COLORS = {
   restricted:    "#9e9e9e",
 };
 
-const StatCard = ({ icon, value, label, color }) => (
-  <Card elevation={0} sx={{
-    ...forensicCardSx,
-    p: 2, display: "flex", alignItems: "center", gap: 2,
-  }}>
-    <Box sx={{
-      width: 44, height: 44, borderRadius: "50%",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      background: color, color: "#fff",
-    }}>
-      {icon}
-    </Box>
-    <Box>
-      <Typography variant="h6" fontWeight={700} lineHeight={1.2}>{value}</Typography>
-      <Typography variant="caption" color="text.secondary">{label}</Typography>
-    </Box>
-  </Card>
-);
-
 function RoleBadges({ user }) {
   const badges = [];
   if (user.is_admin) {
     badges.push(
-      <Tooltip key="admin" title="Platform Admin — full access to all resources" arrow>
+      <Tooltip key="admin" title="Platform Admin" arrow>
         <Star sx={{ fontSize: 15, color: ROLE_COLORS.platformAdmin }} />
       </Tooltip>
     );
   }
   if (user.admin_team_ids?.length > 0 && !user.is_admin) {
     badges.push(
-      <Tooltip key="team-admin" title={`Team Admin — manages ${user.admin_team_ids.length} team${user.admin_team_ids.length > 1 ? "s" : ""}`} arrow>
+      <Tooltip key="team-admin" title={`Team Admin (${user.admin_team_ids.length} team${user.admin_team_ids.length > 1 ? "s" : ""})`} arrow>
         <Shield sx={{ fontSize: 15, color: ROLE_COLORS.teamAdmin }} />
       </Tooltip>
     );
   }
   if (user.is_restricted) {
     badges.push(
-      <Tooltip key="restricted" title="Restricted — read-only access, cannot create or edit" arrow>
+      <Tooltip key="restricted" title="Restricted (read-only)" arrow>
         <Lock sx={{ fontSize: 13, color: ROLE_COLORS.restricted }} />
       </Tooltip>
     );
@@ -91,13 +68,13 @@ function AccessCell({ user, project, hasDirectAccess, isHover, onHover, onLeave 
 
   if (isAdmin) {
     icon = <Star sx={{ fontSize: 14, color: ROLE_COLORS.platformAdmin, opacity: 0.5 }} />;
-    tip = `${user.username} has platform admin access to all projects`;
+    tip = `${user.username} — platform admin`;
   } else if (isTeamAdmin) {
     icon = <Shield sx={{ fontSize: 14, color: ROLE_COLORS.teamAdmin, opacity: 0.7 }} />;
-    tip = `${user.username} is a team admin of ${project.team_name || "this team"}`;
+    tip = `${user.username} — team admin of ${project.team_name || "this team"}`;
   } else if (hasDirectAccess) {
     icon = <Check sx={{ fontSize: 16, color: ROLE_COLORS.direct }} />;
-    tip = `${user.username} has direct assignment to ${project.name}`;
+    tip = `${user.username} — direct assignment`;
   }
 
   return (
@@ -181,7 +158,6 @@ export default function PermissionMatrix() {
     const projectsToShow = !q ? teamFilteredProjects : (projectMatch ? teamFilteredProjects.filter((p) => p.name.toLowerCase().includes(q)) : teamFilteredProjects);
 
     const set = new Set(data.assignments.map((a) => `${a.user_id}:${a.project_id}`));
-
     const teamAdminCount = data.users.filter((u) => !u.is_admin && u.admin_team_ids?.length > 0).length;
 
     return {
@@ -201,12 +177,7 @@ export default function PermissionMatrix() {
   if (loading) {
     return (
       <Container>
-        <Box className="breadcrumb">
-          <Breadcrumb routeSegments={[{ name: t("permissions.title"), path: "/permissions" }]} />
-        </Box>
-        <ContentBox>
-          <Box sx={{ textAlign: "center", py: 8 }}><CircularProgress /></Box>
-        </ContentBox>
+        <Box sx={{ textAlign: "center", py: 12 }}><CircularProgress /></Box>
       </Container>
     );
   }
@@ -214,206 +185,211 @@ export default function PermissionMatrix() {
   if (!data) {
     return (
       <Container>
-        <Box className="breadcrumb">
-          <Breadcrumb routeSegments={[{ name: t("permissions.title"), path: "/permissions" }]} />
-        </Box>
-        <ContentBox>
-          <Card sx={{ p: 4, textAlign: "center" }}>
-            <Typography color="text.secondary">{t("permissions.failed")}</Typography>
-          </Card>
-        </ContentBox>
+        <PageHero
+          icon={<Security sx={{ color: "#fff" }} />}
+          eyebrow="ADMIN"
+          title={t("permissions.title")}
+          subtitle="User-project access matrix."
+          compact
+        />
+        <Card variant="outlined" sx={{ ...cleanCardSx, p: 4, textAlign: "center" }}>
+          <Typography color="text.secondary">{t("permissions.failed")}</Typography>
+        </Card>
       </Container>
     );
   }
 
   return (
     <Container>
-      <Box className="breadcrumb">
-        <Breadcrumb routeSegments={[{ name: "Permissions", path: "/permissions" }]} />
-      </Box>
+      <PageHero
+        icon={<Security sx={{ color: "#fff" }} />}
+        eyebrow="ADMIN"
+        title={t("permissions.title")}
+        subtitle="User-project access matrix across all teams."
+        stats={[
+          { glyph: "◆", color: "#93c5fd", label: `${stats.users} users` },
+          { glyph: "▣", color: "#86efac", label: `${stats.projects} projects` },
+          { glyph: "⚡", color: "#fcd34d", label: `${stats.assignments} assignments` },
+          { glyph: "★", color: "#fca5a5", label: `${stats.admins} admins` },
+          ...(stats.teamAdmins > 0 ? [{ glyph: "⛨", color: "#93c5fd", label: `${stats.teamAdmins} team admins` }] : []),
+        ]}
+        compact
+      />
 
-      <ContentBox>
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={6} sm={4} md={2.4}>
-            <StatCard icon={<People />} value={stats.users} label={t("permissions.stats.users")} color="linear-gradient(135deg, #42a5f5 0%, #1976d2 100%)" />
+      {/* Filters */}
+      <Card variant="outlined" sx={{ ...cleanCardSx, p: 2, mb: 2, "&:hover": { transform: "none", borderColor: "divider", boxShadow: "none" } }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={4} md={3}>
+            <TextField
+              fullWidth size="small" select
+              label={t("permissions.team")}
+              value={selectedTeamId}
+              onChange={(e) => setSelectedTeamId(e.target.value)}
+            >
+              <MenuItem value="all" disabled={tooManyProjects}>
+                {tooManyProjects ? (
+                  <Tooltip title={t("permissions.allTeamsDisabledTip")} placement="right" arrow>
+                    <span>{t("permissions.allTeams")}</span>
+                  </Tooltip>
+                ) : (
+                  t("permissions.allTeams")
+                )}
+              </MenuItem>
+              {teams.map((tm) => (
+                <MenuItem key={tm.id} value={tm.id}>{tm.name}</MenuItem>
+              ))}
+            </TextField>
           </Grid>
-          <Grid item xs={6} sm={4} md={2.4}>
-            <StatCard icon={<AccountTree />} value={stats.projects} label={t("permissions.stats.projects")} color="linear-gradient(135deg, #66bb6a 0%, #2e7d32 100%)" />
-          </Grid>
-          <Grid item xs={6} sm={4} md={2.4}>
-            <StatCard icon={<Key />} value={stats.assignments} label={t("permissions.stats.assignments")} color="linear-gradient(135deg, #ffa726 0%, #e65100 100%)" />
-          </Grid>
-          <Grid item xs={6} sm={4} md={2.4}>
-            <StatCard icon={<Star />} value={stats.admins} label={t("permissions.stats.admins")} color="linear-gradient(135deg, #ef5350 0%, #c62828 100%)" />
-          </Grid>
-          <Grid item xs={6} sm={4} md={2.4}>
-            <StatCard icon={<Shield />} value={stats.teamAdmins} label="Team Admins" color="linear-gradient(135deg, #42a5f5 0%, #1565c0 100%)" />
+          <Grid item xs={12} sm={8} md={9}>
+            <TextField
+              fullWidth size="small"
+              placeholder={t("permissions.searchPlaceholder")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              InputProps={{
+                startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>,
+                endAdornment: search && (
+                  <InputAdornment position="end">
+                    <IconButton size="small" onClick={() => setSearch("")}><Clear fontSize="small" /></IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
           </Grid>
         </Grid>
+      </Card>
 
-        <Card elevation={0} sx={{ ...forensicCardSx, p: 2, mb: 3 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={4} md={3}>
-              <TextField
-                fullWidth size="small" select
-                label={t("permissions.team")}
-                value={selectedTeamId}
-                onChange={(e) => setSelectedTeamId(e.target.value)}
-              >
-                <MenuItem value="all" disabled={tooManyProjects}>
-                  {tooManyProjects ? (
-                    <Tooltip title={t("permissions.allTeamsDisabledTip")} placement="right" arrow>
-                      <span>{t("permissions.allTeams")}</span>
-                    </Tooltip>
-                  ) : (
-                    t("permissions.allTeams")
-                  )}
-                </MenuItem>
-                {teams.map((tm) => (
-                  <MenuItem key={tm.id} value={tm.id}>{tm.name}</MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid item xs={12} sm={8} md={9}>
-              <TextField
-                fullWidth size="small"
-                placeholder={t("permissions.searchPlaceholder")}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment>,
-                  endAdornment: search && (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setSearch("")}><Clear fontSize="small" /></IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Grid>
-          </Grid>
-        </Card>
-
-        <Card elevation={0} sx={forensicCardSx}>
-          {filteredUsers.length === 0 || filteredProjects.length === 0 ? (
-            <Box sx={{ p: 6, textAlign: "center", color: "text.secondary" }}>
-              <Typography variant="body2">{t("permissions.noMatches")}</Typography>
-            </Box>
-          ) : (
+      {/* Matrix */}
+      <Card variant="outlined" sx={{ ...cleanCardSx, "&:hover": { transform: "none", borderColor: "divider", boxShadow: "none" } }}>
+        {filteredUsers.length === 0 || filteredProjects.length === 0 ? (
+          <Box sx={{ p: 6, textAlign: "center", color: "text.secondary" }}>
+            <Typography variant="body2">{t("permissions.noMatches")}</Typography>
+          </Box>
+        ) : (
+          <Box sx={{
+            display: "grid",
+            gridTemplateColumns: `${USER_COL_WIDTH}px repeat(${filteredProjects.length}, ${PROJECT_COL_WIDTH}px)`,
+            maxHeight: "70vh",
+            overflow: "auto",
+            position: "relative",
+          }}>
+            {/* Top-left corner */}
             <Box sx={{
-              display: "grid",
-              gridTemplateColumns: `${USER_COL_WIDTH}px repeat(${filteredProjects.length}, ${PROJECT_COL_WIDTH}px)`,
-              maxHeight: "70vh",
-              overflow: "auto",
-              position: "relative",
+              position: "sticky", top: 0, left: 0, zIndex: 3,
+              height: HEADER_HEIGHT, bgcolor: "background.paper",
+              borderBottom: "1px solid", borderRight: "1px solid", borderColor: "divider",
+              display: "flex", alignItems: "flex-end", p: 1.5,
             }}>
-              <Box sx={{
-                position: "sticky", top: 0, left: 0, zIndex: 3,
-                height: HEADER_HEIGHT, bgcolor: "background.paper",
-                borderBottom: "1px solid", borderRight: "1px solid", borderColor: "divider",
-                display: "flex", alignItems: "flex-end", p: 1.5,
+              <Typography sx={{
+                fontFamily: FONT_MONO, fontSize: "0.62rem",
+                letterSpacing: "0.14em", fontWeight: 700,
+                color: "rgba(15,23,42,0.5)", textTransform: "uppercase",
               }}>
-                <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                  {t("permissions.header")}
-                </Typography>
-              </Box>
-
-              {filteredProjects.map((p, colIdx) => (
-                <Tooltip key={p.id} title={`${p.name}${p.team_name ? ` (${p.team_name})` : ""}`} placement="top" arrow>
-                  <Box
-                    onClick={() => navigate(`/project/${p.id}`)}
-                    onMouseEnter={() => setHoverCol(colIdx)}
-                    onMouseLeave={() => setHoverCol(null)}
-                    sx={{
-                      position: "sticky", top: 0, zIndex: 2,
-                      height: HEADER_HEIGHT,
-                      bgcolor: hoverCol === colIdx ? "action.hover" : "background.paper",
-                      borderBottom: "1px solid",
-                      borderColor: "divider",
-                      display: "flex", alignItems: "flex-end", justifyContent: "center",
-                      cursor: "pointer", overflow: "hidden",
-                      "&:hover": { bgcolor: "action.hover" },
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        writingMode: "vertical-rl",
-                        transform: "rotate(180deg)",
-                        whiteSpace: "nowrap",
-                        textOverflow: "ellipsis",
-                        overflow: "hidden",
-                        maxHeight: HEADER_HEIGHT - 16,
-                        py: 1,
-                        fontWeight: 500,
-                      }}
-                    >
-                      {p.name}
-                    </Typography>
-                  </Box>
-                </Tooltip>
-              ))}
-
-              {filteredUsers.map((u, rowIdx) => (
-                <Box key={u.id} sx={{ display: "contents" }}>
-                  <Box
-                    onClick={() => navigate(`/user/${u.username}`)}
-                    onMouseEnter={() => setHoverRow(rowIdx)}
-                    onMouseLeave={() => setHoverRow(null)}
-                    sx={{
-                      position: "sticky", left: 0, zIndex: 1,
-                      height: ROW_HEIGHT,
-                      bgcolor: hoverRow === rowIdx ? "action.hover" : "background.paper",
-                      borderBottom: "1px solid", borderRight: "1px solid", borderColor: "divider",
-                      display: "flex", alignItems: "center", gap: 0.75, px: 1.5,
-                      cursor: "pointer",
-                      "&:hover": { bgcolor: "action.hover" },
-                    }}
-                  >
-                    <Typography variant="body2" fontWeight={u.is_admin ? 600 : 400} noWrap sx={{ flex: 1 }}>
-                      {u.username}
-                    </Typography>
-                    <RoleBadges user={u} />
-                  </Box>
-
-                  {filteredProjects.map((p, colIdx) => (
-                    <AccessCell
-                      key={p.id}
-                      user={u}
-                      project={p}
-                      hasDirectAccess={accessSet.has(`${u.id}:${p.id}`)}
-                      isHover={hoverRow === rowIdx || hoverCol === colIdx}
-                      onHover={() => { setHoverRow(rowIdx); setHoverCol(colIdx); }}
-                      onLeave={() => { setHoverRow(null); setHoverCol(null); }}
-                    />
-                  ))}
-                </Box>
-              ))}
+                {t("permissions.header")}
+              </Typography>
             </Box>
-          )}
-        </Card>
 
-        <Box sx={{
-          mt: 2, display: "flex", gap: 3, flexWrap: "wrap",
-          color: "text.secondary", alignItems: "center",
-        }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Check sx={{ fontSize: 16, color: ROLE_COLORS.direct }} />
-            <Typography variant="caption">{t("permissions.legendDirect")}</Typography>
+            {/* Project headers (rotated) */}
+            {filteredProjects.map((p, colIdx) => (
+              <Tooltip key={p.id} title={`${p.name}${p.team_name ? ` (${p.team_name})` : ""}`} placement="top" arrow>
+                <Box
+                  onClick={() => navigate(`/project/${p.id}`)}
+                  onMouseEnter={() => setHoverCol(colIdx)}
+                  onMouseLeave={() => setHoverCol(null)}
+                  sx={{
+                    position: "sticky", top: 0, zIndex: 2,
+                    height: HEADER_HEIGHT,
+                    bgcolor: hoverCol === colIdx ? "action.hover" : "background.paper",
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    display: "flex", alignItems: "flex-end", justifyContent: "center",
+                    cursor: "pointer", overflow: "hidden",
+                    "&:hover": { bgcolor: "action.hover" },
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      writingMode: "vertical-rl",
+                      transform: "rotate(180deg)",
+                      whiteSpace: "nowrap",
+                      textOverflow: "ellipsis",
+                      overflow: "hidden",
+                      maxHeight: HEADER_HEIGHT - 16,
+                      py: 1,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {p.name}
+                  </Typography>
+                </Box>
+              </Tooltip>
+            ))}
+
+            {/* User rows */}
+            {filteredUsers.map((u, rowIdx) => (
+              <Box key={u.id} sx={{ display: "contents" }}>
+                {/* Username cell (sticky left) */}
+                <Box
+                  onClick={() => navigate(`/user/${u.username}`)}
+                  onMouseEnter={() => setHoverRow(rowIdx)}
+                  onMouseLeave={() => setHoverRow(null)}
+                  sx={{
+                    position: "sticky", left: 0, zIndex: 1,
+                    height: ROW_HEIGHT,
+                    bgcolor: hoverRow === rowIdx ? "action.hover" : "background.paper",
+                    borderBottom: "1px solid", borderRight: "1px solid", borderColor: "divider",
+                    display: "flex", alignItems: "center", gap: 0.75, px: 1.5,
+                    cursor: "pointer",
+                    "&:hover": { bgcolor: "action.hover" },
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={u.is_admin ? 600 : 400} noWrap sx={{ flex: 1 }}>
+                    {u.username}
+                  </Typography>
+                  <RoleBadges user={u} />
+                </Box>
+
+                {/* Access cells */}
+                {filteredProjects.map((p, colIdx) => (
+                  <AccessCell
+                    key={p.id}
+                    user={u}
+                    project={p}
+                    hasDirectAccess={accessSet.has(`${u.id}:${p.id}`)}
+                    isHover={hoverRow === rowIdx || hoverCol === colIdx}
+                    onHover={() => { setHoverRow(rowIdx); setHoverCol(colIdx); }}
+                    onLeave={() => { setHoverRow(null); setHoverCol(null); }}
+                  />
+                ))}
+              </Box>
+            ))}
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Shield sx={{ fontSize: 16, color: ROLE_COLORS.teamAdmin }} />
-            <Typography variant="caption">Team Admin (all team projects)</Typography>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Star sx={{ fontSize: 16, color: ROLE_COLORS.platformAdmin }} />
-            <Typography variant="caption">{t("permissions.legendAdmin")}</Typography>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Lock sx={{ fontSize: 14, color: ROLE_COLORS.restricted }} />
-            <Typography variant="caption">{t("permissions.legendRestricted")}</Typography>
-          </Box>
+        )}
+      </Card>
+
+      {/* Legend */}
+      <Box sx={{
+        mt: 2, display: "flex", gap: 3, flexWrap: "wrap",
+        color: "text.secondary", alignItems: "center",
+      }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Check sx={{ fontSize: 16, color: ROLE_COLORS.direct }} />
+          <Typography variant="caption">{t("permissions.legendDirect")}</Typography>
         </Box>
-      </ContentBox>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Shield sx={{ fontSize: 16, color: ROLE_COLORS.teamAdmin }} />
+          <Typography variant="caption">Team Admin</Typography>
+        </Box>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Star sx={{ fontSize: 16, color: ROLE_COLORS.platformAdmin }} />
+          <Typography variant="caption">{t("permissions.legendAdmin")}</Typography>
+        </Box>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Lock sx={{ fontSize: 14, color: ROLE_COLORS.restricted }} />
+          <Typography variant="caption">{t("permissions.legendRestricted")}</Typography>
+        </Box>
+      </Box>
     </Container>
   );
 }
