@@ -1,3 +1,4 @@
+import json
 import logging
 from uuid import uuid4
 
@@ -18,7 +19,6 @@ _BUILDER_HINT = (
 
 
 class App(ProjectBase):
-    """App-builder project type; chat/question return a builder hint instead of calling an LLM."""
 
     async def chat(
         self,
@@ -28,14 +28,20 @@ class App(ProjectBase):
         db: DBWrapper,
     ):
         chat_id = chat_model.id or str(uuid4())
-        type_str = "app"
-        yield {
+        output = {
             "question": chat_model.question,
             "answer": _BUILDER_HINT.format(id=project.props.id),
-            "type": type_str,
+            "type": "app",
             "sources": [],
             "guard": False,
             "tokens": {"input": 0, "output": 0},
             "project": project.props.name,
             "id": chat_id,
         }
+
+        if chat_model.stream:
+            yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
+            yield "data: " + json.dumps(output) + "\n"
+            yield "event: close\n\n"
+        else:
+            yield output

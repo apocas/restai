@@ -3,7 +3,7 @@
   "info": {
     "title": "RESTai",
     "description": "RESTai is an AIaaS (AI as a Service) platform. Create AI projects and consume them via REST API.\n\nSupports multiple project types: **RAG**, **Agent**, and **Block**.\n\n## Authentication\n\nAll endpoints require authentication via one of:\n- **JWT Cookie** (`restai_token`)\n- **Bearer API Key** (`Authorization: Bearer <key>`)\n- **Basic Auth** (`Authorization: Basic <credentials>`)\n",
-    "version": "6.1.45"
+    "version": "6.3.18"
   },
   "paths": {
     "/oauth/{provider}/login": {
@@ -12,7 +12,6 @@
           "Auth"
         ],
         "summary": "Oauth Login",
-        "description": "Initiate OAuth login flow for the specified provider.",
         "operationId": "oauth_login_oauth__provider__login_get",
         "parameters": [
           {
@@ -55,7 +54,6 @@
           "Auth"
         ],
         "summary": "Oauth Callback",
-        "description": "Handle OAuth callback from the specified provider.",
         "operationId": "oauth_callback_oauth__provider__callback_get",
         "parameters": [
           {
@@ -1004,47 +1002,6 @@
         }
       }
     },
-    "/projects/{projectID}/cache": {
-      "delete": {
-        "tags": [
-          "Projects"
-        ],
-        "summary": "Clear Project Cache",
-        "description": "Clear the project's response cache.",
-        "operationId": "clear_project_cache_projects__projectID__cache_delete",
-        "parameters": [
-          {
-            "name": "projectID",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Projectid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/projects/{projectID}/embeddings/ingest/text": {
       "post": {
         "tags": [
@@ -1157,7 +1114,7 @@
           "Knowledge"
         ],
         "summary": "Ingest File",
-        "description": "Upload and ingest a file into the knowledge base.\n\n`method` controls the document processing pipeline:\n- `auto` (default) \u2014 tries Docling \u2192 MarkItDown \u2192 Classic in order\n- `classic` \u2014 LlamaIndex file readers (fast, basic text extraction)\n- `docling` \u2014 deep-learning document understanding (best for complex PDFs)\n- `markitdown` \u2014 Microsoft MarkItDown (broad format support)\n\nThe deprecated `classic` boolean is still accepted for backward compatibility.",
+        "description": "Upload and ingest a file into the knowledge base.",
         "operationId": "ingest_file_projects__projectID__embeddings_ingest_upload_post",
         "parameters": [
           {
@@ -1348,14 +1305,14 @@
         }
       }
     },
-    "/projects/{projectID}/question": {
+    "/projects/{projectID}/chat/stop": {
       "post": {
         "tags": [
           "Chat"
         ],
-        "summary": "Question Query Endpoint",
-        "description": "Send a one-shot question to a project.",
-        "operationId": "question_query_endpoint_projects__projectID__question_post",
+        "summary": "Chat Stop",
+        "description": "Cancel an in-flight streaming chat by chat_id.\n\nProducer-side agent task is detached from the HTTP request so client\nAbortController alone can't stop it (see `restai/chat_resume.py`).",
+        "operationId": "chat_stop_projects__projectID__chat_stop_post",
         "parameters": [
           {
             "name": "projectID",
@@ -1372,7 +1329,61 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/QuestionModel"
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/question": {
+      "post": {
+        "tags": [
+          "Chat"
+        ],
+        "summary": "Question Query Endpoint",
+        "description": "**Deprecated** \u2014 forwards to `/chat` with an ephemeral chat_id.\n\nAccepts the same body as `/chat` (ChatModel). The response shape is\npreserved (`type: \"question\"`) for backwards compatibility.",
+        "operationId": "question_query_endpoint_projects__projectID__question_post",
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatModel"
               }
             }
           }
@@ -2047,6 +2058,58 @@
               "title": "End"
             },
             "description": "Pagination end offset"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/logs/conversation/{chat_id}": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "summary": "Get Conversation Replay",
+        "description": "Return every OutputDatabase row for a chat_id (capped at 500 turns).",
+        "operationId": "get_conversation_replay_projects__projectID__logs_conversation__chat_id__get",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Chat session id",
+              "title": "Chat Id"
+            },
+            "description": "Chat session id"
           }
         ],
         "responses": {
@@ -3084,6 +3147,246 @@
         }
       }
     },
+    "/projects/{projectID}/routines/{routineID}/history": {
+      "get": {
+        "tags": [
+          "Routines"
+        ],
+        "summary": "Get Routine History",
+        "description": "Recent execution history for a routine, newest first.",
+        "operationId": "get_routine_history_projects__projectID__routines__routineID__history_get",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          },
+          {
+            "name": "routineID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "Routine ID",
+              "title": "Routineid"
+            },
+            "description": "Routine ID"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/memory-bank": {
+      "get": {
+        "tags": [
+          "Memory Bank"
+        ],
+        "summary": "List Memory Bank",
+        "description": "Visualizer payload: entries grouped by granularity + aggregate stats.",
+        "operationId": "list_memory_bank_projects__projectID__memory_bank_get",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/memory-bank/preview": {
+      "get": {
+        "tags": [
+          "Memory Bank"
+        ],
+        "summary": "Preview Memory Bank",
+        "description": "Return the exact text block prepended to the system prompt this turn.",
+        "operationId": "preview_memory_bank_projects__projectID__memory_bank_preview_get",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/memory-search": {
+      "post": {
+        "tags": [
+          "Memory Search"
+        ],
+        "summary": "Memory Search Query",
+        "description": "Run the agent's `search_memories` tool and return its raw text result.",
+        "operationId": "memory_search_query_projects__projectID__memory_search_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectID}/memory-bank/clear": {
+      "post": {
+        "tags": [
+          "Memory Bank"
+        ],
+        "summary": "Clear Memory Bank",
+        "description": "Wipe every entry for this project. Cron will re-summarize new\nconversations from `OutputDatabase` on the next tick.",
+        "operationId": "clear_memory_bank_projects__projectID__memory_bank_clear_post",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Projectid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects/{projectID}/custom-tools": {
       "get": {
         "tags": [
@@ -3856,7 +4159,7 @@
           "Knowledge Graph"
         ],
         "summary": "Kg Query",
-        "description": "Natural language query against the knowledge graph.\n\nExtracts entities from the question, finds sources mentioning those entities,\nfetches matching chunks from the vector store, then asks the project's LLM\nto answer using only those chunks as context.",
+        "description": "Natural language query against the knowledge graph.",
         "operationId": "kg_query_projects__projectID__kg_query_post",
         "parameters": [
           {
@@ -3950,7 +4253,7 @@
           "Mobile"
         ],
         "summary": "Mobile Status",
-        "description": "Return Mobile integration status. Never returns the plaintext key \u2014\nthat's only available at enable / regenerate time.",
+        "description": "Return Mobile integration status (plaintext only at enable/regenerate time).",
         "operationId": "mobile_status_projects__projectID__mobile_get",
         "parameters": [
           {
@@ -3991,7 +4294,7 @@
           "Mobile"
         ],
         "summary": "Mobile Enable",
-        "description": "Turn Mobile integration ON. Creates a read-only, project-scoped API\nkey and returns the plaintext so the frontend can render the QR code.\nIdempotent \u2014 if already enabled, returns the existing key prefix with no\nplaintext (to avoid re-exposing secrets).",
+        "description": "Turn Mobile integration ON; idempotent (no re-exposure of existing key).",
         "operationId": "mobile_enable_projects__projectID__mobile_enable_post",
         "parameters": [
           {
@@ -4032,7 +4335,7 @@
           "Mobile"
         ],
         "summary": "Mobile Disable",
-        "description": "Turn Mobile integration OFF. Revokes the project-scoped key so every\npaired phone immediately loses access.",
+        "description": "Turn Mobile integration OFF; revokes the key (all paired phones lose access).",
         "operationId": "mobile_disable_projects__projectID__mobile_disable_post",
         "parameters": [
           {
@@ -4073,7 +4376,7 @@
           "Mobile"
         ],
         "summary": "Mobile Regenerate",
-        "description": "Invalidate every currently-paired phone and mint a fresh key. The\nold phones will get 401s on their next request until they rescan the QR.",
+        "description": "Invalidate paired phones and mint a fresh key.",
         "operationId": "mobile_regenerate_projects__projectID__mobile_regenerate_post",
         "parameters": [
           {
@@ -4242,7 +4545,7 @@
           "Tools"
         ],
         "summary": "Get Ollama Models",
-        "description": "Connect to an Ollama instance and retrieve all available models.\n\nArgs:\n    ollama_instance: OllamaInstanceModel with host and port\n    \nReturns:\n    List of models information from the Ollama instance",
+        "description": "Connect to an Ollama instance and retrieve all available models.",
         "operationId": "get_ollama_models_tools_ollama_models_post",
         "requestBody": {
           "content": {
@@ -4282,13 +4585,59 @@
         }
       }
     },
+    "/tools/ollama/cloud/models": {
+      "post": {
+        "tags": [
+          "Tools"
+        ],
+        "summary": "Get Ollama Cloud Models",
+        "description": "List models available on Ollama Cloud.",
+        "operationId": "get_ollama_cloud_models_tools_ollama_cloud_models_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OllamaCloudInstanceModel"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OllamaModelInfo"
+                  },
+                  "type": "array",
+                  "title": "Response Get Ollama Cloud Models Tools Ollama Cloud Models Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tools/ollama/pull": {
       "post": {
         "tags": [
           "Tools"
         ],
         "summary": "Pull Ollama Model",
-        "description": "Pull (download/install) a model to an Ollama instance.\n\nArgs:\n    model_request: Contains the model name to pull and the Ollama instance details\n    \nReturns:\n    Status of the pull operation",
+        "description": "Pull (download/install) a model to an Ollama instance.",
         "operationId": "pull_ollama_model_tools_ollama_pull_post",
         "requestBody": {
           "content": {
@@ -4642,6 +4991,68 @@
       }
     },
     "/users/{username}/apikeys/{key_id}": {
+      "patch": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Route Update User Apikey",
+        "description": "Update API key description or monthly token quota.",
+        "operationId": "route_update_user_apikey_users__username__apikeys__key_id__patch",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Username"
+            }
+          },
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "description": "API key ID",
+              "title": "Key Id"
+            },
+            "description": "API key ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "Users"
@@ -4802,7 +5213,7 @@
           "Users"
         ],
         "summary": "Totp Setup",
-        "description": "Generate a new TOTP secret and recovery codes. Does NOT enable 2FA yet \u2014 call /enable with a valid code to activate.",
+        "description": "Generate a new TOTP secret and recovery codes; does not enable 2FA.\n\nStep-up: always requires password; if 2FA is already enabled, also\nrequires a current TOTP/recovery code (else session-only attacker\ncould overwrite the secret and pivot to persistent ATO).",
         "operationId": "totp_setup_users__username__totp_setup_post",
         "parameters": [
           {
@@ -4817,6 +5228,16 @@
             "description": "Username"
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TOTPSetupRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -4954,7 +5375,7 @@
           "Admin"
         ],
         "summary": "Get Permission Matrix",
-        "description": "Return the users x projects permission matrix.\n\nAdmins see everything. Team leaders see only users and projects\nbelonging to their teams. Regular users get 403.",
+        "description": "Return the users x projects permission matrix.",
         "operationId": "get_permission_matrix_permissions_matrix_get",
         "responses": {
           "200": {
@@ -5499,7 +5920,7 @@
           "Auth"
         ],
         "summary": "Logout",
-        "description": "Clear the session cookie and log out.",
+        "description": "Clear session cookies and log out.\n\nBoth `restai_token` AND `restai_token_admin` deleted; otherwise an admin\nwho impersonates then logs out leaves a dangling admin-scoped JWT that\n`POST /auth/exit-impersonation` could swap back into the session slot.",
         "operationId": "logout_auth_logout_post",
         "responses": {
           "200": {
@@ -5564,7 +5985,7 @@
           "Teams"
         ],
         "summary": "Get Teams",
-        "description": "Get all teams the user has access to.\n\n- Platform admins see all teams\n- Regular users see teams they are members of",
+        "description": "Get all teams the user has access to.",
         "operationId": "get_teams_teams_get",
         "responses": {
           "200": {
@@ -5626,7 +6047,7 @@
           "Teams"
         ],
         "summary": "Get Team",
-        "description": "Get a specific team by ID.\n\nUser must be a member or admin of the team, or a platform admin.",
+        "description": "Get a specific team by ID.",
         "operationId": "get_team_teams__team_id__get",
         "parameters": [
           {
@@ -5667,7 +6088,7 @@
           "Teams"
         ],
         "summary": "Update Team",
-        "description": "Update team details.\n\nOnly team admins and platform admins can update team details.",
+        "description": "Update team details.",
         "operationId": "update_team_teams__team_id__patch",
         "parameters": [
           {
@@ -5718,7 +6139,7 @@
           "Teams"
         ],
         "summary": "Delete Team",
-        "description": "Delete a team.\n\nOnly platform admins can delete teams.",
+        "description": "Delete a team.",
         "operationId": "delete_team_teams__team_id__delete",
         "parameters": [
           {
@@ -5761,7 +6182,7 @@
           "Teams"
         ],
         "summary": "Add User To Team",
-        "description": "Add a user to a team.\n\nOnly team admins and platform admins can add users to a team.",
+        "description": "Add a user to a team.",
         "operationId": "add_user_to_team_teams__team_id__users__username__post",
         "parameters": [
           {
@@ -5811,7 +6232,7 @@
           "Teams"
         ],
         "summary": "Remove User From Team",
-        "description": "Remove a user from a team.\n\nOnly team admins and platform admins can remove users from a team.",
+        "description": "Remove a user from a team.",
         "operationId": "remove_user_from_team_teams__team_id__users__username__delete",
         "parameters": [
           {
@@ -5863,7 +6284,7 @@
           "Teams"
         ],
         "summary": "Add Admin To Team",
-        "description": "Add an admin to a team.\n\nOnly team admins and platform admins can add admins to a team.",
+        "description": "Add an admin to a team.",
         "operationId": "add_admin_to_team_teams__team_id__admins__username__post",
         "parameters": [
           {
@@ -5913,7 +6334,7 @@
           "Teams"
         ],
         "summary": "Remove Admin From Team",
-        "description": "Remove an admin from a team.\n\nOnly team admins and platform admins can remove admins from a team.",
+        "description": "Remove an admin from a team.",
         "operationId": "remove_admin_from_team_teams__team_id__admins__username__delete",
         "parameters": [
           {
@@ -5965,7 +6386,7 @@
           "Teams"
         ],
         "summary": "Add Project To Team",
-        "description": "Add a project to a team.\n\nOnly team admins and platform admins can add projects to a team.",
+        "description": "Add a project to a team.",
         "operationId": "add_project_to_team_teams__team_id__projects__project_id__post",
         "parameters": [
           {
@@ -6015,7 +6436,7 @@
           "Teams"
         ],
         "summary": "Remove Project From Team",
-        "description": "Remove a project from a team.\n\nOnly team admins and platform admins can remove projects from a team.",
+        "description": "Remove a project from a team.",
         "operationId": "remove_project_from_team_teams__team_id__projects__project_id__delete",
         "parameters": [
           {
@@ -7102,6 +7523,81 @@
         }
       }
     },
+    "/admin/routines": {
+      "get": {
+        "tags": [
+          "Settings",
+          "Routines"
+        ],
+        "summary": "List All Routines",
+        "description": "Cross-project routine inventory for the admin Routines page.",
+        "operationId": "list_all_routines_admin_routines_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/routines/{routineID}": {
+      "patch": {
+        "tags": [
+          "Settings",
+          "Routines"
+        ],
+        "summary": "Admin Toggle Routine",
+        "description": "Admin-only routine toggle, bypasses project membership.",
+        "operationId": "admin_toggle_routine_admin_routines__routineID__patch",
+        "parameters": [
+          {
+            "name": "routineID",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Routineid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/chat/completions": {
       "post": {
         "tags": [
@@ -7940,6 +8436,37 @@
             "title": "Read Only",
             "description": "Whether this key is read-only",
             "default": false
+          },
+          "token_quota_monthly": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Quota Monthly",
+            "description": "Monthly token quota (null = unlimited)"
+          },
+          "tokens_used_this_month": {
+            "type": "integer",
+            "title": "Tokens Used This Month",
+            "description": "Tokens consumed in the current quota window",
+            "default": 0
+          },
+          "quota_reset_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quota Reset At",
+            "description": "Timestamp when the current quota window rolls over"
           }
         },
         "type": "object",
@@ -7951,6 +8478,44 @@
         ],
         "title": "ApiKeyResponse",
         "description": "API key metadata (without the key value)."
+      },
+      "ApiKeyUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "New description"
+          },
+          "token_quota_monthly": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Quota Monthly",
+            "description": "New monthly token cap (0 or null = clear quota)"
+          },
+          "reset_usage": {
+            "type": "boolean",
+            "title": "Reset Usage",
+            "description": "Zero tokens_used_this_month and push quota_reset_at to the 1st of next month",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ApiKeyUpdate",
+        "description": "Patch an API key's quota / metadata. Only fields that are set get\napplied \u2014 omitted fields are left untouched."
       },
       "BlockGenerateRequest": {
         "properties": {
@@ -8051,7 +8616,7 @@
               }
             ],
             "title": "Id",
-            "description": "Conversation ID for maintaining chat state. Omit to start a new conversation."
+            "description": "Conversation ID for maintaining chat state. Omit to start a new conversation (ephemeral one-shot turn)."
           },
           "image": {
             "anyOf": [
@@ -8080,6 +8645,107 @@
             ],
             "title": "Files",
             "description": "Up to 10 files to upload into the agent sandbox at /home/user/uploads/"
+          },
+          "system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System",
+            "description": "System prompt override for this turn (Agent + RAG)"
+          },
+          "colbert_rerank": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Colbert Rerank",
+            "description": "Enable ColBERT reranking of retrieved documents (RAG only)"
+          },
+          "llm_rerank": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Rerank",
+            "description": "Enable LLM-based reranking of retrieved documents (RAG only)"
+          },
+          "tables": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tables",
+            "description": "Restrict NL\u2192SQL to specific tables (RAG with connection only)"
+          },
+          "negative": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negative",
+            "description": "Negative prompt to steer the response away from certain content (RAG only)"
+          },
+          "lite": {
+            "type": "boolean",
+            "title": "Lite",
+            "description": "Return a lightweight response without full source details (RAG only)",
+            "default": false
+          },
+          "eval": {
+            "type": "boolean",
+            "title": "Eval",
+            "description": "Enable response evaluation and scoring (RAG only, non-streaming)",
+            "default": false
+          },
+          "k": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 25.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "K",
+            "description": "Number of documents to retrieve from the knowledge base (RAG only)"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "Minimum similarity score threshold for retrieved documents (RAG only)"
           }
         },
         "type": "object",
@@ -8087,7 +8753,7 @@
           "question"
         ],
         "title": "ChatModel",
-        "description": "Send a chat message to a project. Maintains conversation state via the id field.",
+        "description": "Send a chat message (or one-shot question) to a project. Maintains\nconversation state via the ``id`` field; omit ``id`` for an ephemeral\none-shot turn.",
         "example": {
           "id": "conv_abc123",
           "question": "Tell me about the RAG project type.",
@@ -8782,14 +9448,14 @@
             "type": "number",
             "minimum": 0.0,
             "title": "Input Cost",
-            "description": "Cost per 1K input tokens in configured currency",
+            "description": "Cost per 1M input tokens in configured currency",
             "default": 0.0
           },
           "output_cost": {
             "type": "number",
             "minimum": 0.0,
             "title": "Output Cost",
-            "description": "Cost per 1K output tokens in configured currency",
+            "description": "Cost per 1M output tokens in configured currency",
             "default": 0.0
           },
           "context_window": {
@@ -8830,12 +9496,12 @@
           "class_name": "litellm",
           "context_window": 128000,
           "description": "OpenAI GPT-4o model",
-          "input_cost": 0.005,
+          "input_cost": 5.0,
           "name": "gpt-4o",
           "options": {
             "model": "openai/gpt-4o"
           },
-          "output_cost": 0.015,
+          "output_cost": 15.0,
           "privacy": "public"
         }
       },
@@ -8909,7 +9575,7 @@
               }
             ],
             "title": "Input Cost",
-            "description": "Cost per 1K input tokens"
+            "description": "Cost per 1M input tokens"
           },
           "output_cost": {
             "anyOf": [
@@ -8922,7 +9588,7 @@
               }
             ],
             "title": "Output Cost",
-            "description": "Cost per 1K output tokens"
+            "description": "Cost per 1M output tokens"
           },
           "context_window": {
             "anyOf": [
@@ -8944,9 +9610,9 @@
         "description": "Update an existing LLM configuration.",
         "example": {
           "description": "Updated model description",
-          "input_cost": 0.003,
+          "input_cost": 3.0,
           "options": "{\"model\": \"openai/gpt-4o-mini\"}",
-          "output_cost": 0.012,
+          "output_cost": 12.0,
           "privacy": "public"
         }
       },
@@ -9119,6 +9785,27 @@
           "env": {},
           "host": "npx"
         }
+      },
+      "OllamaCloudInstanceModel": {
+        "properties": {
+          "api_key": {
+            "type": "string",
+            "title": "Api Key",
+            "description": "Ollama Cloud API key (https://ollama.com/settings/keys)"
+          },
+          "host": {
+            "type": "string",
+            "title": "Host",
+            "description": "Override the cloud base URL \u2014 usually leave default",
+            "default": "https://ollama.com"
+          }
+        },
+        "type": "object",
+        "required": [
+          "api_key"
+        ],
+        "title": "OllamaCloudInstanceModel",
+        "description": "Ollama Cloud connection details \u2014 Bearer-authenticated, no local install."
       },
       "OllamaInstanceModel": {
         "properties": {
@@ -9777,10 +10464,11 @@
             "enum": [
               "rag",
               "agent",
-              "block"
+              "block",
+              "app"
             ],
             "title": "Type",
-            "description": "Project type: 'rag', 'agent', or 'block'"
+            "description": "Project type: 'rag', 'agent', 'block', or 'app'"
           },
           "human_name": {
             "anyOf": [
@@ -9982,30 +10670,6 @@
             "title": "Colbert Rerank",
             "description": "Enable ColBERT reranking"
           },
-          "cache": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cache",
-            "description": "Enable response caching"
-          },
-          "cache_threshold": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cache Threshold",
-            "description": "Similarity threshold for cache hits"
-          },
           "guard": {
             "anyOf": [
               {
@@ -10163,31 +10827,6 @@
             "title": "Llm Rerank",
             "description": "Enable LLM-based reranking of retrieved documents"
           },
-          "cache": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cache",
-            "description": "Enable response caching"
-          },
-          "cache_threshold": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cache Threshold",
-            "description": "Similarity threshold for cache hits (0.0 to 1.0)",
-            "default": 0.85
-          },
           "tables": {
             "anyOf": [
               {
@@ -10233,6 +10872,12 @@
             "title": "Max Iterations",
             "description": "Maximum iterations for agent project execution",
             "default": 10
+          },
+          "auto_plan": {
+            "type": "boolean",
+            "title": "Auto Plan",
+            "description": "Plan-and-execute: before the first turn, run a one-shot planner LLM call. If the request is multi-step, the agent runs each subtask as its own bounded iteration loop (with shared session) and synthesizes a final answer at the end. Avoids hitting max_iterations on big tasks like 'audit this repo'.",
+            "default": false
           },
           "connection": {
             "anyOf": [
@@ -10309,6 +10954,280 @@
             ],
             "title": "Slack Bot Token",
             "description": "Slack bot token (xoxb-...) for Slack integration"
+          },
+          "whatsapp_phone_number_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Phone Number Id",
+            "description": "Meta-assigned phone number id (the long numeric value visible in Meta Business Suite under WhatsApp \u2192 API Setup). The webhook routes inbound messages to this project by this id."
+          },
+          "whatsapp_access_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Access Token",
+            "description": "WhatsApp Business Cloud API access token (long-lived System User token recommended). Encrypted at rest."
+          },
+          "whatsapp_app_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp App Secret",
+            "description": "Meta App secret used to verify the X-Hub-Signature-256 header on inbound webhooks. Encrypted at rest."
+          },
+          "whatsapp_verify_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Verify Token",
+            "description": "Admin-chosen string Meta echoes back during the initial GET subscription handshake. Encrypted at rest."
+          },
+          "whatsapp_default_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Default To",
+            "description": "Default recipient phone number (E.164, no '+') for the send_whatsapp builtin tool \u2014 typically your own phone for proactive notifications. Outbound is constrained to WhatsApp's 24h customer-service window unless using a pre-approved template (template messages are not supported by this tool)."
+          },
+          "whatsapp_allowed_phone_numbers": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Allowed Phone Numbers",
+            "description": "Comma-separated allowlist of E.164 senders (no '+'). Empty = anyone with the bot's number can chat. Recommended for production \u2014 protects WhatsApp number quality rating from spam."
+          },
+          "twilio_account_sid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Twilio Account Sid",
+            "description": "Twilio Account SID (starts with 'AC...')."
+          },
+          "twilio_auth_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Twilio Auth Token",
+            "description": "Twilio Auth Token. Encrypted at rest."
+          },
+          "twilio_from_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Twilio From Number",
+            "description": "Twilio sender phone number in E.164 format (e.g. +15551234567). Must be a number you've provisioned in Twilio."
+          },
+          "sms_default_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sms Default To",
+            "description": "Default recipient phone number (E.164) for the send_sms builtin tool."
+          },
+          "ftp_protocol": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sftp",
+                  "ftp"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ftp Protocol",
+            "description": "Deploy protocol for app-builder projects. SFTP is strongly preferred (FTP transmits credentials in cleartext).",
+            "default": "sftp"
+          },
+          "ftp_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ftp Host",
+            "description": "Hostname or IP of the deploy target (no scheme, no port). Empty = deploy disabled."
+          },
+          "ftp_port": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 65535.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ftp Port",
+            "description": "Deploy port. Defaults to 22 for SFTP and 21 for FTP."
+          },
+          "ftp_user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ftp User",
+            "description": "Deploy username."
+          },
+          "ftp_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ftp Password",
+            "description": "Deploy password. Encrypted at rest."
+          },
+          "ftp_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ftp Path",
+            "description": "Remote directory the app is uploaded into (must already exist on the host). Trailing slash optional.",
+            "default": "/"
+          },
+          "ftp_use_passive": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ftp Use Passive",
+            "description": "FTP only: use passive (PASV) mode. Most NAT-traversed connections require this. Ignored for SFTP.",
+            "default": true
+          },
+          "webhook_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Url",
+            "description": "HTTPS endpoint that receives event POSTs from this project. Empty = webhooks disabled."
+          },
+          "webhook_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Secret",
+            "description": "Shared secret used to sign webhook payloads (HMAC-SHA256, sent in X-RESTai-Signature header). Encrypted at rest."
+          },
+          "webhook_events": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Events",
+            "description": "Comma-separated event types this project subscribes to. Supported: budget_exceeded, sync_completed, eval_completed, routine_failed. Empty = all events."
+          },
+          "moderation_blocklist": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moderation Blocklist",
+            "description": "Comma-separated terms that the moderate_content tool flags (and redacts when moderation_redact_pii is on). Case-insensitive substring match \u2014 keep literal, no regex."
+          },
+          "moderation_redact_pii": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moderation Redact Pii",
+            "description": "When true, moderate_content returns a SANITIZED copy of the input with PII/blocklist matches replaced by [REDACTED:<type>]. Default on.",
+            "default": true
           },
           "blockly_workspace": {
             "anyOf": [
@@ -10430,6 +11349,25 @@
             "title": "Agent Mode",
             "description": "Agent execution mode (agent projects only): 'auto' tries native function calling and falls back to text-based ReAct on first-turn error; 'function_calling' always uses native (errors propagate); 'react' always uses text-based ReAct prompting."
           },
+          "agent_loop": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "restai",
+                  "claude",
+                  "llamaindex",
+                  "smolagents",
+                  "openai_agents"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Loop",
+            "description": "Agent loop implementation (agent projects only): 'restai' (default, our agent2 runtime \u2014 works with any platform LLM); 'claude' (Claude Agent SDK \u2014 requires an Anthropic-class LLM, talks directly to Anthropic); 'llamaindex' (upstream llama-index AgentWorkflow \u2014 FunctionAgent / ReActAgent over the project's llama-index LLM, works with any platform LLM); 'smolagents' (HuggingFace smolagents ToolCallingAgent \u2014 uses OpenAI-compatible endpoints natively for OpenAI / Ollama / vLLM / Grok / Azure; LiteLLM fallback only for Anthropic / Gemini / Bedrock); 'openai_agents' (OpenAI Agents SDK \u2014 requires an OpenAI-class LLM, talks directly to OpenAI). More options will be added over time."
+          },
           "memory_bank_enabled": {
             "type": "boolean",
             "title": "Memory Bank Enabled",
@@ -10443,6 +11381,30 @@
             "title": "Memory Bank Max Tokens",
             "description": "Token budget for the rendered memory bank block. Older entries get rolled up into coarser time buckets when this is exceeded.",
             "default": 2000
+          },
+          "memory_search_enabled": {
+            "type": "boolean",
+            "title": "Memory Search Enabled",
+            "description": "Agent projects only. When enabled, every conversation turn (OutputDatabase row) is indexed into a per-project ChromaDB collection so the `search_memories` builtin tool can semantically retrieve past Q/A from anywhere in this project's history. Independent of `memory_bank_enabled` \u2014 the bank broadcasts a fixed slice into every system prompt, while this powers on-demand retrieval. Requires the project to have an embedding configured.",
+            "default": false
+          },
+          "browser_allowed_domains": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser Allowed Domains",
+            "description": "Comma-separated allowlist of domains the agent's headless Chromium may visit (e.g. 'acme.com, supplier.net'). Empty = unrestricted (not recommended). Matches full hostnames or suffix-globs like '*.acme.com'. browser_goto refuses anything not on the list."
+          },
+          "browser_allow_eval": {
+            "type": "boolean",
+            "title": "Browser Allow Eval",
+            "description": "When true, the `browser_eval` tool is available for this project \u2014 lets the agent execute arbitrary JavaScript in the page context. Powerful but dangerous (a prompt-injected page can execute anything the domain permits). Off by default; admin must explicitly opt in.",
+            "default": false
           }
         },
         "type": "object",
@@ -10488,7 +11450,7 @@
           "type": {
             "type": "string",
             "title": "Type",
-            "description": "Project type: 'rag', 'agent', or 'block'"
+            "description": "Project type: 'rag', 'agent', 'block', or 'app'"
           },
           "system": {
             "anyOf": [
@@ -10618,13 +11580,19 @@
             "default": {
               "logging": true,
               "redact_inference_logs": false,
-              "cache_threshold": 0.85,
               "score": 0.0,
               "k": 4,
               "max_iterations": 10,
+              "auto_plan": false,
+              "ftp_protocol": "sftp",
+              "ftp_path": "/",
+              "ftp_use_passive": true,
+              "moderation_redact_pii": true,
               "guard_mode": "block",
               "memory_bank_enabled": false,
-              "memory_bank_max_tokens": 2000
+              "memory_bank_max_tokens": 2000,
+              "memory_search_enabled": false,
+              "browser_allow_eval": false
             }
           },
           "users": {
@@ -10751,184 +11719,6 @@
         "title": "ProjectsResponse",
         "description": "Paginated list of projects."
       },
-      "QuestionModel": {
-        "properties": {
-          "question": {
-            "type": "string",
-            "maxLength": 100000,
-            "title": "Question",
-            "description": "The user's question or prompt"
-          },
-          "stream": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Stream",
-            "description": "Enable streaming response (server-sent events)"
-          },
-          "context": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Context",
-            "description": "Context variables to inject into the system prompt via {{context.key}} placeholders"
-          },
-          "system": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "System",
-            "description": "System prompt override for this question"
-          },
-          "colbert_rerank": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Colbert Rerank",
-            "description": "Enable ColBERT reranking of retrieved documents"
-          },
-          "llm_rerank": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Llm Rerank",
-            "description": "Enable LLM-based reranking of retrieved documents"
-          },
-          "tables": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tables",
-            "description": "Restrict SQL queries to specific database tables (for RAG projects with a database connection)"
-          },
-          "negative": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Negative",
-            "description": "Negative prompt to steer the response away from certain content"
-          },
-          "image": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Image",
-            "description": "Base64-encoded image for vision models"
-          },
-          "files": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/FileAttachment"
-                },
-                "type": "array",
-                "maxItems": 10
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Files",
-            "description": "Up to 10 files to upload into the agent sandbox at /home/user/uploads/"
-          },
-          "lite": {
-            "type": "boolean",
-            "title": "Lite",
-            "description": "Return a lightweight response without full source details",
-            "default": false
-          },
-          "eval": {
-            "type": "boolean",
-            "title": "Eval",
-            "description": "Enable response evaluation and scoring",
-            "default": false
-          },
-          "k": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "maximum": 25.0,
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "K",
-            "description": "Number of documents to retrieve from the knowledge base"
-          },
-          "score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Score",
-            "description": "Minimum similarity score threshold for retrieved documents"
-          }
-        },
-        "type": "object",
-        "required": [
-          "question"
-        ],
-        "title": "QuestionModel",
-        "description": "Send a one-shot question to a project.",
-        "example": {
-          "eval": false,
-          "k": 4,
-          "lite": false,
-          "question": "What are the main features of RESTai?",
-          "score": 0.3,
-          "stream": false
-        }
-      },
       "RoutineCreate": {
         "properties": {
           "name": {
@@ -11027,6 +11817,19 @@
             "type": "string",
             "title": "App Name",
             "description": "Application display name"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url",
+            "description": "Login-page logo URL or data:image/... URI (empty = use default RESTai logo)",
+            "default": ""
           },
           "hide_branding": {
             "type": "boolean",
@@ -11460,7 +12263,7 @@
               }
             ],
             "title": "Gpu Worker Devices",
-            "description": "Comma-separated GPU indices for worker processes (e.g. '0,1')",
+            "description": "Comma-separated GPU indices for worker processes (e.g. '0,1'). Workers that need a single device target use the first index here as `cuda:N` (`config.RESTAI_DEFAULT_DEVICE`).",
             "default": ""
           },
           "mcp_enabled": {
@@ -11539,6 +12342,69 @@
             "description": "Mount the sandbox container's rootfs read-only (safer). When false the LLM can pip install.",
             "default": true
           },
+          "browser_enabled": {
+            "type": "boolean",
+            "title": "Browser Enabled",
+            "description": "Whether the per-chat agentic browser (Playwright/Chromium) is enabled",
+            "default": false
+          },
+          "browser_image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser Image",
+            "description": "Docker image used for browser containers (pre-baked Playwright + Chromium)",
+            "default": "mcr.microsoft.com/playwright/python:v1.48.0-jammy"
+          },
+          "browser_network": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser Network",
+            "description": "Docker network mode for browser containers (needs outbound \u2014 'bridge' by default)",
+            "default": "bridge"
+          },
+          "browser_timeout": {
+            "type": "integer",
+            "title": "Browser Timeout",
+            "description": "Idle timeout in seconds before a browser container is auto-removed",
+            "default": 900
+          },
+          "app_docker_enabled": {
+            "type": "boolean",
+            "title": "App Docker Enabled",
+            "description": "Whether the App Builder feature is enabled. When off, the 'app' project type is hidden from project creation and existing app projects' preview returns 503.",
+            "default": false
+          },
+          "app_docker_image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Docker Image",
+            "description": "Docker image for App Builder per-project preview containers (PHP + Node + esbuild)",
+            "default": "restai/app-runtime:2"
+          },
+          "app_docker_idle_timeout": {
+            "type": "integer",
+            "title": "App Docker Idle Timeout",
+            "description": "Idle timeout in seconds before an App Builder preview container is auto-removed",
+            "default": 1800
+          },
           "data_retention_days": {
             "type": "integer",
             "title": "Data Retention Days",
@@ -11550,6 +12416,425 @@
             "title": "Enforce 2Fa",
             "description": "Whether TOTP 2FA is enforced for all local users",
             "default": false
+          },
+          "password_max_age_days": {
+            "type": "integer",
+            "title": "Password Max Age Days",
+            "description": "Soft warning shown on login when a user's password is older than this many days. 0 = disabled.",
+            "default": 0
+          },
+          "vectordb_chromadb_enabled": {
+            "type": "boolean",
+            "title": "Vectordb Chromadb Enabled",
+            "description": "Whether ChromaDB appears as an available vectorstore in project creation",
+            "default": true
+          },
+          "vectordb_chromadb_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Chromadb Host",
+            "description": "Remote ChromaDB host. Empty = use a local PersistentClient under the embeddings path.",
+            "default": ""
+          },
+          "vectordb_chromadb_port": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Chromadb Port",
+            "description": "Remote ChromaDB port (only used when host is set)",
+            "default": ""
+          },
+          "vectordb_pgvector_enabled": {
+            "type": "boolean",
+            "title": "Vectordb Pgvector Enabled",
+            "description": "Whether PGVector appears as an available vectorstore",
+            "default": false
+          },
+          "vectordb_pgvector_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pgvector Host",
+            "description": "PGVector PostgreSQL host",
+            "default": ""
+          },
+          "vectordb_pgvector_port": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pgvector Port",
+            "description": "PGVector PostgreSQL port",
+            "default": "5432"
+          },
+          "vectordb_pgvector_user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pgvector User",
+            "description": "PGVector PostgreSQL user",
+            "default": ""
+          },
+          "vectordb_pgvector_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pgvector Password",
+            "description": "PGVector PostgreSQL password (masked)",
+            "default": ""
+          },
+          "vectordb_pgvector_db": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pgvector Db",
+            "description": "PGVector PostgreSQL database name",
+            "default": "restai_vectors"
+          },
+          "vectordb_weaviate_enabled": {
+            "type": "boolean",
+            "title": "Vectordb Weaviate Enabled",
+            "description": "Whether Weaviate appears as an available vectorstore",
+            "default": false
+          },
+          "vectordb_weaviate_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Weaviate Host",
+            "description": "Weaviate host",
+            "default": ""
+          },
+          "vectordb_weaviate_port": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Weaviate Port",
+            "description": "Weaviate HTTP port",
+            "default": "8080"
+          },
+          "vectordb_weaviate_grpc_port": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Weaviate Grpc Port",
+            "description": "Weaviate gRPC port",
+            "default": "50051"
+          },
+          "vectordb_weaviate_api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Weaviate Api Key",
+            "description": "Weaviate API key (masked, optional)",
+            "default": ""
+          },
+          "vectordb_pinecone_enabled": {
+            "type": "boolean",
+            "title": "Vectordb Pinecone Enabled",
+            "description": "Whether Pinecone appears as an available vectorstore",
+            "default": false
+          },
+          "vectordb_pinecone_api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pinecone Api Key",
+            "description": "Pinecone API key (masked)",
+            "default": ""
+          },
+          "vectordb_pinecone_index": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pinecone Index",
+            "description": "Pinecone index name",
+            "default": ""
+          },
+          "ldap_enabled": {
+            "type": "boolean",
+            "title": "Ldap Enabled",
+            "description": "Whether the /ldap login endpoint accepts authentication",
+            "default": false
+          },
+          "ldap_server_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Server Host",
+            "description": "LDAP server hostname",
+            "default": ""
+          },
+          "ldap_server_port": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Server Port",
+            "description": "LDAP server port (389 plain, 636 LDAPS)",
+            "default": ""
+          },
+          "ldap_attribute_for_mail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Attribute For Mail",
+            "description": "LDAP attribute carrying the user's email",
+            "default": "mail"
+          },
+          "ldap_attribute_for_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Attribute For Username",
+            "description": "LDAP attribute carrying the username",
+            "default": "uid"
+          },
+          "ldap_search_base": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Search Base",
+            "description": "LDAP search base DN, e.g. ou=users,dc=example,dc=com",
+            "default": ""
+          },
+          "ldap_search_filters": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Search Filters",
+            "description": "Additional LDAP search filters (objectClass etc.); pre-anded with the username match",
+            "default": ""
+          },
+          "ldap_app_dn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap App Dn",
+            "description": "DN of the application bind account used to search for users",
+            "default": ""
+          },
+          "ldap_app_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap App Password",
+            "description": "Password for the application bind account (masked)",
+            "default": ""
+          },
+          "ldap_use_tls": {
+            "type": "boolean",
+            "title": "Ldap Use Tls",
+            "description": "Wrap the LDAP connection in TLS (LDAPS)",
+            "default": false
+          },
+          "ldap_ca_cert_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Ca Cert File",
+            "description": "Path on disk to a CA bundle for LDAPS validation (server-side path)",
+            "default": ""
+          },
+          "ldap_ciphers": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Ciphers",
+            "description": "TLS cipher allowlist passed to ldap3. Empty = library default ('ALL')",
+            "default": ""
+          },
+          "smtp_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp Host",
+            "description": "SMTP server hostname",
+            "default": ""
+          },
+          "smtp_port": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp Port",
+            "description": "SMTP server port (587 STARTTLS, 465 implicit TLS)",
+            "default": "587"
+          },
+          "smtp_user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp User",
+            "description": "SMTP user",
+            "default": ""
+          },
+          "smtp_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp Password",
+            "description": "SMTP password (masked)",
+            "default": ""
+          },
+          "smtp_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp From",
+            "description": "Default From address used when sending email",
+            "default": ""
+          },
+          "email_default_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email Default To",
+            "description": "Fallback recipient when no `to=` is given (e.g. ops alerts)",
+            "default": ""
           }
         },
         "type": "object",
@@ -11575,6 +12860,19 @@
             ],
             "title": "App Name",
             "description": "Application display name"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url",
+            "description": "Login-page logo URL or data:image/... URI"
           },
           "hide_branding": {
             "anyOf": [
@@ -12129,6 +13427,92 @@
             "title": "Docker Read Only",
             "description": "Mount the sandbox rootfs read-only (safer). When false the LLM can pip install."
           },
+          "browser_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser Enabled",
+            "description": "Whether the per-chat agentic browser is enabled"
+          },
+          "browser_image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser Image",
+            "description": "Docker image used for browser containers"
+          },
+          "browser_network": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser Network",
+            "description": "Docker network mode for browser containers"
+          },
+          "browser_timeout": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 60.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser Timeout",
+            "description": "Idle timeout in seconds before browser container removal"
+          },
+          "app_docker_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Docker Enabled",
+            "description": "Whether the App Builder feature is enabled"
+          },
+          "app_docker_image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Docker Image",
+            "description": "Docker image for App Builder preview containers"
+          },
+          "app_docker_idle_timeout": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 60.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Docker Idle Timeout",
+            "description": "Idle timeout in seconds before App Builder container removal"
+          },
           "data_retention_days": {
             "anyOf": [
               {
@@ -12153,6 +13537,439 @@
             ],
             "title": "Enforce 2Fa",
             "description": "Whether TOTP 2FA is enforced for all local users"
+          },
+          "password_max_age_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password Max Age Days",
+            "description": "Soft warning shown on login when a user's password is older than this many days. 0 = disabled."
+          },
+          "vectordb_chromadb_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Chromadb Enabled",
+            "description": "Whether ChromaDB is offered as a vectorstore option"
+          },
+          "vectordb_chromadb_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Chromadb Host",
+            "description": "Remote ChromaDB host (empty for local PersistentClient)"
+          },
+          "vectordb_chromadb_port": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Chromadb Port",
+            "description": "Remote ChromaDB port"
+          },
+          "vectordb_pgvector_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pgvector Enabled",
+            "description": "Whether PGVector is offered as a vectorstore option"
+          },
+          "vectordb_pgvector_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pgvector Host",
+            "description": "PGVector PostgreSQL host"
+          },
+          "vectordb_pgvector_port": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pgvector Port",
+            "description": "PGVector PostgreSQL port"
+          },
+          "vectordb_pgvector_user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pgvector User",
+            "description": "PGVector PostgreSQL user"
+          },
+          "vectordb_pgvector_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pgvector Password",
+            "description": "PGVector PostgreSQL password"
+          },
+          "vectordb_pgvector_db": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pgvector Db",
+            "description": "PGVector PostgreSQL database name"
+          },
+          "vectordb_weaviate_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Weaviate Enabled",
+            "description": "Whether Weaviate is offered as a vectorstore option"
+          },
+          "vectordb_weaviate_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Weaviate Host",
+            "description": "Weaviate host"
+          },
+          "vectordb_weaviate_port": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Weaviate Port",
+            "description": "Weaviate HTTP port"
+          },
+          "vectordb_weaviate_grpc_port": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Weaviate Grpc Port",
+            "description": "Weaviate gRPC port"
+          },
+          "vectordb_weaviate_api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Weaviate Api Key",
+            "description": "Weaviate API key (optional)"
+          },
+          "vectordb_pinecone_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pinecone Enabled",
+            "description": "Whether Pinecone is offered as a vectorstore option"
+          },
+          "vectordb_pinecone_api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pinecone Api Key",
+            "description": "Pinecone API key"
+          },
+          "vectordb_pinecone_index": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vectordb Pinecone Index",
+            "description": "Pinecone index name"
+          },
+          "ldap_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Enabled",
+            "description": "Whether the /ldap login endpoint accepts authentication"
+          },
+          "ldap_server_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Server Host",
+            "description": "LDAP server hostname"
+          },
+          "ldap_server_port": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Server Port",
+            "description": "LDAP server port"
+          },
+          "ldap_attribute_for_mail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Attribute For Mail",
+            "description": "LDAP attribute carrying the user's email"
+          },
+          "ldap_attribute_for_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Attribute For Username",
+            "description": "LDAP attribute carrying the username"
+          },
+          "ldap_search_base": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Search Base",
+            "description": "LDAP search base DN"
+          },
+          "ldap_search_filters": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Search Filters",
+            "description": "Additional LDAP search filters"
+          },
+          "ldap_app_dn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap App Dn",
+            "description": "Application bind account DN"
+          },
+          "ldap_app_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap App Password",
+            "description": "Application bind account password"
+          },
+          "ldap_use_tls": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Use Tls",
+            "description": "Wrap the LDAP connection in TLS (LDAPS)"
+          },
+          "ldap_ca_cert_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Ca Cert File",
+            "description": "Path to a CA bundle for LDAPS validation"
+          },
+          "ldap_ciphers": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ldap Ciphers",
+            "description": "TLS cipher allowlist (empty = ldap3 default)"
+          },
+          "smtp_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp Host",
+            "description": "SMTP server hostname"
+          },
+          "smtp_port": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp Port",
+            "description": "SMTP server port"
+          },
+          "smtp_user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp User",
+            "description": "SMTP user"
+          },
+          "smtp_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp Password",
+            "description": "SMTP password"
+          },
+          "smtp_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp From",
+            "description": "Default From address"
+          },
+          "email_default_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email Default To",
+            "description": "Fallback recipient when no to= is given"
           }
         },
         "type": "object",
@@ -12517,6 +14334,34 @@
         "title": "TOTPEnableRequest",
         "description": "Confirm TOTP setup with a valid code and password."
       },
+      "TOTPSetupRequest": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "title": "Password",
+            "description": "Current password for confirmation"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code",
+            "description": "Current TOTP code (or recovery code), required only when 2FA is already enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "TOTPSetupRequest",
+        "description": "Step-up auth required to (re)generate a TOTP secret.\n\nAlways requires `password` so a session-only attacker can't\nsilently rotate the second factor. If 2FA is currently enabled,\n`code` is also required and must verify against the EXISTING\nsecret before that secret is overwritten \u2014 otherwise the attacker\ncould lock the legitimate user out by replacing the seed."
+      },
       "TOTPSetupResponse": {
         "properties": {
           "secret": {
@@ -12601,14 +14446,14 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 5000
+                "maxLength": 300000
               },
               {
                 "type": "null"
               }
             ],
             "title": "Logo Url",
-            "description": "Logo URL or data:image/... URI"
+            "description": "Logo URL or data:image/... URI (the upload widget downscales to keep this well under the cap)"
           },
           "welcome_message": {
             "anyOf": [
@@ -12816,6 +14661,17 @@
               }
             ],
             "description": "Team branding configuration for white-labeling"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamOptions"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per-team options (e.g. SMTP overrides). Empty fields fall back to platform settings."
           }
         },
         "type": "object",
@@ -13043,6 +14899,17 @@
             ],
             "description": "Team branding configuration"
           },
+          "options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TeamOptions"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Per-team options (SMTP overrides etc.). Empty fields fall back to platform settings."
+          },
           "image_generators": {
             "items": {
               "type": "string"
@@ -13075,6 +14942,92 @@
             "charlie"
           ]
         }
+      },
+      "TeamOptions": {
+        "properties": {
+          "smtp_host": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp Host",
+            "description": "SMTP server hostname (empty = use platform default)"
+          },
+          "smtp_port": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 65535.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp Port",
+            "description": "SMTP port (587 STARTTLS, 465 implicit TLS)"
+          },
+          "smtp_user": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp User",
+            "description": "SMTP user"
+          },
+          "smtp_password": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp Password",
+            "description": "SMTP password (encrypted at rest, masked on response)"
+          },
+          "smtp_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 320
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp From",
+            "description": "Default `From` address used by this team"
+          },
+          "email_default_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 320
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email Default To",
+            "description": "Default recipient for notifications when caller didn't specify one"
+          }
+        },
+        "type": "object",
+        "title": "TeamOptions",
+        "description": "Per-team option blob. Empty fields fall back to platform settings."
       },
       "TeamProject": {
         "properties": {
@@ -13473,6 +15426,19 @@
             ],
             "title": "Preferred Team Id",
             "description": "ID of the team whose branding to use"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "UI language code (e.g. 'en', 'pt-PT', 'zh-CN'). Null = use browser / default."
           }
         },
         "type": "object",

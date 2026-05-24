@@ -1,3 +1,4 @@
+import json
 import logging
 from uuid import uuid4
 
@@ -54,7 +55,12 @@ class Block(ProjectBase):
         }
 
         if self.check_input_guard(project, chat_model.question, user, db, output):
-            yield output
+            if chat_model.stream:
+                yield "data: " + json.dumps({"text": output.get("answer", "")}) + "\n\n"
+                yield "data: " + json.dumps(output) + "\n"
+                yield "event: close\n\n"
+            else:
+                yield output
             return
 
         session = await get_session(self.brain, chat_id)
@@ -78,4 +84,9 @@ class Block(ProjectBase):
         )
         await save_session(self.brain, chat_id, session)
 
-        yield output
+        if chat_model.stream:
+            yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
+            yield "data: " + json.dumps(output) + "\n"
+            yield "event: close\n\n"
+        else:
+            yield output

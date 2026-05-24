@@ -336,12 +336,6 @@ Protect your AI projects with input and output guards. Guards are regular RESTai
 - **Block or Warn mode** — Hard-block unsafe content or flag it while passing through
 - **Analytics dashboard** — Track block rates, view blocked requests, and monitor guard effectiveness over time
 
-### Response Cache
-
-Enable per-project response caching to speed up repeated or similar questions. Uses ChromaDB vector similarity to match incoming questions against cached answers — if a question is similar enough (above the configurable threshold), the cached answer is returned instantly without calling the LLM.
-
-Works across all project types. Cache is automatically invalidated when the knowledge base changes (document ingestion or deletion). Configurable similarity threshold (default 0.85). Clear cache anytime via the project details page or API.
-
 ### Audit Log
 
 Every mutation (create, update, delete) across the platform is automatically logged — who did what, when, and which resource was affected. Admins can review the full audit trail from the admin dashboard.

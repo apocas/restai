@@ -163,14 +163,7 @@ class RAG(ProjectBase):
             chatModel.system or project.props.system or self.brain.defaultSystem
         )
 
-        # NL→SQL early-return arm — replaces the old `question()` SQL path.
         if project.props.options.connection:
-            if chatModel.stream:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Streaming is not supported for SQL queries.",
-                )
-
             output = {
                 "question": chatModel.question,
                 "type": type_str,
@@ -181,7 +174,12 @@ class RAG(ProjectBase):
             }
 
             if self.check_input_guard(project, chatModel.question, user, db, output):
-                yield output
+                if chatModel.stream:
+                    yield "data: " + json.dumps({"text": output.get("answer", "")}) + "\n\n"
+                    yield "data: " + json.dumps(output) + "\n"
+                    yield "event: close\n\n"
+                else:
+                    yield output
                 return
 
             conn_str = project.props.options.connection
@@ -212,7 +210,13 @@ class RAG(ProjectBase):
                     "input": tokens_from_string(output["question"]),
                     "output": tokens_from_string(output["answer"]),
                 }
-                yield output
+
+                if chatModel.stream:
+                    yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"
+                    yield "data: " + json.dumps(output) + "\n"
+                    yield "event: close\n\n"
+                else:
+                    yield output
                 return
             finally:
                 engine.dispose()
