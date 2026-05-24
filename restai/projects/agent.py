@@ -828,11 +828,12 @@ class Agent(ProjectBase):
                             project=project,
                             output=output,
                         ):
-                            if kind == "text":
-                                streamed_any_text = True
-                                yield "data: " + json.dumps({"text": payload}) + "\n\n"
-                            else:
-                                yield "data: " + json.dumps(payload) + "\n\n"
+                            if chatModel.stream:
+                                if kind == "text":
+                                    streamed_any_text = True
+                                    yield "data: " + json.dumps({"text": payload}) + "\n\n"
+                                else:
+                                    yield "data: " + json.dumps(payload) + "\n\n"
 
                     await save_session(self.brain, chat_id, session)
                     saved_session = True

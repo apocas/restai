@@ -561,6 +561,8 @@ async def chat_main(
         else:
             output_generator = proj_logic.chat(project, chat_input, user, db)
             async for line in output_generator:
+                if not isinstance(line, dict):
+                    continue
                 latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
                 if _image and not line.get("image"):
                     line["image"] = _image
