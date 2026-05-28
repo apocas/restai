@@ -72,7 +72,11 @@ from restai.vectordb.tools import (
     index_documents_classic,
     index_documents_docling,
 )
-from restai.models.databasemodels import OutputDatabase, ProjectDatabase, ProjectInvitationDatabase
+from restai.models.databasemodels import (
+    OutputDatabase,
+    ProjectDatabase,
+    ProjectInvitationDatabase,
+)
 from restai.settings import mask_key
 import datetime
 from sqlalchemy import func, Integer, case
@@ -80,7 +84,13 @@ import calendar
 import tempfile
 import shutil
 
-_SENSITIVE_OPTION_KEYS = ("telegram_token", "slack_bot_token", "connection", "ftp_password")
+_SENSITIVE_OPTION_KEYS = (
+    "telegram_token",
+    "slack_bot_token",
+    "connection",
+    "ftp_password",
+)
+
 
 def _mask_sync_sources(options: dict):
     """Mask sensitive credentials inside sync_sources list."""
@@ -89,10 +99,17 @@ def _mask_sync_sources(options: dict):
         return
     for src in sources:
         if isinstance(src, dict):
-            for key in ("s3_access_key", "s3_secret_key", "confluence_api_token", "sharepoint_client_secret", "gdrive_service_account_json"):
+            for key in (
+                "s3_access_key",
+                "s3_secret_key",
+                "confluence_api_token",
+                "sharepoint_client_secret",
+                "gdrive_service_account_json",
+            ):
                 val = src.get(key)
                 if val:
                     src[key] = mask_key(val)
+
 
 logging.basicConfig(level=config.LOG_LEVEL)
 
@@ -109,7 +126,11 @@ def get_project(projectID: int, db_wrapper: DBWrapper, brain: Brain):
 @router.get("/projects", response_model=ProjectsResponse, tags=["Projects"])
 async def route_get_projects(
     _: Request,
-    v_filter: str = Query("", alias="filter", description="Filter mode: 'public' to list only public projects, empty for all accessible projects"),
+    v_filter: str = Query(
+        "",
+        alias="filter",
+        description="Filter mode: 'public' to list only public projects, empty for all accessible projects",
+    ),
     start: int = Query(0, ge=0, le=100000, description="Pagination start offset"),
     end: int = Query(10000, ge=1, le=100000, description="Pagination end offset"),
     user: User = Depends(get_current_username),
@@ -119,7 +140,9 @@ async def route_get_projects(
     query = db_wrapper.db.query(ProjectDatabase)
 
     if v_filter == "public":
-        user_team_ids = {t.id for t in (user.teams or [])} | {t.id for t in (user.admin_teams or [])}
+        user_team_ids = {t.id for t in (user.teams or [])} | {
+            t.id for t in (user.admin_teams or [])
+        }
         if user.is_admin:
             query = query.filter(ProjectDatabase.public == True)
         else:
@@ -132,8 +155,10 @@ async def route_get_projects(
         if user.admin_teams:
             admin_team_ids = {t.id for t in user.admin_teams}
             team_project_ids = {
-                p[0] for p in db_wrapper.db.query(ProjectDatabase.id)
-                .filter(ProjectDatabase.team_id.in_(admin_team_ids)).all()
+                p[0]
+                for p in db_wrapper.db.query(ProjectDatabase.id)
+                .filter(ProjectDatabase.team_id.in_(admin_team_ids))
+                .all()
             }
             accessible_ids = accessible_ids | team_project_ids
         query = query.filter(ProjectDatabase.id.in_(accessible_ids))
@@ -146,7 +171,9 @@ async def route_get_projects(
     serialized_projects = []
     for project in projects:
         project_model = ProjectModel.model_validate(project)
-        project_model.creator_username = project.creator_user.username if project.creator_user else None
+        project_model.creator_username = (
+            project.creator_user.username if project.creator_user else None
+        )
 
         project_dict = project_model.model_dump()
 
@@ -189,7 +216,9 @@ async def get_projects_health(
         project_ids = list(user.get_project_ids())
 
     if user.api_key_allowed_projects is not None:
-        project_ids = [pid for pid in project_ids if pid in user.api_key_allowed_projects]
+        project_ids = [
+            pid for pid in project_ids if pid in user.api_key_allowed_projects
+        ]
 
     if not project_ids:
         return []
@@ -203,25 +232,39 @@ async def get_projects_health(
             func.count(OutputDatabase.id).label("requests"),
             func.avg(OutputDatabase.latency_ms).label("avg_latency"),
         )
-        .filter(OutputDatabase.project_id.in_(project_ids), OutputDatabase.date >= seven_days_ago)
+        .filter(
+            OutputDatabase.project_id.in_(project_ids),
+            OutputDatabase.date >= seven_days_ago,
+        )
         .group_by(OutputDatabase.project_id)
         .all()
     )
-    activity = {r.project_id: {"requests": r.requests, "avg_latency": r.avg_latency} for r in activity_rows}
+    activity = {
+        r.project_id: {"requests": r.requests, "avg_latency": r.avg_latency}
+        for r in activity_rows
+    }
 
     guard_rows = (
         db_wrapper.db.query(
             GuardEventDatabase.project_id,
             func.count(GuardEventDatabase.id).label("total"),
-            func.sum(case((GuardEventDatabase.action == "block", 1), else_=0)).label("blocks"),
+            func.sum(case((GuardEventDatabase.action == "block", 1), else_=0)).label(
+                "blocks"
+            ),
         )
-        .filter(GuardEventDatabase.project_id.in_(project_ids), GuardEventDatabase.date >= thirty_days_ago)
+        .filter(
+            GuardEventDatabase.project_id.in_(project_ids),
+            GuardEventDatabase.date >= thirty_days_ago,
+        )
         .group_by(GuardEventDatabase.project_id)
         .all()
     )
-    guards = {r.project_id: {"total": r.total, "blocks": r.blocks or 0} for r in guard_rows}
+    guards = {
+        r.project_id: {"total": r.total, "blocks": r.blocks or 0} for r in guard_rows
+    }
 
     from sqlalchemy import desc
+
     eval_rows = (
         db_wrapper.db.query(EvalRunDatabase.project_id, EvalRunDatabase.summary)
         .filter(
@@ -236,7 +279,9 @@ async def get_projects_health(
     for r in eval_rows:
         if r.project_id not in evals and r.summary:
             try:
-                summary = _json.loads(r.summary) if isinstance(r.summary, str) else r.summary
+                summary = (
+                    _json.loads(r.summary) if isinstance(r.summary, str) else r.summary
+                )
                 scores = [v for v in summary.values() if isinstance(v, (int, float))]
                 evals[r.project_id] = sum(scores) / len(scores) if scores else None
             except Exception:
@@ -291,16 +336,27 @@ async def get_projects_health(
         else:
             eval_component = 0.5
 
-        health = round((latency_score * 30 + activity_score * 30 + guard_score * 20 + eval_component * 20))
+        health = round(
+            (
+                latency_score * 30
+                + activity_score * 30
+                + guard_score * 20
+                + eval_component * 20
+            )
+        )
 
-        results.append({
-            "project_id": pid,
-            "health": health,
-            "requests_7d": requests_7d,
-            "avg_latency": round(avg_latency) if avg_latency else None,
-            "guard_block_rate": round(block_rate, 3) if block_rate is not None else None,
-            "eval_score": round(eval_score, 2) if eval_score is not None else None,
-        })
+        results.append(
+            {
+                "project_id": pid,
+                "health": health,
+                "requests_7d": requests_7d,
+                "avg_latency": round(avg_latency) if avg_latency else None,
+                "guard_block_rate": (
+                    round(block_rate, 3) if block_rate is not None else None
+                ),
+                "eval_score": round(eval_score, 2) if eval_score is not None else None,
+            }
+        )
 
     return results
 
@@ -383,6 +439,7 @@ async def route_delete_project(
 
         if proj.props.options and proj.props.options.telegram_token:
             from restai.telegram import stop_poller
+
             stop_poller(projectID)
 
         proj.delete()
@@ -397,12 +454,16 @@ async def route_delete_project(
         # — it holds /var/www open via bind mount and racing the wipe empties public/.
         if proj.props.type == "app":
             from restai.app.storage import delete_project_root
+
             mgr = getattr(request.app.state.brain, "app_manager", None)
             if mgr is not None:
                 try:
                     mgr.remove_container(projectID)
                 except Exception:
-                    logging.exception("Failed to stop app container before wipe (project=%s)", projectID)
+                    logging.exception(
+                        "Failed to stop app container before wipe (project=%s)",
+                        projectID,
+                    )
             delete_project_root(projectID)
 
         return {"project": projectID}
@@ -437,19 +498,33 @@ async def route_edit_project(
     if projectModelUpdate.llm and not projectModelUpdate.team_id:
         current_team = db_wrapper.get_team_by_id(project.team_id)
         if current_team:
-            llm_model = request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper)
-            if llm_model and llm_model.props.name not in [l.name for l in current_team.llms]:
+            llm_model = request.app.state.brain.get_llm(
+                projectModelUpdate.llm, db_wrapper
+            )
+            if llm_model and llm_model.props.name not in [
+                l.name for l in current_team.llms
+            ]:
                 raise HTTPException(
-                    status_code=403, detail=f"Team does not have access to LLM '{projectModelUpdate.llm}'"
+                    status_code=403,
+                    detail=f"Team does not have access to LLM '{projectModelUpdate.llm}'",
                 )
 
-    if projectModelUpdate.embeddings and not projectModelUpdate.team_id and project.type == "rag":
+    if (
+        projectModelUpdate.embeddings
+        and not projectModelUpdate.team_id
+        and project.type == "rag"
+    ):
         current_team = db_wrapper.get_team_by_id(project.team_id)
         if current_team:
-            embedding_model = request.app.state.brain.get_embedding(projectModelUpdate.embeddings, db_wrapper)
-            if embedding_model and embedding_model.model_name not in [e.name for e in current_team.embeddings]:
+            embedding_model = request.app.state.brain.get_embedding(
+                projectModelUpdate.embeddings, db_wrapper
+            )
+            if embedding_model and embedding_model.model_name not in [
+                e.name for e in current_team.embeddings
+            ]:
                 raise HTTPException(
-                    status_code=403, detail=f"Team does not have access to embedding model '{projectModelUpdate.embeddings}'"
+                    status_code=403,
+                    detail=f"Team does not have access to embedding model '{projectModelUpdate.embeddings}'",
                 )
 
     if projectModelUpdate.team_id:
@@ -503,10 +578,22 @@ async def route_edit_project(
             val = getattr(projectModelUpdate.options, key, None)
             if val and val.startswith("****"):
                 setattr(projectModelUpdate.options, key, existing_opts.get(key))
-        if projectModelUpdate.options.sync_sources and existing_opts.get("sync_sources"):
-            existing_sources = {s.get("name"): s for s in existing_opts["sync_sources"] if isinstance(s, dict)}
+        if projectModelUpdate.options.sync_sources and existing_opts.get(
+            "sync_sources"
+        ):
+            existing_sources = {
+                s.get("name"): s
+                for s in existing_opts["sync_sources"]
+                if isinstance(s, dict)
+            }
             for src in projectModelUpdate.options.sync_sources:
-                for key in ("s3_access_key", "s3_secret_key", "confluence_api_token", "sharepoint_client_secret", "gdrive_service_account_json"):
+                for key in (
+                    "s3_access_key",
+                    "s3_secret_key",
+                    "confluence_api_token",
+                    "sharepoint_client_secret",
+                    "gdrive_service_account_json",
+                ):
                     val = getattr(src, key, None)
                     if val and val.startswith("****"):
                         existing_src = existing_sources.get(src.name, {})
@@ -621,7 +708,11 @@ async def route_create_project(
     ):
         raise HTTPException(status_code=403, detail="Project already exists")
 
-    if projectModel.type != "block" and user.is_private and llm_model.props.privacy != "private":
+    if (
+        projectModel.type != "block"
+        and user.is_private
+        and llm_model.props.privacy != "private"
+    ):
         raise HTTPException(
             status_code=403, detail="User not allowed to use public models"
         )
@@ -658,8 +749,11 @@ async def route_create_project(
 
         if projectModel.type == "app":
             from restai.app.storage import seed_hello_world
+
             try:
-                seed_hello_world(project_db.id, projectModel.human_name or projectModel.name)
+                seed_hello_world(
+                    project_db.id, projectModel.human_name or projectModel.name
+                )
             except Exception:
                 # Don't roll back; user can re-seed by editing any file in the IDE.
                 logging.exception("app seed failed for project %s", project_db.id)
@@ -734,8 +828,14 @@ async def find_embedding(
             try:
                 nodes = retriever.retrieve(embedding.text)
             except Exception as retrieval_err:
-                if "Nothing found on disk" in str(retrieval_err) or "hnsw" in str(retrieval_err).lower():
-                    raise HTTPException(status_code=503, detail="Vector index is being rebuilt. Please try again in a moment.")
+                if (
+                    "Nothing found on disk" in str(retrieval_err)
+                    or "hnsw" in str(retrieval_err).lower()
+                ):
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Vector index is being rebuilt. Please try again in a moment.",
+                    )
                 raise
 
             postprocessor = SimilarityPostprocessor(similarity_cutoff=threshold)
@@ -827,7 +927,11 @@ async def clone_project(
 ):
     """Clone a project with all its settings, eval datasets, and prompt versions."""
     check_not_restricted(user)
-    from restai.models.databasemodels import EvalDatasetDatabase, EvalTestCaseDatabase, PromptVersionDatabase
+    from restai.models.databasemodels import (
+        EvalDatasetDatabase,
+        EvalTestCaseDatabase,
+        PromptVersionDatabase,
+    )
     from datetime import datetime as dt
     from datetime import timezone as tz
 
@@ -841,7 +945,9 @@ async def clone_project(
 
     existing = db_wrapper.get_project_by_name(new_name)
     if existing:
-        raise HTTPException(status_code=409, detail="A project with this name already exists")
+        raise HTTPException(
+            status_code=409, detail="A project with this name already exists"
+        )
 
     new_project = db_wrapper.create_project(
         name=new_name,
@@ -873,15 +979,17 @@ async def clone_project(
         .all()
     )
     for v in source_versions:
-        db_wrapper.db.add(PromptVersionDatabase(
-            project_id=new_project.id,
-            version=v.version,
-            system_prompt=v.system_prompt,
-            description=v.description,
-            created_by=user.id,
-            created_at=dt.now(tz.utc),
-            is_active=v.is_active,
-        ))
+        db_wrapper.db.add(
+            PromptVersionDatabase(
+                project_id=new_project.id,
+                version=v.version,
+                system_prompt=v.system_prompt,
+                description=v.description,
+                created_by=user.id,
+                created_at=dt.now(tz.utc),
+                is_active=v.is_active,
+            )
+        )
 
     source_datasets = (
         db_wrapper.db.query(EvalDatasetDatabase)
@@ -905,13 +1013,15 @@ async def clone_project(
             .all()
         )
         for tc in source_cases:
-            db_wrapper.db.add(EvalTestCaseDatabase(
-                dataset_id=new_ds.id,
-                question=tc.question,
-                expected_answer=tc.expected_answer,
-                context=tc.context,
-                created_at=dt.now(tz.utc),
-            ))
+            db_wrapper.db.add(
+                EvalTestCaseDatabase(
+                    dataset_id=new_ds.id,
+                    question=tc.question,
+                    expected_answer=tc.expected_answer,
+                    context=tc.context,
+                    created_at=dt.now(tz.utc),
+                )
+            )
 
     db_wrapper.db.commit()
 
@@ -919,7 +1029,9 @@ async def clone_project(
 
 
 @router.post(
-    "/projects/{projectID}/embeddings/ingest/text", response_model=IngestResponse, tags=["Knowledge"]
+    "/projects/{projectID}/embeddings/ingest/text",
+    response_model=IngestResponse,
+    tags=["Knowledge"],
 )
 async def ingest_text(
     request: Request,
@@ -957,8 +1069,11 @@ async def ingest_text(
             full_text = "\n".join(d.text for d in documents)
             background_tasks.add_task(
                 extract_and_persist_safe,
-                project.props.id, ingest.source, full_text,
-                request.app.state.brain, DBWrapper,
+                project.props.id,
+                ingest.source,
+                full_text,
+                request.app.state.brain,
+                DBWrapper,
             )
 
         return {
@@ -974,7 +1089,9 @@ async def ingest_text(
 
 
 @router.post(
-    "/projects/{projectID}/embeddings/ingest/url", response_model=IngestResponse, tags=["Knowledge"]
+    "/projects/{projectID}/embeddings/ingest/url",
+    response_model=IngestResponse,
+    tags=["Knowledge"],
 )
 async def ingest_url(
     request: Request,
@@ -995,6 +1112,7 @@ async def ingest_url(
         # SSRF protection — block requests to private/internal networks
         from restai.helper import _is_private_ip
         from urllib.parse import urlparse as _urlparse
+
         try:
             hostname = _urlparse(ingest.url).hostname
         except Exception:
@@ -1016,7 +1134,9 @@ async def ingest_url(
 
         urls = project.vector.list()
         if ingest.url in urls:
-            raise HTTPException(status_code=409, detail="URL already ingested. Delete first.")
+            raise HTTPException(
+                status_code=409, detail="URL already ingested. Delete first."
+            )
 
         loader = SeleniumWebReader()
 
@@ -1034,8 +1154,11 @@ async def ingest_url(
             full_text = "\n".join(d.text for d in documents)
             background_tasks.add_task(
                 extract_and_persist_safe,
-                project.props.id, ingest.url, full_text,
-                request.app.state.brain, DBWrapper,
+                project.props.id,
+                ingest.url,
+                full_text,
+                request.app.state.brain,
+                DBWrapper,
             )
 
         return {"source": ingest.url, "documents": len(documents), "chunks": n_chunks}
@@ -1047,7 +1170,9 @@ async def ingest_url(
 
 
 @router.post(
-    "/projects/{projectID}/embeddings/ingest/upload", response_model=IngestResponse, tags=["Knowledge"]
+    "/projects/{projectID}/embeddings/ingest/upload",
+    response_model=IngestResponse,
+    tags=["Knowledge"],
 )
 async def ingest_file(
     request: Request,
@@ -1065,7 +1190,9 @@ async def ingest_file(
     """Upload and ingest a file into the knowledge base."""
     check_not_restricted(user)
     if splitter not in ("sentence", "token"):
-        raise HTTPException(status_code=422, detail="splitter must be 'sentence' or 'token'")
+        raise HTTPException(
+            status_code=422, detail="splitter must be 'sentence' or 'token'"
+        )
 
     contents = await file.read()
     if len(contents) > config.MAX_UPLOAD_SIZE:
@@ -1089,6 +1216,7 @@ async def ingest_file(
         resolved_method = "classic" if classic else "docling"
 
     from restai.models.models import sanitize_filename
+
     file.filename = sanitize_filename(file.filename)
     ext = os.path.splitext(file.filename)[1].lower()
     source_name = unidecode(file.filename)
@@ -1104,20 +1232,30 @@ async def ingest_file(
 
         if resolved_method == "auto":
             from restai.loaders.markitdown_loader import auto_ingest
+
             documents, used_method = auto_ingest(
-                temp.name, source_name,
+                temp.name,
+                source_name,
                 manager=getattr(request.app.state, "manager", None),
                 opts=opts,
             )
             if not documents:
-                raise HTTPException(status_code=400, detail="No content could be extracted from the file.")
+                raise HTTPException(
+                    status_code=400,
+                    detail="No content could be extracted from the file.",
+                )
         elif resolved_method == "markitdown":
             from restai.loaders.markitdown_loader import load_with_markitdown
+
             documents = load_with_markitdown(temp.name, source=source_name)
             if not documents:
-                raise HTTPException(status_code=400, detail="MarkItDown could not extract content from this file.")
+                raise HTTPException(
+                    status_code=400,
+                    detail="MarkItDown could not extract content from this file.",
+                )
         elif resolved_method == "docling":
             from restai.document.runner import load_documents
+
             documents = load_documents(request.app.state.manager, temp.name)
         else:
             used_method = "classic"
@@ -1145,8 +1283,11 @@ async def ingest_file(
             full_text = "\n".join(d.text for d in documents)
             background_tasks.add_task(
                 extract_and_persist_safe,
-                project.props.id, source_name, full_text,
-                request.app.state.brain, DBWrapper,
+                project.props.id,
+                source_name,
+                full_text,
+                request.app.state.brain,
+                DBWrapper,
             )
 
         return {
@@ -1236,25 +1377,33 @@ async def chat_query(
     """Send a chat message to a project with conversation history."""
     try:
         import time as _time
+
         start_time = _time.perf_counter()
 
         # Resume in-flight stream for the chat_id; honors SSE Last-Event-ID.
+        # Only attach when there's something to resume: the session is still
+        # in-flight, OR the client is genuinely reconnecting (Last-Event-ID
+        # set). A fresh message on a reused chat_id whose prior turn already
+        # finished must NOT replay that turn — it falls through to a new run.
         if q_input.stream and q_input.id:
             from restai import chat_resume as _resume
+
             existing = await _resume.lookup(q_input.id)
             if existing is not None:
-                last_id = 0
                 hdr = request.headers.get("last-event-id")
-                if hdr:
-                    try:
-                        last_id = int(hdr)
-                    except ValueError:
-                        last_id = 0
-                from starlette.responses import StreamingResponse as _SR
-                return _SR(
-                    existing.subscribe(last_event_id=last_id),
-                    media_type="text/event-stream",
-                )
+                if (await existing.is_in_flight()) or hdr:
+                    last_id = 0
+                    if hdr:
+                        try:
+                            last_id = int(hdr)
+                        except ValueError:
+                            last_id = 0
+                    from starlette.responses import StreamingResponse as _SR
+
+                    return _SR(
+                        existing.subscribe(last_event_id=last_id),
+                        media_type="text/event-stream",
+                    )
 
         if not q_input.question and not q_input.image:
             raise HTTPException(status_code=400, detail="Missing question")
@@ -1301,6 +1450,7 @@ async def chat_stop(
         # Enforce same auth scope as /chat (404s cross-project chat_ids).
         get_project(projectID, db_wrapper, request.app.state.brain)
         from restai import chat_resume as _resume
+
         sess = await _resume.lookup(chat_id)
         if sess is None:
             # Evict in case of half-state.
@@ -1332,6 +1482,7 @@ async def question_query_endpoint(
     preserved (`type: "question"`) for backwards compatibility."""
     try:
         import time as _time
+
         start_time = _time.perf_counter()
 
         if not q_input.question and not q_input.image:
@@ -1376,6 +1527,7 @@ async def list_prompt_versions(
 ):
     """List all prompt versions for a project."""
     from restai.models.models import PromptVersionResponse
+
     versions = db_wrapper.get_prompt_versions(projectID)
     return [PromptVersionResponse.model_validate(v) for v in versions]
 
@@ -1389,6 +1541,7 @@ async def get_prompt_version(
 ):
     """Get a specific prompt version."""
     from restai.models.models import PromptVersionResponse
+
     version = db_wrapper.get_prompt_version(versionID)
     if version is None or version.project_id != projectID:
         raise HTTPException(status_code=404, detail="Prompt version not found")
@@ -1414,6 +1567,7 @@ async def activate_prompt_version(
         raise HTTPException(status_code=404, detail="Project not found")
 
     from restai.models.models import ProjectModelUpdate
+
     update = ProjectModelUpdate(system=version.system_prompt)
     update._user_id = user.id
     db_wrapper.edit_project(projectID, update)
@@ -1430,31 +1584,54 @@ async def get_guard_summary(
     """Get guard event summary statistics for a project."""
     from restai.models.databasemodels import GuardEventDatabase
 
-    total = db_wrapper.db.query(func.count(GuardEventDatabase.id)).filter(
-        GuardEventDatabase.project_id == projectID
-    ).scalar() or 0
+    total = (
+        db_wrapper.db.query(func.count(GuardEventDatabase.id))
+        .filter(GuardEventDatabase.project_id == projectID)
+        .scalar()
+        or 0
+    )
 
-    blocks = db_wrapper.db.query(func.count(GuardEventDatabase.id)).filter(
-        GuardEventDatabase.project_id == projectID,
-        GuardEventDatabase.action == "block",
-    ).scalar() or 0
+    blocks = (
+        db_wrapper.db.query(func.count(GuardEventDatabase.id))
+        .filter(
+            GuardEventDatabase.project_id == projectID,
+            GuardEventDatabase.action == "block",
+        )
+        .scalar()
+        or 0
+    )
 
-    warns = db_wrapper.db.query(func.count(GuardEventDatabase.id)).filter(
-        GuardEventDatabase.project_id == projectID,
-        GuardEventDatabase.action == "warn",
-    ).scalar() or 0
+    warns = (
+        db_wrapper.db.query(func.count(GuardEventDatabase.id))
+        .filter(
+            GuardEventDatabase.project_id == projectID,
+            GuardEventDatabase.action == "warn",
+        )
+        .scalar()
+        or 0
+    )
 
-    input_blocks = db_wrapper.db.query(func.count(GuardEventDatabase.id)).filter(
-        GuardEventDatabase.project_id == projectID,
-        GuardEventDatabase.action.in_(["block", "warn"]),
-        GuardEventDatabase.phase == "input",
-    ).scalar() or 0
+    input_blocks = (
+        db_wrapper.db.query(func.count(GuardEventDatabase.id))
+        .filter(
+            GuardEventDatabase.project_id == projectID,
+            GuardEventDatabase.action.in_(["block", "warn"]),
+            GuardEventDatabase.phase == "input",
+        )
+        .scalar()
+        or 0
+    )
 
-    output_blocks = db_wrapper.db.query(func.count(GuardEventDatabase.id)).filter(
-        GuardEventDatabase.project_id == projectID,
-        GuardEventDatabase.action.in_(["block", "warn"]),
-        GuardEventDatabase.phase == "output",
-    ).scalar() or 0
+    output_blocks = (
+        db_wrapper.db.query(func.count(GuardEventDatabase.id))
+        .filter(
+            GuardEventDatabase.project_id == projectID,
+            GuardEventDatabase.action.in_(["block", "warn"]),
+            GuardEventDatabase.phase == "output",
+        )
+        .scalar()
+        or 0
+    )
 
     return {
         "total_checks": total,
@@ -1493,8 +1670,12 @@ async def get_guard_daily(
         db_wrapper.db.query(
             func.date(GuardEventDatabase.date).label("date"),
             func.count(GuardEventDatabase.id).label("checks"),
-            func.sum(case((GuardEventDatabase.action == "block", 1), else_=0)).label("blocks"),
-            func.sum(case((GuardEventDatabase.action == "warn", 1), else_=0)).label("warns"),
+            func.sum(case((GuardEventDatabase.action == "block", 1), else_=0)).label(
+                "blocks"
+            ),
+            func.sum(case((GuardEventDatabase.action == "warn", 1), else_=0)).label(
+                "warns"
+            ),
         )
         .filter(
             GuardEventDatabase.project_id == projectID,
@@ -1541,7 +1722,12 @@ async def get_guard_events(
         query = query.filter(GuardEventDatabase.action == action)
 
     total = query.count()
-    events = query.order_by(GuardEventDatabase.date.desc()).offset(start).limit(end - start).all()
+    events = (
+        query.order_by(GuardEventDatabase.date.desc())
+        .offset(start)
+        .limit(end - start)
+        .all()
+    )
 
     return {
         "events": [GuardEventResponse.model_validate(e) for e in events],
@@ -1563,7 +1749,9 @@ async def get_source_analytics(
 
     project = get_project(projectID, db_wrapper, request.app.state.brain)
     if project.props.type != "rag":
-        raise HTTPException(status_code=400, detail="Source analytics only available for RAG projects")
+        raise HTTPException(
+            status_code=400, detail="Source analytics only available for RAG projects"
+        )
 
     since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)
 
@@ -1628,7 +1816,9 @@ async def get_chunking_analytics(
 
     project = get_project(projectID, db_wrapper, request.app.state.brain)
     if project.props.type != "rag":
-        raise HTTPException(status_code=400, detail="Chunking analytics only available for RAG projects")
+        raise HTTPException(
+            status_code=400, detail="Chunking analytics only available for RAG projects"
+        )
 
     MAX_CHUNKS = 50000
     truncated = False
@@ -1669,7 +1859,9 @@ async def get_chunking_analytics(
     total_chunks_count = len(chunk_token_lengths)
     avg_chunk_tokens = round(sum(chunk_token_lengths) / max(total_chunks_count, 1))
     sorted_lengths = sorted(chunk_token_lengths)
-    median_chunk_tokens = sorted_lengths[total_chunks_count // 2] if sorted_lengths else 0
+    median_chunk_tokens = (
+        sorted_lengths[total_chunks_count // 2] if sorted_lengths else 0
+    )
 
     since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)
 
@@ -1702,27 +1894,52 @@ async def get_chunking_analytics(
         low, high = buckets[i], buckets[i + 1]
         count = sum(1 for tl in retrieved_token_lengths if low <= tl < high)
         ret_bucket_counts.append(count)
-    ret_bucket_counts.append(sum(1 for tl in retrieved_token_lengths if tl >= buckets[-1]))
+    ret_bucket_counts.append(
+        sum(1 for tl in retrieved_token_lengths if tl >= buckets[-1])
+    )
 
-    avg_retrieved_tokens = round(sum(retrieved_token_lengths) / max(len(retrieved_token_lengths), 1)) if retrieved_token_lengths else None
-    avg_score = round(sum(retrieved_scores) / max(len(retrieved_scores), 1), 3) if retrieved_scores else None
+    avg_retrieved_tokens = (
+        round(sum(retrieved_token_lengths) / max(len(retrieved_token_lengths), 1))
+        if retrieved_token_lengths
+        else None
+    )
+    avg_score = (
+        round(sum(retrieved_scores) / max(len(retrieved_scores), 1), 3)
+        if retrieved_scores
+        else None
+    )
 
     score_by_bucket = []
     for i in range(len(buckets) - 1):
         low, high = buckets[i], buckets[i + 1]
         scores_in_bucket = [
-            row.score for row in retrieval_rows
-            if row.chunk_token_length and low <= row.chunk_token_length < high and row.score is not None
+            row.score
+            for row in retrieval_rows
+            if row.chunk_token_length
+            and low <= row.chunk_token_length < high
+            and row.score is not None
         ]
-        score_by_bucket.append({
-            "bucket": f"{low}-{high}",
-            "avg_score": round(sum(scores_in_bucket) / len(scores_in_bucket), 3) if scores_in_bucket else None,
-            "count": len(scores_in_bucket),
-        })
+        score_by_bucket.append(
+            {
+                "bucket": f"{low}-{high}",
+                "avg_score": (
+                    round(sum(scores_in_bucket) / len(scores_in_bucket), 3)
+                    if scores_in_bucket
+                    else None
+                ),
+                "count": len(scores_in_bucket),
+            }
+        )
 
     all_chunk_ids = {c["id"] for c in all_chunks}
-    never_retrieved_chunks = len(all_chunk_ids - retrieved_chunk_ids) if all_chunk_ids else 0
-    retrieval_rate = round(len(retrieved_chunk_ids) / max(len(all_chunk_ids), 1), 3) if all_chunk_ids else 0
+    never_retrieved_chunks = (
+        len(all_chunk_ids - retrieved_chunk_ids) if all_chunk_ids else 0
+    )
+    retrieval_rate = (
+        round(len(retrieved_chunk_ids) / max(len(all_chunk_ids), 1), 3)
+        if all_chunk_ids
+        else 0
+    )
 
     recommendations = []
 
@@ -1730,38 +1947,44 @@ async def get_chunking_analytics(
         ratio = avg_retrieved_tokens / avg_chunk_tokens
         if ratio < 0.7:
             suggested = _nearest_chunk_size(avg_retrieved_tokens)
-            recommendations.append({
-                "type": "reduce_chunk_size",
-                "severity": "high" if ratio < 0.5 else "medium",
-                "message": (
-                    f"Your average chunk is {avg_chunk_tokens} tokens, but retrieved chunks "
-                    f"average {avg_retrieved_tokens} tokens. Consider using {suggested}-token chunks "
-                    f"for better precision."
-                ),
-                "suggested_chunk_size": suggested,
-            })
+            recommendations.append(
+                {
+                    "type": "reduce_chunk_size",
+                    "severity": "high" if ratio < 0.5 else "medium",
+                    "message": (
+                        f"Your average chunk is {avg_chunk_tokens} tokens, but retrieved chunks "
+                        f"average {avg_retrieved_tokens} tokens. Consider using {suggested}-token chunks "
+                        f"for better precision."
+                    ),
+                    "suggested_chunk_size": suggested,
+                }
+            )
         elif ratio > 1.3:
             suggested = _nearest_chunk_size(avg_retrieved_tokens)
-            recommendations.append({
-                "type": "increase_chunk_size",
-                "severity": "medium",
-                "message": (
-                    f"Retrieved chunks average {avg_retrieved_tokens} tokens, larger than your "
-                    f"typical chunk of {avg_chunk_tokens} tokens. Consider increasing to "
-                    f"{suggested} tokens for more context per retrieval."
-                ),
-                "suggested_chunk_size": suggested,
-            })
+            recommendations.append(
+                {
+                    "type": "increase_chunk_size",
+                    "severity": "medium",
+                    "message": (
+                        f"Retrieved chunks average {avg_retrieved_tokens} tokens, larger than your "
+                        f"typical chunk of {avg_chunk_tokens} tokens. Consider increasing to "
+                        f"{suggested} tokens for more context per retrieval."
+                    ),
+                    "suggested_chunk_size": suggested,
+                }
+            )
 
     if retrieval_rate < 0.3 and total_chunks_count > 10:
-        recommendations.append({
-            "type": "low_retrieval_rate",
-            "severity": "medium",
-            "message": (
-                f"Only {round(retrieval_rate * 100)}% of chunks have been retrieved in the last "
-                f"{days} days. Many chunks may be redundant or poorly sized."
-            ),
-        })
+        recommendations.append(
+            {
+                "type": "low_retrieval_rate",
+                "severity": "medium",
+                "message": (
+                    f"Only {round(retrieval_rate * 100)}% of chunks have been retrieved in the last "
+                    f"{days} days. Many chunks may be redundant or poorly sized."
+                ),
+            }
+        )
 
     best_bucket = max(
         (b for b in score_by_bucket if b["avg_score"] is not None and b["count"] >= 3),
@@ -1769,14 +1992,16 @@ async def get_chunking_analytics(
         default=None,
     )
     if best_bucket:
-        recommendations.append({
-            "type": "best_scoring_range",
-            "severity": "info",
-            "message": (
-                f"Chunks in the {best_bucket['bucket']} token range have the highest average "
-                f"retrieval score ({best_bucket['avg_score']}). Consider targeting this range."
-            ),
-        })
+        recommendations.append(
+            {
+                "type": "best_scoring_range",
+                "severity": "info",
+                "message": (
+                    f"Chunks in the {best_bucket['bucket']} token range have the highest average "
+                    f"retrieval score ({best_bucket['avg_score']}). Consider targeting this range."
+                ),
+            }
+        )
 
     return {
         "total_chunks": total_chunks_count,
@@ -1816,12 +2041,15 @@ async def trigger_sync(
     check_not_restricted(user)
     project = get_project(projectID, db_wrapper, request.app.state.brain)
     if project.props.type != "rag":
-        raise HTTPException(status_code=400, detail="Sync only available for RAG projects")
+        raise HTTPException(
+            status_code=400, detail="Sync only available for RAG projects"
+        )
     opts = project.props.options
     if not opts or not opts.sync_sources:
         raise HTTPException(status_code=400, detail="No sync sources configured")
 
     from restai.sync import run_sync_now
+
     run_sync_now(projectID, request.app.state.brain)
     return {"message": "Sync triggered"}
 
@@ -1871,22 +2099,46 @@ async def get_conversation_analytics(
         OutputDatabase.date <= end_date,
     ]
 
-    total_messages = db_wrapper.db.query(func.count(OutputDatabase.id)).filter(*base_filter).scalar() or 0
-    total_conversations = db_wrapper.db.query(func.count(func.distinct(OutputDatabase.chat_id))).filter(
-        *base_filter, OutputDatabase.chat_id.isnot(None)
-    ).scalar() or 0
-    avg_latency = db_wrapper.db.query(func.avg(OutputDatabase.latency_ms)).filter(*base_filter).scalar()
-    total_tokens = db_wrapper.db.query(
-        func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens)
-    ).filter(*base_filter).scalar() or 0
-    total_cost = db_wrapper.db.query(
-        func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost)
-    ).filter(*base_filter).scalar() or 0
+    total_messages = (
+        db_wrapper.db.query(func.count(OutputDatabase.id)).filter(*base_filter).scalar()
+        or 0
+    )
+    total_conversations = (
+        db_wrapper.db.query(func.count(func.distinct(OutputDatabase.chat_id)))
+        .filter(*base_filter, OutputDatabase.chat_id.isnot(None))
+        .scalar()
+        or 0
+    )
+    avg_latency = (
+        db_wrapper.db.query(func.avg(OutputDatabase.latency_ms))
+        .filter(*base_filter)
+        .scalar()
+    )
+    total_tokens = (
+        db_wrapper.db.query(
+            func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens)
+        )
+        .filter(*base_filter)
+        .scalar()
+        or 0
+    )
+    total_cost = (
+        db_wrapper.db.query(
+            func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost)
+        )
+        .filter(*base_filter)
+        .scalar()
+        or 0
+    )
 
     summary = {
         "total_conversations": total_conversations,
         "total_messages": total_messages,
-        "avg_messages_per_conversation": round(total_messages / total_conversations, 1) if total_conversations > 0 else 0,
+        "avg_messages_per_conversation": (
+            round(total_messages / total_conversations, 1)
+            if total_conversations > 0
+            else 0
+        ),
         "avg_latency_ms": round(avg_latency) if avg_latency else 0,
         "total_tokens": total_tokens,
         "total_cost": round(total_cost, 4),
@@ -1903,7 +2155,10 @@ async def get_conversation_analytics(
         .order_by(func.date(OutputDatabase.date))
         .all()
     )
-    daily = [{"date": r.date, "conversations": r.conversations, "messages": r.messages} for r in daily_rows]
+    daily = [
+        {"date": r.date, "conversations": r.conversations, "messages": r.messages}
+        for r in daily_rows
+    ]
 
     hourly_rows = (
         db_wrapper.db.query(
@@ -1931,7 +2186,10 @@ async def get_conversation_analytics(
         .limit(10)
         .all()
     )
-    top_users = [{"user_id": r.user_id, "username": r.username, "messages": r.messages} for r in top_user_rows]
+    top_users = [
+        {"user_id": r.user_id, "username": r.username, "messages": r.messages}
+        for r in top_user_rows
+    ]
 
     status_rows = (
         db_wrapper.db.query(
@@ -1942,7 +2200,9 @@ async def get_conversation_analytics(
         .group_by(OutputDatabase.status)
         .all()
     )
-    status_breakdown = [{"status": (r.status or "success"), "count": r.count} for r in status_rows]
+    status_breakdown = [
+        {"status": (r.status or "success"), "count": r.count} for r in status_rows
+    ]
 
     LATENCY_BUCKETS = [
         ("0-100ms", 0, 100),
@@ -1966,8 +2226,12 @@ async def get_conversation_analytics(
         db_wrapper.db.query(
             OutputDatabase.llm,
             func.count(OutputDatabase.id).label("messages"),
-            func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens).label("tokens"),
-            func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost).label("cost"),
+            func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens).label(
+                "tokens"
+            ),
+            func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost).label(
+                "cost"
+            ),
         )
         .filter(*base_filter, OutputDatabase.llm.isnot(None))
         .group_by(OutputDatabase.llm)
@@ -2069,8 +2333,18 @@ async def get_conversation_replay(
 @router.get("/projects/{projectID}/tokens/daily", tags=["Statistics"])
 async def get_monthly_token_consumption(
     projectID: int = PathParam(description="Project ID"),
-    year: int = Query(None, ge=2000, le=2100, description="Year for the report (defaults to current year)"),
-    month: int = Query(None, ge=1, le=12, description="Month for the report (defaults to current month)"),
+    year: int = Query(
+        None,
+        ge=2000,
+        le=2100,
+        description="Year for the report (defaults to current year)",
+    ),
+    month: int = Query(
+        None,
+        ge=1,
+        le=12,
+        description="Month for the report (defaults to current month)",
+    ),
     _: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -2118,7 +2392,9 @@ async def get_monthly_token_consumption(
                     "output_tokens": tc.output_tokens,
                     "input_cost": tc.input_cost,
                     "output_cost": tc.output_cost,
-                    "avg_latency_ms": round(tc.avg_latency_ms) if tc.avg_latency_ms else 0,
+                    "avg_latency_ms": (
+                        round(tc.avg_latency_ms) if tc.avg_latency_ms else 0
+                    ),
                 }
                 for tc in token_consumptions
             ]
@@ -2128,7 +2404,6 @@ async def get_monthly_token_consumption(
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 
 @router.get("/projects/{projectID}/comments", tags=["Comments"])
@@ -2199,10 +2474,14 @@ async def update_project_comment(
     from restai.models.databasemodels import ProjectCommentDatabase
     from datetime import datetime, timezone
 
-    comment = db_wrapper.db.query(ProjectCommentDatabase).filter(
-        ProjectCommentDatabase.id == commentID,
-        ProjectCommentDatabase.project_id == projectID,
-    ).first()
+    comment = (
+        db_wrapper.db.query(ProjectCommentDatabase)
+        .filter(
+            ProjectCommentDatabase.id == commentID,
+            ProjectCommentDatabase.project_id == projectID,
+        )
+        .first()
+    )
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
     if comment.user_id != user.id and not user.is_admin:
@@ -2225,10 +2504,14 @@ async def delete_project_comment(
     check_not_restricted(user)
     from restai.models.databasemodels import ProjectCommentDatabase
 
-    comment = db_wrapper.db.query(ProjectCommentDatabase).filter(
-        ProjectCommentDatabase.id == commentID,
-        ProjectCommentDatabase.project_id == projectID,
-    ).first()
+    comment = (
+        db_wrapper.db.query(ProjectCommentDatabase)
+        .filter(
+            ProjectCommentDatabase.id == commentID,
+            ProjectCommentDatabase.project_id == projectID,
+        )
+        .first()
+    )
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
     if comment.user_id != user.id and not user.is_admin:
@@ -2308,8 +2591,6 @@ async def get_project_tools(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-
-
 @router.post("/projects/{projectID}/invitations", tags=["Projects"])
 async def send_project_invitation(
     projectID: int = PathParam(description="Project ID"),
@@ -2324,9 +2605,13 @@ async def send_project_invitation(
     if project_db is None:
         raise HTTPException(status_code=404, detail="Project not found")
     if not user.is_admin and project_db.creator != user.id:
-        raise HTTPException(status_code=403, detail="Only the project creator can invite users")
+        raise HTTPException(
+            status_code=403, detail="Only the project creator can invite users"
+        )
 
-    response = {"message": "If the user exists and belongs to the team, they will receive the invitation."}
+    response = {
+        "message": "If the user exists and belongs to the team, they will receive the invitation."
+    }
 
     username = body.get("username", "").strip()
     if not username:
@@ -2368,8 +2653,6 @@ async def send_project_invitation(
     db_wrapper.db.commit()
 
     return response
-
-
 
 
 @router.post("/projects/{projectID}/widgets", status_code=201, tags=["Widgets"])
@@ -2467,7 +2750,9 @@ async def update_widget(
     return WidgetResponse.model_validate(widget)
 
 
-@router.delete("/projects/{projectID}/widgets/{widgetID}", status_code=204, tags=["Widgets"])
+@router.delete(
+    "/projects/{projectID}/widgets/{widgetID}", status_code=204, tags=["Widgets"]
+)
 async def delete_widget(
     projectID: int = PathParam(description="Project ID"),
     widgetID: int = PathParam(description="Widget ID"),
@@ -2482,7 +2767,9 @@ async def delete_widget(
     db_wrapper.delete_widget(widget)
 
 
-@router.post("/projects/{projectID}/widgets/{widgetID}/regenerate-key", tags=["Widgets"])
+@router.post(
+    "/projects/{projectID}/widgets/{widgetID}/regenerate-key", tags=["Widgets"]
+)
 async def regenerate_widget_key(
     projectID: int = PathParam(description="Project ID"),
     widgetID: int = PathParam(description="Widget ID"),
@@ -2508,7 +2795,9 @@ async def regenerate_widget_key(
     return resp
 
 
-@router.post("/projects/{projectID}/widgets/{widgetID}/context-secret", tags=["Widgets"])
+@router.post(
+    "/projects/{projectID}/widgets/{widgetID}/context-secret", tags=["Widgets"]
+)
 async def generate_widget_context_secret(
     projectID: int = PathParam(description="Project ID"),
     widgetID: int = PathParam(description="Widget ID"),
@@ -2530,7 +2819,9 @@ async def generate_widget_context_secret(
     return {"context_secret": plaintext_secret}
 
 
-@router.delete("/projects/{projectID}/widgets/{widgetID}/context-secret", tags=["Widgets"])
+@router.delete(
+    "/projects/{projectID}/widgets/{widgetID}/context-secret", tags=["Widgets"]
+)
 async def remove_widget_context_secret(
     projectID: int = PathParam(description="Project ID"),
     widgetID: int = PathParam(description="Widget ID"),
@@ -2621,6 +2912,7 @@ async def update_routine(
         raise HTTPException(status_code=404, detail="Routine not found")
 
     from datetime import datetime, timezone
+
     if body.name is not None:
         routine.name = body.name
     if body.message is not None:
@@ -2641,7 +2933,9 @@ async def update_routine(
     }
 
 
-@router.delete("/projects/{projectID}/routines/{routineID}", tags=["Routines"], status_code=204)
+@router.delete(
+    "/projects/{projectID}/routines/{routineID}", tags=["Routines"], status_code=204
+)
 async def delete_routine(
     projectID: int = PathParam(description="Project ID"),
     routineID: int = PathParam(description="Routine ID"),
@@ -2681,7 +2975,13 @@ async def fire_routine(
     background_tasks = BackgroundTasks()
 
     result = await chat_main(
-        request, brain, project, q, user, db_wrapper, background_tasks,
+        request,
+        brain,
+        project,
+        q,
+        user,
+        db_wrapper,
+        background_tasks,
     )
 
     for task in background_tasks.tasks:
@@ -2694,6 +2994,7 @@ async def fire_routine(
             pass
 
     from datetime import datetime, timezone
+
     answer = result.get("answer", "") if isinstance(result, dict) else str(result)
     routine.last_run = datetime.now(timezone.utc)
     routine.last_result = answer[:2000] if answer else None
@@ -2703,12 +3004,18 @@ async def fire_routine(
     # Manual-fire row in the execution log; `manual=True` distinguishes from cron.
     try:
         from restai.models.databasemodels import RoutineExecutionLogDatabase
-        db_wrapper.db.add(RoutineExecutionLogDatabase(
-            routine_id=routine.id, project_id=routine.project_id,
-            status="ok", result=(answer[:2000] if answer else None),
-            duration_ms=None, is_manual=True,
-            created_at=datetime.now(timezone.utc),
-        ))
+
+        db_wrapper.db.add(
+            RoutineExecutionLogDatabase(
+                routine_id=routine.id,
+                project_id=routine.project_id,
+                status="ok",
+                result=(answer[:2000] if answer else None),
+                duration_ms=None,
+                is_manual=True,
+                created_at=datetime.now(timezone.utc),
+            )
+        )
         db_wrapper.db.commit()
     except Exception:
         logging.exception("Failed to write routine execution log row for manual fire")
@@ -2726,6 +3033,7 @@ async def get_routine_history(
 ):
     """Recent execution history for a routine, newest first."""
     from restai.models.databasemodels import RoutineExecutionLogDatabase
+
     routine = db_wrapper.get_project_routine_by_id(routineID)
     if not routine or routine.project_id != projectID:
         raise HTTPException(status_code=404, detail="Routine not found")
@@ -2759,6 +3067,7 @@ async def list_memory_bank(
 ):
     """Visualizer payload: entries grouped by granularity + aggregate stats."""
     from restai.models.databasemodels import ProjectMemoryBankEntryDatabase
+
     project = db_wrapper.get_project_by_id(projectID)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -2781,7 +3090,9 @@ async def list_memory_bank(
             "summary": r.summary or "",
             "token_count": r.token_count or 0,
             "source_message_count": r.source_message_count or 0,
-            "last_source_at": r.last_source_at.isoformat() if r.last_source_at else None,
+            "last_source_at": (
+                r.last_source_at.isoformat() if r.last_source_at else None
+            ),
             "created_at": r.created_at.isoformat() if r.created_at else None,
             "updated_at": r.updated_at.isoformat() if r.updated_at else None,
         }
@@ -2819,8 +3130,10 @@ async def preview_memory_bank(
     options = json.loads(project.options) if project.options else {}
     max_tokens = int(options.get("memory_bank_max_tokens") or 2000)
     from restai import memory_bank
+
     block = memory_bank.render_for_prompt(db_wrapper, projectID, max_tokens)
     from restai.tools import tokens_from_string
+
     return {
         "block": block,
         "tokens": tokens_from_string(block) if block else 0,
@@ -2850,6 +3163,7 @@ async def memory_search_query(
         k = 5
 
     from restai.llms.tools.search_memories import search_memories
+
     brain = request.app.state.brain
     result = search_memories(
         query=query,
@@ -2870,6 +3184,7 @@ async def clear_memory_bank(
     conversations from `OutputDatabase` on the next tick."""
     check_not_restricted(user)
     from restai.models.databasemodels import ProjectMemoryBankEntryDatabase
+
     deleted = (
         db_wrapper.db.query(ProjectMemoryBankEntryDatabase)
         .filter(ProjectMemoryBankEntryDatabase.project_id == projectID)
@@ -2917,6 +3232,7 @@ async def toggle_project_custom_tool(
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
     from datetime import datetime, timezone
+
     tool.enabled = not tool.enabled
     tool.updated_at = datetime.now(timezone.utc)
     db_wrapper.db.commit()
@@ -2938,8 +3254,12 @@ async def update_project_custom_tool(
     if not tool:
         raise HTTPException(status_code=404, detail="Tool not found")
 
-    final_description = body.description if body.description is not None else tool.description
-    final_parameters = body.parameters if body.parameters is not None else tool.parameters
+    final_description = (
+        body.description if body.description is not None else tool.description
+    )
+    final_parameters = (
+        body.parameters if body.parameters is not None else tool.parameters
+    )
     final_code = body.code if body.code is not None else tool.code
 
     if not final_description or not final_description.strip():
@@ -2948,7 +3268,11 @@ async def update_project_custom_tool(
         raise HTTPException(status_code=400, detail="Code is required.")
 
     try:
-        params_dict = json.loads(final_parameters) if isinstance(final_parameters, str) else final_parameters
+        params_dict = (
+            json.loads(final_parameters)
+            if isinstance(final_parameters, str)
+            else final_parameters
+        )
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=400, detail=f"Invalid parameters JSON: {e}")
 
@@ -2956,13 +3280,19 @@ async def update_project_custom_tool(
     warning = None
     if getattr(brain, "docker_manager", None):
         script = f"import json, sys\nargs = json.loads(sys.stdin.readline() or '{{}}')\n{final_code}"
-        test_result = brain.docker_manager.run_script("ephemeral", script, stdin_data="{}")
+        test_result = brain.docker_manager.run_script(
+            "ephemeral", script, stdin_data="{}"
+        )
         if test_result.startswith("ERROR:"):
-            raise HTTPException(status_code=400, detail=f"Code validation failed — {test_result}")
+            raise HTTPException(
+                status_code=400, detail=f"Code validation failed — {test_result}"
+            )
     else:
         warning = "Docker is not configured; code was saved without sandbox validation."
 
-    final_params_str = json.dumps(params_dict) if isinstance(params_dict, dict) else final_parameters
+    final_params_str = (
+        json.dumps(params_dict) if isinstance(params_dict, dict) else final_parameters
+    )
     db_wrapper.upsert_project_tool(
         project_id=projectID,
         name=toolName,
@@ -3014,19 +3344,26 @@ async def block_generate_workspace(
 
     project = get_project(projectID, db_wrapper, request.app.state.brain)
     if project.props.type != "block":
-        raise HTTPException(status_code=400, detail="Only block projects support workspace generation.")
+        raise HTTPException(
+            status_code=400, detail="Only block projects support workspace generation."
+        )
 
     # Names of projects the user can call (for valid restai_call_project blocks).
     all_projects = db_wrapper.db.query(ProjectDatabase).all()
     available_projects = [
-        p.name for p in all_projects
+        p.name
+        for p in all_projects
         if p.id != projectID and (user.is_admin or p.id in user.get_project_ids())
     ]
 
     from restai.utils.blockly_ai import generate_workspace_from_description
+
     try:
         workspace = await generate_workspace_from_description(
-            request.app.state.brain, db_wrapper, body.description, available_projects,
+            request.app.state.brain,
+            db_wrapper,
+            body.description,
+            available_projects,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -3049,9 +3386,13 @@ async def generate_system_prompt_endpoint(
     project_type = body.project_type or project.props.type
 
     from restai.utils.prompt_ai import generate_system_prompt
+
     try:
         text = await generate_system_prompt(
-            request.app.state.brain, db_wrapper, body.description, project_type,
+            request.app.state.brain,
+            db_wrapper,
+            body.description,
+            project_type,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -3059,13 +3400,13 @@ async def generate_system_prompt_endpoint(
     return {"system_prompt": text}
 
 
-
-
 @router.get("/projects/{projectID}/kg/entities", tags=["Knowledge Graph"])
 async def kg_list_entities(
     request: Request,
     projectID: int = PathParam(description="Project ID"),
-    type: Optional[str] = Query(None, description="Filter by entity type (PERSON, ORG, LOC, MISC)"),
+    type: Optional[str] = Query(
+        None, description="Filter by entity type (PERSON, ORG, LOC, MISC)"
+    ),
     search: Optional[str] = Query(None, description="Substring search on entity name"),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
@@ -3077,15 +3418,25 @@ async def kg_list_entities(
 
     project = get_project(projectID, db_wrapper, request.app.state.brain)
     if project.props.type != "rag":
-        raise HTTPException(status_code=400, detail="Knowledge graph is only available for RAG projects.")
+        raise HTTPException(
+            status_code=400,
+            detail="Knowledge graph is only available for RAG projects.",
+        )
 
-    q = db_wrapper.db.query(KGEntityDatabase).filter(KGEntityDatabase.project_id == projectID)
+    q = db_wrapper.db.query(KGEntityDatabase).filter(
+        KGEntityDatabase.project_id == projectID
+    )
     if type:
         q = q.filter(KGEntityDatabase.entity_type == type)
     if search:
         q = q.filter(KGEntityDatabase.normalized.ilike(f"%{search.lower()}%"))
     total = q.count()
-    rows = q.order_by(KGEntityDatabase.mention_count.desc()).offset(offset).limit(limit).all()
+    rows = (
+        q.order_by(KGEntityDatabase.mention_count.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return {
         "total": total,
         "entities": [
@@ -3112,11 +3463,17 @@ async def kg_get_entity(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Get one entity with all its mentions and related entities."""
-    from restai.models.databasemodels import KGEntityDatabase, KGEntityMentionDatabase, KGEntityRelationshipDatabase
+    from restai.models.databasemodels import (
+        KGEntityDatabase,
+        KGEntityMentionDatabase,
+        KGEntityRelationshipDatabase,
+    )
 
     entity = (
         db_wrapper.db.query(KGEntityDatabase)
-        .filter(KGEntityDatabase.id == entity_id, KGEntityDatabase.project_id == projectID)
+        .filter(
+            KGEntityDatabase.id == entity_id, KGEntityDatabase.project_id == projectID
+        )
         .first()
     )
     if not entity:
@@ -3142,8 +3499,11 @@ async def kg_get_entity(
         if edge.to_entity_id != entity_id:
             related_ids.add(edge.to_entity_id)
     related_entities = (
-        db_wrapper.db.query(KGEntityDatabase).filter(KGEntityDatabase.id.in_(related_ids)).all()
-        if related_ids else []
+        db_wrapper.db.query(KGEntityDatabase)
+        .filter(KGEntityDatabase.id.in_(related_ids))
+        .all()
+        if related_ids
+        else []
     )
     related_map = {r.id: r for r in related_entities}
 
@@ -3154,8 +3514,7 @@ async def kg_get_entity(
         "entity_type": entity.entity_type,
         "mention_count": entity.mention_count,
         "mentions": [
-            {"source": m.source, "mention_count": m.mention_count}
-            for m in mentions
+            {"source": m.source, "mention_count": m.mention_count} for m in mentions
         ],
         "related": [
             {
@@ -3163,11 +3522,16 @@ async def kg_get_entity(
                 "name": related_map[eid].name,
                 "entity_type": related_map[eid].entity_type,
                 "weight": next(
-                    (e.weight for e in edges if e.from_entity_id == eid or e.to_entity_id == eid),
+                    (
+                        e.weight
+                        for e in edges
+                        if e.from_entity_id == eid or e.to_entity_id == eid
+                    ),
                     1,
                 ),
             }
-            for eid in related_ids if eid in related_map
+            for eid in related_ids
+            if eid in related_map
         ],
     }
 
@@ -3192,7 +3556,9 @@ async def kg_update_entity(
 
     entity = (
         db_wrapper.db.query(KGEntityDatabase)
-        .filter(KGEntityDatabase.id == entity_id, KGEntityDatabase.project_id == projectID)
+        .filter(
+            KGEntityDatabase.id == entity_id, KGEntityDatabase.project_id == projectID
+        )
         .first()
     )
     if not entity:
@@ -3204,7 +3570,11 @@ async def kg_update_entity(
     return {"id": entity.id, "name": entity.name, "normalized": entity.normalized}
 
 
-@router.delete("/projects/{projectID}/kg/entities/{entity_id}", status_code=204, tags=["Knowledge Graph"])
+@router.delete(
+    "/projects/{projectID}/kg/entities/{entity_id}",
+    status_code=204,
+    tags=["Knowledge Graph"],
+)
 async def kg_delete_entity(
     request: Request,
     projectID: int = PathParam(description="Project ID"),
@@ -3214,17 +3584,25 @@ async def kg_delete_entity(
 ):
     """Delete an entity and all its mentions/relationships."""
     check_not_restricted(user)
-    from restai.models.databasemodels import KGEntityDatabase, KGEntityMentionDatabase, KGEntityRelationshipDatabase
+    from restai.models.databasemodels import (
+        KGEntityDatabase,
+        KGEntityMentionDatabase,
+        KGEntityRelationshipDatabase,
+    )
 
     entity = (
         db_wrapper.db.query(KGEntityDatabase)
-        .filter(KGEntityDatabase.id == entity_id, KGEntityDatabase.project_id == projectID)
+        .filter(
+            KGEntityDatabase.id == entity_id, KGEntityDatabase.project_id == projectID
+        )
         .first()
     )
     if not entity:
         raise HTTPException(status_code=404, detail="Entity not found")
 
-    db_wrapper.db.query(KGEntityMentionDatabase).filter(KGEntityMentionDatabase.entity_id == entity_id).delete()
+    db_wrapper.db.query(KGEntityMentionDatabase).filter(
+        KGEntityMentionDatabase.entity_id == entity_id
+    ).delete()
     db_wrapper.db.query(KGEntityRelationshipDatabase).filter(
         (KGEntityRelationshipDatabase.from_entity_id == entity_id)
         | (KGEntityRelationshipDatabase.to_entity_id == entity_id)
@@ -3233,7 +3611,9 @@ async def kg_delete_entity(
     db_wrapper.db.commit()
 
 
-@router.post("/projects/{projectID}/kg/entities/{entity_id}/merge", tags=["Knowledge Graph"])
+@router.post(
+    "/projects/{projectID}/kg/entities/{entity_id}/merge", tags=["Knowledge Graph"]
+)
 async def kg_merge_entity(
     request: Request,
     projectID: int = PathParam(description="Project ID"),
@@ -3252,7 +3632,10 @@ async def kg_merge_entity(
 
     success = merge_entities(db_wrapper, primary_id=target_id, secondary_id=entity_id)
     if not success:
-        raise HTTPException(status_code=400, detail="Merge failed (entities not found, same id, or different projects)")
+        raise HTTPException(
+            status_code=400,
+            detail="Merge failed (entities not found, same id, or different projects)",
+        )
     return {"merged_into": target_id}
 
 
@@ -3267,7 +3650,12 @@ async def kg_find_duplicates(
 ):
     """List potential duplicate entity pairs based on name similarity."""
     from restai.knowledge_graph import compute_potential_duplicates
-    return {"candidates": compute_potential_duplicates(db_wrapper, projectID, threshold=threshold, limit=limit)}
+
+    return {
+        "candidates": compute_potential_duplicates(
+            db_wrapper, projectID, threshold=threshold, limit=limit
+        )
+    }
 
 
 @router.get("/projects/{projectID}/kg/graph", tags=["Knowledge Graph"])
@@ -3275,14 +3663,21 @@ async def kg_get_graph(
     request: Request,
     projectID: int = PathParam(description="Project ID"),
     type: Optional[str] = Query(None, description="Filter nodes by entity type"),
-    limit: int = Query(100, ge=1, le=500, description="Max number of top entities to include"),
+    limit: int = Query(
+        100, ge=1, le=500, description="Max number of top entities to include"
+    ),
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Return nodes and edges for knowledge graph visualization."""
-    from restai.models.databasemodels import KGEntityDatabase, KGEntityRelationshipDatabase
+    from restai.models.databasemodels import (
+        KGEntityDatabase,
+        KGEntityRelationshipDatabase,
+    )
 
-    q = db_wrapper.db.query(KGEntityDatabase).filter(KGEntityDatabase.project_id == projectID)
+    q = db_wrapper.db.query(KGEntityDatabase).filter(
+        KGEntityDatabase.project_id == projectID
+    )
     if type:
         q = q.filter(KGEntityDatabase.entity_type == type)
     top_entities = q.order_by(KGEntityDatabase.mention_count.desc()).limit(limit).all()
@@ -3331,7 +3726,9 @@ async def kg_query(
     if project.props.type != "rag":
         raise HTTPException(status_code=400, detail="Only available for RAG projects.")
     if not project.props.options.enable_knowledge_graph:
-        raise HTTPException(status_code=400, detail="Knowledge graph is not enabled for this project.")
+        raise HTTPException(
+            status_code=400, detail="Knowledge graph is not enabled for this project."
+        )
 
     brain = request.app.state.brain
 
@@ -3394,11 +3791,14 @@ async def kg_query(
         }
 
     matched_entity_ids = [e.id for e in matched_entities]
-    matched_sources = list({
-        m.source for m in db_wrapper.db.query(KGEntityMentionDatabase)
-        .filter(KGEntityMentionDatabase.entity_id.in_(matched_entity_ids))
-        .all()
-    })
+    matched_sources = list(
+        {
+            m.source
+            for m in db_wrapper.db.query(KGEntityMentionDatabase)
+            .filter(KGEntityMentionDatabase.entity_id.in_(matched_entity_ids))
+            .all()
+        }
+    )
 
     if not matched_sources:
         return {
@@ -3436,9 +3836,14 @@ async def kg_query(
 
     try:
         from llama_index.core.base.llms.types import ChatMessage, MessageRole
+
         llm_model = brain.get_llm(project.props.llm, db_wrapper)
         resp = llm_model.llm.chat([ChatMessage(role=MessageRole.USER, content=prompt)])
-        answer = resp.message.content.strip() if resp.message and resp.message.content else ""
+        answer = (
+            resp.message.content.strip()
+            if resp.message and resp.message.content
+            else ""
+        )
     except Exception as e:
         logging.exception(e)
         raise HTTPException(status_code=500, detail="LLM call failed")
@@ -3461,7 +3866,11 @@ async def kg_rebuild(
 ):
     """Re-extract entities for ALL sources in this project. Runs in background."""
     check_not_restricted(user)
-    from restai.models.databasemodels import KGEntityDatabase, KGEntityMentionDatabase, KGEntityRelationshipDatabase
+    from restai.models.databasemodels import (
+        KGEntityDatabase,
+        KGEntityMentionDatabase,
+        KGEntityRelationshipDatabase,
+    )
 
     project = get_project(projectID, db_wrapper, request.app.state.brain)
     if project.props.type != "rag":
@@ -3473,13 +3882,16 @@ async def kg_rebuild(
     db_wrapper.db.query(KGEntityMentionDatabase).filter(
         KGEntityMentionDatabase.project_id == projectID
     ).delete()
-    db_wrapper.db.query(KGEntityDatabase).filter(KGEntityDatabase.project_id == projectID).delete()
+    db_wrapper.db.query(KGEntityDatabase).filter(
+        KGEntityDatabase.project_id == projectID
+    ).delete()
     db_wrapper.db.commit()
 
     sources = project.vector.list() if project.vector is not None else []
 
     def _rebuild():
         from restai.knowledge_graph import extract_and_persist
+
         new_db = DBWrapper()
         try:
             for src in sources:
@@ -3487,7 +3899,9 @@ async def kg_rebuild(
                     chunk_data = project.vector.find_source(src)
                     full_text = "\n".join(chunk_data.get("documents") or [])
                     if full_text:
-                        extract_and_persist(projectID, src, full_text, request.app.state.brain, new_db)
+                        extract_and_persist(
+                            projectID, src, full_text, request.app.state.brain, new_db
+                        )
                 except Exception as e:
                     logging.warning("Rebuild failed for source %s: %s", src, e)
         finally:
@@ -3497,7 +3911,10 @@ async def kg_rebuild(
                 pass
 
     background_tasks.add_task(_rebuild)
-    return {"message": f"Rebuild scheduled for {len(sources)} sources", "source_count": len(sources)}
+    return {
+        "message": f"Rebuild scheduled for {len(sources)} sources",
+        "source_count": len(sources),
+    }
 
 
 def _mobile_default_host(request: Request) -> str:
@@ -3515,7 +3932,9 @@ def _mobile_key_description(project_name: str) -> str:
     return f"RESTai Mobile — project {project_name}"
 
 
-def _mobile_status_payload(request: Request, project_db, api_key_row, api_key_plaintext: Optional[str] = None) -> dict:
+def _mobile_status_payload(
+    request: Request, project_db, api_key_row, api_key_plaintext: Optional[str] = None
+) -> dict:
     """Shape GET/POST response; surfaces plaintext key while enabled (for QR)."""
     enabled = api_key_row is not None
     payload = {
@@ -3528,6 +3947,7 @@ def _mobile_status_payload(request: Request, project_db, api_key_row, api_key_pl
         if plaintext is None:
             try:
                 from restai.utils.crypto import decrypt_api_key
+
                 plaintext = decrypt_api_key(api_key_row.encrypted_key)
             except Exception:
                 plaintext = None
@@ -3548,7 +3968,12 @@ def _get_mobile_api_key(db_wrapper: DBWrapper, project_db):
     if not key_id:
         return None
     from restai.models.databasemodels import ApiKeyDatabase
-    row = db_wrapper.db.query(ApiKeyDatabase).filter(ApiKeyDatabase.id == int(key_id)).first()
+
+    row = (
+        db_wrapper.db.query(ApiKeyDatabase)
+        .filter(ApiKeyDatabase.id == int(key_id))
+        .first()
+    )
     return row
 
 
@@ -3622,7 +4047,9 @@ async def mobile_enable(
 
     api_key_row, plaintext = _mint_mobile_api_key(db_wrapper, user, project_db)
     _persist_mobile_key(db_wrapper, project_db, api_key_row.id)
-    return _mobile_status_payload(request, project_db, api_key_row, api_key_plaintext=plaintext)
+    return _mobile_status_payload(
+        request, project_db, api_key_row, api_key_plaintext=plaintext
+    )
 
 
 @router.post("/projects/{projectID}/mobile/disable", tags=["Mobile"])
@@ -3666,4 +4093,6 @@ async def mobile_regenerate(
 
     api_key_row, plaintext = _mint_mobile_api_key(db_wrapper, user, project_db)
     _persist_mobile_key(db_wrapper, project_db, api_key_row.id)
-    return _mobile_status_payload(request, project_db, api_key_row, api_key_plaintext=plaintext)
+    return _mobile_status_payload(
+        request, project_db, api_key_row, api_key_plaintext=plaintext
+    )

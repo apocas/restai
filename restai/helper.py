@@ -26,7 +26,12 @@ from restai.config import LOG_LEVEL
 import json
 
 from restai.projects.base import ProjectBase
-from restai.budget import check_budget, check_rate_limit, check_api_key_quota, record_api_key_tokens
+from restai.budget import (
+    check_budget,
+    check_rate_limit,
+    check_api_key_quota,
+    record_api_key_tokens,
+)
 
 logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger(__name__)
@@ -71,7 +76,9 @@ def resolve_image(image: str) -> str:
 
         if _is_private_ip(hostname):
             logger.warning("Blocked SSRF attempt to internal address: %s", hostname)
-            raise ValueError(f"Access to internal/private addresses is not allowed: {hostname}")
+            raise ValueError(
+                f"Access to internal/private addresses is not allowed: {hostname}"
+            )
 
         response = requests.get(image, timeout=10, stream=True)
         response.raise_for_status()
@@ -82,7 +89,9 @@ def resolve_image(image: str) -> str:
             downloaded += len(chunk)
             if downloaded > MAX_IMAGE_SIZE:
                 response.close()
-                raise ValueError(f"Image exceeds maximum allowed size of {MAX_IMAGE_SIZE} bytes.")
+                raise ValueError(
+                    f"Image exceeds maximum allowed size of {MAX_IMAGE_SIZE} bytes."
+                )
             chunks.append(chunk)
 
         content = b"".join(chunks)
@@ -113,11 +122,13 @@ def _attachment_meta(files):
             size = len(f.content or "") if isinstance(f.content, str) else 0
         except Exception:
             size = 0
-        meta.append({
-            "name": getattr(f, "name", None) or "",
-            "mime_type": getattr(f, "mime_type", None),
-            "size": size,
-        })
+        meta.append(
+            {
+                "name": getattr(f, "name", None) or "",
+                "mime_type": getattr(f, "mime_type", None),
+                "size": size,
+            }
+        )
     return meta
 
 
@@ -223,7 +234,10 @@ def _log_inference_error(
         pass
     try:
         log_inference(
-            project, user, output, db,
+            project,
+            user,
+            output,
+            db,
             latency_ms=latency_ms,
             system_prompt=system_prompt,
             context=context,
@@ -295,7 +309,9 @@ async def _drain_generator_into_session(
             }
             final_output = err_output
             try:
-                await resume_session.append("data: " + json.dumps({"text": err_output["answer"]}) + "\n\n")
+                await resume_session.append(
+                    "data: " + json.dumps({"text": err_output["answer"]}) + "\n\n"
+                )
                 await resume_session.append("data: " + json.dumps(err_output) + "\n")
             except Exception:
                 pass
@@ -315,17 +331,33 @@ async def _drain_generator_into_session(
                     final_output["image"] = image
                 if attachments and not final_output.get("attachments"):
                     final_output["attachments"] = attachments
-                latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
+                latency_ms = (
+                    int((time.perf_counter() - start_time) * 1000)
+                    if start_time
+                    else None
+                )
                 log_inference(
-                    project, user, final_output, db_local,
-                    latency_ms=latency_ms, system_prompt=system_prompt, context=context,
+                    project,
+                    user,
+                    final_output,
+                    db_local,
+                    latency_ms=latency_ms,
+                    system_prompt=system_prompt,
+                    context=context,
                 )
             elif not completed:
                 _log_inference_error(
-                    project, user, db_local,
-                    question=question, image=image, attachments=attachments,
-                    status="error", error="Agent generator stopped before completion",
-                    system_prompt=system_prompt, context=context, start_time=start_time,
+                    project,
+                    user,
+                    db_local,
+                    question=question,
+                    image=image,
+                    attachments=attachments,
+                    status="error",
+                    error="Agent generator stopped before completion",
+                    system_prompt=system_prompt,
+                    context=context,
+                    start_time=start_time,
                 )
         except Exception:
             logging.exception("log_inference failed in _drain_generator_into_session")
@@ -359,19 +391,31 @@ async def create_streaming_response_with_logging(
     if chat_id:
         import asyncio as _asyncio
         from restai import chat_resume as _resume
+
         resume_session, is_new = await _resume.get_or_create(chat_id)
         if is_new:
-            task = _asyncio.create_task(_drain_generator_into_session(
-                generator, resume_session,
-                project=project, user=user,
-                system_prompt=system_prompt, context=context,
-                question=question, image=image, attachments=attachments,
-                start_time=start_time,
-            ))
+            task = _asyncio.create_task(
+                _drain_generator_into_session(
+                    generator,
+                    resume_session,
+                    project=project,
+                    user=user,
+                    system_prompt=system_prompt,
+                    context=context,
+                    question=question,
+                    image=image,
+                    attachments=attachments,
+                    start_time=start_time,
+                )
+            )
             # Hold a strong ref on the session so asyncio doesn't GC the
             # task while it's running (the request task that spawned it
             # may already be torn down before the first chunk lands).
             resume_session.producer_task = task
+            # When Redis is configured, listen for a cross-instance Stop so
+            # the agent halts even if the /chat/stop POST lands elsewhere.
+            # No-op without Redis.
+            resume_session.start_cancel_watcher()
         else:
             # Re-POST while a producer is already running — we don't
             # need a second producer, and we MUST close the generator
@@ -384,6 +428,7 @@ async def create_streaming_response_with_logging(
         async def _subscribe():
             async for chunk in resume_session.subscribe(last_event_id=0):
                 yield chunk
+
         return StreamingResponse(_subscribe(), media_type="text/event-stream")
 
     # Non-resume path (no chat_id): legacy direct streaming. Generator
@@ -437,18 +482,32 @@ async def create_streaming_response_with_logging(
                         final_output["image"] = image
                     if attachments and not final_output.get("attachments"):
                         final_output["attachments"] = attachments
-                    latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
+                    latency_ms = (
+                        int((time.perf_counter() - start_time) * 1000)
+                        if start_time
+                        else None
+                    )
                     log_inference(
-                        project, user, final_output, db,
-                        latency_ms=latency_ms, system_prompt=system_prompt, context=context,
+                        project,
+                        user,
+                        final_output,
+                        db,
+                        latency_ms=latency_ms,
+                        system_prompt=system_prompt,
+                        context=context,
                     )
                 elif not completed:
                     _log_inference_error(
-                        project, user, db,
-                        question=question, image=image, attachments=attachments,
+                        project,
+                        user,
+                        db,
+                        question=question,
+                        image=image,
+                        attachments=attachments,
                         status="disconnected",
                         error="Client disconnected before stream completed",
-                        system_prompt=system_prompt, context=context,
+                        system_prompt=system_prompt,
+                        context=context,
                         start_time=start_time,
                     )
             except Exception:
@@ -495,10 +554,17 @@ async def chat_main(
         check_budget(project, db)
     except HTTPException as e:
         _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="budget", error=getattr(e, "detail", str(e)),
-            system_prompt=_sys, context=_ctx, start_time=start_time,
+            project,
+            user,
+            db,
+            question=_question,
+            image=_image,
+            attachments=_attachments,
+            status="budget",
+            error=getattr(e, "detail", str(e)),
+            system_prompt=_sys,
+            context=_ctx,
+            start_time=start_time,
         )
         raise
 
@@ -506,10 +572,17 @@ async def chat_main(
         check_rate_limit(project, db)
     except HTTPException as e:
         _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="rate_limit", error=getattr(e, "detail", str(e)),
-            system_prompt=_sys, context=_ctx, start_time=start_time,
+            project,
+            user,
+            db,
+            question=_question,
+            image=_image,
+            attachments=_attachments,
+            status="rate_limit",
+            error=getattr(e, "detail", str(e)),
+            system_prompt=_sys,
+            context=_ctx,
+            start_time=start_time,
         )
         raise
 
@@ -517,10 +590,17 @@ async def chat_main(
         check_api_key_quota(user, db)
     except HTTPException as e:
         _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="quota", error=getattr(e, "detail", str(e)),
-            system_prompt=_sys, context=_ctx, start_time=start_time,
+            project,
+            user,
+            db,
+            question=_question,
+            image=_image,
+            attachments=_attachments,
+            status="quota",
+            error=getattr(e, "detail", str(e)),
+            system_prompt=_sys,
+            context=_ctx,
+            start_time=start_time,
         )
         raise
 
@@ -563,14 +643,23 @@ async def chat_main(
             async for line in output_generator:
                 if not isinstance(line, dict):
                     continue
-                latency_ms = int((time.perf_counter() - start_time) * 1000) if start_time else None
+                latency_ms = (
+                    int((time.perf_counter() - start_time) * 1000)
+                    if start_time
+                    else None
+                )
                 if _image and not line.get("image"):
                     line["image"] = _image
                 if _attachments and not line.get("attachments"):
                     line["attachments"] = _attachments
                 log_inference(
-                    project, user, line, db,
-                    latency_ms=latency_ms, system_prompt=_sys, context=_ctx,
+                    project,
+                    user,
+                    line,
+                    db,
+                    latency_ms=latency_ms,
+                    system_prompt=_sys,
+                    context=_ctx,
                 )
                 # RAG-only retrieval-event logging.
                 if (
@@ -579,24 +668,39 @@ async def chat_main(
                     and project.props.type == "rag"
                 ):
                     from restai.tools import log_retrieval_events
-                    background_tasks.add_task(log_retrieval_events, project, line["sources"], db)
+
+                    background_tasks.add_task(
+                        log_retrieval_events, project, line["sources"], db
+                    )
                 return line
             return None
     except HTTPException as e:
         _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="error", error=getattr(e, "detail", str(e)),
-            system_prompt=_sys, context=_ctx, start_time=start_time,
+            project,
+            user,
+            db,
+            question=_question,
+            image=_image,
+            attachments=_attachments,
+            status="error",
+            error=getattr(e, "detail", str(e)),
+            system_prompt=_sys,
+            context=_ctx,
+            start_time=start_time,
         )
         raise
     except Exception as e:
         _log_inference_error(
-            project, user, db,
-            question=_question, image=_image, attachments=_attachments,
-            status="error", error=str(e),
-            system_prompt=_sys, context=_ctx, start_time=start_time,
+            project,
+            user,
+            db,
+            question=_question,
+            image=_image,
+            attachments=_attachments,
+            status="error",
+            error=str(e),
+            system_prompt=_sys,
+            context=_ctx,
+            start_time=start_time,
         )
         raise
-
-
