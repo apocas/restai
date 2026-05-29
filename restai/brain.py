@@ -46,7 +46,7 @@ class Brain:
             self.tools = tools.load_tools()
 
             if config.RESTAI_GPU == True:
-                self.generators: list[FunctionTool] = tools.load_generators()
+                self.generators: list[FunctionTool] = tools.load_image_generators()
                 self.audio_generators: list[FunctionTool] = tools.load_audio_generators()
 
             self.chat_store: BaseChatStore

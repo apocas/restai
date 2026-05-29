@@ -73,7 +73,7 @@ Key relationships: Users ↔ Projects (m2m), Users ↔ Teams (members + admins),
 
 SQLite default (`restai.db`); Postgres via `POSTGRES_HOST`; MySQL via `MYSQL_HOST`. Pool: `DB_POOL_SIZE`, `DB_MAX_OVERFLOW`, `DB_POOL_RECYCLE`. Migrations via Alembic.
 
-**Init flow** (`database.py`): tables → admin user (`RESTAI_DEFAULT_PASSWORD`) → default LLMs/embeddings from `restai/tools.py`.
+**Init flow** (`database.py`): tables → admin user (`RESTAI_DEFAULT_PASSWORD`) → default team (admin added as member + admin). No LLMs/embeddings are seeded — add them via `/admin` or `POST /llms`.
 
 **Migration portability — REQUIRED.** Every migration MUST run cleanly on SQLite, MySQL, and PostgreSQL. SQLite is permissive enough that backend-specific bugs only surface in prod on MySQL/Postgres, leaving the schema permanently inconsistent. Hard rules:
 - **No `server_default` on `sa.Text()`/TEXT/BLOB.** MySQL pre-8.0.13 rejects them. Default in app code on insert, or leave nullable. `server_default='0'` on integers is fine everywhere.
@@ -290,7 +290,7 @@ Accumulated fixes worth remembering:
 - **Widget restricted-user block** — `get_widget_from_request` rejects 403 if widget creator is restricted-and-not-admin.
 - **Frontend 401 handling** — sets `sessionStorage["session_expired"]="1"` and redirects to `/admin/login`; login page shows "Your session has expired".
 - **SSRF guard on `crawler_classic` + 10s timeout** — resolves hostname through `restai.helper._is_private_ip` and refuses loopback / RFC1918 / link-local (closes AWS IMDS exfil). Same guard applied to `restai/sync.py:_sync_url`.
-- **Userland tool loader pinned to install root** — `tools.py:load_tools` reads from `<install_root>/tools` (not cwd-relative `./tools`). Skips cleanly when missing. Closes a code-exec surface from unexpected CWDs.
+- **Userland extension loaders pinned to install root** — userland auto-import folders live under `<install_root>/userland/`: `tools/` (agent builtins), `image/` (image generators), `audio/` (speech). `tools.py` resolves each via the shared `_userland_dir(subdir)` helper — anchored to the install root (never cwd-relative), skips cleanly when missing, prepends install root to `sys.path`, imports as `userland.<kind>.<mod>`. Closes a code-exec surface from unexpected CWDs. `.gitignore` keeps the folders (`.gitkeep`/`__init__.py`) but ignores dropped modules.
 - **Per-key audit trail on settings** — `patch_settings` writes `audit._log_to_db(actor, "SETTING", "settings/<key>:<status>", 200)` per changed key. Secret keys get `:secret_changed` (values NEVER recorded); non-secret keys include 32-char fingerprint.
 - **Password-age tracking** — `users.password_updated_at` stamped on every `create_user`/`update_user` (migration 041). `password_max_age_days` (default 0 = disabled) drives a soft warning in `/auth/login` response (`password_warning`). Never blocks. Legacy NULL rows never warn.
 - **Per-API-key monthly quotas** — `api_keys.token_quota_monthly` (NULL = unlimited), `tokens_used_this_month`, `quota_reset_at` (migration 042). `restai/budget.py:check_api_key_quota` raises 429 when hit; rolls over lazily on first check after `quota_reset_at` (1st-of-next-month UTC). `record_api_key_tokens` in `log_inference` bumps. Admin: `PATCH /users/{u}/apikeys/{id}`.

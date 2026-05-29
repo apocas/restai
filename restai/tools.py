@@ -113,7 +113,28 @@ def get_llm_class(llm_class_name: str):
             raise Exception("Invalid LLM class name.")
 
 
-def load_generators() -> list[FunctionTool]:
+def _userland_dir(subdir: str) -> str | None:
+    """Absolute path of ``<install_root>/userland/<subdir>`` if it exists.
+
+    Anchored to the install root (the parent of the ``restai/`` package) so
+    loading is independent of the process working directory — a cwd-relative
+    path (the old ``./generators`` / ``./audio`` / ``./tools``) would silently
+    load whatever a CWD switch exposed. Also prepends the install root to
+    ``sys.path`` so ``import userland.<subdir>.<mod>`` resolves to this tree.
+    Returns ``None`` (loaders skip) when the directory is absent.
+    """
+    directory = os.path.dirname(os.path.abspath(__file__))
+    install_root = os.path.dirname(directory)  # parent of restai/
+    path = os.path.join(install_root, "userland", subdir)
+    if not os.path.isdir(path):
+        return None
+    import sys as _sys
+    if install_root not in _sys.path:
+        _sys.path.insert(0, install_root)
+    return path
+
+
+def load_image_generators() -> list[FunctionTool]:
     generators = []
     directory = os.path.dirname(os.path.abspath(__file__))
 
@@ -127,24 +148,26 @@ def load_generators() -> list[FunctionTool]:
                 generators.append(obj)
 
     print(f"Loading userland image generators...")
-    for importer, modname, _ in pkgutil.iter_modules(path=["./generators"]):
-        module = __import__(f"generators.{modname}", fromlist="dummy")
-        for name, obj in inspect.getmembers(module):
-            if inspect.isfunction(obj) and name == "worker":
-                replaced = False
-                for i, existing_tool in enumerate(generators):
-                    if (
-                        existing_tool.__module__.split(".")[-1]
-                        == obj.__module__.split(".")[-1]
-                    ):
-                        print(
-                            f"WARNING: Duplicate generator '{obj.__module__}' found in generators! OVERWRITTEN!"
-                        )
-                        generators[i] = obj
-                        replaced = True
-                        break
-                if not replaced:
-                    generators.append(obj)
+    userland_path = _userland_dir("image")
+    if userland_path:
+        for importer, modname, _ in pkgutil.iter_modules(path=[userland_path]):
+            module = __import__(f"userland.image.{modname}", fromlist="dummy")
+            for name, obj in inspect.getmembers(module):
+                if inspect.isfunction(obj) and name == "worker":
+                    replaced = False
+                    for i, existing_tool in enumerate(generators):
+                        if (
+                            existing_tool.__module__.split(".")[-1]
+                            == obj.__module__.split(".")[-1]
+                        ):
+                            print(
+                                f"WARNING: Duplicate generator '{obj.__module__}' found in generators! OVERWRITTEN!"
+                            )
+                            generators[i] = obj
+                            replaced = True
+                            break
+                    if not replaced:
+                        generators.append(obj)
 
     return generators
 
@@ -163,24 +186,26 @@ def load_audio_generators() -> list[FunctionTool]:
                 generators.append(obj)
 
     print(f"Loading userland audio generators...")
-    for importer, modname, _ in pkgutil.iter_modules(path=["./audio"]):
-        module = __import__(f"audio.{modname}", fromlist="dummy")
-        for name, obj in inspect.getmembers(module):
-            if inspect.isfunction(obj) and name == "worker":
-                replaced = False
-                for i, existing_tool in enumerate(generators):
-                    if (
-                        existing_tool.__module__.split(".")[-1]
-                        == obj.__module__.split(".")[-1]
-                    ):
-                        print(
-                            f"WARNING: Duplicate generator '{obj.__module__}' found in generators! OVERWRITTEN!"
-                        )
-                        generators[i] = obj
-                        replaced = True
-                        break
-                if not replaced:
-                    generators.append(obj)
+    userland_path = _userland_dir("audio")
+    if userland_path:
+        for importer, modname, _ in pkgutil.iter_modules(path=[userland_path]):
+            module = __import__(f"userland.audio.{modname}", fromlist="dummy")
+            for name, obj in inspect.getmembers(module):
+                if inspect.isfunction(obj) and name == "worker":
+                    replaced = False
+                    for i, existing_tool in enumerate(generators):
+                        if (
+                            existing_tool.__module__.split(".")[-1]
+                            == obj.__module__.split(".")[-1]
+                        ):
+                            print(
+                                f"WARNING: Duplicate generator '{obj.__module__}' found in generators! OVERWRITTEN!"
+                            )
+                            generators[i] = obj
+                            replaced = True
+                            break
+                    if not replaced:
+                        generators.append(obj)
 
     return generators
 
@@ -196,23 +221,16 @@ def load_tools() -> list[FunctionTool]:
             if inspect.isfunction(obj) and not name.startswith("_"):
                 tools.append(FunctionTool.from_defaults(fn=obj))
 
-    # Userland tools live alongside the package, anchored to the install
-    # root (the parent of the `restai/` package directory) so the loader
-    # is independent of the process working directory. The previous
-    # cwd-relative `./tools` would silently load whatever a CWD switch
-    # exposed — turn that into deterministic behavior + a single place
-    # to lock down with filesystem permissions.
-    install_root = os.path.dirname(directory)  # parent of restai/
-    userland_path = os.path.join(install_root, "tools")
-    if os.path.isdir(userland_path):
+    # Userland tools live in `<install_root>/userland/tools`, anchored to the
+    # install root (the parent of the `restai/` package) so the loader is
+    # independent of the process working directory — a cwd-relative path would
+    # silently load whatever a CWD switch exposed. `_userland_dir` also puts the
+    # install root on sys.path so `import userland.tools.<mod>` resolves here.
+    userland_path = _userland_dir("tools")
+    if userland_path:
         print(f"Loading userland tools from {userland_path}...")
-        # Make sure `import tools.<modname>` resolves to *this* directory
-        # and not a same-named package elsewhere on sys.path.
-        import sys as _sys
-        if install_root not in _sys.path:
-            _sys.path.insert(0, install_root)
         for importer, modname, _ in pkgutil.iter_modules(path=[userland_path]):
-            module = __import__(f"tools.{modname}", fromlist="dummy")
+            module = __import__(f"userland.tools.{modname}", fromlist="dummy")
             for name, obj in inspect.getmembers(module):
                 if inspect.isfunction(obj):
                     tool = FunctionTool.from_defaults(fn=obj)
@@ -228,7 +246,7 @@ def load_tools() -> list[FunctionTool]:
                     if not replaced:
                         tools.append(tool)
     else:
-        print(f"No userland tools directory at {userland_path} — skipping.")
+        print("No userland tools directory — skipping.")
 
     return tools
 
