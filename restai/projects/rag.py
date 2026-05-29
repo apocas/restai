@@ -67,7 +67,7 @@ class EntityBoostPostprocessor:
             return self._matched_sources
         try:
             import re as _re
-            from restai.knowledge_graph import find_entities_in_text, normalize_entity_name
+            from restai.integrations.knowledge_graph import find_entities_in_text, normalize_entity_name
             from restai.models.databasemodels import KGEntityDatabase, KGEntityMentionDatabase
 
             # Primary path: word-boundary match query against entities ALREADY

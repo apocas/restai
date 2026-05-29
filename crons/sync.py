@@ -13,7 +13,7 @@ import sys
 from datetime import datetime, timezone
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-logger = logging.getLogger("restai.sync")
+logger = logging.getLogger("restai.integrations.sync")
 
 from restai import config
 from restai.settings import ensure_settings_table
@@ -67,7 +67,7 @@ def main():
                 _update_last_sync(db, proj.id, i)
 
                 try:
-                    from restai.sync import _sync_source
+                    from restai.integrations.sync import _sync_source
                     from restai.models.models import SyncSource
                     from restai.utils.crypto import _decrypt_sync_source
 

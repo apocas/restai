@@ -65,7 +65,7 @@ from restai.utils.crypto import encrypt_api_key, hash_api_key, encrypt_field
 from restai.brain import Brain
 from restai.project import Project
 from restai.vectordb import tools
-from restai.knowledge_graph import extract_and_persist_safe
+from restai.integrations.knowledge_graph import extract_and_persist_safe
 from restai.vectordb.tools import (
     find_file_loader,
     extract_keywords_for_metadata,
@@ -1821,7 +1821,7 @@ async def trigger_sync(
     if not opts or not opts.sync_sources:
         raise HTTPException(status_code=400, detail="No sync sources configured")
 
-    from restai.sync import run_sync_now
+    from restai.integrations.sync import run_sync_now
     run_sync_now(projectID, request.app.state.brain)
     return {"message": "Sync triggered"}
 
@@ -3184,7 +3184,7 @@ async def kg_update_entity(
     """Rename an entity (update display name only — normalized name is derived)."""
     check_not_restricted(user)
     from restai.models.databasemodels import KGEntityDatabase
-    from restai.knowledge_graph import normalize_entity_name
+    from restai.integrations.knowledge_graph import normalize_entity_name
 
     new_name = (body.get("name") or "").strip()
     if not new_name:
@@ -3244,7 +3244,7 @@ async def kg_merge_entity(
 ):
     """Merge this entity (source) INTO the target entity. Source is deleted."""
     check_not_restricted(user)
-    from restai.knowledge_graph import merge_entities
+    from restai.integrations.knowledge_graph import merge_entities
 
     target_id = body.get("target_id")
     if not target_id or not isinstance(target_id, int):
@@ -3266,7 +3266,7 @@ async def kg_find_duplicates(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """List potential duplicate entity pairs based on name similarity."""
-    from restai.knowledge_graph import compute_potential_duplicates
+    from restai.integrations.knowledge_graph import compute_potential_duplicates
     return {"candidates": compute_potential_duplicates(db_wrapper, projectID, threshold=threshold, limit=limit)}
 
 
@@ -3320,7 +3320,7 @@ async def kg_query(
 ):
     """Natural language query against the knowledge graph."""
     import re as _re
-    from restai.knowledge_graph import find_entities_in_text, normalize_entity_name
+    from restai.integrations.knowledge_graph import find_entities_in_text, normalize_entity_name
     from restai.models.databasemodels import KGEntityDatabase, KGEntityMentionDatabase
 
     question = (body.get("question") or "").strip()
@@ -3479,7 +3479,7 @@ async def kg_rebuild(
     sources = project.vector.list() if project.vector is not None else []
 
     def _rebuild():
-        from restai.knowledge_graph import extract_and_persist
+        from restai.integrations.knowledge_graph import extract_and_persist
         new_db = DBWrapper()
         try:
             for src in sources:

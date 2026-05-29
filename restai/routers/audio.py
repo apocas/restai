@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Request, UploadFile
 from restai import config
 from restai.auth import get_current_username, check_not_restricted
 from restai.database import get_db_wrapper, DBWrapper
-from restai.direct_access import resolve_team_for_audio_generator, log_direct_usage
+from restai.integrations.direct_access import resolve_team_for_audio_generator, log_direct_usage
 from restai.models.models import User, sanitize_filename
 from restai.speech_to_text.dispatch import (
     ModelDisabledError,

@@ -16,7 +16,7 @@ from restai import config
 import sentry_sdk
 from contextlib import asynccontextmanager
 from restai.database import get_db_wrapper, open_db_wrapper
-from restai.oauth import OAuthManager
+from restai.integrations.oauth import OAuthManager
 from starlette.middleware.sessions import SessionMiddleware
 from restai.config import (
     OAUTH_PROVIDERS,
@@ -122,7 +122,7 @@ async def lifespan(fs_app: FastAPI):
     except Exception as e:
         logging.warning("Failed to seed local speech-to-text models: %s", e)
 
-    from restai.oauth import OAuthManager
+    from restai.integrations.oauth import OAuthManager
     config.load_oauth_providers()
     fs_app.state.oauth_manager = OAuthManager(fs_app, db_wrapper=open_db_wrapper())
 
@@ -419,7 +419,7 @@ async def lifespan(fs_app: FastAPI):
     fs_app.include_router(audio.router, tags=["Audio"])
 
     if config.RESTAI_MCP:
-        from restai.mcp import create_mcp_server
+        from restai.integrations.mcp import create_mcp_server
         mcp_server = create_mcp_server(fs_app)
         fs_app.mount("/mcp", mcp_server.http_app(transport="sse"))
         logging.info("MCP server enabled at /mcp/sse")
