@@ -19,7 +19,7 @@ class ProjectBase(ABC):
         if not project.props.guard:
             return False
 
-        from restai.guard import Guard
+        from restai.limits.guard import Guard
         from restai.tools import log_guard_event
 
         guard = Guard(project.props.guard, self.brain, db)
@@ -52,7 +52,7 @@ class ProjectBase(ABC):
         if not guard_name or not output.get("answer"):
             return
 
-        from restai.guard import Guard
+        from restai.limits.guard import Guard
         from restai.tools import log_guard_event
 
         out_guard = Guard(guard_name, self.brain, db)

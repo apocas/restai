@@ -351,7 +351,7 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
     api_key_id = getattr(user, "api_key_id", None)
     if api_key_id:
         try:
-            from restai.budget import record_api_key_tokens
+            from restai.limits.budget import record_api_key_tokens
             record_api_key_tokens(api_key_id, in_tokens + out_tokens, db)
         except Exception:
             # Never break the inference log flow on a quota accounting

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from restai.config import RESTAI_DEFAULT_PASSWORD
 from restai.main import app
-from restai.guard import Guard, GuardResult
+from restai.limits.guard import Guard, GuardResult
 
 ADMIN = ("admin", RESTAI_DEFAULT_PASSWORD)
 

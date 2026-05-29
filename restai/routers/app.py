@@ -509,7 +509,7 @@ async def route_app_generate_plan(
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
 
-    from restai.budget import check_budget, check_rate_limit, check_api_key_quota
+    from restai.limits.budget import check_budget, check_rate_limit, check_api_key_quota
     check_budget(project, db_wrapper)
     check_rate_limit(project, db_wrapper)
     check_api_key_quota(user, db_wrapper)
@@ -707,7 +707,7 @@ async def route_app_generate_execute(
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
 
-    from restai.budget import check_budget, check_rate_limit, check_api_key_quota
+    from restai.limits.budget import check_budget, check_rate_limit, check_api_key_quota
     check_budget(project, db_wrapper)
     check_rate_limit(project, db_wrapper)
     check_api_key_quota(user, db_wrapper)
@@ -1073,7 +1073,7 @@ async def route_app_fix_file(
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
 
-    from restai.budget import check_budget, check_rate_limit, check_api_key_quota
+    from restai.limits.budget import check_budget, check_rate_limit, check_api_key_quota
     check_budget(project, db_wrapper)
     check_rate_limit(project, db_wrapper)
     check_api_key_quota(user, db_wrapper)
@@ -1683,7 +1683,7 @@ async def route_app_validate(
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
 
-    from restai.budget import check_budget, check_rate_limit, check_api_key_quota
+    from restai.limits.budget import check_budget, check_rate_limit, check_api_key_quota
     check_budget(project, db_wrapper)
     check_rate_limit(project, db_wrapper)
     check_api_key_quota(user, db_wrapper)

@@ -280,7 +280,7 @@ async def route_update_user_apikey(
 ):
     """Update API key description or monthly token quota."""
     from restai.models.databasemodels import ApiKeyDatabase
-    from restai.budget import _first_of_next_month
+    from restai.limits.budget import _first_of_next_month
     user = db_wrapper.get_user_by_username(username)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")

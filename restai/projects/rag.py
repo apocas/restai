@@ -14,7 +14,7 @@ from llama_index.postprocessor.colbert_rerank import ColbertRerank
 from restai.chat import Chat
 from restai.database import DBWrapper
 from restai.eval import eval_rag
-from restai.guard import Guard
+from restai.limits.guard import Guard
 from restai.llm import LLM
 from restai.models.models import ChatModel, User
 from restai.project import Project

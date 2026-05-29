@@ -20,7 +20,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from restai.budget import (
+from restai.limits.budget import (
     _first_of_next_month,
     check_api_key_quota,
     record_api_key_tokens,

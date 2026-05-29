@@ -126,7 +126,7 @@ async def lifespan(fs_app: FastAPI):
     config.load_oauth_providers()
     fs_app.state.oauth_manager = OAuthManager(fs_app, db_wrapper=open_db_wrapper())
 
-    from restai.retention import run_retention_cleanup
+    from restai.limits.retention import run_retention_cleanup
     run_retention_cleanup(settings_db_wrapper)
 
     import os as _os

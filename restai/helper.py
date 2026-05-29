@@ -26,7 +26,7 @@ from restai.config import LOG_LEVEL
 import json
 
 from restai.projects.base import ProjectBase
-from restai.budget import check_budget, check_rate_limit, check_api_key_quota, record_api_key_tokens
+from restai.limits.budget import check_budget, check_rate_limit, check_api_key_quota, record_api_key_tokens
 
 logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger(__name__)
