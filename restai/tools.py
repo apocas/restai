@@ -13,10 +13,6 @@ from restai.models.databasemodels import OutputDatabase
 from restai.models.models import LLMModel, User
 from restai.project import Project
 
-DEFAULT_LLMS = {}
-
-DEFAULT_EMBEDDINGS = {}
-
 
 def get_embedding_class(embedding_class_name: str):
     match embedding_class_name:
