@@ -194,3 +194,4 @@ stable.patch
 apps/*
 !apps/.gitkeep
 *.lock
+.claude/
