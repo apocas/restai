@@ -121,7 +121,7 @@ def _create_container(chat_id: str):
     image = getattr(_cfg, "DOCKER_IMAGE", "python:3.12-slim") or "python:3.12-slim"
     network = getattr(_cfg, "DOCKER_NETWORK", "none") or "none"
     read_only = bool(getattr(_cfg, "DOCKER_READ_ONLY", True))
-    from restai.instance import get_instance_id
+    from restai.observability.instance import get_instance_id
 
     # Ensure the host workspace dir exists BEFORE the mount — docker
     # silently mounts an empty volume otherwise, and the SDK's writes
@@ -136,7 +136,7 @@ def _create_container(chat_id: str):
             "restai.managed": "true",
             "restai.chat_id": chat_id,
             "restai.created_at": str(int(time.time())),
-            "restai.instance_id": get_instance_id(),
+            "restai.observability.instance_id": get_instance_id(),
         },
         mem_limit="512m",
         cpu_period=100000,

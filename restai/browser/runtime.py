@@ -228,7 +228,7 @@ def _create_container(chat_id: str):
     image = (getattr(_cfg, "BROWSER_IMAGE", _DEFAULT_IMAGE) or _DEFAULT_IMAGE)
     network = (getattr(_cfg, "BROWSER_NETWORK", "bridge") or "bridge")
     logger.info("Browser: creating container for chat_id=%s", chat_id)
-    from restai.instance import get_instance_id
+    from restai.observability.instance import get_instance_id
     container = c.containers.run(
         image,
         command=["sleep", "infinity"],
@@ -237,7 +237,7 @@ def _create_container(chat_id: str):
             "restai.browser_managed": "true",
             "restai.browser_chat_id": chat_id,
             "restai.created_at": str(int(time.time())),
-            "restai.instance_id": get_instance_id(),
+            "restai.observability.instance_id": get_instance_id(),
         },
         mem_limit="1g",
         cpu_period=100000,

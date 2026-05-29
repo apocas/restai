@@ -490,7 +490,7 @@ async def route_app_chat_clear(
     from restai.agent2.memory import clear_session
     await clear_session(request.app.state.brain, _app_chat_id(projectID))
     try:
-        from restai.audit import _log_to_db as _audit
+        from restai.observability.audit import _log_to_db as _audit
         _audit(user.username, "APP_CHAT_CLEAR", f"projects/{projectID}", 200)
     except Exception:
         pass
@@ -612,7 +612,7 @@ async def route_app_generate_plan(
             except Exception:
                 pass
             try:
-                from restai.audit import _log_to_db as _audit
+                from restai.observability.audit import _log_to_db as _audit
                 _audit(
                     user.username, "APP_PLAN",
                     f"projects/{projectID}:turns={len(messages)}", 200,
@@ -1049,7 +1049,7 @@ async def route_app_generate_execute(
             except Exception:
                 pass
             try:
-                from restai.audit import _log_to_db as _audit
+                from restai.observability.audit import _log_to_db as _audit
                 _audit(
                     user.username, "APP_EXECUTE",
                     f"projects/{projectID}:wrote={len(written)}:failed={len(failed)}",
@@ -1113,7 +1113,7 @@ async def route_app_fix_file(
     )
 
     try:
-        from restai.audit import _log_to_db as _audit
+        from restai.observability.audit import _log_to_db as _audit
         _audit(user.username, "APP_FIX_FILE", f"projects/{projectID}:{payload.path}", 200)
     except Exception:
         pass
@@ -1291,7 +1291,7 @@ async def route_app_deploy(
                 had_error = True
 
             try:
-                from restai.audit import _log_to_db as _audit
+                from restai.observability.audit import _log_to_db as _audit
                 _audit(
                     user.username,
                     "APP_DEPLOY" if not had_error else "APP_DEPLOY_FAIL",
@@ -1343,7 +1343,7 @@ async def route_app_reset(
             logger.exception("reset: failed to start container after reseed")
 
     try:
-        from restai.audit import _log_to_db as _audit
+        from restai.observability.audit import _log_to_db as _audit
         _audit(user.username, "APP_RESET", f"projects/{projectID}", 200)
     except Exception:
         pass
@@ -1846,7 +1846,7 @@ async def route_app_validate(
         pass
 
     try:
-        from restai.audit import _log_to_db as _audit
+        from restai.observability.audit import _log_to_db as _audit
         _audit(
             user.username, "APP_VALIDATE",
             f"projects/{projectID}:ok={parsed.get('ok')}:issues={len(clean_issues)}", 200,

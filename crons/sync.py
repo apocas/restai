@@ -23,7 +23,7 @@ from restai.brain import Brain
 
 
 def main():
-    from restai.cron_log import CronLogger
+    from restai.observability.cron_log import CronLogger
     cron = CronLogger("sync")
 
     ensure_settings_table(db_engine)

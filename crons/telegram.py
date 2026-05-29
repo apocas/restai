@@ -29,7 +29,7 @@ def main():
     brain = Brain(lightweight=True)
     db = open_db_wrapper()
 
-    from restai.cron_log import CronLogger
+    from restai.observability.cron_log import CronLogger
     cron = CronLogger("telegram")
     processed = 0
 

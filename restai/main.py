@@ -133,7 +133,7 @@ async def lifespan(fs_app: FastAPI):
     if _os.environ.get("ANONYMIZED_TELEMETRY", "True").lower() == "true":
         print("Anonymized telemetry is enabled. To opt out, set ANONYMIZED_TELEMETRY=false.")
         import asyncio
-        from restai.telemetry import telemetry_loop
+        from restai.observability.telemetry import telemetry_loop
         asyncio.create_task(telemetry_loop())
 
     if not RESTAI_URL:
@@ -508,7 +508,7 @@ app.add_middleware(
 )
 
 # Audit log middleware — records all mutation requests
-from restai.audit import AuditMiddleware
+from restai.observability.audit import AuditMiddleware
 app.add_middleware(AuditMiddleware)
 
 

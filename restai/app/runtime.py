@@ -140,7 +140,7 @@ def _create_container(project_id: int):
         "App: creating container project=%s mount=%s image=%s user=%s",
         project_id, host_path, image, run_user,
     )
-    from restai.instance import get_instance_id
+    from restai.observability.instance import get_instance_id
     container = c.containers.run(
         image,
         detach=True,
@@ -149,7 +149,7 @@ def _create_container(project_id: int):
             "restai.app_managed": "true",
             "restai.app_project_id": str(int(project_id)),
             "restai.created_at": str(int(time.time())),
-            "restai.instance_id": get_instance_id(),
+            "restai.observability.instance_id": get_instance_id(),
         },
         mem_limit="512m",
         cpu_period=100000,

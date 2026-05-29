@@ -20,7 +20,7 @@ def main():
     from restai.database import engine as db_engine, open_db_wrapper
     from restai.models.databasemodels import BulkIngestJobDatabase, ProjectDatabase
     from restai.brain import Brain
-    from restai.cron_log import CronLogger
+    from restai.observability.cron_log import CronLogger
 
     ensure_settings_table(db_engine)
 
