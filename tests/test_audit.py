@@ -119,19 +119,23 @@ def test_settings_change_writes_per_key_audit_row(client):
         assert new_currency in currency_rows[0]["resource"]
 
         # Secret key path: ':secret_changed' marker, never the value itself.
-        r = client.patch("/settings", json={"sso_google_client_secret": "test-not-real-secret-xyz"}, auth=ADMIN)
+        # Use a unique value each run: an audit row is only written when the
+        # stored value actually changes, and the settings handler skips empty
+        # secret values (can't reset to ""), so a fixed literal would persist
+        # in the DB and suppress the row on the next run.
+        secret_val = f"test-not-real-secret-{suffix}"
+        r = client.patch("/settings", json={"sso_google_client_secret": secret_val}, auth=ADMIN)
         assert r.status_code == 200
         time.sleep(0.5)
         log2 = client.get("/audit?start=0&end=200&action=SETTING", auth=ADMIN).json()
         secret_rows = [e for e in log2.get("entries", []) if "sso_google_client_secret" in (e.get("resource") or "")]
         assert secret_rows, "expected SETTING audit row for secret change"
         assert ":secret_changed" in secret_rows[0]["resource"]
-        assert "test-not-real-secret-xyz" not in secret_rows[0]["resource"], (
+        assert secret_val not in secret_rows[0]["resource"], (
             "secret value leaked into audit resource"
         )
     finally:
         client.patch("/settings", json={"currency": original_currency}, auth=ADMIN)
-        client.patch("/settings", json={"sso_google_client_secret": ""}, auth=ADMIN)
 
 
 def test_cleanup(client):
