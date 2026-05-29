@@ -154,7 +154,7 @@ async def preview_memory_bank(
         raise HTTPException(status_code=404, detail="Project not found")
     options = json.loads(project.options) if project.options else {}
     max_tokens = int(options.get("memory_bank_max_tokens") or 2000)
-    from restai import memory_bank
+    from restai.memory import bank as memory_bank
     block = memory_bank.render_for_prompt(db_wrapper, projectID, max_tokens)
     from restai.tools import tokens_from_string
     return {

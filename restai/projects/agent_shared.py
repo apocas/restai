@@ -8,7 +8,7 @@ import logging
 import re
 from datetime import datetime, timezone
 
-from restai import memory_bank
+from restai.memory import bank as memory_bank
 
 
 _IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")

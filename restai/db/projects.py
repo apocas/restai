@@ -132,7 +132,7 @@ class ProjectMixin:
         self.db.delete(project)
         self.db.commit()
         try:
-            from restai import memory_search
+            from restai.memory import search as memory_search
             memory_search.delete_project(project_id)
         except Exception as e:
             logging.warning("delete_project: memory_search cleanup failed: %s", e)

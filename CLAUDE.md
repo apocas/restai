@@ -194,7 +194,7 @@ Agent-only opt-in via `ProjectOptions.memory_bank_enabled`. Every conversation c
 - **Source**: `OutputDatabase` rows. Authoritative across workers, survives Redis TTLs. Redis agent2 sessions NOT used (not enumerable per project).
 - **Summaries via System LLM**. Without one, cron is no-op.
 - **Cron** `crons/memory_bank.py` — every minute. Skips conversations idle <10 min. Per-conversation summaries upserted by `chat_id`, then runs compression ladder.
-- **Compression ladder** in `restai/memory_bank.py:compress_entries`: `conversation` >1 day → `day`; `day` >7 days → `week`; `week` >30 days → `month`. If still over budget, deletes oldest until within `memory_bank_max_tokens`. `COMPRESSION_HEADROOM` (1.25) avoids burning System LLM tokens on tiny overshoots.
+- **Compression ladder** in `restai/memory/bank/compress.py:compress_entries`: `conversation` >1 day → `day`; `day` >7 days → `week`; `week` >30 days → `month`. If still over budget, deletes oldest until within `memory_bank_max_tokens`. `COMPRESSION_HEADROOM` (1.25) avoids burning System LLM tokens on tiny overshoots. The bank module (`restai/memory/bank/`) is split into `common`/`summarize`/`compress`/`render`/`scheduling`; `restai/memory/search.py` is the per-project memory-search index. Import as `from restai.memory import bank, search`.
 - **Injection** at `agent.py:_augment_system_prompt_with_memory_bank` — prepends before `_build_runtime`. Failures degrade silently.
 - **Privacy**: every project member sees summaries from every other member. Form shows a warning Alert when on.
 

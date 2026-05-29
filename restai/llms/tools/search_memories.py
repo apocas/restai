@@ -30,7 +30,7 @@ def search_memories(query: str, k: int = 5, **kwargs) -> str:
     k = max(1, min(20, k))
 
     from restai.database import open_db_wrapper
-    from restai import memory_search
+    from restai.memory import search as memory_search
 
     db = open_db_wrapper()
     try:

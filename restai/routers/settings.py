@@ -119,7 +119,7 @@ async def patch_settings(
             _chroma_mod._client_cache.clear()
             from restai import cache as _cache_mod
             _cache_mod._cache_client_cache.clear()
-            from restai import memory_search as _memsearch_mod
+            from restai.memory import search as _memsearch_mod
             _memsearch_mod._client_cache.clear()
         except Exception:
             pass

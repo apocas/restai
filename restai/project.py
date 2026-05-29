@@ -38,7 +38,7 @@ class Project:
         a Project (which would load a vectorstore the swap is about to invalidate).
         """
         try:
-            from restai import memory_search
+            from restai.memory import search as memory_search
             memory_search.reset_collection(int(project_id))
         except Exception:
             import logging

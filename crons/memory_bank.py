@@ -22,7 +22,7 @@ from restai.settings import ensure_settings_table
 from restai.database import open_db_wrapper, engine as db_engine
 from restai.brain import Brain
 from restai.observability.cron_log import CronLogger
-from restai import memory_bank
+from restai.memory import bank as memory_bank
 
 
 # Hard cap on how many conversations one cron tick will summarize. The
