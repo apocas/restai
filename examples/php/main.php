@@ -1,30 +1,92 @@
 <?php
 
+/**
+ * RESTai PHP demo — full RAG lifecycle.
+ *
+ *   discover models  →  ensure a team  →  create project  →  ingest
+ *                    →  ask (grounded answer)  →  search  →  cleanup
+ *
+ * Config via env (all optional; defaults target local dev):
+ *   RESTAI_URL       default http://localhost:9000
+ *   RESTAI_API_KEY   Bearer key (preferred). If unset, falls back to Basic auth.
+ *   RESTAI_USER      default admin
+ *   RESTAI_PASSWORD  default admin
+ *
+ *   php main.php
+ *
+ * Full API reference: <your-restai>/docs (Swagger).
+ */
+
 require_once('Project.php');
 
-//project name, type, url, apikey
-$proj = new Project('phptest', 'rag', 'https://ai.ince.pt', 'apikey');
+$url    = getenv('RESTAI_URL') ?: 'http://localhost:9000';
+$apikey = getenv('RESTAI_API_KEY') ?: null;
+$user   = getenv('RESTAI_USER') ?: 'admin';
+$pass   = getenv('RESTAI_PASSWORD') ?: 'admin';
 
-https://ai.ince.pt/docs#/default/create_project_projects_post
-$output = $proj->create(array("llm" => "openai_gpt4_turbo", "embeddings" => "all-mpnet-base-v2", "vectorstore" => "redis"));
-print_r($output["response"]);
+$modem = $apikey
+  ? new Modem($url, $apikey)
+  : new Modem($url, null, $user, $pass);
 
-//https://ai.ince.pt/docs#/default/ingest_text_projects__projectName__embeddings_ingest_text_post
-$output = $proj->ingestText("The meaning of life is 42." , "meaingoflife");
-print_r($output["response"]);
+echo "→ RESTai at $url\n";
 
-//k, score and system are optional. If not provided they will be set to project defined values.
-//https://ai.ince.pt/docs#/default/question_query_projects__projectName__question_post
-$output = $proj->question("What is the meaning of life?", array("k" => 2, "score" => 0.4, "system" => "Always add 'beep boop' to the end of your questions."));
-print_r($output["response"]);
+// 1. Discover models. RESTai seeds none — you configure them in /admin.
+$llms = $modem->get('/llms');
+$embeddings = $modem->get('/embeddings');
+if (empty($llms) || empty($embeddings)) {
+  fwrite(STDERR, "Configure at least one LLM and one embeddings model in /admin first.\n");
+  exit(1);
+}
+$llm = $llms[0]['name'];
+$emb = $embeddings[0]['name'];
+echo "→ using LLM '$llm' and embeddings '$emb'\n";
 
-//https://ai.ince.pt/docs#/default/search_projects__projectName__embeddings_search_post
-$output = $proj->search("meaning of life");
-print_r($output["response"]);
+// 2. Ensure a team that can use those models (projects belong to a team).
+$teams = $modem->get('/teams')['teams'] ?? [];
+$team = null;
+foreach ($teams as $t) {
+  if ($t['name'] === 'examples') { $team = $t; break; }
+}
+if ($team === null) {
+  // Creating with llms/embeddings name lists grants access in one shot.
+  $team = $modem->post('/teams', [
+    'name' => 'examples', 'description' => 'RESTai examples',
+    'llms' => [$llm], 'embeddings' => [$emb],
+  ]);
+}
+$teamId = $team['id'];
 
-//https://ai.ince.pt/docs#/default/edit_project_projects__projectName__patch
-$output = $proj->edit(array("llm" => "openai_gpt4"));
-print_r($output["response"]);
+// 3. Create the RAG project (or reuse it if a previous run left it behind).
+$proj = Project::find($modem, 'examples_php') ?? Project::create($modem, 'examples_php', 'rag', $teamId, [
+  'llm' => $llm,
+  'embeddings' => $emb,
+  'vectorstore' => 'chroma',
+  'human_name' => 'PHP Example',
+]);
+echo "→ project id {$proj->id}\n";
 
-$output = $proj->delete();
-print_r($output["response"]);
+// 4. Ingest some knowledge.
+$proj->ingestText('The meaning of life, the universe, and everything is 42.', 'meaning-of-life');
+echo "→ ingested text\n";
+
+// 5. Ask a grounded question. k/score are optional per-request retrieval knobs.
+$reply = $proj->chat('What is the meaning of life?', ['k' => 2, 'score' => 0.0]);
+echo "Q: What is the meaning of life?\n";
+echo "A: {$reply['answer']}\n";
+echo '   (' . count($reply['sources'] ?? []) . " source chunk(s))\n";
+
+// 6. Semantic search (no LLM call).
+echo "→ search 'meaning of life':\n";
+foreach ($proj->search('meaning of life', ['k' => 2]) as $hit) {
+  printf("   score=%.3f source=%s\n", $hit['score'], $hit['source']);
+}
+
+// 7. Edit a property (here: swap the LLM — must already be granted to the team).
+$proj->edit(['human_description' => 'Updated by main.php']);
+echo "→ edited project\n";
+
+// 8. Cleanup (set KEEP=1 to leave it for inspection in /admin).
+if (!in_array(getenv('KEEP'), ['1', 'true', 'yes'], true)) {
+  $proj->delete();
+  echo "→ deleted project {$proj->id}\n";
+}

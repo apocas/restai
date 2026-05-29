@@ -1,131 +1,73 @@
 <?php
 
+/**
+ * Minimal HTTP layer for the RESTai API.
+ *
+ * Auth: pass an API key (sent as `Authorization: Bearer ...`) or a
+ * username + password (HTTP Basic). TLS verification is ON by default;
+ * disable it only for a local server with a self-signed certificate.
+ *
+ * Every request returns the decoded JSON body and throws RuntimeException
+ * on a non-2xx response, so callers don't have to inspect status codes.
+ */
 class Modem {
 
   protected $url;
   protected $apikey;
-  protected $acceptType;
+  protected $user;
+  protected $password;
+  protected $verifyTls;
 
-  public function __construct($url = null, $apikey = null) {
-    $this->url = $url;
-    $this->apikey = $apikey;
-    $this->acceptType = 'application/json';
+  public function __construct($url, $apikey = null, $user = null, $password = null, $verifyTls = true) {
+    $this->url       = rtrim($url, '/');
+    $this->apikey    = $apikey;
+    $this->user      = $user;
+    $this->password  = $password;
+    $this->verifyTls = $verifyTls;
   }
 
-  public function execute($verb, $localUrl, $data = null) {
-    $ch = curl_init();
+  public function get($path)            { return $this->execute('GET', $path); }
+  public function post($path, $data = null)  { return $this->execute('POST', $path, $data); }
+  public function patch($path, $data)   { return $this->execute('PATCH', $path, $data); }
+  public function delete($path)         { return $this->execute('DELETE', $path); }
 
-    try {
-      switch (strtoupper($verb)) {
-        case 'GET':
-        return $this->executeGet($ch, $localUrl);
-        break;
-        case 'POST':
-        return $this->executePost($ch, $localUrl, $data);
-        break;
-        case 'PATCH':
-        return $this->executePatch($ch, $localUrl, $data);
-        break;
-        case 'DELETE':
-        return $this->executeDelete($ch, $localUrl);
-        break;
-        default:
-        throw new InvalidArgumentException('Current verb (' . $verb . ') is an invalid REST verb.');
-      }
-    } catch (InvalidArgumentException $e) {
-      curl_close($ch);
-      throw $e;
-    } catch (Exception $e) {
-      curl_close($ch);
-      throw $e;
-    }
-  }
+  public function execute($verb, $path, $data = null) {
+    $ch = curl_init($this->url . $path);
 
-  public function buildPostBody($data = null) {
-    if (!is_array($data)) {
-      throw new InvalidArgumentException('Invalid data input for postBody.  Array expected');
-    }
-
-    //return http_build_query($data, '', '&');
-    $aux = json_encode($data);
-    return $aux;
-  }
-
-  protected function executeGet($ch, $localUrl) {
-    curl_setopt($ch, CURLOPT_URL, $this->url . $localUrl);
-    return $this->doExecute($ch);
-  }
-
-  protected function executePost($ch, $localUrl, $data = null) {
-    curl_setopt($ch, CURLOPT_URL, $this->url . $localUrl);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $this->buildPostBody($data));
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-
-    return $this->doExecute($ch, ['Content-Type: application/json']);
-  }
-
-  protected function executePatch($ch, $localUrl, $data) {
-    curl_setopt($ch, CURLOPT_URL, $this->url . $localUrl);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $this->buildPostBody($data));
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH');
-
-    return $this->doExecute($ch, ['Content-Type: application/json']);
-  }
-
-  protected function executeDelete($ch, $localUrl) {
-    curl_setopt($ch, CURLOPT_URL, $this->url . $localUrl);
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
-
-    return $this->doExecute($ch);
-  }
-
-  protected function doExecute(&$curlHandle, $headers = []) {
-    $this->setCurlOpts($curlHandle, $headers);
-    $responseBody = curl_exec($curlHandle);
-    $responseInfo = curl_getinfo($curlHandle);
-
-    curl_close($curlHandle);
-
-    $respjson = json_decode($responseBody, true);
-
-    return array("response" => $respjson, "info" => $responseInfo);
-  }
-
-  protected function setCurlOpts(&$curlHandle, $headers = []) {
-    $headers[] = 'Accept: ' . $this->acceptType;
+    $headers = ['Accept: application/json'];
     if ($this->apikey !== null) {
       $headers[] = 'Authorization: Bearer ' . $this->apikey;
+    } elseif ($this->user !== null) {
+      curl_setopt($ch, CURLOPT_USERPWD, $this->user . ':' . $this->password);
+      curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
     }
-    curl_setopt($curlHandle, CURLOPT_SSL_VERIFYHOST, false);
-    curl_setopt($curlHandle, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($curlHandle, CURLOPT_ENCODING, "");
-    curl_setopt($curlHandle, CURLOPT_TIMEOUT, 90);
-    curl_setopt($curlHandle, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curlHandle, CURLOPT_HTTPHEADER, $headers);
-  }
 
-  public function getAcceptType() {
-    return $this->acceptType;
-  }
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($verb));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $this->verifyTls ? 2 : 0);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $this->verifyTls);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 300);
 
-  public function setAcceptType($acceptType) {
-    $this->acceptType = $acceptType;
-  }
+    if ($data !== null) {
+      $headers[] = 'Content-Type: application/json';
+      curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+    }
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
-  public function getUrl() {
-    return $this->url;
-  }
+    $body   = curl_exec($ch);
+    if ($body === false) {
+      $err = curl_error($ch);
+      curl_close($ch);
+      throw new RuntimeException("Request failed: $err");
+    }
+    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
 
-  public function setUrl($url) {
-    $this->url = $url;
+    $json = json_decode($body, true);
+    if ($status < 200 || $status >= 300) {
+      $detail = is_array($json) && isset($json['detail']) ? json_encode($json['detail']) : $body;
+      throw new RuntimeException("HTTP $status: $detail");
+    }
+    return $json;
   }
-
-  public function getApikey() {
-    return $this->apikey;
-  }
-
-  public function setApikey($apikey) {
-    $this->apikey = $apikey;
-  }
-
 }

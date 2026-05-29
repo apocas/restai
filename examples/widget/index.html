@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RESTai chat widget — embed example</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+           max-width: 720px; margin: 4rem auto; padding: 0 1rem; line-height: 1.6; color: #1f2430; }
+    code, pre { background: #f4f4f7; border-radius: 6px; }
+    code { padding: 0.1rem 0.35rem; }
+    pre { padding: 1rem; overflow-x: auto; }
+    .note { background: #eef2ff; border-left: 4px solid #6366f1; padding: 0.75rem 1rem; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>RESTai chat widget</h1>
+  <p>
+    Add an AI chat bubble to <em>any</em> website with a single <code>&lt;script&gt;</code> tag —
+    no build step, no frontend framework. The widget streams responses, keeps conversation
+    context, and isolates its styles with a Shadow DOM. The bubble for this page is in the
+    bottom-right corner. 👉
+  </p>
+
+  <div class="note">
+    <strong>Before this works,</strong> replace the two placeholders in the script tag below:
+    <ul>
+      <li><code>data-project-id</code> — the integer id of the project to chat with.</li>
+      <li><code>data-api-key</code> — a <strong>read-only, project-scoped</strong> key. Generate one
+        from the project's <em>Widget</em> tab in <code>/admin</code> (it's safe to expose in page
+        source — same model as a Stripe publishable key).</li>
+    </ul>
+    Also set the <code>src</code> and <code>data-server</code> to your RESTai server's URL.
+  </div>
+
+  <h2>The embed</h2>
+  <pre><code>&lt;script
+  src="https://your-restai.com/widget/chat.js"
+  data-server="https://your-restai.com"
+  data-project-id="1"
+  data-api-key="sk-your-readonly-widget-key"
+  data-title="Support Bot"
+  data-subtitle="Ask me anything"
+  data-welcome-message="Hi! How can I help?"
+  data-primary-color="#6366f1"
+  data-position="right"
+  data-stream="true"
+&gt;&lt;/script&gt;</code></pre>
+
+  <p>
+    Every knob is a <code>data-*</code> attribute: <code>data-title</code>, <code>data-subtitle</code>,
+    <code>data-primary-color</code>, <code>data-text-color</code>, <code>data-position</code>
+    (<code>left</code>/<code>right</code>), <code>data-welcome-message</code>,
+    <code>data-avatar-url</code>, and <code>data-stream</code>. Preview them live in the project's
+    Widget tab before deploying.
+  </p>
+
+  <!--
+    Live widget. Uncomment and fill in your values to see it on this page.
+    The src and data-server should point at the same RESTai instance.
+
+  <script
+    src="http://localhost:9000/widget/chat.js"
+    data-server="http://localhost:9000"
+    data-project-id="1"
+    data-api-key="sk-your-readonly-widget-key"
+    data-title="Support Bot"
+    data-welcome-message="Hi! How can I help?"
+    data-primary-color="#6366f1"
+    data-stream="true"
+  ></script>
+  -->
+</body>
+</html>

@@ -1,0 +1,11 @@
+# Core — used by restai_client.py and most examples
+requests>=2.31
+
+# direct_openai_sdk.py — official OpenAI SDK pointed at RESTai's /v1 endpoints
+openai>=1.40
+
+# Vision examples (describe_video / image_categorization)
+pillow>=10.0
+opencv-python>=4.9
+# describe_video YouTube support (optional — only for the YouTube code path)
+cap-from-youtube>=0.2

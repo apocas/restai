@@ -188,8 +188,8 @@ lab.py
 features.txt
 stable.patch
 .cron-*.lock
-/android/.gradle
-/android/app/release
+/integrations/android/.gradle
+/integrations/android/app/release
 
 apps/*
 !apps/.gitkeep
