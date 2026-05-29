@@ -23,7 +23,7 @@ logger = logging.getLogger("restai.browser_cleanup")
 from restai import config  # noqa: F401 — env load side effect
 from restai.settings import ensure_settings_table
 from restai.database import open_db_wrapper, engine as db_engine
-from restai.cron_log import CronLogger
+from restai.observability.cron_log import CronLogger
 
 
 def main():
@@ -92,7 +92,7 @@ def main():
                     continue
             return False
 
-        from restai.instance import get_instance_id
+        from restai.observability.instance import get_instance_id
         my_instance = get_instance_id()
 
         for c in containers:
@@ -100,7 +100,7 @@ def main():
             chat_id = labels.get("restai.browser_chat_id", "unknown")
 
             # Multi-install isolation — see docker_cleanup for rationale.
-            cont_iid = labels.get("restai.instance_id")
+            cont_iid = labels.get("restai.observability.instance_id")
             if cont_iid and cont_iid != my_instance:
                 continue
 

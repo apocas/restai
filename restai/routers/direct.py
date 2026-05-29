@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 
 from restai.auth import get_current_username, check_not_restricted
 from restai.database import get_db_wrapper, DBWrapper
-from restai.direct_access import (
+from restai.integrations.direct_access import (
     log_direct_usage,
     resolve_team_for_llm,
     resolve_team_for_image_generator,

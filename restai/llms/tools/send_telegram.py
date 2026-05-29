@@ -20,7 +20,7 @@ def send_telegram(text: str, **kwargs) -> str:
 
     from restai.database import open_db_wrapper
     from restai.utils.crypto import decrypt_field
-    from restai.telegram import send_message
+    from restai.comms.telegram import send_message
 
     db = open_db_wrapper()
     try:

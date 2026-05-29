@@ -107,12 +107,12 @@ def test_mcp_setup(client):
 
 def test_mcp_auth_missing_header():
     """MCP auth with no Authorization header should fail."""
-    from restai.mcp import _authenticate
+    from restai.integrations.mcp import _authenticate
 
     mock_request = MagicMock()
     mock_request.headers = {}
 
-    with patch("restai.mcp.get_http_request", return_value=mock_request):
+    with patch("restai.integrations.mcp.get_http_request", return_value=mock_request):
         try:
             _authenticate()
             assert False, "Should have raised PermissionError"
@@ -122,12 +122,12 @@ def test_mcp_auth_missing_header():
 
 def test_mcp_auth_basic_rejected():
     """MCP auth with Basic auth should be rejected."""
-    from restai.mcp import _authenticate
+    from restai.integrations.mcp import _authenticate
 
     mock_request = MagicMock()
     mock_request.headers = {"authorization": "Basic dXNlcjpwYXNz"}
 
-    with patch("restai.mcp.get_http_request", return_value=mock_request):
+    with patch("restai.integrations.mcp.get_http_request", return_value=mock_request):
         try:
             _authenticate()
             assert False, "Should have raised PermissionError"
@@ -137,12 +137,12 @@ def test_mcp_auth_basic_rejected():
 
 def test_mcp_auth_invalid_key():
     """MCP auth with invalid Bearer key should fail."""
-    from restai.mcp import _authenticate
+    from restai.integrations.mcp import _authenticate
 
     mock_request = MagicMock()
     mock_request.headers = {"authorization": "Bearer invalid-key-12345"}
 
-    with patch("restai.mcp.get_http_request", return_value=mock_request):
+    with patch("restai.integrations.mcp.get_http_request", return_value=mock_request):
         try:
             _authenticate()
             assert False, "Should have raised PermissionError"
@@ -152,12 +152,12 @@ def test_mcp_auth_invalid_key():
 
 def test_mcp_auth_valid_user_key():
     """MCP auth with valid user API key should return the user."""
-    from restai.mcp import _authenticate
+    from restai.integrations.mcp import _authenticate
 
     mock_request = MagicMock()
     mock_request.headers = {"authorization": f"Bearer {api_key}"}
 
-    with patch("restai.mcp.get_http_request", return_value=mock_request):
+    with patch("restai.integrations.mcp.get_http_request", return_value=mock_request):
         user, db_wrapper = _authenticate()
         try:
             assert user.username == user_name
@@ -168,12 +168,12 @@ def test_mcp_auth_valid_user_key():
 
 def test_mcp_auth_valid_admin_key():
     """MCP auth with valid admin API key should return admin user."""
-    from restai.mcp import _authenticate
+    from restai.integrations.mcp import _authenticate
 
     mock_request = MagicMock()
     mock_request.headers = {"authorization": f"Bearer {admin_api_key}"}
 
-    with patch("restai.mcp.get_http_request", return_value=mock_request):
+    with patch("restai.integrations.mcp.get_http_request", return_value=mock_request):
         user, db_wrapper = _authenticate()
         try:
             assert user.username == "admin"
@@ -184,12 +184,12 @@ def test_mcp_auth_valid_admin_key():
 
 def test_mcp_user_has_project_access():
     """User should have access to their assigned project."""
-    from restai.mcp import _authenticate
+    from restai.integrations.mcp import _authenticate
 
     mock_request = MagicMock()
     mock_request.headers = {"authorization": f"Bearer {api_key}"}
 
-    with patch("restai.mcp.get_http_request", return_value=mock_request):
+    with patch("restai.integrations.mcp.get_http_request", return_value=mock_request):
         user, db_wrapper = _authenticate()
         try:
             assert user.has_project_access(project_id)
@@ -199,12 +199,12 @@ def test_mcp_user_has_project_access():
 
 def test_mcp_user_no_access_to_unassigned():
     """User should not have access to unassigned projects."""
-    from restai.mcp import _authenticate
+    from restai.integrations.mcp import _authenticate
 
     mock_request = MagicMock()
     mock_request.headers = {"authorization": f"Bearer {api_key}"}
 
-    with patch("restai.mcp.get_http_request", return_value=mock_request):
+    with patch("restai.integrations.mcp.get_http_request", return_value=mock_request):
         user, db_wrapper = _authenticate()
         try:
             assert not user.has_project_access(999999)
@@ -214,12 +214,12 @@ def test_mcp_user_no_access_to_unassigned():
 
 def test_mcp_admin_has_access_to_all():
     """Admin should have access to any project."""
-    from restai.mcp import _authenticate
+    from restai.integrations.mcp import _authenticate
 
     mock_request = MagicMock()
     mock_request.headers = {"authorization": f"Bearer {admin_api_key}"}
 
-    with patch("restai.mcp.get_http_request", return_value=mock_request):
+    with patch("restai.integrations.mcp.get_http_request", return_value=mock_request):
         user, db_wrapper = _authenticate()
         try:
             assert user.has_project_access(project_id)
@@ -230,7 +230,7 @@ def test_mcp_admin_has_access_to_all():
 
 def test_mcp_server_has_tools():
     """MCP server should have list_projects and query_project tools."""
-    from restai.mcp import create_mcp_server
+    from restai.integrations.mcp import create_mcp_server
 
     mcp = create_mcp_server(MagicMock())
     tools = asyncio.run(mcp.list_tools())
@@ -241,7 +241,7 @@ def test_mcp_server_has_tools():
 
 def test_mcp_server_name():
     """MCP server should be named RESTai."""
-    from restai.mcp import create_mcp_server
+    from restai.integrations.mcp import create_mcp_server
 
     mcp = create_mcp_server(MagicMock())
     assert mcp.name == "RESTai"
@@ -249,7 +249,7 @@ def test_mcp_server_name():
 
 def test_mcp_server_produces_sse_app():
     """MCP server should produce a valid SSE ASGI app."""
-    from restai.mcp import create_mcp_server
+    from restai.integrations.mcp import create_mcp_server
 
     mcp = create_mcp_server(MagicMock())
     sse_app = mcp.http_app(transport="sse")

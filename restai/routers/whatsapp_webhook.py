@@ -13,7 +13,7 @@ from restai.database import DBWrapper, get_db_wrapper, open_db_wrapper
 from restai.models.databasemodels import ProjectDatabase
 from restai.models.models import ChatModel, User
 from restai.utils.crypto import decrypt_field
-from restai.whatsapp import send_message, verify_signature, validate_token
+from restai.comms.whatsapp import send_message, verify_signature, validate_token
 
 logger = logging.getLogger(__name__)
 

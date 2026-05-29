@@ -13,7 +13,7 @@ import sys
 from datetime import datetime, timezone
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-logger = logging.getLogger("restai.sync")
+logger = logging.getLogger("restai.integrations.sync")
 
 from restai import config
 from restai.settings import ensure_settings_table
@@ -23,7 +23,7 @@ from restai.brain import Brain
 
 
 def main():
-    from restai.cron_log import CronLogger
+    from restai.observability.cron_log import CronLogger
     cron = CronLogger("sync")
 
     ensure_settings_table(db_engine)
@@ -67,7 +67,7 @@ def main():
                 _update_last_sync(db, proj.id, i)
 
                 try:
-                    from restai.sync import _sync_source
+                    from restai.integrations.sync import _sync_source
                     from restai.models.models import SyncSource
                     from restai.utils.crypto import _decrypt_sync_source
 
@@ -84,7 +84,7 @@ def main():
                     synced_count += 1
                     cron.info(f"Synced '{src.name}' for {proj.name}")
                     try:
-                        from restai.webhooks import emit_event_for_project_id
+                        from restai.comms.webhooks import emit_event_for_project_id
                         emit_event_for_project_id(proj.id, "sync_completed", {
                             "source": src.name, "status": "ok",
                         })
@@ -94,7 +94,7 @@ def main():
                     logger.error(f"Failed to sync source '{source.get('name')}' for project {proj.id}: {e}")
                     cron.error(f"Failed '{source.get('name')}' for {proj.name}: {e}")
                     try:
-                        from restai.webhooks import emit_event_for_project_id
+                        from restai.comms.webhooks import emit_event_for_project_id
                         emit_event_for_project_id(proj.id, "sync_completed", {
                             "source": source.get("name"), "status": "error", "error": str(e),
                         })

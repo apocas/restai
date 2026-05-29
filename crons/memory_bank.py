@@ -21,7 +21,7 @@ from restai import config  # noqa: F401  — side effect: env loaded
 from restai.settings import ensure_settings_table
 from restai.database import open_db_wrapper, engine as db_engine
 from restai.brain import Brain
-from restai.cron_log import CronLogger
+from restai.observability.cron_log import CronLogger
 from restai import memory_bank
 
 

@@ -14,7 +14,7 @@ from llama_index.postprocessor.colbert_rerank import ColbertRerank
 from restai.chat import Chat
 from restai.database import DBWrapper
 from restai.eval import eval_rag
-from restai.guard import Guard
+from restai.limits.guard import Guard
 from restai.llm import LLM
 from restai.models.models import ChatModel, User
 from restai.project import Project
@@ -67,7 +67,7 @@ class EntityBoostPostprocessor:
             return self._matched_sources
         try:
             import re as _re
-            from restai.knowledge_graph import find_entities_in_text, normalize_entity_name
+            from restai.integrations.knowledge_graph import find_entities_in_text, normalize_entity_name
             from restai.models.databasemodels import KGEntityDatabase, KGEntityMentionDatabase
 
             # Primary path: word-boundary match query against entities ALREADY

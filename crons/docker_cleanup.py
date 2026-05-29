@@ -22,7 +22,7 @@ from restai.database import open_db_wrapper, engine as db_engine
 def main():
     ensure_settings_table(db_engine)
 
-    from restai.cron_log import CronLogger
+    from restai.observability.cron_log import CronLogger
     cron = CronLogger("docker_cleanup")
 
     docker_url = getattr(config, "DOCKER_URL", "") or ""
@@ -115,7 +115,7 @@ def main():
                 continue
         return False
 
-    from restai.instance import get_instance_id
+    from restai.observability.instance import get_instance_id
     my_instance = get_instance_id()
 
     for container in containers:
@@ -127,7 +127,7 @@ def main():
         # RESTai install sharing this dockerd. Containers without a
         # tag (legacy / pre-052) are still managed by anyone so
         # orphans get cleaned up during the rollout window.
-        cont_iid = labels.get("restai.instance_id")
+        cont_iid = labels.get("restai.observability.instance_id")
         if cont_iid and cont_iid != my_instance:
             continue
 

@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from restai import config
-from restai.audit import _log_to_db as _audit_log
+from restai.observability.audit import _log_to_db as _audit_log
 from restai.auth import get_current_username_admin
 from restai.config import detect_gpu_info
 from restai.database import DBWrapper, get_db_wrapper

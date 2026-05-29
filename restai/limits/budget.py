@@ -15,7 +15,7 @@ def check_budget(project: Project, db: DBWrapper):
         if team.budget - team_spending <= 0:
             # Best-effort webhook — failures must never mask the 402.
             try:
-                from restai.webhooks import emit_event
+                from restai.comms.webhooks import emit_event
                 opts = getattr(getattr(project, "props", None), "options", None)
                 opts_dict = opts.model_dump() if hasattr(opts, "model_dump") else (opts or {})
                 emit_event(

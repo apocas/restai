@@ -63,7 +63,7 @@ async def _run():
     brain = Brain(lightweight=True)
     db = open_db_wrapper()
 
-    from restai.cron_log import CronLogger
+    from restai.observability.cron_log import CronLogger
     cron = CronLogger("routines")
 
     try:
@@ -146,7 +146,7 @@ async def _run():
                 except Exception:
                     logger.exception("Failed to write routine execution log row after error")
                 try:
-                    from restai.webhooks import emit_event_for_project_id
+                    from restai.comms.webhooks import emit_event_for_project_id
                     emit_event_for_project_id(project.props.id, "routine_failed", {
                         "routine_id": routine.id,
                         "routine_name": routine.name,

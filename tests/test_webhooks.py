@@ -29,20 +29,20 @@ def _wait_for(event: threading.Event, timeout: float = 2.0):
 
 
 def test_emit_event_skips_when_no_url():
-    from restai.webhooks import emit_event
+    from restai.comms.webhooks import emit_event
     out = emit_event(1, "p", {}, "test", {"hi": True})
     assert out is False
 
 
 def test_emit_event_skips_unknown_event_type():
-    from restai.webhooks import emit_event
+    from restai.comms.webhooks import emit_event
     opts = {"webhook_url": "https://hooks.example.com/x"}
     out = emit_event(1, "p", opts, "made_up_event", {})
     assert out is False
 
 
 def test_emit_event_filters_by_subscription():
-    from restai.webhooks import emit_event
+    from restai.comms.webhooks import emit_event
     opts = {
         "webhook_url": "https://hooks.example.com/x",
         "webhook_events": "sync_completed",
@@ -52,21 +52,21 @@ def test_emit_event_filters_by_subscription():
 
 
 def test_emit_event_refuses_private_url():
-    from restai.webhooks import emit_event
+    from restai.comms.webhooks import emit_event
     opts = {"webhook_url": "http://127.0.0.1:9999/hook"}
     out = emit_event(1, "p", opts, "test", {})
     assert out is False
 
 
 def test_emit_event_refuses_non_http_scheme():
-    from restai.webhooks import emit_event
+    from restai.comms.webhooks import emit_event
     opts = {"webhook_url": "file:///etc/passwd"}
     out = emit_event(1, "p", opts, "test", {})
     assert out is False
 
 
 def test_emit_event_signs_with_hmac():
-    from restai.webhooks import emit_event
+    from restai.comms.webhooks import emit_event
     secret = "super-shared-secret-123"
     opts = {
         "webhook_url": "https://hooks.example.com/x",
@@ -85,7 +85,7 @@ def test_emit_event_signs_with_hmac():
         return _FakeResp()
 
     with patch("requests.post", fake_post), \
-         patch("restai.webhooks._is_private_ip", lambda h: False):
+         patch("restai.comms.webhooks._is_private_ip", lambda h: False):
         out = emit_event(42, "myproj", opts, "test", {"foo": "bar"})
         assert out is True
         _wait_for(done)
@@ -104,7 +104,7 @@ def test_emit_event_signs_with_hmac():
 
 
 def test_emit_event_omits_signature_when_no_secret():
-    from restai.webhooks import emit_event
+    from restai.comms.webhooks import emit_event
     opts = {"webhook_url": "https://hooks.example.com/x"}
     captured = {}
     done = threading.Event()
@@ -119,7 +119,7 @@ def test_emit_event_omits_signature_when_no_secret():
         return _FakeResp()
 
     with patch("requests.post", fake_post), \
-         patch("restai.webhooks._is_private_ip", lambda h: False):
+         patch("restai.comms.webhooks._is_private_ip", lambda h: False):
         emit_event(1, "p", opts, "test", {})
         _wait_for(done)
 
@@ -129,7 +129,7 @@ def test_emit_event_omits_signature_when_no_secret():
 def test_emit_event_swallows_post_failure():
     """A flaky receiver must not raise into the caller — we're called
     from inference / cron paths that can't be allowed to crash."""
-    from restai.webhooks import emit_event
+    from restai.comms.webhooks import emit_event
     opts = {"webhook_url": "https://hooks.example.com/x"}
     done = threading.Event()
 
@@ -138,7 +138,7 @@ def test_emit_event_swallows_post_failure():
         raise RuntimeError("network is on fire")
 
     with patch("requests.post", fake_post), \
-         patch("restai.webhooks._is_private_ip", lambda h: False):
+         patch("restai.comms.webhooks._is_private_ip", lambda h: False):
         # Must return True (request was queued) even though the POST will fail.
         out = emit_event(1, "p", opts, "test", {})
         assert out is True
@@ -243,7 +243,7 @@ def test_webhook_test_endpoint_fires_when_configured(client, project_id):
         return _FakeResp()
 
     with patch("requests.post", fake_post), \
-         patch("restai.webhooks._is_private_ip", lambda h: False):
+         patch("restai.comms.webhooks._is_private_ip", lambda h: False):
         r = client.post(f"/projects/{project_id}/webhooks/test", auth=auth)
         assert r.status_code == 200
         assert r.json() == {"ok": True}

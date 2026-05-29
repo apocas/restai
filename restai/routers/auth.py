@@ -264,7 +264,7 @@ async def impersonate_user(
         httponly=True,
     )
 
-    from restai.audit import _log_to_db
+    from restai.observability.audit import _log_to_db
     _log_to_db(user.username, "IMPERSONATE_START", username, 200)
 
     return {"message": f"Impersonating {username}", "impersonating": True}
@@ -312,7 +312,7 @@ async def exit_impersonation(
     )
     response.delete_cookie(key="restai_token_admin")
 
-    from restai.audit import _log_to_db
+    from restai.observability.audit import _log_to_db
     _log_to_db(admin_user.username, "IMPERSONATE_END", "", 200)
 
     return {"message": "Impersonation ended", "impersonating": False}
