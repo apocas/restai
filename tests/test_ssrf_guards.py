@@ -58,7 +58,7 @@ def test_crawler_classic_uses_timeout(monkeypatch):
 
 
 def test_sync_url_skips_private_address(caplog):
-    from restai import sync as sync_mod
+    from restai.integrations import sync as sync_mod
 
     class _FakeSource:
         name = "test"
@@ -82,7 +82,7 @@ def test_sync_url_skips_private_address(caplog):
 
 
 def test_sync_url_skips_invalid_url():
-    from restai import sync as sync_mod
+    from restai.integrations import sync as sync_mod
 
     class _FakeSource:
         name = "bad"
