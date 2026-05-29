@@ -13,14 +13,14 @@ import json
 import logging
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-logger = logging.getLogger("restai.telegram")
+logger = logging.getLogger("restai.comms.telegram")
 
 from restai import config
 from restai.settings import ensure_settings_table
 from restai.database import open_db_wrapper, engine as db_engine
 from restai.models.databasemodels import ProjectDatabase
 from restai.brain import Brain
-from restai.telegram import get_updates, send_message, delete_webhook
+from restai.comms.telegram import get_updates, send_message, delete_webhook
 
 
 def main():

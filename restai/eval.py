@@ -284,7 +284,7 @@ async def run_evaluation(run_id: int, app):
         run.completed_at = datetime.now(timezone.utc)
         db.db.commit()
         try:
-            from restai.webhooks import emit_event_for_project_id
+            from restai.comms.webhooks import emit_event_for_project_id
             emit_event_for_project_id(run.project_id, "eval_completed", {
                 "run_id": run.id, "status": "completed", "summary": summary,
             })
@@ -301,7 +301,7 @@ async def run_evaluation(run_id: int, app):
                 run.completed_at = datetime.now(timezone.utc)
                 db.db.commit()
                 try:
-                    from restai.webhooks import emit_event_for_project_id
+                    from restai.comms.webhooks import emit_event_for_project_id
                     emit_event_for_project_id(run.project_id, "eval_completed", {
                         "run_id": run.id, "status": "failed", "error": str(e)[:500],
                     })

@@ -10,7 +10,7 @@ from restai.auth import get_current_username_project
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.models import User
 from restai.utils.crypto import encrypt_field
-from restai.webhooks import emit_event
+from restai.comms.webhooks import emit_event
 
 router = APIRouter()
 

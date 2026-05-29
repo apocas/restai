@@ -382,7 +382,7 @@ async def route_delete_project(
         proj = get_project(projectID, db_wrapper, request.app.state.brain)
 
         if proj.props.options and proj.props.options.telegram_token:
-            from restai.telegram import stop_poller
+            from restai.comms.telegram import stop_poller
             stop_poller(projectID)
 
         proj.delete()

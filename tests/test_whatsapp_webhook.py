@@ -278,25 +278,25 @@ def test_post_non_text_message_replies_text_only_notice(client, project_id, monk
 
 
 def test_verify_signature_rejects_missing_header():
-    from restai.whatsapp import verify_signature
+    from restai.comms.whatsapp import verify_signature
     assert verify_signature(b"body", None, "secret") is False
     assert verify_signature(b"body", "", "secret") is False
 
 
 def test_verify_signature_rejects_bad_prefix():
-    from restai.whatsapp import verify_signature
+    from restai.comms.whatsapp import verify_signature
     assert verify_signature(b"body", "md5=abcd", "secret") is False
 
 
 def test_verify_signature_accepts_valid_hmac():
-    from restai.whatsapp import verify_signature
+    from restai.comms.whatsapp import verify_signature
     body = b'{"hello":"world"}'
     sig = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
     assert verify_signature(body, sig, "secret") is True
 
 
 def test_verify_signature_constant_time_mismatch():
-    from restai.whatsapp import verify_signature
+    from restai.comms.whatsapp import verify_signature
     body = b'{"hello":"world"}'
     sig = "sha256=" + hmac.new(b"different_key", body, hashlib.sha256).hexdigest()
     assert verify_signature(body, sig, "secret") is False

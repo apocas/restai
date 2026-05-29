@@ -84,7 +84,7 @@ def main():
                     synced_count += 1
                     cron.info(f"Synced '{src.name}' for {proj.name}")
                     try:
-                        from restai.webhooks import emit_event_for_project_id
+                        from restai.comms.webhooks import emit_event_for_project_id
                         emit_event_for_project_id(proj.id, "sync_completed", {
                             "source": src.name, "status": "ok",
                         })
@@ -94,7 +94,7 @@ def main():
                     logger.error(f"Failed to sync source '{source.get('name')}' for project {proj.id}: {e}")
                     cron.error(f"Failed '{source.get('name')}' for {proj.name}: {e}")
                     try:
-                        from restai.webhooks import emit_event_for_project_id
+                        from restai.comms.webhooks import emit_event_for_project_id
                         emit_event_for_project_id(proj.id, "sync_completed", {
                             "source": source.get("name"), "status": "error", "error": str(e),
                         })
