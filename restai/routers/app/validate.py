@@ -66,7 +66,7 @@ async def route_app_reset(
             logger.exception("reset: failed to start container after reseed")
 
     try:
-        from restai.audit import _log_to_db as _audit
+        from restai.observability.audit import _log_to_db as _audit
         _audit(user.username, "APP_RESET", f"projects/{projectID}", 200)
     except Exception:
         pass
@@ -406,7 +406,7 @@ async def route_app_validate(
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
 
-    from restai.budget import check_budget, check_rate_limit, check_api_key_quota
+    from restai.limits.budget import check_budget, check_rate_limit, check_api_key_quota
     check_budget(project, db_wrapper)
     check_rate_limit(project, db_wrapper)
     check_api_key_quota(user, db_wrapper)
@@ -569,7 +569,7 @@ async def route_app_validate(
         pass
 
     try:
-        from restai.audit import _log_to_db as _audit
+        from restai.observability.audit import _log_to_db as _audit
         _audit(
             user.username, "APP_VALIDATE",
             f"projects/{projectID}:ok={parsed.get('ok')}:issues={len(clean_issues)}", 200,

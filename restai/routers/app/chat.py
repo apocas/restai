@@ -50,7 +50,7 @@ async def route_app_chat_clear(
     from restai.agent2.memory import clear_session
     await clear_session(request.app.state.brain, _app_chat_id(projectID))
     try:
-        from restai.audit import _log_to_db as _audit
+        from restai.observability.audit import _log_to_db as _audit
         _audit(user.username, "APP_CHAT_CLEAR", f"projects/{projectID}", 200)
     except Exception:
         pass

@@ -192,7 +192,7 @@ async def route_app_deploy(
                 had_error = True
 
             try:
-                from restai.audit import _log_to_db as _audit
+                from restai.observability.audit import _log_to_db as _audit
                 _audit(
                     user.username,
                     "APP_DEPLOY" if not had_error else "APP_DEPLOY_FAIL",

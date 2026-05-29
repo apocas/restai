@@ -67,7 +67,7 @@ async def route_app_generate_plan(
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
 
-    from restai.budget import check_budget, check_rate_limit, check_api_key_quota
+    from restai.limits.budget import check_budget, check_rate_limit, check_api_key_quota
     check_budget(project, db_wrapper)
     check_rate_limit(project, db_wrapper)
     check_api_key_quota(user, db_wrapper)
@@ -170,7 +170,7 @@ async def route_app_generate_plan(
             except Exception:
                 pass
             try:
-                from restai.audit import _log_to_db as _audit
+                from restai.observability.audit import _log_to_db as _audit
                 _audit(
                     user.username, "APP_PLAN",
                     f"projects/{projectID}:turns={len(messages)}", 200,
@@ -265,7 +265,7 @@ async def route_app_generate_execute(
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
 
-    from restai.budget import check_budget, check_rate_limit, check_api_key_quota
+    from restai.limits.budget import check_budget, check_rate_limit, check_api_key_quota
     check_budget(project, db_wrapper)
     check_rate_limit(project, db_wrapper)
     check_api_key_quota(user, db_wrapper)
@@ -607,7 +607,7 @@ async def route_app_generate_execute(
             except Exception:
                 pass
             try:
-                from restai.audit import _log_to_db as _audit
+                from restai.observability.audit import _log_to_db as _audit
                 _audit(
                     user.username, "APP_EXECUTE",
                     f"projects/{projectID}:wrote={len(written)}:failed={len(failed)}",
@@ -631,7 +631,7 @@ async def route_app_fix_file(
     check_not_restricted(user)
     project = _require_app_project(request, projectID, db_wrapper)
 
-    from restai.budget import check_budget, check_rate_limit, check_api_key_quota
+    from restai.limits.budget import check_budget, check_rate_limit, check_api_key_quota
     check_budget(project, db_wrapper)
     check_rate_limit(project, db_wrapper)
     check_api_key_quota(user, db_wrapper)
@@ -671,7 +671,7 @@ async def route_app_fix_file(
     )
 
     try:
-        from restai.audit import _log_to_db as _audit
+        from restai.observability.audit import _log_to_db as _audit
         _audit(user.username, "APP_FIX_FILE", f"projects/{projectID}:{payload.path}", 200)
     except Exception:
         pass
