@@ -305,6 +305,12 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
         "agent_loop": "claude",
     }
 
+    # Container + host workspace + session below are keyed by this scoped id
+    # (bound to the authenticated user + project) so users can't collide on a
+    # shared chat_id and reach each other's sandbox / workspace files. The
+    # client already got the raw id via output["id"] above.
+    chat_id = agent_shared.sandbox_chat_id(project.props.id, user.id, chat_id)
+
     if agent_self.check_input_guard(project, chatModel.question, user, db, output):
         if chatModel.stream:
             yield "data: " + json.dumps({"text": output.get("answer", "")}) + "\n\n"
