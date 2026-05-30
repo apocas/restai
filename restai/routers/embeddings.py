@@ -18,15 +18,19 @@ router = APIRouter()
 
 
 def mask_embedding_options(options: Optional[str]) -> Optional[str]:
-    """Mask api_key in a JSON options string."""
+    """Mask every sensitive credential key (api_key/key/password/secret) in a
+    JSON options string before returning it in an API response."""
     if options is None:
         return options
     try:
+        from restai.utils.crypto import LLM_SENSITIVE_KEYS
         parsed = json.loads(options)
-        if "api_key" in parsed:
-            parsed["api_key"] = "********"
-            return json.dumps(parsed)
-        return options
+        masked = False
+        for k in LLM_SENSITIVE_KEYS:
+            if k in parsed:
+                parsed[k] = "********"
+                masked = True
+        return json.dumps(parsed) if masked else options
     except Exception as e:
         logging.exception(e)
         return options

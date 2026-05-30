@@ -122,12 +122,17 @@ class LLMEmbeddingMixin:
             import json as _json
             try:
                 opts_dict = _json.loads(llmUpdate.options) if isinstance(llmUpdate.options, str) else llmUpdate.options
-                if opts_dict.get("api_key") == "********":
-                    existing = _json.loads(llm.options) if isinstance(llm.options, str) else (llm.options or {})
-                    if "api_key" in existing:
-                        opts_dict["api_key"] = existing["api_key"]
-                    else:
-                        del opts_dict["api_key"]
+                # Preserve-on-mask: a resubmitted "********" means "keep the
+                # stored secret". Covers EVERY sensitive key, not just api_key —
+                # otherwise masking key/password/secret on GET would let an
+                # unrelated edit overwrite the real value with the mask.
+                existing = _json.loads(llm.options) if isinstance(llm.options, str) else (llm.options or {})
+                for _k in LLM_SENSITIVE_KEYS:
+                    if opts_dict.get(_k) == "********":
+                        if _k in existing:
+                            opts_dict[_k] = existing[_k]
+                        else:
+                            del opts_dict[_k]
                 opts_dict = encrypt_sensitive_options(opts_dict, LLM_SENSITIVE_KEYS)
                 llm.options = _json.dumps(opts_dict) if isinstance(llmUpdate.options, str) else opts_dict
             except Exception as e:
@@ -176,13 +181,18 @@ class LLMEmbeddingMixin:
         ):
             import json as _json
             try:
+                from restai.utils.crypto import LLM_SENSITIVE_KEYS
                 new_opts = _json.loads(embeddingUpdate.options) if isinstance(embeddingUpdate.options, str) else (embeddingUpdate.options or {})
-                if new_opts.get("api_key") == "********":
-                    existing = _json.loads(embedding.options) if isinstance(embedding.options, str) else (embedding.options or {})
-                    if "api_key" in existing:
-                        new_opts["api_key"] = existing["api_key"]
-                    else:
-                        del new_opts["api_key"]
+                existing = _json.loads(embedding.options) if isinstance(embedding.options, str) else (embedding.options or {})
+                _changed = False
+                for _k in LLM_SENSITIVE_KEYS:
+                    if new_opts.get(_k) == "********":
+                        if _k in existing:
+                            new_opts[_k] = existing[_k]
+                        else:
+                            del new_opts[_k]
+                        _changed = True
+                if _changed:
                     embeddingUpdate.options = _json.dumps(new_opts)
             except Exception:
                 pass

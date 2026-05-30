@@ -140,6 +140,15 @@ class FileAttachment(BaseModel):
     content: str = Field(max_length=70_000_000, description="Base64-encoded file bytes (max ~50 MB raw)")
     mime_type: Union[str, None] = Field(default=None, max_length=100, description="Optional MIME type hint (e.g. application/pdf)")
 
+    @field_validator("name")
+    @classmethod
+    def name_must_be_safe(cls, v):
+        # The bytes are extracted into the sandbox via tar. Strip path
+        # components + null bytes so a crafted name (e.g. "../../etc/x")
+        # can't traverse out of the uploads dir — makes the docstring's
+        # "path components are stripped server-side" promise actually true.
+        return sanitize_filename(v)
+
 
 _CHAT_ID_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
 

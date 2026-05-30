@@ -370,14 +370,17 @@ def put_files(chat_id: str, files: list[tuple[str, bytes]],
         logger.exception("Failed to put files into container for chat_id=%s: %s", chat_id, e)
         raise RuntimeError(f"Failed to upload files to sandbox: {e}")
 
-    expected = " ".join(f"'{entry['path']}'" for entry in manifest)
-    check = _exec_with_retry(
-        chat_id, container,
-        ["sh", "-c", f"for p in {expected}; do [ -f \"$p\" ] || {{ echo MISSING:$p; exit 1; }}; done"],
-    )
-    if check.exit_code != 0:
-        missing = (check.output or b"").decode("utf-8", errors="replace").strip()
-        raise RuntimeError(f"Files not present after upload: {missing}")
+    # Verify each file via argv (no shell): a filename containing quotes or
+    # shell metacharacters must never be interpolated into `sh -c`. A crafted
+    # attachment name previously broke out of the single-quoted `for p in
+    # '...'` loop and ran arbitrary commands inside the container.
+    missing = [
+        entry["path"]
+        for entry in manifest
+        if _exec_with_retry(chat_id, container, ["test", "-f", entry["path"]]).exit_code != 0
+    ]
+    if missing:
+        raise RuntimeError(f"Files not present after upload: {', '.join(missing)}")
 
     _touch_db_activity(chat_id, container.id)
     logger.info("Uploaded %d file(s) to chat_id=%s at %s", len(manifest), chat_id, target_dir)

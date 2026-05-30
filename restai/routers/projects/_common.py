@@ -61,7 +61,7 @@ from restai.models.models import (
 )
 import uuid
 import secrets
-from restai.utils.crypto import encrypt_api_key, hash_api_key, encrypt_field
+from restai.utils.crypto import encrypt_api_key, hash_api_key, encrypt_field, PROJECT_SENSITIVE_KEYS
 from restai.brain import Brain
 from restai.project import Project
 from restai.vectordb import tools
@@ -80,7 +80,13 @@ import calendar
 import tempfile
 import shutil
 
-_SENSITIVE_OPTION_KEYS = ("telegram_token", "slack_bot_token", "connection", "ftp_password")
+# Mask EVERY secret in the project options blob on read (GET / list) and
+# preserve-on-mask on edit. Kept aligned with the at-rest encryption set so
+# decrypted secrets (whatsapp/twilio/webhook tokens, etc.) never leave the
+# server in an API response. Previously only 4 of the 9 keys were masked,
+# leaking whatsapp_access_token / whatsapp_app_secret / whatsapp_verify_token /
+# twilio_auth_token / webhook_secret in plaintext to any project member.
+_SENSITIVE_OPTION_KEYS = tuple(sorted(PROJECT_SENSITIVE_KEYS))
 
 def _mask_sync_sources(options: dict):
     """Mask sensitive credentials inside sync_sources list."""

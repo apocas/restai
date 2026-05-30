@@ -17,11 +17,15 @@ logging.basicConfig(level=config.LOG_LEVEL)
 router = APIRouter()
 
 def mask_api_key(options: Optional[dict]) -> Optional[dict]:
+    """Mask every sensitive credential key (api_key/key/password/secret), not
+    just api_key, before returning options in an API response."""
     if options is None:
         return options
     try:
-        if "api_key" in options:
-            options["api_key"] = "********"
+        from restai.utils.crypto import LLM_SENSITIVE_KEYS
+        for k in LLM_SENSITIVE_KEYS:
+            if k in options:
+                options[k] = "********"
         return options
     except Exception as e:
         logging.exception(e)

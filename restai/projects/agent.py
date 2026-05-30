@@ -29,6 +29,7 @@ from restai.projects.agent_shared import (
     augment_system_prompt_with_memory_search_hint as _augment_system_prompt_with_memory_search_hint,
     prepend_current_time as _prepend_current_time,
     route_attachments as _route_attachments,
+    sandbox_chat_id as _sandbox_chat_id,
     spawn_session_save as _spawn_session_save,
 )
 from restai.tools import tokens_from_string
@@ -728,6 +729,11 @@ class Agent(ProjectBase):
             return
 
         chat_id = chatModel.id or str(uuid4())
+        # Sandbox container + agent session are keyed by this scoped id, NOT the
+        # raw client chat id — so one user can't collide on another user's
+        # chat_id and reach their container/files/history. The client still
+        # gets the raw chat_id back as the conversation id.
+        sandbox_id = _sandbox_chat_id(project.props.id, user.id, chat_id)
 
         output = {
             "question": chatModel.question,
@@ -784,13 +790,13 @@ class Agent(ProjectBase):
                         yield output
                     return
 
-                runtime._chat_id = chat_id
+                runtime._chat_id = sandbox_id
                 runtime._brain = self.brain
                 runtime._project_id = project.props.id
-                session = await get_session(self.brain, chat_id)
+                session = await get_session(self.brain, sandbox_id)
 
                 prompt_text, image_url = _route_attachments(
-                    getattr(chatModel, "files", None), chat_id, chatModel.question, self.brain,
+                    getattr(chatModel, "files", None), sandbox_id, chatModel.question, self.brain,
                     existing_image=chatModel.image, project=project,
                 )
                 image_block = ImageBlock.from_data_url(image_url) if image_url else None
@@ -835,7 +841,7 @@ class Agent(ProjectBase):
                                 else:
                                     yield "data: " + json.dumps(payload) + "\n\n"
 
-                    await save_session(self.brain, chat_id, session)
+                    await save_session(self.brain, sandbox_id, session)
                     saved_session = True
                     self._count_tokens(output)
                     self.check_output_guard(project, user, db, output)
@@ -860,7 +866,7 @@ class Agent(ProjectBase):
                         streamed_any_text = True
                 finally:
                     if not saved_session:
-                        _spawn_session_save(self.brain, chat_id, session)
+                        _spawn_session_save(self.brain, sandbox_id, session)
         except BaseException as e:
             # CancelledError MUST always propagate — the user pressed Stop
             # (or Starlette is tearing down), and swallowing it would let

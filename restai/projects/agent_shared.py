@@ -4,11 +4,33 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hashlib
 import logging
 import re
 from datetime import datetime, timezone
+from uuid import uuid4
 
 from restai.memory import bank as memory_bank
+
+
+def sandbox_chat_id(project_id, user_id, chat_id: str) -> str:
+    """Tenant-scoped, unforgeable key for the per-conversation sandbox
+    container + agent session.
+
+    The Docker container and the chat session are looked up *only* by this
+    key. If it were the raw client-supplied ``ChatModel.id``, two different
+    users could pick the same string and share a container (their uploaded
+    files, downloaded artifacts, scratch state) and conversation history.
+    Binding the key to the authenticated ``user_id`` + ``project_id`` makes
+    cross-tenant / cross-user collision impossible — the server always derives
+    it from the caller's own identity, so an attacker cannot target someone
+    else's sandbox by guessing their chat id.
+
+    Deterministic, so the same user's repeat turns in one conversation reuse
+    the same container/session.
+    """
+    raw = f"{project_id}\x00{user_id}\x00{chat_id or uuid4().hex}".encode()
+    return "sbx_" + hashlib.sha256(raw).hexdigest()[:40]
 
 
 _IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp")
