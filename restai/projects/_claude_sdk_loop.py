@@ -106,9 +106,11 @@ def _build_options(project, db, brain, *, system_prompt: str, chat_id: str,
     if history_block:
         augmented = f"{augmented}\n\n{history_block}" if augmented else history_block
 
-    # Per-chat host workspace bind-mounted into the chat's Docker container
-    # at /home/user/agent_workspace. SDK Read/Write/Edit operate on cwd; the
-    # terminal builtin sees the same files via the bind mount.
+    # The SDK orchestrator process needs *some* cwd, but it has no host file
+    # tools (tools=[] below), so this stays an empty, isolated per-chat host
+    # dir that is NOT mounted into the container — no agent data reaches the
+    # host. (Kept off the RESTai source dir so a hypothetical leaked host tool
+    # still couldn't touch our code.)
     cwd = _docker._ensure_chat_workspace(chat_id) if hasattr(_docker, "_ensure_chat_workspace") else None
 
     builtins_server, builtin_allowed = build_builtins_mcp(project, db, brain, chat_id)
@@ -125,12 +127,18 @@ def _build_options(project, db, brain, *, system_prompt: str, chat_id: str,
         except Exception:
             logger.warning("Failed to parse mcp_servers JSON for project %s", project.props.id)
 
-    # Allow only file-scoped SDK builtins. Bash family is hard-blocked so the
-    # model can't see them — shell exec must go through our `terminal` MCP
-    # builtin (sandboxed Docker). Auth/quotas/audit only catch our builtins,
-    # not host-side Bash.
-    allowed_tools = ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch"] + builtin_allowed
-    disallowed_tools = ["Bash", "KillBash", "BashOutput"]
+    # Nothing executes on the host. tools=[] disables EVERY native SDK built-in
+    # (Read/Write/Edit/Glob/Grep/WebFetch/Bash/...), so the model's only tools
+    # are our `restai_builtins` MCP tools — and those run inside the per-chat
+    # Docker sandbox. File + shell work go through the `terminal` builtin
+    # in-container; there is no host-side execution path at all.
+    if any(t.endswith("__terminal") for t in builtin_allowed):
+        hint = (
+            "Tooling: you have NO native filesystem or shell tools. Use the "
+            "`terminal` tool (a shell inside your sandbox) for every file and "
+            "command operation — there is no Read/Write/Edit."
+        )
+        augmented = f"{augmented}\n\n{hint}" if augmented else hint
 
     return ClaudeAgentOptions(
         env={"ANTHROPIC_API_KEY": api_key,
@@ -140,8 +148,8 @@ def _build_options(project, db, brain, *, system_prompt: str, chat_id: str,
         cwd=cwd,
         system_prompt=augmented or "",
         mcp_servers=mcp_servers,
-        allowed_tools=allowed_tools,
-        disallowed_tools=disallowed_tools,
+        tools=[],                       # no host-side built-in tools at all
+        allowed_tools=builtin_allowed,  # auto-approve our Docker-backed MCP builtins
         permission_mode="default",
         max_turns=int(getattr(project.props.options, "max_iterations", 50) or 50),
     )

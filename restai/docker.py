@@ -96,11 +96,12 @@ def _resolve_container(chat_id: str):
 
 
 def chat_workspace_dir(chat_id: str) -> str:
-    """Host-side scratch dir bind-mounted into the container at
-    /home/user/agent_workspace. Used by agent projects running with
-    `agent_loop=claude` so the SDK's Read/Write/Edit tools (which run
-    on the host) write into a directory the in-container terminal
-    builtin can also see — they share files through this one path."""
+    """Isolated host-side working directory for the `agent_loop=claude` SDK
+    orchestrator process (passed as its `cwd`). It is NO LONGER bind-mounted
+    into the container and the SDK runs no host-side file tools (tools=[]), so
+    this dir stays empty — it exists only because the orchestrator process
+    needs some cwd off the RESTai source tree. All actual file/shell work
+    happens inside the Docker sandbox via the `terminal` builtin."""
     import os
     safe_id = (chat_id or "ephemeral").replace("/", "_").replace("..", "_")
     base = os.environ.get("RESTAI_AGENT_WORKSPACE_ROOT") or "/var/tmp"
@@ -123,11 +124,6 @@ def _create_container(chat_id: str):
     read_only = bool(getattr(_cfg, "DOCKER_READ_ONLY", True))
     from restai.observability.instance import get_instance_id
 
-    # Ensure the host workspace dir exists BEFORE the mount — docker
-    # silently mounts an empty volume otherwise, and the SDK's writes
-    # land in a directory the in-container terminal can't see.
-    workspace_host = _ensure_chat_workspace(chat_id)
-
     container = c.containers.run(
         image,
         command="tail -f /dev/null",
@@ -142,17 +138,16 @@ def _create_container(chat_id: str):
         cpu_period=100000,
         cpu_quota=50000,
         network_mode=network,
+        # Fully self-contained: tmpfs only, NO host bind mount — nothing the
+        # agent writes ever lands on the host filesystem. (The agent_workspace
+        # host mount used to exist only so the Claude SDK's host-side file
+        # tools could share files with the in-container terminal; that loop no
+        # longer runs any host tools, so the mount is gone.)
         tmpfs={"/tmp": "size=1G", "/home/user": "size=1G"},
-        volumes={
-            workspace_host: {"bind": "/home/user/agent_workspace", "mode": "rw"},
-        },
         read_only=read_only,
         remove=True,
     )
-    logger.info(
-        "Created container %s for chat_id=%s (workspace=%s)",
-        container.short_id, chat_id, workspace_host,
-    )
+    logger.info("Created container %s for chat_id=%s", container.short_id, chat_id)
     return container
 
 

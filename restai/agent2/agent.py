@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator
 from typing import Literal, Optional, Sequence, Union
 from uuid import uuid4
 
-from .compression import compress_session
+from .compression import compress_session, truncate_text_to_token_budget
 from .providers import (
     Agent2ProviderError,
     Agent2UnsupportedLLMError,
@@ -377,8 +377,18 @@ class Agent2Runtime:
                 is_error=True,
             )
 
-        # Truncate to avoid blowing the context window.
-        if len(result_text) > 20_000:
+        # Cap a single tool result so it can't dominate — or overflow — the
+        # model's context window. Scales with the window: a tiny local model
+        # (e.g. a 4k-token model) gets a small cap, big models keep a generous
+        # one (≈ the legacy 20k-char limit). Without this, one giant tool
+        # result exceeds the whole window and compression — which summarizes /
+        # drops WHOLE messages — can never bring the session under budget.
+        cw = getattr(getattr(self, "_active_config", None), "context_window", None)
+        if cw and cw > 0:
+            result_text = truncate_text_to_token_budget(
+                result_text, max(512, min(6000, cw // 4)),
+            )
+        elif len(result_text) > 20_000:
             omitted = len(result_text) - 20_000
             result_text = result_text[:20_000] + f"\n\n[... truncated {omitted} characters ...]"
 

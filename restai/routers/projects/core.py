@@ -1219,23 +1219,31 @@ async def chat_query(
         import time as _time
         start_time = _time.perf_counter()
 
-        # Resume in-flight stream for the chat_id; honors SSE Last-Event-ID.
+        # Resume the buffered stream ONLY for a genuine reconnect — one that
+        # carries the SSE `Last-Event-ID` header (fetchEventSource sets it when
+        # it retries a dropped connection). A fresh POST has no `Last-Event-ID`,
+        # so it is a NEW user turn even when it reuses the conversation's
+        # chat_id, and must NOT replay the previous (already-finished) turn's
+        # buffer. That replay is the playground bug where pressing Enter to send
+        # a 2nd message re-sent the previous one. Evict any lingering session
+        # for this id and fall through to answer the new question.
         if q_input.stream and q_input.id:
             from restai import chat_resume as _resume
-            existing = await _resume.lookup(q_input.id)
-            if existing is not None:
-                last_id = 0
-                hdr = request.headers.get("last-event-id")
-                if hdr:
+            hdr = request.headers.get("last-event-id")
+            if hdr:
+                existing = await _resume.lookup(q_input.id)
+                if existing is not None:
                     try:
                         last_id = int(hdr)
                     except ValueError:
                         last_id = 0
-                from starlette.responses import StreamingResponse as _SR
-                return _SR(
-                    existing.subscribe(last_event_id=last_id),
-                    media_type="text/event-stream",
-                )
+                    from starlette.responses import StreamingResponse as _SR
+                    return _SR(
+                        existing.subscribe(last_event_id=last_id),
+                        media_type="text/event-stream",
+                    )
+            else:
+                await _resume.evict(q_input.id)
 
         if not q_input.question and not q_input.image:
             raise HTTPException(status_code=400, detail="Missing question")

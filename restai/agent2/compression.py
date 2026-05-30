@@ -35,6 +35,30 @@ def _encode_len(text: str) -> int:
     return len(_ENCODING.encode(text or ""))
 
 
+def truncate_text_to_token_budget(text: str, max_tokens: int) -> str:
+    """Truncate ``text`` to at most ``max_tokens`` cl100k tokens, appending a
+    marker noting how much was dropped.
+
+    Used to cap an individual tool result so a single one can't exceed the
+    model's context window — something compression (which summarizes / drops
+    WHOLE messages, never splitting inside one) cannot otherwise recover from.
+    """
+    if max_tokens <= 0 or not text:
+        return text
+    # Cheap skip when comfortably under: >= 2 chars/token is a safe lower bound
+    # for typical tool output, so this never returns an over-budget string.
+    if len(text) <= max_tokens * 2:
+        return text
+    toks = _ENCODING.encode(text)
+    if len(toks) <= max_tokens:
+        return text
+    kept = _ENCODING.decode(toks[:max_tokens])
+    return (
+        f"{kept}\n\n[... truncated {len(toks) - max_tokens} tokens to fit the "
+        f"model's context window ...]"
+    )
+
+
 DEFAULT_CONTEXT_RATIO = 0.75
 DEFAULT_KEEP_RECENT_TURNS = 3
 # Headroom for the summary message + framing so kept slice + summary fit
