@@ -84,7 +84,7 @@ async def lifespan(fs_app: FastAPI):
         logging.warning("Failed to seed local image generators: %s", e)
 
     try:
-        from restai.speech_to_text.registry import seed_local_stt_models
+        from restai.audio.registry import seed_local_stt_models
         seeded = seed_local_stt_models(settings_db_wrapper)
         if seeded:
             logging.info("Seeded %d local speech-to-text model(s)", seeded)

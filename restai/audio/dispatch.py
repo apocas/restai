@@ -59,13 +59,13 @@ def transcribe_audio(
         with open(audio_path, "rb") as f:
             audio_bytes = f.read()
         if row.class_name == "openai":
-            from restai.speech_to_text.providers.openai import transcribe as _t
+            from restai.audio.providers.openai import transcribe as _t
         elif row.class_name == "google":
-            from restai.speech_to_text.providers.google import transcribe as _t
+            from restai.audio.providers.google import transcribe as _t
         elif row.class_name == "deepgram":
-            from restai.speech_to_text.providers.deepgram import transcribe as _t
+            from restai.audio.providers.deepgram import transcribe as _t
         else:
-            from restai.speech_to_text.providers.assemblyai import transcribe as _t
+            from restai.audio.providers.assemblyai import transcribe as _t
         return _t(options, audio_bytes, filename, language)
 
     if row.class_name == "local":

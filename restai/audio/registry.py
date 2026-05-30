@@ -18,9 +18,7 @@ def seed_local_stt_models(db_wrapper) -> int:
     MUST rollback() or the session enters PendingRollbackError and every
     subsequent lifespan query crashes the worker.
     """
-    workers_dir = os.path.normpath(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "audio", "workers")
-    )
+    workers_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "workers")
     if not os.path.isdir(workers_dir):
         return 0
 
