@@ -813,6 +813,7 @@
       "confirmPassword": "Bekræft adgangskode",
       "isAdmin": "Administrator",
       "isRestricted": "Skrivebeskyttet adgang",
+      "isSuspended": "Suspenderet",
       "isPrivate": "Kun lokal AI"
     },
     "tabs": {
@@ -840,6 +841,8 @@
       "impersonate": "Efterlign",
       "restricted": "Begrænset",
       "restrictedHelp": "Begrænsede brugere kan kun chatte med eksisterende projekter. De kan ikke oprette, redigere eller slette projekter, indlæse data eller bruge direkte adgangsendpoints.",
+      "suspended": "Suspenderet",
+      "suspendedHelp": "Suspenderede brugere kan ikke logge ind, og deres API-nøgler afvises. Eksisterende sessioner holder straks op med at virke.",
       "language": "Sprog",
       "languageHelp": "Sprog for brugerfladen. Anvendes efter du gemmer ændringerne.",
       "saveChanges": "Gem ændringer"
@@ -924,6 +927,7 @@
       "usernamePlaceholder": "f.eks. alice",
       "adminHelp": "Fuld adgang til alle projekter, brugere, teams og platformindstillinger.",
       "restrictedHelp": "Brugeren kan kun chatte med eksisterende projekter. Ingen oprettelse, redigering, indlæsning eller direkte adgang.",
+      "suspendedHelp": "Brugeren kan ikke logge ind, og API-nøgler afvises, indtil suspenderingen ophæves.",
       "privateHelp": "Begræns denne bruger til on-premise LLMs og embeddings — ingen kald til eksterne udbydere.",
       "create": "Opret bruger",
       "creating": "Opretter…",

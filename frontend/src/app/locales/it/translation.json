@@ -813,6 +813,7 @@
       "confirmPassword": "Conferma password",
       "isAdmin": "Amministratore",
       "isRestricted": "Accesso in sola lettura",
+      "isSuspended": "Sospeso",
       "isPrivate": "Solo AI locale"
     },
     "tabs": {
@@ -840,6 +841,8 @@
       "impersonate": "Impersonifica",
       "restricted": "Limitato",
       "restrictedHelp": "Gli utenti limitati possono solo chattare con i progetti esistenti. Non possono creare, modificare o eliminare progetti, importare dati o utilizzare endpoint di accesso diretto.",
+      "suspended": "Sospeso",
+      "suspendedHelp": "Gli utenti sospesi non possono accedere e le loro chiavi API vengono rifiutate. Le sessioni esistenti smettono immediatamente di funzionare.",
       "language": "Lingua",
       "languageHelp": "Lingua dell'interfaccia. Applicata dopo il salvataggio.",
       "saveChanges": "Salva modifiche"
@@ -924,6 +927,7 @@
       "usernamePlaceholder": "es. alice",
       "adminHelp": "Accesso completo a tutti i progetti, utenti, team e impostazioni della piattaforma.",
       "restrictedHelp": "L'utente può solo chattare con progetti esistenti. Nessuna creazione, modifica, importazione o accesso diretto.",
+      "suspendedHelp": "L'utente non può accedere e le chiavi API vengono rifiutate finché la sospensione non viene revocata.",
       "privateHelp": "Limita questo utente a LLM ed embeddings on-premise — nessuna chiamata a fornitori esterni.",
       "create": "Crea utente",
       "creating": "Creazione…",

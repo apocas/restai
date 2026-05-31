@@ -812,6 +812,7 @@
       "confirmPassword": "确认密码",
       "isAdmin": "管理员",
       "isRestricted": "只读访问",
+      "isSuspended": "已停用",
       "isPrivate": "仅本地 AI"
     },
     "tabs": {
@@ -839,6 +840,8 @@
       "impersonate": "模拟登录",
       "restricted": "受限",
       "restrictedHelp": "受限用户只能与现有项目对话。他们无法创建、编辑或删除项目、导入数据或使用直接访问端点。",
+      "suspended": "已停用",
+      "suspendedHelp": "已停用的用户无法登录，其 API 密钥将被拒绝。现有会话会立即失效。",
       "language": "语言",
       "languageHelp": "界面语言。保存更改后生效。",
       "saveChanges": "保存更改"
@@ -923,6 +926,7 @@
       "usernamePlaceholder": "例如 alice",
       "adminHelp": "完全访问所有项目、用户、团队和平台设置。",
       "restrictedHelp": "用户只能与现有项目对话。无法创建、编辑、导入或直接访问。",
+      "suspendedHelp": "在解除停用之前，该用户无法登录，且任何 API 密钥都将被拒绝。",
       "privateHelp": "将此用户限制为本地 LLM 和嵌入——不调用外部提供商。",
       "create": "创建用户",
       "creating": "创建中…",

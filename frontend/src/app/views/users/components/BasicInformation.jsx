@@ -58,6 +58,9 @@ export default function BasicInformation({ user }) {
     if (state.is_restricted !== user.is_restricted) {
       update.is_restricted = state.is_restricted;
     }
+    if (state.is_suspended !== user.is_suspended) {
+      update.is_suspended = state.is_suspended;
+    }
     if (isSelf && language !== initialLang) {
       const prevOpts = (user.options && typeof user.options === "object") ? user.options : {};
       update.options = { ...prevOpts, language };
@@ -189,6 +192,27 @@ export default function BasicInformation({ user }) {
                 </>
               )}
 
+              {/* Suspend is platform-admin only, and never on your own account
+                  (the server also blocks self-suspension to avoid lockout). */}
+              {auth.user.is_admin && !isSelf && (
+                <Grid item sm={6} xs={12}>
+                  <FormControlLabel
+                    label={t("users.basic.suspended")}
+                    control={
+                      <Switch
+                        color="error"
+                        checked={state.is_suspended ?? false}
+                        name="is_suspended"
+                        inputProps={{ "aria-label": "suspended checkbox" }}
+                        onChange={handleChange}
+                      />
+                    }
+                  />
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    {t("users.basic.suspendedHelp")}
+                  </Typography>
+                </Grid>
+              )}
 
               <Grid item xs={12}>
                 <Button type="submit" variant="contained">

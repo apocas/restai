@@ -5,7 +5,7 @@ import {
 import {
   Add, Edit, Delete, Visibility, People, Star, Person,
   LockPerson, VpnKey, Cloud, AccountCircle, Workspaces,
-  ShieldOutlined,
+  ShieldOutlined, Block,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import sha256 from "crypto-js/sha256";
@@ -351,11 +351,13 @@ export default function Users() {
       key: "is_restricted",
       label: "Access",
       sortable: true,
-      sortValue: (row) => (row.is_restricted ? 1 : 0),
+      sortValue: (row) => (row.is_suspended ? 2 : row.is_restricted ? 1 : 0),
       render: (row) =>
-        row.is_restricted
-          ? <StatusPill icon={LockPerson} label="Read-only"  color="#f59e0b" soft="rgba(245,158,11,0.10)" />
-          : <StatusPill icon={VpnKey}     label="Read/Write" color="#10b981" soft="rgba(16,185,129,0.10)" />,
+        row.is_suspended
+          ? <StatusPill icon={Block}      label="Suspended"  color="#ef4444" soft="rgba(239,68,68,0.10)" />
+          : row.is_restricted
+            ? <StatusPill icon={LockPerson} label="Read-only"  color="#f59e0b" soft="rgba(245,158,11,0.10)" />
+            : <StatusPill icon={VpnKey}     label="Read/Write" color="#10b981" soft="rgba(16,185,129,0.10)" />,
     },
     {
       key: "projects",

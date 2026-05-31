@@ -976,6 +976,7 @@ class User(BaseModel):
     is_admin: bool = Field(default=False, description="Whether the user has administrator privileges")
     is_private: bool = Field(default=False, description="Whether the user's profile is private")
     is_restricted: bool = Field(default=False, description="Whether the user is restricted (read-only, no project creation/editing)")
+    is_suspended: bool = Field(default=False, description="Whether the user is suspended (cannot log in; API keys rejected)")
     projects: list[UserProject] = Field(default=[], description="Projects assigned to this user")
     api_keys: list[ApiKeyResponse] = Field(default=[], description="API keys owned by this user")
     level: Union[str, None] = Field(default=None, description="User's subscription or access level")
@@ -1069,6 +1070,7 @@ class UserCreate(UserBase):
     is_admin: bool = Field(default=False, description="Grant administrator privileges")
     is_private: bool = Field(default=False, description="Make user profile private")
     is_restricted: bool = Field(default=False, description="Restrict user to read-only operations")
+    is_suspended: bool = Field(default=False, description="Suspend the user (cannot log in; API keys rejected)")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "username": "johndoe",
@@ -1086,6 +1088,7 @@ class UserUpdate(BaseModel):
     is_admin: bool = Field(default=None, description="Update administrator privileges")
     is_private: bool = Field(default=None, description="Update profile privacy setting")
     is_restricted: Union[bool, None] = Field(default=None, description="Update restricted mode")
+    is_suspended: Union[bool, None] = Field(default=None, description="Suspend / unsuspend the user (cannot log in; API keys rejected)")
     projects: list[str] = Field(default=None, description="List of project names to assign to the user")
     options: Union[UserOptions, None] = Field(default=None, description="User configuration options to update")
     model_config = ConfigDict(json_schema_extra={

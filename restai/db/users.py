@@ -35,6 +35,7 @@ class UserMixin:
         admin: bool = False,
         private: bool = False,
         restricted: bool = False,
+        suspended: bool = False,
     ) -> UserDatabase:
         from datetime import datetime, timezone
         password_hash: Optional[str]
@@ -51,6 +52,7 @@ class UserMixin:
             is_admin=admin,
             is_private=private,
             is_restricted=restricted,
+            is_suspended=suspended,
             options='{"credit": -1.0}',
         )
         self.db.add(db_user)
@@ -111,6 +113,9 @@ class UserMixin:
 
         if user_update.is_restricted is not None:
             user.is_restricted = user_update.is_restricted
+
+        if user_update.is_suspended is not None:
+            user.is_suspended = user_update.is_suspended
 
         if hasattr(user_update, "options") and user_update.options is not None:
             try:

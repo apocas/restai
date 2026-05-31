@@ -136,6 +136,10 @@ class OAuthManager:
                 status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACCESS_PROHIBITED
             )
 
+        # Suspended users can't sign in via SSO either.
+        from restai.auth import check_not_suspended
+        check_not_suspended(user)
+
         jwt_token = create_access_token(
             data={"username": user.username}, expires_delta=timedelta(minutes=1440)
         )

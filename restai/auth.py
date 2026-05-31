@@ -48,7 +48,9 @@ def _resolve_jwt_cookie(
     if user is None:
         raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_TOKEN)
     request.state.audit_username = user.username
-    return User.model_validate(user)
+    validated = User.model_validate(user)
+    check_not_suspended(validated)
+    return validated
 
 
 def _resolve_bearer_token(
@@ -68,6 +70,7 @@ def _resolve_bearer_token(
         user.api_key_read_only = api_key_row.read_only or False
         user.api_key_id = api_key_row.id
     request.state.audit_username = f"{user_db.username} (api)"
+    check_not_suspended(user)
     return user
 
 
@@ -133,7 +136,9 @@ def get_current_username_for_login(
             raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
 
         request.state.audit_username = user.username
-        return User.model_validate(user)
+        validated = User.model_validate(user)
+        check_not_suspended(validated)
+        return validated
 
     raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
 
@@ -145,6 +150,15 @@ def get_current_username_admin(user: User = Depends(get_current_username)):
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
     return user
+
+
+def check_not_suspended(user: User) -> None:
+    """Reject a suspended user. Called from every credential-resolution path
+    (JWT cookie + Bearer API key) and from every login / SSO / LDAP token mint,
+    so a suspended account can neither sign in nor use existing API keys or
+    sessions. Applies to admins too — there is no is_admin escape hatch."""
+    if getattr(user, "is_suspended", False):
+        raise HTTPException(status_code=403, detail="Account is suspended")
 
 
 def user_can_access_project(
@@ -267,6 +281,10 @@ def get_widget_from_request(request: Request, db_wrapper):
         raise HTTPException(status_code=403, detail="Widget is disabled")
 
     creator = db_wrapper.get_user_by_id(widget.creator_id)
+    # Suspended applies even to admins — a suspended owner's widget key (a
+    # project-scoped API key) stops working, same as their personal keys.
+    if creator is not None and getattr(creator, "is_suspended", False):
+        raise HTTPException(status_code=403, detail="Widget owner is suspended")
     if creator is not None and getattr(creator, "is_restricted", False) and not getattr(creator, "is_admin", False):
         raise HTTPException(status_code=403, detail="Widget owner is restricted")
 

@@ -813,6 +813,7 @@
       "confirmPassword": "Passwort bestätigen",
       "isAdmin": "Administrator",
       "isRestricted": "Nur-Lese-Zugriff",
+      "isSuspended": "Gesperrt",
       "isPrivate": "Nur lokale KI"
     },
     "tabs": {
@@ -840,6 +841,8 @@
       "impersonate": "Identität übernehmen",
       "restricted": "Eingeschränkt",
       "restrictedHelp": "Eingeschränkte Benutzer können nur mit bestehenden Projekten chatten. Sie können keine Projekte erstellen, bearbeiten oder löschen, keine Daten importieren und keine Endpunkte für den Direktzugriff verwenden.",
+      "suspended": "Gesperrt",
+      "suspendedHelp": "Gesperrte Benutzer können sich nicht anmelden und ihre API-Schlüssel werden abgelehnt. Bestehende Sitzungen funktionieren sofort nicht mehr.",
       "language": "Sprache",
       "languageHelp": "Sprache der Benutzeroberfläche. Wird nach dem Speichern übernommen.",
       "saveChanges": "Änderungen speichern"
@@ -924,6 +927,7 @@
       "usernamePlaceholder": "z. B. alice",
       "adminHelp": "Voller Zugriff auf alle Projekte, Benutzer, Teams und Plattformeinstellungen.",
       "restrictedHelp": "Der Benutzer kann nur mit bestehenden Projekten chatten. Kein Erstellen, Bearbeiten, Importieren oder Direktzugriff.",
+      "suspendedHelp": "Der Benutzer kann sich nicht anmelden und API-Schlüssel werden abgelehnt, bis die Sperre aufgehoben wird.",
       "privateHelp": "Beschränken Sie diesen Benutzer auf lokale LLMs und Embeddings — keine Aufrufe an externe Anbieter.",
       "create": "Benutzer erstellen",
       "creating": "Wird erstellt…",

@@ -813,6 +813,7 @@
       "confirmPassword": "Confirmar palavra-passe",
       "isAdmin": "Administrador",
       "isRestricted": "Acesso só de leitura",
+      "isSuspended": "Suspenso",
       "isPrivate": "Apenas IA local"
     },
     "tabs": {
@@ -840,6 +841,8 @@
       "impersonate": "Personificar",
       "restricted": "Restrito",
       "restrictedHelp": "Os utilizadores restritos só podem conversar com projetos existentes. Não podem criar, editar ou eliminar projetos, importar dados ou utilizar endpoints de acesso direto.",
+      "suspended": "Suspenso",
+      "suspendedHelp": "Os utilizadores suspensos não conseguem iniciar sessão e as suas chaves de API são rejeitadas. As sessões existentes deixam de funcionar imediatamente.",
       "language": "Idioma",
       "languageHelp": "Idioma da interface. Aplicado depois de guardar alterações.",
       "saveChanges": "Guardar alterações"
@@ -924,6 +927,7 @@
       "usernamePlaceholder": "ex. alice",
       "adminHelp": "Acesso total a todos os projetos, utilizadores, equipas e definições da plataforma.",
       "restrictedHelp": "O utilizador só pode conversar com projetos existentes. Sem criação, edição, ingestão ou acesso direto.",
+      "suspendedHelp": "O utilizador não consegue iniciar sessão e as chaves de API são rejeitadas até a suspensão ser anulada.",
       "privateHelp": "Restringir este utilizador a LLMs e embeddings no local — sem chamadas a fornecedores externos.",
       "create": "Criar utilizador",
       "creating": "A criar…",

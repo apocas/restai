@@ -104,6 +104,9 @@ class UserDatabase(Base):
     is_admin = Column(Boolean, default=False)  # Platform admin
     is_private = Column(Boolean, default=False)
     is_restricted = Column(Boolean, default=False)
+    # Suspended users cannot log in and their API keys stop working (enforced
+    # in restai/auth.py). Distinct from is_restricted (read-only but usable).
+    is_suspended = Column(Boolean, default=False)
     api_key = Column(String(4096))  # Legacy column, kept for existing DBs
     options = Column(Text, default="{}")
     totp_secret = Column(String(500), nullable=True)

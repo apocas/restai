@@ -147,6 +147,10 @@ async def ldap_auth(request: Request, form_data: UserLogin, db_wrapper: DBWrappe
                     except (ValueError, TypeError):
                         pass
 
+            # Suspended users can't sign in via LDAP either.
+            from restai.auth import check_not_suspended
+            check_not_suspended(user)
+
             new_token = create_access_token(
                 data={"username": user.username}, expires_delta=timedelta(minutes=1440)
             )
@@ -381,6 +385,7 @@ async def route_create_user(
             user_create.is_admin,
             user_create.is_private,
             user_create.is_restricted,
+            suspended=user_create.is_suspended,
         )
         return {"username": user_create.username}
     except Exception as e:
@@ -428,6 +433,13 @@ async def route_update_user(
 
         if not user.is_admin and user_update.is_restricted is not None:
             raise HTTPException(status_code=403, detail="Only admins can modify restriction settings")
+
+        if not user.is_admin and user_update.is_suspended is not None:
+            raise HTTPException(status_code=403, detail="Only admins can modify suspension settings")
+
+        # Prevent self-lockout: an admin can't suspend their own account.
+        if user_update.is_suspended is True and user.username == user_to_update.username:
+            raise HTTPException(status_code=400, detail="You cannot suspend your own account")
 
         if not user.is_admin and user_update.projects is not None:
             raise HTTPException(status_code=403, detail="Only admins can modify project assignments")
@@ -691,6 +703,7 @@ async def get_permission_matrix(
                 "username": u.username,
                 "is_admin": bool(u.is_admin),
                 "is_restricted": bool(getattr(u, "is_restricted", False)),
+                "is_suspended": bool(getattr(u, "is_suspended", False)),
                 "admin_team_ids": list(team_admin_map.get(u.id, set())),
             }
             for u in all_users

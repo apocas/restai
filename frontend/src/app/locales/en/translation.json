@@ -813,6 +813,7 @@
       "confirmPassword": "Confirm password",
       "isAdmin": "Administrator",
       "isRestricted": "Read-only access",
+      "isSuspended": "Suspended",
       "isPrivate": "Local AI only"
     },
     "tabs": {
@@ -840,6 +841,8 @@
       "impersonate": "Impersonate",
       "restricted": "Restricted",
       "restrictedHelp": "Restricted users can only chat with existing projects. They cannot create, edit, or delete projects, ingest data, or use direct access endpoints.",
+      "suspended": "Suspended",
+      "suspendedHelp": "Suspended users cannot log in and their API keys are rejected. Existing sessions stop working immediately.",
       "language": "Language",
       "languageHelp": "Interface language. Applied after you save changes.",
       "saveChanges": "Save Changes"
@@ -924,6 +927,7 @@
       "usernamePlaceholder": "e.g. alice",
       "adminHelp": "Full access to all projects, users, teams, and platform settings.",
       "restrictedHelp": "User can only chat with existing projects. No creating, editing, ingesting, or direct access.",
+      "suspendedHelp": "User cannot log in and any API keys are rejected until unsuspended.",
       "privateHelp": "Restrict this user to on-premise LLMs and embeddings — no external provider calls.",
       "create": "Create User",
       "creating": "Creating…",

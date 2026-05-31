@@ -5,7 +5,7 @@ import {
 } from "@mui/material";
 import {
   ArrowBack, CheckCircle, Visibility, VisibilityOff, PersonAdd,
-  AdminPanelSettings, Lock, Shield, Check, Close,
+  AdminPanelSettings, Lock, Shield, Check, Close, Block,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -111,6 +111,7 @@ export default function UserNewView() {
     is_admin: false,
     is_private: false,
     is_restricted: false,
+    is_suspended: false,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -155,6 +156,7 @@ export default function UserNewView() {
         is_admin: state.is_admin,
         is_private: state.is_private,
         is_restricted: state.is_restricted,
+        is_suspended: state.is_suspended,
       }, auth.user.token);
       navigate("/user/" + response.username);
     } catch {
@@ -323,6 +325,25 @@ export default function UserNewView() {
                 <Switch
                   checked={state.is_restricted}
                   name="is_restricted"
+                  onChange={handleChange}
+                />
+              </PermissionRow>
+
+              <PermissionRow>
+                <IconWrap color={colors.status.error}>
+                  <Block sx={{ fontSize: 22, color: colors.status.error }} />
+                </IconWrap>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    {t("users.fields.isSuspended")}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {t("users.newPage.suspendedHelp")}
+                  </Typography>
+                </Box>
+                <Switch
+                  checked={state.is_suspended}
+                  name="is_suspended"
                   onChange={handleChange}
                 />
               </PermissionRow>

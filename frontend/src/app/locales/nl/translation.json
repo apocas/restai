@@ -813,6 +813,7 @@
       "confirmPassword": "Wachtwoord bevestigen",
       "isAdmin": "Beheerder",
       "isRestricted": "Alleen-lezen toegang",
+      "isSuspended": "Geschorst",
       "isPrivate": "Alleen lokale AI"
     },
     "tabs": {
@@ -840,6 +841,8 @@
       "impersonate": "Impersoneren",
       "restricted": "Beperkt",
       "restrictedHelp": "Beperkte gebruikers kunnen alleen chatten met bestaande projecten. Ze kunnen geen projecten aanmaken, bewerken of verwijderen, geen data ingesteren, en geen directe toegangs-endpoints gebruiken.",
+      "suspended": "Geschorst",
+      "suspendedHelp": "Geschorste gebruikers kunnen niet inloggen en hun API-sleutels worden geweigerd. Bestaande sessies stoppen onmiddellijk met werken.",
       "language": "Taal",
       "languageHelp": "Interfacetaal. Wordt toegepast nadat je de wijzigingen opslaat.",
       "saveChanges": "Wijzigingen opslaan"
@@ -924,6 +927,7 @@
       "usernamePlaceholder": "bijv. alice",
       "adminHelp": "Volledige toegang tot alle projecten, gebruikers, teams en platforminstellingen.",
       "restrictedHelp": "Gebruiker kan alleen chatten met bestaande projecten. Geen aanmaken, bewerken, ingesteren of directe toegang.",
+      "suspendedHelp": "De gebruiker kan niet inloggen en API-sleutels worden geweigerd totdat de schorsing wordt opgeheven.",
       "privateHelp": "Beperk deze gebruiker tot on-premise LLMs en embeddings — geen oproepen naar externe providers.",
       "create": "Gebruiker aanmaken",
       "creating": "Aanmaken…",
