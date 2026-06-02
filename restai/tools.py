@@ -311,6 +311,11 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
     log_context = _json.dumps(context) if context and logging_enabled else None
     log_image = output.get("image") if logging_enabled else None
     log_error = output.get("error") if logging_enabled else None
+    # A DB DataError's str() embeds the full SQL echo — including any base64
+    # image bound as a parameter — which can be 100KB+. We never need that to
+    # debug, and storing it would itself overflow the column. Cap it.
+    if log_error and len(log_error) > 8000:
+        log_error = log_error[:8000] + "…[truncated]"
 
     # `attachments` is a list of metadata dicts on the output dict. Never
     # includes bytes — only name/mime_type/size. JSON-encode for storage.

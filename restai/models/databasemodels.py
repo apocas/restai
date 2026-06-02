@@ -1,4 +1,5 @@
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Float, Table, Text, UniqueConstraint
+from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import declarative_base
 
@@ -177,8 +178,10 @@ class OutputDatabase(Base):
     # User-supplied image attached to the message (data URL / base64). The
     # log viewer renders it inline next to the question so it's obvious
     # what the user actually asked about. Nullable; only populated when
-    # the user attached an image.
-    image = Column(Text, nullable=True)
+    # the user attached an image. MySQL TEXT caps at 64KB; a single base64
+    # data-URI blows past that, so LONGTEXT on MySQL (Text is unbounded on
+    # SQLite/Postgres). See migration 054.
+    image = Column(Text().with_variant(LONGTEXT(), "mysql"), nullable=True)
 
     # JSON list of file-attachment metadata (NOT file bytes). Shape:
     # [{"name": str, "mime_type": str | None, "size": int}, ...]. Files

@@ -568,10 +568,20 @@ async def chat_main(
                     line["image"] = _image
                 if _attachments and not line.get("attachments"):
                     line["attachments"] = _attachments
-                log_inference(
-                    project, user, line, db,
-                    latency_ms=latency_ms, system_prompt=_sys, context=_ctx,
-                )
+                # A logging failure (e.g. an oversized column) must never turn
+                # a successful answer into a 500 — swallow it, roll back the
+                # poisoned transaction, and still return the answer.
+                try:
+                    log_inference(
+                        project, user, line, db,
+                        latency_ms=latency_ms, system_prompt=_sys, context=_ctx,
+                    )
+                except Exception:
+                    logging.exception("log_inference failed in chat_main (non-streaming); returning answer anyway")
+                    try:
+                        db.db.rollback()
+                    except Exception:
+                        pass
                 # RAG-only retrieval-event logging.
                 if (
                     isinstance(line, dict)
