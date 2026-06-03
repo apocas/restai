@@ -476,7 +476,10 @@
         "browserSection": "智能体浏览器",
         "browserAllowedDomains": "允许的域",
         "browserAllowedHint": "逗号分隔的浏览器可访问主机名。留空 = 无限制。",
-        "browserAllowEval": "允许 browser_eval(危险)"
+        "browserAllowEval": "允许 browser_eval(危险)",
+        "evalLlm": "评估 LLM",
+        "evalLlmHint": "用于评分评估运行的模型。默认 = 项目自身的 LLM。",
+        "evalLlmDefault": "默认 — 使用项目 LLM"
       },
       "knowledge": {
         "retrieval": "检索",
@@ -528,7 +531,11 @@
           "starting": "启动中…",
           "start": "开始",
           "confirmDeleteDataset": "删除此数据集及其所有测试用例？",
-          "confirmDeleteRun": "删除此评估运行？"
+          "confirmDeleteRun": "删除此评估运行？",
+          "editTestCase": "编辑测试用例",
+          "noResultsYet": "此次运行尚无结果。",
+          "faithfulnessRagOnly": "忠实度仅适用于 RAG 项目。",
+          "judgedBy": "评判模型："
         },
         "guardAnalytics": {
           "title": "防护分析",

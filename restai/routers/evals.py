@@ -14,6 +14,8 @@ from restai.models.databasemodels import (
     EvalTestCaseDatabase,
     EvalRunDatabase,
     EvalResultDatabase,
+    ProjectDatabase,
+    PromptVersionDatabase,
 )
 from restai.models.models import (
     EvalDatasetCreate,
@@ -21,6 +23,7 @@ from restai.models.models import (
     EvalDatasetResponse,
     EvalDatasetDetailResponse,
     EvalTestCaseCreate,
+    EvalTestCaseUpdate,
     EvalTestCaseResponse,
     EvalRunCreate,
     EvalRunResponse,
@@ -225,6 +228,49 @@ async def add_test_case(
     return EvalTestCaseResponse.model_validate(tc)
 
 
+@router.patch("/projects/{projectID}/evals/datasets/{datasetID}/cases/{caseID}", tags=["Evaluations"])
+async def update_test_case(
+    projectID: int = Path(description="Project ID"),
+    datasetID: int = Path(description="Dataset ID"),
+    caseID: int = Path(description="Test case ID"),
+    body: EvalTestCaseUpdate = ...,
+    user: User = Depends(get_current_username_project),
+    db: DBWrapper = Depends(get_db_wrapper),
+):
+    """Edit an existing test case. Only fields present in the body change;
+    an empty-string expected_answer clears the ground truth."""
+    dataset = (
+        db.db.query(EvalDatasetDatabase)
+        .filter(EvalDatasetDatabase.id == datasetID, EvalDatasetDatabase.project_id == projectID)
+        .first()
+    )
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    tc = (
+        db.db.query(EvalTestCaseDatabase)
+        .filter(EvalTestCaseDatabase.id == caseID, EvalTestCaseDatabase.dataset_id == datasetID)
+        .first()
+    )
+    if tc is None:
+        raise HTTPException(status_code=404, detail="Test case not found")
+
+    data = body.model_dump(exclude_unset=True)
+    if "question" in data and data["question"] is not None:
+        if not data["question"].strip():
+            raise HTTPException(status_code=422, detail="Question cannot be empty")
+        tc.question = data["question"]
+    if "expected_answer" in data:
+        tc.expected_answer = data["expected_answer"] or None
+    if "context" in data:
+        tc.context = json.dumps(data["context"]) if data["context"] else None
+
+    dataset.updated_at = datetime.now(timezone.utc)
+    db.db.commit()
+    db.db.refresh(tc)
+    return EvalTestCaseResponse.model_validate(tc)
+
+
 @router.delete("/projects/{projectID}/evals/datasets/{datasetID}/cases/{caseID}", tags=["Evaluations"])
 async def delete_test_case(
     projectID: int = Path(description="Project ID"),
@@ -278,6 +324,16 @@ async def start_eval_run(
                 detail=f"Invalid metric '{m}'. Valid: {', '.join(sorted(VALID_METRICS))}",
             )
 
+    # Faithfulness scores groundedness in retrieved context, which only RAG
+    # projects produce. Reject it for agent/block so it never silently no-ops.
+    if "faithfulness" in body.metrics:
+        proj = db.db.query(ProjectDatabase).filter(ProjectDatabase.id == projectID).first()
+        if proj is not None and proj.type != "rag":
+            raise HTTPException(
+                status_code=422,
+                detail="The 'faithfulness' metric is only available for RAG projects.",
+            )
+
     dataset = (
         db.db.query(EvalDatasetDatabase)
         .filter(EvalDatasetDatabase.id == body.dataset_id, EvalDatasetDatabase.project_id == projectID)
@@ -325,7 +381,22 @@ async def list_runs(
         .order_by(EvalRunDatabase.created_at.desc())
         .all()
     )
-    return [EvalRunResponse.model_validate(r) for r in runs]
+    # Map prompt_version_id (global PK) → per-project version number so the UI
+    # can show the friendly "v2" instead of the row id. One batched query.
+    pv_ids = {r.prompt_version_id for r in runs if r.prompt_version_id}
+    pv_map = {}
+    if pv_ids:
+        pv_map = dict(
+            db.db.query(PromptVersionDatabase.id, PromptVersionDatabase.version)
+            .filter(PromptVersionDatabase.id.in_(pv_ids))
+            .all()
+        )
+    out = []
+    for r in runs:
+        resp = EvalRunResponse.model_validate(r)
+        resp.prompt_version = pv_map.get(r.prompt_version_id)
+        out.append(resp)
+    return out
 
 
 @router.get("/projects/{projectID}/evals/runs/{runID}", tags=["Evaluations"])
@@ -344,10 +415,29 @@ async def get_run(
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    results = [EvalResultResponse.model_validate(r) for r in run.results]
+    # Join the originating question / expected answer onto each result so the
+    # results modal can show full context without a second round-trip.
+    tc_map = {
+        tc.id: tc
+        for tc in db.db.query(EvalTestCaseDatabase)
+        .filter(EvalTestCaseDatabase.dataset_id == run.dataset_id)
+        .all()
+    }
+    results = []
+    for r in run.results:
+        rr = EvalResultResponse.model_validate(r)
+        tc = tc_map.get(r.test_case_id)
+        if tc is not None:
+            rr.question = tc.question
+            rr.expected_answer = tc.expected_answer
+        results.append(rr)
 
     resp = EvalRunDetailResponse.model_validate(run)
     resp.results = results
+    if run.prompt_version_id:
+        pv = db.get_prompt_version(run.prompt_version_id)
+        if pv is not None:
+            resp.prompt_version = pv.version
     return resp
 
 

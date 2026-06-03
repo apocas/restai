@@ -316,7 +316,10 @@
         "browserSection": "Browser agentico",
         "browserAllowedDomains": "Domini consentiti",
         "browserAllowedHint": "Nomi host separati da virgole che il browser può visitare. Vuoto = senza restrizioni.",
-        "browserAllowEval": "Consenti browser_eval (pericoloso)"
+        "browserAllowEval": "Consenti browser_eval (pericoloso)",
+        "evalLlm": "LLM di valutazione",
+        "evalLlmHint": "Modello che valuta le esecuzioni. Predefinito = l'LLM del progetto.",
+        "evalLlmDefault": "Predefinito — usa l'LLM del progetto"
       },
       "knowledge": {
         "retrieval": "Recupero",
@@ -368,7 +371,11 @@
           "starting": "Avvio…",
           "start": "Avvia",
           "confirmDeleteDataset": "Eliminare questo dataset e tutti i suoi casi di test?",
-          "confirmDeleteRun": "Eliminare questa esecuzione di valutazione?"
+          "confirmDeleteRun": "Eliminare questa esecuzione di valutazione?",
+          "editTestCase": "Modifica caso di test",
+          "noResultsYet": "Ancora nessun risultato per questa esecuzione.",
+          "faithfulnessRagOnly": "La fedeltà è disponibile solo per i progetti RAG.",
+          "judgedBy": "Valutato da"
         },
         "guardAnalytics": {
           "title": "Analisi guardie",

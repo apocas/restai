@@ -7,7 +7,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import {
-  Add, Delete, PlayArrow, Science, Dataset, Insights, TrendingUp,
+  Add, Delete, Edit, Close, PlayArrow, Science, Dataset, Insights, TrendingUp,
   CheckCircle, Cancel, HourglassEmpty,
 } from "@mui/icons-material";
 import {
@@ -358,6 +358,375 @@ function AccentDialog({ open, onClose, title, subtitle, accent = ACCENT, childre
   );
 }
 
+// ── Score-trend "console" — full-width dark band that sits above the tiles ──
+function MetricDelta({ name, latest, prev }) {
+  const color = METRIC_COLORS[name] || ACCENT;
+  const delta = prev != null ? latest - prev : null;
+  const up = delta != null && delta >= 0;
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 1.5,
+        py: 0.75,
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.85, minWidth: 0 }}>
+        <Box sx={{ width: 8, height: 8, borderRadius: "50%", background: color, boxShadow: `0 0 8px ${color}aa`, flexShrink: 0 }} />
+        <Box
+          component="span"
+          sx={{
+            fontFamily: FONT_MONO,
+            fontSize: "0.66rem",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.65)",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {name.replace(/_/g, " ")}
+        </Box>
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.6, flexShrink: 0 }}>
+        <Box component="span" sx={{ fontFamily: FONT_MONO, fontSize: "1rem", fontWeight: 700, color: "#fff" }}>
+          {(latest * 100).toFixed(0)}
+          <Box component="span" sx={{ fontSize: "0.6rem", color: "rgba(255,255,255,0.5)" }}>%</Box>
+        </Box>
+        {delta != null && Math.abs(delta) >= 0.005 && (
+          <Box
+            component="span"
+            sx={{
+              fontFamily: FONT_MONO,
+              fontSize: "0.62rem",
+              fontWeight: 700,
+              color: up ? "#34d399" : "#f87171",
+            }}
+          >
+            {up ? "▲" : "▼"}{Math.abs(delta * 100).toFixed(0)}
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+function TrendHero({ chartData, chartMetrics, t }) {
+  const latest = chartData[chartData.length - 1] || {};
+  const prev = chartData[chartData.length - 2] || {};
+  return (
+    <Box
+      sx={{
+        position: "relative",
+        borderRadius: "16px",
+        overflow: "hidden",
+        background: "linear-gradient(135deg, #0b1220 0%, #0f1b2e 50%, #0b1220 100%)",
+        border: "1px solid rgba(20,184,166,0.18)",
+        boxShadow: "0 14px 36px rgba(8,15,30,0.30)",
+      }}
+    >
+      <Box sx={{ position: "absolute", inset: 0, background: "radial-gradient(120% 120% at 85% -10%, rgba(20,184,166,0.20), transparent 55%)", pointerEvents: "none" }} />
+      <Box
+        sx={{
+          position: "absolute", inset: 0, opacity: 0.5, pointerEvents: "none",
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+        }}
+      />
+      <Box sx={{ position: "absolute", left: 0, right: 0, top: 0, height: 3, background: `linear-gradient(90deg, transparent, ${ACCENT}, #38bdf8, ${ACCENT}, transparent)` }} />
+      <Box sx={{ position: "relative", display: "flex", flexDirection: { xs: "column", md: "row" }, p: { xs: 2.5, md: 0 } }}>
+        <Box
+          sx={{
+            width: { xs: "100%", md: 252 },
+            flexShrink: 0,
+            p: { md: 3 },
+            pr: { md: 2.5 },
+            borderRight: { md: "1px solid rgba(255,255,255,0.07)" },
+            mb: { xs: 2, md: 0 },
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <TrendingUp sx={{ fontSize: 18, color: ACCENT }} />
+            <Box component="span" sx={{ fontFamily: FONT_MONO, fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "#fff" }}>
+              {t("projects.edit.knowledge.evals.scoreTrend")}
+            </Box>
+          </Box>
+          <Box component="span" sx={{ display: "block", fontFamily: FONT_MONO, fontSize: "0.62rem", color: "rgba(255,255,255,0.45)", mt: 0.5, letterSpacing: "0.05em" }}>
+            {chartData.length} runs · {chartMetrics.length} metric{chartMetrics.length === 1 ? "" : "s"}
+          </Box>
+          <Box sx={{ mt: 2 }}>
+            {chartMetrics.map((m) => (
+              <MetricDelta
+                key={m}
+                name={m}
+                latest={Number(latest[m]) || 0}
+                prev={prev[m] != null ? Number(prev[m]) : null}
+              />
+            ))}
+          </Box>
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0, p: { md: 2.5 } }}>
+          <ResponsiveContainer width="100%" height={210}>
+            <LineChart data={chartData} margin={{ top: 8, right: 16, left: -12, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="2 5" stroke="rgba(255,255,255,0.07)" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                domain={[0, 1]}
+                tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
+                tick={{ fontFamily: FONT_MONO, fontSize: 10, fill: "rgba(255,255,255,0.4)" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <RTooltip content={<ChartTooltip />} cursor={{ stroke: ACCENT, strokeWidth: 1, strokeDasharray: "3 3" }} />
+              {chartMetrics.map((m) => (
+                <Line
+                  key={m}
+                  type="monotone"
+                  dataKey={m}
+                  name={m.replace(/_/g, " ")}
+                  stroke={METRIC_COLORS[m] || ACCENT}
+                  strokeWidth={2.5}
+                  dot={{ fill: "#0b1220", stroke: METRIC_COLORS[m] || ACCENT, strokeWidth: 2, r: 3.5 }}
+                  activeDot={{ r: 6 }}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+// ── Run-results modal ──────────────────────────────────────────────────────
+function FieldBlock({ label, value, mono }) {
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <Box component="span" sx={{ fontFamily: FONT_MONO, fontSize: "0.6rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "text.disabled", fontWeight: 700 }}>
+        {label}
+      </Box>
+      <Box
+        sx={{
+          mt: 0.5,
+          fontSize: "0.83rem",
+          fontFamily: mono ? FONT_MONO : "inherit",
+          color: "text.primary",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          backgroundColor: "rgba(15,23,42,0.03)",
+          border: "1px solid rgba(15,23,42,0.06)",
+          borderRadius: 1,
+          p: 1.25,
+          maxHeight: 220,
+          overflow: "auto",
+        }}
+      >
+        {value || "—"}
+      </Box>
+    </Box>
+  );
+}
+
+function ResultMetricRow({ r }) {
+  const mc = METRIC_COLORS[r.metric_name] || ACCENT;
+  const passed = !!r.passed;
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, py: 1.25, borderTop: "1px dashed rgba(15,23,42,0.10)" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+        <Box
+          component="span"
+          sx={{
+            px: 0.85, py: 0.3, borderRadius: 0.75,
+            backgroundColor: `${mc}15`, color: mc, border: `1px solid ${mc}33`,
+            fontFamily: FONT_MONO, fontSize: "0.66rem", fontWeight: 700,
+            textTransform: "uppercase", letterSpacing: "0.05em",
+          }}
+        >
+          {r.metric_name.replace(/_/g, " ")}
+        </Box>
+        <Box
+          sx={{
+            display: "inline-flex", alignItems: "center", gap: 0.5,
+            px: 0.85, py: 0.3, borderRadius: 0.75,
+            backgroundColor: passed ? "rgba(16,185,129,0.10)" : "rgba(239,68,68,0.10)",
+            border: `1px solid ${passed ? "#10b981" : "#ef4444"}33`,
+          }}
+        >
+          {passed ? <CheckCircle sx={{ fontSize: 12, color: "#10b981" }} /> : <Cancel sx={{ fontSize: 12, color: "#ef4444" }} />}
+          <Box component="span" sx={{ fontFamily: FONT_MONO, fontSize: "0.74rem", fontWeight: 700, color: passed ? "#10b981" : "#ef4444" }}>
+            {r.score != null ? `${(r.score * 100).toFixed(0)}%` : "—"}
+          </Box>
+        </Box>
+        {r.latency_ms != null && (
+          <Box component="span" sx={{ fontFamily: FONT_MONO, fontSize: "0.62rem", color: "text.disabled" }}>
+            {r.latency_ms} ms
+          </Box>
+        )}
+      </Box>
+      {r.reason && (
+        <Box
+          sx={{
+            fontSize: "0.8rem",
+            color: "text.secondary",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            backgroundColor: "rgba(15,23,42,0.03)",
+            borderRadius: 1,
+            p: 1,
+            maxHeight: 180,
+            overflow: "auto",
+          }}
+        >
+          {r.reason}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+function RunResultsDialog({ open, onClose, run, t }) {
+  const groups = useMemo(() => {
+    if (!run || !run.results) return [];
+    const map = new Map();
+    for (const r of run.results) {
+      if (!map.has(r.test_case_id)) {
+        map.set(r.test_case_id, {
+          test_case_id: r.test_case_id,
+          question: r.question,
+          expected_answer: r.expected_answer,
+          actual_answer: r.actual_answer,
+          metrics: [],
+        });
+      }
+      const g = map.get(r.test_case_id);
+      if (!g.question && r.question) g.question = r.question;
+      if ((g.expected_answer == null || g.expected_answer === "") && r.expected_answer) g.expected_answer = r.expected_answer;
+      if (!g.actual_answer && r.actual_answer) g.actual_answer = r.actual_answer;
+      g.metrics.push(r);
+    }
+    return [...map.values()];
+  }, [run]);
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { borderRadius: 3, overflow: "hidden" } }}>
+      <Box sx={{ height: 4, background: `linear-gradient(90deg, ${ACCENT}, ${ACCENT}cc, ${ACCENT})` }} />
+      <DialogTitle sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, py: 2 }}>
+        <Box sx={{ width: 36, height: 36, borderRadius: 1.5, display: "inline-flex", alignItems: "center", justifyContent: "center", background: `${ACCENT}1a`, color: ACCENT, flexShrink: 0 }}>
+          <Insights fontSize="small" />
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+              {run ? t("projects.edit.knowledge.evals.runResults", { id: run.id }) : ""}
+            </Typography>
+            {run && <StatusPill status={run.status} />}
+          </Box>
+          {run && (run.summary || run.prompt_version_id) && (
+            <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", mt: 0.85 }}>
+              {run.summary && Object.entries(run.summary).map(([k, v]) => {
+                const c = METRIC_COLORS[k] || ACCENT;
+                return (
+                  <Box
+                    key={k}
+                    component="span"
+                    sx={{
+                      display: "inline-flex", alignItems: "center", gap: 0.5,
+                      fontFamily: FONT_MONO, fontSize: "0.66rem", fontWeight: 700,
+                      px: 0.85, py: 0.3, borderRadius: 0.75,
+                      backgroundColor: `${c}12`, color: c, border: `1px solid ${c}30`,
+                    }}
+                  >
+                    <Box sx={{ width: 7, height: 7, borderRadius: "50%", background: c }} />
+                    {k.replace(/_/g, " ")} {(v * 100).toFixed(0)}%
+                  </Box>
+                );
+              })}
+              {run.prompt_version_id && (
+                <Box component="span" sx={{ fontFamily: FONT_MONO, fontSize: "0.66rem", fontWeight: 700, px: 0.85, py: 0.3, borderRadius: 0.75, backgroundColor: ACCENT_SOFT, color: ACCENT }}>
+                  v{run.prompt_version ?? run.prompt_version_id}
+                </Box>
+              )}
+            </Box>
+          )}
+        </Box>
+        <IconButton onClick={onClose} size="small" sx={{ color: "text.disabled" }}>
+          <Close fontSize="small" />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent dividers sx={{ backgroundColor: "rgba(15,23,42,0.015)" }}>
+        {!run ? (
+          <Box sx={{ py: 6, textAlign: "center" }}>
+            <CircularProgress size={28} sx={{ color: ACCENT }} />
+          </Box>
+        ) : run.error ? (
+          <Box
+            sx={{
+              p: 1.5, borderRadius: 1.5,
+              backgroundColor: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.25)",
+              fontFamily: FONT_MONO, fontSize: "0.8rem", color: "#9f3a38",
+              whiteSpace: "pre-wrap", wordBreak: "break-word",
+            }}
+          >
+            {run.error}
+          </Box>
+        ) : groups.length === 0 ? (
+          <Box sx={{ py: 5, textAlign: "center" }}>
+            <HourglassEmpty sx={{ fontSize: 30, mb: 1, color: "text.disabled" }} />
+            <Typography variant="body2" color="text.secondary">
+              {t("projects.edit.knowledge.evals.noResultsYet")}
+            </Typography>
+          </Box>
+        ) : (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, py: 1 }}>
+            {groups.map((g, i) => {
+              const hasExpected = g.expected_answer != null && g.expected_answer !== "";
+              return (
+                <Box key={g.test_case_id} sx={{ borderRadius: 2, border: "1px solid rgba(15,23,42,0.08)", backgroundColor: "#fff", overflow: "hidden" }}>
+                  <Box sx={{ px: 2, py: 1.5, borderBottom: "1px solid rgba(15,23,42,0.06)", display: "flex", alignItems: "center", gap: 1 }}>
+                    <Box component="span" sx={{ fontFamily: FONT_MONO, fontSize: "0.66rem", fontWeight: 700, color: ACCENT, backgroundColor: ACCENT_SOFT, px: 0.85, py: 0.3, borderRadius: 0.75, flexShrink: 0 }}>
+                      #{i + 1}
+                    </Box>
+                    <Box component="span" sx={{ fontWeight: 600, fontSize: "0.9rem", color: "text.primary", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {g.question || "—"}
+                    </Box>
+                  </Box>
+                  <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+                    <FieldBlock label={t("projects.edit.knowledge.evals.question")} value={g.question} />
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: hasExpected ? "1fr 1fr" : "1fr" }, gap: 1.5 }}>
+                      {hasExpected && (
+                        <FieldBlock label={t("projects.edit.knowledge.evals.expectedAnswer")} value={g.expected_answer} mono />
+                      )}
+                      <FieldBlock label={t("projects.edit.knowledge.evals.answer")} value={g.actual_answer} />
+                    </Box>
+                    <Box>
+                      {g.metrics.map((r) => <ResultMetricRow key={r.id} r={r} />)}
+                    </Box>
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button onClick={onClose} sx={{ textTransform: "none", color: "text.secondary" }}>
+          {t("common.close")}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 export default function ProjectEvals({ project }) {
   const { t } = useTranslation();
   const auth = useAuth();
@@ -366,13 +735,17 @@ export default function ProjectEvals({ project }) {
   const [selectedDataset, setSelectedDataset] = useState(null);
   const [selectedRun, setSelectedRun] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [addCaseOpen, setAddCaseOpen] = useState(false);
+  const [caseModalOpen, setCaseModalOpen] = useState(false);
+  const [caseEditId, setCaseEditId] = useState(null);
+  const [resultsOpen, setResultsOpen] = useState(false);
   const [runOpen, setRunOpen] = useState(false);
   const [newDataset, setNewDataset] = useState({ name: "", description: "" });
   const [newCase, setNewCase] = useState({ question: "", expected_answer: "" });
   const [runMetrics, setRunMetrics] = useState(["answer_relevancy"]);
   const [runDatasetId, setRunDatasetId] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const isRag = project.type === "rag";
 
   const fetchDatasets = () => {
     api.get(`/projects/${project.id}/evals/datasets`, auth.user.token)
@@ -430,10 +803,28 @@ export default function ProjectEvals({ project }) {
       .catch(() => {});
   };
 
-  const handleAddCase = () => {
-    api.post(`/projects/${project.id}/evals/datasets/${selectedDataset.id}/cases`, newCase, auth.user.token)
+  const openAddCase = () => {
+    setNewCase({ question: "", expected_answer: "" });
+    setCaseEditId(null);
+    setCaseModalOpen(true);
+  };
+
+  const openEditCase = (tc) => {
+    setNewCase({ question: tc.question || "", expected_answer: tc.expected_answer || "" });
+    setCaseEditId(tc.id);
+    setCaseModalOpen(true);
+  };
+
+  const handleSaveCase = () => {
+    if (!selectedDataset) return;
+    const base = `/projects/${project.id}/evals/datasets/${selectedDataset.id}/cases`;
+    const req = caseEditId != null
+      ? api.patch(`${base}/${caseEditId}`, newCase, auth.user.token)
+      : api.post(base, newCase, auth.user.token);
+    req
       .then(() => {
-        setAddCaseOpen(false);
+        setCaseModalOpen(false);
+        setCaseEditId(null);
         setNewCase({ question: "", expected_answer: "" });
         fetchDatasetDetail(selectedDataset.id);
       })
@@ -459,14 +850,26 @@ export default function ProjectEvals({ project }) {
     api.delete(`/projects/${project.id}/evals/runs/${id}`, auth.user.token)
       .then(() => {
         fetchRuns();
-        if (selectedRun?.id === id) setSelectedRun(null);
+        if (selectedRun?.id === id) { setSelectedRun(null); setResultsOpen(false); }
       })
       .catch(() => {});
+  };
+
+  const openRunResults = (id) => {
+    if (!selectedRun || selectedRun.id !== id) setSelectedRun(null);
+    fetchRunDetail(id);
+    setResultsOpen(true);
   };
 
   const toggleMetric = (metric) => {
     setRunMetrics((prev) => prev.includes(metric) ? prev.filter((m) => m !== metric) : [...prev, metric]);
   };
+
+  const metricOptions = [
+    { key: "answer_relevancy", label: t("projects.edit.knowledge.evals.answerRelevancy") },
+    ...(isRag ? [{ key: "faithfulness", label: t("projects.edit.knowledge.evals.faithfulness") }] : []),
+    { key: "correctness", label: t("projects.edit.knowledge.evals.correctness") },
+  ];
 
   const { chartData, chartMetrics } = useMemo(() => {
     const completed = runs.filter((r) => r.status === "completed" && r.summary).slice().reverse();
@@ -482,6 +885,12 @@ export default function ProjectEvals({ project }) {
 
   return (
     <Grid container spacing={3}>
+      {chartData.length > 1 && (
+        <Grid item xs={12}>
+          <TrendHero chartData={chartData} chartMetrics={chartMetrics} t={t} />
+        </Grid>
+      )}
+
       <Grid item xs={12} md={6}>
         <TileCard elevation={0} accent={ACCENT}>
           <TileHeader
@@ -609,7 +1018,7 @@ export default function ProjectEvals({ project }) {
                     size="small"
                     variant="outlined"
                     startIcon={<Add />}
-                    onClick={() => setAddCaseOpen(true)}
+                    onClick={openAddCase}
                     sx={{
                       textTransform: "none",
                       color: ACCENT,
@@ -631,7 +1040,7 @@ export default function ProjectEvals({ project }) {
                       size="small"
                       variant="outlined"
                       startIcon={<Add />}
-                      onClick={() => setAddCaseOpen(true)}
+                      onClick={openAddCase}
                       sx={{
                         mt: 1,
                         textTransform: "none",
@@ -703,14 +1112,25 @@ export default function ProjectEvals({ project }) {
                             <Box component="span" sx={{ color: "text.disabled", fontStyle: "italic" }}>—</Box>
                           )}
                         </TableCell>
-                        <TableCell align="right" sx={{ pr: 3 }}>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeleteCase(tc.id)}
-                            sx={{ color: "text.disabled", "&:hover": { color: "#ef4444", backgroundColor: "rgba(239,68,68,0.06)" } }}
-                          >
-                            <Delete fontSize="small" />
-                          </IconButton>
+                        <TableCell align="right" sx={{ pr: 3, whiteSpace: "nowrap" }}>
+                          <Tooltip title={t("common.edit")}>
+                            <IconButton
+                              size="small"
+                              onClick={() => openEditCase(tc)}
+                              sx={{ color: "text.disabled", "&:hover": { color: ACCENT, backgroundColor: `${ACCENT}10` } }}
+                            >
+                              <Edit fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title={t("common.delete")}>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteCase(tc.id)}
+                              sx={{ color: "text.disabled", "&:hover": { color: "#ef4444", backgroundColor: "rgba(239,68,68,0.06)" } }}
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -757,7 +1177,7 @@ export default function ProjectEvals({ project }) {
                   return (
                     <TableRow
                       key={r.id}
-                      onClick={() => fetchRunDetail(r.id)}
+                      onClick={() => openRunResults(r.id)}
                       sx={{
                         cursor: "pointer",
                         backgroundColor: isSel ? `${ACCENT}08` : undefined,
@@ -782,7 +1202,7 @@ export default function ProjectEvals({ project }) {
                             </Box>
                             {r.prompt_version_id && (
                               <Chip
-                                label={`v${r.prompt_version_id}`}
+                                label={`v${r.prompt_version ?? r.prompt_version_id}`}
                                 size="small"
                                 sx={{
                                   height: 16,
@@ -832,207 +1252,6 @@ export default function ProjectEvals({ project }) {
             </Table>
           )}
         </TileCard>
-
-        {chartData.length > 1 && (
-          <Box sx={{ mt: 3 }}>
-            <TileCard elevation={0} accent={ACCENT}>
-              <TileHeader
-                icon={<TrendingUp />}
-                title={t("projects.edit.knowledge.evals.scoreTrend")}
-                subtitle={`${chartData.length} completed runs · ${chartMetrics.length} metric${chartMetrics.length === 1 ? "" : "s"}`}
-                accent={ACCENT}
-              />
-              <Box sx={{ p: 2.5 }}>
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={chartData} margin={{ top: 10, right: 16, left: -8, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="2 4" stroke="rgba(15,23,42,0.06)" vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fontFamily: FONT_MONO, fontSize: 11, fill: "#94a3b8" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      domain={[0, 1]}
-                      tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
-                      tick={{ fontFamily: FONT_MONO, fontSize: 11, fill: "#94a3b8" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <RTooltip content={<ChartTooltip />} cursor={{ stroke: ACCENT, strokeWidth: 1, strokeDasharray: "3 3" }} />
-                    {chartMetrics.map((m) => (
-                      <Line
-                        key={m}
-                        type="monotone"
-                        dataKey={m}
-                        name={m.replace(/_/g, " ")}
-                        stroke={METRIC_COLORS[m] || ACCENT}
-                        strokeWidth={2.25}
-                        dot={{ fill: "#fff", stroke: METRIC_COLORS[m] || ACCENT, strokeWidth: 2, r: 4 }}
-                        activeDot={{ r: 6 }}
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-                <Box sx={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap", mt: 1 }}>
-                  {chartMetrics.map((m) => (
-                    <Box
-                      key={m}
-                      sx={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 0.75,
-                        fontFamily: FONT_MONO,
-                        fontSize: "0.7rem",
-                        color: "text.secondary",
-                      }}
-                    >
-                      <Box sx={{ width: 10, height: 10, borderRadius: 0.5, background: METRIC_COLORS[m] || ACCENT }} />
-                      {m.replace(/_/g, " ")}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            </TileCard>
-          </Box>
-        )}
-
-        {selectedRun && selectedRun.results && (
-          <Box sx={{ mt: 3 }}>
-            <TileCard elevation={0} accent={ACCENT}>
-              <TileHeader
-                icon={<Insights />}
-                title={t("projects.edit.knowledge.evals.runResults", { id: selectedRun.id })}
-                subtitle={`${selectedRun.results.length} result${selectedRun.results.length === 1 ? "" : "s"}`}
-                accent={ACCENT}
-              />
-              {selectedRun.error && (
-                <Box sx={{ px: 2.5, pt: 2 }}>
-                  <Box
-                    sx={{
-                      p: 1.5,
-                      borderRadius: 1.5,
-                      backgroundColor: "rgba(239,68,68,0.06)",
-                      border: "1px solid rgba(239,68,68,0.25)",
-                      fontFamily: FONT_MONO,
-                      fontSize: "0.78rem",
-                      color: "#9f3a38",
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {selectedRun.error}
-                  </Box>
-                </Box>
-              )}
-              <Table size="small">
-                <TableHead>
-                  <TableRow sx={{ "& th": { backgroundColor: "rgba(15,23,42,0.02)", fontWeight: 600 } }}>
-                    <TableCell sx={{ pl: 3 }}>{t("projects.edit.knowledge.evals.answer")}</TableCell>
-                    <TableCell>{t("projects.edit.knowledge.evals.metric")}</TableCell>
-                    <TableCell align="center">{t("projects.edit.knowledge.evals.score")}</TableCell>
-                    <TableCell sx={{ pr: 3 }}>{t("projects.edit.knowledge.evals.reason")}</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {selectedRun.results.map((r) => {
-                    const mc = METRIC_COLORS[r.metric_name] || ACCENT;
-                    const passed = !!r.passed;
-                    return (
-                      <TableRow
-                        key={r.id}
-                        sx={{
-                          "&:hover": { backgroundColor: "rgba(15,23,42,0.025)" },
-                          transition: "background-color 0.15s ease",
-                        }}
-                      >
-                        <TableCell sx={{ pl: 3, maxWidth: 220 }}>
-                          <Tooltip title={r.actual_answer || ""} placement="top-start" arrow>
-                            <Box
-                              sx={{
-                                fontSize: "0.82rem",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                                color: "text.primary",
-                              }}
-                            >
-                              {r.actual_answer || "—"}
-                            </Box>
-                          </Tooltip>
-                        </TableCell>
-                        <TableCell>
-                          <Box
-                            component="span"
-                            sx={{
-                              display: "inline-block",
-                              px: 0.85, py: 0.3,
-                              borderRadius: 0.75,
-                              backgroundColor: `${mc}15`,
-                              color: mc,
-                              border: `1px solid ${mc}33`,
-                              fontFamily: FONT_MONO,
-                              fontSize: "0.68rem",
-                              fontWeight: 700,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.05em",
-                            }}
-                          >
-                            {r.metric_name.replace(/_/g, " ")}
-                          </Box>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Box
-                            sx={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 0.5,
-                              px: 0.85, py: 0.3,
-                              borderRadius: 0.75,
-                              backgroundColor: passed ? "rgba(16,185,129,0.10)" : "rgba(239,68,68,0.10)",
-                              border: `1px solid ${passed ? "#10b981" : "#ef4444"}33`,
-                            }}
-                          >
-                            {passed
-                              ? <CheckCircle sx={{ fontSize: 12, color: "#10b981" }} />
-                              : <Cancel sx={{ fontSize: 12, color: "#ef4444" }} />}
-                            <Box
-                              component="span"
-                              sx={{
-                                fontFamily: FONT_MONO,
-                                fontSize: "0.78rem",
-                                fontWeight: 700,
-                                color: passed ? "#10b981" : "#ef4444",
-                              }}
-                            >
-                              {r.score !== null ? `${(r.score * 100).toFixed(0)}%` : "—"}
-                            </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={{ pr: 3, maxWidth: 360 }}>
-                          <Box
-                            sx={{
-                              fontSize: "0.78rem",
-                              color: "text.secondary",
-                              whiteSpace: "pre-wrap",
-                              wordBreak: "break-word",
-                              display: "-webkit-box",
-                              WebkitLineClamp: 3,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                            }}
-                          >
-                            {r.reason || "—"}
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TileCard>
-          </Box>
-        )}
       </Grid>
 
       <AccentDialog
@@ -1077,18 +1296,20 @@ export default function ProjectEvals({ project }) {
       </AccentDialog>
 
       <AccentDialog
-        open={addCaseOpen}
-        onClose={() => setAddCaseOpen(false)}
-        title={t("projects.edit.knowledge.evals.addTestCase")}
+        open={caseModalOpen}
+        onClose={() => setCaseModalOpen(false)}
+        title={caseEditId != null
+          ? t("projects.edit.knowledge.evals.editTestCase")
+          : t("projects.edit.knowledge.evals.addTestCase")}
         accent={ACCENT}
         actions={
           <>
-            <Button onClick={() => setAddCaseOpen(false)} sx={{ textTransform: "none", color: "text.secondary" }}>
+            <Button onClick={() => setCaseModalOpen(false)} sx={{ textTransform: "none", color: "text.secondary" }}>
               {t("common.cancel")}
             </Button>
             <Button
               variant="contained"
-              onClick={handleAddCase}
+              onClick={handleSaveCase}
               disabled={!newCase.question}
               sx={{
                 textTransform: "none",
@@ -1097,7 +1318,7 @@ export default function ProjectEvals({ project }) {
                 "&:hover": { background: `linear-gradient(135deg, ${ACCENT} 0%, #0f766e 100%)` },
               }}
             >
-              {t("common.add")}
+              {caseEditId != null ? t("common.save") : t("common.add")}
             </Button>
           </>
         }
@@ -1149,13 +1370,24 @@ export default function ProjectEvals({ project }) {
           </>
         }
       >
+        <Box
+          sx={{
+            display: "flex", alignItems: "center", gap: 1,
+            mb: 2, p: 1, borderRadius: 1.5,
+            backgroundColor: ACCENT_SOFT, border: `1px solid ${ACCENT}30`,
+          }}
+        >
+          <Science sx={{ fontSize: 16, color: ACCENT, flexShrink: 0 }} />
+          <Box component="span" sx={{ fontSize: "0.78rem", color: "text.secondary" }}>
+            {t("projects.edit.knowledge.evals.judgedBy")}{" "}
+            <Box component="span" sx={{ fontFamily: FONT_MONO, fontWeight: 700, color: ACCENT }}>
+              {project.options?.eval_llm || project.llm || "—"}
+            </Box>
+          </Box>
+        </Box>
         <FormControl component="fieldset" sx={{ width: "100%" }}>
           <FormGroup>
-            {[
-              { key: "answer_relevancy", label: t("projects.edit.knowledge.evals.answerRelevancy") },
-              { key: "faithfulness",     label: t("projects.edit.knowledge.evals.faithfulness") },
-              { key: "correctness",      label: t("projects.edit.knowledge.evals.correctness") },
-            ].map((m) => {
+            {metricOptions.map((m) => {
               const checked = runMetrics.includes(m.key);
               const color = METRIC_COLORS[m.key];
               return (
@@ -1221,8 +1453,20 @@ export default function ProjectEvals({ project }) {
               );
             })}
           </FormGroup>
+          {!isRag && (
+            <Typography variant="caption" color="text.disabled" sx={{ mt: 1, display: "block" }}>
+              {t("projects.edit.knowledge.evals.faithfulnessRagOnly")}
+            </Typography>
+          )}
         </FormControl>
       </AccentDialog>
+
+      <RunResultsDialog
+        open={resultsOpen}
+        onClose={() => setResultsOpen(false)}
+        run={resultsOpen ? selectedRun : null}
+        t={t}
+      />
     </Grid>
   );
 }

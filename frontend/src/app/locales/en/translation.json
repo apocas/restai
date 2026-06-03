@@ -477,7 +477,10 @@
         "browserSection": "Agentic browser",
         "browserAllowedDomains": "Allowed domains",
         "browserAllowedHint": "Comma-separated hostnames the browser may visit. Empty = unrestricted.",
-        "browserAllowEval": "Allow browser_eval (dangerous)"
+        "browserAllowEval": "Allow browser_eval (dangerous)",
+        "evalLlm": "Evaluation LLM",
+        "evalLlmHint": "Model that scores eval runs. Default = the project's own LLM.",
+        "evalLlmDefault": "Default — use project LLM"
       },
       "knowledge": {
         "retrieval": "Retrieval",
@@ -529,7 +532,11 @@
           "starting": "Starting…",
           "start": "Start",
           "confirmDeleteDataset": "Delete this dataset and all its test cases?",
-          "confirmDeleteRun": "Delete this evaluation run?"
+          "confirmDeleteRun": "Delete this evaluation run?",
+          "editTestCase": "Edit Test Case",
+          "noResultsYet": "No results yet for this run.",
+          "faithfulnessRagOnly": "Faithfulness is only available for RAG projects.",
+          "judgedBy": "Judged by"
         },
         "guardAnalytics": {
           "title": "Guard Analytics",

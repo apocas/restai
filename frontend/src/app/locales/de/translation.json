@@ -316,7 +316,10 @@
         "browserSection": "Agentischer Browser",
         "browserAllowedDomains": "Erlaubte Domänen",
         "browserAllowedHint": "Komma-getrennte Hostnamen, die der Browser besuchen darf. Leer = uneingeschränkt.",
-        "browserAllowEval": "browser_eval erlauben (gefährlich)"
+        "browserAllowEval": "browser_eval erlauben (gefährlich)",
+        "evalLlm": "Evaluierungs-LLM",
+        "evalLlmHint": "Modell, das Eval-Läufe bewertet. Standard = der projekteigene LLM.",
+        "evalLlmDefault": "Standard — Projekt-LLM verwenden"
       },
       "knowledge": {
         "retrieval": "Abruf",
@@ -368,7 +371,11 @@
           "starting": "Wird gestartet…",
           "start": "Starten",
           "confirmDeleteDataset": "Diesen Datensatz und alle seine Testfälle löschen?",
-          "confirmDeleteRun": "Diesen Auswertungslauf löschen?"
+          "confirmDeleteRun": "Diesen Auswertungslauf löschen?",
+          "editTestCase": "Testfall bearbeiten",
+          "noResultsYet": "Noch keine Ergebnisse für diesen Lauf.",
+          "faithfulnessRagOnly": "Treue ist nur für RAG-Projekte verfügbar.",
+          "judgedBy": "Bewertet von"
         },
         "guardAnalytics": {
           "title": "Guard-Analyse",

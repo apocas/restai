@@ -1,8 +1,14 @@
+import asyncio
 import json
 import logging
 import time
 from datetime import datetime, timezone
 from typing import Optional
+
+# Hard ceiling on a single test case's answer generation. A wedged project
+# LLM (e.g. an upstream provider hanging) must not leave the whole run stuck
+# in "running" forever — on timeout we record an error answer and move on.
+ANSWER_TIMEOUT_SECONDS = 180
 
 from llama_index.core.llms.llm import LLM
 from deepeval.models.base_model import DeepEvalBaseLLM
@@ -182,9 +188,13 @@ async def run_evaluation(run_id: int, app):
                 run.prompt_version_id = active_pv.id
                 db.db.commit()
 
+        # The judge model: a per-project `eval_llm` override if set, else the
+        # project's own LLM. Access was enforced at save time (db/projects.py),
+        # so here we just resolve by name.
+        eval_llm_name = getattr(project.props.options, "eval_llm", None) or project.props.llm
         eval_llm = None
-        if project.props.llm:
-            llm_model = brain.get_llm(project.props.llm, db)
+        if eval_llm_name:
+            llm_model = brain.get_llm(eval_llm_name, db)
             if llm_model:
                 eval_llm = DeepEvalLLM(model=llm_model.llm)
 
@@ -198,9 +208,15 @@ async def run_evaluation(run_id: int, app):
 
         for tc in test_cases:
             try:
-                answer, sources, latency_ms = await _get_project_answer(
-                    project, tc.question, brain, user, db
-                )
+                try:
+                    answer, sources, latency_ms = await asyncio.wait_for(
+                        _get_project_answer(project, tc.question, brain, user, db),
+                        timeout=ANSWER_TIMEOUT_SECONDS,
+                    )
+                except asyncio.TimeoutError:
+                    answer = f"Error: evaluation timed out after {ANSWER_TIMEOUT_SECONDS}s"
+                    sources = []
+                    latency_ms = ANSWER_TIMEOUT_SECONDS * 1000
 
                 context = None
                 if tc.context:
@@ -215,7 +231,21 @@ async def run_evaluation(run_id: int, app):
                     try:
                         if metric_name == "faithfulness" and not retrieval_context:
                             continue
-                        if metric_name == "correctness" and not tc.expected_answer:
+                        if metric_name == "correctness" and not (tc.expected_answer or "").strip():
+                            # Correctness needs a ground-truth answer to compare
+                            # against. Record an explicit failure (instead of
+                            # silently skipping or hanging GEval on an empty
+                            # expected output) so it's visible in the results.
+                            db.db.add(EvalResultDatabase(
+                                run_id=run.id,
+                                test_case_id=tc.id,
+                                actual_answer=answer,
+                                metric_name=metric_name,
+                                score=0.0,
+                                reason="No expected answer provided — correctness cannot be evaluated.",
+                                passed=False,
+                                latency_ms=latency_ms,
+                            ))
                             continue
 
                         test = LLMTestCase(

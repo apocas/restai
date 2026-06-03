@@ -316,7 +316,10 @@
         "browserSection": "Agentisk browser",
         "browserAllowedDomains": "Tilladte domæner",
         "browserAllowedHint": "Kommasepareret liste over værtsnavne, browseren må besøge. Tom = ubegrænset.",
-        "browserAllowEval": "Tillad browser_eval (farligt)"
+        "browserAllowEval": "Tillad browser_eval (farligt)",
+        "evalLlm": "Evaluerings-LLM",
+        "evalLlmHint": "Model, der bedømmer evalueringskørsler. Standard = projektets egen LLM.",
+        "evalLlmDefault": "Standard — brug projekt-LLM"
       },
       "knowledge": {
         "retrieval": "Hentning",
@@ -368,7 +371,11 @@
           "starting": "Starter…",
           "start": "Start",
           "confirmDeleteDataset": "Slet dette datasæt og alle dets testcases?",
-          "confirmDeleteRun": "Slet denne evalueringskørsel?"
+          "confirmDeleteRun": "Slet denne evalueringskørsel?",
+          "editTestCase": "Rediger testcase",
+          "noResultsYet": "Endnu ingen resultater for denne kørsel.",
+          "faithfulnessRagOnly": "Troværdighed er kun tilgængelig for RAG-projekter.",
+          "judgedBy": "Bedømt af"
         },
         "guardAnalytics": {
           "title": "Vagt-analyse",

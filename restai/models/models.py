@@ -730,6 +730,7 @@ class ProjectOptions(BaseModel):
     rate_limit: Union[int, None] = Field(default=None, ge=1, le=10000, description="Maximum requests per minute (None = unlimited)")
     guard_output: Union[str, None] = Field(default=None, description="Name of the guard project for output checking")
     guard_mode: Union[str, None] = Field(default="block", description="Guard behavior: 'block' or 'warn'")
+    eval_llm: Union[str, None] = Field(default=None, max_length=255, description="LLM used to judge evaluation runs. Empty/None = use the project's own LLM.")
     sync_sources: Union[list[SyncSource], None] = Field(default=None, description="External sources for knowledge base auto-sync")
     sync_enabled: Union[bool, None] = Field(default=None, description="Enable automatic knowledge base sync")
     enable_knowledge_graph: Union[bool, None] = Field(default=None, description="Enable entity extraction and knowledge graph features (RAG projects only)")
@@ -1879,6 +1880,14 @@ class EvalTestCaseResponse(BaseModel):
         return v
 
 
+class EvalTestCaseUpdate(BaseModel):
+    """Update a test case in an evaluation dataset. Only sent fields change;
+    an empty-string expected_answer clears the ground truth."""
+    question: Optional[str] = Field(default=None, max_length=100000, description="Test question to ask the project")
+    expected_answer: Optional[str] = Field(default=None, max_length=100000, description="Expected ground truth answer ('' clears it)")
+    context: Optional[list[str]] = Field(default=None, description="Reference context passages for faithfulness evaluation")
+
+
 class EvalDatasetCreate(BaseModel):
     """Create an evaluation dataset for a project."""
     name: str = Field(max_length=255, description="Dataset name")
@@ -1933,9 +1942,13 @@ class EvalRunCreate(BaseModel):
 
 
 class EvalResultResponse(BaseModel):
-    """A single evaluation result for one test case and one metric."""
+    """A single evaluation result for one test case and one metric.
+    `question`/`expected_answer` are joined in from the test case by the
+    run-detail endpoint so the results modal can show full context."""
     id: int
     test_case_id: int
+    question: Optional[str] = None
+    expected_answer: Optional[str] = None
     actual_answer: Optional[str] = None
     metric_name: str
     score: Optional[float] = None
@@ -1951,6 +1964,7 @@ class EvalRunResponse(BaseModel):
     dataset_id: int
     project_id: int
     prompt_version_id: Optional[int] = None
+    prompt_version: Optional[int] = None  # per-project version number (prompt_versions.version), not the FK
     status: str
     metrics: list[str] = []
     summary: Optional[dict] = None

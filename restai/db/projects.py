@@ -280,6 +280,18 @@ class ProjectMixin:
             proj_db.default_prompt = projectModel.default_prompt
             changed = True
 
+        # eval_llm follows the same team-scoped access rule as the main `llm`:
+        # the user can only point evals at an LLM one of the project's teams
+        # can use. Empty/None = "use the project's own LLM" (no check needed).
+        if projectModel.options is not None and getattr(projectModel.options, "eval_llm", None):
+            eval_llm_db = self.get_llm_by_name(projectModel.options.eval_llm)
+            if eval_llm_db is None or not any(eval_llm_db in team.llms for team in teams_with_project):
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"No access to eval LLM '{projectModel.options.eval_llm}'",
+                )
+
         if hasattr(projectModel, "options") and projectModel.options is not None:
             from restai.utils.crypto import encrypt_sensitive_options, PROJECT_SENSITIVE_KEYS
             # Keys that aren't surfaced in the project-edit form — they are

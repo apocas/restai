@@ -316,7 +316,10 @@
         "browserSection": "Navigateur agentique",
         "browserAllowedDomains": "Domaines autorisés",
         "browserAllowedHint": "Noms d'hôte séparés par des virgules que le navigateur peut visiter. Vide = sans restriction.",
-        "browserAllowEval": "Autoriser browser_eval (dangereux)"
+        "browserAllowEval": "Autoriser browser_eval (dangereux)",
+        "evalLlm": "LLM d'évaluation",
+        "evalLlmHint": "Modèle qui note les exécutions d'évaluation. Par défaut = le LLM du projet.",
+        "evalLlmDefault": "Par défaut — utiliser le LLM du projet"
       },
       "knowledge": {
         "retrieval": "Récupération",
@@ -368,7 +371,11 @@
           "starting": "Démarrage…",
           "start": "Démarrer",
           "confirmDeleteDataset": "Supprimer ce jeu de données et tous ses cas de test ?",
-          "confirmDeleteRun": "Supprimer cette exécution d'évaluation ?"
+          "confirmDeleteRun": "Supprimer cette exécution d'évaluation ?",
+          "editTestCase": "Modifier le cas de test",
+          "noResultsYet": "Aucun résultat pour cette exécution pour le moment.",
+          "faithfulnessRagOnly": "La fidélité n'est disponible que pour les projets RAG.",
+          "judgedBy": "Évalué par"
         },
         "guardAnalytics": {
           "title": "Analyse des gardes",

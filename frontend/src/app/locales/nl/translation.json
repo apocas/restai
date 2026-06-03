@@ -316,7 +316,10 @@
         "browserSection": "Agentische browser",
         "browserAllowedDomains": "Toegestane domeinen",
         "browserAllowedHint": "Door komma's gescheiden hostnamen die de browser mag bezoeken. Leeg = onbeperkt.",
-        "browserAllowEval": "browser_eval toestaan (gevaarlijk)"
+        "browserAllowEval": "browser_eval toestaan (gevaarlijk)",
+        "evalLlm": "Evaluatie-LLM",
+        "evalLlmHint": "Model dat evaluatieruns beoordeelt. Standaard = de eigen LLM van het project.",
+        "evalLlmDefault": "Standaard — project-LLM gebruiken"
       },
       "knowledge": {
         "retrieval": "Retrieval",
@@ -368,7 +371,11 @@
           "starting": "Starten…",
           "start": "Starten",
           "confirmDeleteDataset": "Deze dataset en alle bijbehorende testcases verwijderen?",
-          "confirmDeleteRun": "Deze evaluatierun verwijderen?"
+          "confirmDeleteRun": "Deze evaluatierun verwijderen?",
+          "editTestCase": "Testcase bewerken",
+          "noResultsYet": "Nog geen resultaten voor deze run.",
+          "faithfulnessRagOnly": "Trouw is alleen beschikbaar voor RAG-projecten.",
+          "judgedBy": "Beoordeeld door"
         },
         "guardAnalytics": {
           "title": "Guard-analyse",

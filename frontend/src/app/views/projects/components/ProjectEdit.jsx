@@ -120,6 +120,7 @@ export default function ProjectEdit({ project, projects, info }) {
     opts.options.rate_limit = state.options.rate_limit ? parseInt(state.options.rate_limit) : null;
     opts.options.guard_output = state.options.guard_output || null;
     opts.options.guard_mode = state.options.guard_mode || "block";
+    opts.options.eval_llm = state.options.eval_llm || null;
     if (project.type === "agent") {
       opts.options.memory_bank_enabled = state.options.memory_bank_enabled || false;
       opts.options.memory_bank_max_tokens = parseInt(state.options.memory_bank_max_tokens) || 2000;

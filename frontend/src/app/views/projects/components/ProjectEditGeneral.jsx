@@ -194,6 +194,20 @@ export default function ProjectEditGeneral({
                   <MenuItem value={item.name} key={item.name}>{item.name}</MenuItem>
                 ))}
               </TextField>
+              <TextField
+                fullWidth select size="small"
+                label={t("projects.edit.general.evalLlm")}
+                value={opts.eval_llm ?? ""}
+                onChange={(e) => setState({ ...state, options: { ...state.options, eval_llm: e.target.value } })}
+                helperText={t("projects.edit.general.evalLlmHint")}
+                InputLabelProps={{ shrink: true }}
+                SelectProps={{ displayEmpty: true }}
+              >
+                <MenuItem value=""><em>{t("projects.edit.general.evalLlmDefault")}</em></MenuItem>
+                {llmsForTeam.map((item) => (
+                  <MenuItem value={item.name} key={item.name}>{item.name}</MenuItem>
+                ))}
+              </TextField>
             </FieldGrid>
             {project?.embeddings
               && state.embeddings !== undefined
