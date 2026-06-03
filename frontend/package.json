@@ -75,7 +75,7 @@
     "react-perfect-scrollbar": "^1.5.8",
     "react-qr-code": "^2.0.18",
     "react-redux": "^9.2.0",
-    "react-router-dom": "^6.30.3",
+    "react-router-dom": "^6.30.4",
     "react-scripts": "^5.0.1",
     "react-toastify": "^11.0.5",
     "recharts": "^3.8.0",
