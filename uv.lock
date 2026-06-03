@@ -1279,7 +1279,7 @@ wheels = [
 
 [[package]]
 name = "docling"
-version = "2.89.0"
+version = "2.91.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "accelerate" },
@@ -1316,9 +1316,9 @@ dependencies = [
     { name = "typer" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e1/16/20c97095be10fb9558100d509fc27da4006f370da0cecd6ec49f5e601f02/docling-2.89.0.tar.gz", hash = "sha256:310c1382fc6012da08e6a5ae7f03515983fcc86bd7d20524e73b9e44fe6a3144", size = 462398, upload-time = "2026-04-16T08:09:56.979Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/67/5e/e18d8a351b2b80e77392e48851d0c17ab0e18ccffce5e7fecefce0738fe9/docling-2.91.0.tar.gz", hash = "sha256:c37fa0957e63a784753a4d43fc1271caa869d883a8354d556ee6d52a3046929e", size = 475494, upload-time = "2026-04-23T09:30:37.293Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/3c/8f5daa77c25c2ad1c98a3bce3bc85455c69f0fde1772184206afe2be1346/docling-2.89.0-py3-none-any.whl", hash = "sha256:e1089f2090c19d0baef52c889154b9e9424d64e6104c2458e77b72cccf2fefef", size = 488740, upload-time = "2026-04-16T08:09:55.27Z" },
+    { url = "https://files.pythonhosted.org/packages/af/c7/9d46072bd33edb1a4c9e6f233e0a7bf58658718da7ace86ca1144dfd7a31/docling-2.91.0-py3-none-any.whl", hash = "sha256:db413c21b2fe5bec78c32b475346ef770ab40368a331150570371c3281c951a2", size = 498712, upload-time = "2026-04-23T09:30:35.367Z" },
 ]
 
 [[package]]
