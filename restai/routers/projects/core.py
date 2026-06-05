@@ -409,6 +409,21 @@ async def route_edit_project(
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    # search_knowledge target must be a RAG project the editing user can access
+    # (the builtin re-checks per running user at call time; this is early UX feedback).
+    skp = getattr(projectModelUpdate.options, "search_knowledge_project", None) if projectModelUpdate.options else None
+    if skp:
+        from restai.auth import user_can_access_project
+        tgt = db_wrapper.get_project_by_name(skp)
+        if tgt is None or tgt.type != "rag":
+            raise HTTPException(status_code=400, detail="search_knowledge_project must be an existing RAG project")
+        # Must live in the same team as this project (honour a team change in this PATCH).
+        calling_team_id = getattr(projectModelUpdate, "team_id", None) or project.team_id
+        if tgt.team_id is None or tgt.team_id != calling_team_id:
+            raise HTTPException(status_code=400, detail=f"RAG project '{skp}' must be in the same team as this project")
+        if not user_can_access_project(user, tgt.id, db_wrapper):
+            raise HTTPException(status_code=403, detail=f"No access to RAG project '{skp}'")
+
     if (
         projectModelUpdate.llm
         and request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper) is None

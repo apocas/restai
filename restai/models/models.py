@@ -731,6 +731,7 @@ class ProjectOptions(BaseModel):
     guard_output: Union[str, None] = Field(default=None, description="Name of the guard project for output checking")
     guard_mode: Union[str, None] = Field(default="block", description="Guard behavior: 'block' or 'warn'")
     eval_llm: Union[str, None] = Field(default=None, max_length=255, description="LLM used to judge evaluation runs. Empty/None = use the project's own LLM.")
+    search_knowledge_project: Union[str, None] = Field(default=None, max_length=255, description="Name of the RAG project the search_knowledge builtin queries (agent projects). Empty = disabled.")
     sync_sources: Union[list[SyncSource], None] = Field(default=None, description="External sources for knowledge base auto-sync")
     sync_enabled: Union[bool, None] = Field(default=None, description="Enable automatic knowledge base sync")
     enable_knowledge_graph: Union[bool, None] = Field(default=None, description="Enable entity extraction and knowledge graph features (RAG projects only)")

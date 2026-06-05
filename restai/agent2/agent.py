@@ -367,6 +367,7 @@ class Agent2Runtime:
                 "chat_id": getattr(self, "_chat_id", None),
                 "brain": getattr(self, "_brain", None),
                 "project_id": getattr(self, "_project_id", None),
+                "user": getattr(self, "_user", None),
             }
             result_text = await tool.call(args, context=context)
         except Exception as e:

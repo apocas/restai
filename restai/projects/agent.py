@@ -793,6 +793,7 @@ class Agent(ProjectBase):
                 runtime._chat_id = sandbox_id
                 runtime._brain = self.brain
                 runtime._project_id = project.props.id
+                runtime._user = user
                 session = await get_session(self.brain, sandbox_id)
 
                 prompt_text, image_url = _route_attachments(

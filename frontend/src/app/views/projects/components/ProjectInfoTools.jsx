@@ -198,6 +198,7 @@ export default function ProjectInfoTools({ project }) {
       max_iterations: state.options?.max_iterations ?? 10,
       agent_mode: state.options?.agent_mode || "auto",
       auto_plan: !!state.options?.auto_plan,
+      search_knowledge_project: state.options?.search_knowledge_project || null,
       mcp_servers: filteredMcpServers.length > 0 ? filteredMcpServers : null,
     };
     api.patch(`/projects/${proj.id}`, { options: merged }, auth.user.token)

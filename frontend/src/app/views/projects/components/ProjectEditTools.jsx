@@ -310,6 +310,25 @@ function AgentCreatedTools({ project }) {
 
 export default function ProjectEditTools({ state, setState, handleChange, project, mcpServers, setMcpServers, tools, handleAddMcpServer, handleRemoveMcpServer, handleMcpServerFieldChange, handleProbeMcpServer, handleMcpToolsChange, handleAddGatewayServices, isStdioServer }) {
   const { t } = useTranslation();
+  const auth = useAuth();
+  const [ragProjects, setRagProjects] = useState([]);
+
+  // RAG projects the user can pick for the search_knowledge builtin.
+  useEffect(() => {
+    if (project?.type !== "agent" || !project?.id) return;
+    api.get("/projects", auth.user.token)
+      .then((d) => setRagProjects((d.projects || []).filter((p) => p.type === "rag" && p.name !== project.name)))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.id]);
+
+  // The consumed RAG project must live in the same team as this agent project.
+  const callingTeamId = state?.team?.id ?? project?.team?.id ?? project?.team_id;
+  const sameTeamRag = ragProjects.filter((p) => {
+    const t = p.team?.id ?? p.team_id;
+    return callingTeamId == null || t == null || t === callingTeamId;
+  });
+
   return (
     <Grid container spacing={3}>
       <Grid item sm={6} xs={12}>
@@ -376,6 +395,33 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
             <MenuItem value="function_calling">Function Calling (native only)</MenuItem>
             <MenuItem value="react">ReAct (text-based prompting)</MenuItem>
           </TextField>
+        </Grid>
+        <Grid item xs={12}>
+          <TextField
+            select
+            fullWidth
+            label="Knowledge Search · target RAG project"
+            variant="outlined"
+            InputLabelProps={{ shrink: true }}
+            SelectProps={{ displayEmpty: true }}
+            value={state.options?.search_knowledge_project || ""}
+            onChange={(e) => setState({
+              ...state,
+              options: { ...state.options, search_knowledge_project: e.target.value }
+            })}
+            helperText="RAG project (in this project's team) that the search_knowledge builtin queries. The model only picks the query — never the project (deterministic). You must have access to the selected project."
+          >
+            <MenuItem value=""><em>None</em></MenuItem>
+            {sameTeamRag.map((p) => (
+              <MenuItem key={p.name} value={p.name}>{p.human_name || p.name}</MenuItem>
+            ))}
+          </TextField>
+          {state.options?.search_knowledge_project
+            && !(state.options?.tools || "").split(",").map((s) => s.trim()).includes("search_knowledge") && (
+            <Typography variant="caption" sx={{ color: "warning.main", display: "block", mt: 0.5 }}>
+              Add “search_knowledge” to the Tools field above to activate it.
+            </Typography>
+          )}
         </Grid>
         <Grid item xs={12}>
           <FormControlLabel
