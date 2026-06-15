@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from restai.helper import _is_private_ip
+from restai.helper import _is_private_ip, _safe_get
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,9 @@ def crawler_classic(url: str) -> str:
     }
 
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = _safe_get(url, headers=headers, timeout=10)
+    except ValueError as e:
+        return f"ERROR: {e}"
     except requests.RequestException as e:
         return f"ERROR: fetch failed: {e}"
 

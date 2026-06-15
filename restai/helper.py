@@ -2,7 +2,7 @@ import time
 import socket
 import ipaddress
 from typing import AsyncGenerator, Any, Dict
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 from starlette.responses import StreamingResponse
 from requests import Response
@@ -62,6 +62,32 @@ def _is_private_ip(hostname: str) -> bool:
     return False
 
 
+def _safe_get(url: str, max_redirects: int = 5, **kwargs):
+    """`requests.get` that re-validates the target host against the SSRF
+    blocklist on the initial request AND on every redirect hop (auto-redirect
+    disabled). Closes the redirect→internal bypass (e.g. a public URL that 302s
+    to 169.254.169.254). Raises ValueError on a private/internal target."""
+    kwargs["allow_redirects"] = False
+    current = url
+    for _ in range(max_redirects + 1):
+        hostname = urlparse(current).hostname
+        if not hostname:
+            raise ValueError("URL has no valid hostname.")
+        if _is_private_ip(hostname):
+            logger.warning("Blocked SSRF attempt to internal address: %s", hostname)
+            raise ValueError(f"Access to internal/private addresses is not allowed: {hostname}")
+        response = requests.get(current, **kwargs)
+        if response.is_redirect or response.is_permanent_redirect:
+            location = response.headers.get("Location")
+            response.close()
+            if not location:
+                raise ValueError("Redirect without a Location header.")
+            current = urljoin(current, location)
+            continue
+        return response
+    raise ValueError("Too many redirects.")
+
+
 def resolve_image(image: str) -> str:
     if re.match(_URL_PATTERN, image):
         parsed = urlparse(image)
@@ -69,11 +95,8 @@ def resolve_image(image: str) -> str:
         if not hostname:
             raise ValueError("URL has no valid hostname.")
 
-        if _is_private_ip(hostname):
-            logger.warning("Blocked SSRF attempt to internal address: %s", hostname)
-            raise ValueError(f"Access to internal/private addresses is not allowed: {hostname}")
-
-        response = requests.get(image, timeout=10, stream=True)
+        # _safe_get re-checks the host on every redirect hop too.
+        response = _safe_get(image, timeout=10, stream=True)
         response.raise_for_status()
 
         chunks = []

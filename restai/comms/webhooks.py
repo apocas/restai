@@ -90,7 +90,7 @@ def _safe_url(url: str) -> Optional[str]:
 def _post_in_thread(url: str, body: bytes, headers: dict) -> None:
     def _go():
         try:
-            resp = requests.post(url, data=body, headers=headers, timeout=10)
+            resp = requests.post(url, data=body, headers=headers, timeout=10, allow_redirects=False)
             if resp.status_code >= 400:
                 logger.warning("webhook POST returned HTTP %s: %s", resp.status_code, resp.text[:200])
         except Exception as e:

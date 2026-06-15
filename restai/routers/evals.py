@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Request
 
-from restai.auth import get_current_username_project
+from restai.auth import check_not_restricted, get_current_username_project
 from restai.database import get_db_wrapper, DBWrapper
 from restai.models.databasemodels import (
     EvalDatasetDatabase,
@@ -48,6 +48,7 @@ async def create_dataset(
     db: DBWrapper = Depends(get_db_wrapper),
 ):
     """Create an evaluation dataset, optionally with initial test cases."""
+    check_not_restricted(user)
     now = datetime.now(timezone.utc)
     dataset = EvalDatasetDatabase(
         name=body.name,
@@ -147,6 +148,7 @@ async def update_dataset(
     db: DBWrapper = Depends(get_db_wrapper),
 ):
     """Update a dataset's name or description."""
+    check_not_restricted(user)
     dataset = (
         db.db.query(EvalDatasetDatabase)
         .filter(EvalDatasetDatabase.id == datasetID, EvalDatasetDatabase.project_id == projectID)
@@ -181,6 +183,7 @@ async def delete_dataset(
     db: DBWrapper = Depends(get_db_wrapper),
 ):
     """Delete a dataset and all its test cases and associated runs."""
+    check_not_restricted(user)
     dataset = (
         db.db.query(EvalDatasetDatabase)
         .filter(EvalDatasetDatabase.id == datasetID, EvalDatasetDatabase.project_id == projectID)
@@ -205,6 +208,7 @@ async def add_test_case(
     db: DBWrapper = Depends(get_db_wrapper),
 ):
     """Add a test case to a dataset."""
+    check_not_restricted(user)
     dataset = (
         db.db.query(EvalDatasetDatabase)
         .filter(EvalDatasetDatabase.id == datasetID, EvalDatasetDatabase.project_id == projectID)
@@ -239,6 +243,7 @@ async def update_test_case(
 ):
     """Edit an existing test case. Only fields present in the body change;
     an empty-string expected_answer clears the ground truth."""
+    check_not_restricted(user)
     dataset = (
         db.db.query(EvalDatasetDatabase)
         .filter(EvalDatasetDatabase.id == datasetID, EvalDatasetDatabase.project_id == projectID)
@@ -280,6 +285,7 @@ async def delete_test_case(
     db: DBWrapper = Depends(get_db_wrapper),
 ):
     """Delete a test case from a dataset."""
+    check_not_restricted(user)
     tc = (
         db.db.query(EvalTestCaseDatabase)
         .filter(
@@ -317,6 +323,7 @@ async def start_eval_run(
     db: DBWrapper = Depends(get_db_wrapper),
 ):
     """Start an evaluation run. Returns immediately; runs in the background."""
+    check_not_restricted(user)
     for m in body.metrics:
         if m not in VALID_METRICS:
             raise HTTPException(
@@ -449,6 +456,7 @@ async def delete_run(
     db: DBWrapper = Depends(get_db_wrapper),
 ):
     """Delete an evaluation run and all its results."""
+    check_not_restricted(user)
     run = (
         db.db.query(EvalRunDatabase)
         .filter(EvalRunDatabase.id == runID, EvalRunDatabase.project_id == projectID)

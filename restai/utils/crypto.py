@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import json as _json
 import os
 import secrets
@@ -45,8 +46,8 @@ def verify_api_key_hash(plaintext: str, stored_hash: str) -> bool:
         salt = bytes.fromhex(parts[0])
         expected = bytes.fromhex(parts[1])
         dk = hashlib.pbkdf2_hmac("sha256", plaintext.encode(), salt, _PBKDF2_ITERATIONS)
-        return dk == expected
-    return hashlib.sha256(plaintext.encode()).hexdigest() == stored_hash
+        return hmac.compare_digest(dk, expected)
+    return hmac.compare_digest(hashlib.sha256(plaintext.encode()).hexdigest(), stored_hash)
 
 
 def encrypt_totp_secret(secret: str) -> str:
@@ -77,8 +78,8 @@ def verify_recovery_code(code: str, stored_hash: str) -> bool:
         salt = bytes.fromhex(parts[0])
         expected = bytes.fromhex(parts[1])
         dk = hashlib.pbkdf2_hmac("sha256", code.strip().lower().encode(), salt, _PBKDF2_ITERATIONS)
-        return dk == expected
-    return hashlib.sha256(code.strip().lower().encode()).hexdigest() == stored_hash
+        return hmac.compare_digest(dk, expected)
+    return hmac.compare_digest(hashlib.sha256(code.strip().lower().encode()).hexdigest(), stored_hash)
 
 
 _ENC_PREFIX = "$ENC$"

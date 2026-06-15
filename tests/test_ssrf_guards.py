@@ -44,13 +44,19 @@ def test_crawler_classic_uses_timeout(monkeypatch):
 
     class _FakeResp:
         content = b"<html><body>hello</body></html>"
+        is_redirect = False
+        is_permanent_redirect = False
 
-    def fake_get(url, headers=None, timeout=None):
-        captured["timeout"] = timeout
+    def fake_get(url, **kwargs):
+        captured["timeout"] = kwargs.get("timeout")
+        # The hardened fetch path (_safe_get) disables auto-redirects.
+        assert kwargs.get("allow_redirects") is False
         return _FakeResp()
 
-    # Bypass SSRF guard with a public address.
+    # Bypass the SSRF host check in both the crawler pre-check and the shared
+    # _safe_get fetcher (which re-validates every redirect hop).
     monkeypatch.setattr(mod, "_is_private_ip", lambda h: False)
+    monkeypatch.setattr("restai.helper._is_private_ip", lambda h: False)
     monkeypatch.setattr(mod.requests, "get", fake_get)
     out = mod.crawler_classic("http://example.com/")
     assert "hello" in out

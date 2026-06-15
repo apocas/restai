@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import sqlite3
 
@@ -23,6 +24,8 @@ from restai.models.models import User
 from restai.app.storage import get_project_root
 
 from ._common import router, _require_app_project
+
+logger = logging.getLogger(__name__)
 
 
 # SQLite DB editor safety:
@@ -213,7 +216,8 @@ async def route_app_db_update_row(
                 params,
             )
         except sqlite3.Error as e:
-            raise HTTPException(status_code=400, detail=f"sqlite error: {e}")
+            logger.warning("app db write failed: %s", e)
+            raise HTTPException(status_code=400, detail="database write failed")
         return {"updated": payload.rowid}
     finally:
         conn.close()
@@ -249,7 +253,8 @@ async def route_app_db_insert_row(
         try:
             cur = conn.execute(sql, params)
         except sqlite3.Error as e:
-            raise HTTPException(status_code=400, detail=f"sqlite error: {e}")
+            logger.warning("app db write failed: %s", e)
+            raise HTTPException(status_code=400, detail="database write failed")
         return {"rowid": cur.lastrowid}
     finally:
         conn.close()
@@ -272,7 +277,8 @@ async def route_app_db_delete_row(
         try:
             conn.execute(f'DELETE FROM "{canonical}" WHERE rowid = ?', (int(payload.rowid),))
         except sqlite3.Error as e:
-            raise HTTPException(status_code=400, detail=f"sqlite error: {e}")
+            logger.warning("app db write failed: %s", e)
+            raise HTTPException(status_code=400, detail="database write failed")
         return {"deleted": payload.rowid}
     finally:
         conn.close()
