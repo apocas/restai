@@ -79,7 +79,7 @@ def test_emit_event_signs_with_hmac():
         status_code = 200
         text = ""
 
-    def fake_post(url, data=None, headers=None, timeout=None):
+    def fake_post(url, data=None, headers=None, timeout=None, **kwargs):
         captured.update({"url": url, "data": data, "headers": dict(headers), "timeout": timeout})
         done.set()
         return _FakeResp()
@@ -113,7 +113,7 @@ def test_emit_event_omits_signature_when_no_secret():
         status_code = 200
         text = ""
 
-    def fake_post(url, data=None, headers=None, timeout=None):
+    def fake_post(url, data=None, headers=None, timeout=None, **kwargs):
         captured.update({"headers": dict(headers)})
         done.set()
         return _FakeResp()
@@ -237,7 +237,7 @@ def test_webhook_test_endpoint_fires_when_configured(client, project_id):
     class _FakeResp:
         status_code = 202
         text = ""
-    def fake_post(url, data=None, headers=None, timeout=None):
+    def fake_post(url, data=None, headers=None, timeout=None, **kwargs):
         captured.update({"url": url, "headers": dict(headers)})
         done.set()
         return _FakeResp()
