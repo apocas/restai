@@ -370,9 +370,13 @@ def test_non_admin_cannot_setup_other_user(client):
 
 def test_enforce_only_local_users(client):
     """API key auth should work regardless of 2FA enforcement."""
+    ADMIN = ("admin", RESTAI_DEFAULT_PASSWORD)
+    # API keys must belong to a team the owner is in — add them to admin's team.
+    team_id = client.get("/users/admin", auth=ADMIN).json()["teams"][0]["id"]
+    client.post(f"/teams/{team_id}/users/{test_username}", auth=ADMIN)
     response = client.post(
         f"/users/{test_username}/apikeys",
-        json={"description": "totp_test_key"},
+        json={"description": "totp_test_key", "team_id": team_id},
         auth=(test_username, test_password),
     )
     assert response.status_code == 201

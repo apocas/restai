@@ -472,7 +472,8 @@
         "rateLimitHint": "Maksimalt antal forespørgsler pr. minut. Lad stå tomt for ubegrænset.",
         "redactInferenceLogs": "Skjul følsomme data i inferensloggen",
         "inviteUser": "Invitér bruger",
-        "privacy": "Privatliv og adgang"
+        "privacy": "Privatliv og adgang",
+        "budget": "Månedligt omkostningsbudget ($)"
       },
       "integrations": {
         "telegram": "Telegram",
@@ -924,7 +925,11 @@
       "memberOf": "Medlem af",
       "noMember": "Ingen yderligere team-medlemskaber.",
       "admin": "Administrator",
-      "member": "Medlem"
+      "member": "Medlem",
+      "yourBudget": "Dit budget",
+      "spentThisMonth": "{{spent}} denne måned",
+      "uncapped": "Ubegrænset",
+      "remaining": "{{amount}} tilbage"
     },
     "newPage": {
       "title": "Opret en ny bruger",
@@ -989,7 +994,10 @@
       "saveKeyTitle": "Gem din API-nøgle",
       "saveKeyWarn": "Dette er den eneste gang, hele nøglen vises. Kopiér den nu.",
       "projectLabel": "Projekt {{id}}",
-      "tokens": "tokens"
+      "tokens": "tokens",
+      "team": "Team",
+      "teamColumn": "Team",
+      "teamRequired": "Påkrævet — faktureres for denne nøgles direkte-adgangsforbrug"
     }
   },
   "teams": {
@@ -1124,7 +1132,8 @@
         "inTokens": "Input-tokens",
         "outTokens": "Output-tokens",
         "cost": "Omkostning",
-        "noTransactions": "Ingen transaktioner fundet"
+        "noTransactions": "Ingen transaktioner fundet",
+        "directAccess": "Direkte adgang"
       },
       "confirmRemove": "Er du sikker på, at du vil fjerne {{name}} fra dette team?",
       "confirmRemoveAdmin": "Er du sikker på, at du vil fjerne administratorrettigheder fra {{name}}?",
@@ -1135,6 +1144,58 @@
       "membersSubtitle": "Læse-/skriveadgang via roller",
       "adminsSubtitle": "Kan administrere medlemmer og ressourcer",
       "projectsSubtitle": "Klik på et projekt for at åbne"
+    },
+    "analytics": {
+      "eyebrow": "Analyse",
+      "title": "Teamanalyse",
+      "subtitle": "Hvor teamets budget og tokens bliver brugt",
+      "backToTeam": "Tilbage til team",
+      "forbidden": "Du har ikke adgang til dette teams analyse.",
+      "loadError": "Kunne ikke indlæse analysen.",
+      "budgetUsed": "Budget brugt",
+      "unlimited": "Ubegrænset",
+      "totalCost": "Samlede omkostninger",
+      "totalTokens": "Tokens i alt",
+      "in": "ind",
+      "out": "ud",
+      "messages": "Beskeder",
+      "conversations": "samtaler",
+      "activeUsers": "Aktive brugere",
+      "activeProjects": "Aktive projekter",
+      "directAccessCost": "Direkte adgang",
+      "avgLatency": "Gns. latens",
+      "costOverTime": "Omkostninger over tid",
+      "tokensOverTime": "Tokens over tid",
+      "cost": "Omkostning",
+      "inputTokens": "Input",
+      "outputTokens": "Output",
+      "byProject": "Pr. projekt",
+      "byProjectSub": "Forbrug og tokens pr. projekt (inkl. direkte adgang)",
+      "project": "Projekt",
+      "tokens": "Tokens",
+      "byLlm": "Pr. model",
+      "byLlmSub": "Omkostningsandel pr. LLM",
+      "byUser": "Pr. bruger",
+      "byUserSub": "Forbrug og tokens pr. bruger",
+      "user": "Bruger",
+      "unknownUser": "Ukendt",
+      "outcomes": "Resultater",
+      "latency": "Latens",
+      "requests": "Forespørgsler",
+      "hourly": "Aktivitet pr. time",
+      "noData": "Ingen data for denne periode"
+    },
+    "budget": {
+      "dialogTitle": "Medlemmets forbrugsgrænse",
+      "cap": "Grænse",
+      "capInput": "Månedlig omkostningsgrænse",
+      "capHelper": "Tom eller 0 = ubegrænset",
+      "usedThisMonth": "{{username}} har brugt {{spent}} denne måned",
+      "uncapped": "Ubegrænset",
+      "editCap": "Rediger forbrugsgrænse",
+      "saved": "Forbrugsgrænse opdateret",
+      "cleared": "Forbrugsgrænse fjernet",
+      "clear": "Ryd grænse"
     }
   },
   "llms": {

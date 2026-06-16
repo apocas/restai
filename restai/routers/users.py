@@ -2,7 +2,7 @@ from fastapi import APIRouter
 import traceback
 import uuid
 from unidecode import unidecode
-from fastapi import Depends, HTTPException, Path, Request
+from fastapi import Body, Depends, HTTPException, Path, Request
 import re
 import logging
 from datetime import timedelta
@@ -24,6 +24,8 @@ from restai.models.models import (
     UserUpdate,
     UsersResponse,
     LimitedUser,
+    UserTeamBudget,
+    UserTeamBudgetsResponse,
 )
 from restai.database import get_db_wrapper, DBWrapper
 from restai.models.databasemodels import UserDatabase, ProjectDatabase, TeamDatabase, users_projects, teams_users, teams_admins
@@ -195,7 +197,7 @@ async def route_get_user_details(
 @router.post("/users/{username}/apikeys", response_model=ApiKeyCreatedResponse, status_code=201)
 async def route_create_user_apikey(
     username: str = Path(description="Username"),
-    body: ApiKeyCreate = ApiKeyCreate(),
+    body: ApiKeyCreate = Body(...),
     _: User = Depends(get_current_username_user),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -204,6 +206,15 @@ async def route_create_user_apikey(
         user = db_wrapper.get_user_by_username(username)
         if user is None:
             raise HTTPException(status_code=404, detail="User not found")
+
+        # The key bills its team's budget for direct-access usage, so the
+        # team must be one the key owner actually belongs to (member or admin).
+        owner_team_ids = {t.id for t in db_wrapper.get_teams_for_user(user.id)}
+        if body.team_id not in owner_team_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="team_id must be a team the user belongs to",
+            )
 
         plaintext = uuid.uuid4().hex + secrets.token_urlsafe(32)
         encrypted = encrypt_api_key(plaintext)
@@ -237,6 +248,7 @@ async def route_create_user_apikey(
             description=body.description,
             allowed_projects=allowed_projects_json,
             read_only=body.read_only,
+            team_id=body.team_id,
         )
         return ApiKeyCreatedResponse(
             id=api_key_row.id,
@@ -244,6 +256,7 @@ async def route_create_user_apikey(
             key_prefix=key_prefix,
             description=api_key_row.description,
             created_at=api_key_row.created_at,
+            team_id=api_key_row.team_id,
             allowed_projects=body.allowed_projects,
             read_only=body.read_only,
         )
@@ -267,6 +280,41 @@ async def route_list_user_apikeys(
             raise HTTPException(status_code=404, detail="User not found")
         keys = db_wrapper.get_api_keys_for_user(user.id)
         return [ApiKeyResponse.model_validate(k) for k in keys]
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/users/{username}/team-budgets", response_model=UserTeamBudgetsResponse, tags=["Users"])
+async def route_get_user_team_budgets(
+    username: str = Path(description="Username"),
+    _: User = Depends(get_current_username_user),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """The user's own monthly budget (cap + month-to-date spend) for each team they're in.
+    Self-service: the profile owner or a platform admin. Only the user's OWN per-team data
+    is returned — never whole-team spend."""
+    try:
+        target = db_wrapper.get_user_by_username(username)
+        if target is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        admin_team_ids = {tm.id for tm in (target.admin_teams or [])}
+        out = []
+        for team in db_wrapper.get_teams_for_user(target.id):
+            cap = db_wrapper.get_team_user_budget(team.id, target.id)
+            spending = round(db_wrapper.get_team_user_spending(team.id, target.id), 4)
+            out.append(UserTeamBudget(
+                team_id=team.id,
+                team_name=team.name,
+                is_admin=team.id in admin_team_ids,
+                budget=cap,
+                spending=spending,
+                remaining=(None if cap is None else round(cap - spending, 4)),
+            ))
+        out.sort(key=lambda b: (b.team_name or "").lower())
+        return UserTeamBudgetsResponse(teams=out)
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

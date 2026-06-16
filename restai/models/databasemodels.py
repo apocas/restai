@@ -139,8 +139,30 @@ class ApiKeyDatabase(Base):
     token_quota_monthly = Column(Integer, nullable=True)
     tokens_used_this_month = Column(Integer, nullable=False, default=0)
     quota_reset_at = Column(DateTime, nullable=True)
+    # Team billed for this key's direct-access usage. Required for keys
+    # minted after migration 055; nullable for pre-existing rows and the
+    # legacy `users.api_key` fallback path.
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=True, index=True)
+    # Per-key monthly COST budget (unit: currency), part of the unified
+    # cost-budget model. NULL = uncapped. Distinct from token_quota_monthly
+    # (a token-count limit); both may apply independently.
+    cost_budget_monthly = Column(Float, nullable=True)
 
     user = relationship('UserDatabase', back_populates='api_keys')
+
+
+class TeamUserBudgetDatabase(Base):
+    """Per-(user, team) monthly cost cap. A user may belong to multiple teams,
+    so the cap is per membership. `budget` is in currency units; -1 = uncapped
+    (mirrors TeamDatabase.budget)."""
+    __tablename__ = "team_user_budgets"
+    __table_args__ = (UniqueConstraint("team_id", "user_id", name="uq_team_user_budget"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    budget = Column(Float, nullable=False, default=-1.0)
+
 
 class OutputDatabase(Base):
     __tablename__ = "output"
@@ -152,6 +174,9 @@ class OutputDatabase(Base):
     project_id = Column(Integer, ForeignKey('projects.id', ondelete="SET NULL"), nullable=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id'))
     team_id = Column(Integer, ForeignKey('teams.id'), nullable=True)
+    # API key that authenticated the request (NULL for cookie/basic auth).
+    # Enables per-key cost aggregation for the unified cost-budget model.
+    api_key_id = Column(Integer, ForeignKey('api_keys.id'), nullable=True, index=True)
 
     llm = Column(String(255))
 

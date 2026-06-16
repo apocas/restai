@@ -472,7 +472,8 @@
         "rateLimitHint": "Nombre maximal de requêtes par minute. Laisser vide pour illimité.",
         "redactInferenceLogs": "Masquer les données sensibles dans les journaux d'inférence",
         "inviteUser": "Inviter un utilisateur",
-        "privacy": "Confidentialité et accès"
+        "privacy": "Confidentialité et accès",
+        "budget": "Budget de coût mensuel ($)"
       },
       "integrations": {
         "telegram": "Telegram",
@@ -924,7 +925,11 @@
       "memberOf": "Membre de",
       "noMember": "Aucune autre appartenance d'équipe.",
       "admin": "Admin",
-      "member": "Membre"
+      "member": "Membre",
+      "yourBudget": "Votre budget",
+      "spentThisMonth": "{{spent}} ce mois-ci",
+      "uncapped": "Sans plafond",
+      "remaining": "{{amount}} restant"
     },
     "newPage": {
       "title": "Créer un nouvel utilisateur",
@@ -989,7 +994,10 @@
       "saveKeyTitle": "Enregistrez votre clé API",
       "saveKeyWarn": "C'est la seule fois où la clé complète sera affichée. Copiez-la maintenant.",
       "projectLabel": "Projet {{id}}",
-      "tokens": "tokens"
+      "tokens": "tokens",
+      "team": "Équipe",
+      "teamColumn": "Équipe",
+      "teamRequired": "Requis — facturé pour l'utilisation en accès direct de cette clé"
     }
   },
   "teams": {
@@ -1124,7 +1132,8 @@
         "inTokens": "Tokens en entrée",
         "outTokens": "Tokens en sortie",
         "cost": "Coût",
-        "noTransactions": "Aucune transaction trouvée"
+        "noTransactions": "Aucune transaction trouvée",
+        "directAccess": "Accès direct"
       },
       "confirmRemove": "Êtes-vous sûr de vouloir retirer {{name}} de cette équipe ?",
       "confirmRemoveAdmin": "Êtes-vous sûr de vouloir retirer les privilèges d'administrateur à {{name}} ?",
@@ -1135,6 +1144,58 @@
       "membersSubtitle": "Accès lecture/écriture via les rôles",
       "adminsSubtitle": "Peuvent gérer les membres et les ressources",
       "projectsSubtitle": "Cliquez sur un projet pour l'ouvrir"
+    },
+    "analytics": {
+      "eyebrow": "Analytique",
+      "title": "Analytique de l'équipe",
+      "subtitle": "Où vont le budget et les tokens de cette équipe",
+      "backToTeam": "Retour à l'équipe",
+      "forbidden": "Vous n'avez pas accès à l'analytique de cette équipe.",
+      "loadError": "Impossible de charger l'analytique.",
+      "budgetUsed": "Budget utilisé",
+      "unlimited": "Illimité",
+      "totalCost": "Coût total",
+      "totalTokens": "Tokens totaux",
+      "in": "entrée",
+      "out": "sortie",
+      "messages": "Messages",
+      "conversations": "conversations",
+      "activeUsers": "Utilisateurs actifs",
+      "activeProjects": "Projets actifs",
+      "directAccessCost": "Accès direct",
+      "avgLatency": "Latence moy.",
+      "costOverTime": "Coût dans le temps",
+      "tokensOverTime": "Tokens dans le temps",
+      "cost": "Coût",
+      "inputTokens": "Entrée",
+      "outputTokens": "Sortie",
+      "byProject": "Par projet",
+      "byProjectSub": "Dépense et tokens par projet (y compris accès direct)",
+      "project": "Projet",
+      "tokens": "Tokens",
+      "byLlm": "Par modèle",
+      "byLlmSub": "Part de coût par LLM",
+      "byUser": "Par utilisateur",
+      "byUserSub": "Dépense et tokens par utilisateur",
+      "user": "Utilisateur",
+      "unknownUser": "Inconnu",
+      "outcomes": "Résultats",
+      "latency": "Latence",
+      "requests": "Requêtes",
+      "hourly": "Activité par heure",
+      "noData": "Aucune donnée pour cette période"
+    },
+    "budget": {
+      "dialogTitle": "Plafond de dépense du membre",
+      "cap": "Plafond",
+      "capInput": "Plafond de coût mensuel",
+      "capHelper": "Vide ou 0 = illimité",
+      "usedThisMonth": "{{username}} a dépensé {{spent}} ce mois-ci",
+      "uncapped": "Sans plafond",
+      "editCap": "Modifier le plafond de dépense",
+      "saved": "Plafond de dépense mis à jour",
+      "cleared": "Plafond de dépense supprimé",
+      "clear": "Supprimer le plafond"
     }
   },
   "llms": {

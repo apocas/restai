@@ -26,7 +26,8 @@ from restai.config import LOG_LEVEL
 import json
 
 from restai.projects.base import ProjectBase
-from restai.limits.budget import check_budget, check_rate_limit, check_api_key_quota, record_api_key_tokens
+from restai.limits.budget import enforce_cost_budgets, check_rate_limit, check_api_key_quota, record_api_key_tokens
+from restai.models.databasemodels import ApiKeyDatabase
 
 logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger(__name__)
@@ -515,7 +516,14 @@ async def chat_main(
     _ctx = chat_input.context
 
     try:
-        check_budget(project, db)
+        api_key_row = (
+            db.db.query(ApiKeyDatabase).filter(ApiKeyDatabase.id == user.api_key_id).first()
+            if getattr(user, "api_key_id", None) else None
+        )
+        enforce_cost_budgets(
+            db, project=project, user=user,
+            team=project.props.team, api_key_row=api_key_row,
+        )
     except HTTPException as e:
         _log_inference_error(
             project, user, db,

@@ -41,8 +41,12 @@ user_key = None
 admin2_key = None
 
 
-def _mint_key(client, username):
-    r = client.post(f"/users/{username}/apikeys", json={"description": "suspend-test"}, auth=ADMIN)
+def _mint_key(client, username, team_id):
+    r = client.post(
+        f"/users/{username}/apikeys",
+        json={"description": "suspend-test", "team_id": team_id},
+        auth=ADMIN,
+    )
     assert r.status_code == 201, r.text
     return r.json()["api_key"]
 
@@ -70,8 +74,16 @@ def test_setup(client):
     # suspends the primary admin / itself).
     assert client.post("/users", json={"username": user, "password": user_pw}, auth=ADMIN).status_code == 201
     assert client.post("/users", json={"username": admin2, "password": admin2_pw, "is_admin": True}, auth=ADMIN).status_code == 201
-    user_key = _mint_key(client, user)
-    admin2_key = _mint_key(client, admin2)
+    # API keys must belong to a team the owner is in — put both in one.
+    tr = client.post(
+        "/teams",
+        json={"name": "suspend_team_" + _sfx, "users": [user, admin2], "admins": []},
+        auth=ADMIN,
+    )
+    assert tr.status_code == 201, tr.text
+    team_id = tr.json()["id"]
+    user_key = _mint_key(client, user, team_id)
+    admin2_key = _mint_key(client, admin2, team_id)
 
 
 # --------------------------------------------------------------------------- field plumbing

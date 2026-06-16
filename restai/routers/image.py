@@ -126,6 +126,7 @@ async def openai_compatible_generate(
         body.prompt,
         "(image generated)",
         0, 0, 0.0, 0.0,
+        user.api_key_id,
     )
 
     output = {

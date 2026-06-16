@@ -633,7 +633,8 @@
         "rateLimitHint": "Maximum requests per minute. Leave empty for unlimited.",
         "redactInferenceLogs": "Redact sensitive data in inference logs",
         "inviteUser": "Invite user",
-        "privacy": "Privacy & access"
+        "privacy": "Privacy & access",
+        "budget": "Monthly cost budget ($)"
       },
       "integrations": {
         "telegram": "Telegram",
@@ -924,7 +925,11 @@
       "memberOf": "Member of",
       "noMember": "No additional team memberships.",
       "admin": "Admin",
-      "member": "Member"
+      "member": "Member",
+      "yourBudget": "Your budget",
+      "spentThisMonth": "{{spent}} this month",
+      "uncapped": "Uncapped",
+      "remaining": "{{amount}} left"
     },
     "newPage": {
       "title": "Create a new user",
@@ -989,7 +994,10 @@
       "saveKeyTitle": "Save Your API Key",
       "saveKeyWarn": "This is the only time the full key will be shown. Copy it now.",
       "projectLabel": "Project {{id}}",
-      "tokens": "tokens"
+      "tokens": "tokens",
+      "team": "Team",
+      "teamColumn": "Team",
+      "teamRequired": "Required — billed for this key's direct-access usage"
     }
   },
   "teams": {
@@ -1127,7 +1135,8 @@
         "inTokens": "Input Tokens",
         "outTokens": "Output Tokens",
         "cost": "Cost",
-        "noTransactions": "No transactions found"
+        "noTransactions": "No transactions found",
+        "directAccess": "Direct access"
       },
       "confirmRemove": "Are you sure you want to remove {{name}} from this team?",
       "confirmRemoveAdmin": "Are you sure you want to remove admin privileges from {{name}}?",
@@ -1135,6 +1144,58 @@
       "removed": "{{name}} removed from team",
       "adminRemoved": "Admin privileges removed from {{name}}",
       "projectRemoved": "Project removed from team"
+    },
+    "analytics": {
+      "eyebrow": "Analytics",
+      "title": "Team Analytics",
+      "subtitle": "Where this team's budget and tokens are going",
+      "backToTeam": "Back to team",
+      "forbidden": "You don't have access to this team's analytics.",
+      "loadError": "Couldn't load analytics.",
+      "budgetUsed": "Budget used",
+      "unlimited": "Unlimited",
+      "totalCost": "Total cost",
+      "totalTokens": "Total tokens",
+      "in": "in",
+      "out": "out",
+      "messages": "Messages",
+      "conversations": "conversations",
+      "activeUsers": "Active users",
+      "activeProjects": "Active projects",
+      "directAccessCost": "Direct access",
+      "avgLatency": "Avg latency",
+      "costOverTime": "Cost over time",
+      "tokensOverTime": "Tokens over time",
+      "cost": "Cost",
+      "inputTokens": "Input",
+      "outputTokens": "Output",
+      "byProject": "By project",
+      "byProjectSub": "Spend & tokens per project (incl. direct access)",
+      "project": "Project",
+      "tokens": "Tokens",
+      "byLlm": "By model",
+      "byLlmSub": "Cost share per LLM",
+      "byUser": "By user",
+      "byUserSub": "Spend & tokens per user",
+      "user": "User",
+      "unknownUser": "Unknown",
+      "outcomes": "Outcomes",
+      "latency": "Latency",
+      "requests": "Requests",
+      "hourly": "Activity by hour",
+      "noData": "No data for this period"
+    },
+    "budget": {
+      "dialogTitle": "Member spending cap",
+      "cap": "Cap",
+      "capInput": "Monthly cost cap",
+      "capHelper": "Blank or 0 = unlimited",
+      "usedThisMonth": "{{username}} has spent {{spent}} this month",
+      "uncapped": "Uncapped",
+      "editCap": "Edit spending cap",
+      "saved": "Spending cap updated",
+      "cleared": "Spending cap removed",
+      "clear": "Clear cap"
     }
   },
   "llms": {

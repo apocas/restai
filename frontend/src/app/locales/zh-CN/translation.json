@@ -632,7 +632,8 @@
         "rateLimitHint": "每分钟最大请求数。留空表示无限制。",
         "redactInferenceLogs": "在推理日志中屏蔽敏感数据",
         "inviteUser": "邀请用户",
-        "privacy": "隐私与访问"
+        "privacy": "隐私与访问",
+        "budget": "每月费用预算 ($)"
       },
       "integrations": {
         "telegram": "Telegram",
@@ -923,7 +924,11 @@
       "memberOf": "成员身份",
       "noMember": "无其他团队成员身份。",
       "admin": "管理员",
-      "member": "成员"
+      "member": "成员",
+      "yourBudget": "您的预算",
+      "spentThisMonth": "本月 {{spent}}",
+      "uncapped": "无上限",
+      "remaining": "剩余 {{amount}}"
     },
     "newPage": {
       "title": "创建新用户",
@@ -988,7 +993,10 @@
       "saveKeyTitle": "保存您的 API 密钥",
       "saveKeyWarn": "这是唯一一次显示完整密钥。请立即复制。",
       "projectLabel": "项目 {{id}}",
-      "tokens": "tokens"
+      "tokens": "tokens",
+      "team": "团队",
+      "teamColumn": "团队",
+      "teamRequired": "必填 — 该密钥的直接访问用量将计入此团队"
     }
   },
   "teams": {
@@ -1114,7 +1122,8 @@
         "inTokens": "输入 Tokens",
         "outTokens": "输出 Tokens",
         "cost": "费用",
-        "noTransactions": "未找到交易"
+        "noTransactions": "未找到交易",
+        "directAccess": "直接访问"
       },
       "confirmRemove": "确定要将 {{name}} 从此团队中移除吗？",
       "confirmRemoveAdmin": "确定要移除 {{name}} 的管理员权限吗？",
@@ -1134,7 +1143,59 @@
       "teamAdmin": "团队管理员",
       "member": "成员"
     },
-    "noTeams": "还没有团队。"
+    "noTeams": "还没有团队。",
+    "analytics": {
+      "eyebrow": "分析",
+      "title": "团队分析",
+      "subtitle": "了解该团队的预算与令牌消耗去向",
+      "backToTeam": "返回团队",
+      "forbidden": "您无权查看该团队的分析。",
+      "loadError": "无法加载分析数据。",
+      "budgetUsed": "已用预算",
+      "unlimited": "无限制",
+      "totalCost": "总成本",
+      "totalTokens": "总令牌数",
+      "in": "输入",
+      "out": "输出",
+      "messages": "消息",
+      "conversations": "会话",
+      "activeUsers": "活跃用户",
+      "activeProjects": "活跃项目",
+      "directAccessCost": "直接访问",
+      "avgLatency": "平均延迟",
+      "costOverTime": "成本趋势",
+      "tokensOverTime": "令牌趋势",
+      "cost": "成本",
+      "inputTokens": "输入",
+      "outputTokens": "输出",
+      "byProject": "按项目",
+      "byProjectSub": "各项目的花费与令牌（含直接访问）",
+      "project": "项目",
+      "tokens": "令牌",
+      "byLlm": "按模型",
+      "byLlmSub": "各 LLM 的成本占比",
+      "byUser": "按用户",
+      "byUserSub": "各用户的花费与令牌",
+      "user": "用户",
+      "unknownUser": "未知",
+      "outcomes": "结果",
+      "latency": "延迟",
+      "requests": "请求",
+      "hourly": "按小时活动",
+      "noData": "此期间暂无数据"
+    },
+    "budget": {
+      "dialogTitle": "成员支出上限",
+      "cap": "上限",
+      "capInput": "每月费用上限",
+      "capHelper": "留空或 0 = 无限制",
+      "usedThisMonth": "{{username}} 本月已花费 {{spent}}",
+      "uncapped": "无上限",
+      "editCap": "编辑支出上限",
+      "saved": "支出上限已更新",
+      "cleared": "支出上限已移除",
+      "clear": "清除上限"
+    }
   },
   "llms": {
     "title": "LLM",

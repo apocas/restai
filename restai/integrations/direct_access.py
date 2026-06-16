@@ -1,80 +1,110 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Callable, Optional
 
 from fastapi import HTTPException
 
 from restai.database import DBWrapper
-from restai.models.databasemodels import OutputDatabase
+from restai.limits.budget import enforce_cost_budgets
+from restai.models.databasemodels import ApiKeyDatabase, OutputDatabase, TeamDatabase
 from restai.models.models import User
+
+# Sentinel: the request didn't authenticate with a team-pinned API key, so
+# team resolution should fall through to the legacy first-granting-team loop.
+_NOT_PINNED = object()
+
+
+def _api_key_row(user: User, db: DBWrapper):
+    """The ApiKeyDatabase row that authenticated the request, or None."""
+    kid = getattr(user, "api_key_id", None)
+    if kid is None:
+        return None
+    return db.db.query(ApiKeyDatabase).filter(ApiKeyDatabase.id == kid).first()
+
+
+def _budgets_ok(db: DBWrapper, user: User, team) -> bool:
+    """True when neither the team nor the caller's per-membership cap is
+    exhausted for `team` (api-key cap is checked once up front, not here)."""
+    try:
+        enforce_cost_budgets(db, user=user, team=team, api_key_row=None)
+        return True
+    except HTTPException:
+        return False
+
+
+def _resolve_non_pinned(user: User, db: DBWrapper, grants: Callable[[TeamDatabase], bool], not_found: str) -> Optional[int]:
+    """Shared non-pinned path: bill the first team that grants the model AND
+    has budget headroom (team + caller's per-membership cap). The api-key cost
+    cap is global to the key, so it's evaluated once up front and surfaces as a
+    402 (not a 403) when exhausted."""
+    if user.is_admin:
+        return None
+
+    # api-key cost cap (global to the key) — raise 402 before scanning teams.
+    api_key_row = _api_key_row(user, db)
+    if api_key_row is not None:
+        enforce_cost_budgets(db, user=user, api_key_row=api_key_row)
+
+    for team in db.get_teams_for_user(user.id):
+        if grants(team) and _budgets_ok(db, user, team):
+            return team.id
+
+    raise HTTPException(status_code=403, detail=not_found)
+
+
+def _pin_api_key_team(user: User, db: DBWrapper, has_access: Callable[[TeamDatabase], bool]):
+    """When the request authenticated via an API key that carries a team,
+    pin billing to that team deterministically (instead of the order-dependent
+    first-granting-team scan). Returns the team_id, or `_NOT_PINNED` when there
+    is no key team so the caller falls back to the legacy behavior.
+
+    Admins attribute to the key's team but keep their access/budget bypass;
+    non-admins must have model access through that team and stay within every
+    applicable cost cap (api-key, per-membership, team)."""
+    key_team = getattr(user, "api_key_team_id", None)
+    if key_team is None:
+        return _NOT_PINNED
+    team = db.get_team_by_id(key_team)
+    if team is None:
+        raise HTTPException(status_code=403, detail="API key team not found")
+    if user.is_admin:
+        return team.id
+    if not has_access(team):
+        raise HTTPException(status_code=403, detail="API key's team does not have access to this model")
+    enforce_cost_budgets(db, user=user, team=team, api_key_row=_api_key_row(user, db))
+    return team.id
 
 
 def resolve_team_for_llm(user: User, llm_name: str, db: DBWrapper) -> Optional[int]:
     """Returns team_id granting access, None for admin bypass, raises 403 on no access."""
-    if user.is_admin:
-        return None
-
-    teams = db.get_teams_for_user(user.id)
-    for team in teams:
-        for llm in team.llms:
-            if llm.name == llm_name:
-                if team.budget >= 0:
-                    spending = db.get_team_spending(team.id)
-                    if team.budget - spending <= 0:
-                        continue
-                return team.id
-
-    raise HTTPException(status_code=403, detail="You do not have access to this model")
+    grants = lambda team: any(l.name == llm_name for l in team.llms)
+    pinned = _pin_api_key_team(user, db, grants)
+    if pinned is not _NOT_PINNED:
+        return pinned
+    return _resolve_non_pinned(user, db, grants, "You do not have access to this model")
 
 
 def resolve_team_for_image_generator(user: User, generator_name: str, db: DBWrapper) -> Optional[int]:
-    if user.is_admin:
-        return None
-
-    teams = db.get_teams_for_user(user.id)
-    for team in teams:
-        gen_names = [g.generator_name for g in team.image_generators]
-        if generator_name in gen_names:
-            if team.budget >= 0:
-                spending = db.get_team_spending(team.id)
-                if team.budget - spending <= 0:
-                    continue
-            return team.id
-
-    raise HTTPException(status_code=403, detail="You do not have access to this image generator")
+    grants = lambda team: generator_name in [g.generator_name for g in team.image_generators]
+    pinned = _pin_api_key_team(user, db, grants)
+    if pinned is not _NOT_PINNED:
+        return pinned
+    return _resolve_non_pinned(user, db, grants, "You do not have access to this image generator")
 
 
 def resolve_team_for_audio_generator(user: User, generator_name: str, db: DBWrapper) -> Optional[int]:
-    if user.is_admin:
-        return None
-
-    teams = db.get_teams_for_user(user.id)
-    for team in teams:
-        gen_names = [g.generator_name for g in team.audio_generators]
-        if generator_name in gen_names:
-            if team.budget >= 0:
-                spending = db.get_team_spending(team.id)
-                if team.budget - spending <= 0:
-                    continue
-            return team.id
-
-    raise HTTPException(status_code=403, detail="You do not have access to this audio generator")
+    grants = lambda team: generator_name in [g.generator_name for g in team.audio_generators]
+    pinned = _pin_api_key_team(user, db, grants)
+    if pinned is not _NOT_PINNED:
+        return pinned
+    return _resolve_non_pinned(user, db, grants, "You do not have access to this audio generator")
 
 
 def resolve_team_for_embedding(user: User, embedding_name: str, db: DBWrapper) -> Optional[int]:
-    if user.is_admin:
-        return None
-
-    teams = db.get_teams_for_user(user.id)
-    for team in teams:
-        for emb in team.embeddings:
-            if emb.name == embedding_name:
-                if team.budget >= 0:
-                    spending = db.get_team_spending(team.id)
-                    if team.budget - spending <= 0:
-                        continue
-                return team.id
-
-    raise HTTPException(status_code=403, detail="You do not have access to this embedding model")
+    grants = lambda team: any(e.name == embedding_name for e in team.embeddings)
+    pinned = _pin_api_key_team(user, db, grants)
+    if pinned is not _NOT_PINNED:
+        return pinned
+    return _resolve_non_pinned(user, db, grants, "You do not have access to this embedding model")
 
 
 def log_direct_usage(
@@ -88,11 +118,13 @@ def log_direct_usage(
     output_tokens: int,
     input_cost: float,
     output_cost: float,
+    api_key_id: Optional[int] = None,
 ):
     entry = OutputDatabase(
         user_id=user_id,
         project_id=None,
         team_id=team_id,
+        api_key_id=api_key_id,
         llm=llm_name,
         question=question,
         answer=answer,

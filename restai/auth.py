@@ -69,6 +69,7 @@ def _resolve_bearer_token(
                 pass
         user.api_key_read_only = api_key_row.read_only or False
         user.api_key_id = api_key_row.id
+        user.api_key_team_id = api_key_row.team_id
     request.state.audit_username = f"{user_db.username} (api)"
     check_not_suspended(user)
     return user

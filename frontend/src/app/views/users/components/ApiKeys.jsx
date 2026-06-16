@@ -8,6 +8,7 @@ import {
   Divider,
   FormControlLabel,
   IconButton,
+  MenuItem,
   Switch,
   Table,
   TableBody,
@@ -41,8 +42,15 @@ export default function ApiKeys({ user }) {
   const [keys, setKeys] = useState([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [description, setDescription] = useState("");
+  const [selectedTeam, setSelectedTeam] = useState("");
   const [selectedProjects, setSelectedProjects] = useState([]);
   const [readOnly, setReadOnly] = useState(false);
+
+  // The key bills its team's budget for direct-access usage, so it must
+  // belong to one of the key owner's teams.
+  const teams = user.teams || [];
+  const teamName = (id) => teams.find((tm) => tm.id === id)?.name || "—";
+  const projectsForTeam = (id) => availableProjects.filter((p) => p.team_id === id);
   const [availableProjects, setAvailableProjects] = useState([]);
   const [newKey, setNewKey] = useState(null);
   // Quota-edit dialog state. We store the full key row so the dialog
@@ -93,18 +101,24 @@ export default function ApiKeys({ user }) {
     }
   }, [user.username]);
 
+  const closeCreate = () => {
+    setCreateOpen(false);
+    setDescription("");
+    setSelectedTeam("");
+    setSelectedProjects([]);
+    setReadOnly(false);
+  };
+
   const handleCreate = () => {
-    const body = { description, read_only: readOnly };
+    if (!selectedTeam) return;
+    const body = { description, team_id: selectedTeam, read_only: readOnly };
     if (selectedProjects.length > 0) {
       body.allowed_projects = selectedProjects.map(p => p.id);
     }
     api.post("/users/" + user.username + "/apikeys", body, auth.user.token)
       .then((data) => {
         setNewKey(data.api_key);
-        setCreateOpen(false);
-        setDescription("");
-        setSelectedProjects([]);
-        setReadOnly(false);
+        closeCreate();
         fetchKeys();
       })
       .catch(() => {});
@@ -141,6 +155,7 @@ export default function ApiKeys({ user }) {
                 <TableCell>{t("users.apiKeys.description")}</TableCell>
                 <TableCell>{t("users.apiKeys.keyPrefix")}</TableCell>
                 <TableCell>{t("users.apiKeys.scope")}</TableCell>
+                <TableCell>{t("users.apiKeys.teamColumn")}</TableCell>
                 <TableCell>{t("users.apiKeys.monthlyQuota")}</TableCell>
                 <TableCell>{t("users.apiKeys.created")}</TableCell>
                 <TableCell align="right">{t("users.apiKeys.actions")}</TableCell>
@@ -149,7 +164,7 @@ export default function ApiKeys({ user }) {
             <TableBody>
               {keys.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
+                  <TableCell colSpan={7} align="center">
                     {t("users.apiKeys.noKeys")}
                   </TableCell>
                 </TableRow>
@@ -172,6 +187,7 @@ export default function ApiKeys({ user }) {
                           <Chip label={t("users.apiKeys.allProjects")} size="small" variant="outlined" />
                         )}
                       </TableCell>
+                      <TableCell>{teamName(k.team_id)}</TableCell>
                       <TableCell sx={{ minWidth: 200 }}>
                         {cap ? (
                           <Box>
@@ -215,7 +231,7 @@ export default function ApiKeys({ user }) {
         </TableContainer>
       </Card>
 
-      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={createOpen} onClose={closeCreate} maxWidth="sm" fullWidth>
         <DialogTitle>{t("users.apiKeys.createDialog")}</DialogTitle>
         <DialogContent>
           <TextField
@@ -226,9 +242,30 @@ export default function ApiKeys({ user }) {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
+          <TextField
+            select
+            required
+            margin="dense"
+            label={t("users.apiKeys.team")}
+            fullWidth
+            value={selectedTeam}
+            onChange={(e) => {
+              const tid = e.target.value;
+              setSelectedTeam(tid);
+              setSelectedProjects(projectsForTeam(tid));
+            }}
+            error={!selectedTeam}
+            helperText={t("users.apiKeys.teamRequired")}
+            sx={{ mt: 1 }}
+          >
+            {teams.map((tm) => (
+              <MenuItem key={tm.id} value={tm.id}>{tm.name}</MenuItem>
+            ))}
+          </TextField>
           <Autocomplete
             multiple
-            options={availableProjects}
+            disabled={!selectedTeam}
+            options={projectsForTeam(selectedTeam)}
             getOptionLabel={(option) => option.name || t("users.apiKeys.projectLabel", { id: option.id })}
             value={selectedProjects}
             onChange={(e, newVal) => setSelectedProjects(newVal)}
@@ -249,8 +286,8 @@ export default function ApiKeys({ user }) {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateOpen(false)}>{t("common.cancel")}</Button>
-          <Button variant="contained" onClick={handleCreate}>{t("common.create")}</Button>
+          <Button onClick={closeCreate}>{t("common.cancel")}</Button>
+          <Button variant="contained" onClick={handleCreate} disabled={!selectedTeam}>{t("common.create")}</Button>
         </DialogActions>
       </Dialog>
 

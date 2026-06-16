@@ -171,6 +171,7 @@ def _mint_mobile_api_key(db_wrapper: DBWrapper, user, project_db) -> tuple:
         description=_mobile_key_description(project_db.name),
         allowed_projects=json.dumps([project_db.id]),
         read_only=True,
+        team_id=project_db.team_id,
     )
     return api_key_row, plaintext
 

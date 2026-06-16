@@ -90,15 +90,16 @@ def test_mcp_setup(client):
 
     r = client.post(
         f"/users/{user_name}/apikeys",
-        json={"description": "mcp test key"},
+        json={"description": "mcp test key", "team_id": team_id},
         auth=(user_name, user_pass),
     )
     assert r.status_code == 201, f"Failed to create API key: {r.text}"
     api_key = r.json()["api_key"]
 
+    admin_team_id = client.get("/users/admin", auth=ADMIN).json()["teams"][0]["id"]
     r = client.post(
         "/users/admin/apikeys",
-        json={"description": "mcp admin key"},
+        json={"description": "mcp admin key", "team_id": admin_team_id},
         auth=ADMIN,
     )
     assert r.status_code == 201, f"Failed to create admin API key: {r.text}"

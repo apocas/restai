@@ -148,5 +148,6 @@ async def openai_compatible_transcription(
         db_wrapper, user.id, team_id, model,
         "(audio file)", transcript,
         0, 0, 0.0, 0.0,
+        user.api_key_id,
     )
     return {"text": transcript}

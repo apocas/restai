@@ -8,24 +8,96 @@ from restai.models.databasemodels import ApiKeyDatabase, OutputDatabase
 from restai.project import Project
 
 
+# Scope-specific 402 messages. "Team budget exhausted" is preserved verbatim
+# for back-compat (existing tests / clients key on it).
+_BUDGET_DETAIL = {
+    "project": "Project budget exhausted",
+    "api_key": "API key cost budget exhausted",
+    "user_in_team": "Your personal budget for this team is exhausted",
+    "team": "Team budget exhausted",
+}
+
+
+def _emit_budget_webhook(project, scope, cap, spent, team_id=None):
+    """Best-effort budget_exceeded webhook. Never masks the 402. Only meaningful
+    when a project is in scope (emit_event needs project options); direct-access
+    paths (project=None) skip it."""
+    if project is None:
+        return
+    try:
+        from restai.comms.webhooks import emit_event
+        opts = getattr(getattr(project, "props", None), "options", None)
+        opts_dict = opts.model_dump() if hasattr(opts, "model_dump") else (opts or {})
+        emit_event(
+            project.props.id, project.props.name, opts_dict,
+            "budget_exceeded",
+            {"scope": scope, "budget": cap, "spending": spent, "team_id": team_id},
+        )
+    except Exception:
+        pass
+
+
+def enforce_cost_budgets(db: DBWrapper, *, project=None, user=None, team=None, api_key_row=None):
+    """Single entrypoint for the unified cost-budget model. Evaluates every
+    applicable monthly cost cap (project → api-key → user-in-team → team) vs its
+    month-to-date spend and raises HTTPException(402) on the FIRST exhausted scope.
+
+    Caps are skipped when unset (None or < 0). Platform admins bypass all cost
+    caps (consistent with prior behavior). `team` may be a TeamModel or a
+    TeamDatabase (both expose .id / .budget); when omitted it falls back to the
+    project's team."""
+    if user is not None and getattr(user, "is_admin", False):
+        return
+
+    if team is None and project is not None:
+        team = getattr(project.props, "team", None)
+
+    def _exhausted(cap, spent):
+        return cap is not None and cap >= 0 and (cap - spent) <= 0
+
+    # 1. project
+    if project is not None:
+        cap = getattr(getattr(project.props, "options", None), "budget", None)
+        if cap is not None and cap >= 0:
+            spent = db.spend_for(project_id=project.props.id)
+            if _exhausted(cap, spent):
+                _emit_budget_webhook(project, "project", cap, spent)
+                raise HTTPException(status_code=402, detail=_BUDGET_DETAIL["project"])
+
+    # 2. api-key (cost cap; distinct from the token quota)
+    if api_key_row is not None:
+        cap = getattr(api_key_row, "cost_budget_monthly", None)
+        if cap is not None and cap >= 0:
+            spent = db.spend_for(api_key_id=api_key_row.id)
+            if _exhausted(cap, spent):
+                _emit_budget_webhook(project, "api_key", cap, spent)
+                raise HTTPException(status_code=402, detail=_BUDGET_DETAIL["api_key"])
+
+    # 3. user-in-team
+    if team is not None and user is not None:
+        cap = db.get_team_user_budget(team.id, user.id)
+        if cap is not None:
+            spent = db.get_team_user_spending(team.id, user.id)
+            if _exhausted(cap, spent):
+                _emit_budget_webhook(project, "user_in_team", cap, spent, team_id=team.id)
+                raise HTTPException(status_code=402, detail=_BUDGET_DETAIL["user_in_team"])
+
+    # 4. team
+    if team is not None and team.budget is not None and team.budget >= 0:
+        spent = db.get_team_spending(team.id)
+        if _exhausted(team.budget, spent):
+            _emit_budget_webhook(project, "team", team.budget, spent, team_id=team.id)
+            raise HTTPException(status_code=402, detail=_BUDGET_DETAIL["team"])
+
+
 def check_budget(project: Project, db: DBWrapper):
-    team = project.props.team
-    if team is not None and team.budget >= 0:
-        team_spending = db.get_team_spending(team.id)
-        if team.budget - team_spending <= 0:
-            # Best-effort webhook — failures must never mask the 402.
-            try:
-                from restai.comms.webhooks import emit_event
-                opts = getattr(getattr(project, "props", None), "options", None)
-                opts_dict = opts.model_dump() if hasattr(opts, "model_dump") else (opts or {})
-                emit_event(
-                    project.props.id, project.props.name, opts_dict,
-                    "budget_exceeded",
-                    {"team_id": team.id, "team_budget": team.budget, "team_spending": team_spending},
-                )
-            except Exception:
-                pass
-            raise HTTPException(status_code=402, detail="Team budget exhausted")
+    """Back-compat shim — project-path team+project+user cost budgets.
+
+    Kept so existing importers (app/validate.py, app/generate.py) keep working;
+    chat_main now calls enforce_cost_budgets directly (it also passes the user +
+    api key). Resolves the user/api-key from the project context is not possible
+    here, so this only enforces project + team scope."""
+    enforce_cost_budgets(db, project=project, team=project.props.team)
 
 
 def check_rate_limit(project: Project, db: DBWrapper):

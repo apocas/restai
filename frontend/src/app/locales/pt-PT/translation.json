@@ -633,7 +633,8 @@
         "rateLimitHint": "Máximo de pedidos por minuto. Deixar vazio para ilimitado.",
         "redactInferenceLogs": "Ocultar dados sensíveis nos registos de inferência",
         "inviteUser": "Convidar utilizador",
-        "privacy": "Privacidade e acesso"
+        "privacy": "Privacidade e acesso",
+        "budget": "Orçamento de custo mensal ($)"
       },
       "integrations": {
         "telegram": "Telegram",
@@ -924,7 +925,11 @@
       "memberOf": "Membro de",
       "noMember": "Sem participações adicionais em equipas.",
       "admin": "Admin",
-      "member": "Membro"
+      "member": "Membro",
+      "yourBudget": "O teu orçamento",
+      "spentThisMonth": "{{spent}} este mês",
+      "uncapped": "Sem limite",
+      "remaining": "{{amount}} restante"
     },
     "newPage": {
       "title": "Criar um novo utilizador",
@@ -989,7 +994,10 @@
       "saveKeyTitle": "Guardar a sua chave de API",
       "saveKeyWarn": "Esta é a única vez que a chave completa será mostrada. Copie-a agora.",
       "projectLabel": "Projeto {{id}}",
-      "tokens": "tokens"
+      "tokens": "tokens",
+      "team": "Equipa",
+      "teamColumn": "Equipa",
+      "teamRequired": "Obrigatório — faturado pelo uso de acesso direto desta chave"
     }
   },
   "teams": {
@@ -1115,7 +1123,8 @@
         "inTokens": "Tokens entrada",
         "outTokens": "Tokens saída",
         "cost": "Custo",
-        "noTransactions": "Sem transações"
+        "noTransactions": "Sem transações",
+        "directAccess": "Acesso direto"
       },
       "confirmRemove": "Tem a certeza de que quer remover {{name}} desta equipa?",
       "confirmRemoveAdmin": "Tem a certeza de que quer remover privilégios de administrador de {{name}}?",
@@ -1135,7 +1144,59 @@
       "teamAdmin": "Administrador da equipa",
       "member": "Membro"
     },
-    "noTeams": "Ainda não há equipas."
+    "noTeams": "Ainda não há equipas.",
+    "analytics": {
+      "eyebrow": "Análise",
+      "title": "Análise da equipa",
+      "subtitle": "Onde está a ser usado o orçamento e os tokens desta equipa",
+      "backToTeam": "Voltar à equipa",
+      "forbidden": "Não tem acesso à análise desta equipa.",
+      "loadError": "Não foi possível carregar a análise.",
+      "budgetUsed": "Orçamento usado",
+      "unlimited": "Ilimitado",
+      "totalCost": "Custo total",
+      "totalTokens": "Tokens totais",
+      "in": "entrada",
+      "out": "saída",
+      "messages": "Mensagens",
+      "conversations": "conversas",
+      "activeUsers": "Utilizadores ativos",
+      "activeProjects": "Projetos ativos",
+      "directAccessCost": "Acesso direto",
+      "avgLatency": "Latência média",
+      "costOverTime": "Custo ao longo do tempo",
+      "tokensOverTime": "Tokens ao longo do tempo",
+      "cost": "Custo",
+      "inputTokens": "Entrada",
+      "outputTokens": "Saída",
+      "byProject": "Por projeto",
+      "byProjectSub": "Gasto e tokens por projeto (inc. acesso direto)",
+      "project": "Projeto",
+      "tokens": "Tokens",
+      "byLlm": "Por modelo",
+      "byLlmSub": "Quota de custo por LLM",
+      "byUser": "Por utilizador",
+      "byUserSub": "Gasto e tokens por utilizador",
+      "user": "Utilizador",
+      "unknownUser": "Desconhecido",
+      "outcomes": "Resultados",
+      "latency": "Latência",
+      "requests": "Pedidos",
+      "hourly": "Atividade por hora",
+      "noData": "Sem dados para este período"
+    },
+    "budget": {
+      "dialogTitle": "Limite de gasto do membro",
+      "cap": "Limite",
+      "capInput": "Limite de custo mensal",
+      "capHelper": "Vazio ou 0 = ilimitado",
+      "usedThisMonth": "{{username}} gastou {{spent}} este mês",
+      "uncapped": "Sem limite",
+      "editCap": "Editar limite de gasto",
+      "saved": "Limite de gasto atualizado",
+      "cleared": "Limite de gasto removido",
+      "clear": "Remover limite"
+    }
   },
   "llms": {
     "title": "LLMs",

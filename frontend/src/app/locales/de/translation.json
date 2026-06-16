@@ -472,7 +472,8 @@
         "rateLimitHint": "Maximale Anfragen pro Minute. Leer lassen für unbegrenzt.",
         "redactInferenceLogs": "Sensible Daten in Inferenzprotokollen zensieren",
         "inviteUser": "Benutzer einladen",
-        "privacy": "Datenschutz & Zugriff"
+        "privacy": "Datenschutz & Zugriff",
+        "budget": "Monatliches Kostenbudget ($)"
       },
       "integrations": {
         "telegram": "Telegram",
@@ -924,7 +925,11 @@
       "memberOf": "Mitglied von",
       "noMember": "Keine weiteren Teammitgliedschaften.",
       "admin": "Administrator",
-      "member": "Mitglied"
+      "member": "Mitglied",
+      "yourBudget": "Dein Budget",
+      "spentThisMonth": "{{spent}} diesen Monat",
+      "uncapped": "Unbegrenzt",
+      "remaining": "{{amount}} übrig"
     },
     "newPage": {
       "title": "Einen neuen Benutzer erstellen",
@@ -989,7 +994,10 @@
       "saveKeyTitle": "Speichern Sie Ihren API-Schlüssel",
       "saveKeyWarn": "Dies ist das einzige Mal, dass der vollständige Schlüssel angezeigt wird. Kopieren Sie ihn jetzt.",
       "projectLabel": "Projekt {{id}}",
-      "tokens": "Tokens"
+      "tokens": "Tokens",
+      "team": "Team",
+      "teamColumn": "Team",
+      "teamRequired": "Erforderlich — wird für die Direktzugriffsnutzung dieses Schlüssels abgerechnet"
     }
   },
   "teams": {
@@ -1124,7 +1132,8 @@
         "inTokens": "Eingabe-Tokens",
         "outTokens": "Ausgabe-Tokens",
         "cost": "Kosten",
-        "noTransactions": "Keine Transaktionen gefunden"
+        "noTransactions": "Keine Transaktionen gefunden",
+        "directAccess": "Direktzugriff"
       },
       "confirmRemove": "Sind Sie sicher, dass Sie {{name}} aus diesem Team entfernen möchten?",
       "confirmRemoveAdmin": "Sind Sie sicher, dass Sie die Administratorrechte von {{name}} entfernen möchten?",
@@ -1135,6 +1144,58 @@
       "membersSubtitle": "Lese- und Schreibzugriff über Rollen",
       "adminsSubtitle": "Können Mitglieder und Ressourcen verwalten",
       "projectsSubtitle": "Klicken Sie auf ein Projekt, um es zu öffnen"
+    },
+    "analytics": {
+      "eyebrow": "Analyse",
+      "title": "Team-Analyse",
+      "subtitle": "Wohin Budget und Tokens dieses Teams fließen",
+      "backToTeam": "Zurück zum Team",
+      "forbidden": "Sie haben keinen Zugriff auf die Analyse dieses Teams.",
+      "loadError": "Analyse konnte nicht geladen werden.",
+      "budgetUsed": "Budget genutzt",
+      "unlimited": "Unbegrenzt",
+      "totalCost": "Gesamtkosten",
+      "totalTokens": "Tokens gesamt",
+      "in": "Ein",
+      "out": "Aus",
+      "messages": "Nachrichten",
+      "conversations": "Unterhaltungen",
+      "activeUsers": "Aktive Nutzer",
+      "activeProjects": "Aktive Projekte",
+      "directAccessCost": "Direktzugriff",
+      "avgLatency": "Ø Latenz",
+      "costOverTime": "Kosten im Zeitverlauf",
+      "tokensOverTime": "Tokens im Zeitverlauf",
+      "cost": "Kosten",
+      "inputTokens": "Eingabe",
+      "outputTokens": "Ausgabe",
+      "byProject": "Nach Projekt",
+      "byProjectSub": "Ausgaben & Tokens pro Projekt (inkl. Direktzugriff)",
+      "project": "Projekt",
+      "tokens": "Tokens",
+      "byLlm": "Nach Modell",
+      "byLlmSub": "Kostenanteil pro LLM",
+      "byUser": "Nach Nutzer",
+      "byUserSub": "Ausgaben & Tokens pro Nutzer",
+      "user": "Nutzer",
+      "unknownUser": "Unbekannt",
+      "outcomes": "Ergebnisse",
+      "latency": "Latenz",
+      "requests": "Anfragen",
+      "hourly": "Aktivität nach Stunde",
+      "noData": "Keine Daten für diesen Zeitraum"
+    },
+    "budget": {
+      "dialogTitle": "Ausgabenlimit des Mitglieds",
+      "cap": "Limit",
+      "capInput": "Monatliches Kostenlimit",
+      "capHelper": "Leer oder 0 = unbegrenzt",
+      "usedThisMonth": "{{username}} hat diesen Monat {{spent}} ausgegeben",
+      "uncapped": "Unbegrenzt",
+      "editCap": "Ausgabenlimit bearbeiten",
+      "saved": "Ausgabenlimit aktualisiert",
+      "cleared": "Ausgabenlimit entfernt",
+      "clear": "Limit entfernen"
     }
   },
   "llms": {

@@ -13,7 +13,7 @@ import sha256 from "crypto-js/sha256";
 import {
   Person, Settings, Delete, Group, Psychology,
   AccountBalanceWallet, Receipt, AllInclusive, Image, Speaker,
-  Star, Workspaces, ArrowDropDown, ArrowRight,
+  Star, Workspaces, ArrowDropDown, ArrowRight, Insights,
 } from "@mui/icons-material";
 import MUIDataTable from "mui-datatables";
 import ReactJson from "@microlink/react-json-view";
@@ -21,6 +21,7 @@ import BAvatar from "boring-avatars";
 import api from "app/utils/api";
 import { PROJECT_TYPE_COLORS } from "app/utils/constant";
 import { FONT_MONO, sweep, pulse, shimmer, blink } from "app/components/page/pageStyles";
+import MemberBudgetDialog from "./MemberBudgetDialog";
 
 // Per-type pixel-avatar palette shared with projects list / library cards.
 const PROJECT_AVATAR_PALETTES = {
@@ -268,7 +269,7 @@ function UserGravatar({ username, isAdmin = false, size = 30 }) {
   );
 }
 
-function ResourceRow({ avatar, primary, secondary, onClick, onRemove, removeLabel }) {
+function ResourceRow({ avatar, primary, secondary, onClick, onRemove, removeLabel, chip, onEdit, editLabel }) {
   return (
     <Box
       onClick={onClick}
@@ -317,6 +318,21 @@ function ResourceRow({ avatar, primary, secondary, onClick, onRemove, removeLabe
           </Box>
         )}
       </Box>
+      {chip}
+      {onEdit && (
+        <Tooltip title={editLabel} arrow>
+          <IconButton
+            size="small"
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            sx={{
+              color: "text.disabled",
+              "&:hover": { color: ACCENT, backgroundColor: ACCENT_SOFT },
+            }}
+          >
+            <AccountBalanceWallet fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
       {onRemove && (
         <Tooltip title={removeLabel} arrow>
           <IconButton
@@ -331,6 +347,31 @@ function ResourceRow({ avatar, primary, secondary, onClick, onRemove, removeLabe
           </IconButton>
         </Tooltip>
       )}
+    </Box>
+  );
+}
+
+// Compact "$spent / $cap" chip (or uncapped) for a team member row, tinted by usage.
+function MemberBudgetChip({ row, t }) {
+  if (!row) return null;
+  const cap = row.budget;
+  if (cap == null || cap < 0) {
+    return (
+      <Box component="span" sx={{ fontFamily: FONT_MONO, fontSize: "0.66rem", color: "text.disabled" }}>
+        {t("teams.budget.uncapped")}
+      </Box>
+    );
+  }
+  const spent = Number(row.spending || 0);
+  const pct = cap > 0 ? Math.min((spent / cap) * 100, 100) : 100;
+  const color = pct > 90 ? "#ef4444" : pct > 70 ? "#f59e0b" : "#10b981";
+  return (
+    <Box component="span" sx={{
+      fontFamily: FONT_MONO, fontSize: "0.66rem", fontWeight: 700, color,
+      px: 0.7, py: 0.2, borderRadius: 0.75, whiteSpace: "nowrap",
+      border: `1px solid ${color}40`, background: `${color}12`,
+    }}>
+      ${spent.toFixed(2)} / ${cap.toFixed(2)}
     </Box>
   );
 }
@@ -441,8 +482,19 @@ export default function TeamView() {
   const [txLog, setTxLog] = useState({});
   const [txRowsExpanded, setTxRowsExpanded] = useState([]);
   const [txOpen, setTxOpen] = useState(false);
+  const [memberBudgets, setMemberBudgets] = useState({});
+  const [budgetTarget, setBudgetTarget] = useState(null);
 
   const isTeamAdmin = team?.admins?.some((a) => a.id === user.id) || user.is_admin;
+
+  const fetchMemberBudgets = async () => {
+    try {
+      const data = await api.get(`/teams/${id}/members/budgets`, user.token, { silent: true });
+      const map = {};
+      (data || []).forEach((r) => { map[r.user_id] = r; });
+      setMemberBudgets(map);
+    } catch (e) {}
+  };
 
   const fetchTeam = async () => {
     setLoading(true);
@@ -472,6 +524,11 @@ export default function TeamView() {
     if (txOpen && team) fetchTransactions();
     // eslint-disable-next-line
   }, [txOpen, team, txPage, txRows]);
+
+  useEffect(() => {
+    if (team && isTeamAdmin) fetchMemberBudgets();
+    // eslint-disable-next-line
+  }, [team, isTeamAdmin]);
 
   const removeUser = async (username) => {
     if (!window.confirm(t("teams.view.confirmRemove", { name: username }))) return;
@@ -661,6 +718,17 @@ export default function TeamView() {
 
         <ActionBar>
           {isTeamAdmin && (
+            <Tooltip title={t("teams.analytics.title")}>
+              <IconButton
+                size="small"
+                sx={heroIconBtnSx}
+                onClick={() => navigate(`/team/${id}/analytics`)}
+              >
+                <Insights fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          {isTeamAdmin && (
             <Tooltip title={t("teams.view.edit")}>
               <IconButton
                 size="small"
@@ -741,6 +809,9 @@ export default function TeamView() {
                     avatar={<UserGravatar username={m.username} />}
                     primary={m.username}
                     secondary={m.id === user.id ? t("teams.view.you") : `USER/${String(m.id).padStart(4, "0")}`}
+                    chip={isTeamAdmin ? <MemberBudgetChip row={memberBudgets[m.id]} t={t} /> : null}
+                    onEdit={isTeamAdmin ? () => setBudgetTarget({ user_id: m.id, username: m.username, budget: memberBudgets[m.id]?.budget ?? null, spending: memberBudgets[m.id]?.spending ?? 0 }) : null}
+                    editLabel={t("teams.budget.editCap")}
                     onRemove={isTeamAdmin ? () => removeUser(m.username) : null}
                     removeLabel={t("teams.view.removeUser")}
                   />
@@ -764,6 +835,9 @@ export default function TeamView() {
                     avatar={<UserGravatar username={a.username} isAdmin />}
                     primary={a.username}
                     secondary={a.id === user.id ? t("teams.view.you") : `USER/${String(a.id).padStart(4, "0")}`}
+                    chip={isTeamAdmin ? <MemberBudgetChip row={memberBudgets[a.id]} t={t} /> : null}
+                    onEdit={isTeamAdmin ? () => setBudgetTarget({ user_id: a.id, username: a.username, budget: memberBudgets[a.id]?.budget ?? null, spending: memberBudgets[a.id]?.spending ?? 0 }) : null}
+                    editLabel={t("teams.budget.editCap")}
                     onRemove={isTeamAdmin ? () => removeAdmin(a.username) : null}
                     removeLabel={t("teams.view.removeAdmin")}
                   />
@@ -960,7 +1034,24 @@ export default function TeamView() {
                       </Box>
                     ),
                   } },
-                  { name: t("teams.view.tx.project") },
+                  { name: t("teams.view.tx.project"), options: {
+                    customBodyRender: (v) => v ? v : (
+                      <Box
+                        component="span"
+                        sx={{
+                          fontFamily: FONT_MONO,
+                          fontSize: "0.7rem",
+                          fontStyle: "italic",
+                          color: "text.secondary",
+                          px: 0.7, py: 0.2,
+                          borderRadius: 0.75,
+                          border: "1px dashed rgba(15,23,42,0.18)",
+                        }}
+                      >
+                        {t("teams.view.tx.directAccess")}
+                      </Box>
+                    ),
+                  } },
                   { name: t("teams.view.tx.user") },
                   { name: t("teams.view.tx.llm"), options: {
                     customBodyRender: (v) => (
@@ -992,6 +1083,15 @@ export default function TeamView() {
         </CollapsiblePanel>
       )}
 
+      {isTeamAdmin && budgetTarget && (
+        <MemberBudgetDialog
+          open={!!budgetTarget}
+          onClose={() => setBudgetTarget(null)}
+          teamId={id}
+          member={budgetTarget}
+          onSaved={() => { setBudgetTarget(null); fetchMemberBudgets(); }}
+        />
+      )}
     </Container>
   );
 }

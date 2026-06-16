@@ -103,6 +103,22 @@ export default function ProjectEditSecurity({ state, setState, handleChange, pro
           inputProps={{ min: 1, max: 10000 }}
         />
       </Grid>
+
+      <Grid item sm={6} xs={12}>
+        <TextField
+          fullWidth
+          InputLabelProps={{ shrink: true }}
+          name="budget"
+          label={t("projects.edit.security.budget")}
+          variant="outlined"
+          type="number"
+          onChange={(e) => { clearFieldError("budget"); handleChange(e); }}
+          value={state.options?.budget ?? ''}
+          error={!!errorFor("budget")}
+          helperText={errorFor("budget") || "Monthly cost budget for this project. Leave empty for unlimited."}
+          inputProps={{ min: 0, step: 1 }}
+        />
+      </Grid>
     </Grid>
     </ContentCard>
   );

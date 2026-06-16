@@ -16,6 +16,7 @@ from restai.models.databasemodels import (
     ProjectToolDatabase, ProjectRoutineDatabase, CronLogDatabase, SettingDatabase,
     UserDatabase, TeamDatabase, TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase,
     WidgetDatabase, ImageGeneratorDatabase, SpeechToTextDatabase, ProjectSecretDatabase,
+    TeamUserBudgetDatabase,
 )
 from restai.models.models import (
     LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate, EmbeddingModel,
@@ -171,21 +172,120 @@ class TeamMixin:
             return []
         return list(set(user.teams + user.admin_teams))
 
-    def get_team_spending(self, team_id: int) -> float:
+    @staticmethod
+    def _month_start() -> datetime:
         now = datetime.now(timezone.utc)
-        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    def spend_for(self, *, team_id=None, user_id=None, project_id=None,
+                  api_key_id=None, since: Optional[datetime] = None) -> float:
+        """Unified cost-budget spend: SUM(input_cost + output_cost) over OutputDatabase
+        filtered by the supplied scope(s), ANDed together, since `since` (default = first
+        of this month UTC). Scopes:
+          - team_id   → or_(project in team's projects, OutputDatabase.team_id == team_id)
+          - user_id   → OutputDatabase.user_id == user_id   (AND with team_id = user-in-team)
+          - project_id→ OutputDatabase.project_id == project_id
+          - api_key_id→ OutputDatabase.api_key_id == api_key_id
+        At least one scope is required (guards against an unfiltered full-table sum)."""
+        if team_id is None and user_id is None and project_id is None and api_key_id is None:
+            raise ValueError("spend_for requires at least one scope")
+        if since is None:
+            since = self._month_start()
+        filters = [OutputDatabase.date >= since]
+        if team_id is not None:
+            filters.append(
+                or_(
+                    OutputDatabase.project_id.in_(
+                        self.db.query(ProjectDatabase.id).filter(ProjectDatabase.team_id == team_id)
+                    ),
+                    OutputDatabase.team_id == team_id,
+                )
+            )
+        if user_id is not None:
+            filters.append(OutputDatabase.user_id == user_id)
+        if project_id is not None:
+            filters.append(OutputDatabase.project_id == project_id)
+        if api_key_id is not None:
+            filters.append(OutputDatabase.api_key_id == api_key_id)
         result = self.db.query(
             func.coalesce(func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost), 0.0)
-        ).filter(
-            or_(
-                OutputDatabase.project_id.in_(
-                    self.db.query(ProjectDatabase.id).filter(ProjectDatabase.team_id == team_id)
+        ).filter(*filters).scalar()
+        return float(result or 0.0)
+
+    def get_team_spending(self, team_id: int) -> float:
+        return self.spend_for(team_id=team_id)
+
+    def get_team_user_spending(self, team_id: int, user_id: int) -> float:
+        return self.spend_for(team_id=team_id, user_id=user_id)
+
+    def get_team_user_spending_map(self, team_id: int) -> dict:
+        """{user_id: month-to-date cost} for every user with spend in the team scope.
+        One grouped query — avoids N+1 over the member list."""
+        since = self._month_start()
+        rows = (
+            self.db.query(
+                OutputDatabase.user_id,
+                func.coalesce(func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost), 0.0),
+            )
+            .filter(
+                or_(
+                    OutputDatabase.project_id.in_(
+                        self.db.query(ProjectDatabase.id).filter(ProjectDatabase.team_id == team_id)
+                    ),
+                    OutputDatabase.team_id == team_id,
                 ),
-                OutputDatabase.team_id == team_id
-            ),
-            OutputDatabase.date >= month_start
-        ).scalar()
-        return float(result)
+                OutputDatabase.date >= since,
+            )
+            .group_by(OutputDatabase.user_id)
+            .all()
+        )
+        return {uid: float(cost or 0.0) for uid, cost in rows if uid is not None}
+
+    # ---- per-(user, team) budget caps ------------------------------------
+    def get_team_user_budget(self, team_id: int, user_id: int) -> Optional[float]:
+        """The member's monthly cost cap, or None when uncapped (no row / -1)."""
+        row = (
+            self.db.query(TeamUserBudgetDatabase)
+            .filter(
+                TeamUserBudgetDatabase.team_id == team_id,
+                TeamUserBudgetDatabase.user_id == user_id,
+            )
+            .first()
+        )
+        if row is None or row.budget is None or row.budget < 0:
+            return None
+        return float(row.budget)
+
+    def get_team_user_budgets_map(self, team_id: int) -> dict:
+        """{user_id: cap} for members with an explicit cap (>= 0) in this team."""
+        rows = (
+            self.db.query(TeamUserBudgetDatabase)
+            .filter(TeamUserBudgetDatabase.team_id == team_id)
+            .all()
+        )
+        return {r.user_id: float(r.budget) for r in rows if r.budget is not None and r.budget >= 0}
+
+    def set_team_user_budget(self, team_id: int, user_id: int, budget) -> None:
+        """Upsert a member's cap. budget None or < 0 clears it (delete row)."""
+        row = (
+            self.db.query(TeamUserBudgetDatabase)
+            .filter(
+                TeamUserBudgetDatabase.team_id == team_id,
+                TeamUserBudgetDatabase.user_id == user_id,
+            )
+            .first()
+        )
+        if budget is None or budget < 0:
+            if row is not None:
+                self.db.delete(row)
+                self.db.commit()
+            return
+        if row is None:
+            row = TeamUserBudgetDatabase(team_id=team_id, user_id=user_id, budget=float(budget))
+            self.db.add(row)
+        else:
+            row.budget = float(budget)
+        self.db.commit()
 
     def update_team_members(
         self,

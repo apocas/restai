@@ -221,6 +221,7 @@ async def chat_completions(
             total_output_tokens,
             input_cost,
             output_cost,
+            user.api_key_id,
         )
 
         return OpenAIChatCompletionResponse(
@@ -356,6 +357,7 @@ async def chat_completions(
                         output_tokens,
                         input_cost,
                         output_cost,
+                        user.api_key_id,
                     )
                 except Exception:
                     logging.exception("Failed to log direct access usage")
@@ -429,6 +431,7 @@ async def embeddings(
         db_wrapper, user.id, team_id, body.model,
         f"(embed {len(texts)} text(s))", "(embeddings generated)",
         total_tokens, 0, 0.0, 0.0,
+        user.api_key_id,
     )
 
     return OpenAIEmbeddingResponse(

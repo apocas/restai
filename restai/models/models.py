@@ -728,6 +728,7 @@ class ProjectOptions(BaseModel):
     moderation_redact_pii: Union[bool, None] = Field(default=True, description="When true, moderate_content returns a SANITIZED copy of the input with PII/blocklist matches replaced by [REDACTED:<type>]. Default on.")
     blockly_workspace: Union[dict, None] = Field(default=None, description="Blockly workspace JSON for block projects")
     rate_limit: Union[int, None] = Field(default=None, ge=1, le=10000, description="Maximum requests per minute (None = unlimited)")
+    budget: Union[float, None] = Field(default=None, ge=0, description="Monthly cost budget (currency) for this project (None = unlimited). Part of the unified cost-budget model.")
     guard_output: Union[str, None] = Field(default=None, description="Name of the guard project for output checking")
     guard_mode: Union[str, None] = Field(default="block", description="Guard behavior: 'block' or 'warn'")
     eval_llm: Union[str, None] = Field(default=None, max_length=255, description="LLM used to judge evaluation runs. Empty/None = use the project's own LLM.")
@@ -917,11 +918,13 @@ class TOTPSetupRequest(BaseModel):
 class ApiKeyCreate(BaseModel):
     """Create a new API key."""
     description: str = Field(default="", description="Human-readable description of the API key's purpose")
+    team_id: int = Field(description="Team that owns this key; its budget is billed for direct-access usage. Must be a team the key owner belongs to.")
     allowed_projects: Union[list[int], None] = Field(default=None, description="List of project IDs this key can access. Null means all projects.")
     read_only: bool = Field(default=False, description="If true, the key can only query but not modify projects.")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "description": "CI/CD pipeline key",
+            "team_id": 1,
             "allowed_projects": [1, 2],
             "read_only": True
         }
@@ -934,11 +937,13 @@ class ApiKeyResponse(BaseModel):
     key_prefix: str = Field(description="First characters of the key for identification (e.g. 'sk-abc...')")
     description: str = Field(description="Human-readable description of the API key")
     created_at: datetime = Field(description="Timestamp when the API key was created")
+    team_id: Union[int, None] = Field(default=None, description="Team billed for this key's direct-access usage (null for legacy keys)")
     allowed_projects: Union[list[int], None] = Field(default=None, description="Project IDs this key can access, null means all")
     read_only: bool = Field(default=False, description="Whether this key is read-only")
     token_quota_monthly: Union[int, None] = Field(default=None, description="Monthly token quota (null = unlimited)")
     tokens_used_this_month: int = Field(default=0, description="Tokens consumed in the current quota window")
     quota_reset_at: Union[datetime, None] = Field(default=None, description="Timestamp when the current quota window rolls over")
+    cost_budget_monthly: Union[float, None] = Field(default=None, description="Monthly cost budget (currency) for this key (null = unlimited)")
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator('allowed_projects', mode='before')
@@ -957,6 +962,7 @@ class ApiKeyUpdate(BaseModel):
     applied — omitted fields are left untouched."""
     description: Union[str, None] = Field(default=None, description="New description")
     token_quota_monthly: Union[int, None] = Field(default=None, ge=0, description="New monthly token cap (0 or null = clear quota)")
+    cost_budget_monthly: Union[float, None] = Field(default=None, ge=0, description="New monthly cost budget (0 = clear). Omitted = unchanged.")
     reset_usage: bool = Field(default=False, description="Zero tokens_used_this_month and push quota_reset_at to the 1st of next month")
 
 
@@ -967,6 +973,7 @@ class ApiKeyCreatedResponse(BaseModel):
     key_prefix: str = Field(description="First characters of the key for identification")
     description: str = Field(description="Human-readable description of the API key")
     created_at: datetime = Field(description="Timestamp when the API key was created")
+    team_id: Union[int, None] = Field(default=None, description="Team billed for this key's direct-access usage")
     allowed_projects: Union[list[int], None] = Field(default=None, description="Project IDs this key can access")
     read_only: bool = Field(default=False, description="Whether this key is read-only")
 
@@ -992,6 +999,9 @@ class User(BaseModel):
     # for basic / cookie auth). Used by the monthly token-quota check
     # and the log_inference usage counter.
     api_key_id: Union[int, None] = Field(default=None, exclude=True)
+    # Team the authenticating API key bills (None for basic/cookie auth
+    # and legacy keys). Pins direct-access team attribution deterministically.
+    api_key_team_id: Union[int, None] = Field(default=None, exclude=True)
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator('options', mode='before')
@@ -1278,6 +1288,34 @@ class TeamOptions(BaseModel):
         if isinstance(v, str) and v.strip() == "":
             return None
         return v
+
+
+class TeamMemberBudget(BaseModel):
+    """A team member's monthly cost cap + their month-to-date spend in the team."""
+    user_id: int
+    username: str
+    budget: Union[float, None] = Field(default=None, description="Monthly cost cap (null = uncapped)")
+    spending: float = Field(default=0.0, description="Month-to-date cost in this team")
+    remaining: Union[float, None] = Field(default=None, description="budget - spending (null when uncapped)")
+
+
+class TeamMemberBudgetUpdate(BaseModel):
+    """Set or clear a member's monthly cost cap. null / -1 clears it."""
+    budget: Union[float, None] = Field(default=None, ge=-1.0, description="Monthly cost cap; null or -1 = uncapped")
+
+
+class UserTeamBudget(BaseModel):
+    """A user's own monthly budget view for one team (self-service)."""
+    team_id: int
+    team_name: str
+    is_admin: bool = Field(default=False, description="Whether the user is an admin of this team")
+    budget: Union[float, None] = Field(default=None, description="The user's monthly cost cap in this team (null = uncapped)")
+    spending: float = Field(default=0.0, description="The user's month-to-date cost in this team")
+    remaining: Union[float, None] = Field(default=None, description="budget - spending (null when uncapped)")
+
+
+class UserTeamBudgetsResponse(BaseModel):
+    teams: list[UserTeamBudget] = Field(default=[], description="The user's per-team budgets")
 
 
 class TeamModel(BaseModel):

@@ -134,7 +134,7 @@ class UserMixin:
         self.db.commit()
         return True
 
-    def create_api_key(self, user_id: int, encrypted_key: str, key_hash: str, key_prefix: str, description: str, allowed_projects: str = None, read_only: bool = False) -> ApiKeyDatabase:
+    def create_api_key(self, user_id: int, encrypted_key: str, key_hash: str, key_prefix: str, description: str, allowed_projects: str = None, read_only: bool = False, team_id: int = None) -> ApiKeyDatabase:
         api_key = ApiKeyDatabase(
             user_id=user_id,
             encrypted_key=encrypted_key,
@@ -144,6 +144,7 @@ class UserMixin:
             created_at=datetime.now(timezone.utc),
             allowed_projects=allowed_projects,
             read_only=read_only,
+            team_id=team_id,
         )
         self.db.add(api_key)
         self.db.commit()

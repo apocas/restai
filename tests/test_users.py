@@ -78,9 +78,37 @@ def test_update_user(client):
     assert data["is_private"] == True
 
 def test_user_apikeys(client):
+    ADMIN = (test_admin_username, RESTAI_DEFAULT_PASSWORD)
+    # API keys must belong to a team the owner is in (it's billed for the
+    # key's direct-access usage). Put the test user in a fresh team.
+    team_name = "apikey_team_" + str(random.randint(0, 1000000))
+    tr = client.post(
+        "/teams",
+        json={"name": team_name, "users": [test_username], "admins": []},
+        auth=ADMIN,
+    )
+    assert tr.status_code == 201, tr.text
+    team_id = tr.json()["id"]
+
+    # team_id is obligatory — omitting it is a validation error.
+    missing = client.post(
+        f"/users/{test_username}/apikeys",
+        json={"description": "no team"},
+        auth=(test_username, "new_password"),
+    )
+    assert missing.status_code == 422
+
+    # A team the owner doesn't belong to is rejected.
+    bad = client.post(
+        f"/users/{test_username}/apikeys",
+        json={"description": "wrong team", "team_id": 999999},
+        auth=(test_username, "new_password"),
+    )
+    assert bad.status_code == 400
+
     response = client.post(
         f"/users/{test_username}/apikeys",
-        json={"description": "test key 1"},
+        json={"description": "test key 1", "team_id": team_id},
         auth=(test_username, "new_password")
     )
     assert response.status_code == 201
@@ -89,6 +117,7 @@ def test_user_apikeys(client):
     assert "id" in data
     assert data["key_prefix"] == data["api_key"][:8]
     assert data["description"] == "test key 1"
+    assert data["team_id"] == team_id
     key1 = data["api_key"]
     key1_id = data["id"]
 
@@ -100,7 +129,7 @@ def test_user_apikeys(client):
 
     response = client.post(
         f"/users/{test_username}/apikeys",
-        json={"description": "test key 2"},
+        json={"description": "test key 2", "team_id": team_id},
         auth=(test_username, "new_password")
     )
     assert response.status_code == 201

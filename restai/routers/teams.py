@@ -1,17 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request
 import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 
 from restai.models.models import (
     TeamBranding,
+    TeamMemberBudget,
+    TeamMemberBudgetUpdate,
     TeamModel,
     TeamModelCreate,
     TeamModelUpdate,
     TeamsResponse,
     User
 )
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 from restai.models.databasemodels import TeamDatabase, OutputDatabase, ProjectDatabase, UserDatabase, TeamInvitationDatabase, ProjectInvitationDatabase
 from restai.database import get_db_wrapper, DBWrapper
@@ -503,6 +505,253 @@ async def get_team_transactions(
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
 
+
+@router.get("/teams/{team_id}/analytics", tags=["Statistics"])
+async def get_team_analytics(
+    team_id: int = Path(description="Team ID"),
+    year: int = Query(None, ge=2000, le=2100, description="Year (defaults to current)"),
+    month: int = Query(None, ge=1, le=12, description="Month (defaults to current)"),
+    user: User = Depends(get_current_username_team_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Aggregated usage/cost analytics for a whole team (team admins + platform admins).
+
+    Scope mirrors get_team_spending/get_team_transactions: project-scoped rows for
+    the team's projects PLUS direct-access rows (project_id NULL, team_id set), so
+    direct-access API usage is fully represented. Costs are pre-computed on each
+    OutputDatabase row, so everything is plain SUM/GROUP BY over the selected month.
+    """
+    import calendar
+
+    try:
+        team = db_wrapper.get_team_by_id(team_id)
+        if team is None:
+            raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+
+        now = datetime.now(timezone.utc)
+        if year is None:
+            year = now.year
+        if month is None:
+            month = now.month
+        start_date = datetime(year, month, 1, tzinfo=timezone.utc)
+        last_day = calendar.monthrange(year, month)[1]
+        end_date = datetime(year, month, last_day, 23, 59, 59, tzinfo=timezone.utc)
+
+        team_project_ids = db_wrapper.db.query(ProjectDatabase.id).filter(
+            ProjectDatabase.team_id == team_id
+        )
+        scope = or_(
+            OutputDatabase.project_id.in_(team_project_ids),
+            OutputDatabase.team_id == team_id,
+        )
+        base_filter = [scope, OutputDatabase.date >= start_date, OutputDatabase.date <= end_date]
+        cost_expr = func.coalesce(func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost), 0.0)
+        token_expr = func.coalesce(func.sum(OutputDatabase.input_tokens + OutputDatabase.output_tokens), 0)
+
+        db = db_wrapper.db
+
+        # ---- summary ---------------------------------------------------------
+        total_messages = db.query(func.count(OutputDatabase.id)).filter(*base_filter).scalar() or 0
+        total_conversations = db.query(func.count(func.distinct(OutputDatabase.chat_id))).filter(
+            *base_filter, OutputDatabase.chat_id.isnot(None)
+        ).scalar() or 0
+        tok = db.query(
+            func.coalesce(func.sum(OutputDatabase.input_tokens), 0),
+            func.coalesce(func.sum(OutputDatabase.output_tokens), 0),
+            func.coalesce(func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost), 0.0),
+        ).filter(*base_filter).first()
+        total_input_tokens = int(tok[0] or 0)
+        total_output_tokens = int(tok[1] or 0)
+        total_cost = float(tok[2] or 0.0)
+        avg_latency = db.query(func.avg(OutputDatabase.latency_ms)).filter(*base_filter).scalar()
+        active_users = db.query(func.count(func.distinct(OutputDatabase.user_id))).filter(
+            *base_filter, OutputDatabase.user_id.isnot(None)
+        ).scalar() or 0
+        active_projects = db.query(func.count(func.distinct(OutputDatabase.project_id))).filter(
+            *base_filter, OutputDatabase.project_id.isnot(None)
+        ).scalar() or 0
+        da = db.query(func.count(OutputDatabase.id), cost_expr).filter(
+            *base_filter, OutputDatabase.project_id.is_(None)
+        ).first()
+        direct_access_messages = int(da[0] or 0)
+        direct_access_cost = float(da[1] or 0.0)
+
+        summary = {
+            "total_messages": total_messages,
+            "total_conversations": total_conversations,
+            "total_input_tokens": total_input_tokens,
+            "total_output_tokens": total_output_tokens,
+            "total_tokens": total_input_tokens + total_output_tokens,
+            "total_cost": round(total_cost, 4),
+            "avg_latency_ms": round(avg_latency) if avg_latency else 0,
+            "active_users": active_users,
+            "active_projects": active_projects,
+            "direct_access_messages": direct_access_messages,
+            "direct_access_cost": round(direct_access_cost, 4),
+        }
+
+        # ---- budget (live current-month, matching the team budget model) -----
+        spending_month = float(db_wrapper.get_team_spending(team_id))
+        budget_val = team.budget if team.budget is not None else -1.0
+        unlimited = budget_val is None or budget_val < 0
+        budget = {
+            "budget": budget_val,
+            "spending_month": round(spending_month, 4),
+            "remaining": None if unlimited else round(budget_val - spending_month, 4),
+            "unlimited": unlimited,
+        }
+
+        # ---- daily -----------------------------------------------------------
+        daily_rows = (
+            db.query(
+                func.date(OutputDatabase.date).label("date"),
+                func.coalesce(func.sum(OutputDatabase.input_tokens), 0).label("input_tokens"),
+                func.coalesce(func.sum(OutputDatabase.output_tokens), 0).label("output_tokens"),
+                cost_expr.label("cost"),
+                func.count(OutputDatabase.id).label("messages"),
+            )
+            .filter(*base_filter)
+            .group_by(func.date(OutputDatabase.date))
+            .order_by(func.date(OutputDatabase.date))
+            .all()
+        )
+        daily = [{
+            "date": str(r.date),
+            "input_tokens": int(r.input_tokens or 0),
+            "output_tokens": int(r.output_tokens or 0),
+            "tokens": int((r.input_tokens or 0) + (r.output_tokens or 0)),
+            "cost": round(float(r.cost or 0), 4),
+            "messages": r.messages,
+        } for r in daily_rows]
+
+        # ---- per project (direct-access collapses to project=None) -----------
+        project_rows = (
+            db.query(
+                OutputDatabase.project_id,
+                ProjectDatabase.name.label("project_name"),
+                func.count(OutputDatabase.id).label("messages"),
+                token_expr.label("tokens"),
+                cost_expr.label("cost"),
+            )
+            .outerjoin(ProjectDatabase, OutputDatabase.project_id == ProjectDatabase.id)
+            .filter(*base_filter)
+            .group_by(OutputDatabase.project_id, ProjectDatabase.name)
+            .order_by(cost_expr.desc())
+            .limit(100)
+            .all()
+        )
+        per_project = [{
+            "project_id": r.project_id,
+            "project": r.project_name,  # None => direct access (labeled client-side)
+            "messages": r.messages,
+            "tokens": int(r.tokens or 0),
+            "cost": round(float(r.cost or 0), 4),
+        } for r in project_rows]
+
+        # ---- per user --------------------------------------------------------
+        user_rows = (
+            db.query(
+                OutputDatabase.user_id,
+                UserDatabase.username,
+                func.count(OutputDatabase.id).label("messages"),
+                token_expr.label("tokens"),
+                cost_expr.label("cost"),
+            )
+            .outerjoin(UserDatabase, OutputDatabase.user_id == UserDatabase.id)
+            .filter(*base_filter)
+            .group_by(OutputDatabase.user_id, UserDatabase.username)
+            .order_by(cost_expr.desc())
+            .limit(100)
+            .all()
+        )
+        budgets_map = db_wrapper.get_team_user_budgets_map(team_id)
+        per_user = [{
+            "user_id": r.user_id,
+            "username": r.username,
+            "messages": r.messages,
+            "tokens": int(r.tokens or 0),
+            "cost": round(float(r.cost or 0), 4),
+            "budget": budgets_map.get(r.user_id),  # member cap (None = uncapped)
+        } for r in user_rows]
+
+        # ---- per LLM ---------------------------------------------------------
+        llm_rows = (
+            db.query(
+                OutputDatabase.llm,
+                func.count(OutputDatabase.id).label("messages"),
+                token_expr.label("tokens"),
+                cost_expr.label("cost"),
+            )
+            .filter(*base_filter, OutputDatabase.llm.isnot(None))
+            .group_by(OutputDatabase.llm)
+            .order_by(cost_expr.desc())
+            .all()
+        )
+        per_llm = [{
+            "llm": r.llm,
+            "messages": r.messages,
+            "tokens": int(r.tokens or 0),
+            "cost": round(float(r.cost or 0), 4),
+        } for r in llm_rows]
+
+        # ---- status breakdown ------------------------------------------------
+        status_rows = (
+            db.query(OutputDatabase.status, func.count(OutputDatabase.id).label("count"))
+            .filter(*base_filter)
+            .group_by(OutputDatabase.status)
+            .all()
+        )
+        status_breakdown = [{"status": (r.status or "success"), "count": r.count} for r in status_rows]
+
+        # ---- latency buckets -------------------------------------------------
+        LATENCY_BUCKETS = [
+            ("0-100ms", 0, 100),
+            ("100-500ms", 100, 500),
+            ("500ms-2s", 500, 2000),
+            ("2-10s", 2000, 10000),
+            ("10s+", 10000, None),
+        ]
+        latency_buckets = []
+        for label, lo, hi in LATENCY_BUCKETS:
+            q = db.query(func.count(OutputDatabase.id)).filter(
+                *base_filter, OutputDatabase.latency_ms.isnot(None), OutputDatabase.latency_ms >= lo
+            )
+            if hi is not None:
+                q = q.filter(OutputDatabase.latency_ms < hi)
+            latency_buckets.append({"bucket": label, "count": q.scalar() or 0})
+
+        # ---- hourly ----------------------------------------------------------
+        hourly_rows = (
+            db.query(
+                func.extract("hour", OutputDatabase.date).label("hour"),
+                func.count(OutputDatabase.id).label("messages"),
+            )
+            .filter(*base_filter)
+            .group_by(func.extract("hour", OutputDatabase.date))
+            .all()
+        )
+        hourly_map = {int(r.hour): r.messages for r in hourly_rows}
+        hourly = [{"hour": h, "messages": hourly_map.get(h, 0)} for h in range(24)]
+
+        return {
+            "team": {"id": team.id, "name": team.name},
+            "period": {"year": year, "month": month},
+            "summary": summary,
+            "budget": budget,
+            "daily": daily,
+            "per_project": per_project,
+            "per_user": per_user,
+            "per_llm": per_llm,
+            "status_breakdown": status_breakdown,
+            "latency_buckets": latency_buckets,
+            "hourly": hourly,
+        }
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 @router.post("/teams/{team_id}/image_generators/{generator_name}")
 async def add_image_generator_to_team(
     team_id: int = Path(description="Team ID"),
@@ -818,3 +1067,62 @@ async def decline_project_invitation(
     db_wrapper.db.commit()
 
     return {"message": "Invitation declined"}
+
+
+def _member_budget_row(db_wrapper, team_id, target):
+    cap = db_wrapper.get_team_user_budget(team_id, target.id)
+    sp = round(db_wrapper.get_team_user_spending(team_id, target.id), 4)
+    return TeamMemberBudget(
+        user_id=target.id, username=target.username, budget=cap, spending=sp,
+        remaining=(None if cap is None else round(cap - sp, 4)),
+    )
+
+
+@router.get("/teams/{team_id}/members/budgets", response_model=List[TeamMemberBudget], tags=["Teams"])
+async def get_team_member_budgets(
+    team_id: int = Path(description="Team ID"),
+    user: User = Depends(get_current_username_team_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Per-member monthly cost caps + month-to-date spend for the whole team
+    (team admins + platform admins). One fetch drives the budget chips/dialogs."""
+    team = db_wrapper.get_team_by_id(team_id)
+    if team is None:
+        raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+    members = {u.id: u for u in (list(team.users) + list(team.admins))}
+    caps = db_wrapper.get_team_user_budgets_map(team_id)
+    spend = db_wrapper.get_team_user_spending_map(team_id)
+    out = []
+    for uid, u in members.items():
+        cap = caps.get(uid)
+        sp = round(spend.get(uid, 0.0), 4)
+        out.append(TeamMemberBudget(
+            user_id=uid, username=u.username, budget=cap, spending=sp,
+            remaining=(None if cap is None else round(cap - sp, 4)),
+        ))
+    out.sort(key=lambda m: (m.username or "").lower())
+    return out
+
+
+@router.patch("/teams/{team_id}/members/{username}/budget", response_model=TeamMemberBudget, tags=["Teams"])
+async def set_team_member_budget(
+    team_id: int = Path(description="Team ID"),
+    username: str = Path(description="Member username"),
+    body: TeamMemberBudgetUpdate = Body(...),
+    user: User = Depends(get_current_username_team_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Set or clear a member's monthly cost cap (team admins + platform admins).
+    `budget` null or -1 clears the cap. Validates the target is a team member."""
+    check_not_restricted(user)
+    team = db_wrapper.get_team_by_id(team_id)
+    if team is None:
+        raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+    target = db_wrapper.get_user_by_username(username)
+    if target is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    member_ids = {u.id for u in (list(team.users) + list(team.admins))}
+    if target.id not in member_ids:
+        raise HTTPException(status_code=400, detail="User is not a member of this team")
+    db_wrapper.set_team_user_budget(team_id, target.id, body.budget)
+    return _member_budget_row(db_wrapper, team_id, target)

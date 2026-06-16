@@ -472,7 +472,8 @@
         "rateLimitHint": "Maximaal aantal verzoeken per minuut. Leeg laten voor onbeperkt.",
         "redactInferenceLogs": "Gevoelige gegevens redigeren in inferentielogs",
         "inviteUser": "Gebruiker uitnodigen",
-        "privacy": "Privacy en toegang"
+        "privacy": "Privacy en toegang",
+        "budget": "Maandelijks kostenbudget ($)"
       },
       "integrations": {
         "telegram": "Telegram",
@@ -924,7 +925,11 @@
       "memberOf": "Lid van",
       "noMember": "Geen aanvullende teamlidmaatschappen.",
       "admin": "Beheerder",
-      "member": "Lid"
+      "member": "Lid",
+      "yourBudget": "Jouw budget",
+      "spentThisMonth": "{{spent}} deze maand",
+      "uncapped": "Onbeperkt",
+      "remaining": "{{amount}} over"
     },
     "newPage": {
       "title": "Nieuwe gebruiker aanmaken",
@@ -989,7 +994,10 @@
       "saveKeyTitle": "Sla uw API-sleutel op",
       "saveKeyWarn": "Dit is het enige moment waarop de volledige sleutel wordt getoond. Kopieer hem nu.",
       "projectLabel": "Project {{id}}",
-      "tokens": "tokens"
+      "tokens": "tokens",
+      "team": "Team",
+      "teamColumn": "Team",
+      "teamRequired": "Vereist — gefactureerd voor het directe-toegangsgebruik van deze sleutel"
     }
   },
   "teams": {
@@ -1124,7 +1132,8 @@
         "inTokens": "Invoertokens",
         "outTokens": "Uitvoertokens",
         "cost": "Kosten",
-        "noTransactions": "Geen transacties gevonden"
+        "noTransactions": "Geen transacties gevonden",
+        "directAccess": "Directe toegang"
       },
       "confirmRemove": "Weet u zeker dat u {{name}} uit dit team wilt verwijderen?",
       "confirmRemoveAdmin": "Weet u zeker dat u de beheerdersrechten van {{name}} wilt intrekken?",
@@ -1135,6 +1144,58 @@
       "membersSubtitle": "Lees-/schrijftoegang via rollen",
       "adminsSubtitle": "Kunnen leden en bronnen beheren",
       "projectsSubtitle": "Klik op een project om te openen"
+    },
+    "analytics": {
+      "eyebrow": "Analyse",
+      "title": "Teamanalyse",
+      "subtitle": "Waar het budget en de tokens van dit team naartoe gaan",
+      "backToTeam": "Terug naar team",
+      "forbidden": "Je hebt geen toegang tot de analyse van dit team.",
+      "loadError": "Kon analyse niet laden.",
+      "budgetUsed": "Budget gebruikt",
+      "unlimited": "Onbeperkt",
+      "totalCost": "Totale kosten",
+      "totalTokens": "Totaal tokens",
+      "in": "in",
+      "out": "uit",
+      "messages": "Berichten",
+      "conversations": "gesprekken",
+      "activeUsers": "Actieve gebruikers",
+      "activeProjects": "Actieve projecten",
+      "directAccessCost": "Directe toegang",
+      "avgLatency": "Gem. latentie",
+      "costOverTime": "Kosten in de tijd",
+      "tokensOverTime": "Tokens in de tijd",
+      "cost": "Kosten",
+      "inputTokens": "Invoer",
+      "outputTokens": "Uitvoer",
+      "byProject": "Per project",
+      "byProjectSub": "Uitgaven & tokens per project (incl. directe toegang)",
+      "project": "Project",
+      "tokens": "Tokens",
+      "byLlm": "Per model",
+      "byLlmSub": "Kostenaandeel per LLM",
+      "byUser": "Per gebruiker",
+      "byUserSub": "Uitgaven & tokens per gebruiker",
+      "user": "Gebruiker",
+      "unknownUser": "Onbekend",
+      "outcomes": "Resultaten",
+      "latency": "Latentie",
+      "requests": "Verzoeken",
+      "hourly": "Activiteit per uur",
+      "noData": "Geen gegevens voor deze periode"
+    },
+    "budget": {
+      "dialogTitle": "Uitgavenlimiet van lid",
+      "cap": "Limiet",
+      "capInput": "Maandelijkse kostenlimiet",
+      "capHelper": "Leeg of 0 = onbeperkt",
+      "usedThisMonth": "{{username}} heeft deze maand {{spent}} uitgegeven",
+      "uncapped": "Onbeperkt",
+      "editCap": "Uitgavenlimiet bewerken",
+      "saved": "Uitgavenlimiet bijgewerkt",
+      "cleared": "Uitgavenlimiet verwijderd",
+      "clear": "Limiet wissen"
     }
   },
   "llms": {
