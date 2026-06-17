@@ -47,17 +47,18 @@ def test_crawler_classic_uses_timeout(monkeypatch):
         is_redirect = False
         is_permanent_redirect = False
 
-    def fake_get(url, **kwargs):
+    def fake_pinned_get(url, ip, **kwargs):
         captured["timeout"] = kwargs.get("timeout")
         # The hardened fetch path (_safe_get) disables auto-redirects.
         assert kwargs.get("allow_redirects") is False
         return _FakeResp()
 
-    # Bypass the SSRF host check in both the crawler pre-check and the shared
-    # _safe_get fetcher (which re-validates every redirect hop).
+    # Bypass the SSRF host check in the crawler pre-check, stub DNS resolution in
+    # _safe_get to a public IP, and capture the pinned fetch (which connects to the
+    # validated IP and re-validates every redirect hop).
     monkeypatch.setattr(mod, "_is_private_ip", lambda h: False)
-    monkeypatch.setattr("restai.helper._is_private_ip", lambda h: False)
-    monkeypatch.setattr(mod.requests, "get", fake_get)
+    monkeypatch.setattr("restai.helper._resolve_validated_ip", lambda h: "93.184.216.34")
+    monkeypatch.setattr("restai.helper._pinned_get", fake_pinned_get)
     out = mod.crawler_classic("http://example.com/")
     assert "hello" in out
     assert captured["timeout"] is not None and captured["timeout"] > 0

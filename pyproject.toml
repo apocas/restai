@@ -100,6 +100,7 @@ dependencies = [
     "smolagents>=1.0.0,<2",
     "openai-agents>=0.5,<2",
     "stripe>=15.2.1",
+    "requests-toolbelt>=1.0.0",
 ]
 
 [project.scripts]

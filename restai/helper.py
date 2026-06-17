@@ -2,7 +2,7 @@ import time
 import socket
 import ipaddress
 from typing import AsyncGenerator, Any, Dict
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 
 from starlette.responses import StreamingResponse
 from requests import Response
@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 _BLOCKED_NETWORKS = [
+    ipaddress.ip_network("0.0.0.0/8"),       # "this network" — 0.0.0.0 reaches localhost on Linux
     ipaddress.ip_network("127.0.0.0/8"),
     ipaddress.ip_network("10.0.0.0/8"),
     ipaddress.ip_network("172.16.0.0/12"),
@@ -48,6 +49,16 @@ _BLOCKED_NETWORKS = [
     # '169.254.0.0/16' (an IPv4Network), bypassing the blocklist on dual-stack Linux hosts.
     ipaddress.ip_network("::ffff:0:0/96"),
 ]
+
+
+def _ip_is_blocked(ip) -> bool:
+    """Category-based rejection (robust across address families) plus the explicit
+    networks as defense-in-depth. Catches loopback, RFC1918, link-local, CGNAT-ish,
+    0.0.0.0/8, unspecified (`::`/`0.0.0.0`), multicast, and reserved/Class-E/broadcast."""
+    if (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
+            or ip.is_unspecified or ip.is_multicast):
+        return True
+    return any(ip in network for network in _BLOCKED_NETWORKS)
 
 _URL_PATTERN = re.compile(
     r"https?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(),]|%[0-9a-fA-F][0-9a-fA-F])+"
@@ -69,6 +80,16 @@ def _embedded_ipv4(ip):
     return None
 
 
+def _candidates_for(ip):
+    """The address itself plus any IPv4 embedded in an IPv6 address, so both
+    ::ffff:<priv> and the deprecated ::<priv> forms are checked."""
+    out = [ip]
+    embedded = _embedded_ipv4(ip)
+    if embedded is not None:
+        out.append(embedded)
+    return out
+
+
 def _is_private_ip(hostname: str) -> bool:
     try:
         addrinfos = socket.getaddrinfo(hostname, None)
@@ -77,17 +98,62 @@ def _is_private_ip(hostname: str) -> bool:
 
     for addrinfo in addrinfos:
         ip = ipaddress.ip_address(addrinfo[4][0])
-        # Check the address itself plus any IPv4 embedded in an IPv6 address, so
-        # both ::ffff:<priv> and the deprecated ::<priv> forms are caught.
-        candidates = [ip]
-        embedded = _embedded_ipv4(ip)
-        if embedded is not None:
-            candidates.append(embedded)
-        for candidate in candidates:
-            for network in _BLOCKED_NETWORKS:
-                if candidate in network:
-                    return True
+        if any(_ip_is_blocked(c) for c in _candidates_for(ip)):
+            return True
     return False
+
+
+def _resolve_validated_ip(hostname: str) -> str:
+    """Resolve a hostname ONCE and validate every returned address (and any embedded
+    IPv4). Returns the first resolved IP — the address an outbound fetch should pin
+    to — so `requests` never re-resolves (closing the DNS-rebinding / TOCTOU window).
+    Fail-closed: raises ValueError if the host is unresolvable, or if ANY resolved
+    address is private/internal (a host with even one private A/AAAA record is refused
+    rather than risk a later rebind to it)."""
+    try:
+        addrinfos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        raise ValueError(f"Cannot resolve hostname: {hostname}")
+    chosen = None
+    for addrinfo in addrinfos:
+        ip = ipaddress.ip_address(addrinfo[4][0])
+        if any(_ip_is_blocked(c) for c in _candidates_for(ip)):
+            raise ValueError(f"Access to internal/private addresses is not allowed: {hostname}")
+        if chosen is None:
+            chosen = str(ip)
+    if chosen is None:
+        raise ValueError(f"Cannot resolve hostname: {hostname}")
+    return chosen
+
+
+def _pin_url_and_host(url: str, ip: str):
+    """Rewrite a URL so the connection targets the validated `ip` literal while the
+    original host is preserved for the Host header + TLS SNI/cert. Returns
+    (pinned_url, host_header)."""
+    parsed = urlparse(url)
+    ip_host = f"[{ip}]" if ":" in ip else ip
+    netloc = ip_host + (f":{parsed.port}" if parsed.port else "")
+    pinned_url = urlunparse(parsed._replace(netloc=netloc))
+    return pinned_url, parsed.netloc
+
+
+def _pinned_get(url: str, ip: str, **kwargs):
+    """`requests.get` pinned to a pre-validated IP. Connects to `ip` (no second DNS
+    lookup) but presents the original hostname as the Host header and TLS SNI, and
+    verifies the cert against it. The Session is attached to the response so a
+    streamed body outlives this call."""
+    from requests_toolbelt.adapters.host_header_ssl import HostHeaderSSLAdapter
+
+    pinned_url, host_header = _pin_url_and_host(url, ip)
+    headers = dict(kwargs.pop("headers", None) or {})
+    headers["Host"] = host_header
+
+    session = requests.Session()
+    if urlparse(url).scheme == "https":
+        session.mount("https://", HostHeaderSSLAdapter())
+    response = session.get(pinned_url, headers=headers, **kwargs)
+    response._restai_pinned_session = session  # keep the session alive for stream=True
+    return response
 
 
 def is_blocked_network_host(host: str) -> bool:
@@ -108,20 +174,24 @@ def is_blocked_network_host(host: str) -> bool:
 
 
 def _safe_get(url: str, max_redirects: int = 5, **kwargs):
-    """`requests.get` that re-validates the target host against the SSRF
-    blocklist on the initial request AND on every redirect hop (auto-redirect
-    disabled). Closes the redirect→internal bypass (e.g. a public URL that 302s
-    to 169.254.169.254). Raises ValueError on a private/internal target."""
+    """`requests.get` that resolves + validates the target host against the SSRF
+    blocklist and then **pins the connection to the validated IP** on the initial
+    request AND on every redirect hop (auto-redirect disabled). Pinning means
+    `requests` never re-resolves the hostname, closing the DNS-rebinding / TOCTOU
+    window as well as the redirect→internal bypass. Raises ValueError on a
+    private/internal/unresolvable target."""
     kwargs["allow_redirects"] = False
     current = url
     for _ in range(max_redirects + 1):
         hostname = urlparse(current).hostname
         if not hostname:
             raise ValueError("URL has no valid hostname.")
-        if _is_private_ip(hostname):
-            logger.warning("Blocked SSRF attempt to internal address: %s", hostname)
-            raise ValueError(f"Access to internal/private addresses is not allowed: {hostname}")
-        response = requests.get(current, **kwargs)
+        try:
+            ip = _resolve_validated_ip(hostname)
+        except ValueError:
+            logger.warning("Blocked SSRF attempt to internal/unresolvable address: %s", hostname)
+            raise
+        response = _pinned_get(current, ip, **kwargs)
         if response.is_redirect or response.is_permanent_redirect:
             location = response.headers.get("Location")
             response.close()
