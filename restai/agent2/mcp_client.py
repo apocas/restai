@@ -62,6 +62,12 @@ class MCPSessionPool:
 
             try:
                 if _is_http_host(host):
+                    # Connect-time SSRF revalidation (DNS-rebinding / TOCTOU defense):
+                    # the host was vetted when saved, but it's re-resolved here.
+                    from restai.helper import is_blocked_network_host
+                    if is_blocked_network_host(host):
+                        logger.warning("Blocked MCP host '%s' resolving to a private/internal address (SSRF)", host)
+                        continue
                     session = await self._open_http_session(host, headers)
                 else:
                     _validate_stdio_args(args)

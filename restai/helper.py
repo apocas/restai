@@ -42,6 +42,7 @@ _BLOCKED_NETWORKS = [
     ipaddress.ip_network("169.254.0.0/16"),
     ipaddress.ip_network("::1/128"),
     ipaddress.ip_network("fc00::/7"),
+    ipaddress.ip_network("fe80::/10"),  # IPv6 link-local
     # IPv4-mapped IPv6 space -- covers ::ffff:10.x, ::ffff:192.168.x, ::ffff:169.254.x etc.
     # Without this, ip_address('::ffff:169.254.169.254') is an IPv6Address not contained in
     # '169.254.0.0/16' (an IPv4Network), bypassing the blocklist on dual-stack Linux hosts.
@@ -53,6 +54,21 @@ _URL_PATTERN = re.compile(
 )
 
 
+def _embedded_ipv4(ip):
+    """Return the IPv4 embedded in an IPv6 address, or None. Covers both the
+    IPv4-mapped form (::ffff:a.b.c.d) and the deprecated IPv4-compatible form
+    (::a.b.c.d) — the latter has no .ipv4_mapped, so an attacker could otherwise
+    smuggle a private/IMDS v4 address past the blocklist as a plain IPv6Address."""
+    if not isinstance(ip, ipaddress.IPv6Address):
+        return None
+    if ip.ipv4_mapped is not None:
+        return ip.ipv4_mapped
+    val = int(ip)
+    if 0 < val < (1 << 32):  # ::a.b.c.d (top 96 bits zero); ::1 -> 0.0.0.1 is harmless
+        return ipaddress.IPv4Address(val)
+    return None
+
+
 def _is_private_ip(hostname: str) -> bool:
     try:
         addrinfos = socket.getaddrinfo(hostname, None)
@@ -61,18 +77,34 @@ def _is_private_ip(hostname: str) -> bool:
 
     for addrinfo in addrinfos:
         ip = ipaddress.ip_address(addrinfo[4][0])
-        for network in _BLOCKED_NETWORKS:
-            if ip in network:
-                return True
-    # Secondary check: unwrap IPv4-mapped IPv6 addresses and recheck against IPv4 blocklists.
-    # Handles the case where getaddrinfo returns ::ffff:<private-ip> on dual-stack systems.
-    for addrinfo in addrinfos:
-        ip = ipaddress.ip_address(addrinfo[4][0])
-        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        # Check the address itself plus any IPv4 embedded in an IPv6 address, so
+        # both ::ffff:<priv> and the deprecated ::<priv> forms are caught.
+        candidates = [ip]
+        embedded = _embedded_ipv4(ip)
+        if embedded is not None:
+            candidates.append(embedded)
+        for candidate in candidates:
             for network in _BLOCKED_NETWORKS:
-                if ip.ipv4_mapped in network:
+                if candidate in network:
                     return True
     return False
+
+
+def is_blocked_network_host(host: str) -> bool:
+    """Fail-closed SSRF gate for an http(s)/sse host URL: returns True (block) when
+    the parsed hostname resolves to a private/internal address, can't be resolved,
+    or the URL can't be parsed. Used to vet outbound MCP server connections both at
+    config time and at every connect site (DNS-rebinding / TOCTOU defense)."""
+    try:
+        hostname = urlparse(host).hostname
+    except Exception:
+        return True
+    if not hostname:
+        return True
+    try:
+        return _is_private_ip(hostname)
+    except ValueError:
+        return True  # unresolvable -> fail closed
 
 
 def _safe_get(url: str, max_redirects: int = 5, **kwargs):

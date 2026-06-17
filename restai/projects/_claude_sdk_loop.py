@@ -127,6 +127,20 @@ def _build_options(project, db, brain, *, system_prompt: str, chat_id: str,
         except Exception:
             logger.warning("Failed to parse mcp_servers JSON for project %s", project.props.id)
 
+    # Connect-time SSRF revalidation: drop any external MCP server whose URL
+    # resolves to a private/internal address (DNS-rebinding / TOCTOU defense).
+    # The in-process `restai_builtins` server has no URL and is always kept.
+    from restai.helper import is_blocked_network_host
+    for _name in list(mcp_servers.keys()):
+        if _name == "restai_builtins":
+            continue
+        _cfg = mcp_servers.get(_name)
+        _url = _cfg.get("url") if isinstance(_cfg, dict) else None
+        if _url and is_blocked_network_host(_url):
+            logger.warning("Dropping MCP server '%s' for project %s: private/internal URL (SSRF blocked)",
+                           _name, project.props.id)
+            mcp_servers.pop(_name, None)
+
     # Nothing executes on the host. tools=[] disables EVERY native SDK built-in
     # (Read/Write/Edit/Glob/Grep/WebFetch/Bash/...), so the model's only tools
     # are our `restai_builtins` MCP tools — and those run inside the per-chat

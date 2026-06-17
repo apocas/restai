@@ -241,11 +241,18 @@ def _mcp_host_is_network(host: str) -> bool:
 
 
 def check_user_can_use_mcp_host(user: User, host: str) -> None:
-    """Refuse stdio MCP transport for non-admins. Network transports
-    pass through (the MCP server runs elsewhere, no local subprocess
-    is created).
+    """Refuse stdio MCP transport for non-admins. Network transports pass through
+    (the MCP server runs elsewhere, no local subprocess is created), but only after
+    an SSRF check — a private/internal/unresolvable host is refused (fail-closed),
+    reusing the same blocklist as URL ingestion and image resolution.
     """
     if _mcp_host_is_network(host):
+        from restai.helper import is_blocked_network_host
+        if is_blocked_network_host(host):
+            raise HTTPException(
+                status_code=400,
+                detail="MCP server URL resolves to a private/internal address; SSRF blocked",
+            )
         return
     if user.is_admin:
         return

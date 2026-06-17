@@ -1436,6 +1436,17 @@ async def get_project_tools(
 
         for mcp_server in project.props.options.mcp_servers:
             server_name = mcp_server.host
+            # Connect-time SSRF revalidation for network MCP hosts (stored config
+            # is re-resolved here, so re-check; stdio hosts are unaffected).
+            _h = (mcp_server.host or "")
+            if _h.lower().startswith(("http://", "https://", "sse://")):
+                from restai.helper import is_blocked_network_host
+                if is_blocked_network_host(_h):
+                    all_tools[server_name] = {
+                        "error": "blocked",
+                        "message": "MCP server URL resolves to a private/internal address; SSRF blocked",
+                    }
+                    continue
             try:
                 mcp_client = BasicMCPClient(
                     mcp_server.host,
