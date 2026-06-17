@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
 import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 import api from "app/utils/api";
-import { Settings as SettingsIcon, Storage, Security, Mail, ExpandMore, ExpandLess, CloudUpload, Close as CloseIcon } from "@mui/icons-material";
+import { Settings as SettingsIcon, Storage, Security, Mail, Payment, ExpandMore, ExpandLess, CloudUpload, Close as CloseIcon } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
 import ProjectTabNav from "app/views/projects/components/ProjectTabNav";
 import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
@@ -36,6 +36,7 @@ export default function SettingsPage() {
     { key: "general", name: t("settings.sections.general"), Icon: SettingsIcon },
     { key: "vectordbs", name: t("settings.sections.vectordbs"), Icon: Storage },
     { key: "notifications", name: t("settings.sections.notifications"), Icon: Mail },
+    { key: "payments", name: t("settings.sections.payments"), Icon: Payment },
     { key: "authentication", name: t("settings.sections.authentication"), Icon: Security },
   ];
 
@@ -130,6 +131,16 @@ export default function SettingsPage() {
     smtp_password: "",
     smtp_from: "",
     email_default_to: "",
+    payment_enabled: false,
+    payment_stripe_enabled: false,
+    payment_stripe_secret_key: "",
+    payment_stripe_publishable_key: "",
+    payment_stripe_webhook_secret: "",
+    payment_paypal_enabled: false,
+    payment_paypal_client_id: "",
+    payment_paypal_client_secret: "",
+    payment_paypal_webhook_id: "",
+    payment_paypal_mode: "sandbox",
   });
   const [teams, setTeams] = useState([]);
   const [llms, setLlms] = useState([]);
@@ -847,6 +858,91 @@ export default function SettingsPage() {
                         placeholder='"RESTai" <ops@example.com>' />
                     </Grid>
                   </Grid>
+                </Card>
+              </Grid>
+            </Grid>
+          )}
+
+          {active === "payments" && (
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <Typography variant="body2" color="text.secondary">
+                  {t("settings.helpers.paymentsIntro")}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
+                  <FormControlLabel
+                    control={<Switch checked={!!form.payment_enabled} onChange={handleChange("payment_enabled")} />}
+                    label={t("settings.fields.paymentEnabled")}
+                  />
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                    {t("settings.helpers.paymentWebhookHint")}
+                  </Typography>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
+                  <FormControlLabel
+                    control={<Switch checked={!!form.payment_stripe_enabled} onChange={handleChange("payment_stripe_enabled")} />}
+                    label={t("settings.fields.stripeEnabled")}
+                  />
+                  <Grid container spacing={3} sx={{ mt: 0 }}>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth type="password" label={t("settings.fields.stripeSecretKey")}
+                        value={form.payment_stripe_secret_key || ""} onChange={handleChange("payment_stripe_secret_key")}
+                        placeholder="sk_live_…" />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth label={t("settings.fields.stripePublishableKey")}
+                        value={form.payment_stripe_publishable_key || ""} onChange={handleChange("payment_stripe_publishable_key")}
+                        placeholder="pk_live_…" />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth type="password" label={t("settings.fields.stripeWebhookSecret")}
+                        value={form.payment_stripe_webhook_secret || ""} onChange={handleChange("payment_stripe_webhook_secret")}
+                        placeholder="whsec_…" helperText={t("settings.helpers.stripeWebhookHelp")} />
+                    </Grid>
+                  </Grid>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
+                  <FormControlLabel
+                    control={<Switch checked={!!form.payment_paypal_enabled} onChange={handleChange("payment_paypal_enabled")} />}
+                    label={t("settings.fields.paypalEnabled")}
+                  />
+                  <Grid container spacing={3} sx={{ mt: 0 }}>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth label={t("settings.fields.paypalClientId")}
+                        value={form.payment_paypal_client_id || ""} onChange={handleChange("payment_paypal_client_id")} />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth type="password" label={t("settings.fields.paypalClientSecret")}
+                        value={form.payment_paypal_client_secret || ""} onChange={handleChange("payment_paypal_client_secret")} />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth label={t("settings.fields.paypalWebhookId")}
+                        value={form.payment_paypal_webhook_id || ""} onChange={handleChange("payment_paypal_webhook_id")}
+                        helperText={t("settings.helpers.paypalWebhookHelp")} />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>{t("settings.fields.paypalMode")}</InputLabel>
+                        <Select value={form.payment_paypal_mode || "sandbox"} label={t("settings.fields.paypalMode")}
+                          onChange={handleChange("payment_paypal_mode")}>
+                          <MenuItem value="sandbox">Sandbox</MenuItem>
+                          <MenuItem value="live">Live</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  </Grid>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                    {t("settings.helpers.paypalAutoRechargeNote")}
+                  </Typography>
                 </Card>
               </Grid>
             </Grid>

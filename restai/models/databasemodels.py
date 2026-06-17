@@ -58,6 +58,11 @@ class TeamDatabase(Base):
     updated_at = Column(DateTime)
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     budget = Column(Float, default=-1.0)
+    # Prepaid wallet (real money). NULL = no wallet / disabled; a number >= 0 is
+    # the available balance, decremented as cost is spent; <= 0 = depleted (hard
+    # stop, distinct from the soft `budget` cap). Topped up by platform admins
+    # (future: via payment).
+    balance = Column(Float, nullable=True)
     branding = Column(Text, default="{}")
     # Python-side default only — server_default on TEXT breaks MySQL pre-8.0.13.
     options = Column(Text, nullable=False, default="{}")
@@ -162,6 +167,66 @@ class TeamUserBudgetDatabase(Base):
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     budget = Column(Float, nullable=False, default=-1.0)
+
+
+class TeamBalanceTransactionDatabase(Base):
+    """One row per prepaid-wallet movement. `amount` is signed: negative = OUT
+    (usage debit), positive = IN (top-up / upward adjustment). `balance_after` is
+    the wallet balance immediately after the movement, so the running balance
+    always reconciles with TeamDatabase.balance (even across clamp-at-0 overspend)."""
+    __tablename__ = "team_balance_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    team_id = Column(Integer, ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    balance_after = Column(Float, nullable=False)
+    kind = Column(String(32), nullable=False)  # usage | topup | adjustment
+    description = Column(Text, nullable=True)
+    actor_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, nullable=False, index=True)
+
+
+class PaymentTransactionDatabase(Base):
+    """One real-money payment toward a team's prepaid wallet (Stripe/PayPal).
+    Audit + idempotency: `(provider, provider_ref)` is unique, and crediting only
+    happens on the atomic pending->completed claim. `balance_transaction_id` links
+    the resulting ledger row once credited."""
+    __tablename__ = "payment_transactions"
+    __table_args__ = (UniqueConstraint("provider", "provider_ref", name="uq_payment_provider_ref"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    team_id = Column(Integer, ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider = Column(String(32), nullable=False)
+    kind = Column(String(32), nullable=False)  # topup | auto_recharge | setup
+    provider_ref = Column(String(255), nullable=False)
+    amount = Column(Float, nullable=False)
+    currency = Column(String(8), nullable=False)
+    status = Column(String(16), nullable=False, default="pending", index=True)  # pending | completed | failed | canceled
+    actor_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    balance_transaction_id = Column(Integer, ForeignKey("team_balance_transactions.id", ondelete="SET NULL"), nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, index=True)
+    completed_at = Column(DateTime, nullable=True)
+
+
+class TeamPaymentConfigDatabase(Base):
+    """Per-team saved payment method + auto-recharge rule. One row per team. Kept
+    out of TeamModel so provider customer/method refs never leak to members."""
+    __tablename__ = "team_payment_config"
+    __table_args__ = (UniqueConstraint("team_id", name="uq_team_payment_config_team"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    team_id = Column(Integer, ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, index=True)
+    provider = Column(String(32), nullable=True)
+    customer_ref = Column(String(255), nullable=True)
+    method_ref = Column(String(255), nullable=True)
+    brand = Column(String(32), nullable=True)
+    last4 = Column(String(8), nullable=True)
+    auto_recharge_enabled = Column(Boolean, nullable=False, default=False)
+    auto_recharge_threshold = Column(Float, nullable=True)
+    auto_recharge_amount = Column(Float, nullable=True)
+    failure_count = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime, nullable=True)
 
 
 class OutputDatabase(Base):

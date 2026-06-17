@@ -100,6 +100,7 @@ from restai.db.teams import TeamMixin
 from restai.db.project_tools_routines import ProjectToolRoutineMixin
 from restai.db.settings import SettingMixin
 from restai.db.runtime_activity import RuntimeActivityMixin
+from restai.db.payments import PaymentMixin
 from sqlalchemy.orm import Session
 
 
@@ -113,6 +114,7 @@ class DBWrapper(
     ProjectToolRoutineMixin,
     SettingMixin,
     RuntimeActivityMixin,
+    PaymentMixin,
 ):
     """Single entry point for all DB access. Composed from per-entity mixins
     (restai/db/*.py); every method shares the one Session in ``self.db``. The

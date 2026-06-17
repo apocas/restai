@@ -1,5 +1,18 @@
 import { differenceInSeconds } from "date-fns";
 
+export const formatCost = (n) => {
+  n = Number(n || 0);
+  const abs = Math.abs(n);
+  if (abs === 0) return "$0.00";
+  if (abs < 0.01) {
+    // Sub-cent: enough decimals to surface ~2 significant figures so a real
+    // charge never shows as $0.0000 (e.g. 0.000005 -> $0.0000050). Capped at 10.
+    const decimals = Math.min(10, Math.max(4, 1 - Math.floor(Math.log10(abs))));
+    return "$" + abs.toFixed(decimals);
+  }
+  return "$" + abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 export const convertHexToRGB = (hex) => {
   if (hex.match("rgba")) {
     let triplet = hex.slice(5).split(",").slice(0, -1).join(",");

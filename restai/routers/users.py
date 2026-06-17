@@ -312,6 +312,7 @@ async def route_get_user_team_budgets(
                 budget=cap,
                 spending=spending,
                 remaining=(None if cap is None else round(cap - spending, 4)),
+                team_balance=team.balance,
             ))
         out.sort(key=lambda b: (b.team_name or "").lower())
         return UserTeamBudgetsResponse(teams=out)

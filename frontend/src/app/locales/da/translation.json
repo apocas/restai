@@ -929,7 +929,8 @@
       "yourBudget": "Dit budget",
       "spentThisMonth": "{{spent}} denne måned",
       "uncapped": "Ubegrænset",
-      "remaining": "{{amount}} tilbage"
+      "remaining": "{{amount}} tilbage",
+      "teamWallet": "Team-tegnebog: {{amount}}"
     },
     "newPage": {
       "title": "Opret en ny bruger",
@@ -1196,6 +1197,63 @@
       "saved": "Forbrugsgrænse opdateret",
       "cleared": "Forbrugsgrænse fjernet",
       "clear": "Ryd grænse"
+    },
+    "balance": {
+      "dialogTitle": "Optank saldo",
+      "wallet": "Team-tegnebog",
+      "walletHelp": "Forudbetalt saldo — alt stopper ved 0",
+      "available": "{{amount}} tilgængelig",
+      "depleted": "Saldo opbrugt",
+      "depletedWarning": "Tegnebog tom — al brug er stoppet",
+      "topUp": "Fyld saldo op",
+      "amountInput": "Saldobeløb",
+      "amountHelper": "Angiv teamets tilgængelige saldo (USD)",
+      "set": "Indstil saldo",
+      "saved": "Saldo opdateret",
+      "addAmount": "Beløb at tilføje",
+      "addHelper": "Beløb der krediteres teamets tegnebog (USD)",
+      "newBalance": "Ny saldo: {{amount}}",
+      "added": "{{amount}} tilføjet til saldoen",
+      "ledger": {
+        "eyebrow": "Tegnebog",
+        "title": "Transaktionslog",
+        "subtitle": "Alle saldobevægelser, ind og ud",
+        "movements": "Bevægelser",
+        "noMovements": "Ingen bevægelser endnu",
+        "date": "Dato",
+        "kind": "Type",
+        "amount": "Beløb",
+        "balanceAfter": "Saldo efter",
+        "actor": "Af",
+        "description": "Note",
+        "kind_topup": "Optankning",
+        "kind_usage": "Forbrug",
+        "kind_adjustment": "Justering"
+      }
+    },
+    "payment": {
+      "addFunds": "Tilføj midler",
+      "checkoutHelp": "Vælg et beløb, så bliver du sendt til en sikker betaling.",
+      "amount": "Beløb",
+      "provider": "Betal med",
+      "saveCard": "Gem dette kort til automatisk optankning",
+      "continue": "Fortsæt til betaling",
+      "success": "Betaling modtaget — din saldo opdateres snart.",
+      "pending": "Betaling behandles — din saldo opdateres snart.",
+      "canceled": "Betaling annulleret.",
+      "failed": "Betaling mislykkedes. Prøv igen.",
+      "autoRecharge": "Automatisk optankning",
+      "autoRechargeHelp": "Tank automatisk op, når saldoen er lav, med et gemt kort.",
+      "saveACard": "Gem et kort",
+      "removeMethod": "Fjern kort",
+      "removeMethodConfirm": "Fjern det gemte kort og deaktivér automatisk optankning?",
+      "methodRemoved": "Gemt kort fjernet.",
+      "autoRechargeEnabled": "Aktivér automatisk optankning",
+      "autoRechargeSaved": "Automatisk optankning opdateret.",
+      "threshold": "Når saldo under",
+      "thresholdHelp": "Udløses, når saldoen falder under dette.",
+      "rechargeAmount": "Tank op med",
+      "rechargeAmountHelp": "Beløb der opkræves hver gang."
     }
   },
   "llms": {
@@ -1845,7 +1903,17 @@
       "smtpUser": "Bruger",
       "smtpPassword": "Adgangskode",
       "smtpFrom": "Afsenderadresse",
-      "emailDefaultTo": "Standardmodtager"
+      "emailDefaultTo": "Standardmodtager",
+      "paymentEnabled": "Aktivér betalinger",
+      "stripeEnabled": "Aktivér Stripe",
+      "stripeSecretKey": "Stripe hemmelig nøgle",
+      "stripePublishableKey": "Stripe publicerbar nøgle",
+      "stripeWebhookSecret": "Stripe webhook-signeringshemmelighed",
+      "paypalEnabled": "Aktivér PayPal",
+      "paypalClientId": "PayPal klient-ID",
+      "paypalClientSecret": "PayPal klienthemmelighed",
+      "paypalWebhookId": "PayPal webhook-ID",
+      "paypalMode": "PayPal-miljø"
     },
     "helpers": {
       "systemLlm": "LLM brugt af platformen til interne opgaver (prompt-hjælpere, opsummering osv.). Lad stå tom for at deaktivere.",
@@ -1879,7 +1947,12 @@
       "ldapAppDn": "DN for applikationskontoen, der søger efter brugere.",
       "ldapCaCertFile": "Absolut sti på RESTai-serveren. Bruges kun, når TLS er aktiveret.",
       "notificationsIntro": "Udgående notifikationskanaler. I dag e-mail; senere også webhooks/Slack/SMS. Teams overskriver disse værdier under Indstillinger → Integrationer på team-redigeringssiden; tomme team-felter falder tilbage til disse.",
-      "smtpPasswordMasked": "Den gemte adgangskode vises som ****; lad den stå for at bevare den."
+      "smtpPasswordMasked": "Den gemte adgangskode vises som ****; lad den stå for at bevare den.",
+      "paymentsIntro": "Konfigurer de betalingsudbydere, som teamadministratorer bruger til at fylde deres saldo op. Udbydernes webhooks skal pege på denne servers offentlige URL.",
+      "paymentWebhookHint": "Kræver en offentlig RESTAI_URL. Peg hver udbyders webhook på /webhooks/payments/<udbyder>.",
+      "stripeWebhookHelp": "Webhook-endepunkt: {url}/webhooks/payments/stripe",
+      "paypalWebhookHelp": "Webhook-endepunkt: {url}/webhooks/payments/paypal",
+      "paypalAutoRechargeNote": "PayPal understøtter kun manuel optankning. Automatisk optankning kræver Stripe (gemt kort)."
     },
     "status": {
       "enabled": "Aktiveret",
@@ -1919,7 +1992,8 @@
       "pinecone": "Pinecone",
       "ldap": "LDAP",
       "notifications": "Notifikationer",
-      "email": "E-mail (SMTP)"
+      "email": "E-mail (SMTP)",
+      "payments": "Betalinger"
     }
   },
   "widgets": {

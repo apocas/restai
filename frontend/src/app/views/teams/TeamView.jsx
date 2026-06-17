@@ -12,16 +12,18 @@ import { useTranslation } from "react-i18next";
 import sha256 from "crypto-js/sha256";
 import {
   Person, Settings, Delete, Group, Psychology,
-  AccountBalanceWallet, Receipt, AllInclusive, Image, Speaker,
-  Star, Workspaces, ArrowDropDown, ArrowRight, Insights,
+  AccountBalanceWallet, Receipt, ReceiptLong, AllInclusive, Image, Speaker,
+  Star, Workspaces, ArrowDropDown, ArrowRight, Insights, AccountBalance,
 } from "@mui/icons-material";
 import MUIDataTable from "mui-datatables";
 import ReactJson from "@microlink/react-json-view";
 import BAvatar from "boring-avatars";
 import api from "app/utils/api";
 import { PROJECT_TYPE_COLORS } from "app/utils/constant";
+import { formatCost } from "app/utils/utils";
 import { FONT_MONO, sweep, pulse, shimmer, blink } from "app/components/page/pageStyles";
 import MemberBudgetDialog from "./MemberBudgetDialog";
+import TopUpBalanceDialog from "./TopUpBalanceDialog";
 
 // Per-type pixel-avatar palette shared with projects list / library cards.
 const PROJECT_AVATAR_PALETTES = {
@@ -484,6 +486,7 @@ export default function TeamView() {
   const [txOpen, setTxOpen] = useState(false);
   const [memberBudgets, setMemberBudgets] = useState({});
   const [budgetTarget, setBudgetTarget] = useState(null);
+  const [balanceOpen, setBalanceOpen] = useState(false);
 
   const isTeamAdmin = team?.admins?.some((a) => a.id === user.id) || user.is_admin;
 
@@ -712,6 +715,16 @@ export default function TeamView() {
               ) : (
                 <Chip icon={<AllInclusive />} label={t("teams.view.unlimited")} size="small" sx={pillSx} />
               )}
+              {team.balance != null && (
+                <Chip
+                  icon={<AccountBalance />}
+                  label={team.balance <= 0
+                    ? t("teams.balance.depleted")
+                    : t("teams.balance.available", { amount: `$${Number(team.balance).toFixed(2)}` })}
+                  size="small"
+                  sx={team.balance <= 0 ? pillDangerSx : pillGoodSx}
+                />
+              )}
             </Box>
           </Box>
         </Box>
@@ -725,6 +738,28 @@ export default function TeamView() {
                 onClick={() => navigate(`/team/${id}/analytics`)}
               >
                 <Insights fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          {isTeamAdmin && team.balance != null && (
+            <Tooltip title={t("teams.balance.ledger.title")}>
+              <IconButton
+                size="small"
+                sx={heroIconBtnSx}
+                onClick={() => navigate(`/team/${id}/wallet`)}
+              >
+                <ReceiptLong fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+          {user.is_admin && (
+            <Tooltip title={t("teams.balance.topUp")}>
+              <IconButton
+                size="small"
+                sx={heroIconBtnSx}
+                onClick={() => setBalanceOpen(true)}
+              >
+                <AccountBalance fontSize="small" />
               </IconButton>
             </Tooltip>
           )}
@@ -1075,7 +1110,7 @@ export default function TeamView() {
                   } },
                   { name: t("teams.view.tx.inTokens"),  options: { customBodyRender: (v) => <Box component="span" sx={{ fontFamily: FONT_MONO }}>{(v || 0).toLocaleString()}</Box> } },
                   { name: t("teams.view.tx.outTokens"), options: { customBodyRender: (v) => <Box component="span" sx={{ fontFamily: FONT_MONO }}>{(v || 0).toLocaleString()}</Box> } },
-                  { name: t("teams.view.tx.cost"),      options: { customBodyRender: (v) => <Box component="span" sx={{ fontFamily: FONT_MONO, fontWeight: 700, color: "#10b981" }}>${(v || 0).toFixed(4)}</Box> } },
+                  { name: t("teams.view.tx.cost"),      options: { customBodyRender: (v) => <Box component="span" sx={{ fontFamily: FONT_MONO, fontWeight: 700, color: "#10b981" }}>{formatCost(v)}</Box> } },
                 ]}
               />
             )}
@@ -1090,6 +1125,16 @@ export default function TeamView() {
           teamId={id}
           member={budgetTarget}
           onSaved={() => { setBudgetTarget(null); fetchMemberBudgets(); }}
+        />
+      )}
+
+      {user.is_admin && (
+        <TopUpBalanceDialog
+          open={balanceOpen}
+          onClose={() => setBalanceOpen(false)}
+          teamId={id}
+          current={team.balance}
+          onSaved={() => { setBalanceOpen(false); fetchTeam(); }}
         />
       )}
     </Container>

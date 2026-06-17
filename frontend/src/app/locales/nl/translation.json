@@ -929,7 +929,8 @@
       "yourBudget": "Jouw budget",
       "spentThisMonth": "{{spent}} deze maand",
       "uncapped": "Onbeperkt",
-      "remaining": "{{amount}} over"
+      "remaining": "{{amount}} over",
+      "teamWallet": "Teamportemonnee: {{amount}}"
     },
     "newPage": {
       "title": "Nieuwe gebruiker aanmaken",
@@ -1196,6 +1197,63 @@
       "saved": "Uitgavenlimiet bijgewerkt",
       "cleared": "Uitgavenlimiet verwijderd",
       "clear": "Limiet wissen"
+    },
+    "balance": {
+      "dialogTitle": "Saldo bijvullen",
+      "wallet": "Teamportemonnee",
+      "walletHelp": "Vooruitbetaald saldo — alles stopt bij 0",
+      "available": "{{amount}} beschikbaar",
+      "depleted": "Saldo op",
+      "depletedWarning": "Portemonnee leeg — alle gebruik gestopt",
+      "topUp": "Saldo aanvullen",
+      "amountInput": "Saldobedrag",
+      "amountHelper": "Stel het beschikbare teamsaldo in (USD)",
+      "set": "Saldo instellen",
+      "saved": "Saldo bijgewerkt",
+      "addAmount": "Toe te voegen bedrag",
+      "addHelper": "Bedrag om bij te schrijven op de teamportemonnee (USD)",
+      "newBalance": "Nieuw saldo: {{amount}}",
+      "added": "{{amount}} toegevoegd aan saldo",
+      "ledger": {
+        "eyebrow": "Portemonnee",
+        "title": "Transactielogboek",
+        "subtitle": "Elke saldobeweging, in en uit",
+        "movements": "Bewegingen",
+        "noMovements": "Nog geen bewegingen",
+        "date": "Datum",
+        "kind": "Type",
+        "amount": "Bedrag",
+        "balanceAfter": "Saldo daarna",
+        "actor": "Door",
+        "description": "Notitie",
+        "kind_topup": "Bijvulling",
+        "kind_usage": "Gebruik",
+        "kind_adjustment": "Aanpassing"
+      }
+    },
+    "payment": {
+      "addFunds": "Saldo aanvullen",
+      "checkoutHelp": "Kies een bedrag en je wordt naar een beveiligde betaling geleid.",
+      "amount": "Bedrag",
+      "provider": "Betalen met",
+      "saveCard": "Deze kaart opslaan voor automatisch aanvullen",
+      "continue": "Doorgaan naar betaling",
+      "success": "Betaling ontvangen — je saldo wordt binnenkort bijgewerkt.",
+      "pending": "Betaling wordt verwerkt — je saldo wordt binnenkort bijgewerkt.",
+      "canceled": "Betaling geannuleerd.",
+      "failed": "Betaling mislukt. Probeer het opnieuw.",
+      "autoRecharge": "Automatisch aanvullen",
+      "autoRechargeHelp": "Vul automatisch aan wanneer het saldo laag is, met een opgeslagen kaart.",
+      "saveACard": "Kaart opslaan",
+      "removeMethod": "Kaart verwijderen",
+      "removeMethodConfirm": "Opgeslagen kaart verwijderen en automatisch aanvullen uitschakelen?",
+      "methodRemoved": "Opgeslagen kaart verwijderd.",
+      "autoRechargeEnabled": "Automatisch aanvullen inschakelen",
+      "autoRechargeSaved": "Automatisch aanvullen bijgewerkt.",
+      "threshold": "Wanneer saldo onder",
+      "thresholdHelp": "Wordt geactiveerd wanneer het saldo hieronder zakt.",
+      "rechargeAmount": "Aanvullen met",
+      "rechargeAmountHelp": "Bedrag dat elke keer wordt afgeschreven."
     }
   },
   "llms": {
@@ -1845,7 +1903,17 @@
       "smtpUser": "Gebruiker",
       "smtpPassword": "Wachtwoord",
       "smtpFrom": "Afzenderadres",
-      "emailDefaultTo": "Standaardontvanger"
+      "emailDefaultTo": "Standaardontvanger",
+      "paymentEnabled": "Betalingen inschakelen",
+      "stripeEnabled": "Stripe inschakelen",
+      "stripeSecretKey": "Stripe geheime sleutel",
+      "stripePublishableKey": "Stripe publiceerbare sleutel",
+      "stripeWebhookSecret": "Stripe webhook-ondertekeningsgeheim",
+      "paypalEnabled": "PayPal inschakelen",
+      "paypalClientId": "PayPal client-ID",
+      "paypalClientSecret": "PayPal client secret",
+      "paypalWebhookId": "PayPal webhook-ID",
+      "paypalMode": "PayPal-omgeving"
     },
     "helpers": {
       "systemLlm": "LLM die door het platform wordt gebruikt voor interne taken (prompt-helpers, samenvatting, enz.). Leeg laten om uit te schakelen.",
@@ -1879,7 +1947,12 @@
       "ldapAppDn": "DN van het applicatie-account dat gebruikers zoekt.",
       "ldapCaCertFile": "Absoluut pad op de RESTai-server. Alleen gebruikt als TLS aanstaat.",
       "notificationsIntro": "Uitgaande notificatiekanalen. Vandaag e-mail; later ook webhooks/Slack/SMS. Teams overschrijven deze waarden in Instellingen → Integraties op de team-bewerkpagina; lege teamvelden vallen terug op deze.",
-      "smtpPasswordMasked": "Het opgeslagen wachtwoord wordt getoond als ****; laat dit staan om het ongewijzigd te houden."
+      "smtpPasswordMasked": "Het opgeslagen wachtwoord wordt getoond als ****; laat dit staan om het ongewijzigd te houden.",
+      "paymentsIntro": "Configureer de betalingsproviders die teambeheerders gebruiken om hun saldo aan te vullen. Provider-webhooks moeten naar de publieke URL van deze server wijzen.",
+      "paymentWebhookHint": "Vereist een publieke RESTAI_URL. Richt de webhook van elke provider op /webhooks/payments/<provider>.",
+      "stripeWebhookHelp": "Webhook-eindpunt: {url}/webhooks/payments/stripe",
+      "paypalWebhookHelp": "Webhook-eindpunt: {url}/webhooks/payments/paypal",
+      "paypalAutoRechargeNote": "PayPal ondersteunt alleen handmatige aanvullingen. Automatisch aanvullen vereist Stripe (opgeslagen kaart)."
     },
     "status": {
       "enabled": "Ingeschakeld",
@@ -1919,7 +1992,8 @@
       "pinecone": "Pinecone",
       "ldap": "LDAP",
       "notifications": "Notificaties",
-      "email": "E-mail (SMTP)"
+      "email": "E-mail (SMTP)",
+      "payments": "Betalingen"
     }
   },
   "widgets": {

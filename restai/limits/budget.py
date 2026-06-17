@@ -15,6 +15,7 @@ _BUDGET_DETAIL = {
     "api_key": "API key cost budget exhausted",
     "user_in_team": "Your personal budget for this team is exhausted",
     "team": "Team budget exhausted",
+    "balance": "Team balance depleted",
 }
 
 
@@ -54,6 +55,15 @@ def enforce_cost_budgets(db: DBWrapper, *, project=None, user=None, team=None, a
 
     def _exhausted(cap, spent):
         return cap is not None and cap >= 0 and (cap - spent) <= 0
+
+    # 0. team balance — the hard prepaid wallet. NULL = no wallet (skip); a
+    # depleted wallet (<= 0) stops ALL usage (highest-priority gate). This is a
+    # real-money constraint, distinct from the soft `budget` cap below.
+    if team is not None:
+        bal = getattr(team, "balance", None)
+        if bal is not None and bal <= 0:
+            _emit_budget_webhook(project, "balance", bal, bal, team_id=team.id)
+            raise HTTPException(status_code=402, detail=_BUDGET_DETAIL["balance"])
 
     # 1. project
     if project is not None:
@@ -162,4 +172,27 @@ def record_api_key_tokens(api_key_id: int, tokens: int, db: DBWrapper) -> None:
     if key is None:
         return
     key.tokens_used_this_month = (key.tokens_used_this_month or 0) + int(tokens)
+    db.db.commit()
+
+
+def charge_team_balance(db: DBWrapper, team_id, amount: float, actor_user_id=None) -> None:
+    """Decrement a team's prepaid wallet by `amount` (the inference cost), clamped
+    at 0, and record the movement in the ledger. No-op when there's no team, a
+    non-positive amount, or the team has no wallet (balance is NULL). Called after
+    each inference is logged — the request that crosses zero is absorbed; the next
+    one is blocked by enforce_cost_budgets. The debit row + balance update commit
+    atomically, so the ledger always reconciles with teams.balance."""
+    if team_id is None or amount is None or amount <= 0:
+        return
+    team = db.get_team_by_id(team_id)
+    if team is None or team.balance is None:
+        return
+    before = float(team.balance)
+    after = max(0.0, before - float(amount))
+    applied = before - after  # actual amount removed (clamped at 0 on overspend)
+    if applied <= 0:
+        return  # wallet already empty — nothing moved, no ledger noise
+    team.balance = after
+    db.add_balance_transaction(team_id, amount=-applied, balance_after=after,
+                               kind="usage", actor_user_id=actor_user_id)
     db.db.commit()

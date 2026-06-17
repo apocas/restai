@@ -928,7 +928,8 @@
       "yourBudget": "您的预算",
       "spentThisMonth": "本月 {{spent}}",
       "uncapped": "无上限",
-      "remaining": "剩余 {{amount}}"
+      "remaining": "剩余 {{amount}}",
+      "teamWallet": "团队钱包：{{amount}}"
     },
     "newPage": {
       "title": "创建新用户",
@@ -1195,6 +1196,63 @@
       "saved": "支出上限已更新",
       "cleared": "支出上限已移除",
       "clear": "清除上限"
+    },
+    "balance": {
+      "dialogTitle": "充值余额",
+      "wallet": "团队钱包",
+      "walletHelp": "预付余额 — 归零时所有用量停止",
+      "available": "可用 {{amount}}",
+      "depleted": "余额已耗尽",
+      "depletedWarning": "钱包为空 — 所有用量已停止",
+      "topUp": "充值余额",
+      "amountInput": "余额金额",
+      "amountHelper": "设置团队可用余额（USD）",
+      "set": "设置余额",
+      "saved": "余额已更新",
+      "addAmount": "充值金额",
+      "addHelper": "充值到团队钱包的金额（美元）",
+      "newBalance": "新余额：{{amount}}",
+      "added": "已向余额充值 {{amount}}",
+      "ledger": {
+        "eyebrow": "钱包",
+        "title": "交易记录",
+        "subtitle": "每一笔余额变动，收入与支出",
+        "movements": "变动",
+        "noMovements": "暂无变动",
+        "date": "日期",
+        "kind": "类型",
+        "amount": "金额",
+        "balanceAfter": "变动后余额",
+        "actor": "操作人",
+        "description": "备注",
+        "kind_topup": "充值",
+        "kind_usage": "消耗",
+        "kind_adjustment": "调整"
+      }
+    },
+    "payment": {
+      "addFunds": "充值",
+      "checkoutHelp": "选择金额后将跳转到安全结账页面付款。",
+      "amount": "金额",
+      "provider": "支付方式",
+      "saveCard": "保存此卡用于自动充值",
+      "continue": "继续付款",
+      "success": "付款已收到——余额将很快更新。",
+      "pending": "付款处理中——余额将很快更新。",
+      "canceled": "付款已取消。",
+      "failed": "付款失败，请重试。",
+      "autoRecharge": "自动充值",
+      "autoRechargeHelp": "余额不足时使用已保存的卡自动充值。",
+      "saveACard": "保存卡片",
+      "removeMethod": "移除卡片",
+      "removeMethodConfirm": "移除已保存的卡片并停用自动充值？",
+      "methodRemoved": "已移除保存的卡片。",
+      "autoRechargeEnabled": "启用自动充值",
+      "autoRechargeSaved": "自动充值已更新。",
+      "threshold": "当余额低于",
+      "thresholdHelp": "余额低于此值时触发。",
+      "rechargeAmount": "充值金额",
+      "rechargeAmountHelp": "每次扣款金额。"
     }
   },
   "llms": {
@@ -1844,7 +1902,17 @@
       "smtpUser": "用户",
       "smtpPassword": "密码",
       "smtpFrom": "发件地址",
-      "emailDefaultTo": "默认收件人"
+      "emailDefaultTo": "默认收件人",
+      "paymentEnabled": "启用支付",
+      "stripeEnabled": "启用 Stripe",
+      "stripeSecretKey": "Stripe 密钥",
+      "stripePublishableKey": "Stripe 可发布密钥",
+      "stripeWebhookSecret": "Stripe webhook 签名密钥",
+      "paypalEnabled": "启用 PayPal",
+      "paypalClientId": "PayPal Client ID",
+      "paypalClientSecret": "PayPal Client Secret",
+      "paypalWebhookId": "PayPal Webhook ID",
+      "paypalMode": "PayPal 环境"
     },
     "helpers": {
       "systemLlm": "平台用于内部任务的 LLM（提示助手、摘要等）。留空以禁用。",
@@ -1878,7 +1946,12 @@
       "ldapAppDn": "用于搜索用户的应用绑定账户 DN。",
       "ldapCaCertFile": "RESTai 服务器上的绝对路径。仅在启用 TLS 时使用。",
       "notificationsIntro": "出站通知通道。目前仅支持电子邮件;之后将增加 Webhook/Slack/SMS。团队可在团队编辑页“设置 → 集成”中按团队覆盖;团队字段为空时使用此处设置。",
-      "smtpPasswordMasked": "已保存的密码以 **** 显示;保留该值以维持不变。"
+      "smtpPasswordMasked": "已保存的密码以 **** 显示;保留该值以维持不变。",
+      "paymentsIntro": "配置团队管理员用于充值钱包余额的支付提供商。提供商的 webhook 必须指向本服务器的公开 URL。",
+      "paymentWebhookHint": "需要公开的 RESTAI_URL。将每个提供商的 webhook 指向 /webhooks/payments/<提供商>。",
+      "stripeWebhookHelp": "Webhook 端点：{url}/webhooks/payments/stripe",
+      "paypalWebhookHelp": "Webhook 端点：{url}/webhooks/payments/paypal",
+      "paypalAutoRechargeNote": "PayPal 仅支持手动充值。自动充值需要 Stripe（已保存的卡）。"
     },
     "status": {
       "enabled": "已启用",
@@ -1918,7 +1991,8 @@
       "pinecone": "Pinecone",
       "ldap": "LDAP",
       "notifications": "通知",
-      "email": "电子邮件 (SMTP)"
+      "email": "电子邮件 (SMTP)",
+      "payments": "支付"
     }
   },
   "widgets": {

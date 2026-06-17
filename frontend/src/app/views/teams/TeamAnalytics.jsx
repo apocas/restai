@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import {
   ChevronLeft, ChevronRight, ArrowBack, AccountBalanceWallet, AllInclusive,
-  Insights, Group, Workspaces, Bolt, Forum, Speed, Api, Paid, Hub, Edit as EditIcon,
+  Insights, Group, Workspaces, Bolt, Forum, Speed, Api, Paid, Hub, Edit as EditIcon, AccountBalance,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -346,6 +346,16 @@ export default function TeamAnalytics() {
             <LinearProgress variant="determinate" value={pct}
               sx={{ height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.15)",
                 "& .MuiLinearProgress-bar": { backgroundColor: barColor, borderRadius: 4 } }} />
+          )}
+          {data.balance != null && (
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.75, mt: 1.25 }}>
+              <AccountBalance sx={{ fontSize: 15, color: data.balance <= 0 ? "#fca5a5" : "rgba(255,255,255,0.85)" }} />
+              <Typography sx={{ fontFamily: FONT_MONO, fontSize: "0.78rem", color: data.balance <= 0 ? "#fca5a5" : "rgba(255,255,255,0.9)" }}>
+                {data.balance <= 0
+                  ? t("teams.balance.depleted")
+                  : t("teams.balance.available", { amount: fmtCost(data.balance) })}
+              </Typography>
+            </Box>
           )}
         </Box>
       </HeroCard>

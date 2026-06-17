@@ -929,7 +929,8 @@
       "yourBudget": "Your budget",
       "spentThisMonth": "{{spent}} this month",
       "uncapped": "Uncapped",
-      "remaining": "{{amount}} left"
+      "remaining": "{{amount}} left",
+      "teamWallet": "Team wallet: {{amount}}"
     },
     "newPage": {
       "title": "Create a new user",
@@ -1196,6 +1197,63 @@
       "saved": "Spending cap updated",
       "cleared": "Spending cap removed",
       "clear": "Clear cap"
+    },
+    "balance": {
+      "dialogTitle": "Top up balance",
+      "wallet": "Team wallet",
+      "walletHelp": "Prepaid balance — all usage stops when it reaches 0",
+      "available": "{{amount}} available",
+      "depleted": "Balance depleted",
+      "depletedWarning": "Wallet empty — all usage is stopped",
+      "topUp": "Top up balance",
+      "amountInput": "Balance amount",
+      "amountHelper": "Set the team's available balance (USD)",
+      "set": "Set balance",
+      "saved": "Balance updated",
+      "addAmount": "Amount to add",
+      "addHelper": "Amount to credit to the team wallet (USD)",
+      "newBalance": "New balance: {{amount}}",
+      "added": "{{amount}} added to balance",
+      "ledger": {
+        "eyebrow": "Wallet",
+        "title": "Transaction log",
+        "subtitle": "Every balance movement, in and out",
+        "movements": "Movements",
+        "noMovements": "No movements yet",
+        "date": "Date",
+        "kind": "Type",
+        "amount": "Amount",
+        "balanceAfter": "Balance after",
+        "actor": "By",
+        "description": "Note",
+        "kind_topup": "Top-up",
+        "kind_usage": "Usage",
+        "kind_adjustment": "Adjustment"
+      }
+    },
+    "payment": {
+      "addFunds": "Add funds",
+      "checkoutHelp": "Choose an amount and you'll be taken to a secure checkout to pay.",
+      "amount": "Amount",
+      "provider": "Pay with",
+      "saveCard": "Save this card for auto-recharge",
+      "continue": "Continue to payment",
+      "success": "Payment received — your balance will update shortly.",
+      "pending": "Payment is processing — your balance will update shortly.",
+      "canceled": "Payment canceled.",
+      "failed": "Payment failed. Please try again.",
+      "autoRecharge": "Auto-recharge",
+      "autoRechargeHelp": "Automatically top up when the balance runs low, using a saved card.",
+      "saveACard": "Save a card",
+      "removeMethod": "Remove card",
+      "removeMethodConfirm": "Remove the saved card and disable auto-recharge?",
+      "methodRemoved": "Saved card removed.",
+      "autoRechargeEnabled": "Enable auto-recharge",
+      "autoRechargeSaved": "Auto-recharge updated.",
+      "threshold": "When balance below",
+      "thresholdHelp": "Trigger when balance drops under this.",
+      "rechargeAmount": "Top up by",
+      "rechargeAmountHelp": "Amount to charge each time."
     }
   },
   "llms": {
@@ -1845,7 +1903,17 @@
       "smtpUser": "User",
       "smtpPassword": "Password",
       "smtpFrom": "From Address",
-      "emailDefaultTo": "Default Recipient"
+      "emailDefaultTo": "Default Recipient",
+      "paymentEnabled": "Enable payments",
+      "stripeEnabled": "Enable Stripe",
+      "stripeSecretKey": "Stripe secret key",
+      "stripePublishableKey": "Stripe publishable key",
+      "stripeWebhookSecret": "Stripe webhook signing secret",
+      "paypalEnabled": "Enable PayPal",
+      "paypalClientId": "PayPal client ID",
+      "paypalClientSecret": "PayPal client secret",
+      "paypalWebhookId": "PayPal webhook ID",
+      "paypalMode": "PayPal environment"
     },
     "helpers": {
       "systemLlm": "LLM used by the platform for internal tasks (prompt helpers, summarization, etc). Leave empty to disable.",
@@ -1879,7 +1947,12 @@
       "ldapAppDn": "DN of the application bind account used to search for users.",
       "ldapCaCertFile": "Absolute path on the RESTai server. Only used when TLS is on.",
       "notificationsIntro": "Outbound notification channels. Email today; webhooks/Slack/SMS land here later. Teams override these per-team in Settings → Integrations on the team edit page; empty team fields fall back to what you set here.",
-      "smtpPasswordMasked": "Saved password is shown as ****; leave that to keep it unchanged."
+      "smtpPasswordMasked": "Saved password is shown as ****; leave that to keep it unchanged.",
+      "paymentsIntro": "Configure the payment providers your team admins use to top up their wallet balances. Provider webhooks must point to this server's public URL.",
+      "paymentWebhookHint": "Requires a public RESTAI_URL. Point each provider's webhook at /webhooks/payments/<provider>.",
+      "stripeWebhookHelp": "Webhook endpoint: {url}/webhooks/payments/stripe",
+      "paypalWebhookHelp": "Webhook endpoint: {url}/webhooks/payments/paypal",
+      "paypalAutoRechargeNote": "PayPal supports manual top-ups only. Auto-recharge requires Stripe (saved card)."
     },
     "status": {
       "enabled": "Enabled",
@@ -1919,7 +1992,8 @@
       "pinecone": "Pinecone",
       "ldap": "LDAP",
       "notifications": "Notifications",
-      "email": "Email (SMTP)"
+      "email": "Email (SMTP)",
+      "payments": "Payments"
     }
   },
   "widgets": {

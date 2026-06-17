@@ -118,10 +118,20 @@ SETTINGS_DEFAULTS = {
     "smtp_password": "",
     "smtp_from": "",
     "email_default_to": "",
+    "payment_enabled": "false",
+    "payment_stripe_enabled": "false",
+    "payment_stripe_secret_key": "",
+    "payment_stripe_publishable_key": "",
+    "payment_stripe_webhook_secret": "",
+    "payment_paypal_enabled": "false",
+    "payment_paypal_client_id": "",
+    "payment_paypal_client_secret": "",
+    "payment_paypal_webhook_id": "",
+    "payment_paypal_mode": "sandbox",
     "telemetry_instance_id": "",
 }
 
-_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "docker_read_only", "browser_enabled", "app_docker_enabled", "enforce_2fa", "vectordb_chromadb_enabled", "vectordb_pgvector_enabled", "vectordb_weaviate_enabled", "vectordb_pinecone_enabled", "ldap_enabled", "ldap_use_tls"}
+_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "docker_read_only", "browser_enabled", "app_docker_enabled", "enforce_2fa", "vectordb_chromadb_enabled", "vectordb_pgvector_enabled", "vectordb_weaviate_enabled", "vectordb_pinecone_enabled", "ldap_enabled", "ldap_use_tls", "payment_enabled", "payment_stripe_enabled", "payment_paypal_enabled"}
 _INT_KEYS = {"max_audio_upload_size", "data_retention_days", "docker_timeout", "browser_timeout", "app_docker_idle_timeout", "password_max_age_days"}
 
 # Secret keys that should be masked in API responses
@@ -133,6 +143,9 @@ _SECRET_KEYS = {
     "vectordb_pinecone_api_key",
     "ldap_app_password",
     "smtp_password",
+    "payment_stripe_secret_key",
+    "payment_stripe_webhook_secret",
+    "payment_paypal_client_secret",
 }
 
 
@@ -274,6 +287,16 @@ def get_all_settings(db_wrapper) -> dict:
         "smtp_password": mask_key(rows.get("smtp_password", "")),
         "smtp_from": rows.get("smtp_from", ""),
         "email_default_to": rows.get("email_default_to", ""),
+        "payment_enabled": _to_bool(rows.get("payment_enabled", "false")),
+        "payment_stripe_enabled": _to_bool(rows.get("payment_stripe_enabled", "false")),
+        "payment_stripe_secret_key": mask_key(rows.get("payment_stripe_secret_key", "")),
+        "payment_stripe_publishable_key": rows.get("payment_stripe_publishable_key", ""),
+        "payment_stripe_webhook_secret": mask_key(rows.get("payment_stripe_webhook_secret", "")),
+        "payment_paypal_enabled": _to_bool(rows.get("payment_paypal_enabled", "false")),
+        "payment_paypal_client_id": rows.get("payment_paypal_client_id", ""),
+        "payment_paypal_client_secret": mask_key(rows.get("payment_paypal_client_secret", "")),
+        "payment_paypal_webhook_id": rows.get("payment_paypal_webhook_id", ""),
+        "payment_paypal_mode": rows.get("payment_paypal_mode", "sandbox"),
     }
 
 

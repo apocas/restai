@@ -929,7 +929,8 @@
       "yourBudget": "Tu presupuesto",
       "spentThisMonth": "{{spent}} este mes",
       "uncapped": "Sin límite",
-      "remaining": "{{amount}} restante"
+      "remaining": "{{amount}} restante",
+      "teamWallet": "Cartera del equipo: {{amount}}"
     },
     "newPage": {
       "title": "Crear un nuevo usuario",
@@ -1196,6 +1197,63 @@
       "saved": "Límite de gasto actualizado",
       "cleared": "Límite de gasto eliminado",
       "clear": "Quitar límite"
+    },
+    "balance": {
+      "dialogTitle": "Recargar saldo",
+      "wallet": "Cartera del equipo",
+      "walletHelp": "Saldo prepago — todo se detiene al llegar a 0",
+      "available": "{{amount}} disponible",
+      "depleted": "Saldo agotado",
+      "depletedWarning": "Cartera vacía — uso detenido",
+      "topUp": "Recargar saldo",
+      "amountInput": "Importe del saldo",
+      "amountHelper": "Establece el saldo disponible del equipo (USD)",
+      "set": "Establecer saldo",
+      "saved": "Saldo actualizado",
+      "addAmount": "Importe a añadir",
+      "addHelper": "Importe a abonar en la cartera del equipo (USD)",
+      "newBalance": "Nuevo saldo: {{amount}}",
+      "added": "{{amount}} añadido al saldo",
+      "ledger": {
+        "eyebrow": "Cartera",
+        "title": "Registro de transacciones",
+        "subtitle": "Todos los movimientos de saldo, entradas y salidas",
+        "movements": "Movimientos",
+        "noMovements": "Aún no hay movimientos",
+        "date": "Fecha",
+        "kind": "Tipo",
+        "amount": "Importe",
+        "balanceAfter": "Saldo después",
+        "actor": "Por",
+        "description": "Nota",
+        "kind_topup": "Recarga",
+        "kind_usage": "Uso",
+        "kind_adjustment": "Ajuste"
+      }
+    },
+    "payment": {
+      "addFunds": "Añadir fondos",
+      "checkoutHelp": "Elige un importe y te llevaremos a un pago seguro.",
+      "amount": "Importe",
+      "provider": "Pagar con",
+      "saveCard": "Guardar esta tarjeta para recarga automática",
+      "continue": "Continuar al pago",
+      "success": "Pago recibido — tu saldo se actualizará en breve.",
+      "pending": "El pago se está procesando — tu saldo se actualizará en breve.",
+      "canceled": "Pago cancelado.",
+      "failed": "El pago falló. Inténtalo de nuevo.",
+      "autoRecharge": "Recarga automática",
+      "autoRechargeHelp": "Recarga automáticamente cuando el saldo es bajo, usando una tarjeta guardada.",
+      "saveACard": "Guardar una tarjeta",
+      "removeMethod": "Eliminar tarjeta",
+      "removeMethodConfirm": "¿Eliminar la tarjeta guardada y desactivar la recarga automática?",
+      "methodRemoved": "Tarjeta guardada eliminada.",
+      "autoRechargeEnabled": "Activar recarga automática",
+      "autoRechargeSaved": "Recarga automática actualizada.",
+      "threshold": "Cuando el saldo sea inferior a",
+      "thresholdHelp": "Se activa cuando el saldo baja de esto.",
+      "rechargeAmount": "Recargar",
+      "rechargeAmountHelp": "Importe a cobrar cada vez."
     }
   },
   "llms": {
@@ -1845,7 +1903,17 @@
       "smtpUser": "Usuario",
       "smtpPassword": "Contraseña",
       "smtpFrom": "Dirección de envío",
-      "emailDefaultTo": "Destinatario por defecto"
+      "emailDefaultTo": "Destinatario por defecto",
+      "paymentEnabled": "Activar pagos",
+      "stripeEnabled": "Activar Stripe",
+      "stripeSecretKey": "Clave secreta de Stripe",
+      "stripePublishableKey": "Clave publicable de Stripe",
+      "stripeWebhookSecret": "Secreto de firma del webhook de Stripe",
+      "paypalEnabled": "Activar PayPal",
+      "paypalClientId": "Client ID de PayPal",
+      "paypalClientSecret": "Client secret de PayPal",
+      "paypalWebhookId": "Webhook ID de PayPal",
+      "paypalMode": "Entorno de PayPal"
     },
     "helpers": {
       "systemLlm": "LLM usado por la plataforma para tareas internas (ayudas de prompt, resúmenes, etc.). Deje vacío para desactivar.",
@@ -1879,7 +1947,12 @@
       "ldapAppDn": "DN de la cuenta de aplicación que busca usuarios.",
       "ldapCaCertFile": "Ruta absoluta en el servidor RESTai. Solo se usa con TLS activado.",
       "notificationsIntro": "Canales de notificación salientes. Hoy correo; pronto también webhooks/Slack/SMS. Los equipos pueden sobrescribir estos valores en Ajustes → Integraciones en la edición del equipo; los campos vacíos del equipo recurren a estos.",
-      "smtpPasswordMasked": "La contraseña guardada se muestra como ****; déjala para conservarla."
+      "smtpPasswordMasked": "La contraseña guardada se muestra como ****; déjala para conservarla.",
+      "paymentsIntro": "Configura los proveedores de pago que los administradores de equipo usan para recargar su saldo. Los webhooks de los proveedores deben apuntar a la URL pública de este servidor.",
+      "paymentWebhookHint": "Requiere un RESTAI_URL público. Apunta el webhook de cada proveedor a /webhooks/payments/<proveedor>.",
+      "stripeWebhookHelp": "Endpoint del webhook: {url}/webhooks/payments/stripe",
+      "paypalWebhookHelp": "Endpoint del webhook: {url}/webhooks/payments/paypal",
+      "paypalAutoRechargeNote": "PayPal solo admite recargas manuales. La recarga automática requiere Stripe (tarjeta guardada)."
     },
     "status": {
       "enabled": "Activado",
@@ -1919,7 +1992,8 @@
       "pinecone": "Pinecone",
       "ldap": "LDAP",
       "notifications": "Notificaciones",
-      "email": "Correo (SMTP)"
+      "email": "Correo (SMTP)",
+      "payments": "Pagos"
     }
   },
   "widgets": {

@@ -929,7 +929,8 @@
       "yourBudget": "Dein Budget",
       "spentThisMonth": "{{spent}} diesen Monat",
       "uncapped": "Unbegrenzt",
-      "remaining": "{{amount}} übrig"
+      "remaining": "{{amount}} übrig",
+      "teamWallet": "Team-Wallet: {{amount}}"
     },
     "newPage": {
       "title": "Einen neuen Benutzer erstellen",
@@ -1196,6 +1197,63 @@
       "saved": "Ausgabenlimit aktualisiert",
       "cleared": "Ausgabenlimit entfernt",
       "clear": "Limit entfernen"
+    },
+    "balance": {
+      "dialogTitle": "Guthaben aufladen",
+      "wallet": "Team-Wallet",
+      "walletHelp": "Prepaid-Guthaben — bei 0 stoppt alles",
+      "available": "{{amount}} verfügbar",
+      "depleted": "Guthaben aufgebraucht",
+      "depletedWarning": "Wallet leer — alle Nutzung gestoppt",
+      "topUp": "Guthaben aufladen",
+      "amountInput": "Guthabenbetrag",
+      "amountHelper": "Verfügbares Team-Guthaben festlegen (USD)",
+      "set": "Guthaben festlegen",
+      "saved": "Guthaben aktualisiert",
+      "addAmount": "Hinzuzufügender Betrag",
+      "addHelper": "Betrag, der dem Team-Guthaben gutgeschrieben wird (USD)",
+      "newBalance": "Neues Guthaben: {{amount}}",
+      "added": "{{amount}} zum Guthaben hinzugefügt",
+      "ledger": {
+        "eyebrow": "Guthaben",
+        "title": "Transaktionsprotokoll",
+        "subtitle": "Alle Guthabenbewegungen, ein und aus",
+        "movements": "Bewegungen",
+        "noMovements": "Noch keine Bewegungen",
+        "date": "Datum",
+        "kind": "Art",
+        "amount": "Betrag",
+        "balanceAfter": "Saldo danach",
+        "actor": "Von",
+        "description": "Notiz",
+        "kind_topup": "Aufladung",
+        "kind_usage": "Nutzung",
+        "kind_adjustment": "Anpassung"
+      }
+    },
+    "payment": {
+      "addFunds": "Guthaben aufladen",
+      "checkoutHelp": "Wählen Sie einen Betrag, dann werden Sie zu einer sicheren Zahlung weitergeleitet.",
+      "amount": "Betrag",
+      "provider": "Bezahlen mit",
+      "saveCard": "Diese Karte für automatisches Aufladen speichern",
+      "continue": "Weiter zur Zahlung",
+      "success": "Zahlung erhalten — Ihr Guthaben wird in Kürze aktualisiert.",
+      "pending": "Zahlung wird verarbeitet — Ihr Guthaben wird in Kürze aktualisiert.",
+      "canceled": "Zahlung abgebrochen.",
+      "failed": "Zahlung fehlgeschlagen. Bitte erneut versuchen.",
+      "autoRecharge": "Automatisches Aufladen",
+      "autoRechargeHelp": "Automatisch aufladen, wenn das Guthaben niedrig ist, mit einer gespeicherten Karte.",
+      "saveACard": "Karte speichern",
+      "removeMethod": "Karte entfernen",
+      "removeMethodConfirm": "Gespeicherte Karte entfernen und automatisches Aufladen deaktivieren?",
+      "methodRemoved": "Gespeicherte Karte entfernt.",
+      "autoRechargeEnabled": "Automatisches Aufladen aktivieren",
+      "autoRechargeSaved": "Automatisches Aufladen aktualisiert.",
+      "threshold": "Wenn Guthaben unter",
+      "thresholdHelp": "Wird ausgelöst, wenn das Guthaben darunter fällt.",
+      "rechargeAmount": "Aufladen um",
+      "rechargeAmountHelp": "Betrag, der jedes Mal abgebucht wird."
     }
   },
   "llms": {
@@ -1845,7 +1903,17 @@
       "smtpUser": "Benutzer",
       "smtpPassword": "Passwort",
       "smtpFrom": "Absenderadresse",
-      "emailDefaultTo": "Standard-Empfänger"
+      "emailDefaultTo": "Standard-Empfänger",
+      "paymentEnabled": "Zahlungen aktivieren",
+      "stripeEnabled": "Stripe aktivieren",
+      "stripeSecretKey": "Stripe Secret Key",
+      "stripePublishableKey": "Stripe Publishable Key",
+      "stripeWebhookSecret": "Stripe Webhook-Signaturgeheimnis",
+      "paypalEnabled": "PayPal aktivieren",
+      "paypalClientId": "PayPal Client-ID",
+      "paypalClientSecret": "PayPal Client Secret",
+      "paypalWebhookId": "PayPal Webhook-ID",
+      "paypalMode": "PayPal-Umgebung"
     },
     "helpers": {
       "systemLlm": "LLM, das von der Plattform für interne Aufgaben verwendet wird (Prompt-Helfer, Zusammenfassungen usw.). Leer lassen, um zu deaktivieren.",
@@ -1879,7 +1947,12 @@
       "ldapAppDn": "DN des Anwendungskontos, das Benutzer sucht.",
       "ldapCaCertFile": "Absoluter Pfad auf dem RESTai-Server. Nur bei aktiviertem TLS verwendet.",
       "notificationsIntro": "Ausgehende Benachrichtigungskanäle. Heute E-Mail; später auch Webhooks/Slack/SMS. Teams überschreiben diese Werte unter Einstellungen → Integrationen auf der Team-Bearbeitungsseite; leere Team-Felder greifen auf diese zurück.",
-      "smtpPasswordMasked": "Das gespeicherte Passwort wird als **** angezeigt; lassen Sie es unverändert, um es beizubehalten."
+      "smtpPasswordMasked": "Das gespeicherte Passwort wird als **** angezeigt; lassen Sie es unverändert, um es beizubehalten.",
+      "paymentsIntro": "Konfigurieren Sie die Zahlungsanbieter, mit denen Team-Admins ihr Guthaben aufladen. Die Webhooks der Anbieter müssen auf die öffentliche URL dieses Servers zeigen.",
+      "paymentWebhookHint": "Erfordert eine öffentliche RESTAI_URL. Richten Sie den Webhook jedes Anbieters auf /webhooks/payments/<anbieter>.",
+      "stripeWebhookHelp": "Webhook-Endpunkt: {url}/webhooks/payments/stripe",
+      "paypalWebhookHelp": "Webhook-Endpunkt: {url}/webhooks/payments/paypal",
+      "paypalAutoRechargeNote": "PayPal unterstützt nur manuelle Aufladungen. Automatisches Aufladen erfordert Stripe (gespeicherte Karte)."
     },
     "status": {
       "enabled": "Aktiviert",
@@ -1919,7 +1992,8 @@
       "pinecone": "Pinecone",
       "ldap": "LDAP",
       "notifications": "Benachrichtigungen",
-      "email": "E-Mail (SMTP)"
+      "email": "E-Mail (SMTP)",
+      "payments": "Zahlungen"
     }
   },
   "widgets": {

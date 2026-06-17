@@ -99,6 +99,7 @@ dependencies = [
     "assemblyai>=0.34.0,<1",
     "smolagents>=1.0.0,<2",
     "openai-agents>=0.5,<2",
+    "stripe>=15.2.1",
 ]
 
 [project.scripts]

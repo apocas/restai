@@ -16,7 +16,7 @@ from restai.models.databasemodels import (
     ProjectToolDatabase, ProjectRoutineDatabase, CronLogDatabase, SettingDatabase,
     UserDatabase, TeamDatabase, TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase,
     WidgetDatabase, ImageGeneratorDatabase, SpeechToTextDatabase, ProjectSecretDatabase,
-    TeamUserBudgetDatabase,
+    TeamUserBudgetDatabase, TeamBalanceTransactionDatabase,
 )
 from restai.models.models import (
     LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate, EmbeddingModel,
@@ -286,6 +286,45 @@ class TeamMixin:
         else:
             row.budget = float(budget)
         self.db.commit()
+
+    def add_balance_transaction(self, team_id: int, amount: float, balance_after: float,
+                                kind: str, description: Optional[str] = None,
+                                actor_user_id: Optional[int] = None) -> TeamBalanceTransactionDatabase:
+        """Record one prepaid-wallet movement. Does NOT commit, so it joins the
+        caller's atomic commit (the same one that mutates teams.balance)."""
+        row = TeamBalanceTransactionDatabase(
+            team_id=team_id,
+            amount=float(amount),
+            balance_after=float(balance_after),
+            kind=kind,
+            description=description,
+            actor_user_id=actor_user_id,
+            created_at=datetime.now(timezone.utc),
+        )
+        self.db.add(row)
+        return row
+
+    def list_balance_transactions(self, team_id: int, start: int, end: int):
+        """Paginated wallet ledger for a team (newest first). Returns
+        (rows, total) where each row is (TeamBalanceTransactionDatabase, actor_username)."""
+        base_query = (
+            self.db.query(
+                TeamBalanceTransactionDatabase,
+                UserDatabase.username.label("actor_username"),
+            )
+            .outerjoin(UserDatabase, TeamBalanceTransactionDatabase.actor_user_id == UserDatabase.id)
+            .filter(TeamBalanceTransactionDatabase.team_id == team_id)
+        )
+        total = base_query.count()
+        rows = (
+            base_query
+            .order_by(TeamBalanceTransactionDatabase.created_at.desc(),
+                      TeamBalanceTransactionDatabase.id.desc())
+            .offset(start)
+            .limit(end - start)
+            .all()
+        )
+        return rows, total
 
     def update_team_members(
         self,

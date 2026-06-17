@@ -12,7 +12,10 @@ export const PlatformContext = createContext({
     currency: "EUR",
     auth_disable_local: false,
     mcp: false,
-    app_builder: false
+    app_builder: false,
+    payments_enabled: false,
+    payment_providers: [],
+    stripe_publishable_key: ""
   },
   isLoading: true,
   refreshCapabilities: () => {}
@@ -32,7 +35,10 @@ export default function PlatformProvider({ children }) {
     currency: "EUR",
     auth_disable_local: false,
     mcp: false,
-    app_builder: false
+    app_builder: false,
+    payments_enabled: false,
+    payment_providers: [],
+    stripe_publishable_key: ""
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -59,6 +65,9 @@ export default function PlatformProvider({ children }) {
           // sets this true when app_docker_enabled is on. Default
           // false so the type stays hidden when the runtime isn't ready.
           app_builder: data.app_builder || false,
+          payments_enabled: data.payments_enabled || false,
+          payment_providers: data.payment_providers || [],
+          stripe_publishable_key: data.stripe_publishable_key || "",
           // `auth_secret_weak` used to live here but leaked pre-auth via
           // /setup — it now comes from the authenticated /info endpoint
           // and is consumed directly by the admin dashboard.

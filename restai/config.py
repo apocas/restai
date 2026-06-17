@@ -362,6 +362,17 @@ _GUI_SETTING_ATTRS = {
     "SMTP_PASSWORD": ("smtp_password", str, ""),
     "SMTP_FROM": ("smtp_from", str, ""),
     "EMAIL_DEFAULT_TO": ("email_default_to", str, ""),
+    # Payments — platform admin configures provider credentials; team admins top up.
+    "PAYMENT_ENABLED": ("payment_enabled", bool, False),
+    "PAYMENT_STRIPE_ENABLED": ("payment_stripe_enabled", bool, False),
+    "PAYMENT_STRIPE_SECRET_KEY": ("payment_stripe_secret_key", str, ""),
+    "PAYMENT_STRIPE_PUBLISHABLE_KEY": ("payment_stripe_publishable_key", str, ""),
+    "PAYMENT_STRIPE_WEBHOOK_SECRET": ("payment_stripe_webhook_secret", str, ""),
+    "PAYMENT_PAYPAL_ENABLED": ("payment_paypal_enabled", bool, False),
+    "PAYMENT_PAYPAL_CLIENT_ID": ("payment_paypal_client_id", str, ""),
+    "PAYMENT_PAYPAL_CLIENT_SECRET": ("payment_paypal_client_secret", str, ""),
+    "PAYMENT_PAYPAL_WEBHOOK_ID": ("payment_paypal_webhook_id", str, ""),
+    "PAYMENT_PAYPAL_MODE": ("payment_paypal_mode", str, "sandbox"),
 }
 
 

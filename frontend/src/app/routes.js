@@ -47,6 +47,7 @@ const Teams = Loadable(lazy(() => import("app/views/teams/Teams")));
 const TeamView = Loadable(lazy(() => import("app/views/teams/TeamView")));
 const TeamEdit = Loadable(lazy(() => import("app/views/teams/TeamEdit")));
 const TeamAnalytics = Loadable(lazy(() => import("app/views/teams/TeamAnalytics")));
+const TeamWallet = Loadable(lazy(() => import("app/views/teams/TeamWallet")));
 const DirectAccess = Loadable(lazy(() => import("app/views/direct/DirectAccess")));
 const ClassifierPlayground = Loadable(lazy(() => import("app/views/classifier/ClassifierPlayground")));
 const PermissionMatrix = Loadable(lazy(() => import("app/views/admin/PermissionMatrix")));
@@ -263,6 +264,11 @@ const routes = [
       {
         path: "/team/:id/analytics",
         element: <TeamAnalytics />,
+        auth: authRoles.teamAdmin
+      },
+      {
+        path: "/team/:id/wallet",
+        element: <TeamWallet />,
         auth: authRoles.teamAdmin
       },
       {

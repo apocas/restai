@@ -161,6 +161,12 @@ def register_health_routes(fs_app: FastAPI) -> None:
             "mcp": config.RESTAI_MCP,
             "enforce_2fa": _sv("enforce_2fa", "false").lower() in ("true", "1"),
             "app_builder": _sv("app_docker_enabled", "false").lower() in ("true", "1"),
+            "payments_enabled": _sv("payment_enabled", "false").lower() in ("true", "1"),
+            "payment_providers": [
+                p for p in ("stripe", "paypal")
+                if _sv(f"payment_{p}_enabled", "false").lower() in ("true", "1")
+            ] if _sv("payment_enabled", "false").lower() in ("true", "1") else [],
+            "stripe_publishable_key": _sv("payment_stripe_publishable_key", ""),
             # Intentionally NOT exposing `auth_secret_weak` here — this
             # endpoint is unauthenticated (used by the pre-login UI to
             # show SSO providers) and the weak-secret signal is a
@@ -288,6 +294,9 @@ def register_routers(fs_app: FastAPI) -> None:
     fs_app.include_router(secrets.router, tags=["Project Secrets"])
     fs_app.include_router(whatsapp_webhook.router, tags=["WhatsApp"])
     fs_app.include_router(webhooks_router.router, tags=["Webhooks"])
+    from restai.routers import payments as payments_router, payment_webhook as payment_webhook_router
+    fs_app.include_router(payments_router.router, tags=["Payments"])
+    fs_app.include_router(payment_webhook_router.router, tags=["Payments"])
     fs_app.include_router(templates_router.router)
     fs_app.include_router(bulk_ingest_router.router)
     from restai.routers import app as app_router, app_preview as app_preview_router

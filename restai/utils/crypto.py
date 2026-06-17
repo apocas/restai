@@ -179,6 +179,9 @@ SETTINGS_ENCRYPTED_KEYS = {
     "vectordb_pinecone_api_key",
     "ldap_app_password",
     "smtp_password",
+    "payment_stripe_secret_key",
+    "payment_stripe_webhook_secret",
+    "payment_paypal_client_secret",
 }
 
 SYNC_SOURCE_SENSITIVE_KEYS = {

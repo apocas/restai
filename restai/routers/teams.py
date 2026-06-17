@@ -4,6 +4,10 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from restai.models.models import (
+    TeamBalanceUpdate,
+    TeamBalanceTopUp,
+    TeamBalanceTransaction,
+    TeamBalanceTransactionsResponse,
     TeamBranding,
     TeamMemberBudget,
     TeamMemberBudgetUpdate,
@@ -30,6 +34,17 @@ from restai.auth import (
 from restai.constants import ERROR_MESSAGES
 
 router = APIRouter()
+
+
+def _team_model_with_spending(db_wrapper: DBWrapper, team_id: int) -> TeamModel:
+    """Fresh TeamModel for a team, enriched with month-to-date spending/remaining
+    when it has a budget cap. Shared by the balance set/top-up endpoints."""
+    result = TeamModel.model_validate(db_wrapper.get_team_by_id(team_id))
+    if result.budget is not None and result.budget >= 0:
+        spending = db_wrapper.get_team_spending(team_id)
+        result.spending = spending
+        result.remaining = result.budget - spending
+    return result
 
 
 @router.get("/teams/{team_id}/branding", response_model=TeamBranding)
@@ -506,6 +521,43 @@ async def get_team_transactions(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get("/teams/{team_id}/balance/transactions", response_model=TeamBalanceTransactionsResponse, tags=["Teams"])
+async def get_team_balance_transactions(
+    team_id: int = Path(description="Team ID"),
+    start: int = Query(0, ge=0, le=100000, description="Pagination start offset"),
+    end: int = Query(100, ge=1, le=100000, description="Pagination end offset"),
+    user: User = Depends(get_current_username_team_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Prepaid-wallet ledger: every balance movement in (top-ups) and out (usage
+    debits), newest first. Team admins + platform admins only."""
+    try:
+        team = db_wrapper.get_team_by_id(team_id)
+        if team is None:
+            raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+
+        rows, total = db_wrapper.list_balance_transactions(team_id, start, end)
+        transactions = [
+            TeamBalanceTransaction(
+                id=row.id,
+                team_id=row.team_id,
+                amount=row.amount,
+                balance_after=row.balance_after,
+                kind=row.kind,
+                description=row.description,
+                actor_username=actor_username,
+                created_at=row.created_at,
+            )
+            for row, actor_username in rows
+        ]
+        return TeamBalanceTransactionsResponse(transactions=transactions, total=total)
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.get("/teams/{team_id}/analytics", tags=["Statistics"])
 async def get_team_analytics(
     team_id: int = Path(description="Team ID"),
@@ -738,6 +790,7 @@ async def get_team_analytics(
             "period": {"year": year, "month": month},
             "summary": summary,
             "budget": budget,
+            "balance": team.balance,
             "daily": daily,
             "per_project": per_project,
             "per_user": per_user,
@@ -1126,3 +1179,57 @@ async def set_team_member_budget(
         raise HTTPException(status_code=400, detail="User is not a member of this team")
     db_wrapper.set_team_user_budget(team_id, target.id, body.budget)
     return _member_budget_row(db_wrapper, team_id, target)
+
+
+@router.patch("/teams/{team_id}/balance", response_model=TeamModel, tags=["Teams"])
+async def set_team_balance(
+    team_id: int = Path(description="Team ID"),
+    body: TeamBalanceUpdate = Body(...),
+    user: User = Depends(get_current_username_platform_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Set the team's prepaid wallet balance to an absolute value (platform admins
+    only — it's real money). Use the topup endpoint to add funds; this is for
+    corrections/adjustments."""
+    check_not_restricted(user)
+    team = db_wrapper.get_team_by_id(team_id)
+    if team is None:
+        raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+    old = float(team.balance) if team.balance is not None else 0.0
+    new = float(body.balance)
+    delta = new - old
+    team.balance = new
+    if delta != 0:
+        db_wrapper.add_balance_transaction(
+            team_id, amount=delta, balance_after=new,
+            kind="topup" if delta > 0 else "adjustment",
+            description=f"Set to ${new:.2f}", actor_user_id=user.id,
+        )
+    db_wrapper.db.commit()
+    return _team_model_with_spending(db_wrapper, team_id)
+
+
+@router.post("/teams/{team_id}/balance/topup", response_model=TeamModel, tags=["Teams"])
+async def topup_team_balance(
+    team_id: int = Path(description="Team ID"),
+    body: TeamBalanceTopUp = Body(...),
+    user: User = Depends(get_current_username_platform_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Add funds to the team's prepaid wallet (platform admins only — it's real
+    money). Additive credit: the first top-up of a team with no wallet (NULL)
+    activates it. Records a `topup` ledger row."""
+    check_not_restricted(user)
+    team = db_wrapper.get_team_by_id(team_id)
+    if team is None:
+        raise HTTPException(status_code=404, detail=ERROR_MESSAGES.TEAM_NOT_FOUND)
+    current = float(team.balance) if team.balance is not None else 0.0
+    amount = float(body.amount)
+    new = current + amount
+    team.balance = new
+    db_wrapper.add_balance_transaction(
+        team_id, amount=amount, balance_after=new, kind="topup",
+        description=f"Topped up ${amount:.2f}", actor_user_id=user.id,
+    )
+    db_wrapper.db.commit()
+    return _team_model_with_spending(db_wrapper, team_id)

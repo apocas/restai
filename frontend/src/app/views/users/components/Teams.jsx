@@ -152,6 +152,14 @@ export default function Teams({ user }) {
                       {t("users.userTeams.yourBudget")}
                     </Typography>
                     <BudgetBar spending={team.spending} budget={team.budget} t={t} />
+                    {team.team_balance != null && (
+                      <Typography sx={{ fontFamily: FONT_MONO, fontSize: "0.64rem", mt: 0.75, display: "block",
+                        color: team.team_balance <= 0 ? "#ef4444" : "text.disabled" }}>
+                        {team.team_balance <= 0
+                          ? t("teams.balance.depleted")
+                          : t("users.userTeams.teamWallet", { amount: "$" + Number(team.team_balance).toFixed(2) })}
+                      </Typography>
+                    )}
                   </Box>
                 </Box>
               </Card>

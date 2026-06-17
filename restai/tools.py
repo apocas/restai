@@ -378,6 +378,16 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
             # glitch — the 429 gate on the next request catches drift.
             pass
 
+    # Decrement the team's prepaid wallet by this request's cost. No-op for teams
+    # without a wallet. The hard balance gate (enforce_cost_budgets) blocks the
+    # next request once it hits 0.
+    try:
+        from restai.limits.budget import charge_team_balance
+        team_id = project.props.team.id if project.props.team else None
+        charge_team_balance(db, team_id, input_cost + output_cost, actor_user_id=user.id)
+    except Exception:
+        pass
+
 
 def log_retrieval_events(project, sources, db):
     from restai.models.databasemodels import RetrievalEventDatabase

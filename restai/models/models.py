@@ -1312,10 +1312,92 @@ class UserTeamBudget(BaseModel):
     budget: Union[float, None] = Field(default=None, description="The user's monthly cost cap in this team (null = uncapped)")
     spending: float = Field(default=0.0, description="The user's month-to-date cost in this team")
     remaining: Union[float, None] = Field(default=None, description="budget - spending (null when uncapped)")
+    team_balance: Union[float, None] = Field(default=None, description="The team's prepaid wallet balance (null = no wallet; <= 0 = depleted)")
 
 
 class UserTeamBudgetsResponse(BaseModel):
     teams: list[UserTeamBudget] = Field(default=[], description="The user's per-team budgets")
+
+
+class TeamBalanceUpdate(BaseModel):
+    """Set a team's prepaid wallet balance to an absolute value (platform admins only)."""
+    balance: float = Field(ge=0, description="New wallet balance (>= 0). 0 = depleted (all usage stops).")
+
+
+class TeamBalanceTopUp(BaseModel):
+    """Add funds to a team's prepaid wallet (platform admins only). Additive credit."""
+    amount: float = Field(gt=0, description="Amount to add to the wallet (> 0).")
+
+
+class TeamBalanceTransaction(BaseModel):
+    """One prepaid-wallet movement. `amount` is signed: negative = OUT (usage
+    debit), positive = IN (top-up / upward adjustment)."""
+    id: int
+    team_id: int
+    amount: float = Field(description="Signed movement amount (negative = out, positive = in)")
+    balance_after: float = Field(description="Wallet balance immediately after this movement")
+    kind: str = Field(description="usage | topup | adjustment")
+    description: Union[str, None] = Field(default=None)
+    actor_username: Union[str, None] = Field(default=None, description="Who triggered the movement (null = unknown/deleted)")
+    created_at: Union[datetime, None] = Field(default=None)
+
+
+class TeamBalanceTransactionsResponse(BaseModel):
+    transactions: list[TeamBalanceTransaction] = Field(default=[])
+    total: int = Field(default=0)
+
+
+class PaymentCheckoutRequest(BaseModel):
+    """Team admin starts a hosted checkout to top up the wallet."""
+    amount: float = Field(gt=0, le=1_000_000, description="Amount to top up (> 0).")
+    provider: str = Field(description="Payment provider: stripe | paypal")
+    save_method: bool = Field(default=False, description="Save the card for auto-recharge (Stripe only).")
+
+
+class PaymentRedirectResponse(BaseModel):
+    redirect_url: str = Field(description="Provider hosted checkout URL to redirect the user to.")
+    provider_ref: Union[str, None] = Field(default=None)
+
+
+class AutoRechargeUpdate(BaseModel):
+    """Set the team's auto-recharge rule. Requires a saved payment method."""
+    enabled: bool = Field(default=False)
+    threshold: Union[float, None] = Field(default=None, ge=0, description="Auto-charge when balance falls below this.")
+    amount: Union[float, None] = Field(default=None, gt=0, le=1_000_000, description="Amount to charge each time.")
+
+
+class SavedMethod(BaseModel):
+    provider: Union[str, None] = Field(default=None)
+    brand: Union[str, None] = Field(default=None)
+    last4: Union[str, None] = Field(default=None)
+
+
+class TeamPaymentConfigResponse(BaseModel):
+    """Team-scoped payment state for the wallet page."""
+    payments_enabled: bool = Field(default=False)
+    providers: list[str] = Field(default=[], description="Enabled provider names for top-ups")
+    auto_recharge_providers: list[str] = Field(default=[], description="Providers that support auto-recharge")
+    currency: str = Field(default="EUR")
+    saved_method: Union[SavedMethod, None] = Field(default=None)
+    auto_recharge_enabled: bool = Field(default=False)
+    auto_recharge_threshold: Union[float, None] = Field(default=None)
+    auto_recharge_amount: Union[float, None] = Field(default=None)
+
+
+class PaymentTransaction(BaseModel):
+    id: int
+    provider: str
+    kind: str = Field(description="topup | auto_recharge | setup")
+    amount: float
+    currency: str
+    status: str = Field(description="pending | completed | failed | canceled")
+    created_at: Union[datetime, None] = Field(default=None)
+    completed_at: Union[datetime, None] = Field(default=None)
+
+
+class PaymentTransactionsResponse(BaseModel):
+    transactions: list[PaymentTransaction] = Field(default=[])
+    total: int = Field(default=0)
 
 
 class TeamModel(BaseModel):
@@ -1327,6 +1409,7 @@ class TeamModel(BaseModel):
     budget: float = Field(default=-1.0, description="Team budget cap in configured currency (-1 means unlimited)")
     spending: Union[float, None] = Field(default=None, description="Total amount spent by the team (only present when budget >= 0)")
     remaining: Union[float, None] = Field(default=None, description="Remaining budget (only present when budget >= 0)")
+    balance: Union[float, None] = Field(default=None, description="Prepaid wallet balance (null = no wallet; <= 0 = depleted, all usage stops)")
     users: list[TeamUser] = Field(default=[], description="Team members")
     admins: list[TeamUser] = Field(default=[], description="Team administrators")
     projects: list[TeamProject] = Field(default=[], description="Projects owned by this team")
@@ -1629,6 +1712,17 @@ class SettingsResponse(BaseModel):
     smtp_password: Optional[str] = Field(default="", description="SMTP password (masked)")
     smtp_from: Optional[str] = Field(default="", description="Default From address used when sending email")
     email_default_to: Optional[str] = Field(default="", description="Fallback recipient when no `to=` is given (e.g. ops alerts)")
+    # Payments (platform-level). Team admins top up wallets via the enabled providers.
+    payment_enabled: Optional[bool] = Field(default=False, description="Master toggle for the payment system")
+    payment_stripe_enabled: Optional[bool] = Field(default=False, description="Enable Stripe")
+    payment_stripe_secret_key: Optional[str] = Field(default="", description="Stripe secret key (masked)")
+    payment_stripe_publishable_key: Optional[str] = Field(default="", description="Stripe publishable key")
+    payment_stripe_webhook_secret: Optional[str] = Field(default="", description="Stripe webhook signing secret (masked)")
+    payment_paypal_enabled: Optional[bool] = Field(default=False, description="Enable PayPal")
+    payment_paypal_client_id: Optional[str] = Field(default="", description="PayPal client ID")
+    payment_paypal_client_secret: Optional[str] = Field(default="", description="PayPal client secret (masked)")
+    payment_paypal_webhook_id: Optional[str] = Field(default="", description="PayPal webhook ID (for signature verification)")
+    payment_paypal_mode: Optional[str] = Field(default="sandbox", description="PayPal environment: sandbox or live")
 
 
 class SettingsUpdate(BaseModel):
@@ -1743,6 +1837,17 @@ class SettingsUpdate(BaseModel):
     smtp_password: Optional[str] = Field(default=None, description="SMTP password")
     smtp_from: Optional[str] = Field(default=None, description="Default From address")
     email_default_to: Optional[str] = Field(default=None, description="Fallback recipient when no to= is given")
+    # Payments (platform-level)
+    payment_enabled: Optional[bool] = Field(default=None, description="Master toggle for the payment system")
+    payment_stripe_enabled: Optional[bool] = Field(default=None, description="Enable Stripe")
+    payment_stripe_secret_key: Optional[str] = Field(default=None, description="Stripe secret key")
+    payment_stripe_publishable_key: Optional[str] = Field(default=None, description="Stripe publishable key")
+    payment_stripe_webhook_secret: Optional[str] = Field(default=None, description="Stripe webhook signing secret")
+    payment_paypal_enabled: Optional[bool] = Field(default=None, description="Enable PayPal")
+    payment_paypal_client_id: Optional[str] = Field(default=None, description="PayPal client ID")
+    payment_paypal_client_secret: Optional[str] = Field(default=None, description="PayPal client secret")
+    payment_paypal_webhook_id: Optional[str] = Field(default=None, description="PayPal webhook ID")
+    payment_paypal_mode: Optional[str] = Field(default=None, description="PayPal environment: sandbox or live")
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "app_name": "My AI Platform",

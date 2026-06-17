@@ -136,3 +136,10 @@ def log_direct_usage(
     )
     db.db.add(entry)
     db.db.commit()
+
+    # Decrement the team's prepaid wallet by this request's cost (no-op without a wallet).
+    try:
+        from restai.limits.budget import charge_team_balance
+        charge_team_balance(db, team_id, (input_cost or 0.0) + (output_cost or 0.0), actor_user_id=user_id)
+    except Exception:
+        pass
