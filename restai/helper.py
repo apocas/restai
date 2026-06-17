@@ -42,6 +42,10 @@ _BLOCKED_NETWORKS = [
     ipaddress.ip_network("169.254.0.0/16"),
     ipaddress.ip_network("::1/128"),
     ipaddress.ip_network("fc00::/7"),
+    # IPv4-mapped IPv6 space -- covers ::ffff:10.x, ::ffff:192.168.x, ::ffff:169.254.x etc.
+    # Without this, ip_address('::ffff:169.254.169.254') is an IPv6Address not contained in
+    # '169.254.0.0/16' (an IPv4Network), bypassing the blocklist on dual-stack Linux hosts.
+    ipaddress.ip_network("::ffff:0:0/96"),
 ]
 
 _URL_PATTERN = re.compile(
@@ -60,6 +64,14 @@ def _is_private_ip(hostname: str) -> bool:
         for network in _BLOCKED_NETWORKS:
             if ip in network:
                 return True
+    # Secondary check: unwrap IPv4-mapped IPv6 addresses and recheck against IPv4 blocklists.
+    # Handles the case where getaddrinfo returns ::ffff:<private-ip> on dual-stack systems.
+    for addrinfo in addrinfos:
+        ip = ipaddress.ip_address(addrinfo[4][0])
+        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+            for network in _BLOCKED_NETWORKS:
+                if ip.ipv4_mapped in network:
+                    return True
     return False
 
 
