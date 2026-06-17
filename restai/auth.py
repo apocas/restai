@@ -1,6 +1,7 @@
 import base64
 import json
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlparse as _urlparse
 from typing import Optional
 from fastapi import Depends, HTTPException, Request
 import jwt
@@ -244,8 +245,24 @@ def check_user_can_use_mcp_host(user: User, host: str) -> None:
     """Refuse stdio MCP transport for non-admins. Network transports
     pass through (the MCP server runs elsewhere, no local subprocess
     is created).
+
+    Also validates that HTTP/HTTPS/SSE hosts do not resolve to private or
+    internal IP addresses (SSRF protection). Uses the same _BLOCKED_NETWORKS
+    blocklist as URL ingestion and image resolution.
     """
     if _mcp_host_is_network(host):
+        from restai.helper import _is_private_ip
+        try:
+            hostname = _urlparse(host).hostname
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid MCP server URL")
+        if not hostname:
+            raise HTTPException(status_code=400, detail="MCP server URL has no valid hostname")
+        if _is_private_ip(hostname):
+            raise HTTPException(
+                status_code=400,
+                detail="MCP server URL resolves to a private/internal address; SSRF blocked",
+            )
         return
     if user.is_admin:
         return
