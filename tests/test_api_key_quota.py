@@ -43,17 +43,25 @@ def client():
 @pytest.fixture
 def api_key(client):
     """Create a fresh API key for the admin user, yield the DB row id,
-    clean up after."""
+    clean up after. API keys must belong to a team the owner is in."""
     suffix = str(random.randint(0, 1_000_000))
+    tr = client.post(
+        "/teams",
+        json={"name": f"quota_team_{suffix}", "users": ["admin"], "admins": ["admin"]},
+        auth=ADMIN,
+    )
+    assert tr.status_code == 201, tr.text
+    team_id = tr.json()["id"]
     r = client.post(
         "/users/admin/apikeys",
-        json={"description": f"quota_test_{suffix}"},
+        json={"description": f"quota_test_{suffix}", "team_id": team_id},
         auth=ADMIN,
     )
     assert r.status_code == 201, r.text
     key_id = r.json()["id"]
     yield key_id
     client.delete(f"/users/admin/apikeys/{key_id}", auth=ADMIN)
+    client.delete(f"/teams/{team_id}", auth=ADMIN)
 
 
 def test_check_api_key_quota_noop_without_api_key_id():

@@ -53,12 +53,13 @@ def test_checkout_requires_payments_enabled(client):
     assert r.status_code == 400
 
 
+def _uref(prefix):
+    return f"{prefix}_{random.randint(0, 1_000_000_000)}"
+
+
 def test_checkout_creates_pending_and_redirects(client, stripe_on):
-    monkeypatch_calls = {}
-    def fake_checkout(**kw):
-        monkeypatch_calls.update(kw)
-        return CheckoutResult(provider_ref="cs_test_1", redirect_url="https://checkout.test/go")
-    stripe_on.create_checkout = fake_checkout
+    ref = _uref("cs")
+    stripe_on.create_checkout = lambda **kw: CheckoutResult(provider_ref=ref, redirect_url="https://checkout.test/go")
 
     team_id, _ = _make_team(client)
     r = client.post(f"/teams/{team_id}/balance/checkout",
@@ -69,7 +70,7 @@ def test_checkout_creates_pending_and_redirects(client, stripe_on):
     from restai.database import DBWrapper
     db = DBWrapper()
     try:
-        row = db.get_payment("stripe", "cs_test_1")
+        row = db.get_payment("stripe", ref)
         assert row is not None and row.status == "pending" and row.kind == "topup"
         assert round(row.amount, 2) == 25.0
     finally:
@@ -77,10 +78,11 @@ def test_checkout_creates_pending_and_redirects(client, stripe_on):
 
 
 def test_webhook_credits_once_idempotent(client, stripe_on):
-    stripe_on.create_checkout = lambda **kw: CheckoutResult("cs_test_2", "https://checkout.test/go")
+    ref = _uref("cs")
+    stripe_on.create_checkout = lambda **kw: CheckoutResult(ref, "https://checkout.test/go")
     # Webhook returns a verified paid event for our session.
     stripe_on.parse_webhook = lambda raw, headers: PaymentEvent(
-        provider_ref="cs_test_2", status="paid", amount=40.0, currency="EUR", kind="topup")
+        provider_ref=ref, status="paid", amount=40.0, currency="EUR", kind="topup")
 
     team_id, _ = _make_team(client)
     assert client.post(f"/teams/{team_id}/balance/checkout",
@@ -110,7 +112,7 @@ def test_webhook_bad_signature_401(client, stripe_on):
 
 
 def test_checkout_rbac_outsider_forbidden(client, stripe_on):
-    stripe_on.create_checkout = lambda **kw: CheckoutResult("cs_x", "https://checkout.test/go")
+    stripe_on.create_checkout = lambda **kw: CheckoutResult(_uref("cs"), "https://checkout.test/go")
     team_id, _ = _make_team(client)
     outsider = "pay_out_" + _sfx
     assert client.post("/users", json={"username": outsider, "password": "pay_pass_123"}, auth=ADMIN).status_code == 201
@@ -154,7 +156,7 @@ def test_auto_recharge_cron_charges_when_low(client, stripe_on, monkeypatch):
     charges = {"n": 0}
     def fake_charge(**kw):
         charges["n"] += 1
-        return PaymentEvent(provider_ref=f"pi_{charges['n']}", status="paid", amount=50.0, currency="EUR")
+        return PaymentEvent(provider_ref=_uref("pi"), status="paid", amount=50.0, currency="EUR")
     stripe_on.charge_saved_method = fake_charge
 
     ar.main()  # below threshold → one charge → +50
