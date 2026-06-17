@@ -32,8 +32,9 @@ def test_mcp_probe_invalid_host(client):
         json={"host": "http://localhost:99999"},
         auth=("admin", RESTAI_DEFAULT_PASSWORD),
     )
-    # Should fail to connect — 502 or 500
-    assert response.status_code in (500, 502)
+    # localhost is loopback → SSRF-blocked up front (400). (Pre-SSRF-guard this
+    # reached the connect path and failed 500/502 — both are acceptable rejections.)
+    assert response.status_code in (400, 500, 502)
 
 
 def test_mcp_probe_no_auth(client):
