@@ -171,6 +171,13 @@ export default function Chat({ creds, onUnpair }) {
     }
   };
 
+  // Manual unpair is confirmed; the 401/403 auto-unpair above stays silent.
+  const confirmUnpair = () => {
+    if (window.confirm("Unpair this device? You'll need to scan the QR code again to reconnect.")) {
+      onUnpair();
+    }
+  };
+
   const canSend = (!!input.trim() || attachments.length > 0) && !sending;
 
   return (
@@ -180,7 +187,7 @@ export default function Chat({ creds, onUnpair }) {
           <img src="/mobile/icons/icon-192.png" alt="New conversation" />
         </button>
         <div className="title">{projectName || "RESTai"}</div>
-        <button className="iconbtn" title="Unpair" onClick={onUnpair}>⎋</button>
+        <button className="iconbtn" title="Unpair" onClick={confirmUnpair}>⎋</button>
       </header>
 
       <main className="messages">

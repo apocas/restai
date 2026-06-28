@@ -8,61 +8,99 @@ export default function Pair({ onPaired }) {
   const [cameraFailed, setCameraFailed] = useState(false);
   const [manual, setManual] = useState("");
   const scannerRef = useRef(null);
+  const runningRef = useRef(false);
   const handledRef = useRef(false);
+  const mountedRef = useRef(true);
 
-  // Validate a parsed payload against the host before committing.
+  // Turn the camera off (without tearing down the instance, so it can restart
+  // after a failed scan). Idempotent + guarded: html5-qrcode throws on a
+  // double-stop, and an unguarded throw during the Pair → Chat unmount blanked
+  // the whole app (the "white screen after pairing" bug).
+  const stopCamera = async () => {
+    const s = scannerRef.current;
+    if (!s || !runningRef.current) return;
+    runningRef.current = false;
+    try {
+      await s.stop();
+    } catch {
+      /* already stopped / node detached */
+    }
+  };
+
+  const onScan = async (decoded) => {
+    if (handledRef.current) return;
+    handledRef.current = true;
+    await stopCamera();
+    tryPair(parsePayload(decoded));
+  };
+
+  const startCamera = async () => {
+    const s = scannerRef.current;
+    if (!s || runningRef.current) return;
+    try {
+      await s.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 240, height: 240 } },
+        onScan,
+        () => {}
+      );
+      runningRef.current = true;
+    } catch {
+      if (mountedRef.current) setCameraFailed(true);
+    }
+  };
+
+  // Validate a parsed payload against the host before committing. The camera is
+  // already stopped by the caller, so a successful pair can unmount cleanly.
   const tryPair = async (payload) => {
     if (!payload) {
       setError("That QR / code isn't a valid RESTai pairing payload.");
       handledRef.current = false;
+      startCamera();
       return;
     }
     setValidating(true);
     setError(null);
     const ok = await whoami(payload.host, payload.apiKey);
+    if (!mountedRef.current) return;
     setValidating(false);
     if (ok) {
       onPaired(payload);
     } else {
       setError("Authentication failed. Regenerate the key in RESTai and try again.");
       handledRef.current = false;
+      startCamera();
     }
   };
 
   useEffect(() => {
-    let cancelled = false;
-    const scanner = new Html5Qrcode("reader", { verbose: false });
-    scannerRef.current = scanner;
-
-    const onScan = async (decoded) => {
-      if (handledRef.current) return;
-      handledRef.current = true;
-      try {
-        await scanner.stop();
-      } catch {
-        /* ignore */
-      }
-      tryPair(parsePayload(decoded));
-    };
-
-    scanner
-      .start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 240, height: 240 } }, onScan, () => {})
-      .catch(() => {
-        if (!cancelled) setCameraFailed(true);
-      });
-
+    mountedRef.current = true;
+    scannerRef.current = new Html5Qrcode("reader", { verbose: false });
+    startCamera();
     return () => {
-      cancelled = true;
+      mountedRef.current = false;
       const s = scannerRef.current;
-      if (s) {
-        s.stop().then(() => s.clear()).catch(() => {});
-      }
+      if (!s) return;
+      // Stop (only if running) then clear the injected DOM — both guarded
+      // because the #reader node may already be detached on unmount.
+      Promise.resolve(runningRef.current ? s.stop() : null)
+        .catch(() => {})
+        .finally(() => {
+          try {
+            s.clear();
+          } catch {
+            /* node already removed */
+          }
+        });
+      runningRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const submitManual = () => {
+  const submitManual = async () => {
+    if (handledRef.current) return;
     handledRef.current = true;
+    await stopCamera();
     tryPair(parsePayload(manual));
   };
 
