@@ -127,6 +127,11 @@ export default function ProjectEditMobile({ project }) {
               <CircularProgress size={32} />
             )}
           </Box>
+          {status?.host && (
+            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360 }}>
+              {t("projects.edit.mobile.openLink", { url: `${status.host}/mobile` })}
+            </Typography>
+          )}
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
             {status.key_prefix && (
               <Chip

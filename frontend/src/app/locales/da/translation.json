@@ -537,17 +537,18 @@
       },
       "mobile": {
         "title": "Mobilintegration",
-        "subtitle": "Par Android/iOS-klienter med dette projekt via QR-kode",
-        "intro": "Scan QR-koden med RESTai-mobilappen (Android i dag, flere platforme på vej) for at få en skrivebeskyttet chat ind i dette projekt. Appen bruger kun chattilstand (streaming). Slå fra eller regenerér for at tilbagekalde alle parrede telefoner på én gang.",
+        "subtitle": "Par enhver telefon med dette projekt — åbn web-appen, scan QR",
+        "intro": "Åbn RESTai-mobilweb-appen på din telefon, og scan denne QR (eller indsæt koden) for at få en skrivebeskyttet streaming-chat i dette projekt. Slå fra eller regenerér for at tilbagekalde alle parrede telefoner på én gang.",
         "enable": "Aktivér mobilintegration",
         "disable": "Deaktivér",
         "regenerate": "Regenerér nøgle",
         "regenerating": "Regenererer…",
         "copyPayload": "Kopiér rå payload (JSON)",
         "keyChip": "nøgle {{prefix}}…",
-        "hint": "Vis denne QR til så mange telefoner, du vil — de deler alle den samme skrivebeskyttede nøgle. Klik på <1>Regenerér nøgle</1> for at ugyldiggøre alle parrede telefoner på én gang.",
+        "hint": "Par så mange telefoner du vil — de deler alle den samme skrivebeskyttede nøgle. Klik på <1>Regenerér nøgle</1> for at tilbagekalde alle parrede telefoner på én gang.",
         "offMessage": "Mobilintegrationen er slået fra. Der findes ingen API-nøgle til mobilapps på dette projekt.",
-        "qrHint": "Scan denne QR-kode med RESTai-mobilappen."
+        "qrHint": "Scan denne QR med RESTai-mobilweb-appen (eller brug kopiér-knappen til at indsætte koden).",
+        "openLink": "Åbn {{url}} på din telefon, og scan QR eller indsæt koden."
       },
       "routines": {
         "title": "Rutiner",

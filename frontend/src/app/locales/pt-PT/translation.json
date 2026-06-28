@@ -698,17 +698,18 @@
       },
       "mobile": {
         "title": "Integração móvel",
-        "subtitle": "Emparelhe clientes Android/iOS com este projeto através de código QR",
-        "intro": "Leia o código QR com a aplicação móvel RESTai (Android hoje, mais plataformas em breve) para ter uma conversa só de leitura com este projeto. A aplicação usa apenas o modo conversa (streaming). Desative ou regenere para revogar todos os telemóveis emparelhados de uma vez.",
+        "subtitle": "Emparelhe qualquer telemóvel com este projeto — abra a app web e leia o QR",
+        "intro": "Abra a app web móvel do RESTai no telemóvel e leia este QR (ou cole o código) para obter um chat de leitura apenas (streaming) neste projeto. Desligue ou regenere para revogar todos os telemóveis emparelhados de uma vez.",
         "enable": "Ativar integração móvel",
         "disable": "Desativar",
         "regenerate": "Regenerar chave",
         "regenerating": "A regenerar…",
         "copyPayload": "Copiar payload bruto (JSON)",
         "keyChip": "chave {{prefix}}…",
-        "hint": "Mostre este QR aos telemóveis que quiser — todos partilham a mesma chave de leitura. Clique em <1>Regenerar chave</1> para invalidar todos os telemóveis emparelhados de uma só vez.",
+        "hint": "Emparelhe quantos telemóveis quiser — todos partilham a mesma chave de leitura apenas. Clique em <1>Regenerar chave</1> para invalidar todos os telemóveis emparelhados de uma vez.",
         "offMessage": "A integração móvel está desligada. Não existe chave de API para aplicações móveis neste projeto.",
-        "qrHint": "Leia este código QR com a aplicação móvel RESTai."
+        "qrHint": "Leia este QR com a app web móvel do RESTai (ou use o botão copiar para colar o código).",
+        "openLink": "Abra {{url}} no telemóvel e leia o QR ou cole o código."
       },
       "routines": {
         "title": "Rotinas",

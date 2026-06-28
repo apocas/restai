@@ -537,17 +537,18 @@
       },
       "mobile": {
         "title": "Intégration mobile",
-        "subtitle": "Appairez des clients Android/iOS à ce projet via un QR code",
-        "intro": "Scannez le QR code avec l'application mobile RESTai (Android aujourd'hui, d'autres plateformes à venir) pour obtenir un accès chat en lecture seule à ce projet. L'application utilise uniquement le mode chat (streaming). Désactivez ou régénérez pour révoquer tous les téléphones appairés d'un coup.",
+        "subtitle": "Associez n'importe quel téléphone à ce projet — ouvrez l'app web, scannez le QR",
+        "intro": "Ouvrez l'app web mobile RESTai sur votre téléphone, puis scannez ce QR (ou collez le code) pour obtenir un chat en lecture seule (streaming) dans ce projet. Désactivez ou régénérez pour révoquer tous les téléphones associés d'un coup.",
         "enable": "Activer l'intégration mobile",
         "disable": "Désactiver",
         "regenerate": "Régénérer la clé",
         "regenerating": "Régénération…",
         "copyPayload": "Copier la charge utile brute (JSON)",
         "keyChip": "clé {{prefix}}…",
-        "hint": "Montrez ce QR à autant de téléphones que vous le souhaitez — tous partagent la même clé en lecture seule. Cliquez sur <1>Régénérer la clé</1> pour invalider tous les téléphones appairés d'un seul coup.",
+        "hint": "Associez autant de téléphones que vous voulez — ils partagent tous la même clé en lecture seule. Cliquez sur <1>Régénérer la clé</1> pour invalider tous les téléphones d'un coup.",
         "offMessage": "L'intégration mobile est désactivée. Aucune clé API n'existe pour les applications mobiles sur ce projet.",
-        "qrHint": "Scannez ce QR code avec l'application mobile RESTai."
+        "qrHint": "Scannez ce QR avec l'app web mobile RESTai (ou utilisez le bouton copier pour coller le code).",
+        "openLink": "Ouvrez {{url}} sur votre téléphone, puis scannez le QR ou collez le code."
       },
       "routines": {
         "title": "Routines",

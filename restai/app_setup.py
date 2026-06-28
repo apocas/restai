@@ -27,6 +27,13 @@ if not FRONTEND_BUILD_DIR.exists():
     if _pkg_frontend.exists():
         FRONTEND_BUILD_DIR = _pkg_frontend
 
+# Separate mobile PWA (CRA build), served at /mobile.
+MOBILE_BUILD_DIR = PROJECT_ROOT / "mobile" / "build"
+if not MOBILE_BUILD_DIR.exists():
+    _pkg_mobile = Path(__file__).parent.parent / "mobile" / "build"
+    if _pkg_mobile.exists():
+        MOBILE_BUILD_DIR = _pkg_mobile
+
 WIDGET_DIR = Path(__file__).parent / "widget"
 
 
@@ -233,9 +240,10 @@ def register_health_routes(fs_app: FastAPI) -> None:
 
 
 def register_static_mounts(fs_app: FastAPI):
-    """Mount the admin SPA static dirs + the widget script. Returns the SPA
-    build dir to hand to `register_spa()` later (None when no frontend build),
-    so the catch-all can register after all API routers."""
+    """Mount the admin SPA + mobile PWA static dirs + the widget script. Returns
+    `(spa_build_dir, mobile_build_dir)` to hand to `register_spa()` later (each
+    None when its build is missing), so the catch-alls register after all API
+    routers."""
     try:
         fs_app.mount(
             "/admin/static",
@@ -255,6 +263,20 @@ def register_static_mounts(fs_app: FastAPI):
         print("Admin frontend not available.")
         spa_build_dir = None
 
+    # Mobile PWA (separate CRA app at /mobile). Disjoint prefix from /admin.
+    mobile_build_dir = None
+    if (MOBILE_BUILD_DIR / "static").exists():
+        try:
+            fs_app.mount(
+                "/mobile/static",
+                StaticFiles(directory=str(MOBILE_BUILD_DIR / "static")),
+                name="mobile_static",
+            )
+            mobile_build_dir = MOBILE_BUILD_DIR
+        except Exception as e:
+            print(e)
+            print("Mobile PWA not available.")
+
     if WIDGET_DIR.exists():
         @fs_app.get("/widget/chat.js")
         async def serve_widget_js():
@@ -263,7 +285,7 @@ def register_static_mounts(fs_app: FastAPI):
                 return FileResponse(str(widget_file), media_type="application/javascript")
             return JSONResponse(status_code=404, content={"detail": "Widget not found"})
 
-    return spa_build_dir
+    return spa_build_dir, mobile_build_dir
 
 
 def register_routers(fs_app: FastAPI) -> None:
@@ -335,21 +357,28 @@ def register_routers(fs_app: FastAPI) -> None:
         logging.info("MCP server enabled at /mcp/sse")
 
 
-def register_spa(fs_app: FastAPI, spa_build_dir) -> None:
-    """Register the SPA catch-all. MUST run AFTER register_routers() so the
-    explicit API endpoints under /admin/... win the route match. Falsy
-    `spa_build_dir` means no frontend build → skip."""
-    if spa_build_dir is None:
-        return
+def register_spa(fs_app: FastAPI, spa_build_dir, mobile_build_dir=None) -> None:
+    """Register the SPA catch-alls. MUST run AFTER register_routers() so the
+    explicit API endpoints under /admin/... and /mobile/... win the route match.
+    A falsy build dir means that app isn't built → skip it."""
 
-    @fs_app.get("/admin/{full_path:path}")
-    async def serve_spa(full_path: str):
-        file_path = (spa_build_dir / full_path).resolve()
-        build_root = spa_build_dir.resolve()
+    def _serve_from(build_dir, full_path):
+        file_path = (build_dir / full_path).resolve()
+        build_root = build_dir.resolve()
         # Prevent directory traversal — resolved path must stay inside build dir
         if full_path and str(file_path).startswith(str(build_root) + "/") and file_path.is_file():
             return FileResponse(str(file_path))
         index_file = build_root / "index.html"
         if index_file.exists():
             return FileResponse(str(index_file))
-        return JSONResponse(status_code=404, content={"detail": "Frontend not found"})
+        return JSONResponse(status_code=404, content={"detail": "Not found"})
+
+    if spa_build_dir is not None:
+        @fs_app.get("/admin/{full_path:path}")
+        async def serve_spa(full_path: str):
+            return _serve_from(spa_build_dir, full_path)
+
+    if mobile_build_dir is not None:
+        @fs_app.get("/mobile/{full_path:path}")
+        async def serve_mobile(full_path: str):
+            return _serve_from(mobile_build_dir, full_path)

@@ -261,17 +261,23 @@ Full WP plugin. Each capability maps to a dedicated RESTai project (auto-provisi
 
 Bootstrap in `includes/class-restai.php`, Icon helper in `includes/class-restai-icon.php`, WP REST namespace `restai/v1` in `includes/class-restai-rest.php`. WP 6.9, PHP 7.4+, GPL-2.0+. Local dev via `wordpress/docker-compose.yml` (WP 6.6 + MariaDB, plugin bind-mounted).
 
-### Mobile pairing (Android client under `android/`)
+### Mobile pairing (PWA at `/mobile`)
 
-Project-scoped companion apps pair via QR from the project's **Mobile** tab. Platform-neutral plain-JSON payload. Android in `android/`; future iOS in sibling `ios/`.
+Project-scoped companion app pairs via QR from the project's **Mobile** tab. The native Android client was replaced by a **PWA** (top-level `mobile/`, a separate CRA app served at the URL path `/mobile` — see "Mobile PWA" below). Plain-JSON pairing payload, unchanged.
 
-**Pairing** — `POST /projects/{id}/mobile/enable` mints a read-only project-scoped API key, returns plaintext + JSON QR: `{host, project_id, project_name, api_key}`.
+**Pairing** — `POST /projects/{id}/mobile/enable` mints a read-only project-scoped API key, returns plaintext + JSON QR: `{host, project_id, project_name, api_key}` (`host` from `config.RESTAI_URL`, else request origin).
 
-- Endpoints (`restai/routers/projects.py`, Mobile section): `GET/POST /projects/{id}/mobile{/enable,/disable,/regenerate}`.
+- Endpoints (`restai/routers/projects/mobile.py`, Mobile section): `GET/POST /projects/{id}/mobile{/enable,/disable,/regenerate}`.
 - Minted `ApiKeyDatabase` row id stashed in `ProjectOptions.mobile_api_key_id`; **regenerate** invalidates all paired phones at once. Disabling deletes the key (cascade 401).
 - Plaintext surfaced on every status read while enabled (decrypted from `ApiKeyDatabase.encrypted_key` via `decrypt_api_key`) so QR stays visible across reloads.
 
-**Android** — Kotlin + Compose. `QrScreen` (CameraX + ML Kit) + `ChatScreen` (OkHttp SSE against `/projects/{id}/chat?stream=true`). Credentials in `EncryptedSharedPreferences`. 401 clears key and drops back to QR. Build: `cd android && ./gradlew assembleDebug`.
+### Mobile PWA (`mobile/`, served at `/mobile`)
+
+Separate CRA app (NOT part of `frontend/`), built to `mobile/build`, served by the backend exactly like the admin SPA: static mount `/mobile/static` + a `/mobile/{path}` catch-all with index fallback (`restai/app_setup.py` `MOBILE_BUILD_DIR` / `register_static_mounts` / `register_spa`). `make mobile` builds it (also run by `make install`/`make update`; `make clean` wipes `mobile/build`). Real PWA: hand-written `public/service-worker.js` (scope `/mobile/`), `manifest.json`, icons.
+
+- **Pairing** (`mobile/src/Pair.jsx`): `html5-qrcode` camera scan + manual paste fallback; validates via `GET {host}/auth/whoami` (Bearer) before saving creds to `localStorage` (plaintext — NOT encrypted-at-rest like the old Android EncryptedSharedPreferences).
+- **Chat** (`mobile/src/Chat.jsx` + `api.js`): `POST {host}/projects/{id}/chat` via `@microsoft/fetch-event-source`, Bearer key, body `{question, stream, id?, image?, files?}`. SSE: `{text}` deltas → `{answer,id}` final → `event: close`; ignores `tool_call_*`/`plan` frames; strips `<think>…</think>`. Markdown via react-markdown (GFM + sanitized raw HTML); inline images on the paired host fetched with the Bearer header → object URL. Conversation memory via `id`; ephemeral history; 401/403 → clear creds → back to pairing.
+- **Same-origin constraint**: `/projects/.../chat` and `/auth/whoami` have NO CORS headers (only `/widget/` does — `restai/middleware.py`), so the PWA must be served from the same origin as the QR `host` (the normal single-instance deployment). Keep `RESTAI_URL` matching the public origin.
 
 ### Onboarding Checklist (`frontend/src/app/views/dashboard/shared/OnboardingChecklist.jsx`)
 

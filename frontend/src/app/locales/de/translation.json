@@ -537,17 +537,18 @@
       },
       "mobile": {
         "title": "Mobile Integration",
-        "subtitle": "Koppeln Sie Android/iOS-Clients mit diesem Projekt per QR-Code",
-        "intro": "Scannen Sie den QR-Code mit der RESTai-Mobile-App (heute Android, weitere Plattformen folgen), um einen Nur-Lese-Chat in dieses Projekt zu erhalten. Die App verwendet ausschließlich den Chat-Modus (Streaming). Schalten Sie aus oder regenerieren Sie, um alle gekoppelten Telefone auf einmal zu widerrufen.",
+        "subtitle": "Koppeln Sie jedes Telefon mit diesem Projekt — Web-App öffnen, QR scannen",
+        "intro": "Öffnen Sie die mobile RESTai-Web-App auf dem Telefon und scannen Sie diesen QR-Code (oder fügen Sie den Code ein), um einen schreibgeschützten Streaming-Chat zu diesem Projekt zu erhalten. Deaktivieren oder neu generieren, um alle gekoppelten Telefone auf einmal zu widerrufen.",
         "enable": "Mobile Integration aktivieren",
         "disable": "Deaktivieren",
         "regenerate": "Schlüssel regenerieren",
         "regenerating": "Wird regeneriert…",
         "copyPayload": "Rohe Nutzlast kopieren (JSON)",
         "keyChip": "Schlüssel {{prefix}}…",
-        "hint": "Zeigen Sie diesen QR-Code so vielen Telefonen wie Sie möchten — alle teilen sich denselben Nur-Lese-Schlüssel. Klicken Sie auf <1>Schlüssel regenerieren</1>, um alle gekoppelten Telefone auf einmal zu invalidieren.",
+        "hint": "Koppeln Sie beliebig viele Telefone — alle teilen denselben schreibgeschützten Schlüssel. Klicken Sie auf <1>Schlüssel neu generieren</1>, um alle gekoppelten Telefone auf einmal zu widerrufen.",
         "offMessage": "Die mobile Integration ist deaktiviert. Für dieses Projekt existiert kein API-Schlüssel für mobile Apps.",
-        "qrHint": "Scannen Sie diesen QR-Code mit der RESTai-Mobile-App."
+        "qrHint": "Scannen Sie diesen QR-Code mit der mobilen RESTai-Web-App (oder kopieren Sie den Code zum Einfügen).",
+        "openLink": "Öffnen Sie {{url}} auf dem Telefon, dann QR scannen oder Code einfügen."
       },
       "routines": {
         "title": "Routinen",

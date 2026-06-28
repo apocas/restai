@@ -137,9 +137,9 @@ async def lifespan(fs_app: FastAPI):
     # Order is load-bearing: health + static mounts, then all API routers,
     # then the SPA catch-all LAST so explicit endpoints win route matching.
     register_health_routes(fs_app)
-    spa_build_dir = register_static_mounts(fs_app)
+    spa_build_dir, mobile_build_dir = register_static_mounts(fs_app)
     register_routers(fs_app)
-    register_spa(fs_app, spa_build_dir)
+    register_spa(fs_app, spa_build_dir, mobile_build_dir)
 
     yield
 

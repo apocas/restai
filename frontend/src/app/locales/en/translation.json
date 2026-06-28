@@ -698,17 +698,18 @@
       },
       "mobile": {
         "title": "Mobile integration",
-        "subtitle": "Pair Android/iOS clients with this project via QR code",
-        "intro": "Scan the QR code with the RESTai mobile app (Android today, more platforms coming) to get a read-only chat into this project. The app only ever uses chat mode (streaming). Toggle off or regenerate to revoke every paired phone at once.",
+        "subtitle": "Pair any phone with this project — open the web app, scan the QR",
+        "intro": "Open the RESTai mobile web app on your phone, then scan this QR (or paste the code) to get a read-only streaming chat into this project. Toggle off or regenerate to revoke every paired phone at once.",
         "enable": "Enable mobile integration",
         "disable": "Disable",
         "regenerate": "Regenerate key",
         "regenerating": "Regenerating…",
         "copyPayload": "Copy raw payload (JSON)",
         "keyChip": "key {{prefix}}…",
-        "hint": "Show this QR to as many phones as you like — every one of them shares the same read-only key. Click <1>Regenerate key</1> to invalidate every paired phone in one go.",
+        "hint": "Pair as many phones as you like — every one shares the same read-only key. Click <1>Regenerate key</1> to invalidate every paired phone at once.",
         "offMessage": "Mobile integration is off. No API key exists for mobile apps on this project.",
-        "qrHint": "Scan this QR code with the RESTai mobile app."
+        "qrHint": "Scan this QR with the RESTai mobile web app (or use the copy button to paste the code).",
+        "openLink": "Open {{url}} on your phone, then scan the QR or paste the code."
       },
       "routines": {
         "title": "Routines",

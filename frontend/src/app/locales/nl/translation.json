@@ -537,17 +537,18 @@
       },
       "mobile": {
         "title": "Mobiele integratie",
-        "subtitle": "Koppel Android/iOS-clients aan dit project via een QR-code",
-        "intro": "Scan de QR-code met de RESTai mobiele app (vandaag Android, meer platforms volgen) om een alleen-lezen chat naar dit project te krijgen. De app gebruikt altijd alleen chatmodus (streaming). Schakel uit of regenereer om alle gekoppelde telefoons in één keer in te trekken.",
+        "subtitle": "Koppel elke telefoon aan dit project — open de web-app, scan de QR",
+        "intro": "Open de mobiele RESTai-web-app op je telefoon en scan deze QR (of plak de code) voor een alleen-lezen streaming chat in dit project. Schakel uit of genereer opnieuw om alle gekoppelde telefoons in één keer in te trekken.",
         "enable": "Mobiele integratie inschakelen",
         "disable": "Uitschakelen",
         "regenerate": "Sleutel regenereren",
         "regenerating": "Regenereren…",
         "copyPayload": "Ruwe payload kopiëren (JSON)",
         "keyChip": "sleutel {{prefix}}…",
-        "hint": "Toon deze QR aan zoveel telefoons als u wilt — ze delen allemaal dezelfde alleen-lezen sleutel. Klik op <1>Sleutel regenereren</1> om elke gekoppelde telefoon in één keer ongeldig te maken.",
+        "hint": "Koppel zoveel telefoons als je wilt — ze delen allemaal dezelfde alleen-lezen sleutel. Klik op <1>Sleutel opnieuw genereren</1> om alle gekoppelde telefoons in één keer in te trekken.",
         "offMessage": "Mobiele integratie is uit. Er bestaat geen API-sleutel voor mobiele apps op dit project.",
-        "qrHint": "Scan deze QR-code met de RESTai mobiele app."
+        "qrHint": "Scan deze QR met de mobiele RESTai-web-app (of gebruik de kopieerknop om de code te plakken).",
+        "openLink": "Open {{url}} op je telefoon, scan dan de QR of plak de code."
       },
       "routines": {
         "title": "Routines",

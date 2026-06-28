@@ -14,6 +14,11 @@ frontend:
 	cd frontend && npm install
 	cd frontend && npm run build
 
+.PHONY: mobile
+mobile:
+	cd mobile && npm install
+	cd mobile && npm run build
+
 .PHONY: dev
 dev:
 	RESTAI_DEV=true uvicorn restai.main:app --reload --host $${RESTAI_HOST:-127.0.0.1} --port $${RESTAI_PORT:-9000}
@@ -25,9 +30,11 @@ build:
 .PHONY: install
 install:
 	mkdir -p frontend/build
+	mkdir -p mobile/build
 	uv sync --no-group gpu
 	make database
 	make frontend
+	make mobile
 	@if command -v nvidia-smi > /dev/null 2>&1 && nvidia-smi > /dev/null 2>&1; then \
 		echo "GPU detected, running installgpu..."; \
 		$(MAKE) installgpu; \
@@ -137,6 +144,8 @@ update:
 	$(MAKE) migrate
 	@echo "Building frontend..."
 	$(MAKE) frontend
+	@echo "Building mobile PWA..."
+	$(MAKE) mobile
 	@if command -v nvidia-smi > /dev/null 2>&1 && nvidia-smi > /dev/null 2>&1; then \
 		echo "GPU detected, syncing GPU deps..."; \
 		$(MAKE) installgpu; \
@@ -181,6 +190,7 @@ code:
 .PHONY: clean
 clean:
 	rm -rf frontend/build/*
+	rm -rf mobile/build/*
 
 .PHONY: dockershell
 dockershell:
