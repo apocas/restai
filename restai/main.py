@@ -143,12 +143,11 @@ async def lifespan(fs_app: FastAPI):
 
     yield
 
-    # Docker per-chat / per-project / browser containers are no longer
-    # process-managed — `crons/docker_cleanup.py`, `crons/browser_cleanup.py`,
-    # and `crons/app_cleanup.py` evict idle containers, so on lifespan
-    # shutdown there's nothing for us to stop. (Old behavior nuked all
-    # managed containers; that wiped the in-flight work of any sibling
-    # worker. Bug, not feature.)
+    # Docker per-chat / browser containers are no longer process-managed
+    # — `crons/docker_cleanup.py` and `crons/browser_cleanup.py` evict
+    # idle containers, so on lifespan shutdown there's nothing for us to
+    # stop. (Old behavior nuked all managed containers; that wiped the
+    # in-flight work of any sibling worker. Bug, not feature.)
 
 
 logging.basicConfig(level=config.LOG_LEVEL)

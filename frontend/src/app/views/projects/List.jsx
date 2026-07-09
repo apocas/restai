@@ -4,7 +4,7 @@ import {
   styled, TextField, Tooltip, Typography, Avatar, Select, FormControl,
 } from "@mui/material";
 import {
-  Add, Code, SportsEsports, Visibility, Assignment, LibraryBooks,
+  Add, SportsEsports, Visibility, Assignment, LibraryBooks,
   Search as SearchIcon, Close as CloseIcon, Groups as GroupsIcon,
   ChevronLeft, ChevronRight, FirstPage, LastPage,
 } from "@mui/icons-material";
@@ -31,7 +31,6 @@ const AVATAR_PALETTES = {
   rag:   ["#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd", "#1e1b4b"],
   agent: ["#10b981", "#34d399", "#6ee7b7", "#a7f3d0", "#064e3b"],
   block: ["#6b7280", "#9ca3af", "#d1d5db", "#e5e7eb", "#1f2937"],
-  app:   ["#0891b2", "#22d3ee", "#67e8f9", "#a5f3fc", "#164e63"],
 };
 
 function getAccent(type) {
@@ -88,7 +87,6 @@ const TYPE_FILTERS = [
   { value: "agent", label: "Agent" },
   { value: "rag",   label: "RAG" },
   { value: "block", label: "Block" },
-  { value: "app",   label: "App" },
 ];
 
 const SORT_OPTIONS = [
@@ -199,7 +197,6 @@ export default function Projects() {
     rag:   { glyph: "⌬", color: "#a5b4fc", label: t("projects.type.rag") || "RAG" },
     agent: { glyph: "◈", color: "#86efac", label: t("projects.type.agent") || "Agent" },
     block: { glyph: "⊞", color: "#fcd34d", label: t("projects.type.block") || "Block" },
-    app:   { glyph: "◆", color: "#67e8f9", label: "App" },
   };
   const topTypeStats = Object.entries(typeCounts)
     .sort((a, b) => b[1] - a[1])
@@ -605,38 +602,21 @@ export default function Projects() {
                       )}
                     </Box>
 
-                    {/* Playground / App Builder secondary action */}
-                    {project.type !== "app" ? (
-                      <Tooltip title={t("projects.actions.playground")}>
-                        <IconButton
-                          size="small"
-                          onClick={() => navigate(`/project/${project.id}/playground`)}
-                          sx={{
-                            color: accent,
-                            border: `1px solid ${accent}33`,
-                            borderRadius: 1.25,
-                            "&:hover": { borderColor: accent, backgroundColor: `${accent}10` },
-                          }}
-                        >
-                          <SportsEsports fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    ) : (
-                      <Tooltip title={t("projects.app.title", "App Builder")}>
-                        <IconButton
-                          size="small"
-                          onClick={() => navigate(`/project/${project.id}/builder`)}
-                          sx={{
-                            color: accent,
-                            border: `1px solid ${accent}33`,
-                            borderRadius: 1.25,
-                            "&:hover": { borderColor: accent, backgroundColor: `${accent}10` },
-                          }}
-                        >
-                          <Code fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
+                    {/* Playground secondary action */}
+                    <Tooltip title={t("projects.actions.playground")}>
+                      <IconButton
+                        size="small"
+                        onClick={() => navigate(`/project/${project.id}/playground`)}
+                        sx={{
+                          color: accent,
+                          border: `1px solid ${accent}33`,
+                          borderRadius: 1.25,
+                          "&:hover": { borderColor: accent, backgroundColor: `${accent}10` },
+                        }}
+                      >
+                        <SportsEsports fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
 
                     <Button
                       size="small"

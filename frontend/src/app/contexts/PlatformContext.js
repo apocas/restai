@@ -12,7 +12,6 @@ export const PlatformContext = createContext({
     currency: "EUR",
     auth_disable_local: false,
     mcp: false,
-    app_builder: false,
     payments_enabled: false,
     payment_providers: [],
     stripe_publishable_key: ""
@@ -35,7 +34,6 @@ export default function PlatformProvider({ children }) {
     currency: "EUR",
     auth_disable_local: false,
     mcp: false,
-    app_builder: false,
     payments_enabled: false,
     payment_providers: [],
     stripe_publishable_key: ""
@@ -61,10 +59,6 @@ export default function PlatformProvider({ children }) {
           currency: data.currency || "USD",
           auth_disable_local: data.auth_disable_local || false,
           mcp: data.mcp || false,
-          // Gates the "app" project type in /projects/new — backend
-          // sets this true when app_docker_enabled is on. Default
-          // false so the type stays hidden when the runtime isn't ready.
-          app_builder: data.app_builder || false,
           payments_enabled: data.payments_enabled || false,
           payment_providers: data.payment_providers || [],
           stripe_publishable_key: data.stripe_publishable_key || "",

@@ -1,11 +1,11 @@
 """Tests for streaming vs non-streaming chat paths across ALL project types.
 
-Verifies that every project type (block, app, agent) correctly returns:
+Verifies that every project type (block, agent) correctly returns:
   - Non-streaming: a JSON dict with the answer.
   - Streaming: SSE events (data: lines + event: close).
 
-Block uses a passthrough workspace (output = input), app returns a
-builder hint, and agent needs an LLM (may skip if none configured).
+Block uses a passthrough workspace (output = input), and agent needs an
+LLM (may skip if none configured).
 """
 
 import json
@@ -25,7 +25,6 @@ ADMIN = ("admin", RESTAI_DEFAULT_PASSWORD)
 USER = (user_name, user_pass)
 
 block_project_id = None
-app_project_id = None
 agent_project_id = None
 team_id = None
 llm_name = None
@@ -54,8 +53,8 @@ def client():
 
 
 def test_setup(client):
-    """Create user, team, and all three project types."""
-    global block_project_id, app_project_id, agent_project_id, team_id, llm_name
+    """Create user, team, and all project types."""
+    global block_project_id, agent_project_id, team_id, llm_name
 
     llms = client.get("/llms", auth=ADMIN)
     if llms.status_code != 200 or not llms.json():
@@ -86,16 +85,6 @@ def test_setup(client):
         auth=ADMIN,
     )
     assert r.status_code == 200
-
-    # App project
-    r = client.post(
-        "/projects",
-        json={"name": f"stream-app-{suffix}", "llm": llm_name, "type": "app", "team_id": team_id},
-        auth=ADMIN,
-    )
-    assert r.status_code == 201
-    app_project_id = r.json()["project"]
-    client.patch(f"/projects/{app_project_id}", json={"users": [user_name]}, auth=ADMIN)
 
     # Agent project
     r = client.post(
@@ -132,35 +121,6 @@ def test_block_streaming(client):
     )
     assert r.status_code == 200
     _assert_sse_has_answer(r.text, "echo block stream", "block")
-
-
-# ── App project ────────────────────────────────────────────────────────
-
-def test_app_non_streaming(client):
-    r = client.post(
-        f"/projects/{app_project_id}/chat",
-        json={"question": "hello app"},
-        auth=USER,
-    )
-    assert r.status_code == 200
-    data = r.json()
-    assert isinstance(data, dict), f"Expected dict, got {type(data)}: {data}"
-    assert "app-builder project" in data.get("answer", "").lower()
-    assert data.get("type") == "app"
-
-
-def test_app_streaming(client):
-    r = client.post(
-        f"/projects/{app_project_id}/chat",
-        json={"question": "hello app stream", "stream": True},
-        auth=USER,
-        headers={"Accept": "text/event-stream"},
-    )
-    assert r.status_code == 200
-    final = _parse_final_sse(r.text)
-    assert final is not None, f"No final answer in SSE: {r.text}"
-    assert "app-builder project" in final["answer"].lower()
-    assert final["type"] == "app"
 
 
 # ── Agent project ──────────────────────────────────────────────────────
@@ -265,7 +225,7 @@ def _assert_sse_has_answer(body: str, expected_answer: str, expected_type: str):
 # ── Cleanup ────────────────────────────────────────────────────────────
 
 def test_cleanup(client):
-    for pid in [block_project_id, app_project_id, agent_project_id]:
+    for pid in [block_project_id, agent_project_id]:
         if pid:
             client.delete(f"/projects/{pid}", auth=ADMIN)
     client.delete(f"/teams/{team_name}", auth=ADMIN)

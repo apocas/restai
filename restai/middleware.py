@@ -6,7 +6,6 @@ lifespan; the header policy is involved enough to read on its own.
 """
 
 import logging
-import re
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
@@ -42,16 +41,6 @@ _ADMIN_SECURITY_HEADERS = {
         "connect-src 'self'; "
         "frame-ancestors 'none'"
     ),
-}
-# App Builder preview proxy — same-origin iframe embed needs softened
-# headers (otherwise frame-ancestors 'none' / X-Frame-Options: DENY block
-# the embed). The generated app's own CSP, if any, applies inside the
-# iframe; what we set here is just the outer envelope so the admin SPA
-# can host the iframe.
-_PREVIEW_PATH_RE = re.compile(r"^/projects/\d+/app/preview(?:/|$)")
-_PREVIEW_SECURITY_HEADERS = {
-    "X-Frame-Options": "SAMEORIGIN",
-    "Content-Security-Policy": "frame-ancestors 'self'",
 }
 
 
@@ -116,12 +105,6 @@ def register_middleware(app: FastAPI) -> None:
             response.headers.setdefault(k, v)
         if is_widget:
             pass  # widget paths exempt from frame-ancestors / CSP entirely
-        elif _PREVIEW_PATH_RE.match(path):
-            # App-builder live preview iframe: same-origin embed allowed.
-            # Force-set (not setdefault) to override any header the proxy
-            # forwarded from the upstream PHP server.
-            for k, v in _PREVIEW_SECURITY_HEADERS.items():
-                response.headers[k] = v
         else:
             for k, v in _ADMIN_SECURITY_HEADERS.items():
                 response.headers.setdefault(k, v)
