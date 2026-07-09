@@ -8,10 +8,9 @@ import {
 import {
   Memory, Cloud, Lock, Public, AttachMoney, Token, Storage, DataArray,
   Hub, Title, Groups, Save, AutoAwesome, SmartToy, Engineering,
-  Apps, Code, MemoryRounded, AddCircle,
+  Code, MemoryRounded, AddCircle,
 } from "@mui/icons-material";
 import api from "app/utils/api";
-import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 import { FONT_MONO, sweep, pulse } from "app/components/page/pageStyles";
 import { PROJECT_TYPE_COLORS } from "app/utils/constant";
 
@@ -37,11 +36,6 @@ const TYPE_META = {
     Icon: Engineering,
     headline: "Block",
     blurb: "Visual logic builder. Chain projects with a graphical block-based IDE. No LLM required.",
-  },
-  app: {
-    Icon: Apps,
-    headline: "App",
-    blurb: "Describe an app and the LLM scaffolds a vanilla TypeScript + PHP + SQLite project. In-browser IDE with live preview, deployable via FTP/SFTP or ZIP.",
   },
 };
 
@@ -293,8 +287,7 @@ function MonoPill({ value, color = ACCENT, icon: Icon }) {
 }
 
 export default function ProjectNew({ info, template }) {
-  const { platformCapabilities } = usePlatformCapabilities();
-  const typeList = ["agent", "rag", "block", ...(platformCapabilities?.app_builder ? ["app"] : [])];
+  const typeList = ["agent", "rag", "block"];
   const vectorstoreList = info.vectorstores || ["chroma"];
   const auth = useAuth();
   const navigate = useNavigate();
@@ -382,11 +375,7 @@ export default function ProjectNew({ info, template }) {
         if (template.description) patchOpts.human_description = template.description;
         try { await api.patch("/projects/" + response.project, patchOpts, auth.user.token); } catch {}
       }
-      if (state.projecttype === "app") {
-        navigate("/project/" + response.project + "/builder");
-      } else {
-        navigate("/project/" + response.project);
-      }
+      navigate("/project/" + response.project);
     } catch {} finally { setSubmitting(false); }
   };
 

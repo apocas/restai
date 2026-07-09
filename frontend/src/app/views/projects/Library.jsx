@@ -3,7 +3,7 @@ import {
   Box, Button, Card, Chip, Dialog, DialogTitle, DialogContent, DialogActions,
   Divider, Grid, MenuItem, Select, styled, TextField, Tooltip, Typography,
 } from "@mui/material";
-import { SportsEsports, Code, ContentCopy, Bookmark, AddCircle } from "@mui/icons-material";
+import { SportsEsports, ContentCopy, Bookmark, AddCircle } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import BAvatar from "boring-avatars";
@@ -77,7 +77,7 @@ const ProjectCard = styled(Card, {
   },
 }));
 
-const TYPE_FILTERS = ["all", "agent", "rag", "block", "app"];
+const TYPE_FILTERS = ["all", "agent", "rag", "block"];
 
 // Boring-avatars colour palettes per type — same hue family as the
 // rail / glow so the avatar reads as part of the type identity.
@@ -359,45 +359,24 @@ export default function Library() {
                       alignItems: "center",
                     }}
                   >
-                    {project.type !== "app" ? (
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<SportsEsports />}
-                        onClick={() => navigate("/project/" + project.id + "/playground")}
-                        sx={{
-                          textTransform: "none",
-                          fontWeight: 600,
-                          color: getAccent(project.type),
-                          borderColor: `${getAccent(project.type)}55`,
-                          "&:hover": {
-                            borderColor: getAccent(project.type),
-                            backgroundColor: `${getAccent(project.type)}0c`,
-                          },
-                        }}
-                      >
-                        {t("projects.actions.playground")}
-                      </Button>
-                    ) : (
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<Code />}
-                        onClick={() => navigate("/project/" + project.id + "/builder")}
-                        sx={{
-                          textTransform: "none",
-                          fontWeight: 600,
-                          color: getAccent(project.type),
-                          borderColor: `${getAccent(project.type)}55`,
-                          "&:hover": {
-                            borderColor: getAccent(project.type),
-                            backgroundColor: `${getAccent(project.type)}0c`,
-                          },
-                        }}
-                      >
-                        {t("projects.app.title", "App Builder")}
-                      </Button>
-                    )}
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<SportsEsports />}
+                      onClick={() => navigate("/project/" + project.id + "/playground")}
+                      sx={{
+                        textTransform: "none",
+                        fontWeight: 600,
+                        color: getAccent(project.type),
+                        borderColor: `${getAccent(project.type)}55`,
+                        "&:hover": {
+                          borderColor: getAccent(project.type),
+                          backgroundColor: `${getAccent(project.type)}0c`,
+                        },
+                      }}
+                    >
+                      {t("projects.actions.playground")}
+                    </Button>
                     <Box sx={{ flex: 1 }} />
                     <Button
                       size="small"

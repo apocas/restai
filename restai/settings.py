@@ -76,9 +76,6 @@ SETTINGS_DEFAULTS = {
     "browser_image": "mcr.microsoft.com/playwright/python:v1.48.0-jammy",
     "browser_network": "bridge",
     "browser_timeout": "900",
-    "app_docker_enabled": "false",
-    "app_docker_image": "restai/app-runtime:2",
-    "app_docker_idle_timeout": "1800",
     "data_retention_days": "0",
     "enforce_2fa": "false",
     # 0 = disabled. Soft warning only — passwords stay valid past the threshold.
@@ -131,8 +128,8 @@ SETTINGS_DEFAULTS = {
     "telemetry_instance_id": "",
 }
 
-_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "docker_read_only", "browser_enabled", "app_docker_enabled", "enforce_2fa", "vectordb_chromadb_enabled", "vectordb_pgvector_enabled", "vectordb_weaviate_enabled", "vectordb_pinecone_enabled", "ldap_enabled", "ldap_use_tls", "payment_enabled", "payment_stripe_enabled", "payment_paypal_enabled"}
-_INT_KEYS = {"max_audio_upload_size", "data_retention_days", "docker_timeout", "browser_timeout", "app_docker_idle_timeout", "password_max_age_days"}
+_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "docker_read_only", "browser_enabled", "enforce_2fa", "vectordb_chromadb_enabled", "vectordb_pgvector_enabled", "vectordb_weaviate_enabled", "vectordb_pinecone_enabled", "ldap_enabled", "ldap_use_tls", "payment_enabled", "payment_stripe_enabled", "payment_paypal_enabled"}
+_INT_KEYS = {"max_audio_upload_size", "data_retention_days", "docker_timeout", "browser_timeout", "password_max_age_days"}
 
 # Secret keys that should be masked in API responses
 _SECRET_KEYS = {
@@ -243,10 +240,6 @@ def get_all_settings(db_wrapper) -> dict:
         "browser_image": rows.get("browser_image", "mcr.microsoft.com/playwright/python:v1.48.0-jammy"),
         "browser_network": rows.get("browser_network", "bridge"),
         "browser_timeout": int(rows.get("browser_timeout", "900") or "900"),
-        # App Builder
-        "app_docker_enabled": _to_bool(rows.get("app_docker_enabled", "false")),
-        "app_docker_image": rows.get("app_docker_image", "restai/app-runtime:2"),
-        "app_docker_idle_timeout": int(rows.get("app_docker_idle_timeout", "1800") or "1800"),
         # Retention
         "data_retention_days": int(rows.get("data_retention_days", "0") or "0"),
         # 2FA

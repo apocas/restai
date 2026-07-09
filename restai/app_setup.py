@@ -167,7 +167,6 @@ def register_health_routes(fs_app: FastAPI) -> None:
             "auth_disable_local": _sv("auth_disable_local", "false").lower() in ("true", "1"),
             "mcp": config.RESTAI_MCP,
             "enforce_2fa": _sv("enforce_2fa", "false").lower() in ("true", "1"),
-            "app_builder": _sv("app_docker_enabled", "false").lower() in ("true", "1"),
             "payments_enabled": _sv("payment_enabled", "false").lower() in ("true", "1"),
             "payment_providers": [
                 p for p in ("stripe", "paypal")
@@ -321,9 +320,6 @@ def register_routers(fs_app: FastAPI) -> None:
     fs_app.include_router(payment_webhook_router.router, tags=["Payments"])
     fs_app.include_router(templates_router.router)
     fs_app.include_router(bulk_ingest_router.router)
-    from restai.routers import app as app_router, app_preview as app_preview_router
-    fs_app.include_router(app_router.router)
-    fs_app.include_router(app_preview_router.router)
     fs_app.include_router(projects.router)
     fs_app.include_router(tools.router, tags=["Tools"])
     fs_app.include_router(users.router, tags=["Users"])

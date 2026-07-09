@@ -217,7 +217,6 @@ def test_template_publish_strips_secrets_from_options(client, source_project):
         "webhook_secret": "whsec_redacted",
         "telegram_token": "5555:AAH-redacted",
         "slack_bot_token": "xoxb-redacted",
-        "ftp_password": "redacted_ftp",
         # benign, MUST survive
         "smtp_host": "smtp.acme.com",
         "smtp_from": "support@acme.com",
@@ -271,7 +270,6 @@ def test_template_publish_strips_secrets_from_options(client, source_project):
             "webhook_secret": "whsec_redacted",
             "telegram_token": "5555:AAH-redacted",
             "slack_bot_token": "xoxb-redacted",
-            "ftp_password": "redacted_ftp",
         }
         for k, original in leaked_values.items():
             v = opts.get(k)

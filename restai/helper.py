@@ -10,7 +10,6 @@ from fastapi import BackgroundTasks
 from restai.database import DBWrapper
 from restai.project import Project
 from restai.projects.agent import Agent
-from restai.projects.app import App
 from restai.projects.block import Block
 from restai.projects.rag import RAG
 from restai.models.models import User, ChatModel
@@ -683,8 +682,6 @@ async def chat_main(
                     _image = chat_input.image
             case "block":
                 proj_logic = Block(brain)
-            case "app":
-                proj_logic = App(brain)
             case _:
                 raise HTTPException(status_code=400, detail="Invalid project type")
 

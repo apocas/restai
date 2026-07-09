@@ -374,18 +374,6 @@ async def route_delete_project(
 
         db_wrapper.delete_project(db_wrapper.get_project_by_id(projectID))
 
-        # Wipe app-builder source tree. Must stop the preview container FIRST
-        # — it holds /var/www open via bind mount and racing the wipe empties public/.
-        if proj.props.type == "app":
-            from restai.app.storage import delete_project_root
-            mgr = getattr(request.app.state.brain, "app_manager", None)
-            if mgr is not None:
-                try:
-                    mgr.remove_container(projectID)
-                except Exception:
-                    logging.exception("Failed to stop app container before wipe (project=%s)", projectID)
-            delete_project_root(projectID)
-
         return {"project": projectID}
 
     except Exception as e:
@@ -561,20 +549,6 @@ async def route_create_project(
             status_code=403, detail="User does not have access to this team"
         )
 
-    # App-builder needs a local Docker socket; bind mounts don't traverse tcp://.
-    if projectModel.type == "app":
-        docker_url = (getattr(config, "DOCKER_URL", "") or "").strip()
-        # Empty docker_url ok (IDE still works, just no preview); reject only tcp://.
-        if docker_url.startswith("tcp://"):
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "App Builder projects require a local Docker socket "
-                    "(unix://). Remote tcp:// daemons cannot bind-mount the "
-                    "host filesystem and the live preview would not work."
-                ),
-            )
-
     if projectModel.type != "block":
         llm_model = request.app.state.brain.get_llm(projectModel.llm, db_wrapper)
         if llm_model is None:
@@ -651,14 +625,6 @@ async def route_create_project(
                     project.props.embeddings, db_wrapper
                 ),
             )
-
-        if projectModel.type == "app":
-            from restai.app.storage import seed_hello_world
-            try:
-                seed_hello_world(project_db.id, projectModel.human_name or projectModel.name)
-            except Exception:
-                # Don't roll back; user can re-seed by editing any file in the IDE.
-                logging.exception("app seed failed for project %s", project_db.id)
 
         return {"project": project.props.id}
     except Exception as e:

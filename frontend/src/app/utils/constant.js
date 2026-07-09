@@ -10,5 +10,4 @@ export const PROJECT_TYPE_COLORS = {
   rag:   { bg: "rgba(99,102,241,0.12)", color: "#6366f1" },  // indigo-500
   agent: { bg: "rgba(16,185,129,0.12)", color: "#10b981" },  // emerald-500
   block: { bg: "rgba(107,114,128,0.15)", color: "#6b7280" },  // gray-500
-  app:   { bg: "rgba(8,145,178,0.12)",  color: "#0891b2" },  // cyan-600
 };

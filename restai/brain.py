@@ -52,13 +52,13 @@ class Brain:
             self.chat_store: BaseChatStore
             self.reinit_chat_store()
 
-    # Docker, Browser, and App runtimes are flat modules of functions
-    # (`restai.docker`, `restai.browser.runtime`, `restai.app.runtime`)
-    # that look up containers by label per call and read settings live
-    # from `restai.config`. The shims below preserve the historic
-    # `brain.docker_manager` / `brain.browser_manager` / `brain.app_manager`
-    # attribute names for callers — `getattr(brain, "...", None)` returns
-    # the module (truthy) or None when the runtime isn't enabled.
+    # Docker and Browser runtimes are flat modules of functions
+    # (`restai.docker`, `restai.browser.runtime`) that look up containers
+    # by label per call and read settings live from `restai.config`. The
+    # shims below preserve the historic `brain.docker_manager` /
+    # `brain.browser_manager` attribute names for callers —
+    # `getattr(brain, "...", None)` returns the module (truthy) or None
+    # when the runtime isn't enabled.
     @property
     def docker_manager(self):
         from restai import docker as _docker_mod
@@ -72,13 +72,6 @@ class Brain:
         if not _browser_mod.is_enabled():
             return None
         return _browser_mod
-
-    @property
-    def app_manager(self):
-        from restai.app import runtime as _app_mod
-        if not _app_mod.is_enabled():
-            return None
-        return _app_mod
 
     _IMAGE_CACHE_TTL_SECONDS = 24 * 60 * 60  # 24h
     _IMAGE_CACHE_KEY_PREFIX = "restai_image_cache:"

@@ -99,18 +99,12 @@ async def patch_settings(
         _docker_mod._client = None
         _docker_mod._client_url = ""
 
-    # Browser/App runtimes read settings live per call; flush cached DockerClient.
+    # Browser runtime reads settings live per call; flush cached DockerClient.
     browser_fields = {"browser_enabled", "browser_image", "browser_network", "browser_timeout"}
     if browser_fields & updates.keys():
         from restai.browser import runtime as _browser_mod
         _browser_mod._client = None
         _browser_mod._client_url = ""
-
-    app_fields = {"app_docker_enabled", "app_docker_image", "app_docker_idle_timeout"}
-    if app_fields & updates.keys():
-        from restai.app import runtime as _app_mod
-        _app_mod._client = None
-        _app_mod._client_url = ""
 
     # Chroma keeps a process-level client cache; flush on vectordb_* changes.
     if any(k.startswith("vectordb_") for k in updates.keys()):

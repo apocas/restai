@@ -106,7 +106,6 @@ PROJECT_SENSITIVE_KEYS = {
     "telegram_token", "slack_bot_token", "connection",
     "whatsapp_access_token", "whatsapp_app_secret", "whatsapp_verify_token",
     "twilio_auth_token", "webhook_secret",
-    "ftp_password",
 }
 LLM_SENSITIVE_KEYS = {"api_key", "key", "password", "secret"}
 
