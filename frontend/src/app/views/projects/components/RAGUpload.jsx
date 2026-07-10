@@ -59,21 +59,26 @@ export default function RAGUpload({ project }) {
     setLoading(true);
 
     if (tabIndex === 0) {
+      // Documents always go through the ingest queue — a large file no longer
+      // blocks the request; the cron ingests it in the background honoring the
+      // selected method/splitter/chunks. Track status in the Knowledge tab.
       const formData = new FormData();
-      formData.append("file", files[0]);
-      formData.append("method", state.method);
+      formData.append("files", files[0]);
 
+      const params = new URLSearchParams({ method: state.method });
       if (showChunkSettings) {
-        formData.append("splitter", state.splitter);
-        formData.append("chunks", state.chunksize);
+        params.set("splitter", state.splitter);
+        params.set("chunks", state.chunksize);
       }
 
       try {
-        const result = await api.post("/projects/" + project.id + "/embeddings/ingest/upload", formData, auth.user.token);
-        if (result.method) {
-          toast.success(`Ingested with ${result.method} method — ${result.chunks} chunks`);
-        }
-        window.location.reload();
+        const result = await api.post(
+          `/projects/${project.id}/ingest-bulk?${params.toString()}`,
+          formData,
+          auth.user.token
+        );
+        toast.success(`Queued ${result?.count ?? 1} file for background ingestion — track status in the Knowledge tab.`);
+        setFiles([]);
       } catch (err) {
         // errors auto-toasted
       } finally {
@@ -174,13 +179,18 @@ export default function RAGUpload({ project }) {
         </Tabs>
 
         {tabIndex === 0 && (
-          <DropZone {...getRootProps()}>
-            <input {...getInputProps()} />
-            <Box display="flex" alignItems="center" flexDirection="column">
-              <Publish sx={{ color: "text.secondary", fontSize: "48px" }} />
-              {files.length ? <span>{files[0].name}</span> : <span>Drop file</span>}
-            </Box>
-          </DropZone>
+          <>
+            <DropZone {...getRootProps()}>
+              <input {...getInputProps()} />
+              <Box display="flex" alignItems="center" flexDirection="column">
+                <Publish sx={{ color: "text.secondary", fontSize: "48px" }} />
+                {files.length ? <span>{files[0].name}</span> : <span>Drop file</span>}
+              </Box>
+            </DropZone>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+              Files are queued and ingested in the background. Track progress in the project's Knowledge tab.
+            </Typography>
+          </>
         )}
 
         {tabIndex === 1 && (
