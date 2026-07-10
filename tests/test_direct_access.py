@@ -109,6 +109,31 @@ def test_list_models_admin(client):
     assert llm_name in names
 
 
+def test_list_models_admin_includes_remote_generator(client):
+    """Remote (non-local) generators are served without a GPU, so they must be
+    listed in /direct/models even on a GPU-less deployment (regression guard for
+    the old brain.get_generators()-based listing)."""
+    gen_name = f"direct_imggen_{_suffix}"
+    resp = client.post(
+        "/image_generators",
+        json={
+            "name": gen_name,
+            "class_name": "openai",
+            "options": {"model": "gpt-image-1", "api_key": "sk-fake", "base_url": "https://api.openai.com/v1"},
+            "privacy": "public",
+            "enabled": True,
+        },
+        auth=ADMIN,
+    )
+    assert resp.status_code in (200, 201)
+    gen_id = resp.json()["id"]
+    try:
+        data = client.get("/direct/models", auth=ADMIN).json()
+        assert gen_name in data["image_generators"]
+    finally:
+        client.delete(f"/image_generators/{gen_id}", auth=ADMIN)
+
+
 def test_list_models_user(client):
     """Non-admin user should see LLMs filtered by team membership."""
     resp = client.get("/direct/models", auth=(test_username, test_password))

@@ -41,13 +41,18 @@ class Brain:
         # processes (which use lightweight=True) only pay the load cost if
         # they actually fire an agent that needs tools.
         self.tools: list[FunctionTool] | None = None
+        # Always present (empty when GPU is off or lightweight) so
+        # `get_generators`/`get_audio_generators` never hit an AttributeError —
+        # the `/v1/models` listing walks them unconditionally.
+        self.generators: list[FunctionTool] = []
+        self.audio_generators: list[FunctionTool] = []
 
         if not lightweight:
             self.tools = tools.load_tools()
 
             if config.RESTAI_GPU == True:
-                self.generators: list[FunctionTool] = tools.load_image_generators()
-                self.audio_generators: list[FunctionTool] = tools.load_audio_generators()
+                self.generators = tools.load_image_generators()
+                self.audio_generators = tools.load_audio_generators()
 
             self.chat_store: BaseChatStore
             self.reinit_chat_store()

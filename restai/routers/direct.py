@@ -469,21 +469,16 @@ async def list_accessible_models(
         llms = [{"name": l.name} for l in db_wrapper.get_llms()]
         embeddings_list = [{"name": e.name, "dimension": e.dimension} for e in db_wrapper.get_embeddings()]
 
-        image_generators = []
-        audio_generators = []
-        if hasattr(request.app.state.brain, "get_generators"):
-            image_generators = [
-                g.__module__.split("restai.image.workers.")[1]
-                for g in request.app.state.brain.get_generators()
-            ]
-        if hasattr(request.app.state.brain, "get_audio_generators"):
-            audio_generators = [
-                g.__module__.split("restai.audio.workers.")[1]
-                for g in request.app.state.brain.get_audio_generators()
-            ]
+        # List the *configured* generators from the DB (local + remote provider
+        # rows), not the loaded local-worker FunctionTools — remote generators
+        # (OpenAI, Google, Deepgram, …) are served without a GPU, so they must
+        # show up on GPU-less deployments too.
+        from restai.image.dispatch import list_available_generators
+        from restai.audio.dispatch import list_available_stt_models
         return {
             "llms": llms, "embeddings": embeddings_list,
-            "image_generators": image_generators, "audio_generators": audio_generators,
+            "image_generators": list_available_generators(db_wrapper),
+            "audio_generators": list_available_stt_models(db_wrapper),
         }
 
     teams = db_wrapper.get_teams_for_user(user.id)
