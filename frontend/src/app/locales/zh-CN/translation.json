@@ -1190,7 +1190,19 @@
       "nameRequired": "名称为必填"
     },
     "newBreadcrumb": "新建 LLM",
-    "manualCrumb": "手动"
+    "manualCrumb": "手动",
+    "reassign": {
+      "title": "删除 \"{{name}}\"",
+      "description": "有 {{count}} 个项目正在使用此 LLM。请先选择一个替代 LLM 以便重新分配，然后再删除。",
+      "replacement": "替代 LLM",
+      "field_llm": "主 LLM",
+      "field_eval_llm": "评估 LLM",
+      "field_rerank_llm": "重排 LLM",
+      "noReplacement": "没有其他可用的 LLM——请先创建一个。",
+      "cancel": "取消",
+      "confirm": "重新分配并删除",
+      "done": "已删除 {{name}}，并将 {{count}} 个项目迁移到 {{target}}"
+    }
   },
   "embeddings": {
     "title": "Embedding",
@@ -1465,6 +1477,26 @@
       "localCannotDelete": "本地模型无法删除。请改为禁用。",
       "enabledToast": "{{name}} 已启用",
       "disabledToast": "{{name}} 已禁用"
+    },
+    "import": {
+      "button": "从 OpenAI 兼容端点导入",
+      "title": "从 OpenAI 兼容端点导入",
+      "intro": "输入端点的基础 URL 和 API 密钥，发现可用模型，然后选择要导入为生成器的模型。",
+      "baseUrl": "基础 URL",
+      "baseUrlHelp": "例如 https://api.openai.com/v1 或您自托管的端点",
+      "apiKey": "API 密钥",
+      "discover": "发现",
+      "discovering": "正在发现…",
+      "discoverFailed": "无法连接到端点",
+      "modelsFound": "找到 {{count}} 个模型",
+      "selectAll": "全选",
+      "prefix": "名称前缀（可选）",
+      "prefixHelp": "添加到每个生成器名称前以避免冲突",
+      "noModels": "此端点未返回任何模型。",
+      "importSelected": "导入所选（{{count}}）",
+      "importing": "正在导入…",
+      "done": "已导入 {{imported}} 个，跳过 {{skipped}} 个",
+      "importedDesc": "从 {{url}} 导入"
     }
   },
   "tools": {

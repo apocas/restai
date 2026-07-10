@@ -21,6 +21,7 @@ import logging
 from restai.models.models import InteractionModel
 import base64
 from restai.tools import log_inference
+from restai.limits.accounting import attach_cost
 from restai.config import LOG_LEVEL
 import json
 
@@ -406,17 +407,14 @@ async def _drain_generator_into_session(
         try:
             async for chunk in generator:
                 if isinstance(chunk, dict):
+                    attach_cost(chunk, project, db_local)
                     final_output = chunk
                     await resume_session.append("data: " + json.dumps(chunk) + "\n")
                     continue
-                if isinstance(chunk, str) and chunk.startswith("data: "):
-                    try:
-                        data = json.loads(chunk.replace("data: ", ""))
-                        if "answer" in data and "type" in data:
-                            final_output = data
-                    except Exception:
-                        pass
-                await resume_session.append(chunk)
+                new_chunk, parsed = _enrich_final_frame(chunk, project, db_local)
+                if parsed is not None:
+                    final_output = parsed
+                await resume_session.append(new_chunk)
             completed = True
         except Exception as e:
             logging.exception("Streaming inference failed: %s", e)
@@ -430,6 +428,7 @@ async def _drain_generator_into_session(
                 "image": image,
                 "attachments": attachments or [],
             }
+            attach_cost(err_output, project, db_local)
             final_output = err_output
             try:
                 await resume_session.append("data: " + json.dumps({"text": err_output["answer"]}) + "\n\n")
@@ -470,6 +469,23 @@ async def _drain_generator_into_session(
             db_local.close()
         except Exception:
             pass
+
+
+def _enrich_final_frame(chunk, project: Project, db: DBWrapper):
+    """If `chunk` is a `data: {json}\\n` SSE frame carrying a final output dict
+    (has 'answer' + 'type'), attach cost and return `(new_frame, parsed_dict)`.
+    Otherwise return `(chunk, None)` unchanged. Text-delta frames (no answer/type)
+    pass through untouched."""
+    if not (isinstance(chunk, str) and chunk.startswith("data: ")):
+        return chunk, None
+    try:
+        data = json.loads(chunk[len("data: "):].rstrip("\n"))
+    except Exception:
+        return chunk, None
+    if not (isinstance(data, dict) and "answer" in data and "type" in data):
+        return chunk, None
+    attach_cost(data, project, db)
+    return "data: " + json.dumps(data) + "\n", data
 
 
 async def create_streaming_response_with_logging(
@@ -532,17 +548,14 @@ async def create_streaming_response_with_logging(
             try:
                 async for chunk in generator:
                     if isinstance(chunk, dict):
+                        attach_cost(chunk, project, db)
                         final_output = chunk
                         yield "data: " + json.dumps(chunk) + "\n"
                         continue
-                    if isinstance(chunk, str) and chunk.startswith("data: "):
-                        try:
-                            data = json.loads(chunk.replace("data: ", ""))
-                            if "answer" in data and "type" in data:
-                                final_output = data
-                        except Exception:
-                            pass
-                    yield chunk
+                    new_chunk, parsed = _enrich_final_frame(chunk, project, db)
+                    if parsed is not None:
+                        final_output = parsed
+                    yield new_chunk
                 completed = True
             except Exception as e:
                 logging.exception("Streaming inference failed: %s", e)
@@ -556,6 +569,7 @@ async def create_streaming_response_with_logging(
                     "image": image,
                     "attachments": attachments or [],
                 }
+                attach_cost(err_output, project, db)
                 final_output = err_output
                 try:
                     yield "data: " + json.dumps({"text": err_output["answer"]}) + "\n\n"
@@ -732,6 +746,7 @@ async def chat_main(
                 ):
                     from restai.tools import log_retrieval_events
                     background_tasks.add_task(log_retrieval_events, project, line["sources"], db)
+                attach_cost(line, project, db)
                 return line
             return None
     except HTTPException as e:

@@ -367,6 +367,12 @@ async def run_search(brain, db_wrapper, user, query_text: str) -> dict:
         logger.exception("System LLM failed during search translation")
         raise ValueError(f"System LLM call failed: {e}")
 
+    try:
+        from restai.limits.accounting import log_platform_usage
+        log_platform_usage(db_wrapper, "smart_search", system_llm, prompt, text, user_id=getattr(user, "id", None))
+    except Exception:
+        pass
+
     parsed = parse_llm_response(text)
     if parsed is None:
         raise ValueError("System LLM returned invalid JSON")

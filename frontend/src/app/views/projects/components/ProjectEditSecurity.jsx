@@ -8,6 +8,9 @@ export default function ProjectEditSecurity({ state, setState, handleChange, pro
   const { t } = useTranslation();
   const errorFor = makeErrorFor(fieldErrors, state);
   const projId = project?.id ?? state?.id ?? 0;
+  // Guard pickers store the guard project's id (stable across renames); a
+  // project can't guard itself.
+  const guardOptions = (projects || []).filter((p) => p.id !== projId);
   return (
     <ContentCard
       icon={<Shield />}
@@ -17,10 +20,12 @@ export default function ProjectEditSecurity({ state, setState, handleChange, pro
     <Grid container spacing={3}>
       <Grid item sm={6} xs={12}>
         <Autocomplete
-          options={projects.filter((p) => p.name !== (state.name || '')).map((p) => p.name)}
-          value={state.guard || null}
+          options={guardOptions}
+          getOptionLabel={(p) => p.human_name || p.name}
+          isOptionEqualToValue={(o, v) => String(o.id) === String(v?.id ?? v)}
+          value={guardOptions.find((p) => String(p.id) === String(state.guard)) || null}
           onChange={(event, newValue) => {
-            setState({ ...state, guard: newValue || "" });
+            setState({ ...state, guard: newValue ? String(newValue.id) : "" });
           }}
           renderInput={(params) => (
             <TextField
@@ -37,10 +42,12 @@ export default function ProjectEditSecurity({ state, setState, handleChange, pro
 
       <Grid item sm={6} xs={12}>
         <Autocomplete
-          options={projects.filter((p) => p.name !== (state.name || '')).map((p) => p.name)}
-          value={state.options?.guard_output || null}
+          options={guardOptions}
+          getOptionLabel={(p) => p.human_name || p.name}
+          isOptionEqualToValue={(o, v) => String(o.id) === String(v?.id ?? v)}
+          value={guardOptions.find((p) => String(p.id) === String(state.options?.guard_output)) || null}
           onChange={(event, newValue) => {
-            setState({ ...state, options: { ...state.options, guard_output: newValue || null } });
+            setState({ ...state, options: { ...state.options, guard_output: newValue ? String(newValue.id) : null } });
           }}
           renderInput={(params) => (
             <TextField

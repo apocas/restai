@@ -63,6 +63,12 @@ async def generate_system_prompt(
         logger.exception("System LLM failed during system prompt generation")
         raise ValueError(f"System LLM call failed: {e}")
 
+    try:
+        from restai.limits.accounting import log_platform_usage
+        log_platform_usage(db, "prompt_gen", system_llm, prompt, text)
+    except Exception:
+        pass
+
     text = text.strip()
     if len(text) >= 2 and text[0] in ('"', "'") and text[-1] == text[0]:
         text = text[1:-1].strip()

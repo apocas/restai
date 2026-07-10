@@ -1,20 +1,19 @@
 import { styled } from "@mui/material";
-import { Speaker } from "@mui/icons-material";
+import { GraphicEq } from "@mui/icons-material";
 import PageHero from "app/components/page/PageHero";
 import AudioChatContainer from "./components/AudioChatContainer";
 import useAuth from "app/hooks/useAuth";
 import { useState, useEffect } from "react";
+import { topBarHeight } from "app/utils/constant";
 import api from "app/utils/api";
 
 const Container = styled("div")(({ theme }) => ({
-  margin: 10,
-  [theme.breakpoints.down("sm")]: { margin: 16 },
-  "& .breadcrumb": { marginBottom: 30, [theme.breakpoints.down("sm")]: { marginBottom: 16 } }
-}));
-
-const ContentBox = styled("div")(({ theme }) => ({
-  margin: "30px",
-  [theme.breakpoints.down("sm")]: { margin: "16px" }
+  margin: "16px 32px",
+  display: "flex",
+  flexDirection: "column",
+  height: `calc(100vh - ${topBarHeight + 44}px)`,
+  [theme.breakpoints.down("md")]: { margin: "16px 24px" },
+  [theme.breakpoints.down("sm")]: { margin: 12, height: `calc(100vh - ${topBarHeight + 24}px)` },
 }));
 
 export default function Audio() {
@@ -31,19 +30,19 @@ export default function Audio() {
   return (
     <Container>
       <PageHero
-        icon={<Speaker sx={{ color: "#fff" }} />}
-        eyebrow="PLAYGROUND"
-        title="Audio Playground"
-        subtitle="Transcribe and generate audio."
+        icon={<GraphicEq sx={{ color: "#fff" }} />}
+        eyebrow="PLAYGROUND · AUDIO"
+        title="Audio Transcription"
+        subtitle="Record or upload a clip and read it back as text, with the full engine response one click away."
+        showStatusDot
+        statusLabel="GPU surface"
         stats={[
-          { glyph: "◆", color: "#93c5fd", label: `${generators.length} engine${generators.length === 1 ? "" : "s"}` },
+          { glyph: "◆", color: "#fcd34d", label: `${generators.length} engine${generators.length === 1 ? "" : "s"}` },
         ]}
         compact
+        sx={{ mb: 2, flex: "0 0 auto" }}
       />
-
-      <ContentBox>
-        <AudioChatContainer generators={generators} />
-      </ContentBox>
+      <AudioChatContainer generators={generators} />
     </Container>
   );
 }

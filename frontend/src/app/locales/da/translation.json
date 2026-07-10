@@ -1191,7 +1191,19 @@
       "nameRequired": "Navn er påkrævet"
     },
     "newBreadcrumb": "Ny LLM",
-    "manualCrumb": "Manuel"
+    "manualCrumb": "Manuel",
+    "reassign": {
+      "title": "Slet \"{{name}}\"",
+      "description": "{{count}} projekt(er) bruger denne LLM. Vælg en erstatning at tildele dem, før den fjernes.",
+      "replacement": "Erstatnings-LLM",
+      "field_llm": "primær LLM",
+      "field_eval_llm": "eval-LLM",
+      "field_rerank_llm": "rerank-LLM",
+      "noReplacement": "Ingen anden LLM tilgængelig — opret en anden først.",
+      "cancel": "Annuller",
+      "confirm": "Omtildel og slet",
+      "done": "{{name}} slettet og {{count}} projekt(er) flyttet til {{target}}"
+    }
   },
   "embeddings": {
     "title": "Embeddings",
@@ -1466,6 +1478,26 @@
       "localCannotDelete": "Lokale modeller kan ikke slettes. Deaktivér i stedet.",
       "enabledToast": "{{name}} aktiveret",
       "disabledToast": "{{name}} deaktiveret"
+    },
+    "import": {
+      "button": "Importér fra OpenAI-endpoint",
+      "title": "Importér fra OpenAI-kompatibelt endpoint",
+      "intro": "Angiv endpointets basis-URL og API-nøgle, find de tilgængelige modeller, og vælg hvilke der skal importeres som generatorer.",
+      "baseUrl": "Basis-URL",
+      "baseUrlHelp": "f.eks. https://api.openai.com/v1 eller dit selv-hostede endpoint",
+      "apiKey": "API-nøgle",
+      "discover": "Find",
+      "discovering": "Finder…",
+      "discoverFailed": "Kunne ikke nå endpointet",
+      "modelsFound": "{{count}} modeller fundet",
+      "selectAll": "Vælg alle",
+      "prefix": "Navnepræfiks (valgfrit)",
+      "prefixHelp": "Sættes foran hvert generatornavn for at undgå sammenstød",
+      "noModels": "Dette endpoint returnerede ingen modeller.",
+      "importSelected": "Importér valgte ({{count}})",
+      "importing": "Importerer…",
+      "done": "Importeret {{imported}}, sprunget over {{skipped}}",
+      "importedDesc": "Importeret fra {{url}}"
     }
   },
   "tools": {

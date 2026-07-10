@@ -76,6 +76,15 @@ async def search_knowledge(query: str, **kwargs) -> str:
         if not result:
             return f"No results found in '{target_name}' for: {query}"
 
+        # Account this nested RAG inference against the target knowledge project
+        # (it bypasses chat_main, so it would otherwise be off the books).
+        try:
+            from restai.tools import log_inference
+            result.setdefault("question", query)
+            log_inference(proj, user, result, db)
+        except Exception:
+            pass
+
         answer = (result.get("answer") or "").strip()
         sources = result.get("sources") or []
 

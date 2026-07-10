@@ -84,10 +84,10 @@ export default function ProjectInfoGeneral({ project, info, health, mcpTools, mc
               <Chip icon={<Groups />} label={project.team.name} size="small" variant="outlined" />
             )}
             {project.guard && (
-              <Chip icon={<Shield />} label={`Guard: ${project.guard}`} size="small" variant="outlined" color="warning" />
+              <Chip icon={<Shield />} label={`Guard: ${project.guard_name || project.guard}`} size="small" variant="outlined" color="warning" />
             )}
             {project.options?.guard_output && (
-              <Chip icon={<Shield />} label={`Output Guard: ${project.options.guard_output}`} size="small" variant="outlined" color="warning" />
+              <Chip icon={<Shield />} label={`Output Guard: ${project.guard_output_name || project.options.guard_output}`} size="small" variant="outlined" color="warning" />
             )}
             {project.options?.rate_limit && (
               <Chip icon={<Speed />} label={`${project.options.rate_limit} req/min`} size="small" variant="outlined" />

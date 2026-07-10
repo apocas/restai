@@ -1191,7 +1191,19 @@
       "nameRequired": "Naam is vereist"
     },
     "newBreadcrumb": "Nieuwe LLM",
-    "manualCrumb": "Handmatig"
+    "manualCrumb": "Handmatig",
+    "reassign": {
+      "title": "\"{{name}}\" verwijderen",
+      "description": "{{count}} project(en) gebruiken dit LLM. Kies een vervanger om ze aan toe te wijzen voordat het wordt verwijderd.",
+      "replacement": "Vervangend LLM",
+      "field_llm": "hoofd-LLM",
+      "field_eval_llm": "eval-LLM",
+      "field_rerank_llm": "rerank-LLM",
+      "noReplacement": "Geen ander LLM beschikbaar — maak eerst een ander aan.",
+      "cancel": "Annuleren",
+      "confirm": "Opnieuw toewijzen en verwijderen",
+      "done": "{{name}} verwijderd en {{count}} project(en) verplaatst naar {{target}}"
+    }
   },
   "embeddings": {
     "title": "Embeddings",
@@ -1466,6 +1478,26 @@
       "localCannotDelete": "Lokale modellen kunnen niet worden verwijderd. Schakel ze in plaats daarvan uit.",
       "enabledToast": "{{name}} ingeschakeld",
       "disabledToast": "{{name}} uitgeschakeld"
+    },
+    "import": {
+      "button": "Importeren van OpenAI-endpoint",
+      "title": "Importeren vanaf OpenAI-compatibel eindpunt",
+      "intro": "Voer de basis-URL en API-sleutel van het eindpunt in, ontdek de beschikbare modellen en kies welke als generatoren geïmporteerd worden.",
+      "baseUrl": "Basis-URL",
+      "baseUrlHelp": "bijv. https://api.openai.com/v1 of je zelf-gehoste eindpunt",
+      "apiKey": "API-sleutel",
+      "discover": "Ontdekken",
+      "discovering": "Ontdekken…",
+      "discoverFailed": "Kan het eindpunt niet bereiken",
+      "modelsFound": "{{count}} modellen gevonden",
+      "selectAll": "Alles selecteren",
+      "prefix": "Naamvoorvoegsel (optioneel)",
+      "prefixHelp": "Wordt voor elke generatornaam geplaatst om botsingen te voorkomen",
+      "noModels": "Dit eindpunt gaf geen modellen terug.",
+      "importSelected": "Geselecteerde importeren ({{count}})",
+      "importing": "Importeren…",
+      "done": "{{imported}} geïmporteerd, {{skipped}} overgeslagen",
+      "importedDesc": "Geïmporteerd van {{url}}"
     }
   },
   "tools": {

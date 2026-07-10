@@ -219,6 +219,59 @@ class LLMEmbeddingMixin:
         self.db.commit()
         return True
 
+    def get_llm_usage(self, llm_name: str) -> List[dict]:
+        """Projects that reference `llm_name` — as their main LLM (`llm` column)
+        or via the `eval_llm` / `rerank_llm` option overrides. Returns
+        `[{id, name, human_name, fields:[...]}]`. (The `guard` column is a guard
+        *project* name, not an LLM, so it is deliberately excluded.)"""
+        usage: List[dict] = []
+        for p in self.db.query(ProjectDatabase).all():
+            fields = []
+            if p.llm == llm_name:
+                fields.append("llm")
+            try:
+                opts = json.loads(p.options) if p.options else {}
+            except Exception:
+                opts = {}
+            for key in ("eval_llm", "rerank_llm"):
+                if opts.get(key) == llm_name:
+                    fields.append(key)
+            if fields:
+                usage.append({
+                    "id": p.id, "name": p.name,
+                    "human_name": p.human_name, "fields": fields,
+                })
+        return usage
+
+    def reassign_llm(self, old_name: str, new_name: str) -> int:
+        """Point every project reference from `old_name` to `new_name` (main `llm`
+        column + `eval_llm` / `rerank_llm` overrides). Returns the number of
+        projects changed. Only the matched keys are rewritten, so encrypted option
+        values are preserved verbatim."""
+        changed = 0
+        for p in self.db.query(ProjectDatabase).all():
+            touched = False
+            if p.llm == old_name:
+                p.llm = new_name
+                touched = True
+            try:
+                opts = json.loads(p.options) if p.options else {}
+            except Exception:
+                opts = {}
+            opts_changed = False
+            for key in ("eval_llm", "rerank_llm"):
+                if opts.get(key) == old_name:
+                    opts[key] = new_name
+                    opts_changed = True
+            if opts_changed:
+                p.options = json.dumps(opts)
+                touched = True
+            if touched:
+                changed += 1
+        if changed:
+            self.db.commit()
+        return changed
+
     def delete_llm(self, llm: LLMDatabase) -> bool:
         self.db.delete(llm)
         self.db.commit()

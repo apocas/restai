@@ -1191,7 +1191,19 @@
       "nameRequired": "Le nom est requis"
     },
     "newBreadcrumb": "Nouveau LLM",
-    "manualCrumb": "Manuel"
+    "manualCrumb": "Manuel",
+    "reassign": {
+      "title": "Supprimer « {{name}} »",
+      "description": "{{count}} projet(s) utilisent ce LLM. Choisissez un remplaçant pour les réaffecter avant la suppression.",
+      "replacement": "LLM de remplacement",
+      "field_llm": "LLM principal",
+      "field_eval_llm": "LLM d'évaluation",
+      "field_rerank_llm": "LLM de reclassement",
+      "noReplacement": "Aucun autre LLM disponible — créez-en un d'abord.",
+      "cancel": "Annuler",
+      "confirm": "Réaffecter et supprimer",
+      "done": "{{name}} supprimé et {{count}} projet(s) déplacés vers {{target}}"
+    }
   },
   "embeddings": {
     "title": "Embeddings",
@@ -1466,6 +1478,26 @@
       "localCannotDelete": "Les modèles locaux ne peuvent pas être supprimés. Désactivez-les plutôt.",
       "enabledToast": "{{name}} activé",
       "disabledToast": "{{name}} désactivé"
+    },
+    "import": {
+      "button": "Importer depuis un endpoint OpenAI",
+      "title": "Importer depuis un endpoint compatible OpenAI",
+      "intro": "Saisissez l'URL de base et la clé d'API de l'endpoint, découvrez les modèles disponibles, puis choisissez ceux à importer comme générateurs.",
+      "baseUrl": "URL de base",
+      "baseUrlHelp": "p. ex. https://api.openai.com/v1 ou votre endpoint auto-hébergé",
+      "apiKey": "Clé d'API",
+      "discover": "Découvrir",
+      "discovering": "Découverte…",
+      "discoverFailed": "Impossible de joindre l'endpoint",
+      "modelsFound": "{{count}} modèles trouvés",
+      "selectAll": "Tout sélectionner",
+      "prefix": "Préfixe de nom (facultatif)",
+      "prefixHelp": "Ajouté devant chaque nom de générateur pour éviter les collisions",
+      "noModels": "Aucun modèle renvoyé par cet endpoint.",
+      "importSelected": "Importer la sélection ({{count}})",
+      "importing": "Importation…",
+      "done": "Importés {{imported}}, ignorés {{skipped}}",
+      "importedDesc": "Importé depuis {{url}}"
     }
   },
   "tools": {

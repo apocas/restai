@@ -25,7 +25,7 @@ const HelpTip = ({ text }) => (
   </Tooltip>
 );
 
-export default function ProjectEditKnowledge({ state, setState, handleChange, project, auth, fieldErrors = {}, clearFieldError = () => {} }) {
+export default function ProjectEditKnowledge({ state, setState, handleChange, project, auth, info = { llms: [] }, fieldErrors = {}, clearFieldError = () => {} }) {
   // All hooks must be called unconditionally (rules-of-hooks). Early
   // returns for non-RAG happen AFTER this block.
   const { t } = useTranslation();
@@ -192,6 +192,30 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
           }
         />
       </Grid>
+      {(state.options?.llm_rerank ?? false) && (
+        <Grid item sm={6} xs={12}>
+          <TextField
+            fullWidth select size="small"
+            label="Rerank LLM"
+            value={state.options?.rerank_llm ?? ""}
+            onChange={(e) => setState({ ...state, options: { ...state.options, rerank_llm: e.target.value } })}
+            helperText="LLM used for reranking. Default = the project's own LLM."
+            InputLabelProps={{ shrink: true }}
+            SelectProps={{ displayEmpty: true }}
+          >
+            <MenuItem value=""><em>Project default</em></MenuItem>
+            {(info?.llms || [])
+              .filter((l) => {
+                if (!state.team) return true;
+                const teamLlms = (state.team.llms || []).map((x) => (typeof x === "string" ? x : x.name));
+                return teamLlms.includes(l.name);
+              })
+              .map((item) => (
+                <MenuItem value={item.name} key={item.name}>{item.name}</MenuItem>
+              ))}
+          </TextField>
+        </Grid>
+      )}
       <Grid item sm={12} xs={12}>
         <Divider sx={{ mb: 1 }} />
       </Grid>

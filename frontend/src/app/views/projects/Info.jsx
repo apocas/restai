@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { styled } from "@mui/material";
+import { Box, CircularProgress, Typography, styled } from "@mui/material";
 import useAuth from "app/hooks/useAuth";
 import ProjectDetails from "./components/ProjectDetails";
 import { useParams } from "react-router-dom";
@@ -15,6 +15,7 @@ export default function ProjectInfo() {
   const { id } = useParams();
   const [projects, setProjects] = useState([]);
   const [project, setProject] = useState({});
+  const [loading, setLoading] = useState(true);
   const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const auth = useAuth();
 
@@ -24,7 +25,9 @@ export default function ProjectInfo() {
       .then((d) => {
         setProject(d)
         return d
-      }).catch(() => {});
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }
 
   const fetchProjects = () => {
@@ -43,6 +46,7 @@ export default function ProjectInfo() {
 
   useEffect(() => {
     document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + ' - Project - ' + id;
+    setLoading(true);
     fetchProject(id);
   }, [id]);
 
@@ -53,7 +57,15 @@ export default function ProjectInfo() {
 
   return (
     <Container>
-      <ProjectDetails project={project} projects={projects} info={info} />
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", p: 6 }}>
+          <CircularProgress />
+        </Box>
+      ) : project && project.id ? (
+        <ProjectDetails project={project} projects={projects} info={info} />
+      ) : (
+        <Typography sx={{ p: 4 }} color="text.secondary">Project not found.</Typography>
+      )}
     </Container>
   );
 }

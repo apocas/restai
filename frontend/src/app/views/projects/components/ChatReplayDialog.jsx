@@ -66,6 +66,11 @@ function turnToMessage(turn) {
     id: turn.chat_id,
     latency_ms: turn.latency_ms,
     tokens: { input: turn.input_tokens || 0, output: turn.output_tokens || 0 },
+    cost: {
+      input: turn.input_cost || 0,
+      output: turn.output_cost || 0,
+      total: (turn.input_cost || 0) + (turn.output_cost || 0),
+    },
     sources,
     reasoning,
     _files,

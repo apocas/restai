@@ -56,7 +56,7 @@ export default function ProjectInfoSecurity({ project }) {
           <Grid container spacing={2}>
             <DetailItem label="Input Guard">
               {project.guard ? (
-                <Chip label={project.guard} size="small" color="warning" variant="outlined" />
+                <Chip label={project.guard_name || project.guard} size="small" color="warning" variant="outlined" />
               ) : (
                 <Typography variant="body2" color="text.secondary">
                   Disabled
@@ -66,7 +66,7 @@ export default function ProjectInfoSecurity({ project }) {
             <DetailItem label="Output Guard">
               {project.options?.guard_output ? (
                 <Chip
-                  label={project.options.guard_output}
+                  label={project.guard_output_name || project.options.guard_output}
                   size="small"
                   color="warning"
                   variant="outlined"

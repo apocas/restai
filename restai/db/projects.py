@@ -129,6 +129,14 @@ class ProjectMixin:
         except Exception as e:
             logging.debug("delete_project: skip output null-out (%s)", e)
 
+        # Guard references (guard column + guard_output option) store this
+        # project's id — null them out on other projects so no project is left
+        # pointing at a deleted guard.
+        try:
+            self.clear_guard_references(project_id)
+        except Exception as e:
+            logging.debug("delete_project: skip guard-ref clear (%s)", e)
+
         self.db.delete(project)
         self.db.commit()
         try:
@@ -137,6 +145,31 @@ class ProjectMixin:
         except Exception as e:
             logging.warning("delete_project: memory_search cleanup failed: %s", e)
         return True
+
+    def clear_guard_references(self, project_id: int) -> int:
+        """Null out `guard` / `guard_output` on any project that points at
+        `project_id` (guard references store the project id). Called when a guard
+        project is deleted — the moral equivalent of an FK `ON DELETE SET NULL`,
+        done app-side because `guard_output` lives in the options JSON blob.
+        Returns the number of projects changed. Does NOT commit."""
+        pid = str(project_id)
+        changed = 0
+        for p in self.db.query(ProjectDatabase).all():
+            touched = False
+            if p.guard is not None and str(p.guard) == pid:
+                p.guard = None
+                touched = True
+            try:
+                opts = json.loads(p.options) if p.options else {}
+            except Exception:
+                opts = {}
+            if opts.get("guard_output") is not None and str(opts.get("guard_output")) == pid:
+                opts["guard_output"] = None
+                p.options = json.dumps(opts)
+                touched = True
+            if touched:
+                changed += 1
+        return changed
 
     def edit_project(self, id: int, projectModel: ProjectModelUpdate) -> bool:
         proj_db: Optional[ProjectDatabase] = self.get_project_by_id(id)
@@ -290,6 +323,16 @@ class ProjectMixin:
                 raise HTTPException(
                     status_code=400,
                     detail=f"No access to eval LLM '{projectModel.options.eval_llm}'",
+                )
+
+        # rerank_llm (LLM used for RAG reranking) follows the same team-scoped rule.
+        if projectModel.options is not None and getattr(projectModel.options, "rerank_llm", None):
+            rerank_llm_db = self.get_llm_by_name(projectModel.options.rerank_llm)
+            if rerank_llm_db is None or not any(rerank_llm_db in team.llms for team in teams_with_project):
+                from fastapi import HTTPException
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"No access to rerank LLM '{projectModel.options.rerank_llm}'",
                 )
 
         if hasattr(projectModel, "options") and projectModel.options is not None:

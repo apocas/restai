@@ -10,7 +10,6 @@ import Layout1Topbar from "./Layout1Topbar";
 import Layout1Sidenav from "./Layout1Sidenav";
 
 import Footer from "app/components/Footer";
-import QuickActionFab from "app/components/QuickActionFab";
 import { MatxSuspense } from "app/components";
 import SidenavTheme from "app/components/MatxTheme/SidenavTheme/SidenavTheme";
 
@@ -187,8 +186,6 @@ const Layout1 = () => {
 
         {settings.footer.show && settings.footer.fixed && <Footer />}
       </LayoutContainer>
-
-      <QuickActionFab />
     </Layout1Root>
   );
 };

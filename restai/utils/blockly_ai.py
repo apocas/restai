@@ -239,6 +239,12 @@ async def generate_workspace_from_description(
         logger.exception("System LLM failed during workspace generation")
         raise ValueError(f"System LLM call failed: {e}")
 
+    try:
+        from restai.limits.accounting import log_platform_usage
+        log_platform_usage(db, "blockly_gen", system_llm, prompt, text)
+    except Exception:
+        pass
+
     workspace = parse_workspace_json(text)
     if workspace is None:
         raise ValueError("System LLM returned invalid workspace JSON")

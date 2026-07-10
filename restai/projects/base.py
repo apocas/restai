@@ -6,6 +6,23 @@ from fastapi import HTTPException
 from restai.project import Project
 
 
+def _account_guard(guard, user: User, text: str, result, db: DBWrapper) -> None:
+    """Log the guard LLM call as an accounted OutputDatabase row against the guard
+    project (its own team/LLM pricing). Best-effort — never breaks the turn."""
+    if getattr(guard, "project", None) is None:
+        return
+    try:
+        from restai.tools import log_inference
+        log_inference(guard.project, user, {
+            "question": text,
+            "answer": result.raw_response,
+            "tokens": {"input": result.input_tokens, "output": result.output_tokens},
+            "status": "guard",
+        }, db)
+    except Exception:
+        pass
+
+
 class ProjectBase(ABC):
     def __init__(self, brain: Brain):
         self.brain: Brain = brain
@@ -27,12 +44,15 @@ class ProjectBase(ABC):
         if not result:
             return False
 
+        _account_guard(guard, user, question_text, result, db)
+
         guard_mode = project.props.options.guard_mode or "block"
         action = "block" if result.blocked else "pass"
         if result.blocked and guard_mode == "warn":
             action = "warn"
 
-        log_guard_event(project, project.props.guard, user, "input", action, guard_mode, question_text, result.raw_response, db)
+        guard_label = guard.project.props.name if guard.project else str(project.props.guard)
+        log_guard_event(project, guard_label, user, "input", action, guard_mode, question_text, result.raw_response, db)
 
         if result.blocked and guard_mode == "block":
             output["answer"] = project.props.censorship or self.brain.defaultCensorship
@@ -60,12 +80,15 @@ class ProjectBase(ABC):
         if not out_result:
             return
 
+        _account_guard(out_guard, user, output["answer"], out_result, db)
+
         guard_mode = project.props.options.guard_mode or "block"
         action = "block" if out_result.blocked else "pass"
         if out_result.blocked and guard_mode == "warn":
             action = "warn"
+        guard_label = out_guard.project.props.name if out_guard.project else str(guard_name)
         log_guard_event(
-            project, guard_name, user, "output", action, guard_mode,
+            project, guard_label, user, "output", action, guard_mode,
             output["answer"], out_result.raw_response, db,
         )
 

@@ -469,6 +469,18 @@ async def kg_query(
         logging.exception(e)
         raise HTTPException(status_code=500, detail="LLM call failed")
 
+    # Account the KG-query LLM call (it bypasses chat_main).
+    try:
+        from restai.tools import log_inference
+        from restai.limits.accounting import count_usage
+        in_tok, out_tok = count_usage(resp, prompt, answer)
+        log_inference(project, user, {
+            "question": question, "answer": answer,
+            "tokens": {"input": in_tok, "output": out_tok}, "status": "success",
+        }, db_wrapper)
+    except Exception:
+        logging.exception("kg_query accounting failed")
+
     return {
         "answer": answer,
         "entities_matched": [e.name for e in matched_entities],

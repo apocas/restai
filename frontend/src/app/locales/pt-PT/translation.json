@@ -1191,7 +1191,19 @@
       "nameRequired": "O nome é obrigatório"
     },
     "newBreadcrumb": "Novo LLM",
-    "manualCrumb": "Manual"
+    "manualCrumb": "Manual",
+    "reassign": {
+      "title": "Eliminar \"{{name}}\"",
+      "description": "{{count}} projeto(s) usam este LLM. Escolha um substituto para onde os reatribuir antes de o remover.",
+      "replacement": "LLM substituto",
+      "field_llm": "LLM principal",
+      "field_eval_llm": "LLM de avaliação",
+      "field_rerank_llm": "LLM de reordenação",
+      "noReplacement": "Não há outro LLM disponível — crie outro primeiro.",
+      "cancel": "Cancelar",
+      "confirm": "Reatribuir e eliminar",
+      "done": "{{name}} eliminado e {{count}} projeto(s) movido(s) para {{target}}"
+    }
   },
   "embeddings": {
     "title": "Embeddings",
@@ -1466,6 +1478,26 @@
       "localCannotDelete": "Modelos locais não podem ser eliminados. Desative em vez disso.",
       "enabledToast": "{{name}} ativado",
       "disabledToast": "{{name}} desativado"
+    },
+    "import": {
+      "button": "Importar de endpoint OpenAI",
+      "title": "Importar de endpoint compatível com OpenAI",
+      "intro": "Introduza o URL base e a chave de API do endpoint, descubra os modelos disponíveis e escolha quais importar como geradores.",
+      "baseUrl": "URL base",
+      "baseUrlHelp": "ex.: https://api.openai.com/v1 ou o seu endpoint auto-hospedado",
+      "apiKey": "Chave de API",
+      "discover": "Descobrir",
+      "discovering": "A descobrir…",
+      "discoverFailed": "Falha ao contactar o endpoint",
+      "modelsFound": "{{count}} modelos encontrados",
+      "selectAll": "Selecionar todos",
+      "prefix": "Prefixo do nome (opcional)",
+      "prefixHelp": "Adicionado a cada nome de gerador para evitar colisões",
+      "noModels": "Este endpoint não devolveu modelos.",
+      "importSelected": "Importar selecionados ({{count}})",
+      "importing": "A importar…",
+      "done": "Importados {{imported}}, ignorados {{skipped}}",
+      "importedDesc": "Importado de {{url}}"
     }
   },
   "tools": {

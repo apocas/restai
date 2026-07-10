@@ -19,30 +19,39 @@ ALLOW_KEYWORDS = {"GOOD", "OK", "YES", "TRUE", "ALLOW", "PASS", "SAFE", "APPROVE
 class GuardResult:
     blocked: bool
     raw_response: str
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 class Guard:
-    def __init__(self, projectName: str, brain: Brain, db: DBWrapper):
+    def __init__(self, guard_ref, brain: Brain, db: DBWrapper):
         self.brain: Brain = brain
         self.db: DBWrapper = db
-        self.guard_project_name = projectName
+        # Guard references store the project id. Resolve by id; fall back to name
+        # for any legacy value that wasn't a numeric id (belt-and-suspenders).
+        self.guard_ref = guard_ref
         self.project: Optional[Project] = None
 
         try:
-            project_db = db.get_project_by_name(projectName)
+            ref = str(guard_ref).strip()
+            project_db = None
+            if ref.isdigit():
+                project_db = db.get_project_by_id(int(ref))
+            if project_db is None:
+                project_db = db.get_project_by_name(ref)
             if project_db:
                 self.project = brain.find_project(project_db.id, db)
         except Exception as e:
-            logger.warning("Failed to load guard project '%s': %s", projectName, e)
+            logger.warning("Failed to load guard project '%s': %s", guard_ref, e)
 
     def verify(self, text: str, phase: str = "input") -> Optional[GuardResult]:
         if self.project is None:
-            logger.warning("Guard project '%s' not found, skipping", self.guard_project_name)
+            logger.warning("Guard project '%s' not found, skipping", self.guard_ref)
             return None
 
         model: Optional[LLM] = self.brain.get_llm(self.project.props.llm, self.db)
         if model is None:
-            logger.warning("Guard project '%s' has no valid LLM, skipping", self.guard_project_name)
+            logger.warning("Guard project '%s' has no valid LLM, skipping", self.guard_ref)
             return None
 
         sysTemplate: Optional[str] = self.project.props.system
@@ -66,8 +75,11 @@ class Guard:
             logger.exception("Guard LLM call failed: %s", e)
             return GuardResult(blocked=True, raw_response=f"Error: {e}")
 
+        from restai.limits.accounting import count_usage
+        in_tok, out_tok = count_usage(resp, (sysTemplate or "") + "\n" + prompt, answer)
+
         blocked = self._parse_response(answer)
-        return GuardResult(blocked=blocked, raw_response=answer)
+        return GuardResult(blocked=blocked, raw_response=answer, input_tokens=in_tok, output_tokens=out_tok)
 
     @staticmethod
     def _parse_response(answer: str) -> bool:

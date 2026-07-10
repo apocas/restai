@@ -132,6 +132,7 @@ export default function ProjectEdit({ project, projects, info }) {
 
     if (project.type === "rag") {
       opts.options.llm_rerank = state.options.llm_rerank;
+      opts.options.rerank_llm = state.options.rerank_llm || null;
       opts.options.score = parseFloat(state.options.score) || 0.0;
       opts.options.k = parseInt(state.options.k) || 4;
       opts.options.connection = state.options.connection || null;
@@ -323,7 +324,7 @@ export default function ProjectEdit({ project, projects, info }) {
             {active === "Knowledge" && (
               <ProjectEditKnowledge
                 state={state} setState={setState} handleChange={handleChange}
-                project={project} auth={auth}
+                project={project} auth={auth} info={info}
                 fieldErrors={fieldErrors}
                 clearFieldError={(k) => setFieldErrors((prev) => {
                   if (!(k in prev)) return prev;

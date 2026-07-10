@@ -7,6 +7,7 @@ import { ContentCopy, ExpandMore, Shield, Speed, TerminalOutlined, CallSplit, At
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Terminal from "./Terminal";
+import { formatCost } from "app/utils/utils";
 
 // Pull `<think>...</think>` blocks out of a streaming or final answer
 // so we can render them in a separate dim panel (like `ollama run` does).
@@ -446,6 +447,15 @@ export default function MessageBubble({ message, onBranch }) {
                   size="small"
                   variant="outlined"
                 />
+              )}
+              {message.cost && message.cost.total > 0 && (
+                <Tooltip title={`Input ${formatCost(message.cost.input)} · Output ${formatCost(message.cost.output)}`}>
+                  <Chip
+                    label={formatCost(message.cost.total)}
+                    size="small"
+                    variant="outlined"
+                  />
+                </Tooltip>
               )}
               {message.latency_ms > 0 && (
                 <Chip

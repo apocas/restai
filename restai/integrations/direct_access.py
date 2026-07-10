@@ -137,6 +137,14 @@ def log_direct_usage(
     db.db.add(entry)
     db.db.commit()
 
+    # Count tokens against the API key's monthly quota (parity with the project
+    # chat path). No-op for cookie/basic auth or keys without a quota.
+    try:
+        from restai.limits.budget import record_api_key_tokens
+        record_api_key_tokens(api_key_id, (input_tokens or 0) + (output_tokens or 0), db)
+    except Exception:
+        pass
+
     # Decrement the team's prepaid wallet by this request's cost (no-op without a wallet).
     try:
         from restai.limits.budget import charge_team_balance

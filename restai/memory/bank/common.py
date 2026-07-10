@@ -54,7 +54,13 @@ def _system_llm_complete(brain: Any, db: Any, prompt: str) -> Optional[str]:
     try:
         result = llm.llm.complete(prompt)
         text = result.text if hasattr(result, "text") else str(result)
-        return (text or "").strip() or None
+        answer = (text or "").strip() or None
+        try:
+            from restai.limits.accounting import log_platform_usage
+            log_platform_usage(db, "memory_bank", llm, prompt, answer or "")
+        except Exception:
+            pass
+        return answer
     except Exception as e:
         logger.warning("memory_bank: System LLM completion failed: %s", e)
         return None

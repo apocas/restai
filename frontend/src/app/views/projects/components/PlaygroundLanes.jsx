@@ -12,6 +12,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Terminal from "./Terminal";
 import { FONT_MONO, pulse } from "app/components/page/pageStyles";
+import { formatCost } from "app/utils/utils";
 
 // Mirror of MessageBubble.splitThinking — keeps this file independent so
 // the message-bubble rendering layer can change without us tracking it.
@@ -578,6 +579,10 @@ function OutputLaneItem({ entry, accent, onBranch, onCopy, copied, isLast }) {
             <Chip label={`${entry.metadata.tokens.input + entry.metadata.tokens.output} tok`}
               size="small" variant="outlined" sx={{ height: 20, fontSize: "0.68rem" }} />
           )}
+          {entry.metadata.cost && entry.metadata.cost.total > 0 && (
+            <Chip label={formatCost(entry.metadata.cost.total)}
+              size="small" variant="outlined" sx={{ height: 20, fontSize: "0.68rem" }} />
+          )}
           {entry.metadata.latency_ms > 0 && (
             <Chip icon={<Speed />}
               label={entry.metadata.latency_ms > 1000 ? `${(entry.metadata.latency_ms / 1000).toFixed(1)}s` : `${entry.metadata.latency_ms}ms`}
@@ -685,7 +690,7 @@ function deriveLanes(messages, streamingText, streamingPlan, streamingToolCalls)
       stepSummaries: msg.step_summaries,
       meta: msg._meta || null,
       metadata: {
-        latency_ms: msg.latency_ms, tokens: msg.tokens,
+        latency_ms: msg.latency_ms, tokens: msg.tokens, cost: msg.cost,
         guard: msg.guard, id: msg.id,
       },
     });

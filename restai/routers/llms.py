@@ -3,11 +3,11 @@ from typing import Optional
 
 from fastapi import APIRouter
 from fastapi import Depends
-from fastapi import HTTPException, Path, Request
+from fastapi import HTTPException, Path, Query, Request
 import traceback
 import logging
 from restai import config
-from restai.models.databasemodels import LLMDatabase, ProjectDatabase
+from restai.models.databasemodels import LLMDatabase
 from restai.models.models import LLMModel, LLMUpdate, User
 from restai.database import get_db_wrapper, DBWrapper
 from restai.auth import get_current_username, get_current_username_admin
@@ -130,30 +130,63 @@ async def api_edit_llm(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.delete("/llms/{llm_id}")
-async def api_delete_llm(
+@router.get("/llms/{llm_id}/usage")
+async def api_llm_usage(
     llm_id: int = Path(description="LLM ID"),
     _: User = Depends(get_current_username_admin),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Delete an LLM provider (admin only)."""
+    """Projects that reference this LLM (main LLM or eval/rerank override) — so the
+    UI can offer a replacement before deletion (admin only)."""
+    try:
+        llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_id(llm_id)
+        if llm is None:
+            raise HTTPException(status_code=404, detail="LLM not found")
+        projects = db_wrapper.get_llm_usage(llm.name)
+        return {"llm": llm.name, "count": len(projects), "projects": projects}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        logging.exception(e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/llms/{llm_id}")
+async def api_delete_llm(
+    llm_id: int = Path(description="LLM ID"),
+    reassign_to: Optional[str] = Query(
+        default=None,
+        description="Name of the LLM to move dependent projects to before deletion.",
+    ),
+    _: User = Depends(get_current_username_admin),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Delete an LLM provider (admin only). If projects still reference it, the
+    caller must pass `reassign_to` naming a replacement LLM; every dependent
+    project (main LLM + eval/rerank overrides) is repointed before deletion so no
+    project is left with a dangling model reference."""
     try:
         llm: Optional[LLMDatabase] = db_wrapper.get_llm_by_id(llm_id)
         if llm is None:
             raise HTTPException(status_code=404, detail="LLM not found")
 
-        projects_using = db_wrapper.db.query(ProjectDatabase).filter(
-            (ProjectDatabase.llm == llm.name) | (ProjectDatabase.guard == llm.name)
-        ).all()
-        if projects_using:
-            names = [p.name for p in projects_using]
-            raise HTTPException(
-                status_code=409,
-                detail=f"Cannot delete LLM '{llm.name}': used by projects: {', '.join(names)}"
-            )
+        usage = db_wrapper.get_llm_usage(llm.name)
+        reassigned = 0
+        if usage:
+            if not reassign_to:
+                names = [p["name"] for p in usage]
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Cannot delete LLM '{llm.name}': used by {len(names)} project(s): {', '.join(names)}. Pass reassign_to to move them to another LLM.",
+                )
+            if reassign_to == llm.name:
+                raise HTTPException(status_code=400, detail="Replacement LLM must differ from the one being deleted")
+            if db_wrapper.get_llm_by_name(reassign_to) is None:
+                raise HTTPException(status_code=400, detail=f"Replacement LLM '{reassign_to}' not found")
+            reassigned = db_wrapper.reassign_llm(llm.name, reassign_to)
 
         db_wrapper.delete_llm(llm)
-        return {"deleted": llm.name}
+        return {"deleted": llm.name, "reassigned": reassigned, "reassigned_to": reassign_to if reassigned else None}
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e

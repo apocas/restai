@@ -87,6 +87,27 @@ from restai.routers.projects._common import (
     _SENSITIVE_OPTION_KEYS,
 )
 
+
+def _attach_guard_names(project_dict: dict, db_wrapper: DBWrapper) -> None:
+    """Populate read-only `guard_name` / `guard_output_name` from the guard
+    project ids stored in `guard` and `options.guard_output`. Best-effort — a
+    dangling or non-numeric ref just leaves the name unset."""
+    def _resolve(ref):
+        try:
+            if ref is not None and str(ref).isdigit():
+                gp = db_wrapper.get_project_by_id(int(ref))
+                if gp is not None:
+                    return gp.name
+        except Exception:
+            pass
+        return None
+
+    project_dict["guard_name"] = _resolve(project_dict.get("guard"))
+    opts = project_dict.get("options")
+    if isinstance(opts, dict):
+        project_dict["guard_output_name"] = _resolve(opts.get("guard_output"))
+
+
 @router.get("/projects", response_model=ProjectsResponse, tags=["Projects"])
 async def route_get_projects(
     _: Request,
@@ -339,6 +360,10 @@ async def route_get_project(
                 if val:
                     final_output["options"][key] = mask_key(val)
             _mask_sync_sources(final_output["options"])
+
+        # Resolve guard project ids to display names (guard / guard_output store
+        # the project id, so the read-only *_name fields drive the UI labels).
+        _attach_guard_names(final_output, db_wrapper)
 
         del project
 

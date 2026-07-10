@@ -676,6 +676,7 @@ class ProjectOptions(BaseModel):
     logging: bool = Field(default=True, description="Enable inference logging for this project")
     redact_inference_logs: bool = Field(default=False, description="Redact secrets (API keys, tokens, credentials) from inference logs before persisting")
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking of retrieved documents")
+    rerank_llm: Union[str, None] = Field(default=None, max_length=255, description="LLM used for LLM reranking (RAG only). Empty/None = use the project's own LLM.")
     tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables for natural language to SQL queries")
     tools: Union[str, None] = Field(default=None, description="Comma-separated list of enabled tool names")
     score: float = Field(default=0.0, description="Minimum similarity score threshold for retrieved documents")
@@ -717,7 +718,7 @@ class ProjectOptions(BaseModel):
     blockly_workspace: Union[dict, None] = Field(default=None, description="Blockly workspace JSON for block projects")
     rate_limit: Union[int, None] = Field(default=None, ge=1, le=10000, description="Maximum requests per minute (None = unlimited)")
     budget: Union[float, None] = Field(default=None, ge=0, description="Monthly cost budget (currency) for this project (None = unlimited). Part of the unified cost-budget model.")
-    guard_output: Union[str, None] = Field(default=None, description="Name of the guard project for output checking")
+    guard_output: Union[str, None] = Field(default=None, description="Id of the guard project for output checking (stored as the project id, not the name)")
     guard_mode: Union[str, None] = Field(default="block", description="Guard behavior: 'block' or 'warn'")
     eval_llm: Union[str, None] = Field(default=None, max_length=255, description="LLM used to judge evaluation runs. Empty/None = use the project's own LLM.")
     search_knowledge_project: Union[str, None] = Field(default=None, max_length=255, description="Name of the RAG project the search_knowledge builtin queries (agent projects). Empty = disabled.")
@@ -769,7 +770,9 @@ class ProjectBaseModel(BaseModel):
     system: Union[str, None] = Field(default=None, description="System prompt for the LLM")
     censorship: Union[str, None] = Field(default=None, description="Censorship message returned when the guard rejects a query")
     vectorstore: Union[str, None] = Field(default=None, description="Vector store backend: 'chroma' or 'redis'")
-    guard: Union[str, None] = Field(default=None, description="Name of the LLM used as a content guard")
+    guard: Union[str, None] = Field(default=None, description="Id of the guard project used for input checking (stored as the project id, not the name)")
+    guard_name: Union[str, None] = Field(default=None, description="Read-only: display name of the input-guard project, resolved from `guard`")
+    guard_output_name: Union[str, None] = Field(default=None, description="Read-only: display name of the output-guard project, resolved from options.guard_output")
     human_name: Union[str, None] = Field(default=None, description="Human-readable display name for the project")
     human_description: Union[str, None] = Field(default=None, description="Human-readable description of the project")
     public: bool = Field(default=False, description="Whether the project is publicly accessible without authentication")
@@ -1112,7 +1115,7 @@ class ProjectModelUpdate(BaseModel):
     connection: Union[str, None] = Field(default=None, max_length=2000, description="Database connection string for natural language to SQL queries")
     tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables")
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking")
-    guard: Union[str, None] = Field(default=None, description="Name of the LLM used as a content guard")
+    guard: Union[str, None] = Field(default=None, description="Id of the guard project used for input checking (stored as the project id, not the name)")
     human_name: Union[str, None] = Field(default=None, max_length=200, description="Human-readable display name")
     human_description: Union[str, None] = Field(default=None, max_length=2000, description="Human-readable project description")
     tools: Union[str, None] = Field(default=None, description="Comma-separated list of enabled tool names")
@@ -1852,6 +1855,7 @@ class OpenAIChatMessage(BaseModel):
     tool_calls: Optional[list[OpenAIToolCall]] = Field(default=None, description="Tool calls made by the assistant")
     tool_call_id: Optional[str] = Field(default=None, description="ID of the tool call this message responds to")
     name: Optional[str] = Field(default=None, description="Name of the tool or function")
+    refusal: Optional[str] = Field(default=None, description="Refusal message, if the model declined")
 
 
 class OpenAIFunctionDef(BaseModel):
@@ -1868,23 +1872,34 @@ class OpenAIToolDef(BaseModel):
 
 
 class OpenAIChatCompletionRequest(BaseModel):
-    """OpenAI-compatible chat completion request."""
+    """OpenAI-compatible chat completion request.
+
+    `extra="allow"` so unknown OpenAI params (e.g. `metadata`, `store`,
+    `service_tier`, `reasoning_effort`) survive parsing and can be forwarded
+    verbatim on the native-passthrough path."""
+    model_config = ConfigDict(extra="allow")
+
     model: str = Field(description="Model name to use")
     messages: list[OpenAIChatMessage] = Field(description="List of messages in the conversation")
     temperature: Optional[float] = Field(default=None, description="Sampling temperature (0-2)")
-    max_tokens: Optional[int] = Field(default=None, description="Maximum tokens to generate")
+    max_tokens: Optional[int] = Field(default=None, description="Maximum tokens to generate (deprecated alias of max_completion_tokens)")
+    max_completion_tokens: Optional[int] = Field(default=None, description="Maximum tokens to generate")
     stream: bool = Field(default=False, description="Enable streaming response via SSE")
     top_p: Optional[float] = Field(default=None, description="Nucleus sampling threshold (0-1)")
     frequency_penalty: Optional[float] = Field(default=None, description="Frequency penalty (-2.0 to 2.0)")
     presence_penalty: Optional[float] = Field(default=None, description="Presence penalty (-2.0 to 2.0)")
     stop: Optional[Union[str, list[str]]] = Field(default=None, description="Stop sequence(s)")
     seed: Optional[int] = Field(default=None, description="Seed for deterministic generation")
-    response_format: Optional[dict] = Field(default=None, description='Response format, e.g. {"type": "json_object"}')
-    n: Optional[int] = Field(default=None, ge=1, le=5, description="Number of completions to generate")
+    response_format: Optional[dict] = Field(default=None, description='Response format, e.g. {"type": "json_object"} or {"type":"json_schema", ...}')
+    n: Optional[int] = Field(default=None, ge=1, le=128, description="Number of completions to generate")
     logprobs: Optional[bool] = Field(default=None, description="Return log probabilities")
     top_logprobs: Optional[int] = Field(default=None, ge=0, le=20, description="Number of top logprobs per token")
+    logit_bias: Optional[dict] = Field(default=None, description="Token bias map")
     tools: Optional[list[OpenAIToolDef]] = Field(default=None, description="Tool definitions for function calling")
     tool_choice: Optional[Union[str, dict]] = Field(default=None, description="Tool choice: 'auto', 'none', 'required', or specific tool")
+    parallel_tool_calls: Optional[bool] = Field(default=None, description="Allow the model to call multiple tools in parallel")
+    functions: Optional[list[dict]] = Field(default=None, description="Legacy function definitions (mapped to tools)")
+    function_call: Optional[Union[str, dict]] = Field(default=None, description="Legacy function_call (mapped to tool_choice)")
     stream_options: Optional[dict] = Field(default=None, description='Streaming options, e.g. {"include_usage": true}')
     user: Optional[str] = Field(default=None, description="End-user identifier")
 
@@ -1894,6 +1909,7 @@ class OpenAIChatCompletionChoice(BaseModel):
     index: int = Field(description="Choice index")
     message: OpenAIChatMessage = Field(description="The generated message")
     finish_reason: Optional[str] = Field(default="stop", description="Reason the generation stopped")
+    logprobs: Optional[dict] = Field(default=None, description="Log-probability info, when requested")
 
 
 class OpenAIChatCompletionUsage(BaseModel):
@@ -1901,6 +1917,8 @@ class OpenAIChatCompletionUsage(BaseModel):
     prompt_tokens: int = Field(description="Number of input tokens")
     completion_tokens: int = Field(description="Number of output tokens")
     total_tokens: int = Field(description="Total tokens used")
+    prompt_tokens_details: Optional[dict] = Field(default=None, description="Breakdown of prompt tokens")
+    completion_tokens_details: Optional[dict] = Field(default=None, description="Breakdown of completion tokens")
 
 
 class OpenAIChatCompletionResponse(BaseModel):
@@ -1923,12 +1941,16 @@ class OpenAIEmbeddingRequest(BaseModel):
     """OpenAI-compatible embedding request."""
     model: str = Field(description="Embedding model name to use")
     input: Union[str, list[str]] = Field(description="Text(s) to embed")
+    dimensions: Optional[int] = Field(default=None, description="Truncate output vectors to this many dimensions")
+    encoding_format: Optional[str] = Field(default="float", description="'float' (default) or 'base64'")
+    user: Optional[str] = Field(default=None, description="End-user identifier")
 
 
 class OpenAIEmbeddingData(BaseModel):
-    """A single embedding result."""
+    """A single embedding result. `embedding` is a float list, or a base64
+    string when `encoding_format='base64'` was requested."""
     object: str = Field(default="embedding")
-    embedding: list[float] = Field(description="The embedding vector")
+    embedding: Union[list[float], str] = Field(description="The embedding vector (or base64 string)")
     index: int = Field(description="Index of the input text")
 
 
@@ -1944,6 +1966,74 @@ class OpenAIEmbeddingResponse(BaseModel):
     data: list[OpenAIEmbeddingData] = Field(description="Embedding results")
     model: str = Field(description="Model used")
     usage: OpenAIEmbeddingUsage = Field(description="Token usage statistics")
+
+
+class OpenAIModelObject(BaseModel):
+    """OpenAI-compatible model object (GET /v1/models/{id})."""
+    id: str = Field(description="Model id")
+    object: str = Field(default="model")
+    created: int = Field(default=0, description="Unix timestamp")
+    owned_by: str = Field(default="restai", description="Owner / provider class")
+
+
+class OpenAICompletionRequest(BaseModel):
+    """OpenAI-compatible legacy text-completion request. `extra='allow'` keeps
+    unknown params for native passthrough."""
+    model_config = ConfigDict(extra="allow")
+
+    model: str = Field(description="Model name to use")
+    prompt: Union[str, list[str]] = Field(description="Prompt text(s)")
+    max_tokens: Optional[int] = Field(default=None, description="Maximum tokens to generate")
+    temperature: Optional[float] = Field(default=None, description="Sampling temperature")
+    top_p: Optional[float] = Field(default=None, description="Nucleus sampling threshold")
+    n: Optional[int] = Field(default=None, ge=1, le=128, description="Number of completions")
+    stream: bool = Field(default=False, description="Enable streaming via SSE")
+    stop: Optional[Union[str, list[str]]] = Field(default=None, description="Stop sequence(s)")
+    seed: Optional[int] = Field(default=None, description="Seed for deterministic generation")
+    frequency_penalty: Optional[float] = Field(default=None, description="Frequency penalty")
+    presence_penalty: Optional[float] = Field(default=None, description="Presence penalty")
+    logit_bias: Optional[dict] = Field(default=None, description="Token bias map")
+    stream_options: Optional[dict] = Field(default=None, description="Streaming options")
+    user: Optional[str] = Field(default=None, description="End-user identifier")
+
+
+class OpenAICompletionChoice(BaseModel):
+    """A single choice in a legacy text-completion response."""
+    text: str = Field(description="Generated text")
+    index: int = Field(description="Choice index")
+    logprobs: Optional[dict] = Field(default=None, description="Log-probability info")
+    finish_reason: Optional[str] = Field(default="stop", description="Reason the generation stopped")
+
+
+class OpenAICompletionResponse(BaseModel):
+    """OpenAI-compatible legacy text-completion response."""
+    id: str = Field(description="Unique completion identifier")
+    object: str = Field(default="text_completion")
+    created: int = Field(description="Unix timestamp of creation")
+    model: str = Field(description="Model used")
+    choices: list[OpenAICompletionChoice] = Field(description="Generated completions")
+    usage: OpenAIChatCompletionUsage = Field(description="Token usage statistics")
+    system_fingerprint: Optional[str] = Field(default=None, description="System fingerprint")
+
+
+class OpenAIModerationRequest(BaseModel):
+    """OpenAI-compatible moderation request."""
+    input: Union[str, list[str]] = Field(description="Text(s) to classify")
+    model: Optional[str] = Field(default="text-moderation-latest", description="Moderation model name")
+
+
+class OpenAIModerationResult(BaseModel):
+    """A single moderation result."""
+    flagged: bool = Field(description="Whether the content was flagged")
+    categories: dict = Field(description="Per-category boolean flags")
+    category_scores: dict = Field(description="Per-category scores")
+
+
+class OpenAIModerationResponse(BaseModel):
+    """OpenAI-compatible moderation response."""
+    id: str = Field(description="Unique moderation identifier")
+    model: str = Field(description="Model used")
+    results: list[OpenAIModerationResult] = Field(description="Moderation results, one per input")
 
 
 # ── Evaluation Framework ─────────────────────────────────────────────────

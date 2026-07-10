@@ -109,12 +109,12 @@ export default function ProjectInfoKnowledge({ project }) {
             )}
             {project.guard && (
               <DetailItem label={t("projects.edit.knowledge.infoKnowledge.inputGuard")}>
-                <Chip label={project.guard} size="small" color="warning" variant="outlined" />
+                <Chip label={project.guard_name || project.guard} size="small" color="warning" variant="outlined" />
               </DetailItem>
             )}
             {project.options?.guard_output && (
               <DetailItem label={t("projects.edit.knowledge.infoKnowledge.outputGuard")}>
-                <Chip label={project.options.guard_output} size="small" color="warning" variant="outlined" />
+                <Chip label={project.guard_output_name || project.options.guard_output} size="small" color="warning" variant="outlined" />
               </DetailItem>
             )}
             {(project.guard || project.options?.guard_output) && (

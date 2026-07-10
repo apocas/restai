@@ -112,34 +112,28 @@ async def openai_compatible_generate(
             raise HTTPException(status_code=403, detail="User is private")
 
     team_id = resolve_team_for_image_generator(user, body.model, db_wrapper)
-    imageModel = ImageModel(prompt=body.prompt)
 
-    image_bytes = _generate(body.model, imageModel, request.app.state.brain, db_wrapper)
-    image_b64 = _base64.b64encode(image_bytes).decode("utf-8")
+    n = max(1, min(body.n or 1, 10))
+    brain = request.app.state.brain
+    data = []
+    for _ in range(n):
+        image_bytes = _generate(body.model, ImageModel(prompt=body.prompt), brain, db_wrapper)
+        entry = {"revised_prompt": body.prompt, "model": body.model}
+        if body.response_format == "url":
+            # Stash in Brain's image cache and hand back a real served URL
+            # (GET /image/cache/<id>) instead of an inline data: URI.
+            filename = brain.cache_image(image_bytes, "image/png")
+            base = (config.RESTAI_URL or str(request.base_url)).rstrip("/")
+            entry["url"] = f"{base}/image/cache/{filename}"
+        else:
+            entry["b64_json"] = _base64.b64encode(image_bytes).decode("utf-8")
+        data.append(entry)
 
     background_tasks.add_task(
         log_direct_usage,
-        db_wrapper,
-        user.id,
-        team_id,
-        body.model,
-        body.prompt,
-        "(image generated)",
-        0, 0, 0.0, 0.0,
-        user.api_key_id,
+        db_wrapper, user.id, team_id, body.model,
+        f"{body.prompt} (x{n})", "(image generated)",
+        0, 0, 0.0, 0.0, user.api_key_id,
     )
 
-    output = {
-        "created": int(time.time()),
-        "data": [{
-            "revised_prompt": body.prompt,
-            "model": body.model,
-        }]
-    }
-
-    if body.response_format == "url":
-        output["data"][0]["url"] = f"data:image/png;base64,{image_b64}"
-    elif body.response_format == "b64_json":
-        output["data"][0]["b64_json"] = image_b64
-
-    return output
+    return {"created": int(time.time()), "data": data}

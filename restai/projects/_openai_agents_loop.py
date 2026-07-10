@@ -433,10 +433,12 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         except Exception:
             pass
 
+    import json as _json
+    _trace_tok = tokens_from_string(_json.dumps(tool_trace)) if tool_trace else 0
     yield ("result", {
         "answer": answer,
         "tokens": {
-            "input": tokens_from_string(prompt_text),
+            "input": tokens_from_string(prompt_text) + _trace_tok,
             "output": tokens_from_string(answer),
         },
         "tool_trace": tool_trace or None,

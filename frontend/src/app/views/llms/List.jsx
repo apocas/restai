@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   Box, Button, Card, Grid, IconButton, Tooltip, styled,
+  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
+  TextField, MenuItem, Typography,
 } from "@mui/material";
 import {
   Add, Edit, Delete, Visibility, Psychology, Public, Lock,
@@ -341,13 +343,37 @@ export default function LLMs() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // { llm, projects, target } while the reassign-before-delete dialog is open.
+  const [reassign, setReassign] = useState(null);
+
+  const performDelete = (llm, reassignTo) => {
+    const q = reassignTo ? "?reassign_to=" + encodeURIComponent(reassignTo) : "";
+    api.delete("/llms/" + llm.id + q, auth.user.token)
+      .then((res) => {
+        if (res && res.reassigned) {
+          toast.success(t("llms.reassign.done", { name: llm.name, count: res.reassigned, target: res.reassigned_to }));
+        } else {
+          toast.success(t("llms.info.deleted", { name: llm.name }));
+        }
+        setReassign(null);
+        fetchLlms();
+      })
+      .catch(() => {});
+  };
+
   const handleDelete = (e, llm) => {
     e.stopPropagation();
-    if (!window.confirm(t("llms.info.deleteConfirm", { name: llm.name }))) return;
-    api.delete("/llms/" + llm.id, auth.user.token)
-      .then(() => {
-        toast.success(t("llms.info.deleted", { name: llm.name }));
-        fetchLlms();
+    // Check which projects depend on this LLM first — if any, force the user to
+    // pick a replacement so no project is left pointing at a deleted model.
+    api.get("/llms/" + llm.id + "/usage", auth.user.token)
+      .then((usage) => {
+        if (!usage || !usage.count) {
+          if (!window.confirm(t("llms.info.deleteConfirm", { name: llm.name }))) return;
+          performDelete(llm, null);
+          return;
+        }
+        const firstOther = llms.find((l) => l.id !== llm.id);
+        setReassign({ llm, projects: usage.projects || [], target: firstOther ? firstOther.name : "" });
       })
       .catch(() => {});
   };
@@ -678,6 +704,52 @@ export default function LLMs() {
         }}
         emptyMessage={t("llms.noLlms")}
       />
+
+      <Dialog open={!!reassign} onClose={() => setReassign(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>{t("llms.reassign.title", { name: reassign?.llm?.name })}</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            {t("llms.reassign.description", { count: reassign?.projects?.length || 0 })}
+          </DialogContentText>
+          <Box component="ul" sx={{ pl: 3, mt: 0, mb: 2, maxHeight: 180, overflow: "auto" }}>
+            {(reassign?.projects || []).map((p) => (
+              <li key={p.id}>
+                <Typography variant="body2" component="span">{p.human_name || p.name}</Typography>{" "}
+                <Typography variant="caption" component="span" color="text.secondary">
+                  ({(p.fields || []).map((f) => t("llms.reassign.field_" + f)).join(", ")})
+                </Typography>
+              </li>
+            ))}
+          </Box>
+          {llms.filter((l) => l.id !== reassign?.llm?.id).length === 0 ? (
+            <Typography variant="body2" color="error">{t("llms.reassign.noReplacement")}</Typography>
+          ) : (
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label={t("llms.reassign.replacement")}
+              value={reassign?.target || ""}
+              onChange={(e) => setReassign((r) => ({ ...r, target: e.target.value }))}
+            >
+              {llms.filter((l) => l.id !== reassign?.llm?.id).map((l) => (
+                <MenuItem key={l.id} value={l.name}>{l.name}</MenuItem>
+              ))}
+            </TextField>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReassign(null)}>{t("llms.reassign.cancel")}</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={!reassign?.target}
+            onClick={() => performDelete(reassign.llm, reassign.target)}
+          >
+            {t("llms.reassign.confirm")}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

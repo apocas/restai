@@ -267,11 +267,16 @@ class RAG(ProjectBase):
             )
 
         if use_llm_rerank:
+            # Optional per-project rerank LLM override; falls back to the
+            # project's own LLM. Access is team-validated at project-edit time.
+            rerank_name = getattr(project.props.options, "rerank_llm", None) or project.props.llm
+            rerank_model = self.brain.get_llm(rerank_name, db) if rerank_name else None
+            rerank_llm = rerank_model.llm if rerank_model is not None else model.llm
             postprocessors.append(
                 LLMRerank(
                     choice_batch_size=k,
                     top_n=k,
-                    llm=model.llm,
+                    llm=rerank_llm,
                 )
             )
 

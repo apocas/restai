@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import {
   Box, Button, Chip, IconButton, Tooltip, styled, Switch,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem,
-  Typography, Alert,
+  Typography, Alert, CircularProgress, Divider, FormControlLabel, Checkbox,
 } from "@mui/material";
-import { Add, Edit, Delete, RecordVoiceOver, PlayArrow } from "@mui/icons-material";
+import { Add, Edit, Delete, RecordVoiceOver, PlayArrow, CloudDownload, Search } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
@@ -55,6 +55,16 @@ export default function SpeechToText() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
+
+  // Import-from-OpenAI-compatible-endpoint dialog state.
+  const [importOpen, setImportOpen] = useState(false);
+  const [importBaseUrl, setImportBaseUrl] = useState("https://api.openai.com/v1");
+  const [importApiKey, setImportApiKey] = useState("");
+  const [importPrefix, setImportPrefix] = useState("");
+  const [discovering, setDiscovering] = useState(false);
+  const [discovered, setDiscovered] = useState(null); // null = not discovered yet
+  const [selectedModels, setSelectedModels] = useState({});
+  const [importing, setImporting] = useState(false);
 
   const fetchModels = () => {
     api.get("/speech_to_text", auth.user.token)
@@ -161,6 +171,78 @@ export default function SpeechToText() {
     }
   };
 
+  const openImport = () => {
+    setImportBaseUrl("https://api.openai.com/v1");
+    setImportApiKey("");
+    setImportPrefix("");
+    setDiscovered(null);
+    setSelectedModels({});
+    setImportOpen(true);
+  };
+
+  const closeImport = () => {
+    if (discovering || importing) return;
+    setImportOpen(false);
+  };
+
+  const doDiscover = () => {
+    const base = importBaseUrl.trim();
+    if (!base) return;
+    setDiscovering(true);
+    setDiscovered(null);
+    setSelectedModels({});
+    api.post("/tools/openai-compat/discover", { base_url: base, api_key: importApiKey }, auth.user.token)
+      .then((d) => {
+        const list = Array.isArray(d?.models) ? d.models : [];
+        setDiscovered(list);
+        if (list.length === 0) toast.info(t("speechGen.import.noModels"));
+      })
+      .catch((e) => {
+        setDiscovered(null);
+        toast.error(e?.detail || e?.message || t("speechGen.import.discoverFailed"));
+      })
+      .finally(() => setDiscovering(false));
+  };
+
+  const toggleModel = (id) => setSelectedModels((s) => ({ ...s, [id]: !s[id] }));
+  const anySelected = (discovered || []).some((m) => selectedModels[m.id]);
+  const allSelected = discovered && discovered.length > 0 && discovered.every((m) => selectedModels[m.id]);
+  const toggleAll = () => {
+    if (!discovered) return;
+    if (allSelected) setSelectedModels({});
+    else setSelectedModels(Object.fromEntries(discovered.map((m) => [m.id, true])));
+  };
+
+  // RESTai row name must match validate_safe_name (^[a-zA-Z0-9._:-]+$); keep the
+  // original id in options.model so the provider can still resolve it upstream.
+  const sanitizeName = (s) => (s || "").replace(/[^a-zA-Z0-9._:-]+/g, "-").replace(/^-+|-+$/g, "") || "engine";
+
+  const doImport = async () => {
+    const chosen = (discovered || []).filter((m) => selectedModels[m.id]);
+    if (chosen.length === 0) return;
+    setImporting(true);
+    const base = importBaseUrl.trim();
+    const prefix = importPrefix.trim();
+    const results = await Promise.allSettled(
+      chosen.map((m) =>
+        api.post("/speech_to_text", {
+          name: sanitizeName((prefix ? prefix + "-" : "") + m.id),
+          class_name: "openai",
+          privacy: "public",
+          description: t("speechGen.import.importedDesc", { url: base }),
+          enabled: true,
+          options: { model: m.id, api_key: importApiKey, base_url: base },
+        }, auth.user.token)
+      )
+    );
+    const imported = results.filter((r) => r.status === "fulfilled").length;
+    const skipped = results.length - imported;
+    setImporting(false);
+    toast.success(t("speechGen.import.done", { imported, skipped }));
+    setImportOpen(false);
+    fetchModels();
+  };
+
   const columns = [
     {
       key: "name",
@@ -254,6 +336,16 @@ export default function SpeechToText() {
             >
               {t("speechGen.playground")}
             </Button>
+            {isAdmin && (
+              <Button
+                variant="outlined"
+                startIcon={<CloudDownload />}
+                onClick={openImport}
+                sx={{ color: "#fff", borderColor: "rgba(255,255,255,0.4)", "&:hover": { borderColor: "#fff", background: "rgba(255,255,255,0.08)" } }}
+              >
+                {t("speechGen.import.button")}
+              </Button>
+            )}
             {isAdmin && (
               <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
                 {t("speechGen.new")}
@@ -457,6 +549,110 @@ export default function SpeechToText() {
           <Button onClick={closeDialog} disabled={saving}>{t("common.cancel")}</Button>
           <Button variant="contained" onClick={handleSave} disabled={saving}>
             {saving ? t("speechGen.dialog.saving") : (editing ? t("speechGen.dialog.save") : t("speechGen.dialog.create"))}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={importOpen} onClose={closeImport} maxWidth="sm" fullWidth>
+        <DialogTitle>{t("speechGen.import.title")}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {t("speechGen.import.intro")}
+            </Typography>
+
+            <TextField
+              label={t("speechGen.import.baseUrl")}
+              value={importBaseUrl}
+              onChange={(e) => setImportBaseUrl(e.target.value)}
+              placeholder="https://api.openai.com/v1"
+              helperText={t("speechGen.import.baseUrlHelp")}
+              fullWidth
+              disabled={discovering || importing}
+            />
+            <TextField
+              label={t("speechGen.import.apiKey")}
+              type="password"
+              value={importApiKey}
+              onChange={(e) => setImportApiKey(e.target.value)}
+              fullWidth
+              disabled={discovering || importing}
+            />
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <Button
+                variant="outlined"
+                onClick={doDiscover}
+                disabled={!importBaseUrl.trim() || discovering || importing}
+                startIcon={discovering ? <CircularProgress size={16} /> : <Search />}
+              >
+                {discovering ? t("speechGen.import.discovering") : t("speechGen.import.discover")}
+              </Button>
+            </Box>
+
+            {discovered && discovered.length > 0 && (
+              <>
+                <Divider />
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <Typography variant="subtitle2">
+                    {t("speechGen.import.modelsFound", { count: discovered.length })}
+                  </Typography>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={!!allSelected}
+                        indeterminate={!allSelected && anySelected}
+                        onChange={toggleAll}
+                      />
+                    }
+                    label={t("speechGen.import.selectAll")}
+                  />
+                </Box>
+                <TextField
+                  label={t("speechGen.import.prefix")}
+                  value={importPrefix}
+                  onChange={(e) => setImportPrefix(e.target.value)}
+                  helperText={t("speechGen.import.prefixHelp")}
+                  size="small"
+                  fullWidth
+                  disabled={importing}
+                />
+                <Box sx={{ maxHeight: 260, overflowY: "auto", border: 1, borderColor: "divider", borderRadius: 1, px: 1 }}>
+                  {discovered.map((m) => (
+                    <Box key={m.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Checkbox
+                        size="small"
+                        checked={!!selectedModels[m.id]}
+                        onChange={() => toggleModel(m.id)}
+                        disabled={importing}
+                      />
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontFamily: "monospace", fontSize: "0.85rem" }} noWrap>{m.id}</Typography>
+                        {m.owned_by && (
+                          <Typography variant="caption" color="text.secondary" noWrap>{m.owned_by}</Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              </>
+            )}
+
+            {discovered && discovered.length === 0 && (
+              <Alert severity="info">{t("speechGen.import.noModels")}</Alert>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeImport} disabled={discovering || importing}>{t("common.cancel")}</Button>
+          <Button
+            variant="contained"
+            onClick={doImport}
+            disabled={importing || !anySelected}
+          >
+            {importing
+              ? t("speechGen.import.importing")
+              : t("speechGen.import.importSelected", { count: (discovered || []).filter((m) => selectedModels[m.id]).length })}
           </Button>
         </DialogActions>
       </Dialog>

@@ -377,10 +377,15 @@ class Agent(ProjectBase):
 
     @staticmethod
     def _count_tokens(output: dict) -> None:
-        """tiktoken-based token estimate."""
+        """tiktoken-based token estimate. Includes the tool round-trip context
+        (tool_trace — mostly tool results the model consumed as input) so
+        multi-step turns aren't wildly undercounted; still 'low' accuracy."""
         try:
+            import json as _json
+            trace = output.get("tool_trace") or []
+            extra = tokens_from_string(_json.dumps(trace)) if trace else 0
             output["tokens"] = {
-                "input": tokens_from_string(output.get("question") or ""),
+                "input": tokens_from_string(output.get("question") or "") + extra,
                 "output": tokens_from_string(output.get("answer") or ""),
                 "accuracy": "low",
             }
