@@ -66,14 +66,6 @@ export default function ProjectInfoKnowledge({ project }) {
             <DetailItem label={t("projects.edit.knowledge.infoKnowledge.scoreCutoff")}>
               <Typography variant="body2">{project.options?.score ?? 0.0}</Typography>
             </DetailItem>
-            <DetailItem label={t("projects.edit.knowledge.infoKnowledge.colbertRerank")}>
-              <Chip
-                label={project.options?.colbert_rerank ? t("common.enabled") : t("common.disabled")}
-                size="small"
-                color={project.options?.colbert_rerank ? "success" : "default"}
-                variant="outlined"
-              />
-            </DetailItem>
             <DetailItem label={t("projects.edit.knowledge.infoKnowledge.llmRerank")}>
               <Chip
                 label={project.options?.llm_rerank ? t("common.enabled") : t("common.disabled")}

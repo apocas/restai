@@ -3313,20 +3313,6 @@ wheels = [
 ]
 
 [[package]]
-name = "llama-index-postprocessor-colbert-rerank"
-version = "0.5.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "llama-index-core" },
-    { name = "torch" },
-    { name = "transformers" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/53/fe/80fb69434210b31ca0b4a6ee61bf2ff8954182bd7cf229dbfd5c6d6e079c/llama_index_postprocessor_colbert_rerank-0.5.0.tar.gz", hash = "sha256:3a2b79be317ca196cfcf4afdf5d4ba7cc55d13dec0cdc58806bde93888b53c73", size = 4727, upload-time = "2026-03-12T20:31:10.697Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/06/53/8f93758a0d666b37068272bae2593720e068a302af9d26ea2dbd5f9e67c4/llama_index_postprocessor_colbert_rerank-0.5.0-py3-none-any.whl", hash = "sha256:8a3ce4a3292ba5f6d26f014202f7053369a2caaa59f877603566a9c4153c67ea", size = 4369, upload-time = "2026-03-12T20:31:10.022Z" },
-]
-
-[[package]]
 name = "llama-index-readers-docling"
 version = "0.4.2"
 source = { registry = "https://pypi.org/simple" }
@@ -6162,7 +6148,6 @@ dependencies = [
     { name = "llama-index-multi-modal-llms-gemini" },
     { name = "llama-index-multi-modal-llms-ollama" },
     { name = "llama-index-node-parser-docling" },
-    { name = "llama-index-postprocessor-colbert-rerank" },
     { name = "llama-index-readers-docling" },
     { name = "llama-index-readers-file" },
     { name = "llama-index-readers-json" },
@@ -6281,7 +6266,6 @@ requires-dist = [
     { name = "llama-index-multi-modal-llms-gemini", specifier = ">=0.6.1,<0.7" },
     { name = "llama-index-multi-modal-llms-ollama", specifier = ">=0.6.1,<0.7" },
     { name = "llama-index-node-parser-docling", specifier = ">=0.4.2,<0.5" },
-    { name = "llama-index-postprocessor-colbert-rerank", specifier = ">=0.5.0,<0.6" },
     { name = "llama-index-readers-docling", specifier = ">=0.4.2,<0.5" },
     { name = "llama-index-readers-file", specifier = ">=0.6.0,<0.7" },
     { name = "llama-index-readers-json", specifier = ">=0.5.0,<0.6" },

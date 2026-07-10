@@ -161,7 +161,6 @@ class ChatModel(InteractionModel):
     image: Union[str, None] = Field(default=None, description="Base64-encoded image for vision models")
     files: Union[list[FileAttachment], None] = Field(default=None, max_length=10, description="Up to 10 files to upload into the agent sandbox at /home/user/uploads/")
     system: Union[str, None] = Field(default=None, description="System prompt override for this turn (Agent + RAG)")
-    colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking of retrieved documents (RAG only)")
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking of retrieved documents (RAG only)")
     tables: Union[list[str], None] = Field(default=None, description="Restrict NL→SQL to specific tables (RAG with connection only)")
     negative: Union[str, None] = Field(default=None, description="Negative prompt to steer the response away from certain content (RAG only)")
@@ -676,7 +675,6 @@ class ProjectOptions(BaseModel):
     """Project-level configuration options."""
     logging: bool = Field(default=True, description="Enable inference logging for this project")
     redact_inference_logs: bool = Field(default=False, description="Redact secrets (API keys, tokens, credentials) from inference logs before persisting")
-    colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking of retrieved documents")
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking of retrieved documents")
     tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables for natural language to SQL queries")
     tools: Union[str, None] = Field(default=None, description="Comma-separated list of enabled tool names")
@@ -1114,7 +1112,6 @@ class ProjectModelUpdate(BaseModel):
     connection: Union[str, None] = Field(default=None, max_length=2000, description="Database connection string for natural language to SQL queries")
     tables: Union[str, None] = Field(default=None, description="Comma-separated list of allowed database tables")
     llm_rerank: Union[bool, None] = Field(default=None, description="Enable LLM-based reranking")
-    colbert_rerank: Union[bool, None] = Field(default=None, description="Enable ColBERT reranking")
     guard: Union[str, None] = Field(default=None, description="Name of the LLM used as a content guard")
     human_name: Union[str, None] = Field(default=None, max_length=200, description="Human-readable display name")
     human_description: Union[str, None] = Field(default=None, max_length=2000, description="Human-readable project description")

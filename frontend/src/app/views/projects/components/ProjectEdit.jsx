@@ -131,7 +131,6 @@ export default function ProjectEdit({ project, projects, info }) {
     }
 
     if (project.type === "rag") {
-      opts.options.colbert_rerank = state.options.colbert_rerank;
       opts.options.llm_rerank = state.options.llm_rerank;
       opts.options.score = parseFloat(state.options.score) || 0.0;
       opts.options.k = parseInt(state.options.k) || 4;
@@ -163,7 +162,7 @@ export default function ProjectEdit({ project, projects, info }) {
   const handleChange = (event) => {
     if (event && event.persist) event.persist();
 
-    if (["logging", "redact_inference_logs", "llm_rerank", "colbert_rerank", "enable_knowledge_graph", "memory_bank_enabled", "memory_search_enabled", "browser_allow_eval"].includes(event.target.name)) {
+    if (["logging", "redact_inference_logs", "llm_rerank", "enable_knowledge_graph", "memory_bank_enabled", "memory_search_enabled", "browser_allow_eval"].includes(event.target.name)) {
       setState({ ...state, options: { ...state.options, [event.target.name]: event.target.checked } });
     } else if (event.target.name === "k") {
       setState({ ...state, options: { ...state.options, k: parseInt(event.target.value) } });
@@ -201,7 +200,6 @@ export default function ProjectEdit({ project, projects, info }) {
       ...project,
       options: {
         logging: false,
-        colbert_rerank: false,
         llm_rerank: false,
         score: 0.0,
         k: 4,

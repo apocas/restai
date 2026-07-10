@@ -192,19 +192,6 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
           }
         />
       </Grid>
-      <Grid item sm={6} xs={12}>
-        <FormControlLabel
-          label={<span>Colbert Rerank<HelpTip text="Uses a ColBERT model to rerank retrieved chunks. Faster than LLM rerank with good accuracy, runs locally" /></span>}
-          control={
-            <Switch
-              checked={state.options?.colbert_rerank ?? false}
-              name="colbert_rerank"
-              inputProps={{ "aria-label": "colbert rerank checkbox" }}
-              onChange={handleChange}
-            />
-          }
-        />
-      </Grid>
       <Grid item sm={12} xs={12}>
         <Divider sx={{ mb: 1 }} />
       </Grid>

@@ -57,7 +57,6 @@ dependencies = [
     "llama-index-llms-openai>=0.7.5,<0.8",
     "einops>=0.8.2,<0.9",
     "llama-index-llms-ollama>=0.7.0,<0.8",
-    "llama-index-postprocessor-colbert-rerank>=0.5.0,<0.6",
     "llama-index-embeddings-openai>=0.6.0,<0.7",
     "llama-index-readers-file>=0.6.0,<0.7",
     "deepeval>=3.9.7,<4",

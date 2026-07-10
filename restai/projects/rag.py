@@ -10,7 +10,6 @@ from llama_index.core.postprocessor import SimilarityPostprocessor
 from llama_index.core.prompts import PromptTemplate
 from llama_index.core.chat_engine import ContextChatEngine
 from llama_index.core.postprocessor.llm_rerank import LLMRerank
-from llama_index.postprocessor.colbert_rerank import ColbertRerank
 from restai.chat import Chat
 from restai.database import DBWrapper
 from restai.eval import eval_rag
@@ -249,10 +248,9 @@ class RAG(ProjectBase):
 
         k = chatModel.k or project.props.options.k or 1
         threshold = chatModel.score if chatModel.score is not None else (project.props.options.score or 0.0)
-        use_colbert = chatModel.colbert_rerank if chatModel.colbert_rerank is not None else project.props.options.colbert_rerank
         use_llm_rerank = chatModel.llm_rerank if chatModel.llm_rerank is not None else project.props.options.llm_rerank
 
-        final_k = k * 2 if (use_colbert or use_llm_rerank) else k
+        final_k = k * 2 if use_llm_rerank else k
 
         retriever = VectorIndexRetriever(
             index=project.vector.index,
@@ -265,16 +263,6 @@ class RAG(ProjectBase):
             postprocessors.append(
                 EntityBoostPostprocessor(
                     brain=self.brain, db=db, project_id=project.props.id, query=chatModel.question,
-                )
-            )
-
-        if use_colbert:
-            postprocessors.append(
-                ColbertRerank(
-                    top_n=k,
-                    model="colbert-ir/colbertv2.0",
-                    tokenizer="colbert-ir/colbertv2.0",
-                    keep_retrieval_score=True,
                 )
             )
 

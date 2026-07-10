@@ -128,7 +128,7 @@ Every inference logs `latency_ms` in `OutputDatabase`. Timing starts at the rout
 
 ### Vector stores (`restai/vectordb/`)
 
-ChromaDB (default) or Redis. Per-project. ColBERT and LLM-based reranking. ChromaDB `_client_cache` reuses `PersistentClient` per path to avoid SQLite lock contention with multiple workers.
+ChromaDB (default) or Redis. Per-project. LLM-based reranking. ChromaDB `_client_cache` reuses `PersistentClient` per path to avoid SQLite lock contention with multiple workers.
 
 ### Home Dashboard (`frontend/src/app/views/dashboard/`)
 

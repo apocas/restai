@@ -38,10 +38,6 @@ export default function ProjectRAG({ project }) {
         <DetailItem label="Cutoff">
           <Typography variant="body2">{project.options?.score}</Typography>
         </DetailItem>
-        <DetailItem label="ColBERT Rerank">
-          <Chip label={project.options?.colbert_rerank ? "Enabled" : "Disabled"} size="small"
-            color={project.options?.colbert_rerank ? "success" : "default"} variant="outlined" />
-        </DetailItem>
         <DetailItem label="LLM Rerank">
           <Chip label={project.options?.llm_rerank ? "Enabled" : "Disabled"} size="small"
             color={project.options?.llm_rerank ? "success" : "default"} variant="outlined" />
