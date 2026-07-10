@@ -1,4 +1,4 @@
-"""MarkItDown file loader + `auto_ingest()` (docling → markitdown → classic fallback chain)."""
+"""`auto_ingest()` document loader — docling → markitdown → classic fallback chain."""
 from __future__ import annotations
 
 import logging

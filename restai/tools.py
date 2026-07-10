@@ -218,7 +218,11 @@ def load_tools() -> list[FunctionTool]:
     for importer, modname, _ in pkgutil.iter_modules(path=[directory + "/llms/tools"]):
         module = __import__(f"restai.llms.tools.{modname}", fromlist="dummy")
         for name, obj in inspect.getmembers(module):
-            if inspect.isfunction(obj) and not name.startswith("_"):
+            # Only register functions DEFINED in this module. The `__module__`
+            # check excludes imported symbols (e.g. `urlparse` pulled in via
+            # `from urllib.parse import urlparse`), which otherwise surface as
+            # phantom tools — one per file that imports them.
+            if inspect.isfunction(obj) and not name.startswith("_") and obj.__module__ == module.__name__:
                 tools.append(FunctionTool.from_defaults(fn=obj))
 
     # Userland tools live in `<install_root>/userland/tools`, anchored to the
@@ -232,7 +236,7 @@ def load_tools() -> list[FunctionTool]:
         for importer, modname, _ in pkgutil.iter_modules(path=[userland_path]):
             module = __import__(f"userland.tools.{modname}", fromlist="dummy")
             for name, obj in inspect.getmembers(module):
-                if inspect.isfunction(obj):
+                if inspect.isfunction(obj) and obj.__module__ == module.__name__:
                     tool = FunctionTool.from_defaults(fn=obj)
                     replaced = False
                     for i, existing_tool in enumerate(tools):

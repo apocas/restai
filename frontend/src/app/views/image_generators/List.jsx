@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import {
   Box, Button, Chip, IconButton, Tooltip, styled, Switch,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem,
-  Typography, Alert,
+  Typography, Alert, Checkbox, FormControlLabel, CircularProgress, Divider,
 } from "@mui/material";
-import { Add, Edit, Delete, Image as ImageIcon, PlayArrow } from "@mui/icons-material";
+import { Add, Edit, Delete, Image as ImageIcon, PlayArrow, CloudDownload, Search } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import useAuth from "app/hooks/useAuth";
@@ -51,6 +51,16 @@ export default function ImageGenerators() {
   const [editing, setEditing] = useState(null); // null = create, else row
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
+
+  // Import-from-OpenAI-compatible-endpoint dialog state.
+  const [importOpen, setImportOpen] = useState(false);
+  const [importBaseUrl, setImportBaseUrl] = useState("https://api.openai.com/v1");
+  const [importApiKey, setImportApiKey] = useState("");
+  const [importPrefix, setImportPrefix] = useState("");
+  const [discovering, setDiscovering] = useState(false);
+  const [discovered, setDiscovered] = useState(null); // null = not discovered yet
+  const [selectedModels, setSelectedModels] = useState({});
+  const [importing, setImporting] = useState(false);
 
   const fetchGenerators = () => {
     api.get("/image_generators", auth.user.token)
@@ -159,6 +169,80 @@ export default function ImageGenerators() {
     }
   };
 
+  const openImport = () => {
+    setImportBaseUrl("https://api.openai.com/v1");
+    setImportApiKey("");
+    setImportPrefix("");
+    setDiscovered(null);
+    setSelectedModels({});
+    setImportOpen(true);
+  };
+
+  const closeImport = () => {
+    if (discovering || importing) return;
+    setImportOpen(false);
+  };
+
+  const doDiscover = () => {
+    const base = importBaseUrl.trim();
+    if (!base) return;
+    setDiscovering(true);
+    setDiscovered(null);
+    setSelectedModels({});
+    api.post("/tools/openai-compat/discover", { base_url: base, api_key: importApiKey }, auth.user.token)
+      .then((d) => {
+        const models = Array.isArray(d?.models) ? d.models : [];
+        setDiscovered(models);
+        if (models.length === 0) toast.info(t("imageGen.import.noModels"));
+      })
+      .catch((e) => {
+        setDiscovered(null);
+        toast.error(e?.detail || e?.message || t("imageGen.import.discoverFailed"));
+      })
+      .finally(() => setDiscovering(false));
+  };
+
+  const toggleModel = (id) => setSelectedModels((s) => ({ ...s, [id]: !s[id] }));
+
+  const anySelected = (discovered || []).some((m) => selectedModels[m.id]);
+  const allSelected = discovered && discovered.length > 0 && discovered.every((m) => selectedModels[m.id]);
+
+  const toggleAll = () => {
+    if (!discovered) return;
+    if (allSelected) setSelectedModels({});
+    else setSelectedModels(Object.fromEntries(discovered.map((m) => [m.id, true])));
+  };
+
+  // RESTai row name must match validate_safe_name (^[a-zA-Z0-9._:-]+$); keep the
+  // original id in options.model so the provider can still resolve it upstream.
+  const sanitizeName = (s) => (s || "").replace(/[^a-zA-Z0-9._:-]+/g, "-").replace(/^-+|-+$/g, "") || "generator";
+
+  const doImport = async () => {
+    const chosen = (discovered || []).filter((m) => selectedModels[m.id]);
+    if (chosen.length === 0) return;
+    setImporting(true);
+    const base = importBaseUrl.trim();
+    const prefix = importPrefix.trim();
+    const results = await Promise.allSettled(
+      chosen.map((m) =>
+        api.post("/image_generators", {
+          name: sanitizeName((prefix ? prefix + "-" : "") + m.id),
+          class_name: "openai",
+          privacy: "public",
+          description: t("imageGen.import.importedDesc", { url: base }),
+          enabled: true,
+          options: { model: m.id, api_key: importApiKey, base_url: base },
+        }, auth.user.token)
+      )
+    );
+    const imported = results.filter((r) => r.status === "fulfilled").length;
+    const skipped = results.length - imported;
+    setImporting(false);
+    toast.success(t("imageGen.import.done", { imported, skipped }));
+    setImportOpen(false);
+    fetchGenerators();
+  };
+
   const columns = [
     {
       key: "name",
@@ -256,6 +340,16 @@ export default function ImageGenerators() {
             >
               {t("imageGen.playground")}
             </Button>
+            {isAdmin && (
+              <Button
+                variant="outlined"
+                startIcon={<CloudDownload />}
+                onClick={openImport}
+                sx={{ color: "#fff", borderColor: "rgba(255,255,255,0.4)", "&:hover": { borderColor: "#fff", background: "rgba(255,255,255,0.08)" } }}
+              >
+                {t("imageGen.import.button")}
+              </Button>
+            )}
             {isAdmin && (
               <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
                 {t("imageGen.new")}
@@ -418,6 +512,110 @@ export default function ImageGenerators() {
           <Button onClick={closeDialog} disabled={saving}>{t("common.cancel")}</Button>
           <Button variant="contained" onClick={handleSave} disabled={saving}>
             {saving ? t("imageGen.dialog.saving") : (editing ? t("imageGen.dialog.save") : t("imageGen.dialog.create"))}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={importOpen} onClose={closeImport} maxWidth="sm" fullWidth>
+        <DialogTitle>{t("imageGen.import.title")}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {t("imageGen.import.intro")}
+            </Typography>
+
+            <TextField
+              label={t("imageGen.import.baseUrl")}
+              value={importBaseUrl}
+              onChange={(e) => setImportBaseUrl(e.target.value)}
+              placeholder="https://api.openai.com/v1"
+              helperText={t("imageGen.import.baseUrlHelp")}
+              fullWidth
+              disabled={discovering || importing}
+            />
+            <TextField
+              label={t("imageGen.import.apiKey")}
+              type="password"
+              value={importApiKey}
+              onChange={(e) => setImportApiKey(e.target.value)}
+              fullWidth
+              disabled={discovering || importing}
+            />
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <Button
+                variant="outlined"
+                onClick={doDiscover}
+                disabled={!importBaseUrl.trim() || discovering || importing}
+                startIcon={discovering ? <CircularProgress size={16} /> : <Search />}
+              >
+                {discovering ? t("imageGen.import.discovering") : t("imageGen.import.discover")}
+              </Button>
+            </Box>
+
+            {discovered && discovered.length > 0 && (
+              <>
+                <Divider />
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <Typography variant="subtitle2">
+                    {t("imageGen.import.modelsFound", { count: discovered.length })}
+                  </Typography>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={!!allSelected}
+                        indeterminate={!allSelected && anySelected}
+                        onChange={toggleAll}
+                      />
+                    }
+                    label={t("imageGen.import.selectAll")}
+                  />
+                </Box>
+                <TextField
+                  label={t("imageGen.import.prefix")}
+                  value={importPrefix}
+                  onChange={(e) => setImportPrefix(e.target.value)}
+                  helperText={t("imageGen.import.prefixHelp")}
+                  size="small"
+                  fullWidth
+                  disabled={importing}
+                />
+                <Box sx={{ maxHeight: 260, overflowY: "auto", border: 1, borderColor: "divider", borderRadius: 1, px: 1 }}>
+                  {discovered.map((m) => (
+                    <Box key={m.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Checkbox
+                        size="small"
+                        checked={!!selectedModels[m.id]}
+                        onChange={() => toggleModel(m.id)}
+                        disabled={importing}
+                      />
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontFamily: "monospace", fontSize: "0.85rem" }} noWrap>{m.id}</Typography>
+                        {m.owned_by && (
+                          <Typography variant="caption" color="text.secondary" noWrap>{m.owned_by}</Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
+              </>
+            )}
+
+            {discovered && discovered.length === 0 && (
+              <Alert severity="info">{t("imageGen.import.noModels")}</Alert>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeImport} disabled={discovering || importing}>{t("common.cancel")}</Button>
+          <Button
+            variant="contained"
+            onClick={doImport}
+            disabled={importing || !anySelected}
+          >
+            {importing
+              ? t("imageGen.import.importing")
+              : t("imageGen.import.importSelected", { count: (discovered || []).filter((m) => selectedModels[m.id]).length })}
           </Button>
         </DialogActions>
       </Dialog>

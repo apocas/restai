@@ -150,9 +150,15 @@ async def probe_mcp_server(
 @router.post("/tools/ollama/models", response_model=List[OllamaModelInfo])
 async def get_ollama_models(
     ollama_instance: OllamaInstanceModel,
-    _: User = Depends(get_current_username),
+    _: User = Depends(get_current_username_admin),
 ):
-    """Connect to an Ollama instance and retrieve all available models."""
+    """Connect to an Ollama instance and retrieve all available models (admin only).
+
+    Admin-gated (not IP-guarded): the host defaults to localhost:11434 and legitimately
+    targets a local/LAN Ollama daemon, so an SSRF private-IP block would break the
+    primary use case. Restricting to admins closes the server-side-request surface —
+    matching the create sink (`POST /llms`), which is already admin-only.
+    """
     try:
         from ollama import Client
 
@@ -243,9 +249,9 @@ async def get_ollama_models(
 @router.post("/tools/ollama/cloud/models", response_model=List[OllamaModelInfo])
 async def get_ollama_cloud_models(
     cloud_instance: OllamaCloudInstanceModel,
-    _: User = Depends(get_current_username),
+    _: User = Depends(get_current_username_admin),
 ):
-    """List models available on Ollama Cloud."""
+    """List models available on Ollama Cloud (admin only)."""
     try:
         from ollama import Client
 
@@ -304,9 +310,9 @@ async def get_ollama_cloud_models(
 @router.post("/tools/ollama/pull", response_model=OllamaModelPullResponse)
 async def pull_ollama_model(
     model_request: OllamaModelPullRequest,
-    _: User = Depends(get_current_username),
+    _: User = Depends(get_current_username_admin),
 ):
-    """Pull (download/install) a model to an Ollama instance."""
+    """Pull (download/install) a model to an Ollama instance (admin only)."""
     try:
         from ollama import Client
 
@@ -337,6 +343,47 @@ async def pull_ollama_model(
         )
 
 
+async def _fetch_openai_compat_models(base_url: str, api_key: str) -> List[Dict[str, str]]:
+    """GET `{base_url}/v1/models` on an OpenAI-compatible endpoint and return `[{id, owned_by}]`.
+
+    Not SSRF-guarded on purpose: admins routinely point these at self-hosted servers
+    on localhost / private LANs (LocalAI, vLLM, Ollama's OpenAI shim, etc.).
+    """
+    import httpx
+
+    models_url = (base_url or "").strip().rstrip("/")
+    if not models_url:
+        raise HTTPException(status_code=400, detail="base_url is required")
+    if not models_url.endswith("/models"):
+        if not models_url.endswith("/v1"):
+            models_url += "/v1"
+        models_url += "/models"
+
+    headers = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(models_url, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=502, detail=f"Provider returned {e.response.status_code}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Failed to list models: {e}")
+
+    models = []
+    for m in (data.get("data") or []):
+        mid = (m.get("id") if isinstance(m, dict) else str(m)) or ""
+        if mid:
+            models.append({"id": mid, "owned_by": m.get("owned_by", "") if isinstance(m, dict) else ""})
+    models.sort(key=lambda x: x["id"])
+    return models
+
+
 @router.get("/tools/openai-compat/models/{llm_id}")
 async def list_openai_compatible_models(
     request: Request,
@@ -345,7 +392,6 @@ async def list_openai_compatible_models(
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """List models from an OpenAI-compatible endpoint using a saved LLM's credentials (admin only)."""
-    import httpx
     import json as _json
 
     llm_db = db_wrapper.get_llm_by_id(llm_id)
@@ -361,31 +407,22 @@ async def list_openai_compatible_models(
     if not base_url:
         raise HTTPException(status_code=400, detail="This LLM has no api_base / base_url configured")
 
-    models_url = base_url.rstrip("/")
-    if not models_url.endswith("/models"):
-        if not models_url.endswith("/v1"):
-            models_url += "/v1"
-        models_url += "/models"
+    return {"models": await _fetch_openai_compat_models(base_url, api_key)}
 
-    headers = {}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
 
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(models_url, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
+class OpenAICompatDiscoverRequest(BaseModel):
+    base_url: str
+    api_key: Optional[str] = ""
 
-        models = []
-        for m in data.get("data", []):
-            models.append({
-                "id": m.get("id", ""),
-                "owned_by": m.get("owned_by", ""),
-            })
-        models.sort(key=lambda x: x["id"])
-        return {"models": models}
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=502, detail=f"Provider returned {e.response.status_code}")
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Failed to list models: {e}")
+
+@router.post("/tools/openai-compat/discover")
+async def discover_openai_compatible_models(
+    body: OpenAICompatDiscoverRequest,
+    _: User = Depends(get_current_username_admin),
+):
+    """List models from an OpenAI-compatible endpoint given an ad-hoc base_url + api_key (admin only).
+
+    Backs the 'import from OpenAI-compatible endpoint' flows, where no LLM / image
+    generator exists yet to read credentials from.
+    """
+    return {"models": await _fetch_openai_compat_models(body.base_url, (body.api_key or "").strip())}

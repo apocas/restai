@@ -1065,7 +1065,7 @@ async def ingest_file(
         used_method = resolved_method
 
         if resolved_method == "auto":
-            from restai.loaders.markitdown_loader import auto_ingest
+            from restai.loaders.auto_ingest import auto_ingest
             documents, used_method = auto_ingest(
                 temp.name, source_name,
                 manager=getattr(request.app.state, "manager", None),
@@ -1074,7 +1074,7 @@ async def ingest_file(
             if not documents:
                 raise HTTPException(status_code=400, detail="No content could be extracted from the file.")
         elif resolved_method == "markitdown":
-            from restai.loaders.markitdown_loader import load_with_markitdown
+            from restai.loaders.auto_ingest import load_with_markitdown
             documents = load_with_markitdown(temp.name, source=source_name)
             if not documents:
                 raise HTTPException(status_code=400, detail="MarkItDown could not extract content from this file.")

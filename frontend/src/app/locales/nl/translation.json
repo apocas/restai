@@ -1627,6 +1627,26 @@
       "localCannotDelete": "Lokale generatoren kunnen niet worden verwijderd. Schakel ze in plaats daarvan uit.",
       "enabledToast": "{{name}} ingeschakeld",
       "disabledToast": "{{name}} uitgeschakeld"
+    },
+    "import": {
+      "button": "Importeren van OpenAI-endpoint",
+      "title": "Importeren vanaf OpenAI-compatibel eindpunt",
+      "intro": "Voer de basis-URL en API-sleutel van het eindpunt in, ontdek de beschikbare modellen en kies welke als generatoren geïmporteerd worden.",
+      "baseUrl": "Basis-URL",
+      "baseUrlHelp": "bijv. https://api.openai.com/v1 of je zelf-gehoste eindpunt",
+      "apiKey": "API-sleutel",
+      "discover": "Ontdekken",
+      "discovering": "Ontdekken…",
+      "discoverFailed": "Kan het eindpunt niet bereiken",
+      "modelsFound": "{{count}} modellen gevonden",
+      "selectAll": "Alles selecteren",
+      "prefix": "Naamvoorvoegsel (optioneel)",
+      "prefixHelp": "Wordt voor elke generatornaam geplaatst om botsingen te voorkomen",
+      "noModels": "Dit eindpunt gaf geen modellen terug.",
+      "importSelected": "Geselecteerde importeren ({{count}})",
+      "importing": "Importeren…",
+      "done": "{{imported}} geïmporteerd, {{skipped}} overgeslagen",
+      "importedDesc": "Geïmporteerd van {{url}}"
     }
   },
   "invitations": {

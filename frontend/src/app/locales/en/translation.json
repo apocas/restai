@@ -1627,6 +1627,26 @@
       "localCannotDelete": "Local generators cannot be deleted. Disable instead.",
       "enabledToast": "{{name}} enabled",
       "disabledToast": "{{name}} disabled"
+    },
+    "import": {
+      "button": "Import from OpenAI-compatible",
+      "title": "Import from OpenAI-compatible endpoint",
+      "intro": "Enter the endpoint's base URL and API key, discover the available models, then pick which ones to import as generators.",
+      "baseUrl": "Base URL",
+      "baseUrlHelp": "e.g. https://api.openai.com/v1 or your self-hosted endpoint",
+      "apiKey": "API Key",
+      "discover": "Discover",
+      "discovering": "Discovering…",
+      "discoverFailed": "Failed to reach the endpoint",
+      "modelsFound": "{{count}} models found",
+      "selectAll": "Select all",
+      "prefix": "Name prefix (optional)",
+      "prefixHelp": "Prepended to each generator name to avoid collisions",
+      "noModels": "No models returned by this endpoint.",
+      "importSelected": "Import selected ({{count}})",
+      "importing": "Importing…",
+      "done": "Imported {{imported}}, skipped {{skipped}}",
+      "importedDesc": "Imported from {{url}}"
     }
   },
   "invitations": {

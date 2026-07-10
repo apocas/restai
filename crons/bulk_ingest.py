@@ -93,10 +93,10 @@ def main():
                 used_method = method
 
                 if method == "auto":
-                    from restai.loaders.markitdown_loader import auto_ingest
+                    from restai.loaders.auto_ingest import auto_ingest
                     documents, used_method = auto_ingest(file_path, source_name, manager=None, opts={})
                 elif method == "markitdown":
-                    from restai.loaders.markitdown_loader import load_with_markitdown
+                    from restai.loaders.auto_ingest import load_with_markitdown
                     documents = load_with_markitdown(file_path, source=source_name)
                 elif method == "docling":
                     from restai.document.runner import load_documents
