@@ -56,7 +56,7 @@ All inherit from `ProjectBase` (`base.py`) which defines `chat()` / `question()`
 
 ### Routers (`restai/routers/`)
 
-`/projects`, `/users`, `/teams`, `/llms`, `/embeddings`, `/tools`, `/proxy`, `/direct`, `/statistics`, `/settings`, `/auth`, `/evals`, plus GPU-only `/image` and `/audio`.
+`/projects`, `/users`, `/teams`, `/llms`, `/embeddings`, `/tools`, `/direct`, `/statistics`, `/settings`, `/auth`, `/evals`, plus GPU-only `/image` and `/audio`.
 
 Sub-routes on `/projects/{id}/*`: `/widgets`, `/routines`, `/tools`, `/prompts`, `/evals`.
 
@@ -288,7 +288,7 @@ Home-dashboard card for admins on fresh installs, gated by three auto-detected s
 Accumulated fixes worth remembering:
 
 - **Security headers** (`cors_middleware` in `restai/main.py`) — `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Frame-Options: DENY` + CSP on admin paths. Widget paths exempt from frame-options + CSP so embeds work.
-- **Settings secrets encrypted at rest** — `SETTINGS_ENCRYPTED_KEYS` (`utils/crypto.py`) covers `proxy_key`, `redis_password`, all `sso_*_client_secret`. `DBWrapper.upsert_setting` encrypts on write; getters decrypt on read. Rows are `expunge`d before mutation so plaintext can't commit back.
+- **Settings secrets encrypted at rest** — `SETTINGS_ENCRYPTED_KEYS` (`utils/crypto.py`) covers `redis_password`, all `sso_*_client_secret`. `DBWrapper.upsert_setting` encrypts on write; getters decrypt on read. Rows are `expunge`d before mutation so plaintext can't commit back.
 - **Per-project `redact_inference_logs` option** — strips OpenAI/Slack/Bearer tokens, long alphanumerics, `user:pass@host` patterns from question/answer/system_prompt/context before persisting. Default off.
 - **Impersonation audit trail** — `/auth/impersonate/{username}` and `/auth/exit-impersonation` write `IMPERSONATE_START`/`IMPERSONATE_END` via `audit._log_to_db`.
 - **LDAP cookie** — `httponly=True`, `samesite="strict"` (httponly was missing).
@@ -419,7 +419,7 @@ Integer Query/Form params have `ge`/`le` bounds. File uploads sanitized via `san
 
 GPU toggle, Redis (chat memory), and the vector backends (ChromaDB / PGVector / Weaviate / Pinecone) are GUI-managed in `/admin/settings` — env-var bootstrap was dropped, see the `_GUI_SETTING_ATTRS` block in `restai/config.py`. GPU is auto-detected on first boot (`gpu_enabled` default `None` ⇒ `detect_gpu()` fallback in `__getattr__`).
 
-Runtime-tunable settings (proxy, SSO, Docker, MCP, system LLM, knowledge retention, 2FA, branding, GUI-managed everything) live in the `settings` DB table. Consumers read via `restai.config.<NAME>` — `restai/config.py` defines a module-level `__getattr__` that resolves any GUI-managed key by querying the DB on every access (`_GUI_SETTING_ATTRS` is the authoritative `config_name -> (db_key, type, default)` map).
+Runtime-tunable settings (SSO, Docker, MCP, system LLM, knowledge retention, 2FA, branding, GUI-managed everything) live in the `settings` DB table. Consumers read via `restai.config.<NAME>` — `restai/config.py` defines a module-level `__getattr__` that resolves any GUI-managed key by querying the DB on every access (`_GUI_SETTING_ATTRS` is the authoritative `config_name -> (db_key, type, default)` map).
 
 **There is no in-process mirror anymore.** Earlier versions kept `_CONFIG_ATTR_MAP` and re-`setattr`'d each updated value back onto `restai.config` after every PATCH /settings; that mutation only landed in the worker that handled the request, so multi-worker uvicorn deployments saw stale values everywhere else (`POST /settings/docker/test` failing intermittently was the canary). DB-direct read-through is the only correct pattern.
 

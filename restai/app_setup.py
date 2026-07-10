@@ -157,12 +157,10 @@ def register_health_routes(fs_app: FastAPI) -> None:
         return {
             "sso": sso_list,
             "sso_provider_names": sso_provider_names,
-            "proxy": bool(_sv("proxy_url")),
             "gpu": config.RESTAI_GPU,
             "app_name": _sv("app_name", "RESTai"),
             "logo_url": _sv("logo_url", ""),
             "hide_branding": _sv("hide_branding", "false").lower() in ("true", "1"),
-            "proxy_url": _sv("proxy_url", ""),
             "currency": _sv("currency", "EUR"),
             "auth_disable_local": _sv("auth_disable_local", "false").lower() in ("true", "1"),
             "mcp": config.RESTAI_MCP,
@@ -297,7 +295,6 @@ def register_routers(fs_app: FastAPI) -> None:
         image,
         audio,
         embeddings,
-        proxy,
         statistics,
         auth,
         teams,
@@ -323,7 +320,6 @@ def register_routers(fs_app: FastAPI) -> None:
     fs_app.include_router(projects.router)
     fs_app.include_router(tools.router, tags=["Tools"])
     fs_app.include_router(users.router, tags=["Users"])
-    fs_app.include_router(proxy.router, tags=["Proxy"])
     fs_app.include_router(statistics.router, tags=["Statistics"])
     fs_app.include_router(auth.router, tags=["Auth"])
     fs_app.include_router(teams.router, tags=["Teams"])

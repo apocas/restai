@@ -61,15 +61,6 @@ async def patch_settings(
             resource = f"settings/{key}:{preview}"
         _audit_log(actor, "SETTING", resource[:500], 200)
 
-    if updates.get("proxy_enabled") is False:
-        for key, value in (("proxy_enabled", "false"), ("proxy_url", ""), ("proxy_key", ""), ("proxy_team_id", "")):
-            _audit_change(key, value)
-            update_setting(db_wrapper, key, value)
-        updates.pop("proxy_enabled", None)
-        updates.pop("proxy_url", None)
-        updates.pop("proxy_key", None)
-        updates.pop("proxy_team_id", None)
-
     for key, value in updates.items():
         if key in _SECRET_KEYS:
             if not value or value.startswith("****"):

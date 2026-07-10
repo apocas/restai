@@ -21,10 +21,6 @@ SETTINGS_DEFAULTS = {
     "app_name": "RESTai",
     "logo_url": "",
     "hide_branding": "false",
-    "proxy_enabled": "false",
-    "proxy_url": "",
-    "proxy_key": "",
-    "proxy_team_id": "",
     "max_audio_upload_size": "10",
     "currency": "EUR",
     "redis_host": "",
@@ -128,12 +124,12 @@ SETTINGS_DEFAULTS = {
     "telemetry_instance_id": "",
 }
 
-_BOOL_KEYS = {"hide_branding", "proxy_enabled", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "docker_read_only", "browser_enabled", "enforce_2fa", "vectordb_chromadb_enabled", "vectordb_pgvector_enabled", "vectordb_weaviate_enabled", "vectordb_pinecone_enabled", "ldap_enabled", "ldap_use_tls", "payment_enabled", "payment_stripe_enabled", "payment_paypal_enabled"}
+_BOOL_KEYS = {"hide_branding", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "docker_read_only", "browser_enabled", "enforce_2fa", "vectordb_chromadb_enabled", "vectordb_pgvector_enabled", "vectordb_weaviate_enabled", "vectordb_pinecone_enabled", "ldap_enabled", "ldap_use_tls", "payment_enabled", "payment_stripe_enabled", "payment_paypal_enabled"}
 _INT_KEYS = {"max_audio_upload_size", "data_retention_days", "docker_timeout", "browser_timeout", "password_max_age_days"}
 
 # Secret keys that should be masked in API responses
 _SECRET_KEYS = {
-    "proxy_key", "redis_password",
+    "redis_password",
     "sso_google_client_secret", "sso_microsoft_client_secret",
     "sso_github_client_secret", "sso_oidc_client_secret",
     "vectordb_pgvector_password", "vectordb_weaviate_api_key",
@@ -181,10 +177,6 @@ def get_all_settings(db_wrapper) -> dict:
         "app_name": rows.get("app_name", "RESTai"),
         "logo_url": rows.get("logo_url", ""),
         "hide_branding": _to_bool(rows.get("hide_branding", "false")),
-        "proxy_enabled": _to_bool(rows.get("proxy_enabled", "false")),
-        "proxy_url": rows.get("proxy_url", ""),
-        "proxy_key": mask_key(rows.get("proxy_key", "")),
-        "proxy_team_id": rows.get("proxy_team_id", ""),
         "max_audio_upload_size": int(rows.get("max_audio_upload_size", "10")),
         "currency": rows.get("currency", "EUR"),
         "redis_host": rows.get("redis_host", ""),

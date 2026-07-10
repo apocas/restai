@@ -44,10 +44,6 @@ export default function SettingsPage() {
     app_name: "RESTai",
     logo_url: "",
     hide_branding: false,
-    proxy_enabled: false,
-    proxy_url: "",
-    proxy_key: "",
-    proxy_team_id: "",
     max_audio_upload_size: 10,
     data_retention_days: 0,
     currency: "EUR",
@@ -413,33 +409,6 @@ export default function SettingsPage() {
                         {t("settings.helpers.systemLlm")}
                       </Typography>
                     </Grid>
-                  </Grid>
-                </Card>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Card elevation={0} sx={{ ...forensicCardSx, p: 3 }}>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>{t("settings.sections.proxy")}</Typography>
-                  <Grid container spacing={3}>
-                    <Grid item xs={12}>
-                      <FormControlLabel
-                        control={<Switch checked={form.proxy_enabled} onChange={handleChange("proxy_enabled")} />}
-                        label={t("settings.fields.enableProxy")}
-                      />
-                    </Grid>
-                    {form.proxy_enabled && (
-                      <>
-                        <Grid item xs={12} md={4}>
-                          <TextField fullWidth label={t("settings.fields.proxyUrl")} value={form.proxy_url} onChange={handleChange("proxy_url")} />
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                          <TextField fullWidth label={t("settings.fields.proxyKey")} type="password" value={form.proxy_key} onChange={handleChange("proxy_key")} />
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                          <TextField fullWidth label={t("settings.fields.proxyTeamId")} value={form.proxy_team_id} onChange={handleChange("proxy_team_id")} />
-                        </Grid>
-                      </>
-                    )}
                   </Grid>
                 </Card>
               </Grid>

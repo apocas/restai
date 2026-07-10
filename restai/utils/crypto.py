@@ -167,7 +167,6 @@ def strip_sensitive_project_options(options_blob):
 
 
 SETTINGS_ENCRYPTED_KEYS = {
-    "proxy_key",
     "redis_password",
     "sso_google_client_secret",
     "sso_microsoft_client_secret",

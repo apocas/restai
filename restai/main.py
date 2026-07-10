@@ -169,7 +169,6 @@ OPENAPI_TAGS = [
     {"name": "LLMs", "description": "Register and configure Large Language Model providers"},
     {"name": "Embeddings", "description": "Register and configure embedding model providers"},
     {"name": "Tools", "description": "Text classification, MCP server probing, Ollama model management"},
-    {"name": "Proxy", "description": "LiteLLM proxy key management"},
     {"name": "Statistics", "description": "Platform usage statistics and analytics"},
     {"name": "Auth", "description": "Authentication, login, logout, and session management"},
     {"name": "Settings", "description": "Platform settings (admin only)"},

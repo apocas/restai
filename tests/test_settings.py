@@ -23,7 +23,6 @@ def test_get_settings(client):
     for key in (
         "app_name",
         "hide_branding",
-        "proxy_enabled",
         "max_audio_upload_size",
     ):
         assert key in data

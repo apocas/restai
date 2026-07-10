@@ -545,26 +545,44 @@ def test_tools_mcp_probe_accessible_by_regular_user():
         assert r.status_code not in [401, 403], f"Expected auth to pass, got {r.status_code}"
 
 
-def test_tools_ollama_models_accessible_by_regular_user():
-    """POST /tools/ollama/models as regular user should not return 403."""
+def test_tools_ollama_models_admin_only():
+    """POST /tools/ollama/models is admin-only: regular users get 403; admins pass auth.
+
+    The route issues a server-side request to an arbitrary host, so it's gated to
+    admins (parity with the create sink POST /llms)."""
     with TestClient(app, raise_server_exceptions=False) as c:
         r = c.post(
             "/tools/ollama/models",
             json={"host": "http://localhost:11434"},
             auth=USER_A,
         )
-        assert r.status_code not in [401, 403], f"Expected auth to pass, got {r.status_code}"
+        assert r.status_code in (401, 403), f"Regular user should be blocked, got {r.status_code}"
+
+        r = c.post(
+            "/tools/ollama/models",
+            json={"host": "http://localhost:11434"},
+            auth=ADMIN,
+        )
+        # Connection will fail (no Ollama in CI); the assertion is that admin auth passes.
+        assert r.status_code not in [401, 403], f"Admin auth should pass, got {r.status_code}"
 
 
-def test_tools_ollama_pull_accessible_by_regular_user():
-    """POST /tools/ollama/pull as regular user should not return 403."""
+def test_tools_ollama_pull_admin_only():
+    """POST /tools/ollama/pull is admin-only: regular users get 403; admins pass auth."""
     with TestClient(app, raise_server_exceptions=False) as c:
         r = c.post(
             "/tools/ollama/pull",
-            json={"host": "http://localhost:11434", "model": "test"},
+            json={"host": "http://localhost:11434", "name": "test"},
             auth=USER_A,
         )
-        assert r.status_code not in [401, 403], f"Expected auth to pass, got {r.status_code}"
+        assert r.status_code in (401, 403), f"Regular user should be blocked, got {r.status_code}"
+
+        r = c.post(
+            "/tools/ollama/pull",
+            json={"host": "http://localhost:11434", "name": "test"},
+            auth=ADMIN,
+        )
+        assert r.status_code not in [401, 403], f"Admin auth should pass, got {r.status_code}"
 
 
 def test_tools_classifier_requires_auth(client):
@@ -627,20 +645,6 @@ def test_non_admin_cannot_get_settings(client):
 
 def test_non_admin_cannot_patch_settings(client):
     r = client.patch("/settings", json={}, auth=USER_A)
-    assert r.status_code == 403
-
-
-def test_non_admin_cannot_get_proxy_keys(client):
-    r = client.get("/proxy/keys", auth=USER_A)
-    assert r.status_code == 403
-
-
-def test_non_admin_cannot_create_proxy_key(client):
-    r = client.post(
-        "/proxy/keys",
-        json={"name": "sneaky_key"},
-        auth=USER_A,
-    )
     assert r.status_code == 403
 
 

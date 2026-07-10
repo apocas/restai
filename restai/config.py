@@ -6,7 +6,7 @@ Two kinds of config live here:
    are bound as module-level attributes from `os.environ` at import time.
    These are needed before the DB is reachable, so they have to be env-var-only.
 
-2. **GUI-managed settings** (DOCKER_*, BROWSER_*, PROXY_*, REDIS_*, OAuth, GPU,
+2. **GUI-managed settings** (DOCKER_*, BROWSER_*, REDIS_*, OAuth, GPU,
    MCP, system LLM, retention, 2FA, branding, etc.) live in the `settings` DB
    table. They are NOT bound as module attributes. Instead, `__getattr__` at
    the bottom of this file reads them from the DB on every access.
@@ -272,9 +272,6 @@ _GUI_SETTING_ATTRS = {
     "RESTAI_NAME": ("app_name", str, "RESTai"),
     "HIDE_BRANDING": ("hide_branding", bool, False),
     "RESTAI_AUTH_DISABLE_LOCAL": ("auth_disable_local", bool, False),
-    "PROXY_URL": ("proxy_url", str, None),
-    "PROXY_KEY": ("proxy_key", str, None),
-    "PROXY_TEAM_ID": ("proxy_team_id", str, None),
     "MAX_AUDIO_UPLOAD_SIZE": ("max_audio_upload_size", int, 10),
     "CURRENCY": ("currency", str, "EUR"),
     "REDIS_HOST": ("redis_host", str, None),

@@ -32,7 +32,7 @@ def test_setup(client):
     response = client.get("/setup")
     assert response.status_code == 200
     data = response.json()
-    for key in ("sso", "proxy", "gpu", "app_name", "hide_branding", "proxy_url"):
+    for key in ("sso", "gpu", "app_name", "hide_branding"):
         assert key in data
 
 def test_info_authenticated(client):

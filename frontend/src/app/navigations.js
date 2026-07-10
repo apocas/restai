@@ -1,5 +1,4 @@
 import { authRoles } from "app/auth/authRoles";
-import { usePlatformCapabilities } from "app/contexts/PlatformContext";
 import { useTranslation } from "react-i18next";
 
 // `nameKey`/`labelKey` are i18n keys; `name`/`label` are fallbacks used before
@@ -104,7 +103,7 @@ export const defaultNavigations = [
 ];
 
 // Hook-free so direct imports work; useNavigations() wraps this.
-export const buildNavigations = (hasGpu, hasProxy) => {
+export const buildNavigations = () => {
   const navigations = [...defaultNavigations.map(item => {
     // Deep clone Generators so we can mutate its children.
     if (item.name === "Generators") {
@@ -112,16 +111,6 @@ export const buildNavigations = (hasGpu, hasProxy) => {
     }
     return item;
   })];
-
-  if (hasProxy) {
-    const toolsIndex = navigations.findIndex(item => item.path === "/projects/tools");
-    navigations.splice(toolsIndex + 1, 0, {
-      name: "AI Proxy", nameKey: "nav.aiProxy",
-      icon: "route",
-      path: "/proxy/keys",
-      auth: authRoles.admin,
-    });
-  }
 
   return navigations;
 };
@@ -136,11 +125,8 @@ const translateNav = (items, t) =>
   });
 
 export const useNavigations = () => {
-  const { platformCapabilities } = usePlatformCapabilities();
   const { t } = useTranslation();
-  const hasGpu = platformCapabilities?.gpu ?? false;
-  const hasProxy = platformCapabilities?.proxy ?? false;
-  return translateNav(buildNavigations(hasGpu, hasProxy), t);
+  return translateNav(buildNavigations(), t);
 };
 
 // For direct imports (non-component files). No dynamic GPU features.

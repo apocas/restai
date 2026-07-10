@@ -1199,25 +1199,6 @@ class ClassifierResponse(BaseModel):
     model: str = Field(description="Classifier model used")
 
 
-class KeyCreate(BaseModel):
-    """Create a LiteLLM proxy API key."""
-    models: list[str] = Field(description="List of model names this key can access")
-    name: str = Field(description="Human-readable name for the API key")
-    rpm: Union[int, None] = Field(default=None, description="Rate limit in requests per minute")
-    tpm: Union[int, None] = Field(default=None, description="Rate limit in tokens per minute")
-    max_budget: Union[int, None] = Field(default=None, description="Maximum budget for this key")
-    duration_budget: Union[str, None] = Field(default=None, description="Budget reset duration (e.g. '30d', '1h')")
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "models": ["gpt-4o", "gpt-4o-mini"],
-            "name": "production-key",
-            "rpm": 100,
-            "tpm": 100000,
-            "max_budget": 50
-        }
-    })
-
-
 class TeamUser(BaseModel):
     """User reference within a team."""
     id: int = Field(description="Unique user identifier")
@@ -1594,10 +1575,6 @@ class SettingsResponse(BaseModel):
     app_name: str = Field(description="Application display name")
     logo_url: Optional[str] = Field(default="", description="Login-page logo URL or data:image/... URI (empty = use default RESTai logo)")
     hide_branding: bool = Field(description="Whether to hide RESTai branding in the UI")
-    proxy_enabled: bool = Field(description="Whether the LiteLLM proxy is enabled")
-    proxy_url: Optional[str] = Field(default="", description="LiteLLM proxy URL")
-    proxy_key: Optional[str] = Field(default="", description="LiteLLM proxy API key")
-    proxy_team_id: Optional[str] = Field(default="", description="LiteLLM proxy team identifier")
     max_audio_upload_size: int = Field(description="Maximum audio upload file size in bytes")
     currency: str = Field(default="EUR", description="Currency code for cost display (e.g. 'EUR', 'USD')")
     redis_host: Optional[str] = Field(default="", description="Redis host for chat history persistence")
@@ -1716,10 +1693,6 @@ class SettingsUpdate(BaseModel):
     app_name: Optional[str] = Field(default=None, description="Application display name")
     logo_url: Optional[str] = Field(default=None, max_length=300000, description="Login-page logo URL or data:image/... URI")
     hide_branding: Optional[bool] = Field(default=None, description="Whether to hide RESTai branding in the UI")
-    proxy_enabled: Optional[bool] = Field(default=None, description="Whether the LiteLLM proxy is enabled")
-    proxy_url: Optional[str] = Field(default=None, description="LiteLLM proxy URL")
-    proxy_key: Optional[str] = Field(default=None, description="LiteLLM proxy API key")
-    proxy_team_id: Optional[str] = Field(default=None, description="LiteLLM proxy team identifier")
     max_audio_upload_size: Optional[int] = Field(default=None, description="Maximum audio upload file size in bytes")
     currency: Optional[str] = Field(default=None, description="Currency code for cost display (e.g. 'EUR', 'USD')")
     redis_host: Optional[str] = Field(default=None, description="Redis host for chat history persistence")
