@@ -95,7 +95,7 @@ def _sync_url(project, source, db, brain=None):
 
 def _sync_s3(project, source, db, brain=None):
     from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
-    from modules.loaders import find_file_loader
+    from restai.vectordb.tools import find_file_loader
 
     try:
         import boto3
@@ -257,7 +257,7 @@ def _sync_confluence(project, source, db, brain=None):
 def _sync_sharepoint(project, source, db, brain=None):
     import requests as req
     from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
-    from modules.loaders import find_file_loader
+    from restai.vectordb.tools import find_file_loader
 
     tenant_id = source.sharepoint_tenant_id
     client_id = source.sharepoint_client_id
@@ -366,7 +366,7 @@ def _sync_gdrive(project, source, db, brain=None):
     import requests as req
     from llama_index.core.schema import Document
     from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
-    from modules.loaders import find_file_loader
+    from restai.vectordb.tools import find_file_loader
 
     sa_json = source.gdrive_service_account_json
     folder_id = source.gdrive_folder_id

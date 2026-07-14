@@ -3,9 +3,10 @@
 import asyncio
 import json
 import logging
+import threading
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Request
 
 from restai.auth import check_not_restricted, get_current_username_project
 from restai.database import get_db_wrapper, DBWrapper
@@ -318,7 +319,6 @@ async def start_eval_run(
     request: Request,
     projectID: int = Path(description="Project ID"),
     body: EvalRunCreate = ...,
-    background_tasks: BackgroundTasks = ...,
     user: User = Depends(get_current_username_project),
     db: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -367,10 +367,26 @@ async def start_eval_run(
 
     from restai.eval import run_evaluation
 
-    async def _run_eval():
-        await run_evaluation(run.id, request.app)
+    # Run the evaluation in a detached daemon THREAD, not FastAPI
+    # BackgroundTasks: (1) response-attached background tasks run BEFORE the
+    # client receives the response when a BaseHTTPMiddleware (our
+    # cors_middleware) is in the stack — a documented Starlette limitation; and
+    # (2) DeepEval's metric evaluation drives the judge LLM synchronously
+    # (`generate()` → `llm.complete()`), blocking the single event loop, so a
+    # bare asyncio task would still starve the response write. A thread with its
+    # own loop fully detaches the work — the 201 flushes immediately (was
+    # blocking ~40s for 2 cases, minutes for large datasets). run_evaluation
+    # opens its own DB session, so it is self-contained per thread.
+    run_id = run.id
+    app = request.app
 
-    background_tasks.add_task(_run_eval)
+    def _run_eval_thread():
+        try:
+            asyncio.run(run_evaluation(run_id, app))
+        except Exception:
+            logging.exception("Eval run %s failed", run_id)
+
+    threading.Thread(target=_run_eval_thread, name=f"eval-run-{run_id}", daemon=True).start()
 
     return EvalRunResponse.model_validate(run)
 

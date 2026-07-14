@@ -31,6 +31,12 @@ def moderate_content(text: str, policy: str = "default", **kwargs) -> str:
     if not text:
         return "OK: empty input"
 
+    # `/v1/moderations` accepts uncapped input and calls this synchronously, so
+    # truncate very large payloads: the PII regexes + span dedup would otherwise
+    # do O(matches²) pure-Python work on the event loop for a multi-MB body.
+    if len(text) > 100_000:
+        text = text[:100_000]
+
     brain = kwargs.get("_brain")
     project_id = kwargs.get("_project_id")
 
@@ -74,32 +80,46 @@ def moderate_content(text: str, policy: str = "default", **kwargs) -> str:
     # US/UK/generic credit card (with Luhn-ish spacing), email, phone,
     # US SSN, IPv4. Unicode-aware but not exhaustive — document clearly
     # that this is "best effort" not compliance-grade.
+    # Ordered most-specific → least-specific. `phone` is a greedy superset of
+    # SSNs, card numbers and IPv4s (all digit/punct runs), so it MUST run last:
+    # a span already claimed by a precise pattern is skipped below, which both
+    # labels the redaction correctly (SSN as us_ssn, not phone) and stops the
+    # same span being double-counted.
     _PATTERNS = [
-        # 13-19 digit card number with optional spaces/dashes every 4.
-        ("credit_card", re.compile(r"\b(?:\d[ -]?){13,19}\b")),
-        ("email",       re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")),
-        # E.164 or common international-ish phone: + then 8-15 digits,
-        # with optional spaces/dashes/parens.
-        ("phone",       re.compile(r"\+?\d[\d\s().-]{7,14}\d")),
-        ("us_ssn",      re.compile(r"\b\d{3}-\d{2}-\d{4}\b")),
-        ("ipv4",        re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")),
         # OpenAI-style API key shape. Also flags Slack bot tokens, AWS
         # access keys, GitHub tokens via their telltale prefixes.
         ("api_key",     re.compile(r"\b(?:sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9_]{20,})\b")),
+        ("email",       re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")),
+        ("us_ssn",      re.compile(r"\b\d{3}-\d{2}-\d{4}\b")),
+        # 13-19 digit card number with optional spaces/dashes every 4.
+        ("credit_card", re.compile(r"\b(?:\d[ -]?){13,19}\b")),
+        ("ipv4",        re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")),
+        # E.164 or common international-ish phone: + then 8-15 digits,
+        # with optional spaces/dashes/parens.
+        ("phone",       re.compile(r"\+?\d[\d\s().-]{7,14}\d")),
     ]
 
     pii_hits: dict[str, int] = {}
+    redactions: list[tuple[int, int, str]] = []
     for label, rx in _PATTERNS:
-        # Special-case phone: the credit-card regex is a superset. Only
-        # flag phone if credit_card didn't already cover the same span
-        # — otherwise every card number would also show up as a phone.
-        if label == "phone" and "credit_card" in pii_hits:
-            continue
-        matches = list(rx.finditer(text))
-        if matches:
-            pii_hits[label] = len(matches)
-            if redact_pii:
-                sanitized = rx.sub(f"[REDACTED:{label}]", sanitized)
+        count = 0
+        for m in rx.finditer(text):
+            s, e = m.start(), m.end()
+            if any(s < ce and cs < e for cs, ce, _ in redactions):
+                continue  # span already owned by a more-specific pattern
+            redactions.append((s, e, label))
+            count += 1
+        if count:
+            pii_hits[label] = count
+    if redact_pii and redactions:
+        out = []
+        last = 0
+        for s, e, label in sorted(redactions):
+            out.append(text[last:s])
+            out.append(f"[REDACTED:{label}]")
+            last = e
+        out.append(text[last:])
+        sanitized = "".join(out)
 
     if pii_hits:
         reasons.append(

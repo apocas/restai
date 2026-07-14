@@ -184,15 +184,33 @@ def adapt_function_tools(tools: list) -> list[AdaptedTool]:
             except Exception:
                 schema = {"type": "object", "properties": {}, "required": []}
 
-        # Detect **kwargs for context injection.
+        # Detect **kwargs for context injection, and collect param names the
+        # model must never see: the VAR_KEYWORD/VAR_POSITIONAL catch-alls and
+        # any `_`-prefixed context params. The pydantic-derived schema
+        # (get_parameters_dict) surfaces `**kwargs` as a spurious `kwargs`
+        # property the LLM then fills with "{}" — the signature-based builder
+        # already skips these, but the preferred pydantic path does not.
         has_var_keyword = False
+        hidden_params: set[str] = set()
         try:
             sig = inspect.signature(fn)
-            has_var_keyword = any(
-                p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
-            )
+            for p in sig.parameters.values():
+                if p.kind == inspect.Parameter.VAR_KEYWORD:
+                    has_var_keyword = True
+                    hidden_params.add(p.name)
+                elif p.kind == inspect.Parameter.VAR_POSITIONAL or p.name.startswith("_"):
+                    hidden_params.add(p.name)
         except (TypeError, ValueError):
             pass
+
+        if hidden_params and isinstance(schema, dict):
+            props = schema.get("properties")
+            if isinstance(props, dict):
+                for h in hidden_params:
+                    props.pop(h, None)
+            req = schema.get("required")
+            if isinstance(req, list):
+                schema["required"] = [r for r in req if r not in hidden_params]
 
         adapted_tool = AdaptedTool(
             name=name,

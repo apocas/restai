@@ -137,20 +137,39 @@ def _pin_url_and_host(url: str, ip: str):
     return pinned_url, parsed.netloc
 
 
+class _PinnedHostSSLAdapter(requests.adapters.HTTPAdapter):
+    """The URL is rewritten to a pinned IP literal (SSRF defense), so present the
+    ORIGINAL hostname for BOTH the TLS SNI (`server_hostname`) and cert
+    verification (`assert_hostname`). requests_toolbelt's HostHeaderSSLAdapter
+    sets only `assert_hostname`, leaving the SNI as the IP literal — SNI-strict
+    hosts (e.g. Cloudflare-fronted example.com) then reject the handshake with
+    SSLV3_ALERT_HANDSHAKE_FAILURE. A fresh adapter is mounted per request, so the
+    pool-wide hostname is correct for that single pinned connection."""
+
+    def __init__(self, hostname: str, *args, **kwargs):
+        self._pinned_hostname = hostname
+        super().__init__(*args, **kwargs)
+
+    def init_poolmanager(self, *args, **kwargs):
+        if self._pinned_hostname:
+            kwargs["assert_hostname"] = self._pinned_hostname
+            kwargs["server_hostname"] = self._pinned_hostname
+        super().init_poolmanager(*args, **kwargs)
+
+
 def _pinned_get(url: str, ip: str, **kwargs):
     """`requests.get` pinned to a pre-validated IP. Connects to `ip` (no second DNS
     lookup) but presents the original hostname as the Host header and TLS SNI, and
     verifies the cert against it. The Session is attached to the response so a
     streamed body outlives this call."""
-    from requests_toolbelt.adapters.host_header_ssl import HostHeaderSSLAdapter
-
     pinned_url, host_header = _pin_url_and_host(url, ip)
     headers = dict(kwargs.pop("headers", None) or {})
     headers["Host"] = host_header
 
+    parsed = urlparse(url)
     session = requests.Session()
-    if urlparse(url).scheme == "https":
-        session.mount("https://", HostHeaderSSLAdapter())
+    if parsed.scheme == "https":
+        session.mount("https://", _PinnedHostSSLAdapter(parsed.hostname))
     response = session.get(pinned_url, headers=headers, **kwargs)
     response._restai_pinned_session = session  # keep the session alive for stream=True
     return response

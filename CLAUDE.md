@@ -142,7 +142,7 @@ Two funnels write `OutputDatabase` rows + bump API-key quota + charge the team w
 - **Nested project inference** — `search_knowledge` tool (`log_inference(proj, user, result, db)` — the RAG result already carries `tokens`) and the KG-query endpoint (`routers/projects/kg.py`).
 - **System-LLM platform helpers** — memory-bank cron (`memory/bank/common.py`), Smart Search, system-prompt + Blockly generators call `accounting.log_platform_usage`, which writes an **attribution-only** row (`team_id`/`api_key_id`/`project_id` NULL → visible in `/statistics` but bills no team). `question` is `(platform:<feature>)`.
 - **`accounting.count_usage(response, prompt, answer)`** prefers real provider usage (`openai_compat.usage_from_response`) then tiktoken.
-Agent loops that estimate (agent2 restai / llamaindex / openai_agents) now fold `tool_trace` (tool round-trip context) into the estimate so multi-step turns aren't undercounted (monotonic — only adds). **Still off the books by design**: evals (skip logging), image/audio cost (non-token). `check_budget` in `budget.py` is a dead shim (no callers).
+Agent loops that estimate (agent2 restai / llamaindex / openai_agents) fold `tool_trace` (tool round-trip context) into the estimate so multi-step turns aren't undercounted. The agent2 restai loop's `_count_tokens` additionally folds the **system prompt** (incl. memory-bank injection) and the **full accumulated transcript** (`session.messages`, minus the final answer) into the input estimate — a long multi-turn agent chat on a no-usage provider (e.g. Ollama) otherwise reported only the latest question's tokens. All monotonic (`max` against the old question+trace estimate — only ever adds). **Still off the books by design**: evals (skip logging), image/audio cost (non-token). `check_budget` in `budget.py` is a dead shim (no callers).
 
 ### Per-Response Cost (`accounting.attach_cost`)
 
@@ -155,6 +155,8 @@ Every inference logs `latency_ms` in `OutputDatabase`. Timing starts at the rout
 ### Vector stores (`restai/vectordb/`)
 
 ChromaDB (default) or Redis. Per-project. LLM-based reranking. ChromaDB `_client_cache` reuses `PersistentClient` per path to avoid SQLite lock contention with multiple workers.
+
+`find_vector_db(project)` (`vectordb/tools.py`) maps `project.props.vectorstore` → backend class; a **None/empty** vectorstore (e.g. a RAG project created via the API, where the field is optional) defaults to ChromaDB — same as the frontend create wizard. `find_file_loader` also lives in `vectordb/tools.py` (NOT the legacy `modules/loaders.py`, which only holds the `LOADERS` dict) — import it from there in ingest/sync paths.
 
 ### Home Dashboard (`frontend/src/app/views/dashboard/`)
 

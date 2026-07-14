@@ -85,7 +85,7 @@ def main():
                     index_documents_docling,
                     extract_keywords_for_metadata,
                 )
-                from modules.loaders import find_file_loader
+                from restai.vectordb.tools import find_file_loader
                 from unidecode import unidecode
 
                 ext = os.path.splitext(filename)[1].lower()
@@ -125,8 +125,6 @@ def main():
 
                 docs_count = len(documents)
                 project.vector.save()
-                if project.cache:
-                    project.cache.clear()
                 ok = True
             except Exception as e:
                 logger.exception("Job %d failed: %s", job_id, e)

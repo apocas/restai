@@ -250,14 +250,17 @@ def exec_command(chat_id: str, command: str, env: Optional[dict] = None) -> str:
     """
     if not chat_id:
         chat_id = "ephemeral"
-    container = _get_or_create(chat_id)
-    _touch_db_activity(chat_id, container.id)
 
     exec_kwargs = {"demux": True, "workdir": "/home/user"}
     if env:
         exec_kwargs["environment"] = env
 
     try:
+        # Container creation is inside the guard: on a contended daemon it can
+        # exceed the SDK read timeout, and that must degrade to a soft ERROR
+        # the model handles — never propagate and 500 the whole agent turn.
+        container = _get_or_create(chat_id)
+        _touch_db_activity(chat_id, container.id)
         result = _exec_with_retry(chat_id, container, ["sh", "-c", command], **exec_kwargs)
         stdout = (result.output[0] or b"").decode("utf-8", errors="replace")
         stderr = (result.output[1] or b"").decode("utf-8", errors="replace")
@@ -287,10 +290,12 @@ def run_script(chat_id: str, script: str, stdin_data: str = "") -> str:
     No file writes — works under read-only rootfs."""
     if not chat_id:
         chat_id = "ephemeral"
-    container = _get_or_create(chat_id)
-    _touch_db_activity(chat_id, container.id)
 
     try:
+        # See exec_command: container creation is guarded so a slow/contended
+        # daemon returns a soft ERROR instead of crashing the agent turn.
+        container = _get_or_create(chat_id)
+        _touch_db_activity(chat_id, container.id)
         b64_script = _b64.b64encode(script.encode("utf-8")).decode("ascii")
         b64_stdin = _b64.b64encode(stdin_data.encode("utf-8")).decode("ascii") if stdin_data else ""
         if b64_stdin:

@@ -76,10 +76,14 @@ def _make_project_tool_adapted(tool_row, brain) -> AdaptedTool:
     async def _run_project_tool(**kwargs):
         _brain = kwargs.pop("_brain", brain)
         _chat_id = kwargs.pop("_chat_id", None)
-        kwargs.pop("_project_id", None)
         if not _brain or not getattr(_brain, "docker_manager", None):
             return "ERROR: Docker is not configured."
-        args_json = _json.dumps(kwargs)
+        # Only the tool's declared parameters enter the sandbox — drop EVERY
+        # framework-injected context key (_project_id, _user, …). A non-JSON-
+        # serializable context object (the User) otherwise breaks json.dumps
+        # and makes every agent-created tool uncallable on invocation.
+        call_kwargs = {k: v for k, v in kwargs.items() if not k.startswith("_")}
+        args_json = _json.dumps(call_kwargs)
         script = f"import json, sys\nargs = json.loads(sys.stdin.readline() or '{{}}')\n{tool_code}"
         return _brain.docker_manager.run_script(_chat_id or "ephemeral", script, stdin_data=args_json)
 
@@ -376,17 +380,37 @@ class Agent(ProjectBase):
         })
 
     @staticmethod
-    def _count_tokens(output: dict) -> None:
-        """tiktoken-based token estimate. Includes the tool round-trip context
-        (tool_trace — mostly tool results the model consumed as input) so
-        multi-step turns aren't wildly undercounted; still 'low' accuracy."""
+    def _count_tokens(output: dict, system_prompt: str = "", session=None) -> None:
+        """tiktoken-based token estimate for providers that return no real usage.
+
+        The prompt actually sent every turn is system_prompt + the full
+        accumulated transcript + tool round-trip context — not just the latest
+        question. Counting only the question undercounts a long multi-turn agent
+        chat by the entire history. So fold in the system prompt (incl. any
+        memory-bank injection) and every prior message, plus the tool_trace
+        (tool call args / results the model consumed). Monotonic: `max` against
+        the old question+trace estimate guarantees we never report *less* than
+        before, even when `session` is missing or empty. Still 'low' accuracy."""
         try:
             import json as _json
             trace = output.get("tool_trace") or []
             extra = tokens_from_string(_json.dumps(trace)) if trace else 0
+            answer = (output.get("answer") or "").strip()
+            base = tokens_from_string(output.get("question") or "") + extra
+            full = extra
+            if system_prompt:
+                full += tokens_from_string(system_prompt)
+            for msg in (getattr(session, "messages", None) or []):
+                try:
+                    txt = msg.text_content()
+                except Exception:
+                    continue
+                # The final assistant answer is the 'output' term, not input.
+                if txt and txt.strip() != answer:
+                    full += tokens_from_string(txt)
             output["tokens"] = {
-                "input": tokens_from_string(output.get("question") or "") + extra,
-                "output": tokens_from_string(output.get("answer") or ""),
+                "input": max(base, full),
+                "output": tokens_from_string(answer),
                 "accuracy": "low",
             }
         except Exception:
@@ -523,7 +547,8 @@ class Agent(ProjectBase):
                             latency_ms = (
                                 int((_time.monotonic() - started) * 1000) if started is not None else None
                             )
-                            status = "error" if str(content).strip().startswith("ERROR:") else "ok"
+                            _c = str(content).strip()
+                            status = "error" if (_c.startswith("ERROR:") or _c.startswith("Error calling tool")) else "ok"
                             try:
                                 input_preview = json.dumps(tool_call.input, default=str)
                             except Exception:
@@ -849,7 +874,7 @@ class Agent(ProjectBase):
 
                     await save_session(self.brain, sandbox_id, session)
                     saved_session = True
-                    self._count_tokens(output)
+                    self._count_tokens(output, getattr(runtime, "system_prompt", ""), session)
                     self.check_output_guard(project, user, db, output)
 
                     if chatModel.stream:
@@ -864,7 +889,7 @@ class Agent(ProjectBase):
                     wrapped = _wrap_image_error(e, bool(chatModel.image))
                     err_msg = project.props.censorship or f"Agent failed: {wrapped}"
                     output["answer"] = err_msg
-                    self._count_tokens(output)
+                    self._count_tokens(output, getattr(runtime, "system_prompt", ""), session)
                     if chatModel.stream:
                         yield "data: " + json.dumps({"text": err_msg}) + "\n\n"
                         yield "data: " + json.dumps(output) + "\n"

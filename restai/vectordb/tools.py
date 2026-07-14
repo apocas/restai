@@ -40,7 +40,10 @@ def get_available_vectorstores() -> list[str]:
 
 
 def find_vector_db(project: "Project") -> type["VectorBase"]:
-    if project.props.vectorstore == "chromadb" or project.props.vectorstore == "chroma":
+    # A RAG project created without an explicit vectorstore (e.g. via the API,
+    # where the field is optional) defaults to ChromaDB — the platform default,
+    # same as the frontend's create wizard.
+    if not project.props.vectorstore or project.props.vectorstore in ("chromadb", "chroma"):
         from restai.vectordb.chromadb import ChromaDBVector
         return ChromaDBVector
     elif project.props.vectorstore == "pgvector":

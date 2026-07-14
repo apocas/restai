@@ -1251,7 +1251,7 @@ async def chat_query(
             else:
                 await _resume.evict(q_input.id)
 
-        if not q_input.question and not q_input.image:
+        if not (q_input.question or "").strip() and not q_input.image:
             raise HTTPException(status_code=400, detail="Missing question")
 
         project = get_project(projectID, db_wrapper, request.app.state.brain)

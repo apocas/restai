@@ -21,15 +21,26 @@ def connect_ssh(
     """
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(host, username=username, password=password, port=port,
-                   timeout=15, allow_agent=False, look_for_keys=False)
+    try:
+        client.connect(host, username=username, password=password, port=port,
+                       timeout=15, allow_agent=False, look_for_keys=False)
+    except paramiko.AuthenticationException:
+        return "ERROR: SSH authentication failed."
+    except Exception as e:
+        # connect() runs BEFORE the exec try/except and raises many uncaught
+        # types on failure — TimeoutError (unreachable), socket.gaierror (bad
+        # DNS), ConnectionRefusedError, paramiko.SSHException (negotiation) —
+        # none of which the agent runtime's TypeError-only guard catches, so an
+        # unreachable host would otherwise crash the tool call. Return a clean
+        # ERROR string like the rest of the tool.
+        return f"ERROR: SSH connection to {host}:{port} failed: {e}"
 
     try:
         stdin, stdout, stderr = client.exec_command(command)
         channel = stdout.channel
         channel.settimeout(30)
-        output = stdout.read().decode()
-        error = stderr.read().decode()
+        output = stdout.read().decode(errors="replace")
+        error = stderr.read().decode(errors="replace")
     except (socket.timeout, paramiko.SSHException):
         client.close()
         return "ERROR: Command timeout"
