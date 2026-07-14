@@ -92,10 +92,10 @@ def test_logic_ternary_false_branch():
 
 
 @pytest.mark.parametrize("op,expected", [
-    ("ROOT", 3.0),  # sqrt(9)
-    ("ABS", 9.0),
-    ("NEG", -9.0),
-    ("POW10", 1e9),
+    ("ROOT", "3"),  # sqrt(9)
+    ("ABS", "9"),
+    ("NEG", "-9"),
+    ("POW10", "1000000000"),
 ])
 def test_math_single_ops(op, expected):
     workspace = _set_output({
@@ -103,8 +103,8 @@ def test_math_single_ops(op, expected):
         "fields": {"OP": op},
         "inputs": {"NUM": {"block": _num(9)}},
     })
-    # output is str() of the result
-    assert _run(workspace) == str(expected)
+    # Whole-number results render without a trailing ".0" (Blockly/JS style).
+    assert _run(workspace) == expected
 
 
 def test_math_trig_sin_90_is_one():
@@ -488,8 +488,8 @@ def test_controls_flow_break_in_repeat():
         },
         "variables": [{"id": "C", "name": "counter"}],
     }
-    # math_arithmetic coerces to float, so 0 + 1 + 1 + 1 = 3.0
-    assert _run(workspace) == "3.0"
+    # 0 + 1 + 1 + 1 = 3 (whole result renders without ".0")
+    assert _run(workspace) == "3"
 
 
 def test_controls_flow_continue_in_for_each():
@@ -546,8 +546,8 @@ def test_controls_flow_continue_in_for_each():
         },
         "variables": [{"id": "S", "name": "sum"}, {"id": "I", "name": "i"}],
     }
-    # 1 + 2 + 4 + 5 = 12 (float because math_arithmetic coerces)
-    assert _run(workspace) == "12.0"
+    # 1 + 2 + 4 + 5 = 12 (whole result renders without ".0")
+    assert _run(workspace) == "12"
 
 
 def _proc_double():
@@ -586,8 +586,8 @@ def test_procedure_return_value():
         },
         "variables": [],
     }
-    # math_arithmetic returns float
-    assert _run(workspace) == "14.0"
+    # math_arithmetic result; whole numbers render without ".0"
+    assert _run(workspace) == "14"
 
 
 def test_procedure_scope_isolation():
@@ -716,3 +716,40 @@ def test_procedure_ifreturn_fallthrough():
         "variables": [],
     }
     assert _run(workspace) == "small"
+
+
+def test_recursion_shallow_ok():
+    """A shallow recursive procedure (factorial) computes correctly."""
+    import copy
+    def _callret(arg):
+        return {"type": "procedures_callreturn", "extraState": {"name": "fact"},
+                "inputs": {"ARG0": {"block": arg}}}
+    ifret = {"type": "procedures_ifreturn", "inputs": {
+        "CONDITION": {"block": {"type": "logic_compare", "fields": {"OP": "LTE"},
+                                "inputs": {"A": {"block": {"type": "variables_get", "fields": {"VAR": {"id": "k"}}}},
+                                           "B": {"block": _num(1)}}}},
+        "VALUE": {"block": _num(1)}}}
+    ret = {"type": "math_arithmetic", "fields": {"OP": "MULTIPLY"}, "inputs": {
+        "A": {"block": {"type": "variables_get", "fields": {"VAR": {"id": "k"}}}},
+        "B": {"block": _callret({"type": "math_arithmetic", "fields": {"OP": "MINUS"}, "inputs": {
+            "A": {"block": {"type": "variables_get", "fields": {"VAR": {"id": "k"}}}},
+            "B": {"block": _num(1)}}})}}}
+    dfn = {"type": "procedures_defreturn", "fields": {"NAME": "fact"},
+           "extraState": {"params": [{"name": "k", "id": "k"}]},
+           "inputs": {"STACK": {"block": ifret}, "RETURN": {"block": ret}}}
+    top = {"type": "restai_set_output", "inputs": {"VALUE": {"block": _callret(_num(5))}}, "next": {"block": dfn}}
+    assert _run({"blocks": {"blocks": [top]}}) == "120"
+
+
+def test_recursion_infinite_raises_clean_400():
+    """A recursive procedure with no base case degrades to a 400, not a 500/RecursionError."""
+    import pytest as _pytest
+    from fastapi import HTTPException
+    call = {"type": "procedures_callreturn", "extraState": {"name": "loop"}}
+    ret = {"type": "procedures_callreturn", "extraState": {"name": "loop"}}
+    dfn = {"type": "procedures_defreturn", "fields": {"NAME": "loop"},
+           "extraState": {"params": []}, "inputs": {"RETURN": {"block": ret}}}
+    top = {"type": "restai_set_output", "inputs": {"VALUE": {"block": call}}, "next": {"block": dfn}}
+    with _pytest.raises(HTTPException) as exc:
+        _run({"blocks": {"blocks": [top]}})
+    assert exc.value.status_code == 400

@@ -16,6 +16,22 @@ logger = logging.getLogger(__name__)
 
 MAX_ITERATIONS = 10000
 
+# Cap procedure-call nesting well below Python's own recursion limit (~125
+# block levels ≈ 1000 frames on the default-limit server). Infinite/very-deep
+# block recursion otherwise raises an uncaught RecursionError → 500, instead of
+# the graceful MAX_ITERATIONS-style 400. 50 covers any realistic visual-block
+# recursion (factorial, fibonacci, tree walks) with headroom.
+MAX_RECURSION_DEPTH = 50
+
+
+def _fmt_value(v: Any) -> str:
+    """Stringify a block value the way Blockly/JS renders it: a whole-number
+    float has no trailing '.0' (2+3 → '5', not '5.0'; 2.5 stays '2.5'). Used at
+    every value→string boundary so numeric block output doesn't look broken."""
+    if isinstance(v, float) and v.is_integer():
+        return str(int(v))
+    return "" if v is None else str(v)
+
 
 class _BlockBreak(Exception):
     """controls_flow_statements(BREAK) — exits the nearest loop."""
@@ -191,12 +207,20 @@ class BlockInterpreter:
             self.variables[var["id"]] = ""
         # Pre-register procs so calls resolve regardless of lexical order.
         self._register_procedures()
-        for block in blocks:
-            try:
-                await self._exec_statement(block)
-            except (_BlockBreak, _BlockContinue, _BlockReturn):
-                # Stray flow-control outside any loop/procedure — swallow.
-                pass
+        try:
+            for block in blocks:
+                try:
+                    await self._exec_statement(block)
+                except (_BlockBreak, _BlockContinue, _BlockReturn):
+                    # Stray flow-control outside any loop/procedure — swallow.
+                    pass
+        except RecursionError:
+            # Backstop for deeply-nested (non-procedure) block trees that exhaust
+            # the Python stack — degrade to a clean 400 rather than a 500.
+            raise HTTPException(
+                status_code=400,
+                detail="Block program is too deeply nested or recursive.",
+            )
         return self.output_text
 
     async def _exec_statement(self, block: dict):
@@ -230,17 +254,17 @@ class BlockInterpreter:
 
     async def _stmt_set_output(self, block: dict):
         val = await self._eval_input(block, "VALUE")
-        self.output_text = str(val) if val is not None else ""
+        self.output_text = _fmt_value(val)
 
     async def _stmt_log(self, block: dict):
         val = await self._eval_input(block, "TEXT")
-        msg = str(val) if val is not None else ""
+        msg = _fmt_value(val)
         self.logs.append(msg)
         logger.info("Block log: %s", msg)
 
     async def _stmt_text_print(self, block: dict):
         val = await self._eval_input(block, "TEXT")
-        msg = str(val) if val is not None else ""
+        msg = _fmt_value(val)
         self.logs.append(msg)
         logger.info("Block print: %s", msg)
 
@@ -248,7 +272,7 @@ class BlockInterpreter:
         var_id = block.get("fields", {}).get("VAR", {}).get("id", "")
         val = await self._eval_input(block, "TEXT")
         current = self._get_var(var_id)
-        self._set_var(var_id, str(current) + (str(val) if val is not None else ""))
+        self._set_var(var_id, str(current) + _fmt_value(val))
 
     async def _stmt_flow(self, block: dict):
         flow = block.get("fields", {}).get("FLOW", "BREAK")
@@ -438,7 +462,7 @@ class BlockInterpreter:
         parts = []
         for i in range(items):
             val = await self._eval_input(block, f"ADD{i}")
-            parts.append(str(val) if val is not None else "")
+            parts.append(_fmt_value(val))
         return "".join(parts)
 
     async def _eval_text_length(self, block: dict) -> int:
@@ -479,13 +503,15 @@ class BlockInterpreter:
         if where == "FROM_START":
             at = await self._eval_input(block, "AT")
             try:
-                return s[int(at)]
+                i = int(at) - 1  # Blockly AT is 1-based (1 = first char)
+                return s[i] if i >= 0 else ""
             except (TypeError, ValueError, IndexError):
                 return ""
         if where == "FROM_END":
             at = await self._eval_input(block, "AT")
             try:
-                return s[-(int(at) + 1)]
+                i = int(at)  # 1-based from end (1 = last char)
+                return s[-i] if i >= 1 else ""
             except (TypeError, ValueError, IndexError):
                 return ""
         if where == "RANDOM":
@@ -774,14 +800,27 @@ class BlockInterpreter:
             return 0
         return math.degrees(math.atan2(y, x))
 
+    @staticmethod
+    def _loose_eq(a: Any, b: Any) -> bool:
+        """Blockly/JS-style loose equality: a text input "5" equals the number 5.
+        Strict Python `==` would make `get_input == 5` always false since input
+        is a string — the most common block conditional. Fall back to numeric
+        coercion when the raw compare fails."""
+        if a == b:
+            return True
+        try:
+            return float(a) == float(b)
+        except (TypeError, ValueError):
+            return False
+
     async def _eval_logic_compare(self, block: dict):
         a = await self._eval_input(block, "A")
         b = await self._eval_input(block, "B")
         op = block.get("fields", {}).get("OP", "EQ")
         if op == "EQ":
-            return a == b
+            return self._loose_eq(a, b)
         if op == "NEQ":
-            return a != b
+            return not self._loose_eq(a, b)
         try:
             a, b = float(a), float(b)
         except (TypeError, ValueError):
@@ -992,6 +1031,13 @@ class BlockInterpreter:
         return None
 
     async def _invoke_procedure(self, call_block: dict, want_return: bool):
+        # Depth guard: raise a clean 400 (like MAX_ITERATIONS) before deep or
+        # infinite recursion exhausts Python's stack with an uncaught RecursionError.
+        if len(self._scope_stack) >= MAX_RECURSION_DEPTH:
+            raise HTTPException(
+                status_code=400,
+                detail="Block recursion depth exceeded (possible infinite recursion).",
+            )
         extra = call_block.get("extraState", {}) or {}
         name = extra.get("name") or call_block.get("fields", {}).get("NAME", "")
         proc = self.procedures.get(name)
