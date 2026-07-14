@@ -22,7 +22,7 @@ export function registerCustomBlocks() {
     init: function () {
       this.appendDummyInput().appendField("Get Input");
       this.setOutput(true, "String");
-      this.setColour(210);
+      this.setStyle("restai_blocks");
       this.setTooltip("Returns the input text (the question sent to this project)");
     },
   };
@@ -34,7 +34,7 @@ export function registerCustomBlocks() {
         .appendField("Set Output");
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
-      this.setColour(210);
+      this.setStyle("restai_blocks");
       this.setTooltip("Sets the output text (the answer returned by this project)");
     },
   };
@@ -46,7 +46,7 @@ export function registerCustomBlocks() {
         .appendField("Call Project")
         .appendField(new Blockly.FieldDropdown(projectDropdownGenerator), "PROJECT_NAME");
       this.setOutput(true, "String");
-      this.setColour(210);
+      this.setStyle("restai_blocks");
       var block = this;
       this.setTooltip(function () {
         var name = block.getFieldValue("PROJECT_NAME");
@@ -67,7 +67,7 @@ export function registerCustomBlocks() {
       this.appendValueInput("TEXT").setCheck("String").appendField("Log");
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
-      this.setColour(210);
+      this.setStyle("restai_blocks");
       this.setTooltip("Logs a debug message");
     },
   };
@@ -90,7 +90,7 @@ export function registerCustomBlocks() {
           ["DistilBERT (fastest)", "typeform/distilbert-base-uncased-mnli"],
         ]), "MODEL");
       this.setOutput(true, "String");
-      this.setColour(210);
+      this.setStyle("restai_blocks");
       this.setTooltip(
         "Classifies text using zero-shot classification. Provide comma-separated labels. Returns the top matching label."
       );
@@ -106,7 +106,7 @@ export function registerCustomBlocks() {
         .setCheck("String")
         .appendField("contains");
       this.setOutput(true, "Boolean");
-      this.setColour(160);
+      this.setStyle("text_blocks");
       this.setTooltip("Returns true if the text contains the given substring");
     },
   };

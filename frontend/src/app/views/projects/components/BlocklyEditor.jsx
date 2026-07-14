@@ -1,70 +1,103 @@
-import { useRef, useEffect, useCallback } from "react";
-import { Card, Divider, Box, Button, Typography } from "@mui/material";
-import { FileDownload, FileUpload } from "@mui/icons-material";
+import { useRef, useEffect, useCallback, useState } from "react";
+import { Box, Button, Tooltip } from "@mui/material";
+import { FileDownload, FileUpload, Save, ViewInAr } from "@mui/icons-material";
 import { toast } from "react-toastify";
-import { H4 } from "app/components/Typography";
+import { useTranslation } from "react-i18next";
 import * as Blockly from "blockly";
 import { registerCustomBlocks, setProjectNames } from "./blockly/blocks";
-import { toolbox } from "./blockly/toolbox";
+import { getToolbox } from "./blockly/toolbox";
+import { restaiBlocklyTheme } from "./blockly/theme";
+import { PlaygroundTile, HeaderBar, Eyebrow, PulseDot, GhostAction, HAIRLINE } from "./generatorKit";
+import { FONT_MONO } from "app/components/page/pageStyles";
+
+const ACCENT = "#1976d2";
+const SAVED = "#10b981";
+const UNSAVED = "#f59e0b";
 
 export default function BlocklyEditor({ project, projects, onSave, onReady }) {
+  const { t } = useTranslation();
   const editorRef = useRef(null);
   const workspaceRef = useRef(null);
-  // Ref-held so the input's value can be reset between picks — otherwise
-  // selecting the same filename twice in a row wouldn't re-fire onChange.
   const fileInputRef = useRef(null);
+  // Set while a workspace is loaded programmatically, so those change events
+  // don't flip the dirty flag.
+  const loadingRef = useRef(false);
+
+  const [dirty, setDirty] = useState(false);
+  const [counts, setCounts] = useState({ blocks: 0, vars: 0 });
 
   const projectsLoaded = useRef(false);
   if (projects && projects.length > 0) {
     projectsLoaded.current = true;
   }
 
+  const refreshStats = useCallback(() => {
+    const ws = workspaceRef.current;
+    if (!ws) return;
+    setCounts({
+      blocks: ws.getAllBlocks(false).length,
+      vars: ws.getAllVariables().length,
+    });
+  }, []);
+
   useEffect(() => {
     const filtered = (projects || []).filter((p) => p.name !== project.name);
-    const names = filtered.map((p) => p.name);
-    setProjectNames(names, filtered);
+    setProjectNames(filtered.map((p) => p.name), filtered);
   }, [projects, project.name]);
 
   useEffect(() => {
     if (!editorRef.current) return;
-    // Wait for projects so saved dropdown values can validate against names.
     if (!projectsLoaded.current) return;
 
-    // Names MUST be set before registering blocks / loading the workspace.
     const filtered = (projects || []).filter((p) => p.name !== project.name);
-    const names = filtered.map((p) => p.name);
-    setProjectNames(names, filtered);
+    setProjectNames(filtered.map((p) => p.name), filtered);
 
     registerCustomBlocks();
 
     const workspace = Blockly.inject(editorRef.current, {
-      toolbox,
-      grid: { spacing: 20, length: 3, colour: "#ccc", snap: true },
+      toolbox: getToolbox(t),
+      theme: restaiBlocklyTheme,
+      renderer: "thrasos",
+      grid: { spacing: 24, length: 3, colour: "rgba(25,118,210,0.14)", snap: true },
       zoom: { controls: true, wheel: true, startScale: 1.0 },
+      move: { scrollbars: true, drag: true, wheel: true },
       trashcan: true,
     });
     workspaceRef.current = workspace;
 
+    loadingRef.current = true;
     if (project.options?.blockly_workspace) {
       try {
-        Blockly.serialization.workspaces.load(
-          project.options.blockly_workspace,
-          workspace
-        );
+        Blockly.serialization.workspaces.load(project.options.blockly_workspace, workspace);
       } catch (e) {
         console.error("Failed to load Blockly workspace:", e);
       }
     }
+    loadingRef.current = false;
+    setDirty(false);
+    refreshStats();
+
+    // Mark unsaved on any real model change (create/delete/move/change); UI-only
+    // events (select, scroll, click) and programmatic loads are ignored.
+    workspace.addChangeListener((e) => {
+      if (loadingRef.current || e.isUiEvent) return;
+      setDirty(true);
+      refreshStats();
+    });
 
     if (onReady) {
       onReady((newState) => {
         if (!workspaceRef.current) return;
+        loadingRef.current = true;
         try {
           workspaceRef.current.clear();
           Blockly.serialization.workspaces.load(newState, workspaceRef.current);
         } catch (e) {
           console.error("Failed to load generated workspace:", e);
         }
+        loadingRef.current = false;
+        setDirty(true); // generated but not yet saved
+        refreshStats();
       });
     }
 
@@ -73,12 +106,22 @@ export default function BlocklyEditor({ project, projects, onSave, onReady }) {
       workspaceRef.current = null;
       if (onReady) onReady(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.name, projects]);
+
+  // Retranslate the toolbox on UI-language change without disposing the
+  // workspace (so unsaved blocks survive a language switch).
+  useEffect(() => {
+    if (workspaceRef.current) {
+      try { workspaceRef.current.updateToolbox(getToolbox(t)); } catch (e) { /* pre-inject */ }
+    }
+  }, [t]);
 
   const handleSave = useCallback(() => {
     if (!workspaceRef.current) return;
     const state = Blockly.serialization.workspaces.save(workspaceRef.current);
     onSave({ blockly_workspace: state });
+    setDirty(false);
   }, [onSave]);
 
   const handleExport = useCallback(() => {
@@ -95,69 +138,101 @@ export default function BlocklyEditor({ project, projects, onSave, onReady }) {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      // Defer revoke — Safari/Firefox need the URL alive briefly.
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast.success("Workspace exported.");
+      toast.success(t("projects.edit.knowledge.ide.exported"));
     } catch (e) {
       console.error("Export failed:", e);
-      toast.error("Export failed: " + (e?.message || e));
+      toast.error(t("projects.edit.knowledge.ide.exportFailed") + " " + (e?.message || e));
     }
-  }, [project.name]);
+  }, [project.name, t]);
 
   const handleImportFile = useCallback((e) => {
     const file = e.target.files && e.target.files[0];
-    // Reset so picking the same filename twice still re-fires onChange.
     e.target.value = "";
     if (!file || !workspaceRef.current) return;
-    if (!window.confirm(
-      "Replace the current workspace with the contents of this file? " +
-      "Any unsaved blocks will be lost."
-    )) return;
+    if (!window.confirm(t("projects.edit.knowledge.ide.importConfirm"))) return;
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const text = String(reader.result || "");
-        const state = JSON.parse(text);
+        const state = JSON.parse(String(reader.result || ""));
         if (!state || typeof state !== "object") {
-          throw new Error("File doesn't contain a Blockly workspace JSON object.");
+          throw new Error(t("projects.edit.knowledge.ide.importInvalid"));
         }
+        loadingRef.current = true;
         workspaceRef.current.clear();
         Blockly.serialization.workspaces.load(state, workspaceRef.current);
-        toast.success("Workspace loaded from " + file.name);
+        loadingRef.current = false;
+        setDirty(true);
+        refreshStats();
+        toast.success(t("projects.edit.knowledge.ide.imported") + " " + file.name);
       } catch (err) {
+        loadingRef.current = false;
         console.error("Import failed:", err);
-        toast.error("Import failed: " + (err?.message || err));
+        toast.error(t("projects.edit.knowledge.ide.importFailed") + " " + (err?.message || err));
       }
     };
-    reader.onerror = () => {
-      toast.error("Couldn't read the selected file.");
-    };
+    reader.onerror = () => toast.error(t("projects.edit.knowledge.ide.importReadError"));
     reader.readAsText(file);
-  }, []);
+  }, [t, refreshStats]);
 
   return (
-    <Card elevation={3} sx={{ mt: 2 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pr: 2, gap: 1, flexWrap: "wrap" }}>
-        <H4 p={2}>Block Editor</H4>
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-          <Button
-            variant="outlined"
-            color="primary"
-            startIcon={<FileUpload />}
-            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+    <PlaygroundTile accent={ACCENT} sx={{ mt: 2, flex: "0 0 auto" }}>
+      <HeaderBar>
+        {/* Left: workspace identity + live block/variable tally */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+          <Box
+            sx={{
+              width: 32, height: 32, flexShrink: 0, borderRadius: 2,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              background: "rgba(25,118,210,0.10)", color: ACCENT,
+              "& svg": { fontSize: 18 },
+            }}
           >
-            Import from file
-          </Button>
+            <ViewInAr />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Eyebrow accent={ACCENT}>{t("projects.edit.knowledge.ide.workspace")}</Eyebrow>
+            <Box sx={{ fontFamily: FONT_MONO, fontSize: "0.72rem", color: "rgba(15,23,42,0.5)", mt: 0.25 }}>
+              {counts.blocks} {t("projects.edit.knowledge.ide.blocks")} · {counts.vars} {t("projects.edit.knowledge.ide.variables")}
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Right: save state + actions */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mr: 0.5 }}>
+            <PulseDot accent={dirty ? UNSAVED : SAVED} active={!dirty} />
+            <Box
+              sx={{
+                fontFamily: FONT_MONO, fontSize: "0.66rem", letterSpacing: "0.1em",
+                textTransform: "uppercase", fontWeight: 700,
+                color: dirty ? UNSAVED : SAVED,
+              }}
+            >
+              {dirty ? t("projects.edit.knowledge.ide.unsaved") : t("projects.edit.knowledge.ide.saved")}
+            </Box>
+          </Box>
+          <Tooltip title={t("projects.edit.knowledge.ide.importFile")}>
+            <GhostAction accent={ACCENT} onClick={() => fileInputRef.current && fileInputRef.current.click()}>
+              <FileUpload fontSize="small" />
+            </GhostAction>
+          </Tooltip>
+          <Tooltip title={t("projects.edit.knowledge.ide.exportFile")}>
+            <GhostAction accent={ACCENT} onClick={handleExport}>
+              <FileDownload fontSize="small" />
+            </GhostAction>
+          </Tooltip>
           <Button
-            variant="outlined"
-            color="primary"
-            startIcon={<FileDownload />}
-            onClick={handleExport}
+            variant="contained"
+            startIcon={<Save />}
+            onClick={handleSave}
+            disableElevation
+            sx={{
+              borderRadius: 2, background: ACCENT, fontWeight: 600,
+              "&:hover": { background: "#155fa8", boxShadow: `0 8px 18px ${ACCENT}44` },
+            }}
           >
-            Export to file
-          </Button>
-          <Button variant="contained" color="primary" onClick={handleSave}>
-            Save Blocks
+            {t("projects.edit.knowledge.ide.saveBlocks")}
           </Button>
           <input
             ref={fileInputRef}
@@ -167,16 +242,23 @@ export default function BlocklyEditor({ project, projects, onSave, onReady }) {
             onChange={handleImportFile}
           />
         </Box>
-      </Box>
-      <Divider />
-      <Typography variant="caption" color="textSecondary" sx={{ px: 2, pt: 1, display: "block" }}>
-        Use "Get Input" to read the question and "Set Output" to define the answer.
-        "Call Project" lets you invoke other RESTai projects.
-      </Typography>
+      </HeaderBar>
+
       <Box
         ref={editorRef}
-        sx={{ width: "100%", height: "600px" }}
+        sx={{ width: "100%", height: "clamp(520px, calc(100vh - 300px), 900px)" }}
       />
-    </Card>
+
+      <Box
+        sx={{
+          borderTop: `1px solid ${HAIRLINE}`,
+          px: 2, py: 1.25,
+          fontFamily: FONT_MONO, fontSize: "0.68rem", letterSpacing: "0.02em",
+          color: "rgba(15,23,42,0.5)",
+        }}
+      >
+        {t("projects.edit.knowledge.ide.help")}
+      </Box>
+    </PlaygroundTile>
   );
 }

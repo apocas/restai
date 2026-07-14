@@ -19,6 +19,21 @@ const Container = styled("div")(({ theme }) => ({
   "& .breadcrumb": { marginBottom: 24 },
 }));
 
+// Total blocks in a saved workspace (following next + input children, incl.
+// shadows) so the hero's saved-count matches the editor's live tally.
+const countBlock = (b) => {
+  if (!b) return 0;
+  let n = 1;
+  if (b.next?.block) n += countBlock(b.next.block);
+  if (b.inputs) Object.values(b.inputs).forEach((inp) => {
+    if (inp?.block) n += countBlock(inp.block);
+    if (inp?.shadow) n += countBlock(inp.shadow);
+  });
+  return n;
+};
+const countWorkspaceBlocks = (ws) =>
+  (ws?.blocks?.blocks || []).reduce((s, b) => s + countBlock(b), 0);
+
 export default function ProjectIDEView() {
   const { t } = useTranslation();
   const { id } = useParams();
@@ -100,11 +115,12 @@ export default function ProjectIDEView() {
       <PageHero
         icon={<ViewInAr sx={{ color: "#fff" }} />}
         eyebrow={`PROJECT/${String(id).padStart(4, "0")}`}
-        title="Block IDE"
-        subtitle="Visual builder for block projects."
+        title={t("projects.edit.knowledge.ide.title")}
+        subtitle={t("projects.edit.knowledge.ide.subtitle")}
         stats={[
           { glyph: "◆", color: "#93c5fd", label: project.name || "—" },
           { glyph: "⚡", color: "#7dd3fc", label: project.type || "—" },
+          { glyph: "▣", color: "#86efac", label: `${countWorkspaceBlocks(project.options?.blockly_workspace)} ${t("projects.edit.knowledge.ide.blocks")}` },
         ]}
         actions={systemLlmConfigured ? (
           <Button
