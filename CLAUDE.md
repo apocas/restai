@@ -427,7 +427,7 @@ Integer Query/Form params have `ge`/`le` bounds. File uploads sanitized via `san
 
 ## Testing
 
-`FastAPI.TestClient` with Basic auth: `auth=("admin", RESTAI_DEFAULT_PASSWORD)`. Inline fixtures in `conftest.py` (`sys.setrecursionlimit(20000)`, pre-builds Pydantic schemas). Tests create real resources against a live app instance. Key files:
+`FastAPI.TestClient` with Basic auth: `auth=("admin", RESTAI_DEFAULT_PASSWORD)`. Inline fixtures in `conftest.py` (`sys.setrecursionlimit(20000)`, pre-builds Pydantic schemas). For speed, `conftest.py` runs the app lifespan ONCE per process (every module's `with TestClient(app)` after the first is a no-op enter — don't add per-module startup assumptions), disables telemetry, and cheapens bcrypt/PBKDF2 for test-created credentials. Tests create real resources against a live app instance. Key files:
 - `tests/test_input_validation.py` — name/enum/valid-value
 - `tests/test_security.py` — RBAC, cross-team, empty/whitespace name rejection
 - `tests/test_users.py`, `tests/test_teams.py`, `tests/test_llms.py`, `tests/test_embeddings.py` — CRUD
