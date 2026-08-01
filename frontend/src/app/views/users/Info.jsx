@@ -294,8 +294,6 @@ export default function UserInfo() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [user, setUser] = useState({});
-  // eslint-disable-next-line no-unused-vars
-  const [info, setInfo] = useState({ "version": "", "embeddings": [], "llms": [], "loaders": [] });
   const auth = useAuth();
   const [openDrawer, setOpenDrawer] = useState(false);
   const [active, setActive] = useState("basic");
@@ -372,12 +370,6 @@ export default function UserInfo() {
       .catch(() => {});
   };
 
-  const fetchInfo = () => {
-    return api.get("/info", auth.user.token)
-      .then(setInfo)
-      .catch(() => {});
-  };
-
   useEffect(() => {
     document.title = (process.env.REACT_APP_RESTAI_NAME || "RESTai") + " - User - " + id;
     fetchUser(id);
@@ -386,7 +378,6 @@ export default function UserInfo() {
 
   useEffect(() => {
     fetchProjects();
-    fetchInfo();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -516,6 +507,9 @@ export default function UserInfo() {
               />
               {user.is_restricted && (
                 <Chip size="small" label="Read-only" sx={pillWarnSx} />
+              )}
+              {user.is_suspended && (
+                <Chip size="small" label="Suspended" sx={pillAdminSx} />
               )}
               {projectCount > 0 && (
                 <Chip size="small" label={`${projectCount} ${t("users.basic.projects") || "projects"}`} sx={pillInfoSx} />

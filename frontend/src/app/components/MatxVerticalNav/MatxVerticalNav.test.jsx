@@ -39,14 +39,18 @@ describe("MatxVerticalNav", () => {
     expect(docs).toHaveAttribute("rel", "noopener noreferrer");
   });
 
-  it("marks the current route's link as active (aria-current)", () => {
+  it("applies the active class to the current route's link", () => {
     renderNav(["/projects"]);
-    // NOTE: the "active" CSS class is currently broken — InternalItem is
-    // styled(NavLink), and emotion stringifies the function className, so
-    // the class list contains the function source instead of "active".
-    // NavLink's native aria-current still reflects the active route.
-    expect(screen.getByText("Projects").closest("a")).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText("Dashboard").closest("a")).not.toHaveAttribute("aria-current");
+    const active = screen.getByText("Projects").closest("a");
+    const inactive = screen.getByText("Dashboard").closest("a");
+    // Regression: InternalItem is emotion styled(NavLink); the wrapper must
+    // preserve NavLink's function-className API so `.active` really lands
+    // (it used to stringify the function into the class attribute).
+    expect(active).toHaveClass("active");
+    expect(active).toHaveClass("nav-item");
+    expect(active).toHaveAttribute("aria-current", "page");
+    expect(inactive).not.toHaveClass("active");
+    expect(inactive).toHaveClass("nav-item");
   });
 
   it("renders children of a parent item inside an expansion panel", () => {

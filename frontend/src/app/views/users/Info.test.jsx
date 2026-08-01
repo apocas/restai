@@ -101,11 +101,13 @@ const renderInfo = async () => {
 };
 
 describe("UserInfo shell", () => {
-  it("fetches the user, projects and info on mount and defaults to the basic tab", async () => {
+  it("fetches the user and projects on mount and defaults to the basic tab", async () => {
     await renderInfo();
     expect(api.get).toHaveBeenCalledWith("/users/bob", "tok");
     expect(api.get).toHaveBeenCalledWith("/projects", "tok");
-    expect(api.get).toHaveBeenCalledWith("/info", "tok");
+    // The page used to fire a dead GET /info whose result was never used —
+    // removed; assert it stays gone.
+    expect(api.get).not.toHaveBeenCalledWith("/info", "tok");
     expect(screen.getByTestId("tab-basic")).toBeInTheDocument();
     expect(screen.getByText("bob@example.com")).toBeInTheDocument();
   });

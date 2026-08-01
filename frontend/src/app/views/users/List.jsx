@@ -264,7 +264,7 @@ export default function Users() {
     if (!window.confirm(`Delete user "${user.username}"?`)) return;
     api.delete("/users/" + user.username, auth.user.token)
       .then(() => { toast.success(`Deleted ${user.username}`); fetchUsers(); })
-      .catch(() => {});
+      .catch(() => { toast.error(`Failed to delete ${user.username}`); });
   };
 
   const bulkDelete = async (rows) => {

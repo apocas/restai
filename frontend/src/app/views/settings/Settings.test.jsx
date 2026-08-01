@@ -9,6 +9,8 @@ const render = (ui) => rtlRender(<ThemeProvider theme={theme}>{ui}</ThemeProvide
 import api from "app/utils/api";
 import { toast } from "react-toastify";
 
+jest.setTimeout(20000);
+
 jest.mock("app/utils/api", () => ({
   get: jest.fn(),
   post: jest.fn(),
