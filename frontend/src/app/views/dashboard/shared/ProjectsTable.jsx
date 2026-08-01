@@ -288,7 +288,7 @@ export default function ProjectsTable({ projects = [], title = "Projects", compa
                     {users.slice(0, 3).map((u, i) => (
                       <Tooltip key={u.id || u.username || i} title={u.username || ""} arrow>
                         <Avatar
-                          src={`https://www.gravatar.com/avatar/${sha256(u.username || "")}?d=identicon`}
+                          src={`https://www.gravatar.com/avatar/${sha256((u.email || u.username || "").trim().toLowerCase())}?d=identicon`}
                           sx={{
                             width: 24, height: 24,
                             ml: i === 0 ? 0 : -0.75,

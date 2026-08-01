@@ -116,4 +116,20 @@ describe("BasicInformation saving", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/users");
     expect(api.patch).not.toHaveBeenCalled();
   });
+
+  it("SSO field is a working controlled input and PATCHes the typed value", async () => {
+    const user = userEvent.setup();
+    renderIt({ username: "bob", sso: "" });
+
+    // Regression: the field used to bind value to the immutable prop, so
+    // typing displayed nothing and only the last keystroke would be saved.
+    const sso = screen.getByLabelText("users.basic.authSso");
+    await user.type(sso, "google");
+    expect(sso).toHaveValue("google");
+
+    await user.click(screen.getByRole("button", { name: "users.basic.saveChanges" }));
+    await waitFor(() =>
+      expect(api.patch).toHaveBeenCalledWith("/users/bob", expect.objectContaining({ sso: "google" }), "tok")
+    );
+  });
 });

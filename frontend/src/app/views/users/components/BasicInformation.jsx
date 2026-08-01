@@ -115,7 +115,7 @@ export default function BasicInformation({ user }) {
                   label={t("users.basic.authSso")}
                   variant="outlined"
                   onChange={handleChange}
-                  value={user.sso ?? ''}
+                  value={state.sso ?? ''}
                 />
               </Grid>
 

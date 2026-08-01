@@ -79,7 +79,12 @@ export default function SmartSearch({ open, onClose }) {
   }, [open]);
 
   useEffect(() => {
-    if (!loading) return;
+    if (!loading) {
+      // The field is disabled while a search is in flight, which drops
+      // keyboard focus — hand it back so the user can refine the query.
+      if (open && inputRef.current) inputRef.current.focus();
+      return;
+    }
     let i = 0;
     setLoadingMessage(LOADING_MESSAGES[0]);
     const interval = setInterval(() => {
@@ -87,7 +92,7 @@ export default function SmartSearch({ open, onClose }) {
       setLoadingMessage(LOADING_MESSAGES[i]);
     }, 1400);
     return () => clearInterval(interval);
-  }, [loading]);
+  }, [loading, open]);
 
   const runSearch = (q) => {
     const text = (q != null ? q : query).trim();

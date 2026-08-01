@@ -1,6 +1,8 @@
 import { Badge, styled } from "@mui/material";
 
-const StyledBadge = styled(Badge)(({ theme, width, height }) => ({
+const StyledBadge = styled(Badge, {
+  shouldForwardProp: (prop) => prop !== "width" && prop !== "height",
+})(({ theme, width, height }) => ({
   "& .MuiBadge-badge": {
     width: width,
     height: height,

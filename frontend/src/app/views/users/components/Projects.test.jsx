@@ -89,4 +89,19 @@ describe("Projects", () => {
     );
     expect(locationMock.href).toBe("/admin/user/bob");
   });
+
+  it("never mutates the user prop when associating or dissociating", async () => {
+    const user = userEvent.setup();
+    const target = makeTarget();
+    const originalProjects = target.projects;
+    render(<Projects user={target} projects={ALL_PROJECTS} />);
+
+    await user.click(screen.getByRole("button", { name: "users.userProjects.dissociate" }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalled());
+
+    // The prop object must be untouched — the PATCH payload is derived,
+    // not the result of an in-place filter/push on user.projects.
+    expect(target.projects).toBe(originalProjects);
+    expect(target.projects).toEqual([{ id: 1, name: "alpha" }]);
+  });
 });
