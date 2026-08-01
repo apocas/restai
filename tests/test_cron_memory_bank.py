@@ -107,11 +107,24 @@ def _brain(fake_llm):
 
 
 def _run_cron(brain):
-    """Run the cron's main() with Brain and platform accounting patched."""
+    """Run the cron's main() with Brain and platform accounting patched.
+
+    The tick is scoped to this module's own projects: the shared test DB
+    accumulates memory-bank-enabled agent projects from other modules, and
+    the cron's global MAX_CHATS_PER_TICK budget would otherwise be spent on
+    that backlog before reaching ours (order-dependent failures in a full
+    suite run).
+    """
     cron = MagicMock()
+    real_list = cmb.memory_bank.list_enabled_projects
+
+    def _ours_only(db_wrapper):
+        return [p for p in real_list(db_wrapper) if str(p.name).endswith(f"_{suffix}")]
+
     with patch.object(cmb, "Brain", return_value=brain), \
          patch.object(cmb, "ensure_settings_table"), \
          patch.object(cmb, "CronLogger", return_value=cron), \
+         patch.object(cmb.memory_bank, "list_enabled_projects", _ours_only), \
          patch("restai.limits.accounting.log_platform_usage"):
         cmb.main()
     return cron
