@@ -1,5 +1,11 @@
+import os
 import sys
 sys.setrecursionlimit(50000)
+
+# Speed: never fire the anonymized-telemetry startup task from tests (it
+# schedules network reports and slows/flakes offline CI runners). Must be
+# set before `restai.main` is imported below.
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "false")
 
 # Force ALL Pydantic models to fully resolve their schemas in the main thread
 # under the raised recursion limit. Without this, TestClient triggers schema
@@ -14,6 +20,74 @@ for _name, _obj in inspect.getmembers(_models_module):
             _obj.model_rebuild()
         except Exception:
             pass
+
+
+# ─── Share one app startup across the whole test session ───────────────
+# Every test module opens its own module-scoped `with TestClient(app)`,
+# and each enter used to re-run the FULL lifespan: Brain() (tool loading,
+# tokenizer), settings seeding, retention cleanup, OAuth manager, and —
+# worse — `register_routers()`/`register_spa()`, which appended a
+# duplicate copy of every route per module (~60x by the end of the
+# suite, slowing route matching as the run progressed).
+#
+# The wrapper below runs the real startup exactly once per process and
+# turns every subsequent lifespan enter/exit into a no-op. The real
+# shutdown (a no-op today) is driven at session end. pytest-xdist safe:
+# each worker process gets its own single startup.
+from contextlib import asynccontextmanager
+from restai.main import app as _app
+
+_real_lifespan_context = _app.router.lifespan_context
+_lifespan_cm = None
+
+
+@asynccontextmanager
+async def _shared_lifespan(app):
+    global _lifespan_cm
+    if _lifespan_cm is None:
+        cm = _real_lifespan_context(app)
+        await cm.__aenter__()
+        _lifespan_cm = cm
+    yield
+
+
+_app.router.lifespan_context = _shared_lifespan
+
+
+def pytest_sessionfinish(session, exitstatus):
+    global _lifespan_cm
+    if _lifespan_cm is not None:
+        import asyncio
+        cm, _lifespan_cm = _lifespan_cm, None
+        try:
+            asyncio.run(cm.__aexit__(None, None, None))
+        except Exception:
+            pass
+
+
+# ─── Cheap credential hashing for test-created users/keys ──────────────
+# Production costs are deliberate (bcrypt cost 12 ≈ 250ms per hash/check,
+# PBKDF2 100k iterations ≈ 40ms per Bearer-key verification — paid on
+# EVERY API-key-authenticated request). Tests create dozens of users and
+# make hundreds of key-authenticated calls; the cryptographic slowdown
+# buys nothing there. Hash/verify stay consistent because both read these
+# knobs at call time. Hashes made outside this process (e.g. the admin
+# user seeded by database.py at full cost) still verify fine: bcrypt
+# embeds its cost in the hash, and the one full-cost admin login is
+# cached by the auth shim below.
+import bcrypt as _bcrypt
+
+_real_gensalt = _bcrypt.gensalt
+
+
+def _fast_gensalt(rounds: int = 4, prefix: bytes = b"2b"):
+    return _real_gensalt(rounds=rounds, prefix=prefix)
+
+
+_bcrypt.gensalt = _fast_gensalt
+
+from restai.utils import crypto as _crypto
+_crypto._PBKDF2_ITERATIONS = 1_000
 
 
 # ─── Test-only auth shim ────────────────────────────────────────────────
