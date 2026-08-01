@@ -79,6 +79,11 @@ function SectionHeader({ icon: Icon, title, subtitle, count, action }) {
 }
 
 function PickerField({ label, placeholder, options, value, onChange, getOptionLabel = (o) => o.name, isOptionEqualToValue, helperText }) {
+  // Selected values come from the team GET while options come from separate
+  // list endpoints, so reference equality never matches — compare by label
+  // by default (fixes filterSelectedOptions + MUI "value not equal to any
+  // option" warnings on the users/projects/llms pickers).
+  const equal = isOptionEqualToValue || ((o, v) => getOptionLabel(o) === getOptionLabel(v));
   return (
     <>
       <Autocomplete
@@ -88,7 +93,7 @@ function PickerField({ label, placeholder, options, value, onChange, getOptionLa
         value={value}
         onChange={(_, v) => onChange(v)}
         filterSelectedOptions
-        isOptionEqualToValue={isOptionEqualToValue}
+        isOptionEqualToValue={equal}
         renderTags={(picked, getTagProps) =>
           picked.map((opt, idx) => {
             const tagProps = getTagProps({ index: idx });

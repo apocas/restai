@@ -13,7 +13,7 @@ import api from "app/utils/api";
 import { Settings as SettingsIcon, Storage, Security, Mail, Payment, ExpandMore, ExpandLess, CloudUpload, Close as CloseIcon } from "@mui/icons-material";
 import { H4 } from "app/components/Typography";
 import ProjectTabNav from "app/views/projects/components/ProjectTabNav";
-import { forensicCardSx, loadFonts } from "app/views/projects/components/forensic/styles";
+import { forensicCardSx } from "app/views/projects/components/forensic/styles";
 
 const Container = styled("div")(({ theme }) => ({
   margin: "24px 48px",
@@ -191,7 +191,7 @@ export default function SettingsPage() {
 
   const fetchSettings = () => {
     api.get("/settings", auth.user.token)
-      .then((data) => setForm(data))
+      .then((data) => setForm((prev) => ({ ...prev, ...data })))
       .catch(() => {});
   };
 
@@ -277,7 +277,7 @@ export default function SettingsPage() {
 
     api.patch("/settings", body, auth.user.token)
       .then((data) => {
-        setForm(data);
+        setForm((prev) => ({ ...prev, ...data }));
         toast.success(t("settings.saved"));
         refreshCapabilities();
       })

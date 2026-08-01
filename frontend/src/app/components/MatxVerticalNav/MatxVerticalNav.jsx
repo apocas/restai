@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { NavLink } from "react-router-dom";
 import { Box, Icon, styled } from "@mui/material";
 
@@ -91,7 +92,21 @@ const itemBaseSx = {
 };
 
 const ExternalItem = styled("a")(() => itemBaseSx);
-const InternalItem = styled(NavLink)(() => itemBaseSx);
+
+// emotion's styled() passes className down as a STRING, which would clobber
+// NavLink's function-className API (the function used to get stringified
+// into the DOM class attribute, so `.active` styling never applied). This
+// wrapper takes emotion's generated class and re-exposes the isActive hook.
+const NavLinkWithActive = forwardRef(({ className, ...props }, ref) => (
+  <NavLink
+    ref={ref}
+    {...props}
+    className={({ isActive }) =>
+      isActive ? `${className} active nav-item` : `${className} nav-item`
+    }
+  />
+));
+const InternalItem = styled(NavLinkWithActive)(() => itemBaseSx);
 
 const NavIcon = styled("span")(() => ({
   display: "inline-flex",
@@ -193,11 +208,7 @@ export default function MatxVerticalNav({ items }) {
       }
       // Internal nav link
       return (
-        <InternalItem
-          key={index}
-          to={item.path}
-          className={({ isActive }) => (isActive ? "active nav-item" : "nav-item")}
-        >
+        <InternalItem key={index} to={item.path}>
           <ItemBody item={item} />
         </InternalItem>
       );

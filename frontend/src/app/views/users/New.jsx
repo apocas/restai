@@ -125,7 +125,7 @@ export default function UserNewView() {
     { ok: pwd.length >= 8, label: t("users.pwReq.chars") },
     { ok: /[a-z]/.test(pwd), label: t("users.pwReq.lower") },
     { ok: /[A-Z]/.test(pwd), label: t("users.pwReq.upper") },
-    { ok: /[0-9\W_]/.test(pwd), label: t("users.pwReq.digit") },
+    { ok: /[0-9]/.test(pwd), label: t("users.pwReq.digit") },
   ];
   const pwdStrength = requirements.filter((r) => r.ok).length;
   const strengthLabel = [t("users.pwReq.tooWeak"), t("users.pwReq.weak"), t("users.pwReq.fair"), t("users.pwReq.good"), t("users.pwReq.strong")][pwdStrength];

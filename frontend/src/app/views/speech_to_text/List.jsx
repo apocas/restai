@@ -100,6 +100,9 @@ export default function SpeechToText() {
     if (saving) return;
     setDialogOpen(false);
     setEditing(null);
+    // Reset so a closed local-engine edit doesn't leave class_name="local"
+    // rendering an out-of-range value in the provider Select next open.
+    setForm(emptyForm());
   };
 
   const handleClassChange = (newClass) => {
