@@ -302,7 +302,6 @@ def test_sync_sharepoint_downloads_folder_files():
     loader = MagicMock()
     docs = [_doc("sp body")]
     loader.load_data.return_value = docs
-    loader_cls = MagicMock(return_value=loader)
 
     with patch("requests.post", return_value=_resp({"access_token": "at"})) as rp, \
          patch("requests.get", side_effect=get_responses) as rg, \
