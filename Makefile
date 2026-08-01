@@ -183,6 +183,10 @@ version:
 test:
 	uv run --no-group gpu pytest tests
 
+.PHONY: frontend-test
+frontend-test:
+	cd frontend && npm run test:ci
+
 .PHONY: coverage
 coverage:
 	uv run --no-group gpu pytest tests --ignore=tests/test_projects.py --cov --cov-report=term-missing:skip-covered --cov-report=html

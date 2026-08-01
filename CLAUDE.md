@@ -30,6 +30,8 @@ make test             # uv run pytest tests
 pytest tests/test_projects.py -v
 pytest tests/test_projects.py::test_create_project
 make coverage         # pytest with coverage (term-missing + htmlcov/)
+make frontend-test    # Jest via react-scripts, with coverage (frontend/src/**/*.test.js*)
+cd frontend && npm test  # Jest watch mode
 
 # Code quality
 make lint             # ruff check . (zero-violation baseline — CI enforces it)
@@ -447,6 +449,8 @@ Integer Query/Form params have `ge`/`le` bounds. File uploads sanitized via `san
 **Linting**: ruff, configured in `pyproject.toml` (`[tool.ruff]`). Default E/F rules with pragmatic ignores (`E402` late imports, `E712` SQLAlchemy `== True`, `E731`, `E741`); `migrations/` and `examples/` excluded. The repo is at zero violations and CI runs `ruff check .` before tests — keep it clean. Some `__init__.py` re-exports carry `# noqa: F401` because tests/monkeypatching reach them via the package namespace; module-level "unused" imports may be compat re-exports (e.g. `restai.database.verify_password`) — check importers before deleting.
 
 **Coverage**: pytest-cov (`[tool.coverage.run]` sources: `restai`, `crons`, `modules`). `make coverage` for local HTML report; CI prints the term report.
+
+**Frontend tests**: Jest via `react-scripts test` (CRA built-in) + Testing Library; setup in `frontend/src/setupTests.js`, coverage scope in the `jest` key of `frontend/package.json` (`src/app/**`, locales excluded). `make frontend-test` / `npm run test:ci` runs headless with coverage; CI runs it before the frontend build. Tests colocate with source (`*.test.js`/`*.test.jsx`). Pure-logic modules (utils, validators, `chatErrors.js`) are the pattern to follow — components importing `react-markdown` (ESM-only) break under CRA's Jest transform, so extract logic out of such components rather than rendering them (that's why `formatChatError` lives in `chatErrors.js`, not ChatPanel).
 
 ## Key env vars
 

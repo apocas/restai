@@ -39,7 +39,13 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Frontend tests
+        run: cd frontend && npm run test:ci
+
       - name: Build frontend
         env:
           CI: false
-        run: cd frontend && npm ci && npm run build
+        run: cd frontend && npm run build
