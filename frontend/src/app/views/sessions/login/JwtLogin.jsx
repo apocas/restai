@@ -108,7 +108,9 @@ const Orb = styled("div")(({ color, size, top, left, anim }) => ({
   pointerEvents: "none",
 }));
 
-const GlassCard = styled(Box)(({ shaking }) => ({
+const GlassCard = styled(Box, {
+  shouldForwardProp: (prop) => prop !== "shaking",
+})(({ shaking }) => ({
   position: "relative",
   zIndex: 2,
   width: "100%",

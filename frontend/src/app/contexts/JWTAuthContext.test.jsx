@@ -182,6 +182,41 @@ describe("verifyTotp / logout", () => {
     await expect(ctx.verifyTotp("tt", "000000")).rejects.toThrow("Invalid code.");
   });
 
+  it("impersonate posts to the backend and re-checks auth as the target", async () => {
+    renderProvider();
+    await screen.findByTestId("authed");
+
+    axios.post.mockResolvedValue({ data: {} });
+    axios.get.mockResolvedValue({ data: whoamiUser({ username: "victim", impersonating: true }) });
+    await act(async () => {
+      await ctx.impersonate("victim");
+    });
+    expect(axios.post).toHaveBeenCalledWith(
+      "/auth/impersonate/victim",
+      {},
+      { withCredentials: true }
+    );
+    expect(screen.getByTestId("impersonating")).toHaveTextContent("true");
+  });
+
+  it("exitImpersonation restores the original identity", async () => {
+    renderProvider();
+    await screen.findByTestId("authed");
+
+    axios.post.mockResolvedValue({ data: {} });
+    axios.get.mockResolvedValue({ data: whoamiUser({ username: "orig-admin", is_admin: true }) });
+    await act(async () => {
+      await ctx.exitImpersonation();
+    });
+    expect(axios.post).toHaveBeenCalledWith(
+      "/auth/exit-impersonation",
+      {},
+      { withCredentials: true }
+    );
+    expect(screen.getByTestId("impersonating")).toHaveTextContent("false");
+    expect(screen.getByTestId("role")).toHaveTextContent("ADMIN");
+  });
+
   it("logout clears state and posts to the backend", async () => {
     renderProvider();
     await screen.findByTestId("authed");

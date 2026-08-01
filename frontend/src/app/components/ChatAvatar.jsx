@@ -5,7 +5,7 @@ const StyledAvatar = styled(Avatar)({
   width: 40
 });
 
-export default function ChatAvatar({ src, status }) {
+export default function ChatAvatar({ src }) {
   return (
     <Box position="relative">
       <StyledAvatar src={src} />

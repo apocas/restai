@@ -51,18 +51,12 @@ export default function Preferences({ user, projects }) {
     ...projectMap[p.id],
   }));
 
-  const diassoc = (project) => {
-    var updatedProjects = user.projects.filter((p) => p.id !== project.id);
-    user.projects = updatedProjects;
-    onSubmitHandler();
-  }
-
-  const onSubmitHandler = (event) => {
-    if (event)
-      event.preventDefault();
-
+  // Submit an explicit project list instead of mutating the `user` prop —
+  // the previous in-place push/filter only worked because the page hard
+  // redirects after the PATCH.
+  const submitProjects = (projectList) => {
     api.patch("/users/" + user.username, {
-      "projects": user.projects.map((p) => {
+      "projects": projectList.map((p) => {
         // Try to get name from the project object or from the projectMap
         const projectName = p.name || (projectMap[p.id] && projectMap[p.id].name);
         return projectName;
@@ -72,7 +66,10 @@ export default function Preferences({ user, projects }) {
         window.location.href = "/admin/user/" + user.username;
       })
       .catch(() => {});
+  }
 
+  const diassoc = (project) => {
+    submitProjects(user.projects.filter((p) => p.id !== project.id));
   }
 
   const handleChange = (event) => {
@@ -112,8 +109,7 @@ export default function Preferences({ user, projects }) {
               <Button type="submit" variant="contained" mt={1} onClick={() => { 
                 const selectedProject = projects.find(p => p.name === state.addproject);
                 if (selectedProject) {
-                  user.projects.push({ "name": selectedProject.name, "id": selectedProject.id }); 
-                  onSubmitHandler();
+                  submitProjects([...user.projects, { "name": selectedProject.name, "id": selectedProject.id }]);
                 }
               }}>
                 {t("users.userProjects.associate")}

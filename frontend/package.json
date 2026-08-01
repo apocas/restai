@@ -20,7 +20,15 @@
     "collectCoverageFrom": [
       "src/app/**/*.{js,jsx}",
       "!src/app/locales/**"
-    ]
+    ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 18,
+        "branches": 14,
+        "functions": 14,
+        "lines": 18
+      }
+    }
   },
   "browserslist": {
     "production": [

@@ -1,7 +1,9 @@
 import { Box, styled } from "@mui/material";
 import clsx from "clsx";
 
-const StyledBox = styled(Box)(({ ellipsis }) => ({
+const StyledBox = styled(Box, {
+  shouldForwardProp: (prop) => prop !== "ellipsis",
+})(({ ellipsis }) => ({
   textTransform: "none",
   ...(ellipsis && { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" })
 }));
