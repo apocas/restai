@@ -7,12 +7,19 @@
     "start": "REACT_APP_VERSION=$npm_package_version react-scripts start",
     "build": "REACT_APP_VERSION=$npm_package_version react-scripts build",
     "test": "react-scripts test",
+    "test:ci": "cross-env CI=true react-scripts test --coverage --watchAll=false",
     "eject": "react-scripts eject",
     "ghp": "react-scripts build && gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
       "react-app"
+    ]
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/app/**/*.{js,jsx}",
+      "!src/app/locales/**"
     ]
   },
   "browserslist": {
@@ -79,6 +86,9 @@
     "vis-network": "^9.1.13"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^14.3.1",
+    "@testing-library/user-event": "^14.6.1",
     "axios-mock-adapter": "^2.1.0",
     "cross-env": "^10.1.0",
     "customize-cra": "^1.0.0",
