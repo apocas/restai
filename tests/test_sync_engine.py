@@ -223,10 +223,9 @@ def test_sync_s3_lists_downloads_and_indexes(tmp_path):
     loader = MagicMock()
     docs = [_doc("file body")]
     loader.load_data.return_value = docs
-    loader_cls = MagicMock(return_value=loader)
 
     with patch("boto3.client", return_value=s3) as bc, \
-         patch("restai.vectordb.tools.find_file_loader", return_value=loader_cls), \
+         patch("restai.vectordb.tools.find_file_loader", return_value=loader), \
          patch("restai.vectordb.tools.extract_keywords_for_metadata", side_effect=lambda d: d), \
          patch("restai.vectordb.tools.index_documents_classic", return_value=5) as idx:
         sync_mod._sync_s3(project, source, MagicMock())
@@ -307,7 +306,7 @@ def test_sync_sharepoint_downloads_folder_files():
 
     with patch("requests.post", return_value=_resp({"access_token": "at"})) as rp, \
          patch("requests.get", side_effect=get_responses) as rg, \
-         patch("restai.vectordb.tools.find_file_loader", return_value=loader_cls), \
+         patch("restai.vectordb.tools.find_file_loader", return_value=loader), \
          patch("restai.vectordb.tools.extract_keywords_for_metadata", side_effect=lambda d: d), \
          patch("restai.vectordb.tools.index_documents_classic", return_value=2) as idx:
         sync_mod._sync_sharepoint(project, source, MagicMock())
@@ -356,7 +355,7 @@ def test_sync_gdrive_exports_google_docs_as_text():
         return 1
 
     def fake_find_loader(ext, eargs=None):
-        return None  # unsupported binary — skipped
+        raise Exception("Invalid file type.")  # unsupported binary — skipped
 
     with patch("jwt.encode", return_value="signed-jwt") as je, \
          patch("requests.post", return_value=_resp({"access_token": "at"})) as rp, \
@@ -401,11 +400,8 @@ def test_sync_gdrive_no_documents_is_noop():
 # that would run once the import path is fixed.
 
 def _install_fake_kg(monkeypatch, extract_mock):
-    import sys
-    import types
-    fake = types.ModuleType("restai.knowledge_graph")
-    fake.extract_and_persist = extract_mock
-    monkeypatch.setitem(sys.modules, "restai.knowledge_graph", fake)
+    import restai.integrations.knowledge_graph as kg_mod
+    monkeypatch.setattr(kg_mod, "extract_and_persist", extract_mock)
 
 
 def test_extract_entities_disabled_is_noop(monkeypatch):
@@ -424,18 +420,17 @@ def test_extract_entities_requires_brain(monkeypatch):
     ep.assert_not_called()
 
 
-def test_extract_entities_stale_import_path_is_swallowed():
-    # BUG (documented): with the real module layout the import of
-    # `restai.knowledge_graph` fails, and the function must swallow that
-    # instead of crashing the sync. The real implementation at
-    # `restai.integrations.knowledge_graph` is never invoked.
+def test_extract_entities_uses_real_module_path():
+    # Regression: this used to import from the stale `restai.knowledge_graph`
+    # path, whose ModuleNotFoundError was swallowed — so sync-time KG
+    # extraction silently never ran. It must now hit the real implementation.
     project = _project(kg=True)
     with patch("restai.integrations.knowledge_graph.extract_and_persist") as real_ep:
         sync_mod._extract_entities_for_documents(
             project, [SimpleNamespace(text="x", metadata={"source": "s"})],
             MagicMock(), MagicMock(),
-        )  # must not raise
-    real_ep.assert_not_called()
+        )
+    real_ep.assert_called_once()
 
 
 def test_extract_entities_groups_by_source(monkeypatch):

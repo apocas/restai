@@ -34,6 +34,7 @@ from restai.models.models import ChatModel, FileAttachment
     "224.0.0.1",         # multicast
     "255.255.255.255",   # broadcast / reserved
     "240.0.0.1",         # Class E reserved
+    "100.64.0.1",        # CGNAT (RFC 6598) — regression: not is_private, must still be blocked
     "::",                # IPv6 unspecified
     "ff02::1",           # IPv6 multicast
     "fdff::1",           # ULA fc00::/7

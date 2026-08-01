@@ -159,6 +159,7 @@ export default function ProjectTabNav({ tabs, active, setActive }) {
                 return (
                   <NavItem
                     key={selectionId}
+                    type="button"
                     active={isActive}
                     onClick={() => {
                       setActive(selectionId);

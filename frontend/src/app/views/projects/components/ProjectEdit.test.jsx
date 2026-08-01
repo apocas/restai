@@ -71,11 +71,17 @@ jest.mock("./ProjectEditKnowledge", () => {
 });
 jest.mock("./ProjectEditSecurity", () => {
   const React = require("react");
-  return function MockSecurity({ fieldErrors }) {
+  return function MockSecurity({ fieldErrors, handleChange }) {
     return React.createElement(
       "div",
       { "data-testid": "tab-security" },
-      React.createElement("span", { "data-testid": "security-field-errors" }, JSON.stringify(fieldErrors))
+      React.createElement("span", { "data-testid": "security-field-errors" }, JSON.stringify(fieldErrors)),
+      // Lets shell tests drive the budget field through the real handleChange.
+      React.createElement("button", {
+        type: "button", // inside the form — must not act as a submit
+        "data-testid": "security-set-budget",
+        onClick: () => handleChange({ target: { name: "budget", value: "12.5" } }),
+      })
     );
   };
 });
@@ -155,6 +161,15 @@ describe("ProjectEdit shell", () => {
     expect(api.get).not.toHaveBeenCalledWith("/projects/5/prompts", "tok", { silent: true });
   });
 
+  it("hides agent/rag-only tabs from block projects", async () => {
+    // Regression: '!project.type === "agent"' precedence bug made this
+    // gating dead — block projects used to see the System tab.
+    const block = { ...RAG_PROJECT, type: "block", id: 5, team: null };
+    render(<ProjectEdit project={block} projects={[]} info={{ llms: [], embeddings: [] }} />);
+    await screen.findByTestId("tab-general");
+    expect(screen.queryByRole("button", { name: "projects.edit.tabs.system" })).not.toBeInTheDocument();
+  });
+
   it("switches tabs via the side nav", async () => {
     const user = userEvent.setup();
     await renderShell();
@@ -216,6 +231,23 @@ describe("ProjectEdit shell", () => {
     // agent-only options must not leak into a rag payload
     expect(payload.options).not.toHaveProperty("agent_loop");
     expect(mockNavigate).toHaveBeenCalledWith("/project/3");
+  });
+
+  it("budget edits land in options.budget and survive into the PATCH", async () => {
+    // Regression: budget used to be written to a top-level state key the
+    // submit never mapped — edits were silently discarded. The limiter
+    // reads options.budget, so that's where it must go.
+    const user = userEvent.setup();
+    await renderShell();
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith("/teams/7", "tok", { silent: true }));
+
+    await user.click(screen.getByRole("button", { name: "projects.edit.tabs.security" }));
+    await user.click(screen.getByTestId("security-set-budget"));
+    await user.click(screen.getByRole("button", { name: /common.save/ }));
+
+    await waitFor(() => expect(api.patch).toHaveBeenCalledTimes(1));
+    const [, payload] = api.patch.mock.calls[0];
+    expect(payload.options).toEqual(expect.objectContaining({ budget: 12.5 }));
   });
 
   it("agent save carries memory-bank/browser options but no rag retrieval options", async () => {

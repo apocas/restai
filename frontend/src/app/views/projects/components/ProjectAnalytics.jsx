@@ -57,8 +57,8 @@ export default function ProjectAnalytics({ project }) {
     (data.daily || []).forEach((d) => { map[d.date] = d; });
     const result = [];
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(selectedYear, selectedMonth - 1, day);
-      const dateStr = date.toISOString().split("T")[0];
+      // Date.UTC so the serialized key can't shift a day in non-UTC zones.
+      const dateStr = new Date(Date.UTC(selectedYear, selectedMonth - 1, day)).toISOString().split("T")[0];
       result.push(map[dateStr] || { date: dateStr, conversations: 0, messages: 0 });
     }
     return result;
