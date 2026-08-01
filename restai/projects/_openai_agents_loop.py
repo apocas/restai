@@ -11,7 +11,6 @@ from uuid import uuid4
 from agents import (
     Agent,
     FunctionTool,
-    ModelSettings,
     OpenAIChatCompletionsModel,
     RawResponsesStreamEvent,
     RunConfig,

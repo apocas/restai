@@ -2,11 +2,10 @@ import os
 import re
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from typing import Any, Dict, List, Literal, Optional, Union, Iterable
+from typing import Any, Dict, List, Literal, Optional, Union
 import json
 from datetime import datetime
 
-from restai import config
 
 _SAFE_NAME_RE = re.compile(r'^[a-zA-Z0-9._:-]+$')
 
@@ -1807,7 +1806,6 @@ class SettingsUpdate(BaseModel):
         "example": {
             "app_name": "My AI Platform",
             "hide_branding": True,
-            "currency": "USD",
             "currency": "USD"
         }
     })

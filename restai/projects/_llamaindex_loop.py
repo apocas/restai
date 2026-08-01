@@ -42,15 +42,6 @@ def _resolve_llm(project: Project, agent_self, db: DBWrapper):
 
 def _wrap_project_tool_as_function_tool(tool_row, brain) -> FunctionTool:
     """ProjectToolDatabase row → FunctionTool; runs user code in per-chat Docker sandbox."""
-    try:
-        schema = (
-            _json.loads(tool_row.parameters)
-            if isinstance(tool_row.parameters, str)
-            else (tool_row.parameters or {"type": "object", "properties": {}, "required": []})
-        )
-    except (_json.JSONDecodeError, TypeError):
-        schema = {"type": "object", "properties": {}, "required": []}
-
     tool_code = tool_row.code
     tool_name = tool_row.name
     tool_desc = tool_row.description or tool_name
@@ -356,7 +347,6 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         except Exception:
             pass
 
-    import json as _json
     _trace_tok = tokens_from_string(_json.dumps(tool_trace)) if tool_trace else 0
     yield ("result", {
         "answer": answer,

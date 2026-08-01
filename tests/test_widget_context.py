@@ -1,5 +1,4 @@
 """Tests for context verification and system prompt injection."""
-import json
 import time
 
 import jwt

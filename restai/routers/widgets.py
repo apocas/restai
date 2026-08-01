@@ -143,7 +143,7 @@ async def widget_chat(
             return WidgetChatResponse(answer=str(result))
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         logging.exception("Widget chat failed for project %s", widget.project_id)
         return WidgetChatResponse(answer="An error occurred processing your request.", id=body.id)
 

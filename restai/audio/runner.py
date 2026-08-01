@@ -1,4 +1,3 @@
-from torch.multiprocessing import Process
 from ilock import ILock
 from fastapi import UploadFile
 import tempfile
@@ -98,9 +97,9 @@ def generate(
         if temp_file:
             try:
                 os.unlink(temp_file.name)
-            except:
+            except Exception:
                 pass
         try:
             os.unlink(sharedmem_file.name)
-        except:
+        except Exception:
             pass

@@ -214,7 +214,6 @@ def test_guard_references_are_ids_and_survive_rename():
 def test_delete_llm_reassign_endpoint(client):
     """The DELETE endpoint refuses to orphan projects: 409 without reassign_to,
     400 for an unknown target, and repoints dependents when given a valid one."""
-    import json as _json
     from restai.database import open_db_wrapper
     from restai.models.databasemodels import ProjectDatabase
 

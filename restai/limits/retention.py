@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from restai import config
 from restai.database import DBWrapper
 from restai.models.databasemodels import (
     OutputDatabase,

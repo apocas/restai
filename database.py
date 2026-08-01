@@ -14,10 +14,7 @@ from restai.config import (
     SQLITE_PATH,
 )
 from restai.models.databasemodels import (
-    ApiKeyDatabase,
     Base,
-    ProjectDatabase,
-    SettingDatabase,
     UserDatabase,
     TeamDatabase
 )

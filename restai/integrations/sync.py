@@ -160,7 +160,6 @@ def _sync_s3(project, source, db, brain=None):
         except Exception as e:
             logger.warning(f"Failed to delete old S3 chunks for '{source.name}': {e}")
 
-    from restai.vectordb.tools import index_documents_classic
     n_chunks = index_documents_classic(project, all_documents, source.splitter, source.chunks)
     project.vector.save()
     _extract_entities_for_documents(project, all_documents, db, brain)

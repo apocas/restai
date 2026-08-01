@@ -181,11 +181,24 @@ version:
 
 .PHONY: test
 test:
-	pytest tests
+	uv run --no-group gpu pytest tests
+
+.PHONY: coverage
+coverage:
+	uv run --no-group gpu pytest tests --ignore=tests/test_projects.py --cov --cov-report=term-missing:skip-covered --cov-report=html
+	@echo "HTML report: htmlcov/index.html"
+
+.PHONY: lint
+lint:
+	uv run --no-group gpu ruff check .
 
 .PHONY: code
 code:
-	black app/*.py
+	uv run --no-group gpu ruff check . --fix
+
+.PHONY: format
+format:
+	uv run --no-group gpu ruff format .
 
 .PHONY: clean
 clean:

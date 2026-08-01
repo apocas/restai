@@ -14,7 +14,6 @@ from restai.models.databasemodels import (
     EvalDatasetDatabase,
     EvalTestCaseDatabase,
     EvalRunDatabase,
-    EvalResultDatabase,
     ProjectDatabase,
     PromptVersionDatabase,
 )

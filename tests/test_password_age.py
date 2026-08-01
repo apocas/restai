@@ -8,7 +8,6 @@ we can write a backdated `password_updated_at` directly.
 """
 from __future__ import annotations
 
-import json
 import random
 from datetime import datetime, timedelta, timezone
 

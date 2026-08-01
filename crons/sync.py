@@ -9,13 +9,11 @@ Usage:
 
 import json
 import logging
-import sys
 from datetime import datetime, timezone
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("restai.integrations.sync")
 
-from restai import config
 from restai.settings import ensure_settings_table
 from restai.database import open_db_wrapper, engine as db_engine
 from restai.models.databasemodels import ProjectDatabase

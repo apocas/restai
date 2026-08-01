@@ -170,7 +170,7 @@ def test_hard_truncate_drops_oldest():
         _user("C" * 1000), _assistant("D" * 1000),
         _user("short"), _assistant("reply"),
     ]
-    total_before = count_session_tokens(msgs)
+
     # Set a budget well below the total but enough for the last turn
     budget = count_session_tokens([_user("short"), _assistant("reply")]) + 50
     truncated = hard_truncate(msgs, budget, keep_n_turns=1)

@@ -5,9 +5,9 @@ Pure-Python ReAct-style agent loop built on top of raw provider SDKs
 wired to RESTai's existing tool registry, LLM database rows, guards, and
 streaming protocol.
 """
-from .agent import Agent2Error, Agent2Runtime, Agent2UnsupportedLLMError
+from .agent import Agent2Error, Agent2Runtime
 from .mcp_client import MCPSessionPool
-from .providers import ProviderConfig, build_provider_for_llm
+from .providers import Agent2UnsupportedLLMError, ProviderConfig, build_provider_for_llm
 from .tool_adapter import AdaptedTool, adapt_function_tools
 from .types import (
     AgentEvent,

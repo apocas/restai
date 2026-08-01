@@ -70,7 +70,6 @@ class OAuthManager:
         if not sub:
             logging.warning(f"OAuth callback failed, sub is missing: {user_data}")
             raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)
-        provider_sub = f"{provider}@{sub}"
         email_claim = config.OAUTH_EMAIL_CLAIM
         email = user_data.get(email_claim, "")
         if not email:

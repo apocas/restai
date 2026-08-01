@@ -1,11 +1,10 @@
 import logging
-import os
 import traceback
 
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException, Request
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional
 from pydantic import BaseModel
 
 from restai import config

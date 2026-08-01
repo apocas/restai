@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Any, Literal, Optional, Sequence
+from typing import Literal, Optional, Sequence
 
 from .tool_adapter import AdaptedTool
 

@@ -8,7 +8,6 @@ team deletion, users listing isolation, project team transfer,
 input validation, and statistics isolation.
 """
 
-import base64
 import random
 from datetime import datetime, timedelta, timezone
 import pytest
@@ -897,7 +896,7 @@ def test_statistics_non_admin_only_sees_own_projects():
             projects = r.json().get("projects", [])
             project_names = [p["name"] for p in projects]
             assert projectB_name not in project_names, \
-                f"userA can see projectB in statistics"
+                "userA can see projectB in statistics"
 
 
 def test_security_cleanup(client):

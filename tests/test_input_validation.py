@@ -172,6 +172,6 @@ def test_llm_valid_enums_accepted(client):
         auth=("admin", RESTAI_DEFAULT_PASSWORD),
     )
     # Should not be 422 — may succeed (201) or fail for other reasons
-    assert response.status_code != 422, f"Valid LLM enums were incorrectly rejected"
+    assert response.status_code != 422, "Valid LLM enums were incorrectly rejected"
     if response.status_code == 201:
         client.delete("/llms/test-valid-llm", auth=("admin", RESTAI_DEFAULT_PASSWORD))

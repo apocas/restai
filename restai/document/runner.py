@@ -1,6 +1,5 @@
 from pathlib import Path
 from torch.multiprocessing import Process
-from ilock import ILock
 from llama_index.readers.docling import DoclingReader
 import torch
 

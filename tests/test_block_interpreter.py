@@ -720,7 +720,6 @@ def test_procedure_ifreturn_fallthrough():
 
 def test_recursion_shallow_ok():
     """A shallow recursive procedure (factorial) computes correctly."""
-    import copy
     def _callret(arg):
         return {"type": "procedures_callreturn", "extraState": {"name": "fact"},
                 "inputs": {"ARG0": {"block": arg}}}

@@ -10,7 +10,6 @@ from restai.constants import ERROR_MESSAGES
 from restai.database import get_db_wrapper, verify_password, DBWrapper
 from restai.models.databasemodels import ProjectDatabase
 from restai.models.models import User
-import logging
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):

@@ -120,11 +120,42 @@ gpu = [
     "triton>=3.2.0,<4"
 ]
 dev = [
-    "pylint>=3.3.0,<4",
     "debugpy>=1.8.20,<2",
-    "black>=25.12.0,<27",
     "fakeredis>=2.35.1,<3",
+    "ruff>=0.15.0,<0.16",
+    "pytest>=8.3.0,<9",
+    "pytest-cov>=6.0.0,<8",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+# Migrations are frozen history — don't churn them. Examples are demo code.
+extend-exclude = ["migrations", "examples"]
+
+[tool.ruff.lint]
+# Ruff's default ruleset (E4/E7/E9 + F) minus rules that fight
+# deliberate patterns in this codebase:
+ignore = [
+    "E402", # late imports are load-bearing (config bootstrap, lifespan, conftest env setup)
+    "E712", # `== True` is SQLAlchemy filter syntax here, not a boolean comparison
+    "E731", # lambda assignments are used for small callbacks
+    "E741", # single-letter loop vars are established style in query code
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["restai", "crons", "modules"]
+omit = [
+    # GPU-only worker entrypoints — never imported in CPU test runs
+    "restai/image/workers/*",
+    "restai/audio/workers/*",
+]
+
+[tool.coverage.report]
+precision = 1
 
 [tool.uv]
 default-groups = [

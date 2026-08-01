@@ -11,8 +11,6 @@ import asyncio
 import logging
 import platform
 import sys
-import time
-import uuid
 
 import httpx
 

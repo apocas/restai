@@ -1,7 +1,6 @@
 """Audio transcription endpoints."""
 import logging
 import os
-import shutil
 import subprocess
 import tempfile
 

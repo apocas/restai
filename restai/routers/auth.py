@@ -5,7 +5,6 @@ import logging
 import jwt
 import pyotp
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response
-from fastapi.responses import RedirectResponse
 from restai import config
 from restai.auth import (
     create_access_token,
@@ -16,7 +15,7 @@ from restai.auth import (
 from restai.config import RESTAI_AUTH_SECRET
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.models import User, TOTPVerifyRequest
-from restai.utils.crypto import decrypt_totp_secret, hash_recovery_code, verify_recovery_code
+from restai.utils.crypto import decrypt_totp_secret, verify_recovery_code
 import json
 
 

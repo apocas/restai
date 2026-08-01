@@ -1,4 +1,3 @@
-from torch.multiprocessing import Process
 from ilock import ILock
 import tempfile
 import os
@@ -6,7 +5,6 @@ import subprocess
 import sys
 import pickle
 
-from restai.models.models import ImageModel
 
 def generate(manager, worker, imageModel, options: dict = None, venv_python: str = None):
     sharedmem = manager.dict()
@@ -71,5 +69,5 @@ def generate(manager, worker, imageModel, options: dict = None, venv_python: str
     finally:
         try:
             os.unlink(sharedmem_file.name)
-        except:
+        except Exception:
             pass

@@ -16,7 +16,6 @@ def worker(prompt, sharedmem):
     model = whisper.load_model("large-v3")
 
     file_path = sharedmem["file_path"]
-    filename = sharedmem["filename"]
 
     options = sharedmem.get("options", {})
     result = model.transcribe(

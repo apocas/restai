@@ -1,7 +1,6 @@
 """Tests for the internal MCP server (restai/mcp.py)."""
 
 import asyncio
-import json
 import random
 import pytest
 from unittest.mock import patch, MagicMock

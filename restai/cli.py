@@ -93,7 +93,6 @@ def cmd_migrate(args):
 def cmd_init(args):
     _load_env(args.env_file)
 
-    import importlib
     import database  # noqa: F401 — side-effect import that creates tables
     print("Database initialized.")
 

@@ -33,7 +33,6 @@ def worker(prompt, sharedmem):
     from restai import config
 
     file_path = sharedmem["file_path"]
-    filename = sharedmem["filename"]
 
     device = config.RESTAI_DEFAULT_DEVICE
 

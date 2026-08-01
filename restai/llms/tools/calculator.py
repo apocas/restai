@@ -1,6 +1,5 @@
 import ast
 import operator
-from typing import Optional
 
 
 # The calculator runs UNSANDBOXED in the RESTai worker, so `**` must be bounded:

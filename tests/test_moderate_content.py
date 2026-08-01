@@ -10,7 +10,6 @@ import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 
 def _fake_project(opts: dict):

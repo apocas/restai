@@ -2,17 +2,15 @@
 from __future__ import annotations
 
 import os
-import shutil
 import tempfile
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Path as PathParam, Query, UploadFile
-from sqlalchemy.orm import Session
 
 from restai import config
 from restai.auth import check_not_restricted, get_current_username_project
 from restai.database import DBWrapper, get_db_wrapper
-from restai.models.databasemodels import BulkIngestJobDatabase, ProjectDatabase
+from restai.models.databasemodels import BulkIngestJobDatabase
 from restai.models.models import User, sanitize_filename
 
 
