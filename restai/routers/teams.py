@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List
 
 from restai.models.models import (
     TeamBalanceUpdate,
@@ -19,7 +19,7 @@ from restai.models.models import (
 )
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
-from restai.models.databasemodels import TeamDatabase, OutputDatabase, ProjectDatabase, UserDatabase, TeamInvitationDatabase, ProjectInvitationDatabase
+from restai.models.databasemodels import OutputDatabase, ProjectDatabase, UserDatabase, TeamInvitationDatabase, ProjectInvitationDatabase
 from restai.database import get_db_wrapper, DBWrapper
 from restai.auth import (
     get_current_username,

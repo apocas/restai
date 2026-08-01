@@ -6,9 +6,7 @@ import json
 import logging
 import os
 import re
-import sys
 import threading
-import time
 # Single-threaded HTTPServer on purpose: Playwright's sync_api requires
 # that every call comes from the thread that started `sync_playwright()`.
 # ThreadingHTTPServer would spawn a new thread per request and break that

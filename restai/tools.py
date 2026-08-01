@@ -138,7 +138,7 @@ def load_image_generators() -> list[FunctionTool]:
     generators = []
     directory = os.path.dirname(os.path.abspath(__file__))
 
-    print(f"Loading image generators...")
+    print("Loading image generators...")
     for importer, modname, _ in pkgutil.iter_modules(
         path=[directory + "/image/workers"]
     ):
@@ -147,7 +147,7 @@ def load_image_generators() -> list[FunctionTool]:
             if inspect.isfunction(obj) and name == "worker":
                 generators.append(obj)
 
-    print(f"Loading userland image generators...")
+    print("Loading userland image generators...")
     userland_path = _userland_dir("image")
     if userland_path:
         for importer, modname, _ in pkgutil.iter_modules(path=[userland_path]):
@@ -176,7 +176,7 @@ def load_audio_generators() -> list[FunctionTool]:
     generators = []
     directory = os.path.dirname(os.path.abspath(__file__))
 
-    print(f"Loading audio generators...")
+    print("Loading audio generators...")
     for importer, modname, _ in pkgutil.iter_modules(
         path=[directory + "/audio/workers"]
     ):
@@ -185,7 +185,7 @@ def load_audio_generators() -> list[FunctionTool]:
             if inspect.isfunction(obj) and name == "worker":
                 generators.append(obj)
 
-    print(f"Loading userland audio generators...")
+    print("Loading userland audio generators...")
     userland_path = _userland_dir("audio")
     if userland_path:
         for importer, modname, _ in pkgutil.iter_modules(path=[userland_path]):
@@ -214,7 +214,7 @@ def load_tools() -> list[FunctionTool]:
     tools = []
     directory = os.path.dirname(os.path.abspath(__file__))
 
-    print(f"Loading core tools...")
+    print("Loading core tools...")
     for importer, modname, _ in pkgutil.iter_modules(path=[directory + "/llms/tools"]):
         module = __import__(f"restai.llms.tools.{modname}", fromlist="dummy")
         for name, obj in inspect.getmembers(module):

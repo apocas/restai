@@ -67,7 +67,7 @@ def _rollup(
         .filter(
             ProjectMemoryBankEntryDatabase.project_id == project_id,
             ProjectMemoryBankEntryDatabase.granularity == from_granularity,
-            ProjectMemoryBankEntryDatabase.last_source_at != None,
+            ProjectMemoryBankEntryDatabase.last_source_at.isnot(None),
             ProjectMemoryBankEntryDatabase.last_source_at < cutoff,
         )
         .all()

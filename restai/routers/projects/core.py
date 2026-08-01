@@ -1,13 +1,10 @@
 import base64
 import json
 import logging
-from typing import Optional
 import os
 import re
-import traceback
 from pathlib import Path
 from fastapi import (
-    APIRouter,
     Depends,
     Form,
     HTTPException,
@@ -39,30 +36,12 @@ from restai.models.models import (
     ProjectModel,
     ProjectModelCreate,
     ProjectModelUpdate,
-    ProjectResponse,
     ProjectsResponse,
-    ProjectCommentCreate,
-    ProjectCommentUpdate,
     ChatModel,
     TextIngestModel,
     URLIngestModel,
     User,
-    WidgetCreate,
-    WidgetUpdate,
-    WidgetConfig,
-    WidgetResponse,
-    WidgetCreatedResponse,
-    BlockGenerateRequest,
-    SystemPromptGenerateRequest,
-    ProjectToolUpdate,
-    RoutineCreate,
-    RoutineUpdate,
-    validate_safe_name,
 )
-import uuid
-import secrets
-from restai.utils.crypto import encrypt_api_key, hash_api_key, encrypt_field
-from restai.brain import Brain
 from restai.project import Project
 from restai.vectordb import tools
 from restai.integrations.knowledge_graph import extract_and_persist_safe
@@ -75,8 +54,7 @@ from restai.vectordb.tools import (
 from restai.models.databasemodels import OutputDatabase, ProjectDatabase, ProjectInvitationDatabase
 from restai.settings import mask_key
 import datetime
-from sqlalchemy import func, Integer, case
-import calendar
+from sqlalchemy import func, case
 import tempfile
 import shutil
 
@@ -223,7 +201,6 @@ async def get_projects_health(
     )
     guards = {r.project_id: {"total": r.total, "blocks": r.blocks or 0} for r in guard_rows}
 
-    from sqlalchemy import desc
     eval_rows = (
         db_wrapper.db.query(EvalRunDatabase.project_id, EvalRunDatabase.summary)
         .filter(

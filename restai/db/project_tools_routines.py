@@ -5,24 +5,13 @@ Split out of the former monolithic restai/database.py. Each method still uses
 composes these mixins, so the public API is unchanged.
 """
 
-import json
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional
 
-from sqlalchemy import func, or_
 
 from restai.models.databasemodels import (
-    ApiKeyDatabase, LLMDatabase, EmbeddingDatabase, OutputDatabase, ProjectDatabase,
-    ProjectToolDatabase, ProjectRoutineDatabase, CronLogDatabase, SettingDatabase,
-    UserDatabase, TeamDatabase, TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase,
-    WidgetDatabase, ImageGeneratorDatabase, SpeechToTextDatabase, ProjectSecretDatabase,
+    ProjectToolDatabase, ProjectRoutineDatabase,
 )
-from restai.models.models import (
-    LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate, EmbeddingModel,
-    EmbeddingUpdate, TeamModel, TeamModelUpdate, TeamModelCreate,
-)
-from restai.utils.crypto import decrypt_api_key, hash_api_key, verify_api_key_hash
-from restai.db.passwords import hash_password, verify_password
 
 
 class ProjectToolRoutineMixin:
@@ -44,7 +33,6 @@ class ProjectToolRoutineMixin:
         )
 
     def upsert_project_tool(self, project_id: int, name: str, description: str, parameters: str, code: str) -> ProjectToolDatabase:
-        from datetime import datetime, timezone
         now = datetime.now(timezone.utc)
         existing = self.get_project_tool_by_name(project_id, name)
         if existing:
@@ -94,7 +82,6 @@ class ProjectToolRoutineMixin:
         return self.db.query(ProjectRoutineDatabase).filter(ProjectRoutineDatabase.id == routine_id).first()
 
     def create_project_routine(self, project_id: int, name: str, message: str, schedule_minutes: int, enabled: bool = True) -> ProjectRoutineDatabase:
-        from datetime import datetime, timezone
         now = datetime.now(timezone.utc)
         routine = ProjectRoutineDatabase(
             project_id=project_id,

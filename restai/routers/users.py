@@ -120,7 +120,6 @@ async def ldap_auth(request: Request, form_data: UserLogin, db_wrapper: DBWrappe
         mail = str(entry[f"{LDAP_ATTRIBUTE_FOR_MAIL}"])
         if not mail or mail == "" or mail == "[]":
             raise HTTPException(400, f"User {form_data.user} does not have mail.")
-        cn = str(entry["cn"])
         user_dn = entry.entry_dn
 
         if username == form_data.user.lower():
@@ -721,7 +720,6 @@ async def get_permission_matrix(
         )
         project_ids = {p.id for p in all_projects}
 
-        from sqlalchemy import union
         members_q = db_wrapper.db.query(teams_users.c.user_id).filter(teams_users.c.team_id.in_(admin_team_ids))
         admins_q = db_wrapper.db.query(teams_admins.c.user_id).filter(teams_admins.c.team_id.in_(admin_team_ids))
         team_user_ids = {r[0] for r in members_q.union(admins_q).all()}

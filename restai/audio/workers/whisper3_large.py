@@ -13,7 +13,6 @@ def worker(prompt, sharedmem):
     import restai.config as _cfg
 
     file_path = sharedmem["file_path"]
-    filename = sharedmem["filename"]
 
     device = _cfg.RESTAI_DEFAULT_DEVICE
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32

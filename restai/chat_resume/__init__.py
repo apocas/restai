@@ -40,19 +40,21 @@ untouched), then Redis when a URL is configured.
 from __future__ import annotations
 
 from .memory import StreamSession, _sessions, _sessions_lock, gc_expired_locked
+# Several names below are re-exported solely so tests (and runtime callers)
+# can reach/monkeypatch them via the package namespace — hence the noqa.
 from .redis_client import (
-    CONTROL_CHANNEL as _CONTROL_CHANNEL,
-    _local_producer_tasks,
-    control_listener_loop as _control_listener_loop,
+    CONTROL_CHANNEL as _CONTROL_CHANNEL,  # noqa: F401
+    _local_producer_tasks,  # noqa: F401
+    control_listener_loop as _control_listener_loop,  # noqa: F401
     ensure_control_listener as _ensure_control_listener,
     get_redis as _get_redis,
-    handle_control_message as _handle_control_message,
+    handle_control_message as _handle_control_message,  # noqa: F401
 )
 from .redis_session import RedisStreamSession
 from .sse import (
     ACTIVE_TTL_SECONDS,
-    GRACE_SECONDS,
-    MAX_EVENTS_PER_SESSION,
+    GRACE_SECONDS,  # noqa: F401
+    MAX_EVENTS_PER_SESSION,  # noqa: F401
     StreamSessionProtocol,
 )
 

@@ -1,12 +1,10 @@
 """Project template library."""
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Path as PathParam, Query
-from sqlalchemy.orm import Session
 
 from restai.auth import (
     check_not_restricted,
@@ -15,10 +13,7 @@ from restai.auth import (
 )
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.databasemodels import (
-    ProjectDatabase,
     ProjectTemplateDatabase,
-    TeamDatabase,
-    UserDatabase,
 )
 from restai.models.models import (
     ProjectTemplateInstantiate,

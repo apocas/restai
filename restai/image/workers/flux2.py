@@ -23,7 +23,6 @@ def worker(prompt, sharedmem):
     import io
     import torch
     from diffusers import Flux2Pipeline, AutoModel
-    from diffusers.utils import load_image
     from transformers import Mistral3ForConditionalGeneration
     from PIL import Image
 

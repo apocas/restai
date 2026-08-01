@@ -15,8 +15,6 @@ def data_parser(
         query (Optional[str]): Dot-path query for JSON (e.g. "users.0.name", "items.*.price") or column name for CSV (e.g. "name" to extract that column, "name=John" to filter rows where name equals John).
     """
     import json
-    import csv
-    from io import StringIO
 
     try:
         if format == "json":

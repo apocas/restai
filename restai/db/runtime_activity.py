@@ -5,31 +5,18 @@ Split out of the former monolithic restai/database.py. Each method still uses
 composes these mixins, so the public API is unchanged.
 """
 
-import json
 from datetime import datetime, timezone
-from typing import Optional, List
 
-from sqlalchemy import func, or_
 
 from restai.models.databasemodels import (
-    ApiKeyDatabase, LLMDatabase, EmbeddingDatabase, OutputDatabase, ProjectDatabase,
-    ProjectToolDatabase, ProjectRoutineDatabase, CronLogDatabase, SettingDatabase,
-    UserDatabase, TeamDatabase, TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase,
-    WidgetDatabase, ImageGeneratorDatabase, SpeechToTextDatabase, ProjectSecretDatabase,
+    CronLogDatabase,
 )
-from restai.models.models import (
-    LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate, EmbeddingModel,
-    EmbeddingUpdate, TeamModel, TeamModelUpdate, TeamModelCreate,
-)
-from restai.utils.crypto import decrypt_api_key, hash_api_key, verify_api_key_hash
-from restai.db.passwords import hash_password, verify_password
 
 
 class RuntimeActivityMixin:
     __slots__ = ()
 
     def create_cron_log(self, job, status, message, details=None, items_processed=0, duration_ms=None):
-        from datetime import datetime, timezone
         entry = CronLogDatabase(
             job=job,
             status=status,
@@ -55,7 +42,6 @@ class RuntimeActivityMixin:
         """Bump `last_activity` for a chat's Docker container. Called on
         every `DockerManager.exec_command`. Multi-server safe — the
         cleanup cron reads from this table instead of in-memory state."""
-        from datetime import datetime, timezone
         from restai.models.databasemodels import DockerChatActivityDatabase
         if not chat_id:
             return
@@ -105,7 +91,6 @@ class RuntimeActivityMixin:
         """Bump `last_activity` for a chat's browser container. Called
         on every `browser.runtime.call()`. Cleanup cron reads from this
         table so eviction reflects real idle time, not container age."""
-        from datetime import datetime, timezone
         from restai.models.databasemodels import BrowserChatActivityDatabase
         if not chat_id:
             return

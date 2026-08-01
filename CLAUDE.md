@@ -26,12 +26,15 @@ make frontend         # npm install + npm run build
 cd frontend && npm start  # Dev server (port 3000, proxies to 9000)
 
 # Tests
-pytest tests
+make test             # uv run pytest tests
 pytest tests/test_projects.py -v
 pytest tests/test_projects.py::test_create_project
+make coverage         # pytest with coverage (term-missing + htmlcov/)
 
 # Code quality
-make code             # black app/*.py
+make lint             # ruff check . (zero-violation baseline — CI enforces it)
+make code             # ruff check . --fix
+make format           # ruff format . (opt-in; not yet applied repo-wide)
 
 # WordPress plugin
 cd wordpress && zip -r restai.zip restai
@@ -440,6 +443,10 @@ Integer Query/Form params have `ge`/`le` bounds. File uploads sanitized via `san
 - `tests/test_comments.py` — project comments
 
 `tests/test_projects.py` may fail if no LLMs configured (pre-existing).
+
+**Linting**: ruff, configured in `pyproject.toml` (`[tool.ruff]`). Default E/F rules with pragmatic ignores (`E402` late imports, `E712` SQLAlchemy `== True`, `E731`, `E741`); `migrations/` and `examples/` excluded. The repo is at zero violations and CI runs `ruff check .` before tests — keep it clean. Some `__init__.py` re-exports carry `# noqa: F401` because tests/monkeypatching reach them via the package namespace; module-level "unused" imports may be compat re-exports (e.g. `restai.database.verify_password`) — check importers before deleting.
+
+**Coverage**: pytest-cov (`[tool.coverage.run]` sources: `restai`, `crons`, `modules`). `make coverage` for local HTML report; CI prints the term report.
 
 ## Key env vars
 

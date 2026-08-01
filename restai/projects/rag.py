@@ -3,17 +3,13 @@ from typing import Optional
 
 from fastapi import HTTPException
 
-from llama_index.core.response_synthesizers import get_response_synthesizer
 from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.postprocessor import SimilarityPostprocessor
-from llama_index.core.prompts import PromptTemplate
 from llama_index.core.chat_engine import ContextChatEngine
 from llama_index.core.postprocessor.llm_rerank import LLMRerank
 from restai.chat import Chat
 from restai.database import DBWrapper
 from restai.eval import eval_rag
-from restai.limits.guard import Guard
 from restai.llm import LLM
 from restai.models.models import ChatModel, User
 from restai.project import Project

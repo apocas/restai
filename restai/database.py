@@ -1,44 +1,7 @@
-import logging
-from sqlalchemy import create_engine, func, or_
+from sqlalchemy import create_engine
 from restai import config
-from datetime import datetime, timezone
-from restai.models.databasemodels import (
-    ApiKeyDatabase,
-    LLMDatabase,
-    EmbeddingDatabase,
-    OutputDatabase,
-    ProjectDatabase,
-    ProjectToolDatabase,
-    ProjectRoutineDatabase,
-    CronLogDatabase,
-    SettingDatabase,
-    UserDatabase,
-    TeamDatabase,
-    TeamImageGeneratorDatabase,
-    TeamAudioGeneratorDatabase,
-    WidgetDatabase,
-    ImageGeneratorDatabase,
-    SpeechToTextDatabase,
-    ProjectSecretDatabase,
-)
-from restai.models.models import (
-    LLMModel,
-    LLMUpdate,
-    ProjectModelUpdate,
-    User,
-    UserUpdate,
-    EmbeddingModel,
-    EmbeddingUpdate,
-    TeamModel,
-    TeamModelUpdate,
-    TeamModelCreate,
-)
 from sqlalchemy.orm import sessionmaker, Session
-import bcrypt
-from typing import Optional, List
 from restai.config import MYSQL_HOST, MYSQL_URL, POSTGRES_HOST, POSTGRES_URL
-import json
-from restai.utils.crypto import decrypt_api_key, hash_api_key, verify_api_key_hash
 
 import logging as _logging
 _db_logger = _logging.getLogger(__name__)
@@ -89,7 +52,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # hash_password / verify_password moved to restai.db.passwords; re-exported
 # here so existing `from restai.database import verify_password` keeps working.
-from restai.db.passwords import hash_password, verify_password
+from restai.db.passwords import hash_password, verify_password  # noqa: F401
 
 from restai.db.users import UserMixin
 from restai.db.llms_embeddings import LLMEmbeddingMixin
@@ -101,7 +64,6 @@ from restai.db.project_tools_routines import ProjectToolRoutineMixin
 from restai.db.settings import SettingMixin
 from restai.db.runtime_activity import RuntimeActivityMixin
 from restai.db.payments import PaymentMixin
-from sqlalchemy.orm import Session
 
 
 class DBWrapper(

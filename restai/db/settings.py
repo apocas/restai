@@ -5,24 +5,12 @@ Split out of the former monolithic restai/database.py. Each method still uses
 composes these mixins, so the public API is unchanged.
 """
 
-import json
-from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional
 
-from sqlalchemy import func, or_
 
 from restai.models.databasemodels import (
-    ApiKeyDatabase, LLMDatabase, EmbeddingDatabase, OutputDatabase, ProjectDatabase,
-    ProjectToolDatabase, ProjectRoutineDatabase, CronLogDatabase, SettingDatabase,
-    UserDatabase, TeamDatabase, TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase,
-    WidgetDatabase, ImageGeneratorDatabase, SpeechToTextDatabase, ProjectSecretDatabase,
+    SettingDatabase,
 )
-from restai.models.models import (
-    LLMModel, LLMUpdate, ProjectModelUpdate, User, UserUpdate, EmbeddingModel,
-    EmbeddingUpdate, TeamModel, TeamModelUpdate, TeamModelCreate,
-)
-from restai.utils.crypto import decrypt_api_key, hash_api_key, verify_api_key_hash
-from restai.db.passwords import hash_password, verify_password
 
 
 class SettingMixin:

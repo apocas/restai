@@ -4,12 +4,8 @@ from pydantic import Field
 from llama_index.core.base.llms.types import (
     ChatMessage,
     ChatResponseGen,
-    CompletionResponse,
-    CompletionResponseGen,
     MessageRole,
 )
-from llama_index.core.schema import ImageNode
-from llama_index.core.base.llms.types import ImageBlock, TextBlock
 from llama_index.multi_modal_llms.ollama import OllamaMultiModal
 
 

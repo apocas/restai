@@ -2,13 +2,12 @@ from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
-from restai import config
 from restai.observability.audit import _log_to_db as _audit_log
 from restai.auth import get_current_username_admin
 from restai.config import detect_gpu_info
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.models import SettingsResponse, SettingsUpdate
-from restai.settings import get_all_settings, mask_key, update_setting, reinit_oauth, _SECRET_KEYS
+from restai.settings import get_all_settings, update_setting, reinit_oauth, _SECRET_KEYS
 from restai.utils.crypto import SETTINGS_ENCRYPTED_KEYS
 
 router = APIRouter()
@@ -185,7 +184,9 @@ async def run_crons(
     _=Depends(get_current_username_admin),
 ):
     """Trigger all cron jobs now (admin only). Runs as a subprocess."""
-    import subprocess, sys, os
+    import subprocess
+    import sys
+    import os
 
     def _run():
         try:

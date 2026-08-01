@@ -22,7 +22,6 @@ import smtplib
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from restai.utils.crypto import (
     encrypt_field,
@@ -83,8 +82,12 @@ def test_send_email_missing_recipient():
     db = _fake_db(_fake_project({}), team_obj=team)
     with patch("restai.database.open_db_wrapper", return_value=db), \
          patch("restai.utils.email._cfg") as mock_cfg:
-        mock_cfg.SMTP_HOST = ""; mock_cfg.SMTP_PORT = ""; mock_cfg.SMTP_USER = ""
-        mock_cfg.SMTP_PASSWORD = ""; mock_cfg.SMTP_FROM = ""; mock_cfg.EMAIL_DEFAULT_TO = ""
+        mock_cfg.SMTP_HOST = ""
+        mock_cfg.SMTP_PORT = ""
+        mock_cfg.SMTP_USER = ""
+        mock_cfg.SMTP_PASSWORD = ""
+        mock_cfg.SMTP_FROM = ""
+        mock_cfg.EMAIL_DEFAULT_TO = ""
         out = send_email("hi", "body", _brain=object(), _project_id=42)
     assert out.startswith("ERROR:")
     assert "recipient" in out

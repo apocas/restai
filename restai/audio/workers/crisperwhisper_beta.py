@@ -35,7 +35,6 @@ def worker(prompt, sharedmem):
     from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
         
     file_path = sharedmem["file_path"]
-    filename = sharedmem["filename"]
     
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32

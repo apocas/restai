@@ -5,7 +5,6 @@ import types
 import pytest
 
 from restai.agent2.providers import (
-    Agent2UnsupportedLLMError,
     AnthropicProvider,
     OpenAIProvider,
     ProviderConfig,

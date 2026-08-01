@@ -623,7 +623,7 @@ class Agent(ProjectBase):
                                     data_url = f"data:{mime};base64,{_b64.b64encode(data).decode('ascii')}"
                                     blocks.append(_ImgBlk.from_data_url(data_url))
                                 except Exception:
-                                    intro_lines.append(f"    (attach failed; treating as text mention)")
+                                    intro_lines.append("    (attach failed; treating as text mention)")
                             else:
                                 intro_lines.append(f"  - {name} ({mime}, {kb} KB)")
                         # Lead with text manifest for explicit image context.

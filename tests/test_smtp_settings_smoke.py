@@ -14,7 +14,8 @@ Stops short of real `smtplib.SMTP` traffic — that's covered by
 moves credentials from API → DB → resolver.
 """
 import json
-import sys; sys.setrecursionlimit(20000)
+import sys
+sys.setrecursionlimit(20000)
 import uuid
 
 from fastapi.testclient import TestClient

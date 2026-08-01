@@ -2,7 +2,6 @@
 from restai.utils.crypto import (
     LLM_SENSITIVE_KEYS,
     PROJECT_SENSITIVE_KEYS,
-    SYNC_SOURCE_SENSITIVE_KEYS,
     decrypt_field,
     decrypt_sensitive_options,
     encrypt_field,

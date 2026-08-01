@@ -62,7 +62,7 @@ def main():
         # tool call. Reading from here gives true idle time across all
         # RESTai instances. Orphans (created before this table existed,
         # or by some other RESTai version) fall back to container age.
-        from datetime import datetime, timezone
+        from datetime import timezone
         from restai.models.databasemodels import BrowserChatActivityDatabase
 
         db = open_db_wrapper()

@@ -3,7 +3,6 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Optional
 
 # Hard ceiling on a single test case's answer generation. A wedged project
 # LLM (e.g. an upstream provider hanging) must not leave the whole run stuck

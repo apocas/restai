@@ -133,7 +133,6 @@ class CronLogger:
             finally:
                 db.db.close()
         except Exception:
-            import logging
             logging.getLogger(__name__).warning(
                 "Failed to write cron log to DB for job '%s'", self.job
             )

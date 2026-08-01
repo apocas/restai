@@ -26,11 +26,14 @@ jobs:
       - name: Install dependencies
         run: uv sync --no-group gpu
 
+      - name: Lint
+        run: uv run --no-group gpu ruff check .
+
       - name: Initialize database
         run: uv run --no-group gpu python database.py
 
       - name: Run tests
-        run: uv run --no-group gpu pytest tests/ -v --tb=short --ignore=tests/test_projects.py
+        run: uv run --no-group gpu pytest tests/ -v --tb=short --ignore=tests/test_projects.py --cov --cov-report=term
 
       - uses: actions/setup-node@v4
         with:

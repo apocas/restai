@@ -16,7 +16,7 @@ def datetime_tool(
         date (Optional[str]): Date string in YYYY-MM-DD format. Used with "add", "weekday", and "diff" actions.
         days (Optional[int]): Number of days to add (positive) or subtract (negative). Used with "add" action.
     """
-    from datetime import datetime, timedelta, timezone as tz
+    from datetime import datetime, timedelta
     import zoneinfo
 
     try:

@@ -1,11 +1,9 @@
 import time
 import socket
 import ipaddress
-from typing import AsyncGenerator, Any, Dict
 from urllib.parse import urljoin, urlparse, urlunparse
 
 from starlette.responses import StreamingResponse
-from requests import Response
 from fastapi import BackgroundTasks
 from restai.database import DBWrapper
 from restai.project import Project
@@ -26,7 +24,7 @@ from restai.config import LOG_LEVEL
 import json
 
 from restai.projects.base import ProjectBase
-from restai.limits.budget import enforce_cost_budgets, check_rate_limit, check_api_key_quota, record_api_key_tokens
+from restai.limits.budget import enforce_cost_budgets, check_rate_limit, check_api_key_quota
 from restai.models.databasemodels import ApiKeyDatabase
 
 logging.basicConfig(level=LOG_LEVEL)

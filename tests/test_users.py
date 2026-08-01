@@ -1,12 +1,9 @@
 import random
 import pytest
-import jwt
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
 
 from restai.config import RESTAI_DEFAULT_PASSWORD
 from restai.main import app
-from restai.models.models import UserCreate, UserUpdate
 
 test_username = "test_user_" + str(random.randint(0, 1000000))
 test_admin_username = "admin"
@@ -134,7 +131,7 @@ def test_user_apikeys(client):
     )
     assert response.status_code == 201
     key2 = response.json()["api_key"]
-    key2_id = response.json()["id"]
+    assert response.json()["id"]
 
     response = client.get(
         f"/users/{test_username}/apikeys",
