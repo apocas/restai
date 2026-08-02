@@ -65,8 +65,8 @@ export default function ProjectTokens({ project, tokens, selectedYear, selectedM
     }
     const result = [];
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(selectedYear, selectedMonth - 1, day);
-      const dateStr = date.toISOString().split("T")[0];
+      // Date.UTC so the serialized key can't shift a day in non-UTC zones.
+      const dateStr = new Date(Date.UTC(selectedYear, selectedMonth - 1, day)).toISOString().split("T")[0];
       result.push(tokenMap[dateStr] || { date: dateStr, input_tokens: 0, output_tokens: 0, input_cost: 0, output_cost: 0, avg_latency_ms: 0 });
     }
     return result;

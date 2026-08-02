@@ -17,7 +17,7 @@ def _extract_entities_for_documents(project, documents, db, brain):
     if not brain:
         return
     try:
-        from restai.knowledge_graph import extract_and_persist
+        from restai.integrations.knowledge_graph import extract_and_persist
         grouped = defaultdict(list)
         for doc in documents:
             src = doc.metadata.get("source") if hasattr(doc, "metadata") else None
@@ -126,8 +126,11 @@ def _sync_s3(project, source, db, brain=None):
                 continue
 
             ext = os.path.splitext(key)[1].lower()
-            loader_cls = find_file_loader(ext)
-            if loader_cls is None:
+            # find_file_loader returns a ready loader INSTANCE and raises on
+            # unsupported extensions — skip those files, don't abort the sync.
+            try:
+                loader = find_file_loader(ext)
+            except Exception:
                 logger.debug(f"Skipping unsupported file type: {key}")
                 continue
 
@@ -136,7 +139,6 @@ def _sync_s3(project, source, db, brain=None):
                 tmp_path = tmp.name
 
             try:
-                loader = loader_cls()
                 docs = loader.load_data(file=tmp_path)
                 doc_source = f"{source.name}/{os.path.basename(key)}"
                 for doc in docs:
@@ -313,8 +315,10 @@ def _sync_sharepoint(project, source, db, brain=None):
 
             name = item.get("name", "")
             ext = os.path.splitext(name)[1].lower()
-            loader_cls = find_file_loader(ext)
-            if loader_cls is None:
+            # Instance-or-raise contract — skip unsupported files.
+            try:
+                loader = find_file_loader(ext)
+            except Exception:
                 logger.debug(f"Skipping unsupported file type: {name}")
                 continue
 
@@ -330,7 +334,6 @@ def _sync_sharepoint(project, source, db, brain=None):
                 tmp_path = tmp.name
 
             try:
-                loader = loader_cls()
                 docs = loader.load_data(file=tmp_path)
                 doc_source = f"{source.name}/{name}"
                 for doc in docs:
@@ -434,7 +437,9 @@ def _sync_gdrive(project, source, db, brain=None):
                 export_ext = ".txt"
             else:
                 ext = os.path.splitext(name)[1].lower()
-                if not find_file_loader(ext):
+                try:
+                    find_file_loader(ext)
+                except Exception:
                     logger.debug(f"Skipping unsupported file: {name}")
                     continue
                 export_ext = ext
@@ -461,8 +466,9 @@ def _sync_gdrive(project, source, db, brain=None):
                     ))
                 continue
 
-            loader_cls = find_file_loader(export_ext)
-            if not loader_cls:
+            try:
+                loader = find_file_loader(export_ext)
+            except Exception:
                 continue
 
             with tempfile.NamedTemporaryFile(suffix=export_ext, delete=False) as tmp:
@@ -470,7 +476,6 @@ def _sync_gdrive(project, source, db, brain=None):
                 tmp_path = tmp.name
 
             try:
-                loader = loader_cls()
                 docs = loader.load_data(file=tmp_path)
                 doc_source = f"{source.name}/{name}"
                 for doc in docs:

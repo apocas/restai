@@ -44,8 +44,8 @@ export default function ProjectEdit({ project, projects, info }) {
 
   const tabs = translatedTabs.filter((tab) => {
     if (tab.ragOnly && project.type !== "rag") return false;
-    if (tab.agentOnly && !project.type === "agent") return false;
-    if (tab.agentOrRag && !project.type === "agent" && project.type !== "rag") return false;
+    if (tab.agentOnly && project.type !== "agent") return false;
+    if (tab.agentOrRag && project.type !== "agent" && project.type !== "rag") return false;
     return true;
   });
 
@@ -175,6 +175,10 @@ export default function ProjectEdit({ project, projects, info }) {
       setState({ ...state, options: { ...state.options, [event.target.name]: event.target.value } });
     } else if (event.target.name === "rate_limit") {
       setState({ ...state, options: { ...state.options, rate_limit: event.target.value ? parseInt(event.target.value) : null } });
+    } else if (event.target.name === "budget") {
+      // Monthly cost cap lives in options (the limiter reads options.budget).
+      const v = parseFloat(event.target.value);
+      setState({ ...state, options: { ...state.options, budget: Number.isFinite(v) ? v : null } });
     } else if (event.target.name === "memory_bank_max_tokens") {
       const v = parseInt(event.target.value);
       setState({ ...state, options: { ...state.options, memory_bank_max_tokens: Number.isFinite(v) ? v : 2000 } });
@@ -193,6 +197,21 @@ export default function ProjectEdit({ project, projects, info }) {
         .catch(() => {});
     } else {
       setState((prev) => ({ ...prev, team: null }));
+    }
+  };
+
+  // Async hydration (team refetch, selectedUsers fill-in) lands AFTER the
+  // baseline snapshot — apply it to both state and baseline so freshly
+  // loaded projects don't immediately read as dirty. User edits go through
+  // the normal setState paths and still flip the flag.
+  const hydrate = (patch) => {
+    setState((prev) => ({ ...prev, ...patch }));
+    if (baselineRef.current != null) {
+      try {
+        baselineRef.current = JSON.stringify({ ...JSON.parse(baselineRef.current), ...patch });
+      } catch {
+        // leave baseline untouched on parse failure
+      }
     }
   };
 
@@ -228,17 +247,19 @@ export default function ProjectEdit({ project, projects, info }) {
 
     if (project?.team?.id) {
       api.get("/teams/" + project.team.id, auth.user.token, { silent: true })
-        .then((teamData) => setState((prev) => ({ ...prev, team: teamData })))
+        .then((teamData) => hydrate({ team: teamData }))
         .catch(() => {});
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project, auth.user.token]);
 
   useEffect(() => {
     if (project && Array.isArray(project.users)) {
       const projectUsernames = project.users.map((u) => typeof u === "string" ? u : u?.username);
       const projectUsers = users.filter((user) => projectUsernames.includes(user.username));
-      setState((prev) => ({ ...prev, selectedUsers: projectUsers }));
+      hydrate({ selectedUsers: projectUsers });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users, project]);
 
   // beforeunload warning. Modern browsers ignore the custom message and

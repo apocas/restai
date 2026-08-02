@@ -399,6 +399,10 @@ async def list_openai_compatible_models(
 
     raw_options = llm_db.options or "{}"
     opts = _json.loads(raw_options) if isinstance(raw_options, str) else raw_options
+    # api_key is Fernet-encrypted at rest ($ENC$...) — decrypt like every
+    # other consumer, or we'd send the ciphertext upstream as the Bearer.
+    from restai.utils.crypto import decrypt_sensitive_options, LLM_SENSITIVE_KEYS
+    opts = decrypt_sensitive_options(opts, LLM_SENSITIVE_KEYS)
 
     base_url = (opts.get("api_base") or opts.get("base_url") or "").rstrip("/")
     api_key = opts.get("api_key") or ""

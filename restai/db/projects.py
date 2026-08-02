@@ -98,6 +98,29 @@ class ProjectMixin:
         # — the ORM relationship handles those and a manual DELETE here
         # races it into StaleDataError.
         from sqlalchemy import text as _sql_text
+
+        # Grandchildren first: eval_results/eval_test_cases hang off run_id /
+        # dataset_id, not project_id, so the project-scoped DELETEs below
+        # can't reach them. Left behind they become orphans whose dangling
+        # dataset_id re-attaches to whatever dataset later reuses that id,
+        # leaking a deleted project's questions into another project.
+        _GRANDCHILDREN_CASCADE = [
+            ("eval_results", "run_id", "eval_runs"),
+            ("eval_results", "test_case_id", "eval_test_cases"),
+            ("eval_test_cases", "dataset_id", "eval_datasets"),
+        ]
+        for tbl, fk, parent in _GRANDCHILDREN_CASCADE:
+            try:
+                self.db.execute(
+                    _sql_text(
+                        f"DELETE FROM {tbl} WHERE {fk} IN "
+                        f"(SELECT id FROM {parent} WHERE project_id = :pid)"
+                    ),
+                    {"pid": project_id},
+                )
+            except Exception as e:
+                logging.debug("delete_project: skip %s (%s)", tbl, e)
+
         _CHILDREN_CASCADE = [
             "prompt_versions", "eval_runs", "eval_datasets",
             "project_invitations", "widgets", "kg_entities",
