@@ -197,16 +197,16 @@ def _seed_pair(db, name_a="Acme Corp", name_b="Acme"):
 
 def test_merge_entities_guard_branches(db):
     a, b = _seed_pair(db)
-    assert kg.merge_entities(db, a.id, a.id) is False       # same id
-    assert kg.merge_entities(db, a.id, 99999999) is False   # missing secondary
-    assert kg.merge_entities(db, 99999999, b.id) is False   # missing primary
+    assert kg.merge_entities(db, a.id, a.id, PROJECT_ID) is False       # same id
+    assert kg.merge_entities(db, a.id, 99999999, PROJECT_ID) is False   # missing secondary
+    assert kg.merge_entities(db, 99999999, b.id, PROJECT_ID) is False   # missing primary
 
 
 def test_merge_entities_moves_mentions_and_rewires_edges(db):
     a, b = _seed_pair(db)
     ada = next(e for e in _entities(db) if e.normalized == "ada")
 
-    assert kg.merge_entities(db, a.id, b.id) is True
+    assert kg.merge_entities(db, a.id, b.id, PROJECT_ID) is True
 
     # Secondary gone; mention counts summed onto primary.
     assert db.db.query(KGEntityDatabase).filter(KGEntityDatabase.id == b.id).first() is None
@@ -244,7 +244,7 @@ def test_merge_entities_drops_self_edges(db):
         weight=4, created_at=datetime.now(timezone.utc)))
     db.db.commit()
 
-    assert kg.merge_entities(db, a.id, b.id) is True
+    assert kg.merge_entities(db, a.id, b.id, PROJECT_ID) is True
     remaining = (
         db.db.query(KGEntityRelationshipDatabase)
         .filter(KGEntityRelationshipDatabase.project_id == PROJECT_ID)
@@ -260,7 +260,7 @@ def test_merge_entities_same_source_mentions_combined(db):
     ents = {e.normalized: e for e in _entities(db)}
     a, b = ents["acme corp"], ents["acme"]
 
-    assert kg.merge_entities(db, a.id, b.id) is True
+    assert kg.merge_entities(db, a.id, b.id, PROJECT_ID) is True
     mentions = (
         db.db.query(KGEntityMentionDatabase)
         .filter(KGEntityMentionDatabase.entity_id == a.id)
@@ -280,7 +280,7 @@ def test_merge_entities_rewires_edge_when_primary_has_none(db):
     ents = {e.normalized: e for e in _entities(db)}
     primary, secondary, ada = ents["solo corp"], ents["solo"], ents["ada"]
 
-    assert kg.merge_entities(db, primary.id, secondary.id) is True
+    assert kg.merge_entities(db, primary.id, secondary.id, PROJECT_ID) is True
     edge = (
         db.db.query(KGEntityRelationshipDatabase)
         .filter(KGEntityRelationshipDatabase.project_id == PROJECT_ID)
@@ -291,19 +291,49 @@ def test_merge_entities_rewires_edge_when_primary_has_none(db):
     assert edge.weight == 1
 
 
-def test_merge_entities_cross_project_refused(db):
-    a, _b = _seed_pair(db)
+def _foreign_entity(db, name):
     from datetime import datetime, timezone
-    foreign = KGEntityDatabase(
-        project_id=PROJECT_ID + 1, name="Foreign", normalized="foreign",
+    row = KGEntityDatabase(
+        project_id=PROJECT_ID + 1, name=name, normalized=name.lower(),
         entity_type="ORG", mention_count=1,
         created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc))
-    db.db.add(foreign)
+    db.db.add(row)
     db.db.commit()
+    return row
+
+
+def test_merge_entities_cross_project_refused(db):
+    a, _b = _seed_pair(db)
+    foreign = _foreign_entity(db, "Foreign")
     try:
-        assert kg.merge_entities(db, a.id, foreign.id) is False
+        assert kg.merge_entities(db, a.id, foreign.id, PROJECT_ID) is False
     finally:
         db.db.delete(foreign)
+        db.db.commit()
+
+
+def test_merge_entities_refuses_pair_outside_authorized_project(db):
+    """GHSA-r3px-wf48-988x regression.
+
+    Both entities live in a FOREIGN project, so they are perfectly consistent
+    with each other — the old `primary.project_id != secondary.project_id`
+    check passed and the merge went through, destroying another tenant's data.
+    Scoping both lookups to the caller's project is what actually refuses it.
+    """
+    _seed_pair(db)
+    f1 = _foreign_entity(db, "VictimOne")
+    f2 = _foreign_entity(db, "VictimTwo")
+    try:
+        assert f1.project_id == f2.project_id  # self-consistent pair
+        assert kg.merge_entities(db, f2.id, f1.id, PROJECT_ID) is False
+
+        # Nothing in the foreign project was touched.
+        for row in (f1, f2):
+            assert db.db.query(KGEntityDatabase).filter(
+                KGEntityDatabase.id == row.id).first() is not None
+    finally:
+        for row in (f1, f2):
+            db.db.delete(row)
         db.db.commit()
 
 

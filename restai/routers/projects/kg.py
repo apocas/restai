@@ -206,15 +206,34 @@ async def kg_merge_entity(
 ):
     """Merge this entity (source) INTO the target entity. Source is deleted."""
     check_not_restricted(user)
+    from restai.models.databasemodels import KGEntityDatabase
     from restai.integrations.knowledge_graph import merge_entities
 
     target_id = body.get("target_id")
-    if not target_id or not isinstance(target_id, int):
+    if not target_id or isinstance(target_id, bool) or not isinstance(target_id, int):
         raise HTTPException(status_code=400, detail="target_id (int) is required")
 
-    success = merge_entities(db_wrapper, primary_id=target_id, secondary_id=entity_id)
+    # Resolve BOTH ids against the authorized project, exactly like the sibling
+    # handlers do. Answering 404 for a foreign id (same as a nonexistent one)
+    # also denies the 200-vs-400 co-residency oracle.
+    source = (
+        db_wrapper.db.query(KGEntityDatabase)
+        .filter(KGEntityDatabase.id == entity_id, KGEntityDatabase.project_id == projectID)
+        .first()
+    )
+    target = (
+        db_wrapper.db.query(KGEntityDatabase)
+        .filter(KGEntityDatabase.id == target_id, KGEntityDatabase.project_id == projectID)
+        .first()
+    )
+    if not source or not target:
+        raise HTTPException(status_code=404, detail="Entity not found")
+
+    success = merge_entities(
+        db_wrapper, primary_id=target_id, secondary_id=entity_id, project_id=projectID
+    )
     if not success:
-        raise HTTPException(status_code=400, detail="Merge failed (entities not found, same id, or different projects)")
+        raise HTTPException(status_code=400, detail="Merge failed (same id)")
     return {"merged_into": target_id}
 
 

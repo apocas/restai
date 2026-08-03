@@ -74,6 +74,62 @@ def _resolve_bearer_token(
     return user
 
 
+# Route templates a read-only API key is still allowed to invoke with a
+# mutating HTTP method. Deny-by-default: anything NOT listed here is refused
+# for a read-only key.
+#
+# The read/write split cannot be derived from the HTTP method in this API —
+# inference is a POST (`/projects/{id}/chat`, `/v1/chat/completions`, ...), and
+# "can query but not modify" is exactly what a read-only key is sold as. So the
+# allow-list enumerates the query surface and everything else fails closed,
+# including endpoints added in the future.
+#
+# Matched against `request.scope["route"].path`, i.e. the *route template*
+# FastAPI resolved — never a raw user-supplied path — so there is nothing to
+# smuggle past it with encoding or traversal tricks.
+_READ_ONLY_ALLOWED_ROUTES = frozenset({
+    "/projects/{projectID}/chat",
+    "/projects/{projectID}/chat/stop",
+    "/projects/{projectID}/question",
+    "/projects/{projectID}/embeddings/search",
+    "/projects/{projectID}/kg/query",
+    "/projects/{projectID}/memory-search",
+    "/search",
+    "/v1/chat/completions",
+    "/v1/completions",
+    "/v1/embeddings",
+    "/v1/moderations",
+    "/v1/images/generations",
+    "/image/{generator}/generate",
+    "/v1/audio/transcriptions",
+    "/audio/{generator}/transcript",
+    "/tools/classifier",
+})
+
+_READ_ONLY_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+def _enforce_read_only(request: Request, user: User) -> None:
+    """Refuse mutating requests made with a read-only API key.
+
+    Enforced centrally here rather than per-handler: every authenticated
+    dependency chains through `get_current_username`, so one gate covers the
+    whole API and a newly added endpoint is protected by default. The previous
+    arrangement — a `check_not_read_only` helper that every handler was
+    expected to remember to call — had zero callers repo-wide, so the
+    `read_only` flag was accepted, stored and advertised but never enforced.
+
+    Only Bearer API keys can ever be read-only (`_resolve_bearer_token`), and
+    `User.is_read_only` is False for admins, so cookie sessions and the admin
+    SPA are unaffected.
+    """
+    if not user.is_read_only or request.method in _READ_ONLY_SAFE_METHODS:
+        return
+    if getattr(request.scope.get("route"), "path", None) in _READ_ONLY_ALLOWED_ROUTES:
+        return
+    check_not_read_only(user)
+
+
 def get_current_username(
     request: Request, db_wrapper: DBWrapper = Depends(get_db_wrapper)
 ):
@@ -93,13 +149,15 @@ def get_current_username(
     """
     auth_cookie = request.cookies.get("restai_token")
     if auth_cookie:
-        return _resolve_jwt_cookie(request, auth_cookie, db_wrapper)
+        user = _resolve_jwt_cookie(request, auth_cookie, db_wrapper)
+    else:
+        auth_header = request.headers.get("Authorization") or ""
+        if not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
+        user = _resolve_bearer_token(request, auth_header.split(" ", 1)[1], db_wrapper)
 
-    auth_header = request.headers.get("Authorization") or ""
-    if auth_header.startswith("Bearer "):
-        return _resolve_bearer_token(request, auth_header.split(" ", 1)[1], db_wrapper)
-
-    raise HTTPException(status_code=401, detail=ERROR_MESSAGES.INVALID_CRED)
+    _enforce_read_only(request, user)
+    return user
 
 
 def get_current_username_for_login(

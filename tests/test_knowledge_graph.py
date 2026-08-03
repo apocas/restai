@@ -231,6 +231,64 @@ def test_merge_entities(client):
         db.db.close()
 
 
+def test_merge_entity_refuses_ids_from_another_project(client):
+    """GHSA-r3px-wf48-988x regression — cross-tenant KG entity merge.
+
+    The handler used to hand both ids straight to `merge_entities`, which
+    resolved them by id alone and then only checked that they matched *each
+    other's* project. A caller authorized for project A could therefore merge
+    — and thereby delete — entities living in project B. Both ids must resolve
+    inside the project named in the path.
+    """
+    from restai.database import DBWrapper
+    from restai.models.databasemodels import KGEntityDatabase
+
+    auth = ("admin", RESTAI_DEFAULT_PASSWORD)
+    victim_name = f"kg_victim_{suffix}"
+
+    resp = client.post(
+        "/projects",
+        json={"name": victim_name, "type": "rag", "team_id": team_id, "embeddings": "default"},
+        auth=auth,
+    )
+    if resp.status_code != 201:
+        resp = client.post(
+            "/projects",
+            json={"name": victim_name, "type": "block", "team_id": team_id},
+            auth=auth,
+        )
+    if resp.status_code != 201:
+        pytest.skip("Cannot create victim project")
+    victim_id = resp.json()["project"]
+
+    try:
+        victim_a, victim_b, _ = _seed_entities(victim_id)
+
+        # Authorized for `project_id`; both ids belong to `victim_id`. Admin is
+        # used deliberately — the strongest caller — so a 404 proves the id
+        # scoping is unconditional rather than a membership side effect.
+        resp = client.post(
+            f"/projects/{project_id}/kg/entities/{victim_a}/merge",
+            json={"target_id": victim_b},
+            auth=auth,
+        )
+        assert resp.status_code == 404
+
+        db = DBWrapper()
+        try:
+            for entity_id in (victim_a, victim_b):
+                assert (
+                    db.db.query(KGEntityDatabase)
+                    .filter(KGEntityDatabase.id == entity_id)
+                    .first()
+                    is not None
+                ), "victim project's graph was modified"
+        finally:
+            db.db.close()
+    finally:
+        client.delete(f"/projects/{victim_id}", auth=auth)
+
+
 def test_delete_entity(client):
     resp = client.delete(
         f"/projects/{project_id}/kg/entities/{entity_b_id}",

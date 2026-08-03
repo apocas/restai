@@ -176,14 +176,29 @@ def extract_and_persist_safe(project_id: int, source: str, text: str, brain, db_
         logger.exception("Background entity extraction failed for project %s source %s: %s", project_id, source, e)
 
 
-def merge_entities(db, primary_id: int, secondary_id: int) -> bool:
-    """Merge secondary into primary. Moves mentions + relationships, deletes secondary."""
+def merge_entities(db, primary_id: int, secondary_id: int, project_id: int) -> bool:
+    """Merge secondary into primary. Moves mentions + relationships, deletes secondary.
+
+    `project_id` is REQUIRED and both ids are resolved through it. Looking the
+    entities up by id alone and then merely comparing their project_ids to each
+    other only proves the pair is self-consistent — not that it belongs to the
+    caller's authorized project — which let any member of any one project merge
+    (and thereby delete) entities in a foreign project's graph.
+    """
     if primary_id == secondary_id:
         return False
     session = db.db
-    primary = session.query(KGEntityDatabase).filter(KGEntityDatabase.id == primary_id).first()
-    secondary = session.query(KGEntityDatabase).filter(KGEntityDatabase.id == secondary_id).first()
-    if not primary or not secondary or primary.project_id != secondary.project_id:
+    primary = (
+        session.query(KGEntityDatabase)
+        .filter(KGEntityDatabase.id == primary_id, KGEntityDatabase.project_id == project_id)
+        .first()
+    )
+    secondary = (
+        session.query(KGEntityDatabase)
+        .filter(KGEntityDatabase.id == secondary_id, KGEntityDatabase.project_id == project_id)
+        .first()
+    )
+    if not primary or not secondary:
         return False
 
     now = datetime.now(timezone.utc)
