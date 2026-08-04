@@ -153,7 +153,17 @@ def test_update_with_docker_validation_ok(client, monkeypatch):
     assert "warning" not in data
     assert data["description"] == "doubles a"
     assert len(calls) == 1
-    assert calls[0][0] == "ephemeral"
+    # Attacker-supplied code is validated in a CALLER-SCOPED sandbox, not the
+    # literal "ephemeral" container that every project and user shared.
+    assert calls[0][0] != "ephemeral"
+    from restai.projects.agent_shared import sandbox_chat_id
+    from restai.database import DBWrapper
+    db = DBWrapper()
+    try:
+        admin_id = db.get_user_by_username("admin").id
+    finally:
+        db.db.close()
+    assert calls[0][0] == sandbox_chat_id(state["agent_id"], admin_id, "tool-validate")
     assert "print(int(args.get('a', 2)) * 2)" in calls[0][1]
 
 

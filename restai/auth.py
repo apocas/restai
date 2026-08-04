@@ -100,11 +100,15 @@ _READ_ONLY_ALLOWED_ROUTES = frozenset({
     "/v1/embeddings",
     "/v1/moderations",
     "/v1/images/generations",
-    "/image/{generator}/generate",
     "/v1/audio/transcriptions",
-    "/audio/{generator}/transcript",
     "/tools/classifier",
 })
+
+# NOT allow-listed, deliberately: the legacy `/image/{generator}/generate` and
+# `/audio/{generator}/transcript` twins enforce no team ACL, no restricted-user
+# gate and write no OutputDatabase row, so a read-only key there would spend
+# another team's provider credentials with no accounting. Their `/v1/*`
+# equivalents do all three, and are allow-listed above.
 
 _READ_ONLY_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -177,7 +181,20 @@ def get_current_username_for_login(
 
     auth_header = request.headers.get("Authorization") or ""
     if auth_header.startswith("Bearer "):
-        return _resolve_bearer_token(request, auth_header.split(" ", 1)[1], db_wrapper)
+        user = _resolve_bearer_token(request, auth_header.split(" ", 1)[1], db_wrapper)
+        # A session cookie carries none of an API key's restrictions: the JWT
+        # holds only {"username"}, so `_resolve_jwt_cookie` rebuilds the user
+        # with read_only=False, allowed_projects=None and api_key_id=None.
+        # Letting a narrowed key mint one would launder it into a full-privilege
+        # session — escalating past `_enforce_read_only`, past the key's project
+        # scope, and out of its monthly token quota. Re-login is a convenience
+        # for full-scope keys only.
+        if user.api_key_read_only or user.api_key_allowed_projects is not None:
+            raise HTTPException(
+                status_code=403,
+                detail="A read-only or project-scoped API key cannot be exchanged for a session",
+            )
+        return user
 
     if auth_header.startswith("Basic "):
         try:
@@ -263,6 +280,39 @@ def get_current_username_project(
     if not user.has_api_key_project_access(projectID):
         raise HTTPException(status_code=403, detail="API key does not have access to this project")
     return user
+
+
+# Team relation + name attribute for each team-granted resource kind.
+_TEAM_GRANT_RELATIONS = {
+    "llms": ("llms", "name"),
+    "embeddings": ("embeddings", "name"),
+    "image_generators": ("image_generators", "generator_name"),
+    "audio_generators": ("audio_generators", "generator_name"),
+}
+
+
+def team_granted_names(user: User, kind: str):
+    """Names of `kind` this user's teams grant, or None for admins (= all).
+
+    Single source of truth for the team-grant predicate. The list endpoints
+    each grew their own copy of this loop and the matching by-id endpoints
+    never grew one at all, so `GET /llms/{id}` returned any tenant's LLM —
+    credentials included — to any authenticated user while `GET /llms`
+    correctly filtered. Both now share this helper.
+    """
+    if user.is_admin:
+        return None
+    relation, attr = _TEAM_GRANT_RELATIONS[kind]
+    names = set()
+    for team in (user.teams or []):
+        for item in (getattr(team, relation, None) or []):
+            names.add(getattr(item, attr, item))
+    return names
+
+
+def team_grants_resource(user: User, kind: str, name: str) -> bool:
+    allowed = team_granted_names(user, kind)
+    return allowed is None or name in allowed
 
 
 def check_not_read_only(user: User):

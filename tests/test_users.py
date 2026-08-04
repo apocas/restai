@@ -47,11 +47,32 @@ def test_get_user(client):
     response = client.get(f"/users/{test_admin_username}", auth=(test_username, "test_password"))
     assert response.status_code == 404
 
+def test_self_password_change_requires_current_password(client):
+    """A stolen session must not convert into account takeover."""
+    response = client.patch(
+        f"/users/{test_username}",
+        json={"password": "hijacked_password"},
+        auth=(test_username, "test_password"),
+    )
+    assert response.status_code == 403
+
+    response = client.patch(
+        f"/users/{test_username}",
+        json={"password": "hijacked_password", "current_password": "wrong"},
+        auth=(test_username, "test_password"),
+    )
+    assert response.status_code == 403
+
+    # The password is unchanged.
+    assert client.get(f"/users/{test_username}", auth=(test_username, "test_password")).status_code == 200
+
+
 def test_update_user(client):
     response = client.patch(
         f"/users/{test_username}",
         json={
-            "password": "new_password"
+            "password": "new_password",
+            "current_password": "test_password",
         },
         auth=(test_username, "test_password")
     )

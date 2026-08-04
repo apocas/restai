@@ -10,7 +10,12 @@ from restai import config
 from restai.models.databasemodels import EmbeddingDatabase, ProjectDatabase
 from restai.models.models import EmbeddingModel, User, EmbeddingUpdate
 from restai.database import get_db_wrapper, DBWrapper
-from restai.auth import get_current_username, get_current_username_admin
+from restai.auth import (
+    get_current_username,
+    get_current_username_admin,
+    team_granted_names,
+    team_grants_resource,
+)
 
 logging.basicConfig(level=config.LOG_LEVEL)
 
@@ -23,11 +28,11 @@ def mask_embedding_options(options: Optional[str]) -> Optional[str]:
     if options is None:
         return options
     try:
-        from restai.utils.crypto import LLM_SENSITIVE_KEYS
+        from restai.utils.crypto import LLM_SENSITIVE_KEYS, sensitive_option_names
         parsed = json.loads(options)
         masked = False
-        for k in LLM_SENSITIVE_KEYS:
-            if k in parsed:
+        for k in sensitive_option_names(parsed, LLM_SENSITIVE_KEYS):
+            if isinstance(parsed.get(k), str):
                 parsed[k] = "********"
                 masked = True
         return json.dumps(parsed) if masked else options
@@ -39,13 +44,13 @@ def mask_embedding_options(options: Optional[str]) -> Optional[str]:
 @router.get("/embeddings/{embedding_id}", response_model=EmbeddingModel)
 async def api_get_embedding(
     embedding_id: int = Path(description="Embedding model ID"),
-    _: User = Depends(get_current_username),
+    user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Get embedding model configuration by ID."""
     try:
         emb_db = db_wrapper.get_embedding_by_id(embedding_id)
-        if emb_db is None:
+        if emb_db is None or not team_grants_resource(user, "embeddings", emb_db.name):
             raise HTTPException(status_code=404, detail="Embedding not found")
         emb = EmbeddingModel.model_validate(emb_db)
         emb.options = mask_embedding_options(emb.options)
@@ -65,11 +70,8 @@ async def api_get_embeddings(
     """List registered embedding models. Non-admin users only see embeddings accessible via their teams."""
     all_embeddings = db_wrapper.get_embeddings()
 
-    if not user.is_admin:
-        allowed_names = set()
-        for team in user.teams:
-            for emb in (team.embeddings if hasattr(team, 'embeddings') and team.embeddings else []):
-                allowed_names.add(emb.name if hasattr(emb, 'name') else emb)
+    allowed_names = team_granted_names(user, "embeddings")
+    if allowed_names is not None:
         all_embeddings = [e for e in all_embeddings if e.name in allowed_names]
 
     embeddings: list[Optional[EmbeddingModel]] = [EmbeddingModel.model_validate(embedding) for embedding in all_embeddings]

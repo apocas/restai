@@ -192,6 +192,42 @@ def test_read_only_key_not_blocked_on_allowlisted_chat(client, env):
     assert not (r.status_code == 403 and "read-only" in r.text.lower()), r.text
 
 
+def test_read_only_key_cannot_be_exchanged_for_a_session(client, env):
+    """The gate is worthless if a narrowed key can trade itself for a cookie.
+
+    `/auth/login` mints a JWT holding only {"username"}, so the resulting
+    session has read_only=False, allowed_projects=None and api_key_id=None —
+    i.e. full privileges, no project scope and no per-key quota.
+    """
+    r = client.post("/auth/login", headers=_bearer(env.ro_key))
+    assert r.status_code == 403, r.text
+    assert "restai_token" not in r.cookies
+
+
+def test_scoped_key_cannot_be_exchanged_for_a_session(client, env):
+    """Same laundering, via project scope rather than read-only."""
+    r = client.post(f"/users/{username}/apikeys", json={
+        "description": f"scoped_{suffix}",
+        "team_id": env.team_id,
+        "allowed_projects": [env.project_id],
+    }, auth=ADMIN)
+    assert r.status_code == 201, r.text
+    scoped_key = r.json()["api_key"]
+
+    r = client.post("/auth/login", headers=_bearer(scoped_key))
+    assert r.status_code == 403, r.text
+    assert "restai_token" not in r.cookies
+
+
+def test_legacy_media_routes_are_not_allowlisted():
+    """The legacy image/audio routes enforce no team ACL and log no usage, so a
+    read-only key must not reach them; only their accounted /v1/* twins."""
+    assert "/image/{generator}/generate" not in auth._READ_ONLY_ALLOWED_ROUTES
+    assert "/audio/{generator}/transcript" not in auth._READ_ONLY_ALLOWED_ROUTES
+    assert "/v1/images/generations" in auth._READ_ONLY_ALLOWED_ROUTES
+    assert "/v1/audio/transcriptions" in auth._READ_ONLY_ALLOWED_ROUTES
+
+
 def test_normal_key_still_writes(client, env):
     """The gate must key off `read_only`, not merely off being an API key."""
     r = client.patch(

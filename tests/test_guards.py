@@ -104,23 +104,41 @@ def test_guard_result_dataclass():
 
 
 def test_guard_output_option(client):
-    """guard_output and guard_mode should be settable via project options."""
+    """guard_output and guard_mode should be settable via project options.
+
+    guard_output must name a real project in the same team — it is a project id
+    the platform will run inference on, so it is validated like
+    search_knowledge_project rather than stored blind.
+    """
+    r = client.post(
+        "/projects",
+        json={
+            "name": f"guard-target-{suffix}",
+            "llm": llm_name,
+            "type": "agent",
+            "team_id": team_id,
+        },
+        auth=ADMIN,
+    )
+    assert r.status_code == 201, r.text
+    guard_target_id = str(r.json()["project"])
+
     r = client.patch(
         f"/projects/{project_id}",
         json={
             "options": {
-                "guard_output": "some-guard-project",
+                "guard_output": guard_target_id,
                 "guard_mode": "warn",
             },
         },
         auth=ADMIN,
     )
-    assert r.status_code == 200
+    assert r.status_code == 200, r.text
 
     r = client.get(f"/projects/{project_id}", auth=ADMIN)
     assert r.status_code == 200
     opts = r.json().get("options", {})
-    assert opts.get("guard_output") == "some-guard-project"
+    assert opts.get("guard_output") == guard_target_id
     assert opts.get("guard_mode") == "warn"
 
     r = client.patch(

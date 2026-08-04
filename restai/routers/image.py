@@ -63,19 +63,38 @@ def _generate(generator: str, image_model: ImageModel, brain, db_wrapper) -> byt
 @router.post("/image/{generator}/generate")
 async def route_generate_image(
     request: Request,
+    background_tasks: BackgroundTasks,
     generator: str = Path(description="Image generator name"),
     imageModel: ImageModel = ...,
     user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Generate an image using the specified generator."""
+    """Generate an image using the specified generator.
+
+    Enforces the same three controls as the `/v1/images/generations` twin —
+    restricted-user gate, team ACL, usage accounting. This legacy route had
+    none of them, so any user could spend another team's provider credentials
+    with nothing written to OutputDatabase (invisible to budget and statistics).
+    """
+    check_not_restricted(user)
+
     if user.is_private:
         # Block external providers for private users (prompt would leak to a third party).
         row = db_wrapper.get_image_generator_by_name(generator)
         if row is None or row.class_name != "local":
             raise HTTPException(status_code=403, detail="User is private")
 
+    team_id = resolve_team_for_image_generator(user, generator, db_wrapper)
+
     image_bytes = _generate(generator, imageModel, request.app.state.brain, db_wrapper)
+
+    background_tasks.add_task(
+        log_direct_usage,
+        db_wrapper, user.id, team_id, generator,
+        imageModel.prompt, "(image generated)",
+        0, 0, 0.0, 0.0, user.api_key_id,
+    )
+
     return {"image": _base64.b64encode(image_bytes).decode("utf-8")}
 
 

@@ -184,7 +184,7 @@ def main():
 
 
 async def _process_message(brain, db, project_id, text, chat_id):
-    from restai.models.models import ChatModel, User
+    from restai.models.models import ChatModel
     from restai.helper import chat_main
     from fastapi import BackgroundTasks
 
@@ -197,11 +197,14 @@ async def _process_message(brain, db, project_id, text, chat_id):
     # conversation in the agent's memory store across cron ticks.
     chat_input = ChatModel(question=text, id=f"telegram_{chat_id}")
 
-    user_db = db.get_user_by_username("admin")
-    if not user_db:
-        logger.warning("_process_message: no 'admin' user — cannot run agent")
+    from restai.helper import resolve_project_principal
+    user = resolve_project_principal(project, db)
+    if user is None:
+        logger.warning(
+            "_process_message: project %s has no resolvable creator — refusing "
+            "to run inbound message as a privileged identity", project_id,
+        )
         return None
-    user = User.model_validate(user_db)
 
     background_tasks = BackgroundTasks()
     # chat_main's request arg is unused inside; None is safe here.

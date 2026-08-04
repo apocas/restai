@@ -109,6 +109,35 @@ PROJECT_SENSITIVE_KEYS = {
 }
 LLM_SENSITIVE_KEYS = {"api_key", "key", "password", "secret"}
 
+# The exact-name set above misses provider-specific credential fields — most
+# visibly Bedrock's `aws_access_key_id` / `aws_secret_access_key`, which were
+# therefore neither encrypted at rest nor masked in API responses. Rather than
+# chase every provider's naming, treat any option whose NAME looks like a
+# credential as one.
+#
+# Two deliberate constraints keep this from over-matching:
+#   * bare "token" is NOT a pattern — it would swallow `max_tokens`.
+#   * only STRING values are ever matched, so a numeric option can never be
+#     replaced by the mask sentinel or fed to the encryptor.
+_SENSITIVE_NAME_PATTERNS = (
+    "api_key", "apikey", "access_key", "secret", "password", "passwd",
+    "credential", "auth_token", "access_token", "refresh_token", "private_key",
+)
+
+
+def sensitive_option_names(opts: dict, base_keys: set) -> set:
+    """`base_keys` plus every string-valued option whose name looks secret."""
+    names = set(base_keys)
+    if not isinstance(opts, dict):
+        return names
+    for k, v in opts.items():
+        if not isinstance(k, str) or not isinstance(v, str):
+            continue
+        lowered = k.lower()
+        if any(p in lowered for p in _SENSITIVE_NAME_PATTERNS):
+            names.add(k)
+    return names
+
 TEAM_SENSITIVE_KEYS = {"smtp_password"}
 
 # Per-source secret fields in sync_sources[]; separate from top-level PROJECT_SENSITIVE_KEYS.
@@ -190,7 +219,7 @@ SYNC_SOURCE_SENSITIVE_KEYS = {
 
 def encrypt_sensitive_options(opts: dict, sensitive_keys: set) -> dict:
     result = dict(opts)
-    for key in sensitive_keys:
+    for key in sensitive_option_names(result, sensitive_keys):
         val = result.get(key)
         if val and isinstance(val, str):
             result[key] = encrypt_field(val)
@@ -203,7 +232,7 @@ def encrypt_sensitive_options(opts: dict, sensitive_keys: set) -> dict:
 
 def decrypt_sensitive_options(opts: dict, sensitive_keys: set) -> dict:
     result = dict(opts)
-    for key in sensitive_keys:
+    for key in sensitive_option_names(result, sensitive_keys):
         val = result.get(key)
         if val and isinstance(val, str):
             result[key] = decrypt_field(val)

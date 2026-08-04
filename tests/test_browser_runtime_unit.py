@@ -634,11 +634,20 @@ def test_parse_allowed_domains_empty_or_broken():
     assert _parse_allowed_domains(broken) == []
 
 
-def test_check_allowed_domain_empty_allowlist_unrestricted():
+@pytest.fixture()
+def public_hosts(monkeypatch):
+    """Treat every host as public so the allow-list logic can be tested on its
+    own. `_check_allowed_domain` now runs a fail-closed private-IP gate first,
+    and these fixtures use hostnames that do not resolve."""
+    import restai.helper as _helper
+    monkeypatch.setattr(_helper, "is_blocked_network_host", lambda url: False)
+
+
+def test_check_allowed_domain_empty_allowlist_unrestricted(public_hosts):
     assert _check_allowed_domain(_project({}), "https://anywhere.io/x") is None
 
 
-def test_check_allowed_domain_exact_and_subdomain():
+def test_check_allowed_domain_exact_and_subdomain(public_hosts):
     p = _project({"browser_allowed_domains": "example.com"})
     assert _check_allowed_domain(p, "https://example.com/a") is None
     assert _check_allowed_domain(p, "https://www.example.com/a") is None
@@ -646,16 +655,39 @@ def test_check_allowed_domain_exact_and_subdomain():
     assert err.startswith("ERROR: domain 'evil.com'")
 
 
-def test_check_allowed_domain_wildcard():
+def test_check_allowed_domain_wildcard(public_hosts):
     p = _project({"browser_allowed_domains": "*.corp.net"})
     assert _check_allowed_domain(p, "https://corp.net/") is None
     assert _check_allowed_domain(p, "https://app.corp.net/") is None
     assert _check_allowed_domain(p, "https://corp.net.evil.io/") is not None
 
 
-def test_check_allowed_domain_no_host():
-    p = _project({"browser_allowed_domains": "example.com"})
-    assert "no host" in _check_allowed_domain(p, "not-a-url")
+def test_check_allowed_domain_rejects_non_http_scheme():
+    p = _project({})
+    assert "http(s)" in _check_allowed_domain(p, "file:///etc/passwd")
+    assert "http(s)" in _check_allowed_domain(p, "not-a-url")
+
+
+def test_check_allowed_domain_blocks_internal_even_with_empty_allowlist():
+    """An empty allowlist means "any PUBLIC site", not "anything at all".
+    crawler_classic guards this; the browser path did not, so an agent could
+    read cloud metadata through its own browser."""
+    p = _project({})
+    err = _check_allowed_domain(p, "http://169.254.169.254/latest/meta-data/")
+    assert err is not None and "internal" in err
+
+    err = _check_allowed_domain(p, "http://127.0.0.1:9000/settings")
+    assert err is not None and "internal" in err
+
+
+def test_check_allowed_domain_blocks_internal_even_when_allowlisted(public_hosts, monkeypatch):
+    """The network gate runs BEFORE the allowlist, so an admin cannot
+    accidentally allowlist a name that resolves to the metadata service."""
+    import restai.helper as _helper
+    monkeypatch.setattr(_helper, "is_blocked_network_host", lambda url: True)
+    p = _project({"browser_allowed_domains": "internal.corp"})
+    err = _check_allowed_domain(p, "https://internal.corp/")
+    assert err is not None and "internal" in err
 
 
 def test_browser_allow_eval_gating():

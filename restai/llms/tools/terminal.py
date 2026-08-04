@@ -1,13 +1,55 @@
+import re as _re
+from uuid import uuid4 as _uuid4
+
+# `$NAME`, `${NAME}`, and the os.environ['NAME'] / process.env.NAME forms the
+# docstring tells the model to use.
+_SECRET_REF_RE = _re.compile(
+    r"""\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?"""
+    r"""|environ\[["']([A-Za-z_][A-Za-z0-9_]*)["']\]"""
+    r"""|environ\.get\(["']([A-Za-z_][A-Za-z0-9_]*)["']"""
+    r"""|process\.env\.([A-Za-z_][A-Za-z0-9_]*)"""
+)
+
+
+def _referenced_names(command: str) -> set:
+    """Env-var names the command mentions. Only these get injected."""
+    names = set()
+    for groups in _SECRET_REF_RE.findall(command or ""):
+        for g in groups:
+            if g:
+                names.add(g)
+    return names
+
+
+def _redact_secret_values(output: str, env: dict) -> str:
+    """Replace any injected plaintext that echoed back with a placeholder.
+
+    Defence in depth for the case where the command legitimately references a
+    secret and then prints it (`echo $TOKEN`, a curl error quoting the URL, a
+    stack trace). Very short values are skipped — redacting them would mangle
+    unrelated output for no security gain.
+    """
+    if not output or not env:
+        return output
+    for name, value in env.items():
+        if value and len(value) >= 6:
+            output = output.replace(value, f"[REDACTED:{name}]")
+    return output
+
+
 def terminal(command: str, **kwargs) -> str:
     """Execute a command in a sandboxed Docker container. Use this as a terminal.
     The container persists across commands within the same conversation,
     so you can build complex operations step by step (install packages, write files, run scripts, etc).
 
-    Every project secret is injected into the container as an
-    environment variable on each exec — reference them however your
-    command prefers (shell `$HA_TOKEN`, Python `os.environ['HA_TOKEN']`,
-    Node `process.env.HA_TOKEN`, etc.). The plaintext NEVER enters
-    your context.
+    Project secrets you REFERENCE BY NAME in the command are injected into
+    the container as environment variables for that exec — reference them
+    however your command prefers (shell `$HA_TOKEN`, Python
+    `os.environ['HA_TOKEN']`, Node `process.env.HA_TOKEN`). Only the names
+    the command mentions are injected, and if a value shows up in the output
+    it comes back as `[REDACTED:<name>]`. Do not try to print secrets — the
+    plaintext never enters your context, and commands like `env` will not
+    reveal secrets you did not name.
 
     Example:
         command='curl -fsS -H "Authorization: Bearer $HA_TOKEN" $HA_URL/api/'
@@ -38,31 +80,44 @@ def terminal(command: str, **kwargs) -> str:
     if not brain or not getattr(brain, "docker_manager", None):
         return "ERROR: Docker is not configured. An admin must configure Docker in Settings to use the terminal tool."
 
-    # Project secrets land in the exec env so the model can reference
-    # them with whatever syntax suits the command. Plaintext goes
-    # straight to the kernel, never to the LLM.
+    # A literal "ephemeral" fallback is ONE container shared by every
+    # project and user. When there is no conversation to scope to, use a
+    # fresh per-call id instead; the idle-cleanup cron reaps it.
+    sandbox_id = chat_id or f"ephemeral-{_uuid4().hex}"
+
+    # Only the secrets this command actually references are injected, and any
+    # that do appear in the output are redacted on the way back.
+    #
+    # Previously the ENTIRE project vault went into the exec env while
+    # `exec_command` returns stdout+stderr verbatim to the model — so a single
+    # turn of `terminal(command="env")` handed every credential to the LLM (and
+    # thence to the chat transcript and inference log). The docstring's
+    # "plaintext NEVER enters your context" was enforced by nothing.
     env: dict[str, str] = {}
     if project_id is not None:
         from restai.database import open_db_wrapper
         db = open_db_wrapper()
         try:
-            env = db.resolve_all_project_secrets(int(project_id))
+            all_secrets = db.resolve_all_project_secrets(int(project_id))
         finally:
             db.close()
+        referenced = _referenced_names(command)
+        env = {name: val for name, val in all_secrets.items() if name in referenced}
 
-    output = brain.docker_manager.exec_command(chat_id or "ephemeral", command, env=env or None)
+    output = brain.docker_manager.exec_command(sandbox_id, command, env=env or None)
+    output = _redact_secret_values(output, env)
 
     # /artifacts/ convention: new files staged for the next turn become
     # multimodal blocks (image / document / mention) via the agent loop.
     # Appended as a short text notice so the model knows about the
     # attachment without seeing the bytes.
     try:
-        new_artifacts = brain.docker_manager.collect_new_artifacts(chat_id or "ephemeral")
+        new_artifacts = brain.docker_manager.collect_new_artifacts(sandbox_id)
     except Exception:
         new_artifacts = []
     if new_artifacts:
         from restai.agent2 import artifacts as _artifacts
-        _artifacts.stage(chat_id or "ephemeral", new_artifacts)
+        _artifacts.stage(sandbox_id, new_artifacts)
         # Image artifacts get the same display path as `draw_image`: stash
         # bytes in Brain's image cache and emit `![](…/image/cache/…)` so
         # the chat UI renders them inline. `_drive_runtime` mirrors the

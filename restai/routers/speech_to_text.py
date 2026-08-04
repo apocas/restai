@@ -7,7 +7,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Path
 
 from restai import config
-from restai.auth import get_current_username, get_current_username_admin
+from restai.auth import (
+    get_current_username,
+    get_current_username_admin,
+    team_granted_names,
+    team_grants_resource,
+)
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.databasemodels import SpeechToTextDatabase
 from restai.models.models import (
@@ -29,9 +34,10 @@ def _mask_options(options: Optional[dict]) -> Optional[dict]:
     if not options:
         return options
     try:
+        from restai.utils.crypto import sensitive_option_names
         masked = dict(options)
-        for k in _SENSITIVE_OPT_KEYS:
-            if k in masked and masked[k]:
+        for k in sensitive_option_names(masked, _SENSITIVE_OPT_KEYS):
+            if isinstance(masked.get(k), str) and masked[k]:
                 masked[k] = "********"
         return masked
     except Exception:
@@ -46,11 +52,8 @@ async def list_speech_to_text(
     """List speech-to-text models, filtered by team access for non-admins."""
     rows = db_wrapper.get_speech_to_text()
 
-    if not user.is_admin:
-        allowed_names = set()
-        for team in user.teams or []:
-            for ag in (team.audio_generators or []):
-                allowed_names.add(getattr(ag, "generator_name", ag))
+    allowed_names = team_granted_names(user, "audio_generators")
+    if allowed_names is not None:
         rows = [r for r in rows if r.name in allowed_names]
 
     out: list[SpeechToTextModel] = []
@@ -64,11 +67,11 @@ async def list_speech_to_text(
 @router.get("/speech_to_text/{model_id}", response_model=SpeechToTextModel)
 async def get_speech_to_text(
     model_id: int = Path(description="Speech-to-text model ID"),
-    _: User = Depends(get_current_username),
+    user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     row = db_wrapper.get_speech_to_text_by_id(model_id)
-    if row is None:
+    if row is None or not team_grants_resource(user, "audio_generators", row.name):
         raise HTTPException(status_code=404, detail="Speech-to-text model not found")
     m = SpeechToTextModel.model_validate(row)
     m.options = _mask_options(m.options)

@@ -3,6 +3,7 @@
 Flow control: _BlockBreak/_BlockContinue propagate out of statement handlers
 to the enclosing loop; _BlockReturn(value) propagates to the procedure call.
 """
+import contextvars
 import inspect
 import logging
 import math
@@ -15,6 +16,19 @@ from fastapi import HTTPException
 logger = logging.getLogger(__name__)
 
 MAX_ITERATIONS = 10000
+
+# Cross-project "Call Project" bounds.
+#
+# The per-interpreter MAX_ITERATIONS counter resets for every nested project,
+# so it bounded nothing across a call chain: A→B→A recursed until the process
+# gave up, with each hop a real LLM inference and a row in OutputDatabase. The
+# budget below is shared by the WHOLE nested execution (one counter object
+# carried through the contextvar), so a single top-level request can only ever
+# fan out to MAX_NESTED_PROJECT_CALLS inferences.
+MAX_CALL_PROJECT_DEPTH = 3
+MAX_NESTED_PROJECT_CALLS = 25
+
+_call_state = contextvars.ContextVar("restai_block_call_state", default=None)
 
 # Cap procedure-call nesting well below Python's own recursion limit (~125
 # block levels ≈ 1000 frames on the default-limit server). Infinite/very-deep
@@ -1101,9 +1115,27 @@ class BlockInterpreter:
         if self.context:
             project = project.with_context(self.context)
 
+        # Shared work budget for the whole nested execution.
+        state = _call_state.get() or {"depth": 0, "counter": {"n": 0}}
+        depth, counter = state["depth"], state["counter"]
+        if depth >= MAX_CALL_PROJECT_DEPTH:
+            logger.warning(
+                "Call Project: refusing '%s' — nesting depth %d exceeded",
+                project_name, MAX_CALL_PROJECT_DEPTH,
+            )
+            return ""
+        if counter["n"] >= MAX_NESTED_PROJECT_CALLS:
+            logger.warning(
+                "Call Project: refusing '%s' — %d nested calls already made for this request",
+                project_name, MAX_NESTED_PROJECT_CALLS,
+            )
+            return ""
+        counter["n"] += 1
+
         from fastapi import BackgroundTasks
         background_tasks = BackgroundTasks()
 
+        token = _call_state.set({"depth": depth + 1, "counter": counter})
         try:
             from restai.models.models import ChatModel
             from restai.helper import chat_main
@@ -1131,9 +1163,17 @@ class BlockInterpreter:
             if isinstance(result, dict):
                 return result.get("answer", "")
             return str(result)
+        except (HTTPException, RecursionError):
+            # These are the signals that STOP a runaway chain — 429 rate limit,
+            # 402 budget exhausted, or Python giving up on depth. Swallowing
+            # them into "" let the interpreter carry on and issue the next
+            # nested call, turning the guard into a no-op.
+            raise
         except Exception as e:
             logger.exception("Call Project '%s' failed: %s", project_name, e)
             return ""
+        finally:
+            _call_state.reset(token)
 
     async def _eval_classifier(self, block: dict) -> str:
         text = await self._eval_input(block, "TEXT")

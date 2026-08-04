@@ -605,8 +605,19 @@ def test_any_user_can_list_all_llms(client):
     assert llmB_name not in llm_names
 
 
-def test_any_user_can_get_specific_llm(client):
+def test_by_id_llm_get_is_team_scoped(client):
+    """The by-id GET must apply the same team filter as the list above.
+
+    It previously bound the user to `_` and discarded it, so any authenticated
+    user could read any tenant's LLM row — options included, and the credential
+    mask missed provider-specific fields like `aws_secret_access_key`. 404 (not
+    403) so the endpoint is not an id-enumeration oracle.
+    """
     r = client.get(f"/llms/{llmB_id}", auth=USER_A)
+    assert r.status_code == 404
+
+    # ...and the caller's own team's LLM is still readable.
+    r = client.get(f"/llms/{llmA_id}", auth=USER_A)
     assert r.status_code == 200
 
 
@@ -621,8 +632,11 @@ def test_any_user_can_list_all_embeddings(client):
     assert embB_name not in emb_names
 
 
-def test_any_user_can_get_specific_embedding(client):
+def test_by_id_embedding_get_is_team_scoped(client):
     r = client.get(f"/embeddings/{embB_id}", auth=USER_A)
+    assert r.status_code == 404
+
+    r = client.get(f"/embeddings/{embA_id}", auth=USER_A)
     assert r.status_code == 200
 
 

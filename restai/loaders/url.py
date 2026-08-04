@@ -155,6 +155,37 @@ class SeleniumWebReader(BaseReader):
     # can't render `file:///etc/passwd` into the vector store via any caller.
     _ALLOWED_SCHEMES = ("http://", "https://")
 
+    @staticmethod
+    def _landed_on_internal_host(driver) -> bool:
+        """True when the browser's CURRENT url points somewhere internal.
+
+        Every caller (ingest_url, crawler_selenium, _sync_url) validates the
+        host it was given with `_is_private_ip` and then hands the original URL
+        to Chrome — which re-resolves DNS and follows redirects, meta-refresh
+        and JS navigation on its own. So the pre-flight check binds the first
+        hop only: `http://attacker.tld/r` → 302 → `169.254.169.254` sailed
+        through and the body was indexed into the vector store.
+
+        Checked at the loader so all three callers are covered at once.
+        Fail-closed: anything we cannot parse or resolve counts as internal.
+
+        Note this suppresses the *content*, which is what turns a blind
+        side-effect request into a read primitive; the request itself has by
+        then been issued by the browser.
+        """
+        try:
+            final_url = driver.current_url or ""
+        except Exception:
+            return True
+        if not final_url:
+            return True
+        try:
+            from restai.helper import is_blocked_network_host
+
+            return is_blocked_network_host(final_url)
+        except Exception:
+            return True
+
     def load_data(
         self,
         urls: list[str],
@@ -187,6 +218,18 @@ class SeleniumWebReader(BaseReader):
 
             try:
                 driver.get(url)
+
+                if self._landed_on_internal_host(driver):
+                    logger.warning(
+                        "SeleniumWebReader discarding %r — navigation ended on an "
+                        "internal/unresolvable host", url,
+                    )
+                    if self.continue_on_failure:
+                        continue
+                    raise ValueError(
+                        f"navigation from {url!r} ended on an internal address"
+                    )
+
                 page_content = driver.page_source
                 elements = partition_html(text=page_content)
                 text = "\n\n".join([str(el) for el in elements])

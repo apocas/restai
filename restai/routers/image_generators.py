@@ -7,7 +7,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
 
 from restai import config
-from restai.auth import get_current_username, get_current_username_admin
+from restai.auth import (
+    get_current_username,
+    get_current_username_admin,
+    team_granted_names,
+    team_grants_resource,
+)
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.databasemodels import ImageGeneratorDatabase
 from restai.models.models import (
@@ -30,9 +35,10 @@ def _mask_options(options: Optional[dict]) -> Optional[dict]:
     if not options:
         return options
     try:
+        from restai.utils.crypto import sensitive_option_names
         masked = dict(options)
-        for k in _SENSITIVE_OPT_KEYS:
-            if k in masked and masked[k]:
+        for k in sensitive_option_names(masked, _SENSITIVE_OPT_KEYS):
+            if isinstance(masked.get(k), str) and masked[k]:
                 masked[k] = "********"
         return masked
     except Exception:
@@ -47,11 +53,8 @@ async def list_image_generators(
     """List image generators, filtered by team access for non-admins."""
     rows = db_wrapper.get_image_generators()
 
-    if not user.is_admin:
-        allowed_names = set()
-        for team in user.teams or []:
-            for ig in (team.image_generators or []):
-                allowed_names.add(getattr(ig, "generator_name", ig))
+    allowed_names = team_granted_names(user, "image_generators")
+    if allowed_names is not None:
         rows = [r for r in rows if r.name in allowed_names]
 
     out: list[ImageGeneratorModel] = []
@@ -65,11 +68,11 @@ async def list_image_generators(
 @router.get("/image_generators/{generator_id}", response_model=ImageGeneratorModel)
 async def get_image_generator(
     generator_id: int = Path(description="Image generator ID"),
-    _: User = Depends(get_current_username),
+    user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     row = db_wrapper.get_image_generator_by_id(generator_id)
-    if row is None:
+    if row is None or not team_grants_resource(user, "image_generators", row.name):
         raise HTTPException(status_code=404, detail="Image generator not found")
     m = ImageGeneratorModel.model_validate(row)
     m.options = _mask_options(m.options)

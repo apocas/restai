@@ -181,13 +181,39 @@ class RAG(ProjectBase):
             _validate_connection_string(conn_str)
             engine = create_engine(conn_str)
             try:
-                sql_database = SQLDatabase(engine)
+                # The project's `options.tables` is the ADMIN's allowlist. A
+                # caller-supplied `chatModel.tables` used to replace it wholesale,
+                # so any member could name tables the admin had deliberately kept
+                # out of reach and have the LLM query them. Treat the request as
+                # a narrowing filter over the allowlist, never a widening one.
+                project_tables = None
+                if project.props.options.tables:
+                    project_tables = [
+                        t.strip() for t in project.props.options.tables.split(',') if t.strip()
+                    ]
 
-                tables = None
                 if chatModel.tables is not None:
-                    tables = chatModel.tables
-                elif project.props.options.tables:
-                    tables = [t.strip() for t in project.props.options.tables.split(',')]
+                    requested = [t.strip() for t in chatModel.tables if t and t.strip()]
+                    if project_tables is not None:
+                        allowed = set(project_tables)
+                        outside = sorted(set(requested) - allowed)
+                        if outside:
+                            raise HTTPException(
+                                status_code=400,
+                                detail=(
+                                    "Requested tables are not in this project's allowlist: "
+                                    + ", ".join(outside)
+                                ),
+                            )
+                    tables = requested or project_tables
+                else:
+                    tables = project_tables
+
+                # Reflect only the allowlisted tables, so the schema the LLM is
+                # shown cannot include anything it is not permitted to query.
+                sql_database = (
+                    SQLDatabase(engine, include_tables=tables) if tables else SQLDatabase(engine)
+                )
 
                 question = sysTemplate + "\n Question: " + chatModel.question
 
@@ -227,6 +253,9 @@ class RAG(ProjectBase):
             self.brain.chat_store,
             token_limit=token_limit,
             llm=model.llm if model else None,
+            # Scope conversation memory to (project, caller) — see Chat.__init__.
+            project_id=project.props.id,
+            user_id=getattr(user, "id", None),
         )
 
         output = {

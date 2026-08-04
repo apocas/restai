@@ -204,13 +204,16 @@ def test_fire_routine_runs_chat_and_background_tasks():
     assert set(ran) == {"sync", "async"}
 
 
-def test_fire_routine_falls_back_to_admin():
+def test_fire_routine_without_creator_refuses_to_run():
+    """No admin fallback. Running a project's routine as the platform superuser
+    is the same confused-deputy the messaging integrations had: admin passes
+    every project-access check, so the Call Project tenancy boundary vanishes.
+    A creator-less project is skipped instead."""
     project = _project()
     project.props.creator = None
     db = MagicMock()
-    db.get_user_by_username.return_value = SimpleNamespace(id=1, username="admin")
     with patch("restai.helper.chat_main", new=AsyncMock(return_value={"answer": "A"})) as cm:
         result = asyncio.run(cr._fire_routine(MagicMock(), db, _routine(), project))
-    assert result == {"answer": "A"}
-    db.get_user_by_id.assert_not_called()
-    assert cm.call_args.args[4].username == "admin"
+    assert result is None
+    cm.assert_not_called()
+    db.get_user_by_username.assert_not_called()

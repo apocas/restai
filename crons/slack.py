@@ -162,7 +162,7 @@ def _update_slack_ts(db, project_id, ts):
 
 
 async def _process_message(brain, db, project_id, text, channel_id):
-    from restai.models.models import ChatModel, User
+    from restai.models.models import ChatModel
     from restai.helper import chat_main
     from fastapi import BackgroundTasks
 
@@ -172,10 +172,14 @@ async def _process_message(brain, db, project_id, text, channel_id):
 
     chat_input = ChatModel(question=text, id=f"slack_{channel_id}")
 
-    user_db = db.get_user_by_username("admin")
-    if not user_db:
+    from restai.helper import resolve_project_principal
+    user = resolve_project_principal(project, db)
+    if user is None:
+        logger.warning(
+            "project %s has no resolvable creator — refusing to run inbound "
+            "message as a privileged identity", project_id,
+        )
         return None
-    user = User.model_validate(user_db)
 
     background_tasks = BackgroundTasks()
 

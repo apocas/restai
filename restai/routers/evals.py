@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
 
@@ -36,6 +36,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 VALID_METRICS = {"answer_relevancy", "faithfulness", "correctness"}
+
+# Concurrent eval runs allowed per project (see start_eval_run).
+MAX_CONCURRENT_EVAL_RUNS = 3
 
 
 
@@ -350,6 +353,34 @@ async def start_eval_run(
 
     if len(dataset.test_cases) == 0:
         raise HTTPException(status_code=400, detail="Dataset has no test cases")
+
+    # Bound concurrent runs per project. Each run spawns a detached daemon
+    # thread that drives the judge LLM once per test case per metric, and
+    # nothing else bounds it — eval deliberately bypasses the budget/quota
+    # funnel, so repeatedly POSTing here spawned unbounded threads and
+    # unbounded inference.
+    #
+    # Only runs started RECENTLY count: a run whose thread died leaves its row
+    # stuck in pending/running forever, and an absolute cap would then wedge
+    # the project's evals permanently.
+    recent_cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
+    in_flight = (
+        db.db.query(EvalRunDatabase)
+        .filter(
+            EvalRunDatabase.project_id == projectID,
+            EvalRunDatabase.status.in_(("pending", "running")),
+            EvalRunDatabase.created_at >= recent_cutoff,
+        )
+        .count()
+    )
+    if in_flight >= MAX_CONCURRENT_EVAL_RUNS:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"{in_flight} evaluation runs are already in flight for this project "
+                f"(max {MAX_CONCURRENT_EVAL_RUNS}). Wait for them to finish."
+            ),
+        )
 
     now = datetime.now(timezone.utc)
     run = EvalRunDatabase(

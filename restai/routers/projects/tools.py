@@ -100,7 +100,14 @@ async def update_project_custom_tool(
     warning = None
     if getattr(brain, "docker_manager", None):
         script = f"import json, sys\nargs = json.loads(sys.stdin.readline() or '{{}}')\n{final_code}"
-        test_result = brain.docker_manager.run_script("ephemeral", script, stdin_data="{}")
+        # Derive a caller-scoped sandbox id instead of the literal "ephemeral".
+        # That constant is a single container shared by EVERY project and user,
+        # so attacker-supplied Python being validated here ran alongside — and
+        # could read the filesystem of — everyone else's validation runs.
+        from restai.projects.agent_shared import sandbox_chat_id
+
+        sandbox_id = sandbox_chat_id(projectID, user.id, "tool-validate")
+        test_result = brain.docker_manager.run_script(sandbox_id, script, stdin_data="{}")
         if test_result.startswith("ERROR:"):
             raise HTTPException(status_code=400, detail=f"Code validation failed — {test_result}")
     else:

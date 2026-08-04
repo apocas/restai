@@ -86,6 +86,35 @@ def _attach_guard_names(project_dict: dict, db_wrapper: DBWrapper) -> None:
         project_dict["guard_output_name"] = _resolve(opts.get("guard_output"))
 
 
+def _validate_guard_ref(ref, field, user, project, projectModelUpdate, db_wrapper) -> None:
+    """A guard reference must name a project in the same team that the editing
+    user can actually access — the same contract search_knowledge_project has.
+
+    Clearing the field (None / "") is always allowed.
+    """
+    if ref is None or str(ref).strip() == "":
+        return
+
+    from restai.auth import user_can_access_project
+
+    ref_str = str(ref).strip()
+    guard_db = db_wrapper.get_project_by_id(int(ref_str)) if ref_str.isdigit() else None
+    if guard_db is None:
+        # Legacy rows stored the name; accept it, but hold it to the same checks.
+        guard_db = db_wrapper.get_project_by_name(ref_str)
+    if guard_db is None:
+        raise HTTPException(status_code=400, detail=f"{field} must be an existing project")
+
+    calling_team_id = getattr(projectModelUpdate, "team_id", None) or project.team_id
+    if guard_db.team_id is None or guard_db.team_id != calling_team_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field} project must be in the same team as this project",
+        )
+    if not user_can_access_project(user, guard_db.id, db_wrapper):
+        raise HTTPException(status_code=403, detail=f"No access to {field} project")
+
+
 @router.get("/projects", response_model=ProjectsResponse, tags=["Projects"])
 async def route_get_projects(
     _: Request,
@@ -414,6 +443,22 @@ async def route_edit_project(
         if not user_can_access_project(user, tgt.id, db_wrapper):
             raise HTTPException(status_code=403, detail=f"No access to RAG project '{skp}'")
 
+    # Guard references are project ids and were previously written through with
+    # no validation at all — unlike search_knowledge_project above and
+    # eval_llm/rerank_llm below. That let a tenant point `guard` at ANY project
+    # id: Guard.__init__ resolves it with a global get_project_by_id, then runs
+    # inference on the victim's LLM under the victim's system prompt, bills the
+    # victim's team (base.py:_account_guard), and the raw response is readable
+    # back through the referring project's guard-events endpoint.
+    _validate_guard_ref(
+        getattr(projectModelUpdate, "guard", None), "guard",
+        user, project, projectModelUpdate, db_wrapper,
+    )
+    _validate_guard_ref(
+        getattr(projectModelUpdate.options, "guard_output", None) if projectModelUpdate.options else None,
+        "guard_output", user, project, projectModelUpdate, db_wrapper,
+    )
+
     if (
         projectModelUpdate.llm
         and request.app.state.brain.get_llm(projectModelUpdate.llm, db_wrapper) is None
@@ -497,6 +542,26 @@ async def route_edit_project(
                     if val and val.startswith("****"):
                         existing_src = existing_sources.get(src.name, {})
                         setattr(src, key, existing_src.get(key))
+
+        # mcp_servers[].env / .headers are masked on read now, so a plain
+        # GET→PATCH round-trip from the UI would otherwise persist "****xxxx"
+        # over the real token. Restore any masked value from what's stored.
+        if projectModelUpdate.options.mcp_servers and existing_opts.get("mcp_servers"):
+            existing_servers = {
+                s.get("name"): s
+                for s in existing_opts["mcp_servers"]
+                if isinstance(s, dict)
+            }
+            for srv in projectModelUpdate.options.mcp_servers:
+                prior = existing_servers.get(getattr(srv, "name", None)) or {}
+                for bag in ("env", "headers"):
+                    values = getattr(srv, bag, None)
+                    if not isinstance(values, dict):
+                        continue
+                    prior_bag = prior.get(bag) or {}
+                    for k, v in list(values.items()):
+                        if isinstance(v, str) and v.startswith("****") and k in prior_bag:
+                            values[k] = prior_bag[k]
 
     projectModelUpdate._user_id = user.id
 

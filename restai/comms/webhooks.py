@@ -33,7 +33,6 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 from urllib.parse import urlparse
 
-import requests
 
 from restai.helper import _is_private_ip
 from restai.utils.crypto import decrypt_field
@@ -90,9 +89,17 @@ def _safe_url(url: str) -> Optional[str]:
 def _post_in_thread(url: str, body: bytes, headers: dict) -> None:
     def _go():
         try:
-            resp = requests.post(url, data=body, headers=headers, timeout=10, allow_redirects=False)
+            # `safe_request` re-resolves and PINS the connection to the validated
+            # IP. Passing the raw url to `requests.post` let it do its own second
+            # DNS lookup, so a host that resolved public during _safe_url could
+            # answer with 127.0.0.1 microseconds later and receive the signed body.
+            from restai.helper import safe_request
+
+            resp = safe_request("POST", url, data=body, headers=headers, timeout=10)
             if resp.status_code >= 400:
                 logger.warning("webhook POST returned HTTP %s: %s", resp.status_code, resp.text[:200])
+        except ValueError as e:
+            logger.warning("webhook POST blocked by SSRF guard: %s", e)
         except Exception as e:
             logger.warning("webhook POST failed: %s", e)
     threading.Thread(target=_go, daemon=True).start()

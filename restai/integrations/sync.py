@@ -169,7 +169,6 @@ def _sync_s3(project, source, db, brain=None):
 
 
 def _sync_confluence(project, source, db, brain=None):
-    import requests
     from llama_index.core.schema import Document
     from restai.vectordb.tools import index_documents_classic, extract_keywords_for_metadata
 
@@ -191,7 +190,13 @@ def _sync_confluence(project, source, db, brain=None):
     params = {"limit": 50, "body-format": "storage"}
 
     while url:
-        resp = requests.get(url, auth=auth, headers=headers, params=params, timeout=30)
+        # `base_url` is operator-supplied per sync source and was fetched with a
+        # bare requests.get — no SSRF guard at all, unlike _sync_url. _safe_get
+        # validates + pins each hop, and re-validates the paginated `_links.next`
+        # we follow below.
+        from restai.helper import _safe_get
+
+        resp = _safe_get(url, auth=auth, headers=headers, params=params, timeout=30)
         resp.raise_for_status()
         data = resp.json()
 

@@ -45,13 +45,12 @@ def _mobile_status_payload(request: Request, project_db, api_key_row, api_key_pl
         "host": _mobile_default_host(request),
     }
     if enabled:
+        # Only ever surface the key the caller just minted. This used to fall
+        # back to decrypting the stored key on EVERY status read, so the
+        # ungated GET handed a live credential to every project member. The
+        # gated POST /enable re-issues it for the QR (the UI re-POSTs when the
+        # payload is absent), so the pairing flow is unchanged.
         plaintext = api_key_plaintext
-        if plaintext is None:
-            try:
-                from restai.utils.crypto import decrypt_api_key
-                plaintext = decrypt_api_key(api_key_row.encrypted_key)
-            except Exception:
-                plaintext = None
         if plaintext:
             payload["qr"] = {
                 "host": payload["host"],
@@ -139,7 +138,16 @@ async def mobile_enable(
 
     existing = _get_mobile_api_key(db_wrapper, project_db)
     if existing is not None:
-        return _mobile_status_payload(request, project_db, existing)
+        # Re-expose the existing key here (behind check_not_restricted) so the
+        # QR survives a page reload without the ungated GET leaking it.
+        try:
+            from restai.utils.crypto import decrypt_api_key
+            plaintext = decrypt_api_key(existing.encrypted_key)
+        except Exception:
+            plaintext = None
+        return _mobile_status_payload(
+            request, project_db, existing, api_key_plaintext=plaintext
+        )
 
     api_key_row, plaintext = _mint_mobile_api_key(db_wrapper, user, project_db)
     _persist_mobile_key(db_wrapper, project_db, api_key_row.id)

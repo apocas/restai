@@ -83,7 +83,7 @@ def test_emit_event_signs_with_hmac():
         done.set()
         return _FakeResp()
 
-    with patch("requests.post", fake_post), \
+    with patch("restai.helper.safe_request", lambda m, u, **kw: fake_post(u, **kw)), \
          patch("restai.comms.webhooks._is_private_ip", lambda h: False):
         out = emit_event(42, "myproj", opts, "test", {"foo": "bar"})
         assert out is True
@@ -117,7 +117,7 @@ def test_emit_event_omits_signature_when_no_secret():
         done.set()
         return _FakeResp()
 
-    with patch("requests.post", fake_post), \
+    with patch("restai.helper.safe_request", lambda m, u, **kw: fake_post(u, **kw)), \
          patch("restai.comms.webhooks._is_private_ip", lambda h: False):
         emit_event(1, "p", opts, "test", {})
         _wait_for(done)
@@ -136,7 +136,7 @@ def test_emit_event_swallows_post_failure():
         done.set()
         raise RuntimeError("network is on fire")
 
-    with patch("requests.post", fake_post), \
+    with patch("restai.helper.safe_request", lambda m, u, **kw: fake_post(u, **kw)), \
          patch("restai.comms.webhooks._is_private_ip", lambda h: False):
         # Must return True (request was queued) even though the POST will fail.
         out = emit_event(1, "p", opts, "test", {})
@@ -241,7 +241,7 @@ def test_webhook_test_endpoint_fires_when_configured(client, project_id):
         done.set()
         return _FakeResp()
 
-    with patch("requests.post", fake_post), \
+    with patch("restai.helper.safe_request", lambda m, u, **kw: fake_post(u, **kw)), \
          patch("restai.comms.webhooks._is_private_ip", lambda h: False):
         r = client.post(f"/projects/{project_id}/webhooks/test", auth=auth)
         assert r.status_code == 200

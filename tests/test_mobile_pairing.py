@@ -125,13 +125,26 @@ def test_enable_idempotent(client):
     assert data["qr"]["api_key"] == state["key1"]
 
 
-def test_status_reread_surfaces_plaintext(client):
+def test_status_reread_does_not_surface_plaintext(client):
+    """The status GET is ungated (no check_not_restricted, any project member),
+    so it must not hand back a live credential. It used to decrypt the stored
+    key on every read. The QR is re-issued by POST /enable instead, which is
+    gated — and which the UI already re-POSTs when the payload is absent."""
     r = client.get(f"/projects/{state['proj_id']}/mobile", auth=ADMIN)
     assert r.status_code == 200
     data = r.json()
     assert data["enabled"] is True
-    assert data["qr"]["api_key"] == state["key1"]
+    assert "qr" not in data
     assert data["key_prefix"] == state["key1"][:8]
+
+
+def test_enable_reissues_qr_for_existing_key(client):
+    """Pairing UX is preserved: the gated POST still returns the same key."""
+    r = client.post(f"/projects/{state['proj_id']}/mobile/enable", auth=ADMIN)
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["enabled"] is True
+    assert data["qr"]["api_key"] == state["key1"]
 
 
 def test_regenerate_invalidates_old_key(client):

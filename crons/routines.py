@@ -23,16 +23,19 @@ from restai.brain import Brain
 async def _fire_routine(brain, db, routine, project):
     from fastapi import BackgroundTasks
     from restai.helper import chat_main
-    from restai.models.models import ChatModel, User
+    from restai.models.models import ChatModel
 
-    creator = db.get_user_by_id(project.props.creator) if project.props.creator else None
-    if creator is None:
-        creator = db.get_user_by_username("admin")
-    if creator is None:
-        logger.error("No user found to run routine %d", routine.id)
+    from restai.helper import resolve_project_principal
+
+    # No admin fallback: running someone else's routine as the superuser is the
+    # same confused-deputy the messaging integrations had.
+    user = resolve_project_principal(project, db)
+    if user is None:
+        logger.error(
+            "Routine %d: project has no resolvable creator — refusing to run "
+            "as a privileged identity", routine.id,
+        )
         return None
-
-    user = User.model_validate(creator)
 
     q = ChatModel(question=routine.message)
     background_tasks = BackgroundTasks()

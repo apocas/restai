@@ -12,18 +12,24 @@ from restai.loaders.url import SeleniumWebReader
 
 class FakeDriver:
     def __init__(self, page_source="<html><body><p>Hello world</p></body></html>",
-                 title="Page Title"):
+                 title="Page Title", lands_on=None):
         self.page_source = page_source
         self.title = title
         self.visited = []
         self.quit_called = False
         self.timeout = None
         self._elements = {}
+        # A real driver exposes the URL it actually ENDED UP on, after
+        # redirects / meta-refresh / JS navigation. `lands_on` simulates being
+        # steered somewhere other than the requested URL.
+        self.lands_on = lands_on
+        self.current_url = ""
 
     def get(self, url):
         if isinstance(self.page_source, Exception):
             raise self.page_source
         self.visited.append(url)
+        self.current_url = self.lands_on or url
 
     def set_page_load_timeout(self, t):
         self.timeout = t
@@ -35,6 +41,16 @@ class FakeDriver:
         if value in self._elements:
             return self._elements[value]
         raise NoSuchElementException(value)
+
+
+@pytest.fixture(autouse=True)
+def _public_hosts(monkeypatch):
+    """The loader now re-validates the URL the browser LANDED on and discards
+    the document if it is internal (fail-closed, so unresolvable counts as
+    internal). These fixtures use `.example` hosts that do not resolve, so
+    treat everything as public unless a test says otherwise."""
+    import restai.helper as _helper
+    monkeypatch.setattr(_helper, "is_blocked_network_host", lambda url: False)
 
 
 def _reader(**kw):
@@ -147,6 +163,7 @@ def test_fetch_error_continues_to_next_url():
         calls.append(url)
         if url == "https://broken.example/":
             raise RuntimeError("timeout")
+        driver.current_url = url  # a real driver reports where it landed
     driver.get = get
     r = _reader(continue_on_failure=True)
     with _patched(r, driver):
@@ -253,3 +270,52 @@ def test_get_driver_firefox_with_executable_path():
         r._get_driver()
     service.assert_called_once_with(executable_path="/usr/bin/geckodriver")
     assert firefox.call_args.kwargs["service"] is service.return_value
+
+
+# ─── SSRF: redirect / rebind to an internal host ────────────────────────
+
+def test_discards_document_when_navigation_lands_internal(monkeypatch):
+    """Callers validate the host they were GIVEN, then hand the original URL to
+    Chrome, which re-resolves DNS and follows redirects on its own. So a public
+    URL that 302s to 169.254.169.254 used to get indexed. The landing URL is
+    re-validated and the document dropped."""
+    import restai.helper as _helper
+    monkeypatch.setattr(
+        _helper, "is_blocked_network_host",
+        lambda url: "169.254.169.254" in url,
+    )
+    driver = FakeDriver(lands_on="http://169.254.169.254/latest/meta-data/")
+    r = _reader()
+    with _patched(r, driver):
+        docs = r.load_data(["https://redirector.example/go"])
+    assert docs == []
+    # The document is suppressed even though the page body was retrieved.
+    assert driver.visited == ["https://redirector.example/go"]
+
+
+def test_raises_on_internal_landing_when_not_continuing(monkeypatch):
+    import restai.helper as _helper
+    monkeypatch.setattr(_helper, "is_blocked_network_host", lambda url: True)
+    r = _reader(continue_on_failure=False)
+    with _patched(r, FakeDriver()):
+        with pytest.raises(ValueError, match="internal address"):
+            r.load_data(["https://redirector.example/go"])
+
+
+def test_unreadable_current_url_fails_closed(monkeypatch):
+    """A driver that cannot report where it ended up is treated as internal."""
+    import restai.helper as _helper
+    monkeypatch.setattr(_helper, "is_blocked_network_host", lambda url: False)
+
+    class NoCurrentUrl(FakeDriver):
+        @property
+        def current_url(self):
+            raise RuntimeError("driver died")
+
+        @current_url.setter
+        def current_url(self, v):
+            pass
+
+    r = _reader()
+    with _patched(r, NoCurrentUrl()):
+        assert r.load_data(["https://ok.example"]) == []

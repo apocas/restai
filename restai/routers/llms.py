@@ -10,7 +10,12 @@ from restai import config
 from restai.models.databasemodels import LLMDatabase
 from restai.models.models import LLMModel, LLMUpdate, User
 from restai.database import get_db_wrapper, DBWrapper
-from restai.auth import get_current_username, get_current_username_admin
+from restai.auth import (
+    get_current_username,
+    get_current_username_admin,
+    team_granted_names,
+    team_grants_resource,
+)
 
 logging.basicConfig(level=config.LOG_LEVEL)
 
@@ -22,9 +27,9 @@ def mask_api_key(options: Optional[dict]) -> Optional[dict]:
     if options is None:
         return options
     try:
-        from restai.utils.crypto import LLM_SENSITIVE_KEYS
-        for k in LLM_SENSITIVE_KEYS:
-            if k in options:
+        from restai.utils.crypto import LLM_SENSITIVE_KEYS, sensitive_option_names
+        for k in sensitive_option_names(options, LLM_SENSITIVE_KEYS):
+            if isinstance(options.get(k), str):
                 options[k] = "********"
         return options
     except Exception as e:
@@ -35,13 +40,15 @@ def mask_api_key(options: Optional[dict]) -> Optional[dict]:
 @router.get("/llms/{llm_id}", response_model=LLMModel)
 async def api_get_llm(
     llm_id: int = Path(description="LLM ID"),
-    _: User = Depends(get_current_username),
+    user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
     """Get LLM configuration by ID."""
     try:
         llm_db = db_wrapper.get_llm_by_id(llm_id)
-        if llm_db is None:
+        # 404 rather than 403 on an out-of-team id, so this cannot be used to
+        # enumerate which LLM ids exist across tenants.
+        if llm_db is None or not team_grants_resource(user, "llms", llm_db.name):
             raise HTTPException(status_code=404, detail="LLM not found")
         llm = LLMModel.model_validate(llm_db)
         llm.options = mask_api_key(llm.options)
@@ -61,11 +68,8 @@ async def api_get_llms(
     """List registered LLMs. Non-admin users only see LLMs accessible via their teams."""
     all_llms = db_wrapper.get_llms()
 
-    if not user.is_admin:
-        allowed_names = set()
-        for team in user.teams:
-            for llm in (team.llms if hasattr(team, 'llms') and team.llms else []):
-                allowed_names.add(llm.name if hasattr(llm, 'name') else llm)
+    allowed_names = team_granted_names(user, "llms")
+    if allowed_names is not None:
         all_llms = [llm for llm in all_llms if llm.name in allowed_names]
 
     llms: list[Optional[LLMModel]] = [

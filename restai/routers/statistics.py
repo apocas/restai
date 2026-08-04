@@ -16,7 +16,7 @@ from restai.models.models import (
     User,
 )
 from restai.models.databasemodels import OutputDatabase, ProjectDatabase, UserDatabase, TeamDatabase, users_projects
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -43,15 +43,7 @@ async def get_top_projects_by_tokens(
         )
 
         if not user.is_admin:
-            query = query.filter(
-                or_(
-                    ProjectDatabase.id.in_(
-                        db_wrapper.db.query(users_projects.c.project_id)
-                        .filter(users_projects.c.user_id == user.id)
-                    ),
-                    ProjectDatabase.public == True
-                )
-            )
+            query = query.filter(_visible_project_predicate(user, db_wrapper))
 
         top_projects = (
             query
@@ -83,17 +75,33 @@ async def get_top_projects_by_tokens(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+def _visible_project_predicate(user: User, db_wrapper: DBWrapper):
+    """SQL predicate for the projects `user` may see in aggregate statistics.
+
+    Mirrors `auth.get_current_username_project_public`: direct membership, OR a
+    project marked public **that lives in one of the user's teams**. The team
+    half was missing here — all three call sites tested `public == True` alone,
+    so a public project leaked its name and token/cost totals to every
+    authenticated user on the platform, including other tenants.
+    """
+    member = ProjectDatabase.id.in_(
+        db_wrapper.db.query(users_projects.c.project_id)
+        .filter(users_projects.c.user_id == user.id)
+    )
+    team_ids = {t.id for t in (user.teams or [])} | {t.id for t in (user.admin_teams or [])}
+    if not team_ids:
+        return member
+    return or_(
+        member,
+        and_(ProjectDatabase.public == True, ProjectDatabase.team_id.in_(team_ids)),
+    )
+
+
 def _user_project_filter(user: User, db_wrapper: DBWrapper):
     """Returns a filter condition that limits OutputDatabase rows to projects the user can access."""
     return OutputDatabase.project_id.in_(
         db_wrapper.db.query(ProjectDatabase.id).filter(
-            or_(
-                ProjectDatabase.id.in_(
-                    db_wrapper.db.query(users_projects.c.project_id)
-                    .filter(users_projects.c.user_id == user.id)
-                ),
-                ProjectDatabase.public == True
-            )
+            _visible_project_predicate(user, db_wrapper)
         )
     )
 
@@ -120,13 +128,7 @@ async def get_statistics_summary(
             total_teams = db_wrapper.db.query(func.count(TeamDatabase.id)).scalar() or 0
         else:
             total_projects = db_wrapper.db.query(func.count(ProjectDatabase.id)).filter(
-                or_(
-                    ProjectDatabase.id.in_(
-                        db_wrapper.db.query(users_projects.c.project_id)
-                        .filter(users_projects.c.user_id == user.id)
-                    ),
-                    ProjectDatabase.public == True
-                )
+                _visible_project_predicate(user, db_wrapper)
             ).scalar() or 0
             total_users = 0
             total_teams = 0

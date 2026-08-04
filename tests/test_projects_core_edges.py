@@ -282,19 +282,39 @@ def test_guard_names_resolved(client):
     assert data["guard_output_name"] == guard_proj_name
 
 
-def test_guard_names_dangling_ref(client):
+def test_guard_ref_to_unknown_project_rejected(client):
+    """Guard refs are validated on write now — an unresolvable id is refused
+    rather than stored. Previously any project id was accepted, which let a
+    tenant point `guard` at another tenant's project and run inference on it."""
     r = client.patch(
         f"/projects/{state['agent_id']}",
-        json={"guard": "99999999", "options": {"guard_output": "99999999"}},
+        json={"guard": "99999999"},
         auth=ADMIN,
     )
-    assert r.status_code == 200, r.text
+    assert r.status_code == 400, r.text
 
-    r = client.get(f"/projects/{state['agent_id']}", auth=ADMIN)
-    assert r.status_code == 200
-    data = r.json()
-    assert data["guard_name"] is None
-    assert data["guard_output_name"] is None
+    r = client.patch(
+        f"/projects/{state['agent_id']}",
+        json={"options": {"guard_output": "99999999"}},
+        auth=ADMIN,
+    )
+    assert r.status_code == 400, r.text
+
+
+def test_guard_names_tolerate_dangling_ref():
+    """The *display* path stays lenient: a ref left dangling by a deleted guard
+    project must render as no-name rather than blowing up the project GET."""
+    from restai.database import DBWrapper
+    from restai.routers.projects.core import _attach_guard_names
+
+    db = DBWrapper()
+    try:
+        payload = {"guard": "99999999", "options": {"guard_output": "99999999"}}
+        _attach_guard_names(payload, db)
+        assert payload["guard_name"] is None
+        assert payload["guard_output_name"] is None
+    finally:
+        db.db.close()
 
 
 # ---------------------------------------------------------------- patch

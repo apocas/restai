@@ -184,23 +184,33 @@ def test_process_message_project_not_found():
     assert asyncio.run(ct._process_message(brain, MagicMock(), 1, "hi", 42)) is None
 
 
-def test_process_message_no_admin_user():
+def _project_owned_by(creator_id):
+    project = MagicMock()
+    project.props.creator = creator_id
+    return project
+
+
+def test_process_message_no_resolvable_creator():
+    """Fail closed: without a creator the turn is skipped, never escalated to
+    the platform admin (which would void the Call Project tenancy check)."""
     brain = MagicMock()
-    brain.find_project.return_value = MagicMock()
+    brain.find_project.return_value = _project_owned_by(None)
     db = MagicMock()
-    db.get_user_by_username.return_value = None
     assert asyncio.run(ct._process_message(brain, db, 1, "hi", 42)) is None
 
 
-def test_process_message_returns_answer():
+def test_process_message_runs_as_project_creator():
     brain = MagicMock()
-    brain.find_project.return_value = MagicMock()
+    brain.find_project.return_value = _project_owned_by(7)
     db = MagicMock()
-    db.get_user_by_username.return_value = SimpleNamespace(id=1, username="admin")
+    db.get_user_by_id.return_value = SimpleNamespace(id=7, username="owner")
     chat_main = AsyncMock(return_value={"answer": "42 is the answer"})
     with patch("restai.helper.chat_main", new=chat_main):
         result = asyncio.run(ct._process_message(brain, db, 1, "hi", 42))
     assert result == "42 is the answer"
+    db.get_user_by_id.assert_called_once_with(7)
+    # The principal is the project's creator, not "admin".
+    assert chat_main.call_args.args[4].username == "owner"
     # Conversation id keeps each Telegram chat separate across ticks.
     chat_model = chat_main.call_args.args[3]
     assert chat_model.id == "telegram_42"
@@ -208,9 +218,9 @@ def test_process_message_returns_answer():
 
 def test_process_message_unexpected_result_type():
     brain = MagicMock()
-    brain.find_project.return_value = MagicMock()
+    brain.find_project.return_value = _project_owned_by(7)
     db = MagicMock()
-    db.get_user_by_username.return_value = SimpleNamespace(id=1, username="admin")
+    db.get_user_by_id.return_value = SimpleNamespace(id=7, username="owner")
     with patch("restai.helper.chat_main", new=AsyncMock(return_value="just a string")):
         assert asyncio.run(ct._process_message(brain, db, 1, "hi", 42)) is None
 

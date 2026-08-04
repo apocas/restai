@@ -118,12 +118,27 @@ async def route_generate_transcript(
     generator: str = Path(description="Speech-to-text model name"),
     file: UploadFile = ...,
     language: str = Form(..., description="Language code for transcription"),
-    _: User = Depends(get_current_username),
+    user: User = Depends(get_current_username),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
-    """Transcribe an audio file using the specified STT model."""
+    """Transcribe an audio file using the specified STT model.
+
+    Enforces the same controls as the `/v1/audio/transcriptions` twin. This
+    legacy route bound the user to `_` and discarded it entirely: no
+    restricted-user gate, no team ACL, no usage row.
+    """
+    check_not_restricted(user)
+    team_id = resolve_team_for_audio_generator(user, generator, db_wrapper)
+
     contents = await file.read()
     transcript = _do_transcribe(request, db_wrapper, generator, file, contents, language)
+
+    log_direct_usage(
+        db_wrapper, user.id, team_id, generator,
+        "(audio file)", transcript,
+        0, 0, 0.0, 0.0,
+        user.api_key_id,
+    )
     return {"answer": transcript}
 
 

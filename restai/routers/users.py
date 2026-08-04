@@ -492,6 +492,22 @@ async def route_update_user(
         if not user.is_admin and user_update.projects is not None:
             raise HTTPException(status_code=403, detail="Only admins can modify project assignments")
 
+        # Changing your OWN password requires proving you know the current one.
+        # Without this a stolen session cookie (XSS, borrowed laptop) converts
+        # straight into permanent account takeover, since the attacker can set
+        # a new password without ever knowing the old one. An admin resetting
+        # SOMEONE ELSE's password is the legitimate recovery path and is exempt.
+        if user_update.password and user.username == user_to_update.username:
+            from restai.database import verify_password
+
+            if not user_update.current_password or not verify_password(
+                user_update.current_password, user_to_update.hashed_password or ""
+            ):
+                raise HTTPException(
+                    status_code=403,
+                    detail="current_password is required and must match to change your own password",
+                )
+
         if user_update.password and user_to_update.totp_enabled:
             if not user_update.totp_code:
                 raise HTTPException(status_code=400, detail="TOTP code required to change password when 2FA is enabled")

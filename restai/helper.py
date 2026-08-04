@@ -175,6 +175,49 @@ def _pinned_get(url: str, ip: str, **kwargs):
     return response
 
 
+def _pinned_request(method: str, url: str, ip: str, **kwargs):
+    """`requests.request` pinned to a pre-validated IP. See `_pinned_get`."""
+    pinned_url, host_header = _pin_url_and_host(url, ip)
+    headers = dict(kwargs.pop("headers", None) or {})
+    headers["Host"] = host_header
+
+    parsed = urlparse(url)
+    session = requests.Session()
+    if parsed.scheme == "https":
+        session.mount("https://", _PinnedHostSSLAdapter(parsed.hostname))
+    response = session.request(method, pinned_url, headers=headers, **kwargs)
+    response._restai_pinned_session = session
+    return response
+
+
+def safe_request(method: str, url: str, max_redirects: int = 5, **kwargs):
+    """Method-agnostic `_safe_get`: validate, pin, and re-validate every redirect
+    hop. Outbound POSTs (webhook delivery) previously validated the hostname and
+    then handed the ORIGINAL url to `requests`, which re-resolved it — leaving the
+    DNS-rebinding window open on a request that carries a signed body."""
+    kwargs["allow_redirects"] = False
+    current = url
+    for _ in range(max_redirects + 1):
+        hostname = urlparse(current).hostname
+        if not hostname:
+            raise ValueError("URL has no valid hostname.")
+        try:
+            ip = _resolve_validated_ip(hostname)
+        except ValueError:
+            logger.warning("Blocked SSRF attempt to internal/unresolvable address: %s", hostname)
+            raise
+        response = _pinned_request(method, current, ip, **kwargs)
+        if response.is_redirect or response.is_permanent_redirect:
+            location = response.headers.get("Location")
+            response.close()
+            if not location:
+                raise ValueError("Redirect without a Location header.")
+            current = urljoin(current, location)
+            continue
+        return response
+    raise ValueError("Too many redirects.")
+
+
 def is_blocked_network_host(host: str) -> bool:
     """Fail-closed SSRF gate for an http(s)/sse host URL: returns True (block) when
     the parsed hostname resolves to a private/internal address, can't be resolved,
@@ -636,6 +679,54 @@ def _apply_context(project: Project, interaction: InteractionModel) -> Project:
     return project.with_context(interaction.context)
 
 
+def resolve_project_principal(project: Project, db: DBWrapper):
+    """The user an integration-driven inference for `project` should run as.
+
+    Inbound messaging (WhatsApp webhook, Telegram cron, Slack cron) each
+    resolved `get_user_by_username("admin")` and ran the turn as the platform
+    superuser. `User.has_project_access` returns True for admins, so
+    `user_can_access_project` — the only tenancy boundary on the block
+    interpreter's `Call Project` — was inert: any tenant could wire a bot at a
+    block project that calls a project it does not own, and have the answer
+    DM'd back to them.
+
+    Returns None when the project has no resolvable creator; callers must skip
+    the turn rather than fall back to a privileged identity.
+    """
+    creator_id = getattr(project.props, "creator", None)
+    if not creator_id:
+        return None
+    creator = db.get_user_by_id(creator_id)
+    if creator is None:
+        return None
+    return User.model_validate(creator)
+
+
+# Fields a caller may set on their own turn. Everything else on ChatModel
+# overrides the PROJECT's configuration — `system` replaces the system prompt
+# outright, `tables` widens NL→SQL past the project's allowlist, `k`/`score`/
+# `llm_rerank` reshape retrieval, `eval` spends extra inference.
+_PUBLIC_SAFE_CHAT_FIELDS = ("question", "image", "files", "negative", "stream", "id", "lite")
+
+
+def _downgrade_public_chat_input(chat_input: ChatModel) -> ChatModel:
+    """Strip project-configuration overrides from a public-level caller's turn.
+
+    `user.level == "public"` means the caller is NOT a project member — they
+    reach the project only because it is marked public and they share its team.
+    `/question` rebuilt the model from a safe subset for exactly this case;
+    `/chat` did not, so the same non-member could pass `system` and replace the
+    project's system prompt. Applied here, at the boundary every project type
+    and every endpoint converges on, rather than per-endpoint.
+    """
+    safe = {
+        field: getattr(chat_input, field)
+        for field in _PUBLIC_SAFE_CHAT_FIELDS
+        if hasattr(chat_input, field)
+    }
+    return ChatModel(**safe)
+
+
 async def chat_main(
     _: Request,
     brain: Brain,
@@ -646,6 +737,11 @@ async def chat_main(
     background_tasks: BackgroundTasks,
     start_time: float = None,
 ):
+    # `level` is set only by `get_current_username_project_public`; every other
+    # caller (routines, messaging crons, widget, internal) leaves it None.
+    if getattr(user, "level", None) == "public":
+        chat_input = _downgrade_public_chat_input(chat_input)
+
     # Canonicalize image input: folds `.files[<image>]` into `.image` so
     # every downstream path (agent vision flow, block interpreter, log
     # viewer) sees a single source of truth. Does nothing if `.image` was

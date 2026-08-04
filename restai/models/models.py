@@ -1017,18 +1017,28 @@ class User(BaseModel):
         return {p.id for p in self.projects}
 
     def has_api_key_project_access(self, project_id: int) -> bool:
-        """Check if the API key scope allows access to a specific project."""
-        if self.is_admin:
-            return True
+        """Check if the API key scope allows access to a specific project.
+
+        Deliberately NOT short-circuited on `is_admin`. These two properties
+        describe the *credential* presented, not the person holding it: a key
+        minted with `read_only=True, allowed_projects=[7]` is advertised in the
+        UI and API as narrowed, and must behave that way no matter who owns it.
+        Short-circuiting on admin silently voided both — which is exactly the
+        mobile-pairing case, where the enabling user is typically an admin, so
+        the QR handed to a phone was in practice a full-privilege platform key.
+
+        A cookie session leaves `api_key_allowed_projects=None` /
+        `api_key_read_only=False`, so ordinary admin use through the UI is
+        unaffected; only an explicitly narrowed key is constrained.
+        """
         if self.api_key_allowed_projects is None:
             return True
         return project_id in self.api_key_allowed_projects
 
     @property
     def is_read_only(self) -> bool:
-        """Check if the current auth context is read-only (via API key scope)."""
-        if self.is_admin:
-            return False
+        """Whether the presented credential is read-only. See the note above on
+        why this is not short-circuited for admins."""
         return self.api_key_read_only
 
 
@@ -1086,6 +1096,7 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     """Update user properties."""
     password: str = Field(default=None, description="New password for the user")
+    current_password: Optional[str] = Field(default=None, description="Current password — required when changing your OWN password (not required for an admin resetting another user)")
     totp_code: Optional[str] = Field(default=None, max_length=6, description="TOTP code required when changing password with 2FA enabled")
     is_admin: bool = Field(default=None, description="Update administrator privileges")
     is_private: bool = Field(default=None, description="Update profile privacy setting")

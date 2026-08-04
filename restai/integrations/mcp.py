@@ -37,6 +37,15 @@ def _authenticate():
             except (json.JSONDecodeError, TypeError):
                 pass
         user.api_key_read_only = api_key_row.read_only or False
+        user.api_key_id = api_key_row.id
+        user.api_key_team_id = api_key_row.team_id
+
+    # This path resolved a Bearer key by hand and skipped the suspension check
+    # that `auth._resolve_bearer_token` performs, so a suspended account's
+    # existing keys still worked over MCP after being locked out everywhere else.
+    from restai.auth import check_not_suspended
+
+    check_not_suspended(user)
 
     return user, db_wrapper
 
@@ -98,7 +107,14 @@ def create_mcp_server(app_ref) -> FastMCP:
             if project_db is None:
                 return f"Error: Project '{project_name}' not found."
 
-            if not user.has_project_access(project_db.id):
+            # `user_can_access_project` also folds in team-admin escalation and,
+            # critically, the API key's own `allowed_projects` scope — the bare
+            # `has_project_access` check ignored the key scope entirely, so a
+            # key narrowed to one project could query any project its owner
+            # could reach.
+            from restai.auth import user_can_access_project
+
+            if not user_can_access_project(user, project_db.id, db_wrapper):
                 return f"Error: Access denied to project '{project_name}'."
 
             brain: Brain = app_ref.state.brain

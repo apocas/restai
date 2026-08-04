@@ -217,11 +217,14 @@ async def _run_agent(project_id: int, text: str, from_phone: str) -> Optional[st
 
         chat_input = ChatModel(question=text, id=f"whatsapp_{from_phone}")
 
-        user_db = db.get_user_by_username("admin")
-        if user_db is None:
-            logger.warning("_run_agent: no 'admin' user — cannot run agent")
+        from restai.helper import resolve_project_principal
+        user = resolve_project_principal(project, db)
+        if user is None:
+            logger.warning(
+                "_run_agent: project %s has no resolvable creator — refusing to "
+                "run inbound message as a privileged identity", project_id,
+            )
             return None
-        user = User.model_validate(user_db)
 
         bg = _BG()
         result = await chat_main(None, brain, project, chat_input, user, db, bg)

@@ -226,27 +226,34 @@ def test_process_message_project_not_found():
     assert asyncio.run(cs._process_message(brain, MagicMock(), 1, "hi", "D1")) is None
 
 
-def test_process_message_no_admin_user():
+def _project_owned_by(creator_id):
+    project = MagicMock()
+    project.props.creator = creator_id
+    return project
+
+
+def test_process_message_no_resolvable_creator():
+    """Fail closed rather than escalating the turn to the platform admin."""
     import asyncio
     brain = MagicMock()
-    brain.find_project.return_value = MagicMock()
+    brain.find_project.return_value = _project_owned_by(None)
     db = MagicMock()
-    db.get_user_by_username.return_value = None
     assert asyncio.run(cs._process_message(brain, db, 1, "hi", "D1")) is None
 
 
 def test_process_message_returns_answer_and_runs_background_tasks():
     import asyncio
     brain = MagicMock()
-    brain.find_project.return_value = MagicMock()
+    brain.find_project.return_value = _project_owned_by(7)
     db = MagicMock()
-    db.get_user_by_username.return_value = SimpleNamespace(id=1, username="admin")
+    db.get_user_by_id.return_value = SimpleNamespace(id=7, username="owner")
 
     ran = []
 
     async def fake_chat_main(request, brain_, project, q, user, db_, background_tasks):
         assert q.id == "slack_D1"  # per-channel conversation memory
         assert request.app.state.brain is brain
+        assert user.username == "owner"  # project creator, not "admin"
         background_tasks.add_task(lambda: ran.append("sync"))
 
         async def _async_task():
@@ -265,9 +272,9 @@ def test_process_message_returns_answer_and_runs_background_tasks():
 def test_process_message_non_dict_result_is_none():
     import asyncio
     brain = MagicMock()
-    brain.find_project.return_value = MagicMock()
+    brain.find_project.return_value = _project_owned_by(7)
     db = MagicMock()
-    db.get_user_by_username.return_value = SimpleNamespace(id=1, username="admin")
+    db.get_user_by_id.return_value = SimpleNamespace(id=7, username="owner")
     with patch("restai.helper.chat_main", new=AsyncMock(return_value="raw string")):
         assert asyncio.run(cs._process_message(brain, db, 1, "hi", "D1")) is None
 

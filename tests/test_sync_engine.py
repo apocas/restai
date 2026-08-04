@@ -170,7 +170,7 @@ def test_sync_confluence_paginates_and_strips_html():
         captured["docs"] = documents
         return 2
 
-    with patch("requests.get", side_effect=[_resp(page1), _resp(page2)]) as rg, \
+    with patch("restai.helper._safe_get", side_effect=[_resp(page1), _resp(page2)]) as rg, \
          patch("restai.vectordb.tools.extract_keywords_for_metadata", side_effect=lambda d: d), \
          patch("restai.vectordb.tools.index_documents_classic", side_effect=fake_index):
         sync_mod._sync_confluence(project, source, MagicMock())
@@ -193,7 +193,7 @@ def test_sync_confluence_no_pages_is_noop():
         confluence_api_token="tok",
     )
     project = _project()
-    with patch("requests.get", return_value=_resp({"results": [], "_links": {}})), \
+    with patch("restai.helper._safe_get", return_value=_resp({"results": [], "_links": {}})), \
          patch("restai.vectordb.tools.index_documents_classic") as idx:
         sync_mod._sync_confluence(project, source, MagicMock())
     idx.assert_not_called()
