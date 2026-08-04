@@ -284,6 +284,27 @@ def test_chat_store_key_is_scoped_to_project_and_user():
     assert all("telegram_12345" not in k for k in keys)
 
 
+def test_chat_cannot_be_built_without_its_scoping():
+    """The unscoped key must be unrepresentable, not merely unused.
+
+    It previously survived as the `else` branch of an `is not None` check — so a
+    caller that omitted either argument silently got the original global
+    namespace back, with no error and no log.
+    """
+    from llama_index.core.storage.chat_store import SimpleChatStore
+
+    from restai.chat import Chat
+    from restai.models.models import ChatModel
+
+    model = ChatModel(question="q", id="telegram_12345")
+    with pytest.raises(TypeError):
+        Chat(model, SimpleChatStore(), llm=None)
+    with pytest.raises(TypeError):
+        Chat(model, SimpleChatStore(), llm=None, project_id=1)
+    with pytest.raises(TypeError):
+        Chat(model, SimpleChatStore(), llm=None, user_id=1)
+
+
 # ─── SSRF gate helpers ──────────────────────────────────────────────────
 
 @pytest.mark.parametrize("url", [

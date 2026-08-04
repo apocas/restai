@@ -255,7 +255,7 @@ class RAG(ProjectBase):
             llm=model.llm if model else None,
             # Scope conversation memory to (project, caller) — see Chat.__init__.
             project_id=project.props.id,
-            user_id=getattr(user, "id", None),
+            user_id=user.id,
         )
 
         output = {
