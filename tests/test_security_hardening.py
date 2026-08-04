@@ -11,6 +11,13 @@ from types import SimpleNamespace
 import pytest
 
 
+def _proj(pid, name=None, team_id=None):
+    """Minimal stand-in for a loaded Project."""
+    return SimpleNamespace(
+        props=SimpleNamespace(id=pid, name=name or f"p{pid}", team_id=team_id)
+    )
+
+
 # ─── credential masking / encryption coverage ───────────────────────────
 
 def test_sensitive_option_names_catches_provider_specific_credentials():
@@ -297,3 +304,246 @@ def test_safe_request_exists_for_non_get_methods():
     from restai import helper
 
     assert callable(helper.safe_request)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Round 2
+# ═══════════════════════════════════════════════════════════════════════
+
+# ─── templates may not carry privileged options across tenants ──────────
+
+def test_template_option_allowlist_drops_privileged_keys():
+    """A template published `public` by one tenant is replayed into another
+    tenant's project. Credential scrubbing alone left the dangerous levers."""
+    from restai.utils.crypto import filter_template_options
+
+    kept = filter_template_options({
+        # safe tuning — must survive
+        "k": 5, "score": 0.4, "guard_mode": "warn", "agent_loop": "restai",
+        # cross-tenant / outbound / privileged — must NOT
+        "guard_output": "42",
+        "search_knowledge_project": "victim-project",
+        "webhook_url": "https://attacker.example/collect",
+        "webhook_events": "eval_completed",
+        "mcp_servers": [{"name": "x", "host": "/bin/sh"}],
+        "sync_sources": [{"name": "s", "url": "https://attacker.example"}],
+        "sync_enabled": True,
+        "browser_allow_eval": True,
+        "telegram_default_chat_id": "attacker",
+        "whatsapp_default_to": "+15550000000",
+        "sms_default_to": "+15550000000",
+        "connection": "postgresql://u:p@host/db",
+        "eval_llm": "someone-elses-llm",
+    })
+
+    assert kept["k"] == 5 and kept["guard_mode"] == "warn"
+    for dangerous in (
+        "guard_output", "search_knowledge_project", "webhook_url", "webhook_events",
+        "mcp_servers", "sync_sources", "sync_enabled", "browser_allow_eval",
+        "telegram_default_chat_id", "whatsapp_default_to", "sms_default_to",
+        "connection", "eval_llm",
+    ):
+        assert dangerous not in kept, dangerous
+
+
+def test_template_option_allowlist_fails_closed_on_unknown_keys():
+    """A future ProjectOptions field is dropped until it is reviewed."""
+    from restai.utils.crypto import filter_template_options
+
+    assert "some_future_option" not in filter_template_options(
+        {"some_future_option": "x", "k": 3}
+    )
+
+
+def test_template_option_filter_preserves_json_string_shape():
+    from restai.utils.crypto import filter_template_options
+
+    out = filter_template_options('{"k": 3, "webhook_url": "https://evil"}')
+    assert isinstance(out, str)
+    assert "webhook_url" not in out and '"k"' in out
+
+
+# ─── guard references are tenancy-checked at use, not only at write ─────
+
+def test_guard_refuses_cross_team_reference():
+    """Defence in depth: the write paths validate a guard ref when it is SET,
+    but this resolve is a bare global get_project_by_id — so any path that
+    stores one without validating (template instantiate did) reached another
+    tenant's project here."""
+    from restai.limits.guard import Guard
+
+    victim_side = SimpleNamespace(id=9, team_id=99, name="attacker-guard")
+    db = SimpleNamespace(
+        get_project_by_id=lambda i: victim_side,
+        get_project_by_name=lambda n: None,
+    )
+    brain = SimpleNamespace(find_project=lambda i, d: "SHOULD-NOT-LOAD")
+
+    g = Guard("9", brain, db, referring_project=_proj(1, team_id=1))
+    assert g.project is None
+    assert g.verify("anything") is None
+
+
+def test_guard_allows_same_team_reference():
+    from restai.limits.guard import Guard
+
+    same_team = SimpleNamespace(id=9, team_id=1, name="our-guard")
+    db = SimpleNamespace(
+        get_project_by_id=lambda i: same_team,
+        get_project_by_name=lambda n: None,
+    )
+    brain = SimpleNamespace(find_project=lambda i, d: "LOADED")
+
+    g = Guard("9", brain, db, referring_project=_proj(1, team_id=1))
+    assert g.project == "LOADED"
+
+
+# ─── chat_resume is namespaced, not global ──────────────────────────────
+
+def test_resume_key_never_embeds_the_client_supplied_id():
+    """The resume branch returns the buffered stream BEFORE loading the project,
+    so the key must not be guessable from the client's chat id. Scoping and
+    determinism are covered by test_agent_shared.py; opacity is asserted here
+    because it is what this call site depends on."""
+    from restai.projects.agent_shared import sandbox_chat_id
+
+    key = sandbox_chat_id(1, 1, "telegram_12345")
+    assert "telegram_12345" not in key
+
+
+# ─── metering: the usage row must always be insertable ──────────────────
+
+def test_text_columns_are_capped_to_fit_the_column():
+    """Quota bump and wallet debit run AFTER this row commits and callers
+    swallow the failure, so an INSERT that fails is a free inference."""
+    from restai.tools import _TEXT_COLUMN_LIMIT, _cap_text_column
+
+    assert _cap_text_column("short") == "short"
+    capped = _cap_text_column("x" * 100_000)
+    assert len(capped) <= _TEXT_COLUMN_LIMIT + 20
+    assert capped.endswith("[truncated]")
+    assert _cap_text_column(None) is None
+
+
+# ─── Blockly resource bounds ────────────────────────────────────────────
+
+def test_block_value_size_guard_rejects_runaway_growth():
+    """MAX_ITERATIONS counts blocks, not bytes: `repeat 100 { x = join(x,x) }`
+    is 100 ticks and 2**100 characters."""
+    from fastapi import HTTPException as _HTTPException
+
+    from restai.projects.block_interpreter import MAX_VALUE_CHARS, BlockInterpreter
+
+    assert BlockInterpreter._guard_value_size("ok") == "ok"
+    with pytest.raises(_HTTPException):
+        BlockInterpreter._guard_value_size("x" * (MAX_VALUE_CHARS + 1))
+
+
+def test_block_prime_check_is_bounded():
+    from restai.projects.block_interpreter import MAX_PRIME_CHECK
+
+    # sqrt(limit) keeps the synchronous trial division off the event loop.
+    assert MAX_PRIME_CHECK <= 10**10
+
+
+# ─── audit trail integrity ──────────────────────────────────────────────
+
+def test_audit_skips_on_route_template_not_on_the_raw_path():
+    """Whether a request is audited must not be decidable by naming a resource.
+    `"/chat" in path` skipped `PATCH /users/chatterbox`; even a suffix test
+    skips `DELETE /users/chat`. The resolved route template cannot be chosen."""
+    from restai.observability.audit import _is_inference_path
+
+    def req(route_path):
+        route = SimpleNamespace(path=route_path) if route_path else None
+        return SimpleNamespace(scope={"route": route} if route else {})
+
+    # Genuine inference endpoints stay unaudited.
+    assert _is_inference_path(req("/projects/{projectID}/chat")) is True
+    assert _is_inference_path(req("/projects/{projectID}/chat/stop")) is True
+    assert _is_inference_path(req("/projects/{projectID}/question")) is True
+
+    # Account mutations are audited no matter what the resource is called.
+    assert _is_inference_path(req("/users/{username}")) is False
+    assert _is_inference_path(req("/teams/{team_id}/users/{username}")) is False
+    # Unmatched route (404) must not be silently skipped either.
+    assert _is_inference_path(req(None)) is False
+
+
+def test_audit_basic_username_is_marked_unverified_and_sanitized():
+    """Nothing verifies this header — it must not look like an authenticated
+    identity, and must not be able to inject separators into the row."""
+    import base64 as _b64
+
+    from restai.observability.audit import _extract_username
+
+    raw = _b64.b64encode(b"victim\nFORGED admin:pw").decode()
+    request = SimpleNamespace(
+        state=SimpleNamespace(audit_username=None),
+        headers={"authorization": f"Basic {raw}"},
+        cookies={},
+    )
+    _, username = _extract_username(request)
+    assert username.startswith("(unverified)")
+    assert "\n" not in username
+
+
+# ─── vector stores are keyed on the project id, not its name ────────────
+
+def test_store_key_is_derived_from_id_not_name():
+    from restai.vectordb.tools import project_store_key
+
+    assert project_store_key(_proj(12, "hr-salaries")) == "p12"
+    # Name is irrelevant: a rename cannot move or orphan the store.
+    assert project_store_key(_proj(12, "totally-renamed")) == "p12"
+
+
+def test_names_that_used_to_collide_now_get_distinct_stores():
+    """`hr-salaries` and `hr_salaries` both sanitized to `hr_salaries` while
+    projects.name is UNIQUE on the RAW string — so two projects in different
+    teams shared one RAG store. Ids cannot collide."""
+    from restai.vectordb.tools import project_store_key
+
+    assert project_store_key(_proj(12, "hr-salaries")) != project_store_key(
+        _proj(13, "hr_salaries")
+    )
+
+
+def test_store_key_requires_an_id():
+    from restai.vectordb.tools import project_store_key
+
+    with pytest.raises(ValueError):
+        project_store_key(SimpleNamespace(props=SimpleNamespace(id=None, name="x")))
+
+
+def test_store_key_is_valid_for_every_backend_naming_rule():
+    """Each backend imposed its own naming rules, which is why each had its own
+    lossy sanitizer. `p{id}` satisfies all of them with no transformation, which
+    is why those sanitizers could be deleted."""
+    import re as _re
+
+    from restai.vectordb.tools import project_store_key
+
+    key = project_store_key(_proj(4321, "anything at all!"))
+    assert _re.fullmatch(r"[a-z][a-z0-9_-]*", key)  # pgvector ident + pinecone ns
+    assert key[0].isalpha()                          # weaviate: leading letter
+
+
+def test_find_embeddings_path_is_the_id_keyed_directory(tmp_path, monkeypatch):
+    import restai.vectordb.tools as vt
+
+    monkeypatch.setattr(vt, "EMBEDDINGS_PATH", str(tmp_path))
+    path = vt.find_embeddings_path("p12")
+    assert path == str(tmp_path / "p12")
+    assert (tmp_path / "p12").is_dir()
+
+
+def test_find_embeddings_path_is_idempotent(tmp_path, monkeypatch):
+    """Repeat construction must reuse the directory, not disturb its contents."""
+    import restai.vectordb.tools as vt
+
+    monkeypatch.setattr(vt, "EMBEDDINGS_PATH", str(tmp_path))
+    vt.find_embeddings_path("p12")
+    (tmp_path / "p12" / "chroma.sqlite3").write_text("corpus")
+    assert vt.find_embeddings_path("p12") == str(tmp_path / "p12")
+    assert (tmp_path / "p12" / "chroma.sqlite3").read_text() == "corpus"

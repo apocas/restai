@@ -1,5 +1,4 @@
 import logging
-import re
 
 import weaviate
 from weaviate.auth import AuthApiKey
@@ -17,20 +16,12 @@ from restai.vectordb.base import VectorBase
 logging.basicConfig(level=config.LOG_LEVEL)
 
 
-def _sanitize_collection_name(name: str) -> str:
-    sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
-    if sanitized and sanitized[0].isdigit():
-        sanitized = "X" + sanitized
-    if sanitized:
-        sanitized = sanitized[0].upper() + sanitized[1:]
-    return sanitized
-
-
 class WeaviateDB(VectorBase):
     def __init__(self, brain: Brain, project, embedding: Embedding):
-        self.project = project
-        self.embedding = embedding
-        self.collection_name = _sanitize_collection_name(project.props.name)
+        super().__init__(brain, project, embedding)
+        # Weaviate collections must start with an uppercase letter; `p{id}` is
+        # otherwise already a legal name.
+        self.collection_name = self.store_key.capitalize()
 
         # Live read via `_cfg.X` — GUI changes apply on next construction without restart.
         host = _cfg.WEAVIATE_HOST

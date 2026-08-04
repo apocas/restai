@@ -8,7 +8,11 @@ def browser_goto(url: str, **kwargs) -> str:
     Args:
         url (str): Destination URL (must include scheme).
     """
-    from restai.llms.tools._browser_common import _browser_ctx, _check_allowed_domain
+    from restai.llms.tools._browser_common import (
+        _browser_ctx,
+        _check_allowed_domain,
+        _discard_if_landed_off_limits,
+    )
 
     ctx, err = _browser_ctx(kwargs)
     if ctx is None:
@@ -22,8 +26,12 @@ def browser_goto(url: str, **kwargs) -> str:
             result = brain.browser_manager.call(chat_id, "/goto", {"url": url})
         except Exception as e:
             return f"ERROR: navigation failed: {e}"
+        landed = result.get("final_url")
+        land_err = _discard_if_landed_off_limits(brain, chat_id, project, landed, checked_url=url)
+        if land_err:
+            return land_err
         return (
-            f"Navigated to {result.get('final_url')} — title: "
+            f"Navigated to {landed} — title: "
             f"{result.get('title') or '(untitled)'}"
         )
     finally:

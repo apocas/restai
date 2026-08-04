@@ -290,6 +290,27 @@ def _redact_secrets(text):
     return text
 
 
+# MySQL TEXT tops out at 65,535 BYTES. Leave headroom for multi-byte characters
+# and the truncation marker.
+_TEXT_COLUMN_LIMIT = 60000
+
+
+def _cap_text_column(text, limit=_TEXT_COLUMN_LIMIT):
+    """Truncate a free-text value so the usage row can always be INSERTed.
+
+    A BILLING control, not cosmetics: `record_api_key_tokens` and
+    `charge_team_balance` run only after this row commits, and every caller
+    swallows a logging failure while still returning the answer — so a value
+    large enough to fail the INSERT produced a free, unmetered inference.
+    `InteractionModel.question` alone permits 100,000 characters.
+    """
+    if not text or not isinstance(text, str):
+        return text
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "…[truncated]"
+
+
 def log_inference(project: Project, user: User, output, db: DBWrapper, latency_ms=None, system_prompt=None, context=None):
     import json as _json
 
@@ -317,9 +338,8 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
     log_error = output.get("error") if logging_enabled else None
     # A DB DataError's str() embeds the full SQL echo — including any base64
     # image bound as a parameter — which can be 100KB+. We never need that to
-    # debug, and storing it would itself overflow the column. Cap it.
-    if log_error and len(log_error) > 8000:
-        log_error = log_error[:8000] + "…[truncated]"
+    # debug, and storing it would itself overflow the column.
+    log_error = _cap_text_column(log_error, 8000)
 
     # `attachments` is a list of metadata dicts on the output dict. Never
     # includes bytes — only name/mime_type/size. JSON-encode for storage.
@@ -331,6 +351,13 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
     # execution details either.
     trace_list = output.get("tool_trace") or None
     log_tool_trace = _json.dumps(trace_list) if (trace_list and logging_enabled) else None
+
+    # Cap before redacting: the truncated tail is discarded either way, and
+    # _redact_secrets sweeps five regexes over whatever it is handed.
+    log_question = _cap_text_column(log_question)
+    log_answer = _cap_text_column(log_answer)
+    log_system = _cap_text_column(log_system)
+    log_context = _cap_text_column(log_context)
 
     if redact:
         log_question = _redact_secrets(log_question)

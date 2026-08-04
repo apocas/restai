@@ -17,6 +17,13 @@ logger = logging.getLogger(__name__)
 
 MAX_ITERATIONS = 10000
 
+# Cap on the size of a single interpreted value. Separate from MAX_ITERATIONS,
+# which counts blocks executed and says nothing about how big they grow.
+MAX_VALUE_CHARS = 1_000_000
+
+# Largest value the PRIME property will trial-divide (sqrt => ~31k iterations).
+MAX_PRIME_CHECK = 1_000_000_000
+
 # Cross-project "Call Project" bounds.
 #
 # The per-interpreter MAX_ITERATIONS counter resets for every nested project,
@@ -166,6 +173,27 @@ class BlockInterpreter:
                 detail="Block execution exceeded maximum iterations.",
             )
 
+    @staticmethod
+    def _guard_value_size(value):
+        """Refuse a value that has grown past MAX_VALUE_CHARS.
+
+        MAX_ITERATIONS bounds how many BLOCKS run, not how much DATA they
+        produce, so `repeat 100 { x = join(x, x) }` is 100 ticks and 2**100
+        characters — the worker is OOM-killed long before the iteration cap is
+        reached, taking every other tenant's request on that process with it.
+        """
+        if isinstance(value, str) and len(value) > MAX_VALUE_CHARS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Block produced a value larger than {MAX_VALUE_CHARS} characters.",
+            )
+        if isinstance(value, list) and len(value) > MAX_ITERATIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Block produced a list larger than {MAX_ITERATIONS} items.",
+            )
+        return value
+
     def _get_var(self, var_id: str) -> Any:
         """Look up a variable: top procedure frame first, then globals."""
         if self._scope_stack:
@@ -264,7 +292,8 @@ class BlockInterpreter:
     async def _stmt_variables_set(self, block: dict):
         var_id = block.get("fields", {}).get("VAR", {}).get("id", "")
         val = await self._eval_input(block, "VALUE")
-        self._set_var(var_id, val)
+        # Backstop for any producer that grows a value without its own cap.
+        self._set_var(var_id, self._guard_value_size(val))
 
     async def _stmt_set_output(self, block: dict):
         val = await self._eval_input(block, "VALUE")
@@ -474,9 +503,17 @@ class BlockInterpreter:
     async def _eval_text_join(self, block: dict) -> str:
         items = block.get("extraState", {}).get("itemCount", 0)
         parts = []
+        total = 0
         for i in range(items):
             val = await self._eval_input(block, f"ADD{i}")
-            parts.append(_fmt_value(val))
+            piece = _fmt_value(val)
+            total += len(piece)
+            if total > MAX_VALUE_CHARS:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Text join exceeded {MAX_VALUE_CHARS} characters.",
+                )
+            parts.append(piece)
         return "".join(parts)
 
     async def _eval_text_length(self, block: dict) -> int:
@@ -692,6 +729,14 @@ class BlockInterpreter:
             if n != int(n) or int(n) < 2:
                 return False
             ni = int(n)
+            # Trial division is O(sqrt(n)) and runs synchronously on the event
+            # loop, so an attacker-chosen 18-digit prime blocks the whole worker
+            # for minutes. Refuse rather than stall every other tenant on it.
+            if ni > MAX_PRIME_CHECK:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Primality check is limited to values up to {MAX_PRIME_CHECK}.",
+                )
             if ni == 2:
                 return True
             if ni % 2 == 0:

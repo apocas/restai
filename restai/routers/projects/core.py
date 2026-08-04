@@ -523,6 +523,19 @@ async def route_edit_project(
                 status_code=403, detail="User not allowed to use public models"
             )
 
+    # browser_allow_eval lets the agent run arbitrary JS in the browser
+    # container's authenticated pages. It is documented as an admin opt-in but
+    # was a plain ProjectOptions field any project member could PATCH on.
+    if (
+        projectModelUpdate.options
+        and getattr(projectModelUpdate.options, "browser_allow_eval", None)
+        and not user.is_admin
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="browser_allow_eval can only be enabled by a platform administrator",
+        )
+
     # Stdio MCP transport sneaked into options.mcp_servers grants RCE same as /tools/mcp/probe.
     if projectModelUpdate.options and projectModelUpdate.options.mcp_servers:
         for srv in projectModelUpdate.options.mcp_servers:
@@ -563,6 +576,8 @@ async def route_edit_project(
                         if isinstance(v, str) and v.startswith("****") and k in prior_bag:
                             values[k] = prior_bag[k]
 
+    # Renaming needs no vector-store handling: stores are keyed on the project's
+    # immutable id (`vectordb.tools.project_store_key`), not its name.
     projectModelUpdate._user_id = user.id
 
     # Drop memory_search collection synchronously on embedding swap so cron rebuilds clean.
@@ -1277,9 +1292,16 @@ async def chat_query(
         # for this id and fall through to answer the new question.
         if q_input.stream and q_input.id:
             from restai import chat_resume as _resume
+            from restai.projects.agent_shared import sandbox_chat_id
+
+            # Derived, not the raw client id: this branch returns the buffered
+            # stream BEFORE get_project() below, so an underived key let a
+            # caller authorized for their own project replay another project's
+            # in-flight stream by guessing its chat id.
+            _resume_key = sandbox_chat_id(projectID, user.id, q_input.id)
             hdr = request.headers.get("last-event-id")
             if hdr:
-                existing = await _resume.lookup(q_input.id)
+                existing = await _resume.lookup(_resume_key)
                 if existing is not None:
                     try:
                         last_id = int(hdr)
@@ -1291,7 +1313,7 @@ async def chat_query(
                         media_type="text/event-stream",
                     )
             else:
-                await _resume.evict(q_input.id)
+                await _resume.evict(_resume_key)
 
         if not (q_input.question or "").strip() and not q_input.image:
             raise HTTPException(status_code=400, detail="Missing question")
@@ -1335,17 +1357,23 @@ async def chat_stop(
         chat_id = (body or {}).get("id") if isinstance(body, dict) else None
         if not chat_id:
             raise HTTPException(status_code=400, detail="Missing chat id")
-        # Enforce same auth scope as /chat (404s cross-project chat_ids).
         get_project(projectID, db_wrapper, request.app.state.brain)
         from restai import chat_resume as _resume
-        sess = await _resume.lookup(chat_id)
+        from restai.projects.agent_shared import sandbox_chat_id
+
+        # The key is derived from (project, caller), so a chat id belonging to
+        # another project or another user simply does not resolve here. The old
+        # comment claimed this "404s cross-project chat_ids"; it did not — the
+        # lookup was a raw global one and would cancel anyone's stream.
+        _resume_key = sandbox_chat_id(projectID, user.id, chat_id)
+        sess = await _resume.lookup(_resume_key)
         if sess is None:
             # Evict in case of half-state.
-            await _resume.evict(chat_id)
+            await _resume.evict(_resume_key)
             return {"stopped": False, "reason": "no in-flight session"}
         await sess.cancel()
         # Evict NOW so next /chat with same chat_id starts fresh (not resume of dead session).
-        await _resume.evict(chat_id)
+        await _resume.evict(_resume_key)
         return {"stopped": True}
     except Exception as e:
         if isinstance(e, HTTPException):

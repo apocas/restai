@@ -63,7 +63,12 @@ class Block(ProjectBase):
                 yield output
             return
 
-        session = await get_session(self.brain, chat_id)
+        # Scope the agent2 session to (project, user) like every other per-chat
+        # store; the raw client id is one global namespace.
+        from restai.projects.agent_shared import sandbox_chat_id
+
+        session_key = sandbox_chat_id(project.props.id, getattr(user, "id", None), chat_id)
+        session = await get_session(self.brain, session_key)
         session.messages.append(user_text_message(chat_model.question))
 
         interpreter = BlockInterpreter(
@@ -82,7 +87,7 @@ class Block(ProjectBase):
         session.messages.append(
             Message(role="assistant", content=[TextBlock(text=output["answer"])])
         )
-        await save_session(self.brain, chat_id, session)
+        await save_session(self.brain, session_key, session)
 
         if chat_model.stream:
             yield "data: " + json.dumps({"text": output["answer"]}) + "\n\n"

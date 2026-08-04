@@ -140,59 +140,66 @@ def sensitive_option_names(opts: dict, base_keys: set) -> set:
 
 TEAM_SENSITIVE_KEYS = {"smtp_password"}
 
-# Per-source secret fields in sync_sources[]; separate from top-level PROJECT_SENSITIVE_KEYS.
-# Used by strip_sensitive_project_options and the masking in routers/projects.py:route_edit_project.
-_SYNC_SOURCE_SECRET_KEYS = (
-    "s3_access_key",
-    "s3_secret_key",
-    "confluence_api_token",
-    "sharepoint_client_secret",
-    "gdrive_service_account_json",
-)
+# Project options a TEMPLATE may carry across a tenant boundary.
+#
+# This is an ALLOWLIST, not a credential denylist. A template published `public`
+# by one tenant is replayed into another tenant's project, and the dangerous
+# options are not only the secret-valued ones: `guard_output` pointed at the
+# publisher's project runs every victim answer through it, `webhook_url` and
+# `sync_sources` reach outbound, `mcp_servers[].host` can be a stdio command,
+# `browser_allow_eval` is privileged, and `*_default_to` re-addresses the
+# victim's notifications. Enumerating what is SAFE means anything unlisted —
+# including future fields — is dropped by default.
+TEMPLATE_COPYABLE_OPTION_KEYS = frozenset({
+    # retrieval / generation tuning
+    "llm_rerank", "score", "k", "tables",
+    # agent behaviour
+    "max_iterations", "auto_plan", "agent_mode", "agent_loop", "tools",
+    # logging + moderation policy
+    "logging", "redact_inference_logs",
+    "moderation_blocklist", "moderation_redact_pii",
+    # guard BEHAVIOUR (guard_output — the project reference — is deliberately absent)
+    "guard_mode",
+    # knowledge graph
+    "enable_knowledge_graph", "ner_model",
+    # memory
+    "memory_bank_enabled", "memory_bank_max_tokens", "memory_search_enabled",
+    # limits
+    "rate_limit", "budget",
+    # browser allowlist RESTRICTS reachable domains; browser_allow_eval does not
+    # and is deliberately absent.
+    "browser_allowed_domains",
+    # the point of a block template
+    "blockly_workspace",
+})
 
 
-def strip_sensitive_project_options(options_blob):
-    """Drop credential-bearing fields. Used by template publish/instantiate.
+def filter_template_options(options_blob):
+    """Keep only `TEMPLATE_COPYABLE_OPTION_KEYS`.
 
-    Accepts a JSON string OR dict; returns the same shape."""
+    Accepts a JSON string OR dict and returns the same shape; unparseable input
+    is wiped rather than passed through. Subsumes credential scrubbing — no
+    secret-bearing key is in the allowlist.
+    """
     if not options_blob:
         return options_blob
 
-    if isinstance(options_blob, str):
+    was_str = isinstance(options_blob, str)
+    if was_str:
         try:
             opts = _json.loads(options_blob)
         except Exception:
-            # Unparseable — safer to wipe than ship potentially-credential bytes.
             return "{}"
-        was_str = True
     elif isinstance(options_blob, dict):
-        opts = dict(options_blob)
-        was_str = False
+        opts = options_blob
     else:
         return options_blob
 
     if not isinstance(opts, dict):
         return options_blob
 
-    for k in PROJECT_SENSITIVE_KEYS:
-        opts.pop(k, None)
-
-    sync_sources = opts.get("sync_sources")
-    if isinstance(sync_sources, list):
-        for src in sync_sources:
-            if isinstance(src, dict):
-                for k in _SYNC_SOURCE_SECRET_KEYS:
-                    src.pop(k, None)
-
-    mcp_servers = opts.get("mcp_servers")
-    if isinstance(mcp_servers, list):
-        for srv in mcp_servers:
-            if isinstance(srv, dict):
-                # env/headers can carry bearer tokens / OAuth refresh — instantiator must reconfigure.
-                srv.pop("env", None)
-                srv.pop("headers", None)
-
-    return _json.dumps(opts) if was_str else opts
+    kept = {k: v for k, v in opts.items() if k in TEMPLATE_COPYABLE_OPTION_KEYS}
+    return _json.dumps(kept) if was_str else kept
 
 
 SETTINGS_ENCRYPTED_KEYS = {

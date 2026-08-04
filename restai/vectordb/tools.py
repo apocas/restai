@@ -1,6 +1,4 @@
 import os
-import re
-import time
 from typing import Iterable
 
 import yake
@@ -122,23 +120,23 @@ def find_file_loader(ext, eargs=None):
         raise Exception("Invalid file type.")
 
 
-def find_embeddings_path(projectName):
-    embeddings_path = EMBEDDINGS_PATH
-    embeddingsPathProject = None
+def project_store_key(project) -> str:
+    """Stable storage identity for a project's vector store.
 
-    if not os.path.exists(embeddings_path):
-        os.makedirs(embeddings_path)
+    Keyed on the immutable id, not the mutable name. Name-derived keys had to be
+    sanitized per backend, which was lossy — `hr-salaries` and `hr_salaries`
+    collapsed onto one store while `projects.name` is unique on the raw string —
+    and they moved on rename. `p{id}` needs no sanitizing and cannot collide.
+    """
+    pid = getattr(getattr(project, "props", None), "id", None)
+    if pid is None:
+        raise ValueError("Project has no id; cannot derive a vector store key")
+    return f"p{int(pid)}"
 
-    project_dirs = [d for d in os.listdir(
-        embeddings_path) if os.path.isdir(os.path.join(embeddings_path, d))]
 
-    for dir in project_dirs:
-        if re.match(f'^{re.escape(projectName)}_[0-9]+$', dir):
-            embeddingsPathProject = os.path.join(embeddings_path, dir)
-
-    if embeddingsPathProject is None:
-        embeddingsPathProject = os.path.join(
-            embeddings_path, projectName + "_" + str(int(time.time())))
-        os.mkdir(embeddingsPathProject)
-
-    return embeddingsPathProject
+def find_embeddings_path(store_key: str) -> str:
+    """Directory holding this project's Chroma store, creating it if needed."""
+    os.makedirs(EMBEDDINGS_PATH, exist_ok=True)
+    target = os.path.join(EMBEDDINGS_PATH, store_key)
+    os.makedirs(target, exist_ok=True)
+    return target

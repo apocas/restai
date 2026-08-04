@@ -45,6 +45,7 @@ class FakeContainer:
         self.put_archive_ok = True
         self.stopped = False
         self.reloaded = False
+        self.labels = {"restai.browser_token": "tok-abc"}
 
     def reload(self):
         self.reloaded = True
@@ -425,7 +426,7 @@ def test_call_posts_json_and_returns_dict(browser_env, monkeypatch):
     created = _wire_call(monkeypatch, port=4321)
     posts = []
 
-    def fake_post(url, json=None, timeout=None):
+    def fake_post(url, json=None, timeout=None, headers=None):
         posts.append((url, json, timeout))
         return FakeResp(payload={"url": "https://x", "title": "T"})
 
@@ -440,7 +441,7 @@ def test_call_posts_json_and_returns_dict(browser_env, monkeypatch):
 def test_call_defaults_ephemeral_and_empty_payload(browser_env, monkeypatch):
     created = _wire_call(monkeypatch)
     monkeypatch.setattr(
-        rt.requests, "post", lambda url, json=None, timeout=None: FakeResp()
+        rt.requests, "post", lambda url, json=None, timeout=None, headers=None: FakeResp()
     )
     rt.call("", "/health")
     assert created == ["ephemeral"]
@@ -450,7 +451,7 @@ def test_call_error_status_raises_with_detail(browser_env, monkeypatch):
     _wire_call(monkeypatch)
     monkeypatch.setattr(
         rt.requests, "post",
-        lambda url, json=None, timeout=None: FakeResp(
+        lambda url, json=None, timeout=None, headers=None: FakeResp(
             status_code=500, payload={"error": "no such element"}),
     )
     with pytest.raises(RuntimeError, match="no such element"):
@@ -471,7 +472,7 @@ def test_call_retries_once_after_connection_error(browser_env, monkeypatch):
     monkeypatch.setattr(rt, "remove_container", lambda cid: removed.append(cid))
     attempts = []
 
-    def flaky_post(url, json=None, timeout=None):
+    def flaky_post(url, json=None, timeout=None, headers=None):
         attempts.append(url)
         if len(attempts) == 1:
             raise real_requests.exceptions.ConnectionError("died")
@@ -707,3 +708,74 @@ def test_browser_ctx_requires_brain_project_and_manager():
     brain = types.SimpleNamespace(browser_manager=None)
     ctx, err = _browser_ctx({"_brain": brain, "_project_id": 1})
     assert ctx is None and "not enabled" in err
+
+
+# ─── micro-server authentication ────────────────────────────────────────
+
+def test_created_container_gets_a_token_in_env_and_label(browser_env, monkeypatch):
+    """Every tenant's browser container shares the default bridge network, so
+    the micro-server must not be reachable without a secret."""
+    monkeypatch.setattr(rt, "_ensure_playwright_pkg", lambda c, i: None)
+    monkeypatch.setattr(rt, "_install_micro_server", lambda c: None)
+    monkeypatch.setattr(rt, "_start_micro_server", lambda c: None)
+    monkeypatch.setattr(rt, "_wait_healthy", lambda p: None)
+
+    rt._create_container("chat-tok")
+    _image, kw = browser_env.containers.run_calls[0]
+    token = kw["environment"]["BROWSER_SERVER_TOKEN"]
+    assert token and len(token) >= 32
+    # Same value on the label so a worker that adopts an orphan can still talk.
+    assert kw["labels"]["restai.browser_token"] == token
+
+
+def test_call_sends_the_container_token(browser_env, monkeypatch):
+    _wire_call(monkeypatch)
+    seen = {}
+
+    def fake_post(url, json=None, timeout=None, headers=None):
+        seen.update(headers or {})
+        return FakeResp()
+
+    monkeypatch.setattr(rt.requests, "post", fake_post)
+    rt.call("chat1", "/goto", {"url": "https://x"})
+    assert seen.get("Authorization") == "Bearer tok-abc"
+
+
+def test_call_replaces_a_container_that_rejects_the_token(browser_env, monkeypatch):
+    """A container created before tokens existed 401s forever otherwise."""
+    _wire_call(monkeypatch)
+    removed = []
+    monkeypatch.setattr(rt, "remove_container", lambda cid: removed.append(cid))
+    calls = []
+
+    def post(url, json=None, timeout=None, headers=None):
+        calls.append(url)
+        return FakeResp(status_code=401) if len(calls) == 1 else FakeResp()
+
+    monkeypatch.setattr(rt.requests, "post", post)
+    rt.call("chat1", "/content")
+    assert removed == ["chat1"]
+    assert len(calls) == 2
+
+
+def test_micro_server_rejects_unauthenticated_requests(monkeypatch):
+    import importlib
+    import restai.browser.micro_server as ms
+
+    monkeypatch.setenv("BROWSER_SERVER_TOKEN", "s3cret-token-value")
+    ms = importlib.reload(ms)
+    assert ms._token_ok("Bearer s3cret-token-value") is True
+    assert ms._token_ok("Bearer wrong") is False
+    assert ms._token_ok("") is False
+    assert ms._token_ok("s3cret-token-value") is False  # missing scheme
+
+
+def test_micro_server_fails_closed_without_a_token(monkeypatch):
+    """No token configured must mean refuse-everything, not allow-everything."""
+    import importlib
+    import restai.browser.micro_server as ms
+
+    monkeypatch.delenv("BROWSER_SERVER_TOKEN", raising=False)
+    ms = importlib.reload(ms)
+    assert ms._token_ok("Bearer anything") is False
+    assert ms._token_ok("") is False

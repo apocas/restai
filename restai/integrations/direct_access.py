@@ -68,6 +68,14 @@ def _pin_api_key_team(user: User, db: DBWrapper, has_access: Callable[[TeamDatab
         raise HTTPException(status_code=403, detail="API key team not found")
     if user.is_admin:
         return team.id
+    # Membership is verified when the key is minted (routers/users.py) and never
+    # again — and `remove_user_from_team` does not touch ApiKeyDatabase. Without
+    # this check the pinned branch asks only "does the TEAM grant this model",
+    # so an offboarded user's key keeps working against their ex-employer's
+    # models, budget and prepaid wallet. The non-pinned branch it short-circuits
+    # (`_resolve_non_pinned`) iterates get_teams_for_user and never had the gap.
+    if not db.user_in_team(user.id, team.id):
+        raise HTTPException(status_code=403, detail="API key's team is no longer accessible")
     if not has_access(team):
         raise HTTPException(status_code=403, detail="API key's team does not have access to this model")
     enforce_cost_budgets(db, user=user, team=team, api_key_row=_api_key_row(user, db))

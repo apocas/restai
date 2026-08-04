@@ -24,7 +24,7 @@ class GuardResult:
 
 
 class Guard:
-    def __init__(self, guard_ref, brain: Brain, db: DBWrapper):
+    def __init__(self, guard_ref, brain: Brain, db: DBWrapper, referring_project):
         self.brain: Brain = brain
         self.db: DBWrapper = db
         # Guard references store the project id. Resolve by id; fall back to name
@@ -39,8 +39,25 @@ class Guard:
                 project_db = db.get_project_by_id(int(ref))
             if project_db is None:
                 project_db = db.get_project_by_name(ref)
-            if project_db:
-                self.project = brain.find_project(project_db.id, db)
+            if project_db is None:
+                return
+
+            # Tenancy predicate. The write paths validate a guard reference
+            # when it is SET, but this resolve is a bare global lookup by id —
+            # so any path that stores `guard` / `options.guard_output` without
+            # going through those validators reaches another tenant's project
+            # here, runs their LLM under their system prompt on the victim's
+            # text, and bills their team. `referring_project` is REQUIRED so a
+            # future caller cannot re-open that hole by omitting it.
+            own_team = getattr(referring_project.props, "team_id", None)
+            if project_db.team_id is None or project_db.team_id != own_team:
+                logger.warning(
+                    "Refusing cross-team guard reference '%s' from project '%s'",
+                    guard_ref, getattr(referring_project.props, "name", "?"),
+                )
+                return
+
+            self.project = brain.find_project(project_db.id, db)
         except Exception as e:
             logger.warning("Failed to load guard project '%s': %s", guard_ref, e)
 

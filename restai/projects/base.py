@@ -39,7 +39,7 @@ class ProjectBase(ABC):
         from restai.limits.guard import Guard
         from restai.tools import log_guard_event
 
-        guard = Guard(project.props.guard, self.brain, db)
+        guard = Guard(project.props.guard, self.brain, db, referring_project=project)
         result = guard.verify(question_text, phase="input")
         if not result:
             return False
@@ -75,7 +75,7 @@ class ProjectBase(ABC):
         from restai.limits.guard import Guard
         from restai.tools import log_guard_event
 
-        out_guard = Guard(guard_name, self.brain, db)
+        out_guard = Guard(guard_name, self.brain, db, referring_project=project)
         out_result = out_guard.verify(output["answer"], phase="output")
         if not out_result:
             return

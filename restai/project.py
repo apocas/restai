@@ -1,5 +1,4 @@
 from restai.models.models import ProjectModel
-from restai.vectordb.tools import find_embeddings_path
 
 
 class Project:
@@ -8,9 +7,6 @@ class Project:
         self.vector = None
         self.props = model
         self.context = None  # Verified context dict (from widget JWT or playground)
-
-        if self.props.type == "rag":
-            find_embeddings_path(self.props.name)
 
     def with_context(self, context: dict, prepend_block: bool = True) -> "Project":
         """Return a new Project with context injected into the system prompt."""

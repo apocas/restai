@@ -1,5 +1,4 @@
 import logging
-import re
 
 from sqlalchemy import create_engine, text
 from llama_index.core.indices import VectorStoreIndex
@@ -13,10 +12,6 @@ from restai.embedding import Embedding
 from restai.vectordb.base import VectorBase
 
 logging.basicConfig(level=config.LOG_LEVEL)
-
-
-def _sanitize_table_name(name: str) -> str:
-    return re.sub(r"[^a-zA-Z0-9_]", "_", name).lower()
 
 
 def _get_sync_connection_string() -> str:
@@ -36,9 +31,8 @@ def _get_async_connection_string() -> str:
 
 class PGVectorDB(VectorBase):
     def __init__(self, brain: Brain, project, embedding: Embedding):
-        self.project = project
-        self.embedding = embedding
-        self.table_name = f"data_{_sanitize_table_name(project.props.name)}"
+        super().__init__(brain, project, embedding)
+        self.table_name = f"data_{self.store_key}"
         self.index = self._vector_init(brain)
 
     def _vector_init(self, brain: Brain):

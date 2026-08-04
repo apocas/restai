@@ -12,6 +12,7 @@ import io
 import json
 import logging
 import os
+import secrets
 import tarfile
 import threading
 import time
@@ -206,6 +207,15 @@ def _start_micro_server(container) -> None:
     container.exec_run(cmd, detach=True)
 
 
+def _auth_headers(container) -> dict:
+    """Bearer header for the container's micro-server, read from its label."""
+    try:
+        token = (container.labels or {}).get("restai.browser_token")
+    except Exception:
+        token = None
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 def _wait_healthy(host_port: int) -> None:
     deadline = time.time() + _HEALTH_TIMEOUT
     url = f"http://127.0.0.1:{host_port}/health"
@@ -229,14 +239,22 @@ def _create_container(chat_id: str):
     network = (getattr(_cfg, "BROWSER_NETWORK", "bridge") or "bridge")
     logger.info("Browser: creating container for chat_id=%s", chat_id)
     from restai.observability.instance import get_instance_id
+
+    # Per-container shared secret for the micro-server. Stored as a label so a
+    # worker that ADOPTS an orphaned container after a restart can still talk to
+    # it; labels are readable only via the Docker API, which other containers do
+    # not have, so this still shuts the container-to-container path.
+    token = secrets.token_urlsafe(32)
     container = c.containers.run(
         image,
         command=["sleep", "infinity"],
         detach=True,
+        environment={"BROWSER_SERVER_TOKEN": token},
         labels={
             "restai.browser_managed": "true",
             "restai.browser_chat_id": chat_id,
             "restai.created_at": str(int(time.time())),
+            "restai.browser_token": token,
             "restai.observability.instance_id": get_instance_id(),
         },
         mem_limit="1g",
@@ -325,19 +343,29 @@ def call(chat_id: str, path: str, payload: Optional[dict] = None) -> dict:
     """Post JSON to the in-container micro-server and return parsed response."""
     if not chat_id:
         chat_id = "ephemeral"
-    container, port = _get_or_create(chat_id)
-    _touch_db_activity(chat_id, container.id)
-
-    url = f"http://127.0.0.1:{port}{path}"
-    try:
-        resp = requests.post(url, json=payload or {}, timeout=90)
-    except requests.exceptions.RequestException:
-        # Container might have died; drop + retry once.
-        remove_container(chat_id)
+    def _attempt():
         container, port = _get_or_create(chat_id)
         _touch_db_activity(chat_id, container.id)
-        url = f"http://127.0.0.1:{port}{path}"
-        resp = requests.post(url, json=payload or {}, timeout=90)
+        resp = requests.post(
+            f"http://127.0.0.1:{port}{path}",
+            json=payload or {}, timeout=90, headers=_auth_headers(container),
+        )
+        return container, resp
+
+    # Both retryable failures have the same remedy — replace the container.
+    # A connection error means it died; a 401 means it predates per-container
+    # tokens (or we lost its token), which would otherwise wedge the chat until
+    # the cleanup cron reaps it.
+    try:
+        container, resp = _attempt()
+        retry = resp.status_code == 401
+        if retry:
+            logger.info("Browser: container for %s rejected our token; recreating", chat_id)
+    except requests.exceptions.RequestException:
+        retry = True
+    if retry:
+        remove_container(chat_id)
+        container, resp = _attempt()
 
     # Re-touch after request returns so a long browser call (e.g.
     # navigation that takes >timeout) doesn't leave a stale heartbeat

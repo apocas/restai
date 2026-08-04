@@ -11,7 +11,8 @@ from typing import Optional, List
 from sqlalchemy import func, or_
 
 from restai.models.databasemodels import (
-    LLMDatabase, EmbeddingDatabase, OutputDatabase, ProjectDatabase,
+    teams_users, teams_admins,
+    ApiKeyDatabase, LLMDatabase, EmbeddingDatabase, OutputDatabase, ProjectDatabase,
     UserDatabase, TeamDatabase, TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase,
     TeamUserBudgetDatabase, TeamBalanceTransactionDatabase,
 )
@@ -109,6 +110,15 @@ class TeamMixin:
     def remove_user_from_team(self, team: TeamDatabase, user: UserDatabase) -> bool:
         if user in team.users:
             team.users.remove(user)
+            # Revoke the user's API keys pinned to this team in the same
+            # transaction. A key carries its team for billing, and membership
+            # was previously only checked at mint time — so an offboarded user's
+            # key kept spending the team's budget. Deleting the key here means
+            # revocation does not depend on the runtime check alone.
+            self.db.query(ApiKeyDatabase).filter(
+                ApiKeyDatabase.user_id == user.id,
+                ApiKeyDatabase.team_id == team.id,
+            ).delete(synchronize_session=False)
             self.db.commit()
         return True
 
@@ -159,6 +169,22 @@ class TeamMixin:
             team.embeddings.remove(embedding)
             self.db.commit()
         return True
+
+    def user_in_team(self, user_id: int, team_id: int) -> bool:
+        """Membership test as one indexed query.
+
+        `get_teams_for_user` materialises every TeamDatabase row the user
+        belongs to (3 SELECTs plus ORM hydration) to answer a yes/no about a
+        team whose id is already known — too much for a per-request auth check.
+        """
+        return self.db.query(
+            self.db.query(teams_users)
+            .filter(teams_users.c.user_id == user_id, teams_users.c.team_id == team_id)
+            .exists()
+            | self.db.query(teams_admins)
+            .filter(teams_admins.c.user_id == user_id, teams_admins.c.team_id == team_id)
+            .exists()
+        ).scalar() or False
 
     def get_teams_for_user(self, user_id: int) -> List[TeamDatabase]:
         user = self.get_user_by_id(user_id)

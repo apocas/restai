@@ -1,5 +1,4 @@
 import logging
-import re
 
 from pinecone import Pinecone
 from llama_index.core.indices import VectorStoreIndex
@@ -15,15 +14,11 @@ from restai.vectordb.base import VectorBase
 logging.basicConfig(level=config.LOG_LEVEL)
 
 
-def _sanitize_namespace(name: str) -> str:
-    return re.sub(r"[^a-zA-Z0-9_-]", "_", name).lower()
-
-
 class PineconeDB(VectorBase):
     def __init__(self, brain: Brain, project, embedding: Embedding):
-        self.project = project
-        self.embedding = embedding
-        self.namespace = _sanitize_namespace(project.props.name)
+        super().__init__(brain, project, embedding)
+        # `p{id}` already satisfies Pinecone's namespace charset — nothing to sanitize.
+        self.namespace = self.store_key
 
         # Live read via `_cfg.X` — admin can rotate the API key without restart.
         self.pc = Pinecone(api_key=_cfg.PINECONE_API_KEY)

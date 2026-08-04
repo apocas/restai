@@ -88,10 +88,10 @@ async def publish_template(
     if body.visibility == "team" and not src.team_id:
         raise HTTPException(status_code=400, detail="Cannot publish team-visibility template — source project has no team")
 
-    # Scrub credentials — templates are config blueprints; without this, publisher's
-    # WhatsApp/SMTP/Twilio/webhook secrets transplant onto every instantiator's project.
-    from restai.utils.crypto import strip_sensitive_project_options
-    scrubbed_options = strip_sensitive_project_options(src.options)
+    # Storage hygiene — the load-bearing filter is the one at instantiate time,
+    # which also covers rows written before the allowlist existed.
+    from restai.utils.crypto import filter_template_options
+    scrubbed_options = filter_template_options(src.options)
 
     template = ProjectTemplateDatabase(
         name=body.name,
@@ -232,9 +232,14 @@ async def instantiate_template(
 
     new_project.system = t.system_prompt
     if t.options_json:
-        # Belt-and-suspenders: scrub on read so legacy template rows can't leak secrets.
-        from restai.utils.crypto import strip_sensitive_project_options
-        new_project.options = strip_sensitive_project_options(t.options_json)
+        # Re-filter on READ as well as on publish: rows written before the
+        # allowlist existed still carry privileged keys, and this assignment
+        # writes the ORM attribute directly — it does NOT pass through
+        # `route_edit_project`, so none of the validation that endpoint performs
+        # (guard-reference tenancy, MCP stdio gating, search_knowledge_project
+        # same-team) runs here. The allowlist is what makes that safe.
+        from restai.utils.crypto import filter_template_options
+        new_project.options = filter_template_options(t.options_json)
     db_wrapper.db.commit()
 
     t.use_count = (t.use_count or 0) + 1

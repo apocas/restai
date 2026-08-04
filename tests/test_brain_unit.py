@@ -590,14 +590,11 @@ def test_find_project_missing_returns_none():
 
 def test_find_project_rag_vector_failure_degrades(monkeypatch):
     """A broken vector-store setup must not raise — project loads, vector None."""
-    import restai.project as project_mod
     from restai.vectordb import tools as vector_tools
 
     def boom(project):
         raise RuntimeError("no vector backend")
     monkeypatch.setattr(vector_tools, "find_vector_db", boom)
-    # Keep the constructor from creating an embeddings dir on disk.
-    monkeypatch.setattr(project_mod, "find_embeddings_path", lambda name: None)
 
     row = types.SimpleNamespace(
         id=777, name="unit_rag_proj_x", embeddings="none-emb", type="rag",

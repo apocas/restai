@@ -105,6 +105,42 @@ def _check_allowed_domain(project, url: str) -> Optional[str]:
     )
 
 
+def _discard_if_landed_off_limits(brain, chat_id, project, landed_url, checked_url=None) -> Optional[str]:
+    """Re-validate where the browser ACTUALLY ended up, and blank the page if it
+    left the permitted set. Returns an error string, or None when fine.
+
+    `_check_allowed_domain` only ever saw the URL the caller ASKED for.
+    Chromium then follows redirects, meta-refresh and JS navigation on its own,
+    so a public host answering 302 -> 169.254.169.254 sailed straight through
+    and `browser_content` would dump the body. The page is navigated to
+    about:blank on failure so the content tools cannot read it afterwards.
+    """
+    if not landed_url:
+        return None
+    # No redirect => the host was already validated on the way in; re-running
+    # the check would repeat a blocking getaddrinfo for no benefit.
+    if checked_url and _same_host(checked_url, landed_url):
+        return None
+    err = _check_allowed_domain(project, landed_url)
+    if not err:
+        return None
+    try:
+        brain.browser_manager.call(chat_id, "/goto", {"url": "about:blank"})
+    except Exception:
+        logger.warning("Failed to blank page after disallowed navigation to %s", landed_url)
+    return (
+        "ERROR: navigation ended on a host that is not permitted "
+        f"({landed_url}). The page was discarded. ({err})"
+    )
+
+
+def _same_host(a: str, b: str) -> bool:
+    try:
+        return (urlparse(a).hostname or "").lower() == (urlparse(b).hostname or "").lower()
+    except Exception:
+        return False
+
+
 def _browser_allow_eval(project) -> bool:
     try:
         import json as _json

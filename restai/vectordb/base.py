@@ -6,7 +6,21 @@ from restai.project import Project
 class VectorBase(ABC):
     index: BasePydanticVectorStore = None
     project: Project = None
-    
+
+    def __init__(self, brain: Brain, project: Project, embedding):
+        """Shared preamble for every backend.
+
+        `store_key` lives here so a backend cannot accidentally name its storage
+        after the project's mutable, lossily-sanitized name — the bug this
+        replaced. Backends derive their own naming form FROM `self.store_key`.
+        """
+        from restai.vectordb.tools import project_store_key
+
+        self.project = project
+        self.embedding = embedding
+        self.store_key = project_store_key(project)
+
+
     @abstractmethod
     def save(self):
         pass

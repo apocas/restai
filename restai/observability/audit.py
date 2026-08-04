@@ -1,5 +1,6 @@
 import base64
 import logging
+import re
 import threading
 from datetime import datetime, timezone
 
@@ -11,6 +12,26 @@ logger = logging.getLogger(__name__)
 SKIP_PREFIXES = ("/setup", "/version", "/info", "/auth", "/admin", "/mcp", "/v1")
 
 AUDIT_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
+
+# Inference endpoints are reads that happen to be POSTs; they are logged as
+# inference rows, not audit rows.
+#
+# Matched against the ROUTE TEMPLATE FastAPI resolved, never the raw path —
+# same reasoning as `_READ_ONLY_ALLOWED_ROUTES` in restai/auth.py. Matching the
+# raw path let a resource NAME decide whether the request was audited: the
+# original `"/chat" in path` skipped `PATCH /users/chatterbox`, and even a
+# suffix test skips `DELETE /users/chat`. A template cannot be chosen by an
+# attacker.
+_INFERENCE_ROUTES = frozenset({
+    "/projects/{projectID}/chat",
+    "/projects/{projectID}/chat/stop",
+    "/projects/{projectID}/question",
+})
+
+
+def _is_inference_path(request: Request) -> bool:
+    route = request.scope.get("route")
+    return getattr(route, "path", None) in _INFERENCE_ROUTES
 
 
 def _extract_username(request: Request) -> tuple:
@@ -35,7 +56,14 @@ def _extract_username(request: Request) -> tuple:
         try:
             decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
             username = decoded.split(":")[0]
-            return None, username
+            # NOTHING has verified this. `get_current_username` does not accept
+            # Basic at all, so reaching here means the request was unauthenticated
+            # or failed auth — yet the row was written under the supplied name,
+            # letting anyone forge audit entries attributed to a victim. Keep it
+            # for forensic value, but label it and strip control characters so it
+            # cannot also inject line breaks / field separators into the record.
+            username = re.sub(r"[\x00-\x1f\x7f]", "", username)[:80]
+            return None, f"(unverified) {username}"
         except Exception:
             pass
 
@@ -89,7 +117,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
             return response
 
         # Chat/question endpoints are read operations via POST — skip auditing.
-        if "/chat" in path or "/question" in path:
+        if _is_inference_path(request):
             return response
 
         _, username = _extract_username(request)

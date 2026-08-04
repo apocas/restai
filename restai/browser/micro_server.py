@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import hmac
 import json
 import logging
 import os
@@ -19,7 +20,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 _log = logging.getLogger("restai.browser.micro")
 
 _DOWNLOAD_DIR = "/home/user/downloads"
-os.makedirs(_DOWNLOAD_DIR, exist_ok=True)
 
 
 _lock = threading.Lock()
@@ -201,6 +201,7 @@ def _handle_download(payload: dict) -> dict:
         page.click(selector)
     dl = dl_info.value
     safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", dl.suggested_filename or "download.bin")
+    os.makedirs(_DOWNLOAD_DIR, exist_ok=True)
     path = os.path.join(_DOWNLOAD_DIR, safe_name)
     dl.save_as(path)
     size = os.path.getsize(path)
@@ -291,11 +292,30 @@ _ROUTES = {
 }
 
 
+# Shared secret injected by the host when the container is created, read per
+# request so the module stays importable and testable outside the container. The server
+# must bind 0.0.0.0 for Docker's published-port mapping to reach it, and every
+# tenant's browser container sits on the same default bridge network with ICC
+# enabled — so without this, any container could POST /eval to any other and run
+# JS inside its authenticated pages, or /storage/dump its whole cookie jar.
+# Absent token => refuse everything rather than fall open.
+def _token_ok(header_value: str) -> bool:
+    token = os.environ.get("BROWSER_SERVER_TOKEN") or ""
+    if not token:
+        return False
+    if not header_value or not header_value.startswith("Bearer "):
+        return False
+    return hmac.compare_digest(header_value[7:], token)
+
+
 class _Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         _log.info("%s %s", self.path, args)
 
     def do_POST(self):
+        if not _token_ok(self.headers.get("Authorization") or ""):
+            self._respond(401, {"error": "unauthorized"})
+            return
         path = self.path.split("?", 1)[0]
         handler = _ROUTES.get(path)
         if handler is None:

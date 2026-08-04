@@ -574,7 +574,11 @@ async def create_streaming_response_with_logging(
     if chat_id:
         import asyncio as _asyncio
         from restai import chat_resume as _resume
-        resume_session, is_new = await _resume.get_or_create(chat_id)
+        from restai.projects.agent_shared import sandbox_chat_id
+
+        resume_session, is_new = await _resume.get_or_create(
+            sandbox_chat_id(project.props.id, getattr(user, "id", None), chat_id)
+        )
         if is_new:
             task = _asyncio.create_task(_drain_generator_into_session(
                 generator, resume_session,

@@ -1,12 +1,14 @@
 import logging
-from restai import config
+import os
 import shutil
+from restai import config
 import chromadb
 from llama_index.core.indices import VectorStoreIndex
 from llama_index.core.storage import StorageContext
 
 from restai.brain import Brain
 from restai.embedding import Embedding
+from restai.config import EMBEDDINGS_PATH
 from restai.vectordb.tools import find_embeddings_path
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from restai.vectordb.base import VectorBase
@@ -39,11 +41,10 @@ class ChromaDBVector(VectorBase):
     chroma_collection = None
 
     def __init__(self, brain, project, embedding: Embedding):
-        path = find_embeddings_path(project.props.name)
+        super().__init__(brain, project, embedding)
+        path = find_embeddings_path(self.store_key)
         self.db = _get_client(path)
-        self.chroma_collection = self.db.get_or_create_collection(project.props.name)
-        self.project = project
-        self.embedding = embedding
+        self.chroma_collection = self.db.get_or_create_collection(self.store_key)
         self.index = self._vector_init(brain)
 
     def _vector_init(self, brain):
@@ -92,8 +93,8 @@ class ChromaDBVector(VectorBase):
 
     def delete(self):
         try:
-            self.db.delete_collection(name=self.project.props.name)
-            embeddingsPath = find_embeddings_path(self.project.props.name)
+            self.db.delete_collection(name=self.store_key)
+            embeddingsPath = os.path.join(EMBEDDINGS_PATH, self.store_key)
             shutil.rmtree(embeddingsPath, ignore_errors=True)
             _client_cache.pop(embeddingsPath, None)
         except Exception as e:
@@ -112,8 +113,8 @@ class ChromaDBVector(VectorBase):
         return id
 
     def reset(self, brain):
-        self.db.delete_collection(name=self.project.props.name)
-        self.chroma_collection = self.db.get_or_create_collection(self.project.props.name)
+        self.db.delete_collection(name=self.store_key)
+        self.chroma_collection = self.db.get_or_create_collection(self.store_key)
         self.index = self._vector_init(brain)
 
     def list_all_chunks(self, limit=50000):
