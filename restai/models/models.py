@@ -2329,30 +2329,25 @@ class WidgetResponse(BaseModel):
     allowed_domains: list[str]
     enabled: bool
     key_prefix: str
-    widget_key: Optional[str] = None
     has_context_secret: bool = False
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
+    # NOTE: no `widget_key` here on purpose. The stored key is reversible at
+    # rest, and this model used to decrypt it onto a serialized field — so the
+    # plain `GET /projects/{id}/widgets` handed the live key to every project
+    # member, through a *weaker* gate than the regenerate endpoint (the GETs
+    # have no `check_not_restricted`, so a restricted user could read a key they
+    # were forbidden to rotate). The key is shown once, by
+    # `WidgetCreatedResponse` at creation and by the regenerate handler.
     @model_validator(mode='before')
     @classmethod
-    def decrypt_widget_key(cls, values):
-        if hasattr(values, 'encrypted_key') and values.encrypted_key:
-            try:
-                from restai.utils.crypto import decrypt_api_key
-                if hasattr(values, '__dict__'):
-                    values.__dict__['widget_key'] = decrypt_api_key(values.encrypted_key)
-                    values.__dict__['has_context_secret'] = bool(values.context_secret)
-            except Exception:
-                pass
-        elif isinstance(values, dict) and values.get('encrypted_key'):
-            try:
-                from restai.utils.crypto import decrypt_api_key
-                values['widget_key'] = decrypt_api_key(values['encrypted_key'])
-                values['has_context_secret'] = bool(values.get('context_secret'))
-            except Exception:
-                pass
+    def _derive_has_context_secret(cls, values):
+        if hasattr(values, 'context_secret') and hasattr(values, '__dict__'):
+            values.__dict__['has_context_secret'] = bool(values.context_secret)
+        elif isinstance(values, dict) and 'context_secret' in values:
+            values['has_context_secret'] = bool(values.get('context_secret'))
         return values
 
     @field_validator('config', mode='before')

@@ -104,12 +104,24 @@ def _sync_s3(project, source, db, brain=None):
 
     logger.info(f"Syncing S3 source '{source.name}': s3://{source.s3_bucket}/{source.s3_prefix or ''}")
 
-    client_kwargs = {}
+    # Per-source credentials are REQUIRED, like every sibling source type.
+    #
+    # boto3 falls back to its default chain — env vars, ~/.aws, the ECS task
+    # credential endpoint, the EC2 instance role — when none are supplied. The
+    # bucket is tenant-chosen, the objects are indexed into the tenant's own
+    # project, and they read the content straight back via
+    # `GET /projects/{id}/embeddings/source/{source}`. That turns a missing
+    # field into a confused deputy: the platform's IAM identity reading whatever
+    # bucket a project member names.
+    if not source.s3_access_key or not source.s3_secret_key:
+        raise ValueError("S3 source requires s3_access_key and s3_secret_key")
+
+    client_kwargs = {
+        "aws_access_key_id": source.s3_access_key,
+        "aws_secret_access_key": source.s3_secret_key,
+    }
     if source.s3_region:
         client_kwargs["region_name"] = source.s3_region
-    if source.s3_access_key and source.s3_secret_key:
-        client_kwargs["aws_access_key_id"] = source.s3_access_key
-        client_kwargs["aws_secret_access_key"] = source.s3_secret_key
 
     s3 = boto3.client("s3", **client_kwargs)
 

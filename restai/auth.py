@@ -224,6 +224,17 @@ def get_current_username_admin(user: User = Depends(get_current_username)):
             status_code=403,
             detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
         )
+    # A key narrowed to specific projects has no business driving platform-wide
+    # admin endpoints, which take no project scope to narrow. Mobile pairing
+    # mints exactly such a key (`allowed_projects=[id]`) and the enabling user
+    # is typically an admin — so without this, that phone's QR credential
+    # reaches the whole admin surface, e.g. the full user roster and spend via
+    # `/statistics/users`. Refusing centrally covers every admin route at once.
+    if user.api_key_allowed_projects is not None:
+        raise HTTPException(
+            status_code=403,
+            detail="A project-scoped API key cannot be used for administrative operations",
+        )
     return user
 
 

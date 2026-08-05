@@ -16,7 +16,7 @@ from restai.models.models import (
     User,
 )
 from restai.models.databasemodels import OutputDatabase, ProjectDatabase, UserDatabase, TeamDatabase, users_projects
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, or_, true
 
 
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -42,8 +42,7 @@ async def get_top_projects_by_tokens(
             .join(OutputDatabase, ProjectDatabase.id == OutputDatabase.project_id)
         )
 
-        if not user.is_admin:
-            query = query.filter(_visible_project_predicate(user, db_wrapper))
+        query = query.filter(_visible_project_predicate(user, db_wrapper))
 
         top_projects = (
             query
@@ -78,23 +77,46 @@ async def get_top_projects_by_tokens(
 def _visible_project_predicate(user: User, db_wrapper: DBWrapper):
     """SQL predicate for the projects `user` may see in aggregate statistics.
 
-    Mirrors `auth.get_current_username_project_public`: direct membership, OR a
-    project marked public **that lives in one of the user's teams**. The team
-    half was missing here — all three call sites tested `public == True` alone,
-    so a public project leaked its name and token/cost totals to every
-    authenticated user on the platform, including other tenants.
+    Mirrors `auth.get_current_username_project`: direct membership, OR any
+    project in a team the user administers, OR a public project in one of their
+    teams. Then — for every caller including admins — narrowed by the presented
+    credential's own project scope.
+
+    Both halves have been wrong here before. The team constraint was missing, so
+    `public == True` alone leaked names and spend across tenants. And the whole
+    filter used to sit behind `if not user.is_admin`, which meant a key minted
+    `read_only=True, allowed_projects=[one]` — exactly what mobile pairing hands
+    to a phone — returned every project on the platform whenever its owner was
+    an admin. `has_api_key_project_access` (models.py) is deliberately NOT
+    short-circuited on is_admin for that reason; this router simply never
+    consulted it.
     """
     member = ProjectDatabase.id.in_(
         db_wrapper.db.query(users_projects.c.project_id)
         .filter(users_projects.c.user_id == user.id)
     )
-    team_ids = {t.id for t in (user.teams or [])} | {t.id for t in (user.admin_teams or [])}
-    if not team_ids:
-        return member
-    return or_(
-        member,
-        and_(ProjectDatabase.public == True, ProjectDatabase.team_id.in_(team_ids)),
-    )
+    team_ids = {t.id for t in (user.teams or [])}
+    admin_team_ids = {t.id for t in (user.admin_teams or [])}
+
+    if user.is_admin:
+        visible = true()
+    else:
+        clauses = [member]
+        if admin_team_ids:
+            # Team admins reach every project in their teams, public or not —
+            # matching get_current_username_project, which this used to be
+            # stricter than (team admins under-counted their own dashboards).
+            clauses.append(ProjectDatabase.team_id.in_(admin_team_ids))
+        if team_ids:
+            clauses.append(
+                and_(ProjectDatabase.public == True, ProjectDatabase.team_id.in_(team_ids))
+            )
+        visible = or_(*clauses) if len(clauses) > 1 else clauses[0]
+
+    # The credential's advertised scope binds regardless of who owns it.
+    if user.api_key_allowed_projects is not None:
+        visible = and_(visible, ProjectDatabase.id.in_(user.api_key_allowed_projects))
+    return visible
 
 
 def _user_project_filter(user: User, db_wrapper: DBWrapper):
@@ -118,18 +140,22 @@ async def get_statistics_summary(
             func.coalesce(func.sum(OutputDatabase.input_cost + OutputDatabase.output_cost), 0).label("total_cost"),
             func.avg(OutputDatabase.latency_ms).label("avg_latency_ms"),
         )
-        if not user.is_admin:
-            token_query = token_query.filter(_user_project_filter(user, db_wrapper))
+        token_query = token_query.filter(_user_project_filter(user, db_wrapper))
         token_stats = token_query.first()
 
-        if user.is_admin:
-            total_projects = db_wrapper.db.query(func.count(ProjectDatabase.id)).scalar() or 0
+        # The predicate is `true()` for an unscoped admin, so one filtered count
+        # covers both cases — and a project-scoped key is narrowed even when its
+        # owner is an admin.
+        total_projects = db_wrapper.db.query(func.count(ProjectDatabase.id)).filter(
+            _visible_project_predicate(user, db_wrapper)
+        ).scalar() or 0
+
+        # Platform-wide rosters are not project-scoped, so a narrowed key must
+        # not see them either.
+        if user.is_admin and user.api_key_allowed_projects is None:
             total_users = db_wrapper.db.query(func.count(UserDatabase.id)).scalar() or 0
             total_teams = db_wrapper.db.query(func.count(TeamDatabase.id)).scalar() or 0
         else:
-            total_projects = db_wrapper.db.query(func.count(ProjectDatabase.id)).filter(
-                _visible_project_predicate(user, db_wrapper)
-            ).scalar() or 0
             total_users = 0
             total_teams = 0
 
@@ -169,8 +195,7 @@ async def get_daily_tokens(
             )
             .filter(OutputDatabase.date >= start_date)
         )
-        if not user.is_admin:
-            query = query.filter(_user_project_filter(user, db_wrapper))
+        query = query.filter(_user_project_filter(user, db_wrapper))
 
         daily = (
             query
@@ -215,8 +240,7 @@ async def get_top_llms(
                 func.count(OutputDatabase.id).label("request_count"),
             )
         )
-        if not user.is_admin:
-            query = query.filter(_user_project_filter(user, db_wrapper))
+        query = query.filter(_user_project_filter(user, db_wrapper))
 
         top = (
             query

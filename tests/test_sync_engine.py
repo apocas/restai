@@ -243,7 +243,8 @@ def test_sync_s3_lists_downloads_and_indexes(tmp_path):
 
 
 def test_sync_s3_no_documents_is_noop():
-    source = SyncSource(type="s3", name="empty", s3_bucket="b")
+    source = SyncSource(type="s3", name="empty", s3_bucket="b",
+                        s3_access_key="AK", s3_secret_key="SK")
     project = _project()
     paginator = MagicMock()
     paginator.paginate.return_value = [{}]
@@ -254,6 +255,26 @@ def test_sync_s3_no_documents_is_noop():
         sync_mod._sync_s3(project, source, MagicMock())
     idx.assert_not_called()
     project.vector.save.assert_not_called()
+
+
+def test_sync_s3_requires_per_source_credentials():
+    """Without keys, boto3 walks its default chain to the PLATFORM's IAM role
+    while the bucket is tenant-chosen — the content then lands in the caller's
+    own project, readable back through the embeddings endpoints. Every sibling
+    source type already refuses to run without credentials."""
+    project = _project()
+    for kwargs in (
+        {},
+        {"s3_access_key": "AK"},                 # secret missing
+        {"s3_secret_key": "SK"},                 # key missing
+        {"s3_access_key": "", "s3_secret_key": ""},
+    ):
+        source = SyncSource(type="s3", name="x", s3_bucket="victim-bucket", **kwargs)
+        with patch("boto3.client") as client:
+            with pytest.raises(ValueError, match="s3_access_key"):
+                sync_mod._sync_s3(project, source, MagicMock())
+            # Refused before any AWS call is constructed.
+            client.assert_not_called()
 
 
 # ─── SharePoint source ──────────────────────────────────────────────────

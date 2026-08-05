@@ -568,3 +568,116 @@ def test_find_embeddings_path_is_idempotent(tmp_path, monkeypatch):
     (tmp_path / "p12" / "chroma.sqlite3").write_text("corpus")
     assert vt.find_embeddings_path("p12") == str(tmp_path / "p12")
     assert (tmp_path / "p12" / "chroma.sqlite3").read_text() == "corpus"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Round 3 — findings carried over from a fork audit
+# ═══════════════════════════════════════════════════════════════════════
+
+# ─── statistics honours the credential's own project scope ──────────────
+
+def _stats_user(is_admin=False, allowed=None, project_ids=(), team_ids=(), admin_team_ids=()):
+    u = SimpleNamespace(
+        id=1,
+        is_admin=is_admin,
+        teams=[SimpleNamespace(id=t) for t in team_ids],
+        admin_teams=[SimpleNamespace(id=t) for t in admin_team_ids],
+        api_key_allowed_projects=allowed,
+    )
+    u.projects = [SimpleNamespace(id=p) for p in project_ids]
+    return u
+
+
+def _predicate_sql(user):
+    """Render the predicate to SQL text so we can assert on its shape without a DB."""
+    from restai.database import DBWrapper
+    from restai.routers.statistics import _visible_project_predicate
+
+    db = DBWrapper()
+    try:
+        return str(_visible_project_predicate(user, db).compile(
+            compile_kwargs={"literal_binds": True}
+        ))
+    finally:
+        db.db.close()
+
+
+def test_statistics_narrows_by_api_key_scope_even_for_admins():
+    """A key minted `read_only=True, allowed_projects=[7]` — what mobile pairing
+    hands to a phone — used to return EVERY project's name and spend whenever
+    its owner was an admin, because the filter sat behind `if not is_admin`."""
+    sql = _predicate_sql(_stats_user(is_admin=True, allowed=[7]))
+    assert "projects.id IN (7)" in sql.replace("\n", " ")
+
+
+def test_statistics_unscoped_admin_still_sees_everything():
+    sql = _predicate_sql(_stats_user(is_admin=True, allowed=None))
+    assert "projects.id IN" not in sql
+
+
+def test_statistics_narrows_by_api_key_scope_for_non_admins():
+    sql = _predicate_sql(
+        _stats_user(allowed=[7], project_ids=(5, 6, 7), team_ids=(1,))
+    ).replace("\n", " ")
+    # Membership clause AND the key's own scope.
+    assert "projects.id IN (7)" in sql
+    assert "users_projects" in sql
+
+
+def test_statistics_includes_non_public_team_admin_projects():
+    """The predicate was stricter than get_current_username_project: admin teams
+    were folded in with the `public` requirement, so a team admin's own PRIVATE
+    projects were missing from their dashboards. The admin-team clause must
+    stand alone, not behind `public`."""
+    sql = _predicate_sql(_stats_user(admin_team_ids=(42,))).replace("\n", " ")
+    assert "projects.team_id IN (42)" in sql
+    # No `public` constraint at all: this user is in no ordinary teams, so the
+    # only team clause present is the unconditional admin one.
+    assert "public" not in sql
+
+
+def test_project_scoped_key_is_refused_for_admin_endpoints():
+    """`/statistics/users` and friends take no project scope to narrow, so the
+    credential is rejected outright rather than silently granted."""
+    from fastapi import HTTPException
+
+    from restai.auth import get_current_username_admin
+
+    scoped_admin = SimpleNamespace(is_admin=True, api_key_allowed_projects=[7])
+    with pytest.raises(HTTPException) as exc:
+        get_current_username_admin(scoped_admin)
+    assert exc.value.status_code == 403
+
+    # An unscoped admin credential is unaffected.
+    plain_admin = SimpleNamespace(is_admin=True, api_key_allowed_projects=None)
+    assert get_current_username_admin(plain_admin) is plain_admin
+
+
+# ─── S3 sync may not borrow the platform's IAM identity ─────────────────
+
+def test_s3_sync_requires_its_own_credentials():
+    """Omitting the keys made boto3 walk its default chain to the platform's
+    instance role, on a bucket the tenant names, with the content landing in
+    the tenant's own project."""
+    from unittest.mock import MagicMock, patch
+
+    import restai.integrations.sync as sync_mod
+    from restai.models.models import SyncSource
+
+    source = SyncSource(type="s3", name="x", s3_bucket="someone-elses-bucket")
+    with patch("boto3.client") as client:
+        with pytest.raises(ValueError, match="s3_access_key"):
+            sync_mod._sync_s3(MagicMock(), source, MagicMock())
+        client.assert_not_called()
+
+
+# ─── widget key is shown once, not on every read ────────────────────────
+
+def test_widget_response_does_not_carry_the_key():
+    """Returning it from the GETs handed the live key to every project member
+    through a weaker gate than the regenerate endpoint (no check_not_restricted)."""
+    from restai.models.models import WidgetCreatedResponse, WidgetResponse
+
+    assert "widget_key" not in WidgetResponse.model_fields
+    # Still available on the mint-time response.
+    assert "widget_key" in WidgetCreatedResponse.model_fields

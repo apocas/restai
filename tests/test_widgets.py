@@ -64,7 +64,10 @@ def test_list_widgets(client):
     widgets = resp.json()["widgets"]
     assert len(widgets) >= 1
     w = next(w for w in widgets if w["id"] == widget_id)
-    assert w["widget_key"].startswith("wk_")
+    # The live key is shown once, at create/regenerate — never on a read. These
+    # GETs have no check_not_restricted, so returning it here let a restricted
+    # user read a key they are forbidden to rotate.
+    assert "widget_key" not in w
     assert w["key_prefix"].startswith("wk_")
 
 
@@ -73,7 +76,8 @@ def test_get_widget(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["name"] == "Test Widget"
-    assert data["widget_key"].startswith("wk_")
+    assert "widget_key" not in data
+    assert data["key_prefix"].startswith("wk_")
 
 
 def test_update_widget(client):
