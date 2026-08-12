@@ -23,11 +23,17 @@ const Container = styled("div")(({ theme }) => ({
 const PROVIDERS = [
   { value: "openai", label: "OpenAI / OpenAI-compatible" },
   { value: "google", label: "Google (Imagen / Nano Banana)" },
+  { value: "atlascloud", label: "Atlas Cloud" },
 ];
 
 const PROVIDER_DEFAULT_OPTIONS = {
   openai: { model: "gpt-image-1.5", api_key: "", base_url: "" },
   google: { model: "imagen-3.0-generate-001", api_key: "" },
+  atlascloud: {
+    model: "qwen-image-3.0/text-to-image",
+    api_key: "",
+    base_url: "https://api.atlascloud.ai",
+  },
 };
 
 function emptyForm() {
@@ -103,7 +109,11 @@ export default function ImageGenerators() {
     setForm((f) => ({
       ...f,
       class_name: newClass,
-      options: { ...PROVIDER_DEFAULT_OPTIONS[newClass], ...(f.options || {}) },
+      options: {
+        ...(f.options || {}),
+        ...PROVIDER_DEFAULT_OPTIONS[newClass],
+        api_key: f.options?.api_key || "",
+      },
     }));
   };
 
@@ -371,6 +381,7 @@ export default function ImageGenerators() {
               { value: "local", label: "Local" },
               { value: "openai", label: "OpenAI" },
               { value: "google", label: "Google" },
+              { value: "atlascloud", label: "Atlas Cloud" },
             ],
           },
         ]}
@@ -482,6 +493,8 @@ export default function ImageGenerators() {
                   helperText={
                     form.class_name === "openai"
                       ? "e.g. gpt-image-1.5, dall-e-3"
+                      : form.class_name === "atlascloud"
+                        ? "e.g. qwen-image-3.0/text-to-image"
                       : "e.g. imagen-3.0-generate-001, nano-banana"
                   }
                 />
@@ -494,13 +507,13 @@ export default function ImageGenerators() {
                   fullWidth
                   helperText={editing ? t("imageGen.dialog.apiKeyHelp") : ""}
                 />
-                {form.class_name === "openai" && (
+                {(form.class_name === "openai" || form.class_name === "atlascloud") && (
                   <TextField
                     label={t("imageGen.dialog.baseUrl")}
                     value={form.options?.base_url ?? ""}
                     onChange={(e) => setOption("base_url", e.target.value)}
                     fullWidth
-                    placeholder="https://api.openai.com/v1"
+                    placeholder={form.class_name === "atlascloud" ? "https://api.atlascloud.ai" : "https://api.openai.com/v1"}
                     helperText={t("imageGen.dialog.baseUrlHelp")}
                   />
                 )}

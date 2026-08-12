@@ -133,6 +133,23 @@ describe("ImageGenerators List", () => {
     expect(toast.success).toHaveBeenCalledWith("imageGen.dialog.created");
   });
 
+  it("offers Atlas Cloud with working image API defaults", async () => {
+    const user = userEvent.setup();
+    await renderList();
+
+    await user.click(screen.getByRole("button", { name: "imageGen.new" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByLabelText(/imageGen\.dialog\.provider/));
+    await user.click(await screen.findByRole("option", { name: "Atlas Cloud" }));
+
+    expect(within(dialog).getByLabelText(/imageGen\.dialog\.model/)).toHaveValue(
+      "qwen-image-3.0/text-to-image"
+    );
+    expect(within(dialog).getByLabelText(/imageGen\.dialog\.baseUrl/)).toHaveValue(
+      "https://api.atlascloud.ai"
+    );
+  });
+
   it("editing a local worker restricts the payload to privacy/description/enabled", async () => {
     const user = userEvent.setup();
     await renderList();
