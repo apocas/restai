@@ -200,6 +200,9 @@ export default function ProjectInfoTools({ project }) {
       auto_plan: !!state.options?.auto_plan,
       search_knowledge_project: state.options?.search_knowledge_project || null,
       mcp_servers: filteredMcpServers.length > 0 ? filteredMcpServers : null,
+      fallback_llm: state.options?.fallback_llm || null,
+      tool_timeout: state.options?.tool_timeout ?? 300,
+      max_execution_time: state.options?.max_execution_time ?? 0,
     };
     api.patch(`/projects/${proj.id}`, { options: merged }, auth.user.token)
       .then(() => api.get(`/projects/${proj.id}`, auth.user.token))

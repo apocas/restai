@@ -239,14 +239,24 @@ class Agent2Runtime:
             },
         )
 
+    def _deadline_passed(self) -> bool:
+        return self._deadline is not None and time.monotonic() >= self._deadline
+
     async def _retrying(self, thunk) -> Message:
-        """Run `thunk` with same-provider retries on transient errors."""
+        """Run `thunk` with same-provider retries on transient errors.
+        Retries (and their backoff sleeps) stop once the run's wall-clock
+        deadline has passed — no point burning budget the turn check will
+        reject anyway."""
         attempt = 0
         while True:
             try:
                 return await thunk()
             except Exception as e:
-                if attempt >= self.retry_attempts or not is_retryable_error(e):
+                if (
+                    attempt >= self.retry_attempts
+                    or not is_retryable_error(e)
+                    or self._deadline_passed()
+                ):
                     raise
                 delay = backoff_delay(attempt, base=self.retry_base_delay)
                 attempt += 1
@@ -266,6 +276,12 @@ class Agent2Runtime:
         condemn a tool-calling-capable fallback to ReAct).
         """
         if self._chain_idx + 1 >= len(self._provider_chain):
+            return False
+        if self._deadline_passed():
+            logger.warning(
+                "agent2: not switching to a fallback LLM — the run's "
+                "wall-clock deadline has already passed",
+            )
             return False
         previous = self.active_llm_name
         self._chain_idx += 1
@@ -339,7 +355,11 @@ class Agent2Runtime:
             except Exception as primary_err:
                 if emitted_any:
                     raise
-                if is_retryable_error(primary_err) and attempt < self.retry_attempts:
+                if (
+                    is_retryable_error(primary_err)
+                    and attempt < self.retry_attempts
+                    and not self._deadline_passed()
+                ):
                     delay = backoff_delay(attempt, base=self.retry_base_delay)
                     attempt += 1
                     logger.warning(

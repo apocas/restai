@@ -495,9 +495,14 @@ async def drive_with_fallbacks(project, drive_factory, *, loop_name: str, output
                 yield kind, payload
             return
         except Exception as e:
+            import time as _t
+            deadline_passed = (
+                shared_deadline is not None and _t.monotonic() >= shared_deadline
+            )
             can_retry = (
                 not run_state["streamed"]
                 and not run_state["tools_executed"]
+                and not deadline_passed
                 and idx + 1 < len(attempts)
             )
             if not can_retry:

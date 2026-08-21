@@ -440,7 +440,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
             value={state.options?.tool_timeout ?? 300}
             onChange={(e) => setState({
               ...state,
-              options: { ...state.options, tool_timeout: Math.max(0, parseInt(e.target.value, 10) || 0) }
+              options: { ...state.options, tool_timeout: Math.min(3600, Math.max(0, parseInt(e.target.value, 10) || 0)) }
             })}
             helperText="Per-tool-call cap; 0 disables. A stuck tool (hung MCP server, runaway script) returns an error to the model instead of freezing the chat."
           />
@@ -456,7 +456,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
             value={state.options?.max_execution_time ?? 0}
             onChange={(e) => setState({
               ...state,
-              options: { ...state.options, max_execution_time: Math.max(0, parseInt(e.target.value, 10) || 0) }
+              options: { ...state.options, max_execution_time: Math.min(7200, Math.max(0, parseInt(e.target.value, 10) || 0)) }
             })}
             helperText="Wall-clock cap for one whole agent run; 0 = unlimited. The run wraps up with partial results and a 'reply continue' notice instead of running forever."
           />

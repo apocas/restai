@@ -172,6 +172,9 @@ def _scripted_factory(scripts):
                 if kind == "tool":
                     run_state["tools_executed"] += 1
                     continue
+                if kind == "sleep":
+                    await asyncio.sleep(payload)
+                    continue
                 yield kind, payload
 
         return gen()
@@ -285,6 +288,22 @@ def test_drive_with_fallbacks_incompatible_fallback_skips_to_next():
     assert output["llm_used"] == "good-one"
     assert len(output["llm_fallbacks"]) == 2
     assert "OpenAI-class" in output["llm_fallbacks"][1]["error"]
+
+
+def test_drive_with_fallbacks_no_new_attempt_past_deadline():
+    # First attempt burns the whole wall-clock budget (1s cap) and then
+    # fails — the driver must NOT start the fallback attempt, which would
+    # only build a new agent to trip the same deadline immediately.
+    project = make_project(fallback_llm="backup", max_execution_time=1)
+    boom = RuntimeError("late failure")
+    factory = _scripted_factory([
+        [("sleep", 1.05), boom],
+        [_result("never")],
+    ])
+    events = run(_collect(drive_with_fallbacks(project, factory, loop_name="x", output={})))
+    assert factory.calls == [None]  # no second attempt
+    assert events[-1][0] == "error"
+    assert events[-1][1]["exception"] is boom
 
 
 def test_drive_with_fallbacks_shares_one_deadline_across_attempts():

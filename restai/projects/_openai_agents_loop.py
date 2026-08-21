@@ -377,10 +377,15 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         deadline = _time.monotonic() + max_exec
     hit_max_time = False
 
-    async for ev in result.stream_events():
-        # Wall-clock cap: stop at the event boundary and cancel the SDK run
-        # so it doesn't keep calling the model in the background.
-        if deadline is not None and _time.monotonic() >= deadline:
+    events_iter = result.stream_events().__aiter__()
+    while True:
+        # Wall-clock cap, checked BEFORE pulling the next event so an event
+        # already in hand (an executed tool's output, the final message) is
+        # never discarded. Gated on is_complete: a run that just finished
+        # shouldn't get the "stopped early" label. On trip, cancel the SDK
+        # run so it doesn't keep calling the model in the background.
+        if (deadline is not None and _time.monotonic() >= deadline
+                and not getattr(result, "is_complete", False)):
             hit_max_time = True
             logger.info("openai_agents loop: max_execution_time (%ds) reached for chat %s",
                         int(max_exec), chat_id)
@@ -388,6 +393,10 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
                 result.cancel()
             except Exception:
                 pass
+            break
+        try:
+            ev = await events_iter.__anext__()
+        except StopAsyncIteration:
             break
         if isinstance(ev, RawResponsesStreamEvent):
             data = ev.data
@@ -564,6 +573,8 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
             output["tokens"] = payload["tokens"]
             if payload.get("tool_trace"):
                 output["tool_trace"] = payload["tool_trace"]
+            if payload.get("stop_reason"):
+                output["stop_reason"] = payload["stop_reason"]
         elif kind == "error":
             e = payload["exception"]
             if isinstance(e, HTTPException):

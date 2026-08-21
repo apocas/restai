@@ -809,6 +809,7 @@ class Agent(ProjectBase):
             )
             current = (output.get("answer") or "").rstrip()
             output["answer"] = (current + notice).lstrip()
+            output["stop_reason"] = "max_turns"
 
         # Wall-clock cap hit — same treatment: keep partial work, append the
         # "say continue" notice. Planned mode sees the flag and skips the
@@ -818,6 +819,7 @@ class Agent(ProjectBase):
             current = (output.get("answer") or "").rstrip()
             output["answer"] = (current + notice).lstrip()
             output["stopped_max_time"] = True
+            output["stop_reason"] = "max_time"
 
         self._finalize_reasoning(output, reasoning_buf, steps)
 

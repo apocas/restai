@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time as _time
@@ -216,15 +217,34 @@ async def _drive(project, db, brain, user, *, prompt_text: str, chat_id: str,
         deadline = _time.monotonic() + max_exec
     hit_max_time = False
 
+    saw_result = False
+
     async with ClaudeSDKClient(options=options) as client:
         await client.query(query_payload)
-        async for message in client.receive_response():
-            # Wall-clock cap: stop at the message boundary; the context
-            # manager exit disconnects the SDK session cleanly.
-            if deadline is not None and _time.monotonic() >= deadline:
+        messages_iter = client.receive_response().__aiter__()
+        while True:
+            # Wall-clock cap, checked BEFORE pulling the next message so a
+            # message already in hand is never discarded (each one is a whole
+            # turn's text, or the terminal ResultMessage carrying real
+            # usage). Gated on saw_result: once the ResultMessage was
+            # processed the run is complete — labeling it "max_time" would
+            # bolt the notice onto a finished answer.
+            if (deadline is not None and _time.monotonic() >= deadline
+                    and not saw_result):
                 hit_max_time = True
                 logger.info("claude loop: max_execution_time (%ds) reached for chat %s",
                             int(max_exec), chat_id)
+                # Ask the CLI to stop its current turn so the context-exit
+                # disconnect doesn't have to SIGTERM through the 5s grace
+                # period while the subprocess keeps calling the API.
+                try:
+                    await asyncio.wait_for(client.interrupt(), timeout=5)
+                except Exception:
+                    pass
+                break
+            try:
+                message = await messages_iter.__anext__()
+            except StopAsyncIteration:
                 break
             if isinstance(message, AssistantMessage):
                 for block in message.content or []:
@@ -299,6 +319,7 @@ async def _drive(project, db, brain, user, *, prompt_text: str, chat_id: str,
                         }})
 
             elif isinstance(message, ResultMessage):
+                saw_result = True
                 usage = getattr(message, "usage", None) or {}
                 result_meta["input_tokens"] = int(usage.get("input_tokens", 0))
                 result_meta["output_tokens"] = int(usage.get("output_tokens", 0))

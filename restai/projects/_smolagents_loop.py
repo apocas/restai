@@ -438,16 +438,22 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         deadline = _time.monotonic() + max_exec
     hit_max_time = False
 
+    gen_exhausted = False
     while True:
-        # Wall-clock cap: stop before pulling the next step. The suspended
-        # sync generator is simply abandoned — no further LLM calls happen.
-        if deadline is not None and _time.monotonic() >= deadline:
+        # Wall-clock cap: stop before pulling the next step. Gated on
+        # final_answer: once the model produced its answer, the remaining
+        # events are cheap bookkeeping (final-step usage, FinalAnswerStep) —
+        # draining them keeps accounting complete and avoids bolting the
+        # "stopped early" notice onto a finished run.
+        if (final_answer is None and deadline is not None
+                and _time.monotonic() >= deadline):
             hit_max_time = True
             logger.info("smolagents loop: max_execution_time (%ds) reached for chat %s",
                         int(max_exec), chat_id)
             break
         ev = await loop.run_in_executor(None, _next)
         if ev is _SENTINEL:
+            gen_exhausted = True
             break
         if isinstance(ev, ChatMessageStreamDelta):
             delta = _scrub_think_tags(ev.content or "")
@@ -547,6 +553,22 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
                 output_tokens += getattr(usage, "output_tokens", 0) or 0
         elif isinstance(ev, FinalAnswerStep):
             final_answer = ev.output
+
+    # Close an unexhausted generator explicitly IN A WORKER THREAD (fire and
+    # forget). Leaving it to GC would run gen.close() on the event loop
+    # thread — and when the generator is suspended inside smolagents'
+    # parallel-tool ThreadPoolExecutor with-block, close blocks until every
+    # in-flight tool thread finishes (indefinitely with tool_timeout=0),
+    # which would freeze the whole event loop. Not awaited: a blocked close
+    # must not hold this request's capped response hostage either.
+    if not gen_exhausted:
+        def _close_gen():
+            try:
+                sync_gen.close()
+            except Exception:
+                pass
+        close_future = loop.run_in_executor(None, _close_gen)
+        close_future.add_done_callback(lambda f: f.exception())
 
     # Close any trailing thinking block.
     closer = _close_thinking_if_open()
@@ -664,6 +686,8 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
             output["tokens"] = payload["tokens"]
             if payload.get("tool_trace"):
                 output["tool_trace"] = payload["tool_trace"]
+            if payload.get("stop_reason"):
+                output["stop_reason"] = payload["stop_reason"]
         elif kind == "error":
             e = payload["exception"]
             if isinstance(e, HTTPException):
