@@ -45,9 +45,10 @@ _OPENAI_LLM_CLASSES = {"OpenAI"}
 _INTERNAL_PARAM_NAMES = {"kwargs", "_brain", "_chat_id", "_project_id"}
 
 
-def _resolve_openai_config(project: Project, db: DBWrapper) -> tuple[str, str, str | None]:
+def _resolve_openai_config(project: Project, db: DBWrapper,
+                           llm_override: str | None = None) -> tuple[str, str, str | None]:
     """Return (model, api_key, base_url) for the project's OpenAI LLM; raises 400 otherwise."""
-    llm_name = project.props.llm
+    llm_name = llm_override or project.props.llm
     if not llm_name:
         raise HTTPException(400, detail="agent_loop=openai_agents requires an LLM configured on the project.")
     llm_db = db.get_llm_by_name(llm_name)
@@ -113,15 +114,24 @@ def _function_tool_schema(ft) -> dict:
     return {"type": "object", "properties": {}, "additionalProperties": False}
 
 
-def _wrap_function_tool(ft, *, brain, chat_id, project_id) -> FunctionTool:
-    inner = ft.fn
+def _wrap_function_tool(ft, *, brain, chat_id, project_id, policy,
+                        inject_context: bool = True) -> FunctionTool:
+    # `real_fn` is the original callable. For an async-built FunctionTool
+    # (MCP-adapted tools), `.fn` is llama-index's sync bridge which runs the
+    # coroutine on a FRESH event loop — MCP sessions live on THIS loop, so
+    # the bridge breaks them. Awaiting the real coroutine fn keeps the call
+    # on the session's loop.
+    inner = getattr(ft, "real_fn", None) or ft.fn
     sig = inspect.signature(inner)
     has_var_kwargs = any(
         p.kind is inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
     )
-    accepts_brain = "_brain" in sig.parameters or has_var_kwargs
-    accepts_chat = "_chat_id" in sig.parameters or has_var_kwargs
-    accepts_project = "_project_id" in sig.parameters or has_var_kwargs
+    # inject_context=False for MCP-adapted tools: their **kwargs go verbatim
+    # to the remote server, and an injected `_brain` (unserializable) would
+    # fail every call.
+    accepts_brain = inject_context and ("_brain" in sig.parameters or has_var_kwargs)
+    accepts_chat = inject_context and ("_chat_id" in sig.parameters or has_var_kwargs)
+    accepts_project = inject_context and ("_project_id" in sig.parameters or has_var_kwargs)
     is_async = inspect.iscoroutinefunction(inner)
     name = ft.metadata.name
     description = ft.metadata.description or name
@@ -132,22 +142,24 @@ def _wrap_function_tool(ft, *, brain, chat_id, project_id) -> FunctionTool:
             args = _json.loads(args_str) if args_str else {}
         except _json.JSONDecodeError:
             return f"ERROR: invalid JSON arguments: {args_str!r}"
+        visible_args = dict(args)
         if accepts_brain and "_brain" not in args:
             args["_brain"] = brain
         if accepts_chat and "_chat_id" not in args:
             args["_chat_id"] = chat_id
         if accepts_project and "_project_id" not in args:
             args["_project_id"] = project_id
-        try:
-            result = await inner(**args) if is_async else inner(**args)
-        except Exception as e:
-            logger.exception("Platform tool %s raised", name)
-            return f"ERROR: {e}"
-        if result is None:
-            return ""
-        if isinstance(result, (dict, list)):
-            return _json.dumps(result, default=str)
-        return str(result)
+        # ToolRunPolicy: worker thread for sync fns (they used to block the
+        # event loop), tool_timeout, loop guard, model-visible output cap.
+        if is_async:
+            text, _err = await policy.run_async(
+                name, visible_args, call_async=lambda: inner(**args),
+            )
+        else:
+            text, _err = await policy.run_async(
+                name, visible_args, call_sync=lambda: inner(**args),
+            )
+        return text
 
     return FunctionTool(
         name=name,
@@ -158,7 +170,7 @@ def _wrap_function_tool(ft, *, brain, chat_id, project_id) -> FunctionTool:
     )
 
 
-def _wrap_project_tool(row, *, brain, chat_id) -> FunctionTool:
+def _wrap_project_tool(row, *, brain, chat_id, policy) -> FunctionTool:
     try:
         schema = (
             _json.loads(row.parameters)
@@ -186,11 +198,13 @@ def _wrap_project_tool(row, *, brain, chat_id) -> FunctionTool:
             "args = json.loads(sys.stdin.readline() or '{}')\n"
             f"{tool_code}"
         )
-        try:
-            return brain.docker_manager.run_script(chat_id or "ephemeral", script, stdin_data=args_json)
-        except Exception as e:
-            logger.exception("Project tool %s raised", name)
-            return f"ERROR: {e}"
+        text, _err = await policy.run_async(
+            name, args,
+            call_sync=lambda: brain.docker_manager.run_script(
+                chat_id or "ephemeral", script, stdin_data=args_json,
+            ),
+        )
+        return text
 
     return FunctionTool(
         name=name,
@@ -201,7 +215,7 @@ def _wrap_project_tool(row, *, brain, chat_id) -> FunctionTool:
     )
 
 
-def _gather_tools(project: Project, agent_self, db: DBWrapper, chat_id: str) -> list[FunctionTool]:
+def _gather_tools(project: Project, agent_self, db: DBWrapper, chat_id: str, policy) -> list[FunctionTool]:
     raw_names = {
         t.strip() for t in (project.props.options.tools or "").split(",") if t.strip()
     }
@@ -212,6 +226,7 @@ def _gather_tools(project: Project, agent_self, db: DBWrapper, chat_id: str) -> 
         try:
             out.append(_wrap_function_tool(
                 ft, brain=agent_self.brain, chat_id=chat_id, project_id=project.props.id,
+                policy=policy,
             ))
         except Exception as e:
             logger.warning("Failed to wrap builtin %s: %s", getattr(ft.metadata, "name", "?"), e)
@@ -221,7 +236,7 @@ def _gather_tools(project: Project, agent_self, db: DBWrapper, chat_id: str) -> 
             if not getattr(row, "enabled", True):
                 continue
             try:
-                out.append(_wrap_project_tool(row, brain=agent_self.brain, chat_id=chat_id))
+                out.append(_wrap_project_tool(row, brain=agent_self.brain, chat_id=chat_id, policy=policy))
             except Exception as e:
                 logger.warning("Failed to wrap project tool %s: %s", row.name, e)
     except Exception:
@@ -266,12 +281,14 @@ def _extract_message_text(item: MessageOutputItem) -> str:
 
 
 async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: str,
-                 stream: bool, chat_id: str, image_url: str | None = None):
+                 stream: bool, chat_id: str, image_url: str | None = None,
+                 llm_override: str | None = None, run_state: dict | None = None):
     """Async generator yielding (kind, payload) tuples; same protocol as _claude_sdk_loop._drive."""
     from restai.agent2.mcp_client import MCPSessionPool
 
-    model_name, api_key, base_url = _resolve_openai_config(project, db)
-    tools = _gather_tools(project, agent_self, db, chat_id)
+    model_name, api_key, base_url = _resolve_openai_config(project, db, llm_override)
+    policy = agent_shared.ToolRunPolicy(project)
+    tools = _gather_tools(project, agent_self, db, chat_id, policy)
 
     mcp_servers = getattr(project.props.options, "mcp_servers", None) or []
     mcp_pool = None
@@ -285,6 +302,7 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
                     li_ft = agent_shared.adapted_to_function_tool(a)
                     tools.append(_wrap_function_tool(
                         li_ft, brain=agent_self.brain, chat_id=chat_id, project_id=project.props.id,
+                        policy=policy, inject_context=False,
                     ))
                 except Exception as e:
                     logger.warning("Failed to wrap MCP tool %s: %s", getattr(a, "name", "?"), e)
@@ -363,6 +381,8 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         elif isinstance(ev, RunItemStreamEvent):
             item = ev.item
             if isinstance(item, ToolCallItem):
+                if run_state is not None:
+                    run_state["tools_executed"] = run_state.get("tools_executed", 0) + 1
                 call_id, name, args = _extract_tool_call(item)
                 key = call_id or f"call_{len(tool_trace)}"
                 tool_started_at[key] = _time.monotonic()
@@ -432,14 +452,33 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         except Exception:
             pass
 
-    import json as _json
-    _trace_tok = tokens_from_string(_json.dumps(tool_trace)) if tool_trace else 0
+    # Real aggregated usage from the Agents SDK (summed across every model
+    # call this run) when available — accuracy "high". Otherwise fall back to
+    # the shared transcript-aware estimate.
+    real_input = real_output = 0
+    try:
+        sdk_usage = getattr(getattr(result, "context_wrapper", None), "usage", None)
+        if sdk_usage is not None:
+            real_input = int(getattr(sdk_usage, "input_tokens", 0) or 0)
+            real_output = int(getattr(sdk_usage, "output_tokens", 0) or 0)
+    except Exception:
+        real_input = real_output = 0
+
+    if real_input or real_output:
+        tokens = {"input": real_input, "output": real_output, "accuracy": "high"}
+    else:
+        tokens = {
+            "input": agent_shared.estimate_input_tokens(
+                prompt_text, system_prompt=augmented or "",
+                history=history, tool_trace=tool_trace,
+            ),
+            "output": tokens_from_string(answer),
+            "accuracy": "low",
+        }
+
     yield ("result", {
         "answer": answer,
-        "tokens": {
-            "input": tokens_from_string(prompt_text) + _trace_tok,
-            "output": tokens_from_string(answer),
-        },
+        "tokens": tokens,
         "tool_trace": tool_trace or None,
         "stop_reason": None,
     })
@@ -479,48 +518,47 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
     )
 
     streamed_any_text = False
-    try:
-        async for kind, payload in _drive(
+
+    def _factory(llm_override, run_state):
+        return _drive(
             project, db, agent_self,
             prompt_text=prompt_text, system_prompt=(chatModel.system or project.props.system or ""),
             stream=chatModel.stream, chat_id=chat_id, image_url=image_url,
-        ):
-            if kind == "text":
-                streamed_any_text = True
-                if chatModel.stream:
-                    yield "data: " + _json.dumps({"text": payload}) + "\n\n"
-            elif kind == "event":
-                if chatModel.stream:
-                    yield "data: " + _json.dumps(payload) + "\n\n"
-            elif kind == "result":
-                output["answer"] = payload["answer"]
-                output["tokens"] = payload["tokens"]
-                if payload.get("tool_trace"):
-                    output["tool_trace"] = payload["tool_trace"]
-    except HTTPException as e:
-        err = f"openai_agents loop config error: {e.detail}"
-        output["answer"] = err
-        output["status"] = "error"
-        if chatModel.stream:
-            yield "data: " + _json.dumps({"text": err}) + "\n\n"
-            yield "data: " + _json.dumps(output) + "\n"
-            yield "event: close\n\n"
-        else:
-            yield output
-        return
-    except Exception as e:
-        logger.exception("openai_agents loop failed for project %s", project.props.name)
-        err = f"openai_agents loop error: {e}"
-        output["answer"] = err
-        output["status"] = "error"
-        if chatModel.stream:
-            if not streamed_any_text:
-                yield "data: " + _json.dumps({"text": err}) + "\n\n"
-            yield "data: " + _json.dumps(output) + "\n"
-            yield "event: close\n\n"
-        else:
-            yield output
-        return
+            llm_override=llm_override, run_state=run_state,
+        )
+
+    async for kind, payload in agent_shared.drive_with_fallbacks(
+        project, _factory, loop_name="openai_agents", output=output,
+    ):
+        if kind == "text":
+            streamed_any_text = True
+            if chatModel.stream:
+                yield "data: " + _json.dumps({"text": payload}) + "\n\n"
+        elif kind == "event":
+            if chatModel.stream:
+                yield "data: " + _json.dumps(payload) + "\n\n"
+        elif kind == "result":
+            output["answer"] = payload["answer"]
+            output["tokens"] = payload["tokens"]
+            if payload.get("tool_trace"):
+                output["tool_trace"] = payload["tool_trace"]
+        elif kind == "error":
+            e = payload["exception"]
+            if isinstance(e, HTTPException):
+                err = f"openai_agents loop config error: {e.detail}"
+            else:
+                err = f"openai_agents loop error: {e}"
+            output["answer"] = err
+            output["status"] = "error"
+            output["error"] = err
+            if chatModel.stream:
+                if not streamed_any_text:
+                    yield "data: " + _json.dumps({"text": err}) + "\n\n"
+                yield "data: " + _json.dumps(output) + "\n"
+                yield "event: close\n\n"
+            else:
+                yield output
+            return
 
     agent_self.check_output_guard(project, user, db, output)
 

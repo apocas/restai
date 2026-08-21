@@ -278,6 +278,269 @@ def append_unreferenced_image_urls(answer: str, urls: list[str]) -> str:
     return (out + suffix).strip()
 
 
+class ToolRunPolicy:
+    """Per-request tool-execution policy for the external agent loops —
+    mirrors the agent2 runtime's tool hardening so every harness offers the
+    same guarantees:
+
+    - per-call timeout from ``ProjectOptions.tool_timeout`` (0 = off); a tool
+      that exceeds it returns an ``ERROR: … timed out`` string the model can
+      react to instead of hanging the conversation
+    - identical-call loop guard: the 3rd+ identical (tool, args) call this
+      request still executes but gets a nudge appended
+    - model-visible output cap (``truncate_tool_output``) so one giant tool
+      result can't blow the model's context
+    - exceptions become ``ERROR: …`` strings instead of harness-specific
+      failures
+
+    One instance per request, shared by every tool wrapper of that request
+    (the loop-guard counter is request-scoped).
+    """
+
+    def __init__(self, project=None, timeout: float | None = None):
+        if timeout is None and project is not None:
+            try:
+                timeout = float(getattr(project.props.options, "tool_timeout", 300) or 0)
+            except (TypeError, ValueError):
+                timeout = 300.0
+        self.timeout: float | None = timeout or None
+        self._call_counts: dict = {}
+
+    # ── loop guard ──────────────────────────────────────────────────────
+    def loop_guard_note(self, name: str, args: dict) -> str:
+        import json as _json
+        try:
+            canonical = _json.dumps(args or {}, sort_keys=True, default=str)
+        except Exception:
+            canonical = str(args)
+        key = (name, canonical)
+        count = self._call_counts.get(key, 0) + 1
+        self._call_counts[key] = count
+        if count < 3:
+            return ""
+        return (
+            f"\n\n[loop guard: this exact tool call has now run {count} times "
+            "this request. If the result isn't changing, adjust the arguments "
+            "or approach — or produce your final answer with what you have.]"
+        )
+
+    def _timeout_error(self, name: str) -> str:
+        return (
+            f"ERROR: tool '{name}' timed out after {int(self.timeout or 0)}s. "
+            "The operation may still finish in the background. Try a smaller "
+            "input, a quicker check, or a different approach."
+        )
+
+    @staticmethod
+    def _to_text(result) -> str:
+        import json as _json
+        if result is None:
+            return ""
+        if isinstance(result, str):
+            return result
+        if isinstance(result, (dict, list)):
+            try:
+                return _json.dumps(result, default=str)
+            except Exception:
+                return str(result)
+        return str(result)
+
+    def _finalize(self, name: str, args: dict, result) -> str:
+        text = truncate_tool_output(self._to_text(result))
+        note = self.loop_guard_note(name, args)
+        return text + note if note else text
+
+    # ── runners ─────────────────────────────────────────────────────────
+    async def run_async(self, name: str, args: dict, *,
+                        call_async=None, call_sync=None) -> tuple[str, bool]:
+        """Execute one tool call from an async harness. Exactly one of
+        ``call_async`` (zero-arg → awaitable) / ``call_sync`` (zero-arg,
+        runs in a worker thread so it can't block the event loop) must be
+        given. Returns ``(text, is_error)``."""
+        try:
+            awaitable = call_async() if call_async is not None else asyncio.to_thread(call_sync)
+            if self.timeout:
+                result = await asyncio.wait_for(awaitable, timeout=self.timeout)
+            else:
+                result = await awaitable
+        except asyncio.TimeoutError:
+            logging.warning("tool '%s' timed out after %.0fs", name, self.timeout or 0)
+            return self._timeout_error(name), True
+        except Exception as e:
+            logging.exception("tool '%s' raised", name)
+            return f"ERROR: {e}", True
+        return self._finalize(name, args, result), False
+
+    def run_sync(self, name: str, args: dict, call) -> tuple[str, bool]:
+        """Execute one tool call from a sync harness (e.g. smolagents, whose
+        agent already runs in a worker thread). With a timeout the call runs
+        in a dedicated thread we abandon on expiry — same tradeoff as the
+        async path (the runaway thread lingers but the conversation moves
+        on)."""
+        try:
+            if self.timeout:
+                from concurrent.futures import (
+                    ThreadPoolExecutor,
+                    TimeoutError as _FutureTimeout,
+                )
+                executor = ThreadPoolExecutor(
+                    max_workers=1, thread_name_prefix=f"tool-{name}"
+                )
+                future = executor.submit(call)
+                try:
+                    result = future.result(timeout=self.timeout)
+                except _FutureTimeout:
+                    executor.shutdown(wait=False, cancel_futures=True)
+                    logging.warning("tool '%s' timed out after %.0fs", name, self.timeout)
+                    return self._timeout_error(name), True
+                finally:
+                    executor.shutdown(wait=False)
+            else:
+                result = call()
+        except Exception as e:
+            logging.exception("tool '%s' raised", name)
+            return f"ERROR: {e}", True
+        return self._finalize(name, args, result), False
+
+
+def fallback_llm_names(project) -> list[str]:
+    """Ordered fallback LLM names from ``options.fallback_llm`` — deduped,
+    minus the project's primary LLM. Loop-incompatible entries are not
+    filtered here; each loop's resolver rejects them at attempt time."""
+    try:
+        raw = getattr(project.props.options, "fallback_llm", None) or ""
+    except Exception:
+        raw = ""
+    seen = {getattr(project.props, "llm", None) or ""}
+    out: list[str] = []
+    for name in (n.strip() for n in raw.split(",")):
+        if name and name not in seen:
+            seen.add(name)
+            out.append(name)
+    return out
+
+
+def _fallback_error_text(e: Exception) -> str:
+    detail = getattr(e, "detail", None)
+    return str(detail) if detail else str(e)
+
+
+async def drive_with_fallbacks(project, drive_factory, *, loop_name: str, output: dict):
+    """Shared whole-run fallback driver for the external loops.
+
+    ``drive_factory(llm_override, run_state)`` returns the loop's ``_drive``
+    async generator. On failure the run is retried on the next LLM from
+    ``options.fallback_llm`` — but ONLY while nothing has streamed to the
+    client and no tool has executed (``run_state['tools_executed']``), so a
+    retry can never duplicate output or repeat a side effect. (The agent2
+    `restai` loop switches mid-run instead because it owns its transcript;
+    SDK harnesses can only be restarted whole.)
+
+    Yields the same (kind, payload) tuples as ``_drive`` plus:
+      - ("event", {"llm_fallback": {from, to}}) on each switch
+      - ("error", {"exception": e}) on terminal failure instead of raising
+    Fallback switches are also merged into the result payload's tool_trace
+    and recorded on ``output`` as ``llm_used``/``llm_fallbacks``.
+    """
+    import json as _json
+
+    attempts: list = [None] + fallback_llm_names(project)
+    switch_rows: list[dict] = []
+    for idx, llm_override in enumerate(attempts):
+        run_state = {"tools_executed": 0, "streamed": False}
+        try:
+            async for kind, payload in drive_factory(llm_override, run_state):
+                if kind == "text":
+                    run_state["streamed"] = True
+                elif kind == "result" and switch_rows:
+                    merged = list(switch_rows) + list(payload.get("tool_trace") or [])
+                    payload = dict(payload, tool_trace=merged)
+                yield kind, payload
+            return
+        except Exception as e:
+            can_retry = (
+                not run_state["streamed"]
+                and not run_state["tools_executed"]
+                and idx + 1 < len(attempts)
+            )
+            if not can_retry:
+                logging.exception("%s loop failed with no fallback available", loop_name)
+                yield ("error", {"exception": e})
+                return
+            from_name = llm_override or getattr(project.props, "llm", None) or "primary"
+            to_name = attempts[idx + 1]
+            err_text = _fallback_error_text(e)[:300]
+            logging.warning(
+                "%s loop: switching to fallback LLM '%s' after '%s' failed: %s",
+                loop_name, to_name, from_name, err_text,
+            )
+            entry = {"from": from_name, "to": to_name, "turn": 1, "error": err_text}
+            output.setdefault("llm_fallbacks", []).append(entry)
+            output["llm_used"] = to_name
+            switch_rows.append({
+                "tool": "llm_fallback",
+                "args": _json.dumps({"from": from_name, "to": to_name, "turn": 1}),
+                "latency_ms": None,
+                "status": "ok",
+                "error": err_text or None,
+            })
+            yield ("event", {"llm_fallback": {"from": from_name, "to": to_name}})
+
+
+def estimate_input_tokens(prompt_text: str, *, system_prompt: str = "",
+                          history: list | None = None,
+                          tool_trace: list | None = None) -> int:
+    """Transcript-aware input-token estimate for loops whose harness reported
+    no real usage — mirrors the agent2 fallback: the prompt actually sent
+    each turn is system prompt (incl. memory/history injections) + prior
+    turns + tool round-trip context, not just the latest question."""
+    import json as _json
+
+    from restai.tools import tokens_from_string
+
+    total = tokens_from_string(prompt_text or "")
+    if system_prompt:
+        total += tokens_from_string(system_prompt)
+    for m in history or []:
+        content = getattr(m, "content", None)
+        if not content:
+            continue
+        total += tokens_from_string(content if isinstance(content, str) else str(content))
+    if tool_trace:
+        try:
+            total += tokens_from_string(_json.dumps(tool_trace))
+        except Exception:
+            pass
+    return total
+
+
+def usage_from_raw_response(raw) -> tuple[int, int] | None:
+    """Best-effort (input, output) token extraction from a provider's raw
+    response object/dict — handles OpenAI (prompt/completion_tokens) and
+    Anthropic (input/output_tokens) shapes. None when nothing usable."""
+    if raw is None:
+        return None
+    usage = raw.get("usage") if isinstance(raw, dict) else getattr(raw, "usage", None)
+    if usage is None:
+        return None
+
+    def _get(obj, *names):
+        for n in names:
+            v = obj.get(n) if isinstance(obj, dict) else getattr(obj, n, None)
+            if v is not None:
+                try:
+                    return int(v)
+                except (TypeError, ValueError):
+                    continue
+        return 0
+
+    in_tok = _get(usage, "prompt_tokens", "input_tokens")
+    out_tok = _get(usage, "completion_tokens", "output_tokens")
+    if in_tok <= 0 and out_tok <= 0:
+        return None
+    return in_tok, out_tok
+
+
 _JSON_TO_PY = {
     "string": str, "integer": int, "number": float, "boolean": bool,
     "array": list, "object": dict, "any": object,

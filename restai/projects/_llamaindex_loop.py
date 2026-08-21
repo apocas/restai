@@ -30,8 +30,8 @@ from restai.tools import tokens_from_string
 logger = logging.getLogger("restai.llamaindex_loop")
 
 
-def _resolve_llm(project: Project, agent_self, db: DBWrapper):
-    llm_name = project.props.llm
+def _resolve_llm(project: Project, agent_self, db: DBWrapper, llm_override: str | None = None):
+    llm_name = llm_override or project.props.llm
     if not llm_name:
         raise HTTPException(400, detail="agent_loop=llamaindex requires an LLM configured on the project.")
     wrapper = agent_self.brain.get_llm(llm_name, db)
@@ -40,13 +40,13 @@ def _resolve_llm(project: Project, agent_self, db: DBWrapper):
     return wrapper.llm
 
 
-def _wrap_project_tool_as_function_tool(tool_row, brain) -> FunctionTool:
+def _wrap_project_tool_as_function_tool(tool_row, brain, policy) -> FunctionTool:
     """ProjectToolDatabase row → FunctionTool; runs user code in per-chat Docker sandbox."""
     tool_code = tool_row.code
     tool_name = tool_row.name
     tool_desc = tool_row.description or tool_name
 
-    def _run(**kwargs):
+    async def _run(**kwargs):
         _brain = kwargs.pop("_brain", brain)
         chat_id = kwargs.pop("_chat_id", None)
         kwargs.pop("_project_id", None)
@@ -58,7 +58,15 @@ def _wrap_project_tool_as_function_tool(tool_row, brain) -> FunctionTool:
             "args = json.loads(sys.stdin.readline() or '{}')\n"
             f"{tool_code}"
         )
-        return _brain.docker_manager.run_script(chat_id or "ephemeral", script, stdin_data=args_json)
+        # run_script blocks on docker exec — the policy threads it (keeps
+        # the event loop free) and enforces tool_timeout + the loop guard.
+        text, _err = await policy.run_async(
+            tool_name, kwargs,
+            call_sync=lambda: _brain.docker_manager.run_script(
+                chat_id or "ephemeral", script, stdin_data=args_json,
+            ),
+        )
+        return text
 
     return FunctionTool.from_defaults(
         fn=_run,
@@ -68,21 +76,56 @@ def _wrap_project_tool_as_function_tool(tool_row, brain) -> FunctionTool:
     )
 
 
+def _wrap_adapted_with_policy(li_ft: FunctionTool, policy) -> FunctionTool:
+    """Re-wrap an MCP-adapted FunctionTool so its (async) call goes through
+    the shared tool policy (timeout / loop guard / output cap), preserving
+    the pydantic fn_schema `adapted_to_function_tool` synthesized.
+
+    Use the tool's REAL async fn — `.fn` on an async-built FunctionTool is
+    llama-index's sync bridge, whose return value is not awaitable."""
+    inner_async = getattr(li_ft, "async_fn", None)
+    inner_sync = li_ft.fn
+    name = li_ft.metadata.name
+    description = li_ft.metadata.description or name
+
+    async def _pol(**kwargs):
+        if inner_async is not None:
+            text, _err = await policy.run_async(
+                name, kwargs, call_async=lambda: inner_async(**kwargs),
+            )
+        else:
+            text, _err = await policy.run_async(
+                name, kwargs, call_sync=lambda: inner_sync(**kwargs),
+            )
+        return text
+
+    return FunctionTool.from_defaults(
+        fn=_pol,
+        name=name,
+        description=description,
+        fn_schema=getattr(li_ft.metadata, "fn_schema", None),
+    )
+
+
 # Internal kwargs the LLM must never see; injected by _bind_request_kwargs.
 _INTERNAL_PARAM_NAMES = {"kwargs", "_brain", "_chat_id", "_project_id"}
 
 
-def _bind_request_kwargs(ft: FunctionTool, *, brain, chat_id, project_id) -> FunctionTool:
+def _bind_request_kwargs(ft: FunctionTool, *, brain, chat_id, project_id, policy) -> FunctionTool:
     """Rebuild FunctionTool so per-request context is injected on every call.
 
     FunctionAgent only forwards LLM-supplied kwargs; tools like terminal /
     browser_* / create_tool read request-scoped values from **kwargs and
     would otherwise bail with "Docker is not configured". Also strips
-    internal params from the schema the LLM sees.
+    internal params from the schema the LLM sees, and routes every call
+    through the shared ToolRunPolicy (worker thread for sync fns, timeout,
+    loop guard, model-visible output cap).
     """
     import inspect as _inspect
 
-    inner = ft.fn
+    # `real_fn` is the original callable — for async-built FunctionTools
+    # `.fn` is llama-index's sync bridge (runs on a fresh event loop).
+    inner = getattr(ft, "real_fn", None) or ft.fn
     sig = _inspect.signature(inner)
     has_var_kwargs = any(
         p.kind is _inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
@@ -94,24 +137,26 @@ def _bind_request_kwargs(ft: FunctionTool, *, brain, chat_id, project_id) -> Fun
     name = ft.metadata.name
     description = ft.metadata.description or name
 
-    if is_async:
-        async def _bound(**kwargs):
-            if accepts_brain and "_brain" not in kwargs:
-                kwargs["_brain"] = brain
-            if accepts_chat and "_chat_id" not in kwargs:
-                kwargs["_chat_id"] = chat_id
-            if accepts_project and "_project_id" not in kwargs:
-                kwargs["_project_id"] = project_id
-            return await inner(**kwargs)
-    else:
-        def _bound(**kwargs):
-            if accepts_brain and "_brain" not in kwargs:
-                kwargs["_brain"] = brain
-            if accepts_chat and "_chat_id" not in kwargs:
-                kwargs["_chat_id"] = chat_id
-            if accepts_project and "_project_id" not in kwargs:
-                kwargs["_project_id"] = project_id
-            return inner(**kwargs)
+    async def _bound(**kwargs):
+        visible_args = {
+            k: v for k, v in kwargs.items()
+            if k not in _INTERNAL_PARAM_NAMES and not k.startswith("_")
+        }
+        if accepts_brain and "_brain" not in kwargs:
+            kwargs["_brain"] = brain
+        if accepts_chat and "_chat_id" not in kwargs:
+            kwargs["_chat_id"] = chat_id
+        if accepts_project and "_project_id" not in kwargs:
+            kwargs["_project_id"] = project_id
+        if is_async:
+            text, _err = await policy.run_async(
+                name, visible_args, call_async=lambda: inner(**kwargs),
+            )
+        else:
+            text, _err = await policy.run_async(
+                name, visible_args, call_sync=lambda: inner(**kwargs),
+            )
+        return text
 
     # Clean signature so llama-index only introspects LLM-visible params
     # (skip internal **kwargs + explicit _brain/_chat_id/_project_id).
@@ -127,7 +172,7 @@ def _bind_request_kwargs(ft: FunctionTool, *, brain, chat_id, project_id) -> Fun
     return FunctionTool.from_defaults(fn=_bound, name=name, description=description)
 
 
-def _gather_tools(project: Project, agent_self, db: DBWrapper, chat_id: str) -> list[FunctionTool]:
+def _gather_tools(project: Project, agent_self, db: DBWrapper, chat_id: str, policy) -> list[FunctionTool]:
     raw_names = {
         t.strip() for t in (project.props.options.tools or "").split(",") if t.strip()
     }
@@ -137,6 +182,7 @@ def _gather_tools(project: Project, agent_self, db: DBWrapper, chat_id: str) -> 
         try:
             builtins.append(_bind_request_kwargs(
                 ft, brain=agent_self.brain, chat_id=chat_id, project_id=project.props.id,
+                policy=policy,
             ))
         except Exception as e:
             logger.warning("Failed to wrap builtin %s: %s", getattr(ft.metadata, "name", "?"), e)
@@ -146,7 +192,7 @@ def _gather_tools(project: Project, agent_self, db: DBWrapper, chat_id: str) -> 
         for row in db.get_project_tools(project.props.id) or []:
             if getattr(row, "enabled", True):
                 try:
-                    custom.append(_wrap_project_tool_as_function_tool(row, agent_self.brain))
+                    custom.append(_wrap_project_tool_as_function_tool(row, agent_self.brain, policy))
                 except Exception as e:
                     logger.warning("Failed to wrap project tool %s: %s", row.name, e)
     except Exception:
@@ -161,12 +207,14 @@ def _pick_agent_class(project: Project):
 
 
 async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: str,
-                 stream: bool, chat_id: str, image_url: str | None = None):
+                 stream: bool, chat_id: str, image_url: str | None = None,
+                 llm_override: str | None = None, run_state: dict | None = None):
     """Async generator yielding (kind, payload) tuples; same protocol as _claude_sdk_loop._drive."""
     from restai.agent2.mcp_client import MCPSessionPool
 
-    llm = _resolve_llm(project, agent_self, db)
-    tools = _gather_tools(project, agent_self, db, chat_id)
+    llm = _resolve_llm(project, agent_self, db, llm_override)
+    policy = agent_shared.ToolRunPolicy(project)
+    tools = _gather_tools(project, agent_self, db, chat_id, policy)
 
     augmented = agent_shared.augment_system_prompt_with_memory_bank(project, db, system_prompt)
     augmented = agent_shared.augment_system_prompt_with_memory_search_hint(project, augmented)
@@ -183,7 +231,9 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
             adapted_tools = await mcp_pool.connect_servers(mcp_servers)
             for a in adapted_tools:
                 try:
-                    tools.append(agent_shared.adapted_to_function_tool(a))
+                    tools.append(_wrap_adapted_with_policy(
+                        agent_shared.adapted_to_function_tool(a), policy,
+                    ))
                 except Exception as e:
                     logger.warning("Failed to wrap MCP tool %s: %s", getattr(a, "name", "?"), e)
         except Exception as e:
@@ -203,6 +253,7 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         system_prompt=augmented or "",
         streaming=stream,
     )
+    max_iters = int(getattr(project.props.options, "max_iterations", 10) or 10)
 
     tool_started_at: dict[str, float] = {}
     harvested_image_urls: list[str] = []
@@ -241,14 +292,34 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
             handler = agent.run(
                 user_msg=None,
                 chat_history=(history or []) + [multimodal_msg],
+                max_iterations=max_iters,
             )
         except Exception as e:
             logger.warning("llamaindex loop: failed to wire image block: %s", e)
-            handler = agent.run(user_msg=prompt_text, chat_history=history or None)
+            handler = agent.run(user_msg=prompt_text, chat_history=history or None,
+                                max_iterations=max_iters)
     else:
-        handler = agent.run(user_msg=prompt_text, chat_history=history or None)
+        handler = agent.run(user_msg=prompt_text, chat_history=history or None,
+                            max_iterations=max_iters)
 
-    async for ev in handler.stream_events():
+    hit_max_iterations = False
+    events_iter = handler.stream_events().__aiter__()
+    while True:
+        try:
+            ev = await events_iter.__anext__()
+        except StopAsyncIteration:
+            break
+        except Exception as e:
+            # The workflow raises WorkflowRuntimeError("Max iterations of N
+            # reached! …") when the cap hits — convert to the standard
+            # "say continue" notice instead of failing the whole run (tool
+            # side effects have already happened; retrying isn't safe).
+            if "max iterations" in str(e).lower():
+                hit_max_iterations = True
+                logger.info("llamaindex loop: max_iterations (%d) reached for chat %s",
+                            max_iters, chat_id)
+                break
+            raise
         if isinstance(ev, AgentStream):
             thinking = getattr(ev, "thinking_delta", None) or ""
             if thinking:
@@ -272,6 +343,8 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
             closer = _close_thinking_if_open(answer_buf, stream)
             if closer and stream:
                 yield ("text", closer)
+            if run_state is not None:
+                run_state["tools_executed"] = run_state.get("tools_executed", 0) + 1
             tool_started_at[ev.tool_id] = _time.monotonic()
             try:
                 args_preview = _json.dumps(ev.tool_kwargs, default=str)
@@ -339,6 +412,9 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         if resp is not None:
             answer = str(getattr(resp, "content", "") or resp).strip()
 
+    if hit_max_iterations:
+        answer = (answer or "").rstrip() + agent_shared.max_turns_notice(max_iters)
+
     answer = agent_shared.append_unreferenced_image_urls(answer, harvested_image_urls)
 
     if mcp_pool is not None:
@@ -347,15 +423,29 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         except Exception:
             pass
 
-    _trace_tok = tokens_from_string(_json.dumps(tool_trace)) if tool_trace else 0
+    # Transcript-aware estimate (question + system prompt + history + tool
+    # round-trip), floored by any real usage the final raw response carried
+    # (last call only → accuracy "medium"; nothing → "low").
+    est_input = agent_shared.estimate_input_tokens(
+        prompt_text, system_prompt=augmented or "",
+        history=history, tool_trace=tool_trace,
+    )
+    est_output = tokens_from_string(answer)
+    real = agent_shared.usage_from_raw_response(getattr(final_output, "raw", None))
+    if real is not None:
+        tokens = {
+            "input": max(est_input, real[0]),
+            "output": max(est_output, real[1]),
+            "accuracy": "medium",
+        }
+    else:
+        tokens = {"input": est_input, "output": est_output, "accuracy": "low"}
+
     yield ("result", {
         "answer": answer,
-        "tokens": {
-            "input": tokens_from_string(prompt_text) + _trace_tok,
-            "output": tokens_from_string(answer),
-        },
+        "tokens": tokens,
         "tool_trace": tool_trace or None,
-        "stop_reason": None,
+        "stop_reason": "max_turns" if hit_max_iterations else None,
     })
 
 
@@ -393,48 +483,47 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
     )
 
     streamed_any_text = False
-    try:
-        async for kind, payload in _drive(
+
+    def _factory(llm_override, run_state):
+        return _drive(
             project, db, agent_self,
             prompt_text=prompt_text, system_prompt=(chatModel.system or project.props.system or ""),
             stream=chatModel.stream, chat_id=chat_id, image_url=image_url,
-        ):
-            if kind == "text":
-                streamed_any_text = True
-                if chatModel.stream:
-                    yield "data: " + _json.dumps({"text": payload}) + "\n\n"
-            elif kind == "event":
-                if chatModel.stream:
-                    yield "data: " + _json.dumps(payload) + "\n\n"
-            elif kind == "result":
-                output["answer"] = payload["answer"]
-                output["tokens"] = payload["tokens"]
-                if payload.get("tool_trace"):
-                    output["tool_trace"] = payload["tool_trace"]
-    except HTTPException as e:
-        err = f"llamaindex loop config error: {e.detail}"
-        output["answer"] = err
-        output["status"] = "error"
-        if chatModel.stream:
-            yield "data: " + _json.dumps({"text": err}) + "\n\n"
-            yield "data: " + _json.dumps(output) + "\n"
-            yield "event: close\n\n"
-        else:
-            yield output
-        return
-    except Exception as e:
-        logger.exception("llamaindex loop failed for project %s", project.props.name)
-        err = f"llamaindex loop error: {e}"
-        output["answer"] = err
-        output["status"] = "error"
-        if chatModel.stream:
-            if not streamed_any_text:
-                yield "data: " + _json.dumps({"text": err}) + "\n\n"
-            yield "data: " + _json.dumps(output) + "\n"
-            yield "event: close\n\n"
-        else:
-            yield output
-        return
+            llm_override=llm_override, run_state=run_state,
+        )
+
+    async for kind, payload in agent_shared.drive_with_fallbacks(
+        project, _factory, loop_name="llamaindex", output=output,
+    ):
+        if kind == "text":
+            streamed_any_text = True
+            if chatModel.stream:
+                yield "data: " + _json.dumps({"text": payload}) + "\n\n"
+        elif kind == "event":
+            if chatModel.stream:
+                yield "data: " + _json.dumps(payload) + "\n\n"
+        elif kind == "result":
+            output["answer"] = payload["answer"]
+            output["tokens"] = payload["tokens"]
+            if payload.get("tool_trace"):
+                output["tool_trace"] = payload["tool_trace"]
+        elif kind == "error":
+            e = payload["exception"]
+            if isinstance(e, HTTPException):
+                err = f"llamaindex loop config error: {e.detail}"
+            else:
+                err = f"llamaindex loop error: {e}"
+            output["answer"] = err
+            output["status"] = "error"
+            output["error"] = err
+            if chatModel.stream:
+                if not streamed_any_text:
+                    yield "data: " + _json.dumps({"text": err}) + "\n\n"
+                yield "data: " + _json.dumps(output) + "\n"
+                yield "event: close\n\n"
+            else:
+                yield output
+            return
 
     agent_self.check_output_guard(project, user, db, output)
 
