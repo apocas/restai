@@ -645,6 +645,59 @@ def test_count_tokens_without_runtime_estimates_low():
     assert output["tokens"]["input"] > 0
 
 
+def test_absorb_side_usage_adds_without_turn_counters():
+    runtime = make_runtime(FakeProvider())
+    runtime._absorb_side_usage({"input": 55, "output": 9})
+    assert runtime.usage_input == 55
+    assert runtime.usage_output == 9
+    assert runtime.usage_turns == 0
+    assert runtime.llm_turns == 0
+    # Garbage input never raises.
+    runtime._absorb_side_usage({"input": "x"})
+    runtime._absorb_side_usage(None)
+    assert runtime.usage_input == 55
+
+
+def test_compression_summarizer_usage_reaches_sink():
+    from restai.agent2.compression import SUMMARY_MARKER, compress_session
+    from restai.agent2.types import AgentSession, user_text_message
+
+    class SummarizerProvider:
+        def __init__(self):
+            self.calls = 0
+
+        async def complete(self, *, system_prompt, messages, tools, config):
+            self.calls += 1
+            return Message(
+                role="assistant",
+                content=[TextBlock(text="condensed summary")],
+                usage={"input": 321, "output": 44},
+            )
+
+    # Sized so the recent suffix fits the keep budget (~150 tokens for a
+    # 400-token window) while the older prefix goes to the summarizer.
+    session = AgentSession()
+    for i in range(4):
+        session.messages.append(user_text_message(f"question {i} " + "word " * 100))
+        session.messages.append(
+            Message(role="assistant", content=[TextBlock(text="answer " + "word " * 100)])
+        )
+
+    provider = SummarizerProvider()
+    sink_calls = []
+    compressed = asyncio.run(compress_session(
+        session,
+        provider=provider,
+        config=ProviderConfig(model="fake", max_output_tokens=1024),
+        context_window=400,
+        usage_sink=sink_calls.append,
+    ))
+    assert compressed is True
+    assert provider.calls == 1
+    assert sink_calls == [{"input": 321, "output": 44}]
+    assert session.messages[0].content[0].text.startswith(SUMMARY_MARKER)
+
+
 # ─── project-layer fallback plumbing ────────────────────────────────────
 
 def test_resolve_fallback_chain_skips_unknown_and_broken():

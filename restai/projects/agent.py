@@ -275,6 +275,18 @@ class Agent(ProjectBase):
                     output["tool_trace"] = aggregated_tool_trace
                 return
 
+            # Provider died inside the step (retries + fallback chain
+            # exhausted) — every remaining step would fail identically, so
+            # stop burning steps and surface the error as the final answer.
+            if step_output.get("status") == "error":
+                output["status"] = "error"
+                output["error"] = step_output.get("error")
+                output["answer"] = step_text
+                output["reasoning"] = {"steps": aggregated_reasoning_steps}
+                if aggregated_tool_trace:
+                    output["tool_trace"] = aggregated_tool_trace
+                return
+
         # Final synthesis: index = len(plan) so UI renders as virtual extra
         # step at the bottom of the checklist.
         if stream:
@@ -750,6 +762,14 @@ class Agent(ProjectBase):
                 output["answer"] = (answer + appendix).strip()
 
         stop_reason = output.pop("_stop_reason", None)
+
+        # A provider-error final (retries + fallback chain exhausted) must be
+        # visible in logs/analytics as a failed turn — not a "success" whose
+        # answer happens to read "Provider error: …". log_inference picks up
+        # `status`/`error`; the analytics status_breakdown then tells the truth.
+        if stop_reason == "error":
+            output["status"] = "error"
+            output.setdefault("error", (output.get("answer") or "")[:2000])
 
         # Recover what the user saw streaming. Two cases:
         #  (a) Runtime exited without a `final` event (interrupted, EOS,

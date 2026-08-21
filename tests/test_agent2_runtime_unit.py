@@ -463,7 +463,7 @@ def test_streaming_react_mode_uses_non_streaming_turn():
 def test_compression_called_with_context_window(monkeypatch):
     calls = []
 
-    async def fake_compress(session, *, provider, config, context_window):
+    async def fake_compress(session, *, provider, config, context_window, **kw):
         calls.append(context_window)
 
     monkeypatch.setattr(agent_mod, "compress_session", fake_compress)

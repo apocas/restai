@@ -394,6 +394,8 @@ Tool execution hardening (also `Agent2Runtime`):
 
 **Real token usage**: providers attach `Message.usage` (`{"input","output"}`, normalized by `providers.normalize_usage`) from OpenAI `response.usage` (streaming via `stream_options include_usage`, with a one-shot retry without it for gateways that reject the param), Anthropic `usage`, and Bedrock converse `usage`. The runtime sums per-call usage across turns (`usage_input`/`usage_output`; `usage_complete` when every turn reported). `Agent._count_tokens` prefers complete real usage (accuracy "high" — per-call input sums match provider billing for multi-turn loops), floors the tiktoken estimate with partial usage ("medium"), else keeps the transcript-aware estimate ("low"). `Message.usage` is per-run transient — never serialized into persisted sessions.
 
+Failed runs are labeled: a provider-error final (`stop_reason == "error"`, i.e. retries + chain exhausted) sets `output["status"]="error"` + `output["error"]` in `_drive_runtime`, so the log row and the analytics status_breakdown record a failure instead of a "success" whose answer reads "Provider error: …"; planned mode aborts remaining steps on it. Compression-summarizer calls report their usage back through `compress_session(usage_sink=…)` → `runtime._absorb_side_usage` (added to run totals without touching turn counters, so `usage_complete` stays turn-based).
+
 Unit tests: `tests/test_agent2_resilience.py` (fake providers, no SDKs/network).
 
 ### Agent Tool-Call Trace

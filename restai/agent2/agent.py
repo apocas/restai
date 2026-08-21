@@ -355,6 +355,16 @@ class Agent2Runtime:
                     continue
                 raise
 
+    def _absorb_side_usage(self, usage: dict) -> None:
+        """Fold non-turn LLM spend (e.g. the compression summarizer) into the
+        run totals. Turn counters stay untouched so `usage_complete` still
+        reflects whether every *turn* reported usage."""
+        try:
+            self.usage_input += int(usage.get("input") or 0)
+            self.usage_output += int(usage.get("output") or 0)
+        except (TypeError, ValueError, AttributeError):
+            pass
+
     async def _maybe_compress_session(self, session: AgentSession) -> None:
         """Sliding-window + summary compression when over context window. No-op if window unknown."""
         cw = self._active_config.context_window
@@ -366,6 +376,7 @@ class Agent2Runtime:
                 provider=self._active_provider,
                 config=self._active_config,
                 context_window=cw,
+                usage_sink=self._absorb_side_usage,
             )
         except Exception as e:
             logger.warning(
