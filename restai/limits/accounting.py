@@ -34,7 +34,9 @@ def attach_cost(output: dict, project, db: DBWrapper) -> dict:
             return output
         input_cost_per_m = 0.0
         output_cost_per_m = 0.0
-        llm_name = getattr(project.props, "llm", None)
+        # `llm_used` marks a mid-run agent fallback — price at the model that
+        # actually answered (matches log_inference's attribution).
+        llm_name = output.get("llm_used") or getattr(project.props, "llm", None)
         if llm_name:
             llm_db = db.get_llm_by_name(llm_name)
             if llm_db is not None:

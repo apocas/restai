@@ -84,6 +84,11 @@ beforeEach(() => {
       });
     }
     if (path === "/projects/3/custom-tools") return Promise.resolve({ tools: CUSTOM_TOOLS });
+    if (path === "/llms") {
+      return Promise.resolve({
+        llms: [{ name: "gpt-main" }, { name: "claude-backup" }, { name: "local-llama" }],
+      });
+    }
     return Promise.resolve({});
   });
   api.patch.mockResolvedValue({ enabled: false });
@@ -157,6 +162,48 @@ describe("ProjectEditTools", () => {
     expect(props.setState).toHaveBeenCalledWith({
       ...props.state,
       options: { ...props.state.options, max_iterations: 25 },
+    });
+  });
+
+  it("fallback LLM picker lists platform LLMs minus the project's own and joins CSV", async () => {
+    const user = userEvent.setup();
+    const props = makeProps({
+      state: { type: "agent", team: { id: 7 }, llm: "gpt-main", options: { tools: "calculator" } },
+    });
+    render(<ProjectEditTools {...props} />);
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith("/llms", "tok"));
+
+    await user.click(screen.getByLabelText("Fallback LLMs"));
+    const listbox = await screen.findByRole("listbox");
+    const options = within(listbox).getAllByRole("option").map((o) => o.textContent);
+    expect(options).toContain("claude-backup");
+    expect(options).toContain("local-llama");
+    expect(options).not.toContain("gpt-main"); // the primary LLM is excluded
+
+    await user.click(screen.getByRole("option", { name: "claude-backup" }));
+    expect(props.setState).toHaveBeenCalledWith({
+      ...props.state,
+      options: { ...props.state.options, fallback_llm: "claude-backup" },
+    });
+  });
+
+  it("tool timeout edits write clamped ints into options", async () => {
+    const props = makeProps();
+    render(<ProjectEditTools {...props} />);
+    const field = screen.getByLabelText("Tool Timeout (seconds)");
+    expect(field).toHaveValue(300);
+
+    const { fireEvent } = require("@testing-library/react");
+    fireEvent.change(field, { target: { value: "120" } });
+    expect(props.setState).toHaveBeenCalledWith({
+      ...props.state,
+      options: { ...props.state.options, tool_timeout: 120 },
+    });
+
+    fireEvent.change(field, { target: { value: "-5" } });
+    expect(props.setState).toHaveBeenCalledWith({
+      ...props.state,
+      options: { ...props.state.options, tool_timeout: 0 },
     });
   });
 

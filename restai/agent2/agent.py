@@ -18,7 +18,12 @@ from .react_prompt import (
     build_react_system_prompt,
     parse_react_response,
 )
-from .tool_adapter import AdaptedTool
+from .resilience import backoff_delay, is_retryable_error
+from .tool_adapter import (
+    AdaptedTool,
+    coerce_and_validate_args,
+    describe_schema_for_error,
+)
 from .types import (
     AgentEvent,
     AgentSession,
@@ -52,6 +57,11 @@ class Agent2Runtime:
         system_prompt: Optional[str] = None,
         max_turns: int = 12,
         mode: Optional[AgentMode] = None,
+        llm_name: str = "",
+        fallbacks: Sequence[tuple[str, Provider, ProviderConfig]] = (),
+        tool_timeout: Optional[float] = 300.0,
+        retry_attempts: int = 2,
+        retry_base_delay: float = 1.0,
     ) -> None:
         self.provider = provider
         self.config = config
@@ -65,6 +75,41 @@ class Agent2Runtime:
             "function_calling" if (mode or "auto") == "auto" else (mode or "auto")
         )
         self._auto_fallback_allowed: bool = (mode or "auto") == "auto"
+        # Remembered so a provider-chain switch can give the NEW provider a
+        # fresh start (its own native→ReAct chance, original requested mode).
+        self._initial_mode: AgentMode = self.mode
+        self._initial_auto_allowed: bool = self._auto_fallback_allowed
+
+        # Provider chain: primary + fallback LLMs. Session messages are
+        # provider-neutral, so on a persistent primary failure the run
+        # continues on the next provider with full conversation context.
+        self._provider_chain: list[tuple[str, Provider, ProviderConfig]] = [
+            (llm_name or "", provider, config),
+            *[(n, p, c) for (n, p, c) in fallbacks],
+        ]
+        self._chain_idx = 0
+        # Audit of chain switches this run: [{"from", "to", "turn", "error"}].
+        self.fallback_trail: list[dict] = []
+
+        # Per-tool-call wall-clock cap (seconds); None/0 disables.
+        self.tool_timeout: Optional[float] = (
+            float(tool_timeout) if tool_timeout else None
+        )
+        # Same-provider retries per turn for transient errors (429/5xx/…).
+        self.retry_attempts = max(0, int(retry_attempts))
+        self.retry_base_delay = max(0.0, float(retry_base_delay))
+
+        # Real token usage accumulated across every LLM turn this run.
+        # usage_turns counts turns that reported usage; llm_turns counts all —
+        # equal means the totals are complete (accuracy "high").
+        self.usage_input = 0
+        self.usage_output = 0
+        self.usage_turns = 0
+        self.llm_turns = 0
+
+        # (tool, canonical-args) → call count, for the identical-call loop
+        # guard. Per-runtime, so planned multi-step runs share the counter.
+        self._call_counts: dict[tuple[str, str], int] = {}
 
     async def run_iter(
         self,
@@ -106,17 +151,25 @@ class Agent2Runtime:
                     assistant_message = await self._run_turn_with_fallback(session, turn)
             except Exception as e:
                 logger.exception("agent2 provider call failed on turn %d", turn)
+                error_text = f"Provider error: {e}"
+                if self.fallback_trail:
+                    tried = " → ".join(
+                        [self.fallback_trail[0]["from"] or "primary"]
+                        + [t["to"] or "fallback" for t in self.fallback_trail]
+                    )
+                    error_text += f" (fallback chain exhausted: {tried})"
                 yield AgentEvent(
                     type="final",
                     turn=turn,
                     data={
-                        "final_text": f"Provider error: {e}",
+                        "final_text": error_text,
                         "stop_reason": "error",
                     },
                 )
                 return
 
             session.messages.append(assistant_message)
+            self._accumulate_usage(assistant_message)
             text_now = assistant_message.text_content()
             if text_now:
                 last_assistant_text = text_now
@@ -161,58 +214,146 @@ class Agent2Runtime:
             },
         )
 
-    async def _run_turn_with_fallback(self, session: AgentSession, turn: int) -> Message:
-        """Run one turn; in auto mode, swap native→ReAct on first-turn failure."""
-        if self.mode == "react":
-            return await self._react_turn(session)
-        try:
-            return await self._native_turn(session)
-        except Exception as native_err:
-            if self._auto_fallback_allowed and turn == 1:
-                logger.info(
-                    "agent2: native function calling failed (%s); "
-                    "falling back to ReAct mode",
-                    native_err,
+    async def _retrying(self, thunk) -> Message:
+        """Run `thunk` with same-provider retries on transient errors."""
+        attempt = 0
+        while True:
+            try:
+                return await thunk()
+            except Exception as e:
+                if attempt >= self.retry_attempts or not is_retryable_error(e):
+                    raise
+                delay = backoff_delay(attempt, base=self.retry_base_delay)
+                attempt += 1
+                logger.warning(
+                    "agent2: transient provider error on '%s' (%s); "
+                    "retry %d/%d in %.1fs",
+                    self.active_llm_name or "primary",
+                    e, attempt, self.retry_attempts, delay,
                 )
-                self.mode = "react"
-                self._auto_fallback_allowed = False
-                return await self._react_turn(session)
-            raise
+                await asyncio.sleep(delay)
+
+    def _advance_provider_chain(self, err: Exception, turn: int) -> bool:
+        """Switch to the next fallback LLM; True if one was available.
+
+        The new provider gets a fresh start: the originally requested mode is
+        restored (a native→ReAct downgrade on the dead provider shouldn't
+        condemn a tool-calling-capable fallback to ReAct).
+        """
+        if self._chain_idx + 1 >= len(self._provider_chain):
+            return False
+        previous = self.active_llm_name
+        self._chain_idx += 1
+        self.mode = self._initial_mode
+        self._auto_fallback_allowed = self._initial_auto_allowed
+        self.fallback_trail.append({
+            "from": previous,
+            "to": self.active_llm_name,
+            "turn": turn,
+            "error": str(err)[:300],
+        })
+        logger.warning(
+            "agent2: switching to fallback LLM '%s' after '%s' failed: %s",
+            self.active_llm_name, previous, err,
+        )
+        return True
+
+    async def _run_turn_with_fallback(self, session: AgentSession, turn: int) -> Message:
+        """Run one turn with the full resilience ladder: transient retries on
+        the active provider → native→ReAct swap (auto mode, turn 1,
+        non-transient errors only) → next LLM in the fallback chain."""
+        while True:
+            try:
+                if self.mode == "react":
+                    return await self._retrying(lambda: self._react_turn(session))
+                try:
+                    return await self._retrying(lambda: self._native_turn(session))
+                except Exception as native_err:
+                    # ReAct downgrade only helps when the provider rejected
+                    # the native tools array; a provider that is down/rate-
+                    # limited fails ReAct identically — let the chain handle it.
+                    if (
+                        self._auto_fallback_allowed
+                        and turn == 1
+                        and not is_retryable_error(native_err)
+                    ):
+                        logger.info(
+                            "agent2: native function calling failed (%s); "
+                            "falling back to ReAct mode",
+                            native_err,
+                        )
+                        self.mode = "react"
+                        self._auto_fallback_allowed = False
+                        return await self._retrying(lambda: self._react_turn(session))
+                    raise
+            except Exception as provider_err:
+                if not self._advance_provider_chain(provider_err, turn):
+                    raise
 
     async def _stream_turn_with_fallback(
         self, session: AgentSession, turn: int
     ) -> AsyncIterator[Union[str, Message]]:
-        """Streaming variant; native→ReAct fallback only before any delta is emitted."""
-        emitted_any = False
-        try:
-            async for chunk in self._active_provider.stream_complete(
-                system_prompt=self.system_prompt,
-                messages=session.messages,
-                tools=self.tools,
-                config=self._active_config,
-            ):
-                if isinstance(chunk, str):
-                    emitted_any = True
-                yield chunk
-            return
-        except Exception as primary_err:
-            if emitted_any:
-                raise
-            # Native → ReAct (only on turn 1, only in auto mode).
-            # ReAct is non-streaming — we just yield its result as a single
-            # final Message (no text deltas).
-            if self._auto_fallback_allowed and turn == 1 and self.mode != "react":
-                logger.info(
-                    "agent2: streaming native call failed (%s); "
-                    "falling back to ReAct mode (non-streaming)",
-                    primary_err,
-                )
-                self.mode = "react"
-                self._auto_fallback_allowed = False
-                msg = await self._react_turn(session)
-                yield msg
+        """Streaming variant of the resilience ladder. Retries, the ReAct
+        swap, and chain switches are only possible before the first text
+        delta reaches the client — after that, restarting would duplicate
+        already-streamed output, so errors propagate."""
+        attempt = 0
+        while True:
+            emitted_any = False
+            try:
+                async for chunk in self._active_provider.stream_complete(
+                    system_prompt=self.system_prompt,
+                    messages=session.messages,
+                    tools=self.tools,
+                    config=self._active_config,
+                ):
+                    if isinstance(chunk, str):
+                        emitted_any = True
+                    yield chunk
                 return
-            raise
+            except Exception as primary_err:
+                if emitted_any:
+                    raise
+                if is_retryable_error(primary_err) and attempt < self.retry_attempts:
+                    delay = backoff_delay(attempt, base=self.retry_base_delay)
+                    attempt += 1
+                    logger.warning(
+                        "agent2: transient streaming error on '%s' (%s); "
+                        "retry %d/%d in %.1fs",
+                        self.active_llm_name or "primary",
+                        primary_err, attempt, self.retry_attempts, delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                # Native → ReAct (only on turn 1, only in auto mode, only for
+                # non-transient errors). ReAct is non-streaming — we just
+                # yield its result as a single final Message (no text deltas).
+                if (
+                    self._auto_fallback_allowed
+                    and turn == 1
+                    and self.mode != "react"
+                    and not is_retryable_error(primary_err)
+                ):
+                    logger.info(
+                        "agent2: streaming native call failed (%s); "
+                        "falling back to ReAct mode (non-streaming)",
+                        primary_err,
+                    )
+                    self.mode = "react"
+                    self._auto_fallback_allowed = False
+                    try:
+                        msg = await self._retrying(lambda: self._react_turn(session))
+                    except Exception as react_err:
+                        if self._advance_provider_chain(react_err, turn):
+                            attempt = 0
+                            continue
+                        raise
+                    yield msg
+                    return
+                if self._advance_provider_chain(primary_err, turn):
+                    attempt = 0
+                    continue
+                raise
 
     async def _maybe_compress_session(self, session: AgentSession) -> None:
         """Sliding-window + summary compression when over context window. No-op if window unknown."""
@@ -233,11 +374,39 @@ class Agent2Runtime:
 
     @property
     def _active_provider(self) -> Provider:
-        return self.provider
+        return self._provider_chain[self._chain_idx][1]
 
     @property
     def _active_config(self) -> ProviderConfig:
-        return self.config
+        return self._provider_chain[self._chain_idx][2]
+
+    @property
+    def active_llm_name(self) -> str:
+        """Display name of the LLM currently serving turns (empty if unset)."""
+        return self._provider_chain[self._chain_idx][0]
+
+    def _accumulate_usage(self, message: Message) -> None:
+        """Fold one assistant turn's real provider usage into the run totals."""
+        self.llm_turns += 1
+        usage = getattr(message, "usage", None)
+        if not isinstance(usage, dict):
+            return
+        try:
+            in_tokens = int(usage.get("input") or 0)
+            out_tokens = int(usage.get("output") or 0)
+        except (TypeError, ValueError):
+            return
+        if in_tokens <= 0 and out_tokens <= 0:
+            return
+        self.usage_input += in_tokens
+        self.usage_output += out_tokens
+        self.usage_turns += 1
+
+    @property
+    def usage_complete(self) -> bool:
+        """True when every LLM turn this run reported real usage (billing-
+        accurate totals; summing per-call input matches what providers bill)."""
+        return self.llm_turns > 0 and self.usage_turns == self.llm_turns
 
     async def _native_turn(self, session: AgentSession) -> Message:
         """Native function calling — provider sees the tools array."""
@@ -259,7 +428,7 @@ class Agent2Runtime:
             config=self._active_config,
         )
         parsed = parse_react_response(response_msg.text_content())
-        return self._build_react_message(parsed)
+        return self._build_react_message(parsed, usage=getattr(response_msg, "usage", None))
 
     @staticmethod
     def _react_messages(messages: Sequence[Message]) -> list[Message]:
@@ -299,7 +468,9 @@ class Agent2Runtime:
         return rewritten
 
     @staticmethod
-    def _build_react_message(parsed: ReactParseResult) -> Message:
+    def _build_react_message(
+        parsed: ReactParseResult, usage: Optional[dict] = None
+    ) -> Message:
         """Synthesize an assistant Message indistinguishable from a native turn's output."""
         if parsed.kind == "action" and parsed.action_name:
             blocks: list = []
@@ -312,15 +483,21 @@ class Agent2Runtime:
                     input=parsed.action_input or {},
                 )
             )
-            return Message(role="assistant", content=blocks)
+            return Message(role="assistant", content=blocks, usage=usage)
 
         if parsed.kind == "final":
             return Message(
-                role="assistant", content=[TextBlock(text=(parsed.final_text or "").strip())]
+                role="assistant",
+                content=[TextBlock(text=(parsed.final_text or "").strip())],
+                usage=usage,
             )
 
         # kind == "text" — model didn't follow the format; treat as final answer
-        return Message(role="assistant", content=[TextBlock(text=parsed.final_text or "")])
+        return Message(
+            role="assistant",
+            content=[TextBlock(text=parsed.final_text or "")],
+            usage=usage,
+        )
 
     def _reload_project_tools(self):
         """Reload project-created tools from DB and add new ones to the runtime."""
@@ -343,12 +520,37 @@ class Agent2Runtime:
         except Exception as e:
             logger.warning("Failed to reload project tools: %s", e)
 
+    def _loop_guard_note(self, name: str, args: dict) -> str:
+        """Count identical (tool, args) calls this run; from the 3rd repeat on,
+        return a nudge to append to the result. The call still executes —
+        stateful tools (terminal, browser) may legitimately repeat — but the
+        note breaks the classic stuck-model pattern of re-issuing the same
+        call for dozens of turns."""
+        try:
+            canonical = json.dumps(args, sort_keys=True, default=str)
+        except Exception:
+            canonical = str(args)
+        key = (name, canonical)
+        count = self._call_counts.get(key, 0) + 1
+        self._call_counts[key] = count
+        if count < 3:
+            return ""
+        return (
+            f"\n\n[loop guard: this exact tool call has now run {count} times "
+            "this request. If the result isn't changing, adjust the arguments "
+            "or approach — or produce your final answer with what you have.]"
+        )
+
     async def _execute_tool_call(self, tool_call: ToolUseBlock) -> ToolResultBlock:
         tool = self._tools_by_name.get(tool_call.name)
         if tool is None:
+            available = ", ".join(sorted(self._tools_by_name.keys())[:40])
             return ToolResultBlock(
                 tool_use_id=tool_call.id,
-                content=f"Error: No such tool available: {tool_call.name}",
+                content=(
+                    f"Error: No such tool available: {tool_call.name}. "
+                    f"Available tools: {available or '(none)'}"
+                ),
                 is_error=True,
             )
 
@@ -360,6 +562,24 @@ class Agent2Runtime:
                 is_error=True,
             )
 
+        # Validate + coerce against the tool's schema so a fixable slip
+        # ("5" for an integer) succeeds and a real mismatch comes back as a
+        # crisp, self-correctable message instead of a deep TypeError.
+        args, problems = coerce_and_validate_args(tool.input_schema, args)
+        if problems:
+            schema_hint = describe_schema_for_error(tool.input_schema)
+            content = (
+                f"Error: invalid arguments for tool '{tool_call.name}': "
+                + "; ".join(problems)
+            )
+            if schema_hint:
+                content += f". Expected parameters: {schema_hint}"
+            return ToolResultBlock(
+                tool_use_id=tool_call.id, content=content, is_error=True,
+            )
+
+        guard_note = self._loop_guard_note(tool_call.name, args)
+
         try:
             context = {
                 "chat_id": getattr(self, "_chat_id", None),
@@ -367,7 +587,28 @@ class Agent2Runtime:
                 "project_id": getattr(self, "_project_id", None),
                 "user": getattr(self, "_user", None),
             }
-            result_text = await tool.call(args, context=context)
+            call_coro = tool.call(args, context=context)
+            if self.tool_timeout:
+                result_text = await asyncio.wait_for(
+                    call_coro, timeout=self.tool_timeout
+                )
+            else:
+                result_text = await call_coro
+        except asyncio.TimeoutError:
+            logger.warning(
+                "agent2 tool '%s' timed out after %.0fs",
+                tool_call.name, self.tool_timeout or 0,
+            )
+            return ToolResultBlock(
+                tool_use_id=tool_call.id,
+                content=(
+                    f"ERROR: tool '{tool_call.name}' timed out after "
+                    f"{int(self.tool_timeout or 0)}s. The operation may still "
+                    "finish in the background. Try a smaller input, a quicker "
+                    "check, or a different approach."
+                ),
+                is_error=True,
+            )
         except Exception as e:
             logger.exception("agent2 tool '%s' raised", tool_call.name)
             return ToolResultBlock(
@@ -390,5 +631,8 @@ class Agent2Runtime:
         elif len(result_text) > 20_000:
             omitted = len(result_text) - 20_000
             result_text = result_text[:20_000] + f"\n\n[... truncated {omitted} characters ...]"
+
+        if guard_note:
+            result_text = (result_text or "") + guard_note
 
         return ToolResultBlock(tool_use_id=tool_call.id, content=result_text)
