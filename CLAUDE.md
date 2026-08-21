@@ -147,7 +147,7 @@ Two funnels write `OutputDatabase` rows + bump API-key quota + charge the team w
 - **Nested project inference** — `search_knowledge` tool (`log_inference(proj, user, result, db)` — the RAG result already carries `tokens`) and the KG-query endpoint (`routers/projects/kg.py`).
 - **System-LLM platform helpers** — memory-bank cron (`memory/bank/common.py`), Smart Search, system-prompt + Blockly generators call `accounting.log_platform_usage`, which writes an **attribution-only** row (`team_id`/`api_key_id`/`project_id` NULL → visible in `/statistics` but bills no team). `question` is `(platform:<feature>)`.
 - **`accounting.count_usage(response, prompt, answer)`** prefers real provider usage (`openai_compat.usage_from_response`) then tiktoken.
-Agent loops that estimate (agent2 restai / llamaindex / openai_agents) fold `tool_trace` (tool round-trip context) into the estimate so multi-step turns aren't undercounted. The agent2 restai loop's `_count_tokens` additionally folds the **system prompt** (incl. memory-bank injection) and the **full accumulated transcript** (`session.messages`, minus the final answer) into the input estimate — a long multi-turn agent chat on a no-usage provider (e.g. Ollama) otherwise reported only the latest question's tokens. All monotonic (`max` against the old question+trace estimate — only ever adds). **Still off the books by design**: evals (skip logging), image/audio cost (non-token). `check_budget` in `budget.py` is a dead shim (no callers).
+Agent loops that estimate (agent2 restai / llamaindex / openai_agents) fold `tool_trace` (tool round-trip context) into the estimate so multi-step turns aren't undercounted. **The agent2 restai loop now prefers real provider usage** (see "Agent Resilience" — accuracy "high" when every turn reported usage, partial usage floors the estimate at "medium"); its tiktoken fallback additionally folds the **system prompt** (incl. memory-bank injection) and the **full accumulated transcript** (`session.messages`, minus the final answer) into the input estimate — a long multi-turn agent chat on a no-usage provider (e.g. Ollama) otherwise reported only the latest question's tokens. All monotonic (`max` against the old question+trace estimate — only ever adds). **Still off the books by design**: evals (skip logging), image/audio cost (non-token). `check_budget` in `budget.py` is a dead shim (no callers).
 
 ### Per-Response Cost (`accounting.attach_cost`)
 
@@ -376,6 +376,27 @@ Per-fire history table (`routine_execution_log`, migration 045) alongside `Proje
 - **Manual fires**: also write a row with `manual=true`.
 - **History endpoint**: `GET /projects/{id}/routines/{routineID}/history?limit=50` (newest first).
 - **UI**: `ProjectEditRoutines.jsx` adds a History icon button → dialog with per-fire table.
+
+### Agent Resilience (agent2 `restai` loop)
+
+The default agent loop survives provider trouble instead of dying mid-run. Policy lives in `restai/agent2/resilience.py`; the ladder is applied per turn in `Agent2Runtime` (`restai/agent2/agent.py`):
+
+1. **Transient retries** — 429/5xx/timeout/connection errors (classified SDK-agnostically by status attrs, class names, and message shape; context-length/auth errors vetoed) retry on the same provider with capped exponential backoff + jitter (`retry_attempts=2`, `retry_base_delay=1.0` constructor knobs). Streaming retries only before the first delta reaches the client.
+2. **native→ReAct swap** — unchanged (auto mode, turn 1) but now only for NON-transient errors; a down provider fails ReAct identically, so transient failures go straight to step 3.
+3. **Fallback LLM chain** — `ProjectOptions.fallback_llm` (CSV of LLM names, resolved in `agent.py:_resolve_fallback_chain`, unknown/unsupported names skipped with a warning). Session messages are provider-neutral, so the run continues on the next provider with full conversation context; the requested mode is restored for the new provider. Switches are recorded in `runtime.fallback_trail`, surfaced live as an `{"llm_fallback": {from,to}}` SSE frame (unknown to old clients — ignored), appended to `tool_trace` as synthetic `llm_fallback` rows, and exposed on the response as `llm_used`/`llm_fallbacks` (only when a switch happened). `log_inference` attributes the row + cost to `output["llm_used"]` when present.
+
+Tool execution hardening (also `Agent2Runtime`):
+- **Sync tools run in worker threads** (`AdaptedTool.call` → `asyncio.to_thread`; sandbox tools thread `docker_manager.run_script`) — parallel tool batches actually parallelize and one slow tool no longer freezes every chat on the worker.
+- **Per-call timeout** — `ProjectOptions.tool_timeout` (default 300s, 0=off) via `asyncio.wait_for`; timeouts return an `ERROR: … timed out` tool result the model can react to.
+- **Arg validation + coercion** — `tool_adapter.coerce_and_validate_args` runs before execution: fixes "5"→5, "true"→True, JSON-string arrays/objects (big win for ReAct-mode small models); missing/uncoercible params return a crisp error with a compact schema description instead of a deep TypeError. Lenient by design (anyOf/$ref/unknown keys pass through).
+- **Loop guard** — the 3rd+ identical `(tool, args)` call in a run still executes (stateful tools may legitimately repeat) but gets a `[loop guard: …]` note appended nudging the model to change approach.
+- Unknown-tool errors list the available tool names.
+
+**Real token usage**: providers attach `Message.usage` (`{"input","output"}`, normalized by `providers.normalize_usage`) from OpenAI `response.usage` (streaming via `stream_options include_usage`, with a one-shot retry without it for gateways that reject the param), Anthropic `usage`, and Bedrock converse `usage`. The runtime sums per-call usage across turns (`usage_input`/`usage_output`; `usage_complete` when every turn reported). `Agent._count_tokens` prefers complete real usage (accuracy "high" — per-call input sums match provider billing for multi-turn loops), floors the tiktoken estimate with partial usage ("medium"), else keeps the transcript-aware estimate ("low"). `Message.usage` is per-run transient — never serialized into persisted sessions.
+
+Failed runs are labeled: a provider-error final (`stop_reason == "error"`, i.e. retries + chain exhausted) sets `output["status"]="error"` + `output["error"]` in `_drive_runtime`, so the log row and the analytics status_breakdown record a failure instead of a "success" whose answer reads "Provider error: …"; planned mode aborts remaining steps on it. Compression-summarizer calls report their usage back through `compress_session(usage_sink=…)` → `runtime._absorb_side_usage` (added to run totals without touching turn counters, so `usage_complete` stays turn-based).
+
+Unit tests: `tests/test_agent2_resilience.py` (fake providers, no SDKs/network).
 
 ### Agent Tool-Call Trace
 

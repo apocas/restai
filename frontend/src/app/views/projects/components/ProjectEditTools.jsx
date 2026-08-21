@@ -312,12 +312,17 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
   const { t } = useTranslation();
   const auth = useAuth();
   const [ragProjects, setRagProjects] = useState([]);
+  const [platformLlms, setPlatformLlms] = useState([]);
 
   // RAG projects the user can pick for the search_knowledge builtin.
   useEffect(() => {
     if (project?.type !== "agent" || !project?.id) return;
     api.get("/projects", auth.user.token)
       .then((d) => setRagProjects((d.projects || []).filter((p) => p.type === "rag" && p.name !== project.name)))
+      .catch(() => {});
+    // LLM names for the fallback-chain picker.
+    api.get("/llms", auth.user.token)
+      .then((d) => setPlatformLlms(Array.isArray(d) ? d : (d?.llms || [])))
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id]);
@@ -395,6 +400,50 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
             <MenuItem value="function_calling">Function Calling (native only)</MenuItem>
             <MenuItem value="react">ReAct (text-based prompting)</MenuItem>
           </TextField>
+        </Grid>
+        <Grid item sm={8} xs={12}>
+          <Autocomplete
+            multiple
+            options={platformLlms
+              .map((l) => l.name)
+              .filter((n) => n && n !== (state.llm || project.llm))}
+            getOptionLabel={(option) => option}
+            isOptionEqualToValue={(option, value) => option === value}
+            value={(state.options?.fallback_llm || "")
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)}
+            onChange={(event, newValue) => setState({
+              ...state,
+              options: { ...state.options, fallback_llm: newValue.join(",") || null }
+            })}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                label="Fallback LLMs"
+                variant="outlined"
+                helperText="Tried in order when the main LLM keeps failing mid-run (after automatic retries). The conversation continues on the fallback with full context, and the response records which model actually answered."
+              />
+            )}
+          />
+        </Grid>
+        <Grid item sm={4} xs={12}>
+          <TextField
+            fullWidth
+            type="number"
+            label="Tool Timeout (seconds)"
+            variant="outlined"
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ min: 0, max: 3600 }}
+            value={state.options?.tool_timeout ?? 300}
+            onChange={(e) => setState({
+              ...state,
+              options: { ...state.options, tool_timeout: Math.max(0, parseInt(e.target.value, 10) || 0) }
+            })}
+            helperText="Per-tool-call cap; 0 disables. A stuck tool (hung MCP server, runaway script) returns an error to the model instead of freezing the chat."
+          />
         </Grid>
         <Grid item xs={12}>
           <TextField

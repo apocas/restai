@@ -253,6 +253,7 @@ async def _call_summarizer(
     config,
     history_text: str,
     prior_summary: Optional[str],
+    usage_sink=None,
 ) -> Optional[str]:
     """Summarize via the agent's own provider (tools=[], capped max_output)."""
     from dataclasses import replace as dc_replace
@@ -273,6 +274,14 @@ async def _call_summarizer(
             tools=[],
             config=summary_config,
         )
+        # The summarizer burns real provider tokens on every compression —
+        # report them to the caller so run accounting stays complete.
+        usage = getattr(response, "usage", None)
+        if usage_sink is not None and isinstance(usage, dict):
+            try:
+                usage_sink(usage)
+            except Exception:
+                pass
         text = response.text_content().strip()
         return text or None
     except Exception as e:
@@ -331,6 +340,7 @@ async def compress_session(
     context_window: int,
     ratio: float = DEFAULT_CONTEXT_RATIO,
     keep_recent_turns: int = DEFAULT_KEEP_RECENT_TURNS,
+    usage_sink=None,
 ) -> bool:
     """Compress session.messages in-place when over (context_window * ratio)."""
     if not context_window or context_window <= 0:
@@ -375,7 +385,9 @@ async def compress_session(
     prior_summary, to_compress = _extract_prior_summary(to_compress)
 
     history_text = _render_messages_as_text(to_compress)
-    summary = await _call_summarizer(provider, config, history_text, prior_summary)
+    summary = await _call_summarizer(
+        provider, config, history_text, prior_summary, usage_sink=usage_sink,
+    )
 
     if not summary:
         logger.warning("agent2: summarizer returned no text; falling back to hard truncation")

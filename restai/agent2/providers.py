@@ -67,6 +67,30 @@ class Provider(ABC):
         yield msg
 
 
+def normalize_usage(input_tokens, output_tokens) -> Optional[dict]:
+    """Normalize provider-reported token counts to {"input", "output"}, or
+    None when the provider reported nothing usable. Attached to the returned
+    Message so the runtime can accumulate billing-accurate totals."""
+    try:
+        in_tok = int(input_tokens) if input_tokens is not None else 0
+        out_tok = int(output_tokens) if output_tokens is not None else 0
+    except (TypeError, ValueError):
+        return None
+    if in_tok <= 0 and out_tok <= 0:
+        return None
+    return {"input": in_tok, "output": out_tok}
+
+
+def _usage_from_openai_response(response) -> Optional[dict]:
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return None
+    return normalize_usage(
+        getattr(usage, "prompt_tokens", None),
+        getattr(usage, "completion_tokens", None),
+    )
+
+
 def _build_user_payload(
     text_parts: list[str], image_parts: list[dict], has_image: bool
 ) -> dict:
@@ -142,7 +166,11 @@ class OpenAIProvider(Provider):
                 )
             )
 
-        return Message(role="assistant", content=blocks)
+        return Message(
+            role="assistant",
+            content=blocks,
+            usage=_usage_from_openai_response(response),
+        )
 
     async def stream_complete(
         self,
@@ -172,9 +200,29 @@ class OpenAIProvider(Provider):
         # into the same text stream so the UI's existing splitThinking parser
         # renders the live "Thinking…" panel — no SSE protocol change.
         thinking_open = False
+        final_usage = None
 
-        stream = await self._client.chat.completions.create(**kwargs)
+        # Ask for usage on the final chunk. Some OpenAI-compatible gateways
+        # reject `stream_options` outright — retry once without it (harmless
+        # for genuine request errors: the second call fails identically and
+        # that error propagates). The retry only happens before any delta.
+        try:
+            stream = await self._client.chat.completions.create(
+                **kwargs, stream_options={"include_usage": True}
+            )
+        except Exception as opts_err:
+            logger.debug(
+                "stream_options rejected (%s); retrying without usage capture",
+                opts_err,
+            )
+            stream = await self._client.chat.completions.create(**kwargs)
+
         async for chunk in stream:
+            # Usage rides on the final chunk (empty choices) when
+            # include_usage is on; some gateways attach it to content chunks.
+            chunk_usage = getattr(chunk, "usage", None)
+            if chunk_usage is not None:
+                final_usage = chunk_usage
             if not chunk.choices:
                 continue
             delta = chunk.choices[0].delta
@@ -236,7 +284,13 @@ class OpenAIProvider(Provider):
                 )
             )
 
-        yield Message(role="assistant", content=blocks)
+        stream_usage = None
+        if final_usage is not None:
+            stream_usage = normalize_usage(
+                getattr(final_usage, "prompt_tokens", None),
+                getattr(final_usage, "completion_tokens", None),
+            )
+        yield Message(role="assistant", content=blocks, usage=stream_usage)
 
     @staticmethod
     def _serialize_tool(tool: AdaptedTool) -> dict:
@@ -493,7 +547,14 @@ class BedrockProvider(Provider):
                         input=dict(tu.get("input") or {}),
                     )
                 )
-        return Message(role="assistant", content=blocks)
+        usage_raw = (response or {}).get("usage") or {}
+        return Message(
+            role="assistant",
+            content=blocks,
+            usage=normalize_usage(
+                usage_raw.get("inputTokens"), usage_raw.get("outputTokens")
+            ),
+        )
 
 
 class AnthropicProvider(Provider):
@@ -547,7 +608,11 @@ class AnthropicProvider(Provider):
                     )
                 )
 
-        return Message(role="assistant", content=blocks)
+        return Message(
+            role="assistant",
+            content=blocks,
+            usage=self._usage_from_anthropic(response),
+        )
 
     async def stream_complete(
         self,
@@ -588,7 +653,21 @@ class AnthropicProvider(Provider):
                         input=dict(getattr(block, "input", {}) or {}),
                     )
                 )
-        yield Message(role="assistant", content=blocks)
+        yield Message(
+            role="assistant",
+            content=blocks,
+            usage=self._usage_from_anthropic(final),
+        )
+
+    @staticmethod
+    def _usage_from_anthropic(response) -> Optional[dict]:
+        usage = getattr(response, "usage", None)
+        if usage is None:
+            return None
+        return normalize_usage(
+            getattr(usage, "input_tokens", None),
+            getattr(usage, "output_tokens", None),
+        )
 
     @staticmethod
     def _serialize_tool(tool: AdaptedTool) -> dict:

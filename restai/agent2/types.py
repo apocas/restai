@@ -71,6 +71,11 @@ ContentBlock = Union[TextBlock, ToolUseBlock, ToolResultBlock, ImageBlock]
 class Message:
     role: MessageRole
     content: list
+    # Real token usage reported by the provider for the API call that
+    # produced this message ({"input": int, "output": int}), or None when the
+    # provider returned none. Per-run transient — deliberately NOT serialized
+    # by message_to_dict, so persisted sessions stay unchanged.
+    usage: Union[dict, None] = None
 
     def text_content(self) -> str:
         return "\n".join(

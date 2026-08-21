@@ -647,6 +647,78 @@ def test_planned_stream_aborts_plan_on_repetition():
     assert len(runtime.calls) == 1  # plan aborted after step 1
 
 
+def test_planned_stream_aborts_plan_on_provider_error():
+    agent = make_agent()
+    runtime = ScriptedRuntime([
+        [ev_final("Provider error: upstream down", stop_reason="error")],
+        # remaining batches must never be pulled
+        [ev_final("should not run")],
+        [ev_final("no synthesis either")],
+    ])
+    output = {}
+
+    async def go():
+        async for _ in agent._chat_planned_stream(
+            project=make_project(), original_prompt="req",
+            plan=["A", "B"], session=AgentSession(), runtime=runtime,
+            image_block=None, stream=False, output=output,
+        ):
+            pass
+
+    run(go())
+    assert output["status"] == "error"
+    assert "Provider error" in output["answer"]
+    assert len(runtime.calls) == 1  # plan aborted after step 1
+
+
+# ─── provider-error status + fallback surfacing ─────────────────────────
+
+def test_drive_runtime_marks_provider_error_status():
+    agent = make_agent()
+    runtime = ScriptedRuntime([
+        [ev_final("Provider error: boom", stop_reason="error")],
+    ])
+    events, output = run(drive(agent, runtime))
+    assert output["status"] == "error"
+    assert "Provider error" in output["error"]
+    assert "Provider error" in output["answer"]
+
+
+def test_drive_runtime_success_leaves_status_unset():
+    agent = make_agent()
+    runtime = ScriptedRuntime([[ev_final("all good")]])
+    _, output = run(drive(agent, runtime))
+    assert "status" not in output
+    assert "error" not in output
+
+
+def test_drive_runtime_surfaces_llm_fallback_switch():
+    agent = make_agent()
+
+    class SwitchingRuntime(ScriptedRuntime):
+        async def run_iter(self, prompt, *, session=None, image=None, stream=False):
+            # Simulate the chain switching before the (successful) final turn.
+            self.fallback_trail = [
+                {"from": "main", "to": "backup", "turn": 1, "error": "429 rate limit"}
+            ]
+            async for ev in super().run_iter(
+                prompt, session=session, image=image, stream=stream
+            ):
+                yield ev
+
+    runtime = SwitchingRuntime([[ev_final("answered by backup")]])
+    events, output = run(drive(agent, runtime))
+
+    frames = [payload for kind, payload in events if kind == "event"]
+    assert {"llm_fallback": {"from": "main", "to": "backup"}} in frames
+
+    trace = output.get("tool_trace") or []
+    fb_rows = [r for r in trace if r["tool"] == "llm_fallback"]
+    assert len(fb_rows) == 1
+    assert "backup" in fb_rows[0]["args"]
+    assert "429 rate limit" in (fb_rows[0]["error"] or "")
+
+
 # ─── chat() full flow ───────────────────────────────────────────────────
 
 @pytest.fixture

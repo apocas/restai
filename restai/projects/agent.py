@@ -85,7 +85,12 @@ def _make_project_tool_adapted(tool_row, brain) -> AdaptedTool:
         call_kwargs = {k: v for k, v in kwargs.items() if not k.startswith("_")}
         args_json = _json.dumps(call_kwargs)
         script = f"import json, sys\nargs = json.loads(sys.stdin.readline() or '{{}}')\n{tool_code}"
-        return _brain.docker_manager.run_script(_chat_id or "ephemeral", script, stdin_data=args_json)
+        # run_script blocks on docker exec — thread it so a long-running
+        # sandbox script doesn't stall every other chat on this worker.
+        return await asyncio.to_thread(
+            _brain.docker_manager.run_script,
+            _chat_id or "ephemeral", script, stdin_data=args_json,
+        )
 
     return AdaptedTool(
         name=tool_name,
@@ -270,6 +275,18 @@ class Agent(ProjectBase):
                     output["tool_trace"] = aggregated_tool_trace
                 return
 
+            # Provider died inside the step (retries + fallback chain
+            # exhausted) — every remaining step would fail identically, so
+            # stop burning steps and surface the error as the final answer.
+            if step_output.get("status") == "error":
+                output["status"] = "error"
+                output["error"] = step_output.get("error")
+                output["answer"] = step_text
+                output["reasoning"] = {"steps": aggregated_reasoning_steps}
+                if aggregated_tool_trace:
+                    output["tool_trace"] = aggregated_tool_trace
+                return
+
         # Final synthesis: index = len(plan) so UI renders as virtual extra
         # step at the bottom of the checklist.
         if stream:
@@ -325,6 +342,37 @@ class Agent(ProjectBase):
         if merged_trace:
             output["tool_trace"] = merged_trace
 
+    @staticmethod
+    def _resolve_fallback_chain(project: Project, db: DBWrapper) -> list:
+        """Resolve `options.fallback_llm` (CSV of LLM names) into
+        [(name, provider, config)] specs. Unknown or agent2-unsupported
+        entries are skipped with a warning — a typo in the fallback list
+        must never break the primary path."""
+        raw = getattr(project.props.options, "fallback_llm", None) or ""
+        chain: list = []
+        seen: set[str] = {project.props.llm or ""}
+        for name in (n.strip() for n in raw.split(",")):
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            row = db.get_llm_by_name(name)
+            if row is None:
+                logging.warning(
+                    "project %s: fallback LLM '%s' not found; skipping",
+                    project.props.id, name,
+                )
+                continue
+            try:
+                fb_provider, fb_config = build_provider_for_llm(row)
+            except Exception as e:
+                logging.warning(
+                    "project %s: fallback LLM '%s' unusable (%s); skipping",
+                    project.props.id, name, e,
+                )
+                continue
+            chain.append((name, fb_provider, fb_config))
+        return chain
+
     def _build_runtime(
         self,
         project: Project,
@@ -363,6 +411,9 @@ class Agent(ProjectBase):
             system_prompt=system_prompt or "",
             max_turns=project.props.options.max_iterations,
             mode=project.props.options.agent_mode or "auto",
+            llm_name=project.props.llm or "",
+            fallbacks=self._resolve_fallback_chain(project, db),
+            tool_timeout=getattr(project.props.options, "tool_timeout", 300),
         )
 
     @staticmethod
@@ -380,17 +431,35 @@ class Agent(ProjectBase):
         })
 
     @staticmethod
-    def _count_tokens(output: dict, system_prompt: str = "", session=None) -> None:
-        """tiktoken-based token estimate for providers that return no real usage.
+    def _count_tokens(output: dict, system_prompt: str = "", session=None, runtime=None) -> None:
+        """Token accounting for the finished run.
 
-        The prompt actually sent every turn is system_prompt + the full
-        accumulated transcript + tool round-trip context — not just the latest
-        question. Counting only the question undercounts a long multi-turn agent
-        chat by the entire history. So fold in the system prompt (incl. any
-        memory-bank injection) and every prior message, plus the tool_trace
-        (tool call args / results the model consumed). Monotonic: `max` against
-        the old question+trace estimate guarantees we never report *less* than
-        before, even when `session` is missing or empty. Still 'low' accuracy."""
+        Preferred source: real per-call usage the providers reported, summed
+        across every LLM turn by the runtime (`usage_input`/`usage_output`).
+        Summing per-call input matches exactly what providers bill for a
+        multi-turn tool loop, so when every turn reported usage the totals are
+        accuracy 'high'.
+
+        Fallback: tiktoken estimate. The prompt actually sent every turn is
+        system_prompt + the full accumulated transcript + tool round-trip
+        context — not just the latest question. Counting only the question
+        undercounts a long multi-turn agent chat by the entire history. So
+        fold in the system prompt (incl. any memory-bank injection) and every
+        prior message, plus the tool_trace (tool call args / results the
+        model consumed). Monotonic: `max` against the old question+trace
+        estimate guarantees we never report *less* than before, even when
+        `session` is missing or empty. When usage was reported for only SOME
+        turns (mixed providers, mid-run fallback), the estimate is floored by
+        the real partial totals and marked 'medium'."""
+        usage_in = int(getattr(runtime, "usage_input", 0) or 0)
+        usage_out = int(getattr(runtime, "usage_output", 0) or 0)
+        if runtime is not None and getattr(runtime, "usage_complete", False):
+            output["tokens"] = {
+                "input": usage_in,
+                "output": usage_out,
+                "accuracy": "high",
+            }
+            return
         try:
             import json as _json
             trace = output.get("tool_trace") or []
@@ -409,12 +478,28 @@ class Agent(ProjectBase):
                 if txt and txt.strip() != answer:
                     full += tokens_from_string(txt)
             output["tokens"] = {
-                "input": max(base, full),
-                "output": tokens_from_string(answer),
-                "accuracy": "low",
+                "input": max(base, full, usage_in),
+                "output": max(tokens_from_string(answer), usage_out),
+                "accuracy": "medium" if (usage_in or usage_out) else "low",
             }
         except Exception:
-            output["tokens"] = {"input": 0, "output": 0, "accuracy": "low"}
+            output["tokens"] = {
+                "input": usage_in,
+                "output": usage_out,
+                "accuracy": "low",
+            }
+
+    @staticmethod
+    def _record_fallbacks(output: dict, runtime, project: Project) -> None:
+        """Expose mid-run LLM fallback switches on the response. Only set when
+        a switch actually happened, so the default response shape is unchanged.
+        `llm_used` feeds log_inference so the log row + cost attribute to the
+        model that actually answered."""
+        trail = getattr(runtime, "fallback_trail", None) or []
+        if not trail:
+            return
+        output["llm_used"] = getattr(runtime, "active_llm_name", "") or project.props.llm
+        output["llm_fallbacks"] = trail
 
     def _finalize_reasoning(self, output: dict, reasoning_buf: list, steps: list) -> None:
         """Build reasoning dict; post_processing_reasoning strips <think> tags from answer."""
@@ -467,12 +552,36 @@ class Agent(ProjectBase):
         # blocks so persisted messages keep the thoughts the user watched.
         streamed_text_buf: list[str] = []
 
+        # LLM fallback switches happen between provider calls inside run_iter;
+        # watch the trail grow so each switch is surfaced live (SSE frame,
+        # ignored by clients that don't know it) and lands in the persisted
+        # tool_trace timeline.
+        fallback_seen = len(getattr(runtime, "fallback_trail", []) or [])
+
         async for event in runtime.run_iter(
             prompt,
             session=session,
             image=image_block,
             stream=stream,
         ):
+            trail = getattr(runtime, "fallback_trail", []) or []
+            while fallback_seen < len(trail):
+                switch = trail[fallback_seen]
+                fallback_seen += 1
+                tool_trace.append({
+                    "tool": "llm_fallback",
+                    "args": json.dumps({
+                        "from": switch.get("from"), "to": switch.get("to"),
+                        "turn": switch.get("turn"),
+                    }),
+                    "latency_ms": None,
+                    "status": "ok",
+                    "error": (switch.get("error") or "")[:500] or None,
+                })
+                yield ("event", {"llm_fallback": {
+                    "from": switch.get("from"), "to": switch.get("to"),
+                }})
+
             if event.type == "text_delta":
                 delta = event.data.get("text", "")
                 if delta:
@@ -653,6 +762,14 @@ class Agent(ProjectBase):
                 output["answer"] = (answer + appendix).strip()
 
         stop_reason = output.pop("_stop_reason", None)
+
+        # A provider-error final (retries + fallback chain exhausted) must be
+        # visible in logs/analytics as a failed turn — not a "success" whose
+        # answer happens to read "Provider error: …". log_inference picks up
+        # `status`/`error`; the analytics status_breakdown then tells the truth.
+        if stop_reason == "error":
+            output["status"] = "error"
+            output.setdefault("error", (output.get("answer") or "")[:2000])
 
         # Recover what the user saw streaming. Two cases:
         #  (a) Runtime exited without a `final` event (interrupted, EOS,
@@ -874,7 +991,8 @@ class Agent(ProjectBase):
 
                     await save_session(self.brain, sandbox_id, session)
                     saved_session = True
-                    self._count_tokens(output, getattr(runtime, "system_prompt", ""), session)
+                    self._count_tokens(output, getattr(runtime, "system_prompt", ""), session, runtime)
+                    self._record_fallbacks(output, runtime, project)
                     self.check_output_guard(project, user, db, output)
 
                     if chatModel.stream:
@@ -889,7 +1007,8 @@ class Agent(ProjectBase):
                     wrapped = _wrap_image_error(e, bool(chatModel.image))
                     err_msg = project.props.censorship or f"Agent failed: {wrapped}"
                     output["answer"] = err_msg
-                    self._count_tokens(output, getattr(runtime, "system_prompt", ""), session)
+                    self._count_tokens(output, getattr(runtime, "system_prompt", ""), session, runtime)
+                    self._record_fallbacks(output, runtime, project)
                     if chatModel.stream:
                         yield "data: " + json.dumps({"text": err_msg}) + "\n\n"
                         yield "data: " + json.dumps(output) + "\n"

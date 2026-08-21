@@ -733,6 +733,17 @@ class ProjectOptions(BaseModel):
         default=None,
         description="Agent loop implementation (agent projects only): 'restai' (default, our agent2 runtime — works with any platform LLM); 'claude' (Claude Agent SDK — requires an Anthropic-class LLM, talks directly to Anthropic); 'llamaindex' (upstream llama-index AgentWorkflow — FunctionAgent / ReActAgent over the project's llama-index LLM, works with any platform LLM); 'smolagents' (HuggingFace smolagents ToolCallingAgent — uses OpenAI-compatible endpoints natively for OpenAI / Ollama / vLLM / Grok / Azure; LiteLLM fallback only for Anthropic / Gemini / Bedrock); 'openai_agents' (OpenAI Agents SDK — requires an OpenAI-class LLM, talks directly to OpenAI). More options will be added over time."
     )
+    fallback_llm: Union[str, None] = Field(
+        default=None,
+        max_length=500,
+        description="Agent projects (restai loop) only. Comma-separated names of fallback LLMs. When the primary LLM fails a turn even after transient-error retries, the run continues on the next LLM in this chain with the full conversation context intact — the response records which model actually answered (`llm_used`). Unknown or unsupported names are skipped with a warning."
+    )
+    tool_timeout: int = Field(
+        default=300,
+        ge=0,
+        le=3600,
+        description="Agent projects (restai loop) only. Per-tool-call timeout in seconds; 0 disables. A tool call that exceeds it returns an error result to the model (which can then adapt) instead of hanging the conversation — protects against stuck MCP servers, network black holes, and runaway sandbox scripts."
+    )
     memory_bank_enabled: bool = Field(
         default=False,
         description="Agent projects only. When enabled, all conversations in this project contribute to a shared 'memory bank' that is injected into the system prompt of every chat. Compressed dynamically (per-conversation → per-day → per-week → per-month) to fit within memory_bank_max_tokens. Disabled by default; surfaces a privacy disclaimer in the UI because every project member sees summaries derived from every other member's conversations."

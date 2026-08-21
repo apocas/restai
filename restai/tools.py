@@ -321,8 +321,11 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
     tokens = output.get("tokens") or {"input": 0, "output": 0}
     in_tokens = int(tokens.get("input", 0) or 0)
     out_tokens = int(tokens.get("output", 0) or 0)
-    if project.props.llm:
-        llm_db = db.get_llm_by_name(project.props.llm)
+    # `llm_used` is set by the agent when a mid-run fallback switched models —
+    # attribute the row (and its cost math) to the LLM that actually answered.
+    llm_name = output.get("llm_used") or project.props.llm
+    if llm_name:
+        llm_db = db.get_llm_by_name(llm_name)
         if llm_db is not None:
             llm = LLMModel.model_validate(llm_db)
             input_cost = (in_tokens * llm.input_cost) / 1000000
@@ -372,7 +375,7 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
         user_id=user.id,
         team_id=project.props.team.id if project.props.team else None,
         api_key_id=getattr(user, "api_key_id", None),
-        llm=project.props.llm,
+        llm=llm_name,
         question=log_question,
         answer=log_answer,
         date=datetime.now(timezone.utc),
