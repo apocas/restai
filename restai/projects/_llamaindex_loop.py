@@ -302,9 +302,24 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         handler = agent.run(user_msg=prompt_text, chat_history=history or None,
                             max_iterations=max_iters)
 
+    max_exec = agent_shared.max_execution_seconds(project)
+    # drive_with_fallbacks hands every attempt the SAME request-wide deadline
+    # so a fallback retry can't reset the wall-clock budget.
+    deadline = run_state.get("deadline") if run_state else None
+    if deadline is None and max_exec:
+        deadline = _time.monotonic() + max_exec
+    hit_max_time = False
+
     hit_max_iterations = False
     events_iter = handler.stream_events().__aiter__()
     while True:
+        # Wall-clock cap: stop at the event boundary before waiting on the
+        # next LLM turn; everything already produced is preserved.
+        if deadline is not None and _time.monotonic() >= deadline:
+            hit_max_time = True
+            logger.info("llamaindex loop: max_execution_time (%ds) reached for chat %s",
+                        int(max_exec), chat_id)
+            break
         try:
             ev = await events_iter.__anext__()
         except StopAsyncIteration:
@@ -414,6 +429,8 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
 
     if hit_max_iterations:
         answer = (answer or "").rstrip() + agent_shared.max_turns_notice(max_iters)
+    if hit_max_time:
+        answer = (answer or "").rstrip() + agent_shared.max_time_notice(max_exec)
 
     answer = agent_shared.append_unreferenced_image_urls(answer, harvested_image_urls)
 
@@ -445,7 +462,10 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         "answer": answer,
         "tokens": tokens,
         "tool_trace": tool_trace or None,
-        "stop_reason": "max_turns" if hit_max_iterations else None,
+        "stop_reason": (
+            "max_time" if hit_max_time
+            else ("max_turns" if hit_max_iterations else None)
+        ),
     })
 
 

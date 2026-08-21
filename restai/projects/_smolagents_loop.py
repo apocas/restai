@@ -430,7 +430,22 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         except StopIteration:
             return _SENTINEL
 
+    max_exec = agent_shared.max_execution_seconds(project)
+    # drive_with_fallbacks hands every attempt the SAME request-wide deadline
+    # so a fallback retry can't reset the wall-clock budget.
+    deadline = run_state.get("deadline") if run_state else None
+    if deadline is None and max_exec:
+        deadline = _time.monotonic() + max_exec
+    hit_max_time = False
+
     while True:
+        # Wall-clock cap: stop before pulling the next step. The suspended
+        # sync generator is simply abandoned — no further LLM calls happen.
+        if deadline is not None and _time.monotonic() >= deadline:
+            hit_max_time = True
+            logger.info("smolagents loop: max_execution_time (%ds) reached for chat %s",
+                        int(max_exec), chat_id)
+            break
         ev = await loop.run_in_executor(None, _next)
         if ev is _SENTINEL:
             break
@@ -548,8 +563,12 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
     else:
         answer = reasoning_block
 
-    if hit_max_steps and not (final_answer or "").strip().endswith(agent_shared.REPETITION_NOTICE.strip()):
+    if (hit_max_steps and not hit_max_time
+            and not (final_answer or "").strip().endswith(agent_shared.REPETITION_NOTICE.strip())):
         answer = (answer or "").rstrip() + agent_shared.max_turns_notice(max_steps)
+
+    if hit_max_time:
+        answer = (answer or "").rstrip() + agent_shared.max_time_notice(max_exec)
 
     answer = agent_shared.append_unreferenced_image_urls(answer, harvested_image_urls)
 
@@ -577,7 +596,10 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         "answer": answer,
         "tokens": tokens,
         "tool_trace": tool_trace or None,
-        "stop_reason": "max_turns" if hit_max_steps else None,
+        "stop_reason": (
+            "max_time" if hit_max_time
+            else ("max_turns" if hit_max_steps else None)
+        ),
     })
 
 

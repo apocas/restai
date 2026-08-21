@@ -89,7 +89,8 @@ def make_tool(name="echo", fn=None, is_async=False, schema=None):
 
 
 def make_runtime(provider, tools=(), mode=None, max_turns=5, fallbacks=(),
-                 tool_timeout=None, retry_attempts=0, llm_name="primary"):
+                 tool_timeout=None, retry_attempts=0, llm_name="primary",
+                 max_execution_time=None):
     return Agent2Runtime(
         provider=provider,
         config=ProviderConfig(model="fake"),
@@ -102,6 +103,7 @@ def make_runtime(provider, tools=(), mode=None, max_turns=5, fallbacks=(),
         tool_timeout=tool_timeout,
         retry_attempts=retry_attempts,
         retry_base_delay=0.001,
+        max_execution_time=max_execution_time,
     )
 
 
@@ -408,6 +410,37 @@ def test_sync_tool_timeout_applies():
     block = events[1].message.content[0]
     assert block.is_error is True
     assert "timed out" in block.content
+
+
+# ─── wall-clock execution cap ───────────────────────────────────────────
+
+def test_max_execution_time_stops_at_turn_boundary():
+    async def slow_tool(**kw):
+        await asyncio.sleep(0.1)
+        return "done"
+
+    provider = FakeProvider(turns=[
+        tool_msg(("t1", "slow", {})),
+        text_msg("should never be asked"),
+    ])
+    runtime = make_runtime(
+        provider, tools=[make_tool("slow", slow_tool, is_async=True)],
+        max_execution_time=0.05,
+    )
+    events = run(collect(runtime, "go"))
+    assert events[-1].type == "final"
+    assert events[-1].data["stop_reason"] == "max_time"
+    # Turn 1 ran (tool executed); turn 2 was never started.
+    assert len(provider.complete_calls) == 1
+    kinds = [e.type for e in events]
+    assert "tool_result" in kinds
+
+
+def test_max_execution_time_unset_never_trips():
+    provider = FakeProvider(turns=[text_msg("fine")])
+    runtime = make_runtime(provider)
+    events = run(collect(runtime, "go"))
+    assert events[-1].data["stop_reason"] == "completed"
 
 
 # ─── loop guard ─────────────────────────────────────────────────────────

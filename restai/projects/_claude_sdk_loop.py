@@ -208,9 +208,24 @@ async def _drive(project, db, brain, user, *, prompt_text: str, chat_id: str,
     else:
         query_payload = prompt_text
 
+    max_exec = agent_shared.max_execution_seconds(project)
+    # drive_with_fallbacks hands every attempt the SAME request-wide deadline
+    # so a fallback retry can't reset the wall-clock budget.
+    deadline = run_state.get("deadline") if run_state else None
+    if deadline is None and max_exec:
+        deadline = _time.monotonic() + max_exec
+    hit_max_time = False
+
     async with ClaudeSDKClient(options=options) as client:
         await client.query(query_payload)
         async for message in client.receive_response():
+            # Wall-clock cap: stop at the message boundary; the context
+            # manager exit disconnects the SDK session cleanly.
+            if deadline is not None and _time.monotonic() >= deadline:
+                hit_max_time = True
+                logger.info("claude loop: max_execution_time (%ds) reached for chat %s",
+                            int(max_exec), chat_id)
+                break
             if isinstance(message, AssistantMessage):
                 for block in message.content or []:
                     if isinstance(block, TextBlock):
@@ -303,6 +318,10 @@ async def _drive(project, db, brain, user, *, prompt_text: str, chat_id: str,
     if result_meta["stop_reason"] == "error_max_turns":
         max_iters = getattr(project.props.options, "max_iterations", None)
         final_answer_text = (final_answer_text or "").rstrip() + agent_shared.max_turns_notice(max_iters)
+
+    if hit_max_time:
+        result_meta["stop_reason"] = "max_time"
+        final_answer_text = (final_answer_text or "").rstrip() + agent_shared.max_time_notice(max_exec)
 
     final_answer_text = agent_shared.append_unreferenced_image_urls(final_answer_text, harvested_image_urls)
 

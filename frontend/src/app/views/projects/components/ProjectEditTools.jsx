@@ -401,7 +401,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
             <MenuItem value="react">ReAct (text-based prompting)</MenuItem>
           </TextField>
         </Grid>
-        <Grid item sm={8} xs={12}>
+        <Grid item sm={6} xs={12}>
           <Autocomplete
             multiple
             options={platformLlms
@@ -429,7 +429,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
             )}
           />
         </Grid>
-        <Grid item sm={4} xs={12}>
+        <Grid item sm={3} xs={12}>
           <TextField
             fullWidth
             type="number"
@@ -443,6 +443,22 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
               options: { ...state.options, tool_timeout: Math.max(0, parseInt(e.target.value, 10) || 0) }
             })}
             helperText="Per-tool-call cap; 0 disables. A stuck tool (hung MCP server, runaway script) returns an error to the model instead of freezing the chat."
+          />
+        </Grid>
+        <Grid item sm={3} xs={12}>
+          <TextField
+            fullWidth
+            type="number"
+            label="Max Execution Time (seconds)"
+            variant="outlined"
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ min: 0, max: 7200 }}
+            value={state.options?.max_execution_time ?? 0}
+            onChange={(e) => setState({
+              ...state,
+              options: { ...state.options, max_execution_time: Math.max(0, parseInt(e.target.value, 10) || 0) }
+            })}
+            helperText="Wall-clock cap for one whole agent run; 0 = unlimited. The run wraps up with partial results and a 'reply continue' notice instead of running forever."
           />
         </Grid>
         <Grid item xs={12}>

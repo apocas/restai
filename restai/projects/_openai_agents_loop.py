@@ -369,7 +369,26 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
 
     result = Runner.run_streamed(agent, input=input_payload, max_turns=max_turns, run_config=run_config)
 
+    max_exec = agent_shared.max_execution_seconds(project)
+    # drive_with_fallbacks hands every attempt the SAME request-wide deadline
+    # so a fallback retry can't reset the wall-clock budget.
+    deadline = run_state.get("deadline") if run_state else None
+    if deadline is None and max_exec:
+        deadline = _time.monotonic() + max_exec
+    hit_max_time = False
+
     async for ev in result.stream_events():
+        # Wall-clock cap: stop at the event boundary and cancel the SDK run
+        # so it doesn't keep calling the model in the background.
+        if deadline is not None and _time.monotonic() >= deadline:
+            hit_max_time = True
+            logger.info("openai_agents loop: max_execution_time (%ds) reached for chat %s",
+                        int(max_exec), chat_id)
+            try:
+                result.cancel()
+            except Exception:
+                pass
+            break
         if isinstance(ev, RawResponsesStreamEvent):
             data = ev.data
             if isinstance(data, ResponseTextDeltaEvent):
@@ -441,8 +460,11 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
     # max-turns notice: openai_agents raises MaxTurnsExceeded inside
     # the stream; if we didn't get a final MessageOutputItem AND the
     # last RunItem was a tool call, assume we hit the cap.
-    if not fallback_text_buf and tool_trace:
+    if not fallback_text_buf and tool_trace and not hit_max_time:
         answer = (answer or "").rstrip() + agent_shared.max_turns_notice(max_turns)
+
+    if hit_max_time:
+        answer = (answer or "").rstrip() + agent_shared.max_time_notice(max_exec)
 
     answer = agent_shared.append_unreferenced_image_urls(answer, harvested_image_urls)
 
@@ -480,7 +502,7 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         "answer": answer,
         "tokens": tokens,
         "tool_trace": tool_trace or None,
-        "stop_reason": None,
+        "stop_reason": "max_time" if hit_max_time else None,
     })
 
 

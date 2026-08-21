@@ -403,6 +403,38 @@ class ToolRunPolicy:
         return self._finalize(name, args, result), False
 
 
+def max_execution_seconds(project) -> float | None:
+    """The project's per-run wall-clock cap (``options.max_execution_time``),
+    or None when unlimited/unset."""
+    try:
+        value = float(getattr(project.props.options, "max_execution_time", 0) or 0)
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
+
+
+def execution_deadline(project) -> float | None:
+    """Monotonic deadline for this run, or None when unlimited. Loops check
+    it at safe points (turn/event boundaries) — never mid-stream — so the
+    run wraps up with partial results instead of being killed."""
+    cap = max_execution_seconds(project)
+    if cap is None:
+        return None
+    import time as _time
+    return _time.monotonic() + cap
+
+
+def max_time_notice(seconds: float | int | None) -> str:
+    """Standard "hit the wall-clock cap — say 'continue'" message; mirrors
+    `max_turns_notice` so every loop emits the same UX."""
+    cap = int(seconds) if seconds else "max"
+    return (
+        f"\n\n_⚠ Reached the {cap}s execution-time cap before finishing. "
+        f"Reply **\"continue\"** (or narrow the request) and I'll keep "
+        f"working from here._"
+    )
+
+
 def fallback_llm_names(project) -> list[str]:
     """Ordered fallback LLM names from ``options.fallback_llm`` — deduped,
     minus the project's primary LLM. Loop-incompatible entries are not
@@ -446,8 +478,13 @@ async def drive_with_fallbacks(project, drive_factory, *, loop_name: str, output
 
     attempts: list = [None] + fallback_llm_names(project)
     switch_rows: list[dict] = []
+    # One wall-clock budget for the WHOLE request: without this, every
+    # fallback attempt would recompute its own deadline and a chain of N
+    # LLMs could run N × max_execution_time.
+    shared_deadline = execution_deadline(project)
     for idx, llm_override in enumerate(attempts):
-        run_state = {"tools_executed": 0, "streamed": False}
+        run_state = {"tools_executed": 0, "streamed": False,
+                     "deadline": shared_deadline}
         try:
             async for kind, payload in drive_factory(llm_override, run_state):
                 if kind == "text":

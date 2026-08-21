@@ -744,6 +744,12 @@ class ProjectOptions(BaseModel):
         le=3600,
         description="Agent projects, all loops. Per-tool-call timeout in seconds; 0 disables. A tool call that exceeds it returns an error result to the model (which can then adapt) instead of hanging the conversation — protects against stuck MCP servers, network black holes, and runaway sandbox scripts."
     )
+    max_execution_time: int = Field(
+        default=0,
+        ge=0,
+        le=7200,
+        description="Agent projects, all loops. Wall-clock cap in seconds for one agent run (0 = unlimited). Checked at safe points (turn/event boundaries) so the run wraps up with partial results and a 'reply continue' notice instead of being killed mid-stream; combine with tool_timeout to bound the worst-case latency of a runaway run. In auto-plan mode the cap spans the whole plan, and remaining steps are skipped once it's hit."
+    )
     memory_bank_enabled: bool = Field(
         default=False,
         description="Agent projects only. When enabled, all conversations in this project contribute to a shared 'memory bank' that is injected into the system prompt of every chat. Compressed dynamically (per-conversation → per-day → per-week → per-month) to fit within memory_bank_max_tokens. Disabled by default; surfaces a privacy disclaimer in the UI because every project member sees summaries derived from every other member's conversations."
