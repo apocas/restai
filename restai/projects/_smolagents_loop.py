@@ -430,9 +430,30 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         except StopIteration:
             return _SENTINEL
 
+    max_exec = agent_shared.max_execution_seconds(project)
+    # drive_with_fallbacks hands every attempt the SAME request-wide deadline
+    # so a fallback retry can't reset the wall-clock budget.
+    deadline = run_state.get("deadline") if run_state else None
+    if deadline is None and max_exec:
+        deadline = _time.monotonic() + max_exec
+    hit_max_time = False
+
+    gen_exhausted = False
     while True:
+        # Wall-clock cap: stop before pulling the next step. Gated on
+        # final_answer: once the model produced its answer, the remaining
+        # events are cheap bookkeeping (final-step usage, FinalAnswerStep) —
+        # draining them keeps accounting complete and avoids bolting the
+        # "stopped early" notice onto a finished run.
+        if (final_answer is None and deadline is not None
+                and _time.monotonic() >= deadline):
+            hit_max_time = True
+            logger.info("smolagents loop: max_execution_time (%ds) reached for chat %s",
+                        int(max_exec), chat_id)
+            break
         ev = await loop.run_in_executor(None, _next)
         if ev is _SENTINEL:
+            gen_exhausted = True
             break
         if isinstance(ev, ChatMessageStreamDelta):
             delta = _scrub_think_tags(ev.content or "")
@@ -533,6 +554,22 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         elif isinstance(ev, FinalAnswerStep):
             final_answer = ev.output
 
+    # Close an unexhausted generator explicitly IN A WORKER THREAD (fire and
+    # forget). Leaving it to GC would run gen.close() on the event loop
+    # thread — and when the generator is suspended inside smolagents'
+    # parallel-tool ThreadPoolExecutor with-block, close blocks until every
+    # in-flight tool thread finishes (indefinitely with tool_timeout=0),
+    # which would freeze the whole event loop. Not awaited: a blocked close
+    # must not hold this request's capped response hostage either.
+    if not gen_exhausted:
+        def _close_gen():
+            try:
+                sync_gen.close()
+            except Exception:
+                pass
+        close_future = loop.run_in_executor(None, _close_gen)
+        close_future.add_done_callback(lambda f: f.exception())
+
     # Close any trailing thinking block.
     closer = _close_thinking_if_open()
     if closer and stream:
@@ -548,8 +585,12 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
     else:
         answer = reasoning_block
 
-    if hit_max_steps and not (final_answer or "").strip().endswith(agent_shared.REPETITION_NOTICE.strip()):
+    if (hit_max_steps and not hit_max_time
+            and not (final_answer or "").strip().endswith(agent_shared.REPETITION_NOTICE.strip())):
         answer = (answer or "").rstrip() + agent_shared.max_turns_notice(max_steps)
+
+    if hit_max_time:
+        answer = (answer or "").rstrip() + agent_shared.max_time_notice(max_exec)
 
     answer = agent_shared.append_unreferenced_image_urls(answer, harvested_image_urls)
 
@@ -577,7 +618,10 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         "answer": answer,
         "tokens": tokens,
         "tool_trace": tool_trace or None,
-        "stop_reason": "max_turns" if hit_max_steps else None,
+        "stop_reason": (
+            "max_time" if hit_max_time
+            else ("max_turns" if hit_max_steps else None)
+        ),
     })
 
 
@@ -642,6 +686,8 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
             output["tokens"] = payload["tokens"]
             if payload.get("tool_trace"):
                 output["tool_trace"] = payload["tool_trace"]
+            if payload.get("stop_reason"):
+                output["stop_reason"] = payload["stop_reason"]
         elif kind == "error":
             e = payload["exception"]
             if isinstance(e, HTTPException):

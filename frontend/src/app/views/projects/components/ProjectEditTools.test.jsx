@@ -207,6 +207,26 @@ describe("ProjectEditTools", () => {
     });
   });
 
+  it("max execution time edits write clamped ints into options (0 = unlimited)", async () => {
+    const props = makeProps();
+    render(<ProjectEditTools {...props} />);
+    const field = screen.getByLabelText("Max Execution Time (seconds)");
+    expect(field).toHaveValue(0);
+
+    const { fireEvent } = require("@testing-library/react");
+    fireEvent.change(field, { target: { value: "600" } });
+    expect(props.setState).toHaveBeenCalledWith({
+      ...props.state,
+      options: { ...props.state.options, max_execution_time: 600 },
+    });
+
+    fireEvent.change(field, { target: { value: "-1" } });
+    expect(props.setState).toHaveBeenCalledWith({
+      ...props.state,
+      options: { ...props.state.options, max_execution_time: 0 },
+    });
+  });
+
   it("MCP: add button delegates to handleAddMcpServer; empty host disables Check", async () => {
     const user = userEvent.setup();
     const props = makeProps({

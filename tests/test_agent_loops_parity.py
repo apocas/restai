@@ -12,7 +12,10 @@ from restai.projects.agent_shared import (
     ToolRunPolicy,
     drive_with_fallbacks,
     estimate_input_tokens,
+    execution_deadline,
     fallback_llm_names,
+    max_execution_seconds,
+    max_time_notice,
     usage_from_raw_response,
 )
 
@@ -21,12 +24,14 @@ def run(coro):
     return asyncio.run(coro)
 
 
-def make_project(tool_timeout=0, fallback_llm=None, llm="main-llm"):
+def make_project(tool_timeout=0, fallback_llm=None, llm="main-llm",
+                 max_execution_time=0):
     options = types.SimpleNamespace(
         tool_timeout=tool_timeout,
         fallback_llm=fallback_llm,
         tools="",
         max_iterations=5,
+        max_execution_time=max_execution_time,
     )
     props = types.SimpleNamespace(id=1, name="proj", llm=llm, options=options)
     return types.SimpleNamespace(props=props)
@@ -152,10 +157,12 @@ def _scripted_factory(scripts):
     ("tool", None) markers (increment run_state, not yielded), or Exceptions
     raised at that point."""
     calls: list = []
+    states: list = []
 
     def factory(llm_override, run_state):
         script = scripts[len(calls)]
         calls.append(llm_override)
+        states.append(run_state)
 
         async def gen():
             for item in script:
@@ -165,11 +172,15 @@ def _scripted_factory(scripts):
                 if kind == "tool":
                     run_state["tools_executed"] += 1
                     continue
+                if kind == "sleep":
+                    await asyncio.sleep(payload)
+                    continue
                 yield kind, payload
 
         return gen()
 
     factory.calls = calls
+    factory.states = states
     return factory
 
 
@@ -277,6 +288,68 @@ def test_drive_with_fallbacks_incompatible_fallback_skips_to_next():
     assert output["llm_used"] == "good-one"
     assert len(output["llm_fallbacks"]) == 2
     assert "OpenAI-class" in output["llm_fallbacks"][1]["error"]
+
+
+def test_drive_with_fallbacks_no_new_attempt_past_deadline():
+    # First attempt burns the whole wall-clock budget (1s cap) and then
+    # fails — the driver must NOT start the fallback attempt, which would
+    # only build a new agent to trip the same deadline immediately.
+    project = make_project(fallback_llm="backup", max_execution_time=1)
+    boom = RuntimeError("late failure")
+    factory = _scripted_factory([
+        [("sleep", 1.05), boom],
+        [_result("never")],
+    ])
+    events = run(_collect(drive_with_fallbacks(project, factory, loop_name="x", output={})))
+    assert factory.calls == [None]  # no second attempt
+    assert events[-1][0] == "error"
+    assert events[-1][1]["exception"] is boom
+
+
+def test_drive_with_fallbacks_shares_one_deadline_across_attempts():
+    project = make_project(fallback_llm="backup", max_execution_time=600)
+    factory = _scripted_factory([
+        [RuntimeError("primary down")],
+        [_result("ok")],
+    ])
+    output = {}
+    run(_collect(drive_with_fallbacks(project, factory, loop_name="x", output=output)))
+    deadlines = [s.get("deadline") for s in factory.states]
+    assert len(deadlines) == 2
+    assert deadlines[0] is not None
+    # The fallback attempt inherits the SAME deadline — no budget reset.
+    assert deadlines[0] == deadlines[1]
+
+    # Unlimited project → no deadline handed to attempts.
+    factory2 = _scripted_factory([[_result("ok")]])
+    run(_collect(drive_with_fallbacks(
+        make_project(max_execution_time=0), factory2, loop_name="x", output={},
+    )))
+    assert factory2.states[0].get("deadline") is None
+
+
+# ─── wall-clock execution cap helpers ───────────────────────────────────
+
+def test_max_execution_seconds_getter():
+    assert max_execution_seconds(make_project(max_execution_time=0)) is None
+    assert max_execution_seconds(make_project(max_execution_time=120)) == 120.0
+    # Missing attribute (older stored options) → unlimited, never raises.
+    bare = types.SimpleNamespace(props=types.SimpleNamespace(
+        options=types.SimpleNamespace()))
+    assert max_execution_seconds(bare) is None
+
+
+def test_execution_deadline_is_future_monotonic():
+    assert execution_deadline(make_project(max_execution_time=0)) is None
+    deadline = execution_deadline(make_project(max_execution_time=300))
+    assert deadline is not None
+    assert deadline > time.monotonic() + 250
+
+
+def test_max_time_notice_text():
+    notice = max_time_notice(90)
+    assert "90s execution-time cap" in notice
+    assert "continue" in notice
 
 
 # ─── shared token estimator + usage extraction ──────────────────────────

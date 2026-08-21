@@ -89,7 +89,8 @@ def make_tool(name="echo", fn=None, is_async=False, schema=None):
 
 
 def make_runtime(provider, tools=(), mode=None, max_turns=5, fallbacks=(),
-                 tool_timeout=None, retry_attempts=0, llm_name="primary"):
+                 tool_timeout=None, retry_attempts=0, llm_name="primary",
+                 max_execution_time=None):
     return Agent2Runtime(
         provider=provider,
         config=ProviderConfig(model="fake"),
@@ -102,6 +103,7 @@ def make_runtime(provider, tools=(), mode=None, max_turns=5, fallbacks=(),
         tool_timeout=tool_timeout,
         retry_attempts=retry_attempts,
         retry_base_delay=0.001,
+        max_execution_time=max_execution_time,
     )
 
 
@@ -408,6 +410,78 @@ def test_sync_tool_timeout_applies():
     block = events[1].message.content[0]
     assert block.is_error is True
     assert "timed out" in block.content
+
+
+# ─── wall-clock execution cap ───────────────────────────────────────────
+
+def test_max_execution_time_stops_at_turn_boundary():
+    async def slow_tool(**kw):
+        await asyncio.sleep(0.1)
+        return "done"
+
+    provider = FakeProvider(turns=[
+        tool_msg(("t1", "slow", {})),
+        text_msg("should never be asked"),
+    ])
+    runtime = make_runtime(
+        provider, tools=[make_tool("slow", slow_tool, is_async=True)],
+        max_execution_time=0.05,
+    )
+    events = run(collect(runtime, "go"))
+    assert events[-1].type == "final"
+    assert events[-1].data["stop_reason"] == "max_time"
+    # Turn 1 ran (tool executed); turn 2 was never started.
+    assert len(provider.complete_calls) == 1
+    kinds = [e.type for e in events]
+    assert "tool_result" in kinds
+
+
+def test_max_execution_time_unset_never_trips():
+    provider = FakeProvider(turns=[text_msg("fine")])
+    runtime = make_runtime(provider)
+    events = run(collect(runtime, "go"))
+    assert events[-1].data["stop_reason"] == "completed"
+
+
+def test_retries_stop_once_deadline_passed():
+    import time as _t
+
+    runtime = make_runtime(FakeProvider(), mode="function_calling", retry_attempts=3)
+    runtime._deadline = _t.monotonic() - 1  # already expired
+    calls = []
+
+    async def failing():
+        calls.append(1)
+        raise TransientError("429")
+
+    async def scenario():
+        try:
+            await runtime._retrying(failing)
+        except TransientError:
+            return "raised"
+        return "no-raise"
+
+    assert run(scenario()) == "raised"
+    # No retry happened despite retry_attempts=3 and a retryable error.
+    assert len(calls) == 1
+
+
+def test_provider_chain_not_advanced_past_deadline():
+    import time as _t
+
+    backup = FakeProvider(turns=[text_msg("never")])
+    runtime = make_runtime(
+        FakeProvider(),
+        fallbacks=[("backup-llm", backup, ProviderConfig(model="fake2"))],
+    )
+    assert runtime._advance_provider_chain(RuntimeError("x"), 1) is True
+    runtime2 = make_runtime(
+        FakeProvider(),
+        fallbacks=[("backup-llm", backup, ProviderConfig(model="fake2"))],
+    )
+    runtime2._deadline = _t.monotonic() - 1
+    assert runtime2._advance_provider_chain(RuntimeError("x"), 1) is False
+    assert runtime2.fallback_trail == []
 
 
 # ─── loop guard ─────────────────────────────────────────────────────────

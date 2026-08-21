@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from collections.abc import AsyncIterator
 from typing import Literal, Optional, Sequence, Union
 from uuid import uuid4
@@ -62,6 +63,7 @@ class Agent2Runtime:
         tool_timeout: Optional[float] = 300.0,
         retry_attempts: int = 2,
         retry_base_delay: float = 1.0,
+        max_execution_time: Optional[float] = None,
     ) -> None:
         self.provider = provider
         self.config = config
@@ -94,6 +96,14 @@ class Agent2Runtime:
         # Per-tool-call wall-clock cap (seconds); None/0 disables.
         self.tool_timeout: Optional[float] = (
             float(tool_timeout) if tool_timeout else None
+        )
+        # Whole-run wall-clock deadline, set at construction so a planned
+        # multi-step request (several run_iter calls on one runtime) shares
+        # ONE budget. Checked at turn boundaries only — a run wraps up with
+        # partial results instead of dying mid-stream.
+        self._deadline: Optional[float] = (
+            time.monotonic() + float(max_execution_time)
+            if max_execution_time else None
         )
         # Same-provider retries per turn for transient errors (429/5xx/…).
         self.retry_attempts = max(0, int(retry_attempts))
@@ -132,6 +142,21 @@ class Agent2Runtime:
         last_assistant_text = ""
         for turn in range(1, self.max_turns + 1):
             session.turn_count = turn
+
+            # Wall-clock cap: stop cleanly at the turn boundary. Everything
+            # already produced (streamed text, tool results in the session)
+            # is preserved; the project layer appends the "say continue"
+            # notice, and the persisted session lets the next turn resume.
+            if self._deadline is not None and time.monotonic() >= self._deadline:
+                yield AgentEvent(
+                    type="final",
+                    turn=turn,
+                    data={
+                        "final_text": last_assistant_text,
+                        "stop_reason": "max_time",
+                    },
+                )
+                return
 
             # Mutates session.messages in place; no-op when under the threshold.
             await self._maybe_compress_session(session)
@@ -214,14 +239,24 @@ class Agent2Runtime:
             },
         )
 
+    def _deadline_passed(self) -> bool:
+        return self._deadline is not None and time.monotonic() >= self._deadline
+
     async def _retrying(self, thunk) -> Message:
-        """Run `thunk` with same-provider retries on transient errors."""
+        """Run `thunk` with same-provider retries on transient errors.
+        Retries (and their backoff sleeps) stop once the run's wall-clock
+        deadline has passed — no point burning budget the turn check will
+        reject anyway."""
         attempt = 0
         while True:
             try:
                 return await thunk()
             except Exception as e:
-                if attempt >= self.retry_attempts or not is_retryable_error(e):
+                if (
+                    attempt >= self.retry_attempts
+                    or not is_retryable_error(e)
+                    or self._deadline_passed()
+                ):
                     raise
                 delay = backoff_delay(attempt, base=self.retry_base_delay)
                 attempt += 1
@@ -241,6 +276,12 @@ class Agent2Runtime:
         condemn a tool-calling-capable fallback to ReAct).
         """
         if self._chain_idx + 1 >= len(self._provider_chain):
+            return False
+        if self._deadline_passed():
+            logger.warning(
+                "agent2: not switching to a fallback LLM — the run's "
+                "wall-clock deadline has already passed",
+            )
             return False
         previous = self.active_llm_name
         self._chain_idx += 1
@@ -314,7 +355,11 @@ class Agent2Runtime:
             except Exception as primary_err:
                 if emitted_any:
                     raise
-                if is_retryable_error(primary_err) and attempt < self.retry_attempts:
+                if (
+                    is_retryable_error(primary_err)
+                    and attempt < self.retry_attempts
+                    and not self._deadline_passed()
+                ):
                     delay = backoff_delay(attempt, base=self.retry_base_delay)
                     attempt += 1
                     logger.warning(

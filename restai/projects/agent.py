@@ -27,6 +27,8 @@ from restai.projects.base import ProjectBase
 from restai.projects.agent_shared import (
     augment_system_prompt_with_memory_bank as _augment_system_prompt_with_memory_bank,
     augment_system_prompt_with_memory_search_hint as _augment_system_prompt_with_memory_search_hint,
+    max_execution_seconds as _max_execution_seconds,
+    max_time_notice as _max_time_notice,
     prepend_current_time as _prepend_current_time,
     route_attachments as _route_attachments,
     sandbox_chat_id as _sandbox_chat_id,
@@ -287,6 +289,18 @@ class Agent(ProjectBase):
                     output["tool_trace"] = aggregated_tool_trace
                 return
 
+            # Wall-clock cap hit inside the step. The deadline is shared
+            # across the whole plan (set at runtime construction), so the
+            # remaining steps and synthesis would trip it immediately —
+            # stop here with the partial work + notice as the answer.
+            if step_output.get("stopped_max_time"):
+                output["stopped_max_time"] = True
+                output["answer"] = step_text
+                output["reasoning"] = {"steps": aggregated_reasoning_steps}
+                if aggregated_tool_trace:
+                    output["tool_trace"] = aggregated_tool_trace
+                return
+
         # Final synthesis: index = len(plan) so UI renders as virtual extra
         # step at the bottom of the checklist.
         if stream:
@@ -414,6 +428,7 @@ class Agent(ProjectBase):
             llm_name=project.props.llm or "",
             fallbacks=self._resolve_fallback_chain(project, db),
             tool_timeout=getattr(project.props.options, "tool_timeout", 300),
+            max_execution_time=_max_execution_seconds(project),
         )
 
     @staticmethod
@@ -778,7 +793,10 @@ class Agent(ProjectBase):
         #      buffer holds every turn including earlier <think> blocks —
         #      without this, multi-turn thoughts get silently dropped.
         buffer_text = "".join(streamed_text_buf)
-        if buffer_text and (not (output.get("answer") or "") or stop_reason == "max_turns"):
+        if buffer_text and (
+            not (output.get("answer") or "")
+            or stop_reason in ("max_turns", "max_time")
+        ):
             output["answer"] = buffer_text
 
         # Append (don't overwrite) the max_turns notice so partial work
@@ -791,6 +809,17 @@ class Agent(ProjectBase):
             )
             current = (output.get("answer") or "").rstrip()
             output["answer"] = (current + notice).lstrip()
+            output["stop_reason"] = "max_turns"
+
+        # Wall-clock cap hit — same treatment: keep partial work, append the
+        # "say continue" notice. Planned mode sees the flag and skips the
+        # remaining steps (they'd trip the shared deadline immediately).
+        if stop_reason == "max_time":
+            notice = _max_time_notice(_max_execution_seconds(project))
+            current = (output.get("answer") or "").rstrip()
+            output["answer"] = (current + notice).lstrip()
+            output["stopped_max_time"] = True
+            output["stop_reason"] = "max_time"
 
         self._finalize_reasoning(output, reasoning_buf, steps)
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json as _json
 import logging
 import time as _time
@@ -302,9 +303,42 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         handler = agent.run(user_msg=prompt_text, chat_history=history or None,
                             max_iterations=max_iters)
 
+    max_exec = agent_shared.max_execution_seconds(project)
+    # drive_with_fallbacks hands every attempt the SAME request-wide deadline
+    # so a fallback retry can't reset the wall-clock budget.
+    deadline = run_state.get("deadline") if run_state else None
+    if deadline is None and max_exec:
+        deadline = _time.monotonic() + max_exec
+    hit_max_time = False
+
     hit_max_iterations = False
+
+    async def _cancel_workflow():
+        """Stop the background workflow run. agent.run() executes as
+        independent asyncio tasks and stream_events() only drains a queue —
+        breaking out of the consumer alone would leave the workflow making
+        LLM calls and executing (side-effecting) tools until max_iterations.
+        cancel_run() is graceful; bound it so teardown can't hang."""
+        try:
+            if not handler.done():
+                await asyncio.wait_for(handler.cancel_run(), timeout=10)
+        except Exception:
+            pass
+
     events_iter = handler.stream_events().__aiter__()
     while True:
+        # Wall-clock cap: stop at the event boundary before waiting on the
+        # next LLM turn; everything already produced is preserved. Skip the
+        # trip once the workflow has finished — the remaining events are
+        # only buffered output, and labeling a completed run "max_time"
+        # would bolt the notice onto a full answer.
+        if (deadline is not None and _time.monotonic() >= deadline
+                and not handler.done()):
+            hit_max_time = True
+            logger.info("llamaindex loop: max_execution_time (%ds) reached for chat %s",
+                        int(max_exec), chat_id)
+            await _cancel_workflow()
+            break
         try:
             ev = await events_iter.__anext__()
         except StopAsyncIteration:
@@ -400,6 +434,7 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
                     answer_buf.append("\n\n" + agent_shared.REPETITION_NOTICE)
                     if stream:
                         yield ("text", "\n\n" + agent_shared.REPETITION_NOTICE)
+                    await _cancel_workflow()
                     break
 
     closer = _close_thinking_if_open(answer_buf, stream)
@@ -414,6 +449,8 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
 
     if hit_max_iterations:
         answer = (answer or "").rstrip() + agent_shared.max_turns_notice(max_iters)
+    if hit_max_time:
+        answer = (answer or "").rstrip() + agent_shared.max_time_notice(max_exec)
 
     answer = agent_shared.append_unreferenced_image_urls(answer, harvested_image_urls)
 
@@ -445,7 +482,10 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         "answer": answer,
         "tokens": tokens,
         "tool_trace": tool_trace or None,
-        "stop_reason": "max_turns" if hit_max_iterations else None,
+        "stop_reason": (
+            "max_time" if hit_max_time
+            else ("max_turns" if hit_max_iterations else None)
+        ),
     })
 
 
@@ -507,6 +547,8 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
             output["tokens"] = payload["tokens"]
             if payload.get("tool_trace"):
                 output["tool_trace"] = payload["tool_trace"]
+            if payload.get("stop_reason"):
+                output["stop_reason"] = payload["stop_reason"]
         elif kind == "error":
             e = payload["exception"]
             if isinstance(e, HTTPException):

@@ -671,6 +671,44 @@ def test_planned_stream_aborts_plan_on_provider_error():
     assert len(runtime.calls) == 1  # plan aborted after step 1
 
 
+def test_planned_stream_stops_on_max_time():
+    agent = make_agent()
+    runtime = ScriptedRuntime([
+        [ev_final("partial work", stop_reason="max_time")],
+        # remaining batches must never be pulled
+        [ev_final("should not run")],
+        [ev_final("no synthesis either")],
+    ])
+    output = {}
+
+    async def go():
+        async for _ in agent._chat_planned_stream(
+            project=make_project(max_execution_time=60), original_prompt="req",
+            plan=["A", "B"], session=AgentSession(), runtime=runtime,
+            image_block=None, stream=False, output=output,
+        ):
+            pass
+
+    run(go())
+    assert output["stopped_max_time"] is True
+    assert "execution-time cap" in output["answer"]
+    assert len(runtime.calls) == 1  # plan stopped after step 1
+
+
+def test_drive_runtime_appends_max_time_notice():
+    agent = make_agent()
+    runtime = ScriptedRuntime([
+        [ev_final("got this far", stop_reason="max_time")],
+    ])
+    _, output = run(drive(
+        agent, runtime, project=make_project(max_execution_time=45),
+    ))
+    assert output["stopped_max_time"] is True
+    assert output["answer"].startswith("got this far")
+    assert "45s execution-time cap" in output["answer"]
+    assert "continue" in output["answer"]
+
+
 # ─── provider-error status + fallback surfacing ─────────────────────────
 
 def test_drive_runtime_marks_provider_error_status():
