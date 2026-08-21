@@ -88,18 +88,26 @@ def _function_tool_schema(ft) -> dict:
     return {"type": "object", "properties": {}}
 
 
-def _wrap_function_tool(ft, *, brain, chat_id, project_id) -> Tool:
+def _wrap_function_tool(ft, *, brain, chat_id, project_id, policy, main_loop=None,
+                        inject_context: bool = True) -> Tool:
     """Wrap a llama-index FunctionTool as a smolagents Tool subclass."""
     import inspect
 
-    inner = ft.fn
+    # `real_fn` is the original callable — for async-built FunctionTools
+    # (MCP-adapted tools) `.fn` is llama-index's sync bridge which runs the
+    # coroutine on a FRESH event loop, breaking MCP sessions bound to the
+    # request's loop.
+    inner = getattr(ft, "real_fn", None) or ft.fn
     sig = inspect.signature(inner)
     has_var_kwargs = any(
         p.kind is inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
     )
-    accepts_brain = "_brain" in sig.parameters or has_var_kwargs
-    accepts_chat = "_chat_id" in sig.parameters or has_var_kwargs
-    accepts_project = "_project_id" in sig.parameters or has_var_kwargs
+    # inject_context=False for MCP-adapted tools: their **kwargs go verbatim
+    # to the remote server, and an injected `_brain` (unserializable) would
+    # fail every call.
+    accepts_brain = inject_context and ("_brain" in sig.parameters or has_var_kwargs)
+    accepts_chat = inject_context and ("_chat_id" in sig.parameters or has_var_kwargs)
+    accepts_project = inject_context and ("_project_id" in sig.parameters or has_var_kwargs)
     is_async = inspect.iscoroutinefunction(inner)
 
     tool_name = ft.metadata.name
@@ -110,20 +118,29 @@ def _wrap_function_tool(ft, *, brain, chat_id, project_id) -> Tool:
     # smolagents validates at __init_subclass__ time, so produce one concrete
     # class per FunctionTool (not just instances).
     def _forward(self, **kwargs):
+        visible_args = dict(kwargs)
         if accepts_brain and "_brain" not in kwargs:
             kwargs["_brain"] = brain
         if accepts_chat and "_chat_id" not in kwargs:
             kwargs["_chat_id"] = chat_id
         if accepts_project and "_project_id" not in kwargs:
             kwargs["_project_id"] = project_id
-        try:
-            if is_async:
-                # smolagents drives tools synchronously; bridge async fns here.
-                return asyncio.run(inner(**kwargs))
-            return inner(**kwargs)
-        except Exception as e:
-            logger.exception("Platform tool %s raised", tool_name)
-            return f"ERROR: {e}"
+        # smolagents drives tools synchronously from its own worker thread;
+        # the policy adds tool_timeout, the loop guard, and the output cap.
+        # Async fns run on the REQUEST's event loop when we have it (MCP
+        # sessions are bound to that loop — a fresh asyncio.run loop breaks
+        # them); the main loop is free while the agent blocks in its
+        # executor, so run_coroutine_threadsafe can't deadlock here.
+        if is_async and main_loop is not None:
+            call = lambda: asyncio.run_coroutine_threadsafe(  # noqa: E731
+                inner(**kwargs), main_loop,
+            ).result()
+        elif is_async:
+            call = lambda: asyncio.run(inner(**kwargs))  # noqa: E731
+        else:
+            call = lambda: inner(**kwargs)  # noqa: E731
+        text, _err = policy.run_sync(tool_name, visible_args, call)
+        return text
 
     cls = type(
         f"PlatformTool_{tool_name}",
@@ -144,7 +161,7 @@ def _wrap_function_tool(ft, *, brain, chat_id, project_id) -> Tool:
     return cls()
 
 
-def _wrap_project_tool(row, *, brain, chat_id) -> Tool:
+def _wrap_project_tool(row, *, brain, chat_id, policy) -> Tool:
     """ProjectToolDatabase row → smolagents Tool that runs user code in per-chat Docker sandbox."""
     try:
         schema = (
@@ -169,11 +186,13 @@ def _wrap_project_tool(row, *, brain, chat_id) -> Tool:
             "args = json.loads(sys.stdin.readline() or '{}')\n"
             f"{tool_code}"
         )
-        try:
-            return brain.docker_manager.run_script(chat_id or "ephemeral", script, stdin_data=args_json)
-        except Exception as e:
-            logger.exception("Project tool %s raised", tool_name)
-            return f"ERROR: {e}"
+        text, _err = policy.run_sync(
+            tool_name, dict(kwargs),
+            lambda: brain.docker_manager.run_script(
+                chat_id or "ephemeral", script, stdin_data=args_json,
+            ),
+        )
+        return text
 
     cls = type(
         f"ProjectTool_{tool_name}",
@@ -190,7 +209,8 @@ def _wrap_project_tool(row, *, brain, chat_id) -> Tool:
     return cls()
 
 
-def _gather_tools(project: Project, agent_self, db: DBWrapper, chat_id: str) -> list[Tool]:
+def _gather_tools(project: Project, agent_self, db: DBWrapper, chat_id: str, policy,
+                  main_loop=None) -> list[Tool]:
     raw_names = {
         t.strip() for t in (project.props.options.tools or "").split(",") if t.strip()
     }
@@ -201,6 +221,7 @@ def _gather_tools(project: Project, agent_self, db: DBWrapper, chat_id: str) -> 
         try:
             tools.append(_wrap_function_tool(
                 ft, brain=agent_self.brain, chat_id=chat_id, project_id=project.props.id,
+                policy=policy, main_loop=main_loop,
             ))
         except Exception as e:
             logger.warning("Failed to wrap builtin %s: %s", getattr(ft.metadata, "name", "?"), e)
@@ -210,7 +231,7 @@ def _gather_tools(project: Project, agent_self, db: DBWrapper, chat_id: str) -> 
             if not getattr(row, "enabled", True):
                 continue
             try:
-                tools.append(_wrap_project_tool(row, brain=agent_self.brain, chat_id=chat_id))
+                tools.append(_wrap_project_tool(row, brain=agent_self.brain, chat_id=chat_id, policy=policy))
             except Exception as e:
                 logger.warning("Failed to wrap project tool %s: %s", row.name, e)
     except Exception:
@@ -218,12 +239,12 @@ def _gather_tools(project: Project, agent_self, db: DBWrapper, chat_id: str) -> 
     return tools
 
 
-def _build_model(project: Project, db: DBWrapper):
+def _build_model(project: Project, db: DBWrapper, llm_override: str | None = None):
     """Resolve project LLM into smolagents Model; direct OpenAIServerModel
     when possible avoids LiteLLM bridge + spurious 'Calling tools: [...]'
     text leakage. LiteLLMModel only for Anthropic / Gemini / Bedrock.
     """
-    llm_name = project.props.llm
+    llm_name = llm_override or project.props.llm
     if not llm_name:
         raise HTTPException(400, detail="agent_loop=smolagents requires an LLM configured on the project.")
     llm_db = db.get_llm_by_name(llm_name)
@@ -288,12 +309,15 @@ def _build_model(project: Project, db: DBWrapper):
 
 
 async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: str,
-                 stream: bool, chat_id: str, image_url: str | None = None):
+                 stream: bool, chat_id: str, image_url: str | None = None,
+                 llm_override: str | None = None, run_state: dict | None = None):
     """Async generator yielding (kind, payload) tuples; same protocol as other loops."""
     from restai.agent2.mcp_client import MCPSessionPool
 
-    model = _build_model(project, db)
-    tools = _gather_tools(project, agent_self, db, chat_id)
+    model = _build_model(project, db, llm_override)
+    policy = agent_shared.ToolRunPolicy(project)
+    main_loop = asyncio.get_running_loop()
+    tools = _gather_tools(project, agent_self, db, chat_id, policy, main_loop=main_loop)
 
     mcp_servers = getattr(project.props.options, "mcp_servers", None) or []
     mcp_pool = None
@@ -307,6 +331,7 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
                     li_ft = agent_shared.adapted_to_function_tool(a)
                     tools.append(_wrap_function_tool(
                         li_ft, brain=agent_self.brain, chat_id=chat_id, project_id=project.props.id,
+                        policy=policy, main_loop=main_loop, inject_context=False,
                     ))
                 except Exception as e:
                     logger.warning("Failed to wrap MCP tool %s: %s", getattr(a, "name", "?"), e)
@@ -432,6 +457,8 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
                 if ans:
                     final_answer = str(ans)
                 continue
+            if run_state is not None:
+                run_state["tools_executed"] = run_state.get("tools_executed", 0) + 1
             tool_id = getattr(ev, "id", None) or f"call_{len(tool_trace)}"
             tool_started_at[tool_id] = _time.monotonic()
             try:
@@ -532,14 +559,25 @@ async def _drive(project, db, agent_self, *, prompt_text: str, system_prompt: st
         except Exception:
             pass
 
+    # Real per-step usage accumulated from ActionStep/PlanningStep token_usage
+    # (accuracy "high"); estimate fallback mirrors the other loops (system
+    # prompt already carries the rendered history + memory injections).
+    if input_tokens or output_tokens:
+        tokens = {"input": input_tokens, "output": output_tokens, "accuracy": "high"}
+    else:
+        tokens = {
+            "input": agent_shared.estimate_input_tokens(
+                prompt_text, system_prompt=augmented or "", tool_trace=tool_trace,
+            ),
+            "output": tokens_from_string(answer),
+            "accuracy": "low",
+        }
+
     yield ("result", {
         "answer": answer,
-        "tokens": {
-            "input": input_tokens or tokens_from_string(prompt_text),
-            "output": output_tokens or tokens_from_string(answer),
-        },
+        "tokens": tokens,
         "tool_trace": tool_trace or None,
-        "stop_reason": None,
+        "stop_reason": "max_turns" if hit_max_steps else None,
     })
 
 
@@ -580,48 +618,47 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
     )
 
     streamed_any_text = False
-    try:
-        async for kind, payload in _drive(
+
+    def _factory(llm_override, run_state):
+        return _drive(
             project, db, agent_self,
             prompt_text=prompt_text, system_prompt=(chatModel.system or project.props.system or ""),
             stream=chatModel.stream, chat_id=chat_id, image_url=image_url,
-        ):
-            if kind == "text":
-                streamed_any_text = True
-                if chatModel.stream:
-                    yield "data: " + _json.dumps({"text": payload}) + "\n\n"
-            elif kind == "event":
-                if chatModel.stream:
-                    yield "data: " + _json.dumps(payload) + "\n\n"
-            elif kind == "result":
-                output["answer"] = payload["answer"]
-                output["tokens"] = payload["tokens"]
-                if payload.get("tool_trace"):
-                    output["tool_trace"] = payload["tool_trace"]
-    except HTTPException as e:
-        err = f"smolagents loop config error: {e.detail}"
-        output["answer"] = err
-        output["status"] = "error"
-        if chatModel.stream:
-            yield "data: " + _json.dumps({"text": err}) + "\n\n"
-            yield "data: " + _json.dumps(output) + "\n"
-            yield "event: close\n\n"
-        else:
-            yield output
-        return
-    except Exception as e:
-        logger.exception("smolagents loop failed for project %s", project.props.name)
-        err = f"smolagents loop error: {e}"
-        output["answer"] = err
-        output["status"] = "error"
-        if chatModel.stream:
-            if not streamed_any_text:
-                yield "data: " + _json.dumps({"text": err}) + "\n\n"
-            yield "data: " + _json.dumps(output) + "\n"
-            yield "event: close\n\n"
-        else:
-            yield output
-        return
+            llm_override=llm_override, run_state=run_state,
+        )
+
+    async for kind, payload in agent_shared.drive_with_fallbacks(
+        project, _factory, loop_name="smolagents", output=output,
+    ):
+        if kind == "text":
+            streamed_any_text = True
+            if chatModel.stream:
+                yield "data: " + _json.dumps({"text": payload}) + "\n\n"
+        elif kind == "event":
+            if chatModel.stream:
+                yield "data: " + _json.dumps(payload) + "\n\n"
+        elif kind == "result":
+            output["answer"] = payload["answer"]
+            output["tokens"] = payload["tokens"]
+            if payload.get("tool_trace"):
+                output["tool_trace"] = payload["tool_trace"]
+        elif kind == "error":
+            e = payload["exception"]
+            if isinstance(e, HTTPException):
+                err = f"smolagents loop config error: {e.detail}"
+            else:
+                err = f"smolagents loop error: {e}"
+            output["answer"] = err
+            output["status"] = "error"
+            output["error"] = err
+            if chatModel.stream:
+                if not streamed_any_text:
+                    yield "data: " + _json.dumps({"text": err}) + "\n\n"
+                yield "data: " + _json.dumps(output) + "\n"
+                yield "event: close\n\n"
+            else:
+                yield output
+            return
 
     agent_self.check_output_guard(project, user, db, output)
 

@@ -424,7 +424,7 @@ export default function ProjectEditTools({ state, setState, handleChange, projec
                 InputLabelProps={{ shrink: true }}
                 label="Fallback LLMs"
                 variant="outlined"
-                helperText="Tried in order when the main LLM keeps failing mid-run (after automatic retries). The conversation continues on the fallback with full context, and the response records which model actually answered."
+                helperText="Tried in order when the main LLM keeps failing. The default (restai) loop switches mid-run with full context; SDK loops restart the run on the fallback before anything streamed or any tool ran. The response records which model actually answered."
               />
             )}
           />

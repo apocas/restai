@@ -68,11 +68,13 @@ def _wrap_response(value: Any) -> dict:
     return {"content": [{"type": "text", "text": text}]}
 
 
-def _wrap_function_tool(ft, *, brain, chat_id, project_id):
+def _wrap_function_tool(ft, *, brain, chat_id, project_id, policy):
     name = ft.metadata.name
     description = ft.metadata.description or name
     schema = _function_tool_input_schema(ft)
-    inner = ft.fn
+    # `real_fn` is the original callable — for async-built FunctionTools
+    # `.fn` is llama-index's sync bridge (runs on a fresh event loop).
+    inner = getattr(ft, "real_fn", None) or ft.fn
 
     is_async = inspect.iscoroutinefunction(inner)
     sig = inspect.signature(inner)
@@ -85,6 +87,7 @@ def _wrap_function_tool(ft, *, brain, chat_id, project_id):
 
     @tool(name, description, schema)
     async def _sdk_handler(args):
+        visible_args = dict(args or {})
         kwargs = dict(args or {})
         if accepts_brain and "_brain" not in kwargs:
             kwargs["_brain"] = brain
@@ -92,17 +95,25 @@ def _wrap_function_tool(ft, *, brain, chat_id, project_id):
             kwargs["_chat_id"] = chat_id
         if accepts_project and "_project_id" not in kwargs:
             kwargs["_project_id"] = project_id
-        try:
-            result = await inner(**kwargs) if is_async else inner(**kwargs)
-        except Exception as e:
-            logger.exception("Platform tool %s raised", name)
-            return {"content": [{"type": "text", "text": f"ERROR: {e}"}], "isError": True}
-        return _wrap_response(result)
+        # ToolRunPolicy: worker thread for sync fns (they used to block the
+        # event loop), tool_timeout, loop guard, model-visible output cap.
+        if is_async:
+            text, is_error = await policy.run_async(
+                name, visible_args, call_async=lambda: inner(**kwargs),
+            )
+        else:
+            text, is_error = await policy.run_async(
+                name, visible_args, call_sync=lambda: inner(**kwargs),
+            )
+        response = _wrap_response(text)
+        if is_error:
+            response["isError"] = True
+        return response
 
     return _sdk_handler
 
 
-def _wrap_project_tool(tool_row, *, brain, chat_id):
+def _wrap_project_tool(tool_row, *, brain, chat_id, policy):
     """ProjectToolDatabase row → SDK tool (mirrors agent._make_project_tool_adapted)."""
     name = tool_row.name
     description = tool_row.description or name
@@ -127,14 +138,16 @@ def _wrap_project_tool(tool_row, *, brain, chat_id):
             "args = json.loads(sys.stdin.readline() or '{}')\n"
             f"{tool_code}"
         )
-        try:
-            result = brain.docker_manager.run_script(
+        text, is_error = await policy.run_async(
+            name, dict(args or {}),
+            call_sync=lambda: brain.docker_manager.run_script(
                 chat_id or "ephemeral", script, stdin_data=args_json
-            )
-        except Exception as e:
-            logger.exception("Project tool %s raised", name)
-            return {"content": [{"type": "text", "text": f"ERROR: {e}"}], "isError": True}
-        return _wrap_response(result)
+            ),
+        )
+        response = _wrap_response(text)
+        if is_error:
+            response["isError"] = True
+        return response
 
     return _sdk_handler
 
@@ -148,16 +161,21 @@ def _enabled_builtin_tools(project, brain) -> list:
     return [ft for ft in all_tools if getattr(ft.metadata, "name", "").lower() in enabled]
 
 
-def build_builtins_mcp(project, db, brain, chat_id: str):
+def build_builtins_mcp(project, db, brain, chat_id: str, policy=None):
     """Returns (server, allowed_names) for ClaudeAgentOptions.allowed_tools."""
+    from restai.projects import agent_shared
+
     project_id = project.props.id
+    policy = policy or agent_shared.ToolRunPolicy(project)
 
     sdk_tools = []
     allowed: list[str] = []
 
     for ft in _enabled_builtin_tools(project, brain):
         try:
-            sdk_tools.append(_wrap_function_tool(ft, brain=brain, chat_id=chat_id, project_id=project_id))
+            sdk_tools.append(_wrap_function_tool(
+                ft, brain=brain, chat_id=chat_id, project_id=project_id, policy=policy,
+            ))
             allowed.append(f"mcp__restai_builtins__{ft.metadata.name}")
         except Exception as e:
             logger.warning("Failed to wrap builtin %s: %s", getattr(ft.metadata, "name", "?"), e)
@@ -170,7 +188,7 @@ def build_builtins_mcp(project, db, brain, chat_id: str):
         if not getattr(row, "enabled", True):
             continue
         try:
-            sdk_tools.append(_wrap_project_tool(row, brain=brain, chat_id=chat_id))
+            sdk_tools.append(_wrap_project_tool(row, brain=brain, chat_id=chat_id, policy=policy))
             allowed.append(f"mcp__restai_builtins__{row.name}")
         except Exception as e:
             logger.warning("Failed to wrap project tool %s: %s", row.name, e)

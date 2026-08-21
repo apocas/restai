@@ -736,13 +736,13 @@ class ProjectOptions(BaseModel):
     fallback_llm: Union[str, None] = Field(
         default=None,
         max_length=500,
-        description="Agent projects (restai loop) only. Comma-separated names of fallback LLMs. When the primary LLM fails a turn even after transient-error retries, the run continues on the next LLM in this chain with the full conversation context intact — the response records which model actually answered (`llm_used`). Unknown or unsupported names are skipped with a warning."
+        description="Agent projects, all loops. Comma-separated names of fallback LLMs, tried in order when the primary keeps failing. The restai loop switches mid-run with the full conversation context intact (after transient-error retries); the SDK loops (claude/llamaindex/smolagents/openai_agents) restart the whole run on the next LLM, but only while nothing has streamed and no tool has executed — a fallback can never repeat a side effect. The response records which model actually answered (`llm_used`) and cost/logs attribute to it. Names that don't exist or don't fit the loop (e.g. a non-Anthropic LLM on the claude loop) are skipped."
     )
     tool_timeout: int = Field(
         default=300,
         ge=0,
         le=3600,
-        description="Agent projects (restai loop) only. Per-tool-call timeout in seconds; 0 disables. A tool call that exceeds it returns an error result to the model (which can then adapt) instead of hanging the conversation — protects against stuck MCP servers, network black holes, and runaway sandbox scripts."
+        description="Agent projects, all loops. Per-tool-call timeout in seconds; 0 disables. A tool call that exceeds it returns an error result to the model (which can then adapt) instead of hanging the conversation — protects against stuck MCP servers, network black holes, and runaway sandbox scripts."
     )
     memory_bank_enabled: bool = Field(
         default=False,

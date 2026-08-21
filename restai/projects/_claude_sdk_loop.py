@@ -37,9 +37,10 @@ logger = logging.getLogger("restai.claude_loop")
 _ANTHROPIC_LLM_CLASSES = {"Anthropic", "AnthropicGrok"}
 
 
-def _resolve_anthropic_config(project: Project, db: DBWrapper) -> tuple[str, str]:
+def _resolve_anthropic_config(project: Project, db: DBWrapper,
+                              llm_override: str | None = None) -> tuple[str, str]:
     """Return (model, api_key) for the project's Anthropic LLM; raises 400 otherwise."""
-    llm_name = project.props.llm
+    llm_name = llm_override or project.props.llm
     if not llm_name:
         raise HTTPException(400, detail="agent_loop=claude requires an LLM configured on the project.")
     llm_db = db.get_llm_by_name(llm_name)
@@ -170,13 +171,14 @@ def _build_options(project, db, brain, *, system_prompt: str, chat_id: str,
 
 
 async def _drive(project, db, brain, user, *, prompt_text: str, chat_id: str,
-                 system_prompt: str, stream: bool, image_url: str | None = None):
+                 system_prompt: str, stream: bool, image_url: str | None = None,
+                 llm_override: str | None = None, run_state: dict | None = None):
     """Async generator yielding (kind, payload) tuples:
         ("text", str delta)
         ("event", dict with tool_call_started / tool_call_completed)
         ("result", dict with answer / tokens / tool_trace)
     """
-    model, api_key = _resolve_anthropic_config(project, db)
+    model, api_key = _resolve_anthropic_config(project, db, llm_override)
     options = _build_options(
         project, db, brain,
         system_prompt=system_prompt, chat_id=chat_id,
@@ -225,6 +227,8 @@ async def _drive(project, db, brain, user, *, prompt_text: str, chat_id: str,
                             if stream:
                                 yield ("text", chunk)
                     elif isinstance(block, ToolUseBlock):
+                        if run_state is not None:
+                            run_state["tools_executed"] = run_state.get("tools_executed", 0) + 1
                         started = _time.monotonic()
                         tool_call_started_at[block.id] = started
                         pending[block.id] = block
@@ -302,12 +306,29 @@ async def _drive(project, db, brain, user, *, prompt_text: str, chat_id: str,
 
     final_answer_text = agent_shared.append_unreferenced_image_urls(final_answer_text, harvested_image_urls)
 
+    # Real usage from the SDK's ResultMessage when present (accuracy "high"),
+    # else the shared transcript-aware estimate (system prompt already carries
+    # the rendered history + memory injections).
+    if result_meta["input_tokens"] or result_meta["output_tokens"]:
+        tokens = {
+            "input": result_meta["input_tokens"],
+            "output": result_meta["output_tokens"],
+            "accuracy": "high",
+        }
+    else:
+        tokens = {
+            "input": agent_shared.estimate_input_tokens(
+                prompt_text,
+                system_prompt=getattr(options, "system_prompt", "") or "",
+                tool_trace=tool_trace,
+            ),
+            "output": tokens_from_string(final_answer_text),
+            "accuracy": "low",
+        }
+
     yield ("result", {
         "answer": final_answer_text,
-        "tokens": {
-            "input": result_meta["input_tokens"] or tokens_from_string(prompt_text),
-            "output": result_meta["output_tokens"] or tokens_from_string(final_answer_text),
-        },
+        "tokens": tokens,
         "tool_trace": tool_trace or None,
         "stop_reason": result_meta["stop_reason"],
     })
@@ -348,51 +369,50 @@ async def chat(agent_self, project: Project, chatModel: ChatModel, user: User, d
     )
 
     streamed_any_text = False
-    try:
-        async for kind, payload in _drive(
+
+    def _factory(llm_override, run_state):
+        return _drive(
             project, db, agent_self.brain, user,
             prompt_text=prompt_text, chat_id=chat_id,
             system_prompt=(chatModel.system or project.props.system or ""), stream=chatModel.stream,
             image_url=image_url,
-        ):
-            if kind == "text":
-                streamed_any_text = True
-                if chatModel.stream:
-                    yield "data: " + json.dumps({"text": payload}) + "\n\n"
-            elif kind == "event":
-                if chatModel.stream:
-                    yield "data: " + json.dumps(payload) + "\n\n"
-            elif kind == "result":
-                output["answer"] = payload["answer"]
-                output["tokens"] = payload["tokens"]
-                if payload.get("tool_trace"):
-                    output["tool_trace"] = payload["tool_trace"]
-                if payload.get("stop_reason"):
-                    output["stop_reason"] = payload["stop_reason"]
-    except HTTPException as e:
-        err = f"claude loop config error: {e.detail}"
-        output["answer"] = err
-        output["status"] = "error"
-        if chatModel.stream:
-            yield "data: " + json.dumps({"text": err}) + "\n\n"
-            yield "data: " + json.dumps(output) + "\n"
-            yield "event: close\n\n"
-        else:
-            yield output
-        return
-    except Exception as e:
-        logger.exception("claude loop failed for project %s", project.props.name)
-        err = f"claude loop error: {e}"
-        output["answer"] = err
-        output["status"] = "error"
-        if chatModel.stream:
-            if not streamed_any_text:
-                yield "data: " + json.dumps({"text": err}) + "\n\n"
-            yield "data: " + json.dumps(output) + "\n"
-            yield "event: close\n\n"
-        else:
-            yield output
-        return
+            llm_override=llm_override, run_state=run_state,
+        )
+
+    async for kind, payload in agent_shared.drive_with_fallbacks(
+        project, _factory, loop_name="claude", output=output,
+    ):
+        if kind == "text":
+            streamed_any_text = True
+            if chatModel.stream:
+                yield "data: " + json.dumps({"text": payload}) + "\n\n"
+        elif kind == "event":
+            if chatModel.stream:
+                yield "data: " + json.dumps(payload) + "\n\n"
+        elif kind == "result":
+            output["answer"] = payload["answer"]
+            output["tokens"] = payload["tokens"]
+            if payload.get("tool_trace"):
+                output["tool_trace"] = payload["tool_trace"]
+            if payload.get("stop_reason"):
+                output["stop_reason"] = payload["stop_reason"]
+        elif kind == "error":
+            e = payload["exception"]
+            if isinstance(e, HTTPException):
+                err = f"claude loop config error: {e.detail}"
+            else:
+                err = f"claude loop error: {e}"
+            output["answer"] = err
+            output["status"] = "error"
+            output["error"] = err
+            if chatModel.stream:
+                if not streamed_any_text:
+                    yield "data: " + json.dumps({"text": err}) + "\n\n"
+                yield "data: " + json.dumps(output) + "\n"
+                yield "event: close\n\n"
+            else:
+                yield output
+            return
 
     agent_self.check_output_guard(project, user, db, output)
 
