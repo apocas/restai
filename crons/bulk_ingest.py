@@ -9,10 +9,113 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+import time
+from datetime import datetime, timedelta, timezone
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("restai.bulk_ingest")
+
+
+
+# A job claimed by a runner that was then killed (OOM, deploy, the runner's
+# own per-job timeout) stays `processing` forever: the terminal status is only
+# written after the work finishes. Nothing ever reclaimed those rows, so the
+# UI showed "processing" indefinitely and the staged file leaked. Anything
+# older than this is considered abandoned and reset to `queued` for one retry.
+STALE_PROCESSING_SECONDS = 4 * 3600
+
+
+def _reclaim_stalled_jobs(db, BulkIngestJobDatabase, cron) -> None:
+    """Requeue jobs abandoned mid-flight, and delete their orphaned files."""
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=STALE_PROCESSING_SECONDS)
+    try:
+        stalled = (
+            db.db.query(BulkIngestJobDatabase)
+            .filter(
+                BulkIngestJobDatabase.status == "processing",
+                BulkIngestJobDatabase.started_at.isnot(None),
+                BulkIngestJobDatabase.started_at < cutoff,
+            )
+            .all()
+        )
+        for job in stalled:
+            # Only worth retrying while the staged file still exists.
+            if job.file_path and os.path.exists(job.file_path):
+                job.status = "queued"
+                job.started_at = None
+                logger.warning("Requeued stalled bulk-ingest job %s", job.id)
+            else:
+                job.status = "error"
+                job.error_message = "Abandoned mid-processing; staged file is gone."
+                job.completed_at = datetime.now(timezone.utc)
+                logger.warning("Failed stalled bulk-ingest job %s (file missing)", job.id)
+        if stalled:
+            db.db.commit()
+            cron.warning(f"Reclaimed {len(stalled)} stalled job(s)")
+    except Exception as e:
+        logger.warning("Stalled-job reclaim failed: %s", e)
+
+    _purge_orphan_staged_files(db, BulkIngestJobDatabase)
+
+
+def _purge_orphan_staged_files(db, BulkIngestJobDatabase) -> None:
+    """Delete staged files with no live job row (leaked by crashes/kills)."""
+    from restai import config as _config
+
+    queue_dir = os.path.abspath(_config.UPLOAD_STAGING_PATH or "")
+    if not queue_dir or not os.path.isdir(queue_dir):
+        return
+    try:
+        known = {
+            row.file_path
+            for row in db.db.query(BulkIngestJobDatabase.file_path).filter(
+                BulkIngestJobDatabase.status.in_(("queued", "processing"))
+            )
+            if row.file_path
+        }
+    except Exception:
+        return
+
+    cutoff = time.time() - STALE_PROCESSING_SECONDS
+    for name in os.listdir(queue_dir):
+        path = os.path.join(queue_dir, name)
+        if path in known:
+            continue
+        try:
+            if os.path.isfile(path) and os.path.getmtime(path) < cutoff:
+                os.unlink(path)
+                logger.info("Removed orphaned staged upload %s", path)
+        except OSError:
+            pass
+
+
+_MANAGER = None
+_MANAGER_TRIED = False
+
+
+def _get_manager():
+    """Lazily start the docling worker's multiprocessing manager.
+
+    Both docling paths need one: `load_documents` calls `manager.dict()`
+    outright, and `auto_ingest` silently skips docling when handed None. The
+    queue used to pass None to both, so `method=docling` raised AttributeError
+    on every job and `method=auto` never tried docling at all — the queue
+    quietly ingested at a lower fidelity than the synchronous endpoint.
+
+    Started lazily so a runner tick that has no docling work (or no queued jobs
+    at all) doesn't pay for a spawned Manager process every minute.
+    """
+    global _MANAGER, _MANAGER_TRIED
+    if _MANAGER is None and not _MANAGER_TRIED:
+        _MANAGER_TRIED = True
+        try:
+            from restai.multiprocessing import get_manager
+
+            _MANAGER = get_manager()
+        except Exception as e:
+            logger.warning("Could not start multiprocessing manager: %s", e)
+            _MANAGER = None
+    return _MANAGER
 
 
 def main():
@@ -33,11 +136,18 @@ def main():
     brain = Brain(lightweight=True)
     cron = CronLogger("bulk_ingest")
     processed = 0
+    reclaimed = False
+
 
     try:
         while True:
             db = open_db_wrapper()
             try:
+                if not reclaimed:
+                    # Piggy-backs on this iteration's session rather than
+                    # opening its own.
+                    _reclaim_stalled_jobs(db, BulkIngestJobDatabase, cron)
+                    reclaimed = True
                 # Claim one job atomically (SELECT + UPDATE in one txn); loop drains queue.
                 job = (
                     db.db.query(BulkIngestJobDatabase)
@@ -46,6 +156,7 @@ def main():
                     .first()
                 )
                 if job is None:
+                    db.db.close()
                     break
                 job.status = "processing"
                 job.started_at = datetime.now(timezone.utc)
@@ -59,9 +170,15 @@ def main():
                 chunks = int(job.chunks or 256)
             except Exception as e:
                 logger.exception("Failed to claim next job: %s", e)
+                # Both `break` paths close the session explicitly — the drain
+                # loop only reaches its own `db.db.close()` on the success
+                # path, so bailing out here used to leak a pooled connection
+                # per tick.
+                try:
+                    db.db.close()
+                except Exception:
+                    pass
                 break
-            finally:
-                pass
 
             logger.info(f"Processing job {job_id}: {filename} (project={project_id}, method={method})")
             ok = False
@@ -94,13 +211,21 @@ def main():
 
                 if method == "auto":
                     from restai.loaders.auto_ingest import auto_ingest
-                    documents, used_method = auto_ingest(file_path, source_name, manager=None, opts={})
+                    documents, used_method = auto_ingest(
+                        file_path, source_name, manager=_get_manager(), opts={}
+                    )
                 elif method == "markitdown":
                     from restai.loaders.auto_ingest import load_with_markitdown
                     documents = load_with_markitdown(file_path, source=source_name)
                 elif method == "docling":
                     from restai.document.runner import load_documents
-                    documents = load_documents(None, file_path)
+                    manager = _get_manager()
+                    if manager is None:
+                        raise RuntimeError(
+                            "docling requires a multiprocessing manager, which this "
+                            "runner could not start; retry with method=auto"
+                        )
+                    documents = load_documents(manager, file_path)
                 else:
                     used_method = "classic"
                     loader = find_file_loader(ext, {})

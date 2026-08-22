@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Float, Table, Text, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, Integer, String, Float, Table, Text, UniqueConstraint
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import declarative_base
@@ -424,7 +424,7 @@ class BulkIngestJobDatabase(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     filename = Column(String(512), nullable=False)
     mime_type = Column(String(255), nullable=True)
-    size_bytes = Column(Integer, nullable=False, default=0)
+    size_bytes = Column(BigInteger, nullable=False, default=0)
     file_path = Column(String(1024), nullable=False)  # on-disk tempfile path
     method = Column(String(32), nullable=True)  # ingestion method hint (auto/docling/classic)
     splitter = Column(String(32), nullable=True, default="sentence")

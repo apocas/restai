@@ -3,6 +3,7 @@ streaming response assembly, SSE final-frame enrichment, image/attachment
 normalization, and the SSRF address-category table. Project handlers, budget
 checks and log_inference are all faked; no network, no LLM."""
 import asyncio
+import base64
 import json
 import types
 
@@ -70,8 +71,12 @@ def _att(name, content="QUJD", mime=None):
 
 
 def test_attachment_meta_strips_bytes():
+    # `size` is the DECODED byte count, not the base64 string length —
+    # "QUJDRA==" is 8 chars encoding 4 bytes ("ABCD"). Reporting the string
+    # length overstated every attachment by 4/3 in the logs and the UI.
     meta = _attachment_meta([_att("a.pdf", content="QUJDRA==", mime="application/pdf")])
-    assert meta == [{"name": "a.pdf", "mime_type": "application/pdf", "size": 8}]
+    assert meta == [{"name": "a.pdf", "mime_type": "application/pdf", "size": 4}]
+    assert len(base64.b64decode("QUJDRA==")) == 4
 
 
 def test_attachment_meta_empty():
@@ -354,7 +359,8 @@ def test_chat_main_attaches_image_and_attachment_meta(quiet_checks, monkeypatch)
     out = _run_chat(_project(ptype="agent"), chat_input)
     # Image file was promoted to `.image` and stamped onto the final dict.
     assert out["image"] == "data:image/png;base64,QUJD"
-    assert out["attachments"] == [{"name": "notes.txt", "mime_type": "text/plain", "size": 4}]
+    # "QUJD" is 4 base64 chars encoding the 3 bytes "ABC".
+    assert out["attachments"] == [{"name": "notes.txt", "mime_type": "text/plain", "size": 3}]
 
 
 def test_chat_main_handler_exception_logs_error(monkeypatch):

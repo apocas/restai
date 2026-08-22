@@ -22,6 +22,8 @@ SETTINGS_DEFAULTS = {
     "logo_url": "",
     "hide_branding": "false",
     "max_audio_upload_size": "10",
+    "max_upload_size_mb": "100",
+    "docker_memory_mb": "512",
     "currency": "EUR",
     "redis_host": "",
     "redis_port": "6379",
@@ -125,7 +127,7 @@ SETTINGS_DEFAULTS = {
 }
 
 _BOOL_KEYS = {"hide_branding", "auth_disable_local", "sso_auto_create_user", "sso_auto_restricted", "gpu_enabled", "mcp_enabled", "docker_enabled", "docker_read_only", "browser_enabled", "enforce_2fa", "vectordb_chromadb_enabled", "vectordb_pgvector_enabled", "vectordb_weaviate_enabled", "vectordb_pinecone_enabled", "ldap_enabled", "ldap_use_tls", "payment_enabled", "payment_stripe_enabled", "payment_paypal_enabled"}
-_INT_KEYS = {"max_audio_upload_size", "data_retention_days", "docker_timeout", "browser_timeout", "password_max_age_days"}
+_INT_KEYS = {"max_audio_upload_size", "max_upload_size_mb", "docker_memory_mb", "data_retention_days", "docker_timeout", "browser_timeout", "password_max_age_days"}
 
 # Secret keys that should be masked in API responses
 _SECRET_KEYS = {
@@ -178,6 +180,8 @@ def get_all_settings(db_wrapper) -> dict:
         "logo_url": rows.get("logo_url", ""),
         "hide_branding": _to_bool(rows.get("hide_branding", "false")),
         "max_audio_upload_size": int(rows.get("max_audio_upload_size", "10")),
+        "max_upload_size_mb": int(rows.get("max_upload_size_mb", "100")),
+        "docker_memory_mb": int(rows.get("docker_memory_mb", "512")),
         "currency": rows.get("currency", "EUR"),
         "redis_host": rows.get("redis_host", ""),
         "redis_port": rows.get("redis_port", "6379"),

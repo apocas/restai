@@ -45,6 +45,7 @@ export default function SettingsPage() {
     logo_url: "",
     hide_branding: false,
     max_audio_upload_size: 10,
+    max_upload_size_mb: 100,
     data_retention_days: 0,
     currency: "EUR",
     redis_host: "",
@@ -81,6 +82,7 @@ export default function SettingsPage() {
     docker_url: "",
     docker_image: "python:3.12-slim",
     docker_timeout: 900,
+    docker_memory_mb: 512,
     docker_network: "none",
     docker_read_only: true,
     browser_enabled: false,
@@ -272,8 +274,10 @@ export default function SettingsPage() {
     setSaving(true);
     const body = { ...form };
     body.max_audio_upload_size = parseInt(body.max_audio_upload_size, 10) || 10;
+    body.max_upload_size_mb = parseInt(body.max_upload_size_mb, 10) || 100;
     body.data_retention_days = parseInt(body.data_retention_days, 10) || 0;
     body.docker_timeout = parseInt(body.docker_timeout, 10) || 900;
+    body.docker_memory_mb = parseInt(body.docker_memory_mb, 10) || 512;
 
     api.patch("/settings", body, auth.user.token)
       .then((data) => {
@@ -422,6 +426,11 @@ export default function SettingsPage() {
                         value={form.max_audio_upload_size} onChange={handleChange("max_audio_upload_size")} />
                     </Grid>
                     <Grid item xs={12} md={6}>
+                      <TextField fullWidth label={t("settings.fields.maxUploadSize")} type="number" inputProps={{ min: 1, max: 102400 }}
+                        helperText={t("settings.fields.maxUploadSizeHelp")}
+                        value={form.max_upload_size_mb} onChange={handleChange("max_upload_size_mb")} />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
                       <TextField fullWidth label={t("settings.fields.dataRetentionDays")} type="number" inputProps={{ min: 0 }}
                         value={form.data_retention_days} onChange={handleChange("data_retention_days")}
                         helperText={t("settings.helpers.retention")} />
@@ -495,6 +504,13 @@ export default function SettingsPage() {
                         value={form.docker_timeout || 900}
                         onChange={handleChange("docker_timeout")}
                         helperText={t("settings.helpers.dockerTimeout")}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField fullWidth label={t("settings.fields.sandboxMemory")} type="number" inputProps={{ min: 128 }}
+                        value={form.docker_memory_mb || 512}
+                        onChange={handleChange("docker_memory_mb")}
+                        helperText={t("settings.helpers.sandboxMemory")}
                       />
                     </Grid>
                     <Grid item xs={12} md={6}>

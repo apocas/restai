@@ -21,3 +21,26 @@ spec:
   storageClassName: {{ .Values.persistence.storageClass | quote }}
   {{- end }}
 {{- end }}
+---
+{{/*
+PVC for the bulk-ingest staging area. Shared by the Deployment (writer)
+and the CronJob (reader), so the access mode needs to allow both pods to
+mount it — see values.yaml `uploadStaging`.
+*/}}
+{{- if and .Values.uploadStaging.enabled (not .Values.uploadStaging.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "restai.fullname" . }}-uploads
+  labels:
+    {{- include "restai.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.uploadStaging.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.uploadStaging.size | quote }}
+  {{- if .Values.uploadStaging.storageClass }}
+  storageClassName: {{ .Values.uploadStaging.storageClass | quote }}
+  {{- end }}
+{{- end }}

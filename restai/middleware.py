@@ -11,6 +11,8 @@ from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from restai.constants import ERROR_MESSAGES
+
 
 # CORS — only allow wildcard origins for widget endpoints (cross-origin
 # chat API calls from embedded widgets on third-party sites). All other
@@ -151,3 +153,132 @@ def register_middleware(app: FastAPI) -> None:
                 response.headers.setdefault(k, v)
 
         return response
+
+
+# ── Request body-size guard ────────────────────────────────────────────────
+#
+# Rejects oversized request bodies BEFORE they are consumed. Without this,
+# every upload path had to read the whole file to measure it (turning an
+# oversized upload into an OOM instead of a 413), and the base64 chat path
+# had Starlette buffer + Pydantic parse hundreds of MB before any validator
+# ran.
+#
+# Deliberately pure ASGI rather than `@app.middleware("http")`:
+#   * BaseHTTPMiddleware runs the app in a task group and re-raises
+#     receive-side errors out of `call_next`, so a clean 413 can't be emitted
+#     from there — and it would add a task group to every SSE stream.
+#   * Raising HTTPException from middleware does NOT reach the app's
+#     exception handlers (those live in the inner ExceptionMiddleware), so it
+#     would surface as a 500. We build and send the response ourselves.
+
+# Multipart bodies carry the file plus part boundaries and the sibling form
+# fields, so the envelope is always a little larger than the file itself.
+# Without slack an exactly-at-the-limit file would be rejected.
+_MULTIPART_SLACK_BYTES = 2 * 1024 * 1024
+
+# Paths that stream real files. Everything else only ever carries JSON.
+_UPLOAD_PATH_MARKERS = (
+    "/embeddings/ingest/upload",
+    "/ingest-bulk",
+    "/attachments",
+    "/audio/",
+)
+
+# Ceiling for ordinary JSON bodies. Generous enough for base64 images and the
+# logo data-URI in settings, small enough that a runaway payload can't pin a
+# worker's memory.
+_JSON_BODY_LIMIT_BYTES = 32 * 1024 * 1024
+
+
+class _BodyTooLarge(Exception):
+    """Raised inside the wrapped `receive` once the body exceeds the limit."""
+
+
+def _limit_for_path(path: str) -> int:
+    if any(marker in path for marker in _UPLOAD_PATH_MARKERS):
+        from restai import config as _config
+        return _config.max_upload_bytes() + _MULTIPART_SLACK_BYTES
+    return _JSON_BODY_LIMIT_BYTES
+
+
+class BodySizeLimitMiddleware:
+    """ASGI middleware enforcing a per-path request body ceiling."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope.get("method") in ("GET", "HEAD", "OPTIONS"):
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        limit = _limit_for_path(path)
+
+        # Fast path: trust Content-Length enough to reject before reading a
+        # single byte. It's advisory (a client can lie or omit it under
+        # Transfer-Encoding: chunked), so the streaming counter below is the
+        # real enforcement.
+        for name, value in scope.get("headers") or []:
+            if name == b"content-length":
+                try:
+                    if int(value) > limit:
+                        await self._reject(scope, send, limit)
+                        return
+                except (TypeError, ValueError):
+                    pass
+                break
+
+        received = 0
+        response_started = False
+
+        async def limited_receive():
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b"") or b"")
+                if received > limit:
+                    raise _BodyTooLarge()
+            return message
+
+        async def guarded_send(message):
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
+
+        try:
+            await self.app(scope, limited_receive, guarded_send)
+        except _BodyTooLarge:
+            # If the app already started responding we can't replace it — a
+            # second response.start is a hard ASGI protocol error.
+            if not response_started:
+                await self._reject(scope, send, limit)
+
+    @staticmethod
+    async def _reject(scope, send, limit: int) -> None:
+        megabytes = limit // (1024 * 1024)
+        path = scope.get("path", "")
+        if path.startswith("/v1/"):
+            # `api_error` reads as retryable to the OpenAI SDKs, which would
+            # have clients re-upload the same oversized body.
+            response = _openai_error(
+                413,
+                f"Request body too large. Maximum is {megabytes} MB.",
+                type_override="invalid_request_error",
+            )
+        else:
+            response = JSONResponse(
+                status_code=413,
+                content={"detail": ERROR_MESSAGES.FILE_TOO_LARGE(f"{megabytes} MB")},
+            )
+        # Close the connection: the peer is likely still uploading, and
+        # keeping it alive on a half-read body confuses most clients.
+        raw_headers = [(k, v) for k, v in response.raw_headers if k.lower() != b"connection"]
+        raw_headers.append((b"connection", b"close"))
+        await send({
+            "type": "http.response.start",
+            "status": 413,
+            "headers": raw_headers,
+        })
+        await send({"type": "http.response.body", "body": response.body})

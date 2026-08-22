@@ -294,6 +294,11 @@ def _redact_secrets(text):
 # and the truncation marker.
 _TEXT_COLUMN_LIMIT = 60000
 
+# Largest base64 image we persist on a log row. Beyond this the row is written
+# without the image rather than risking an INSERT that exceeds the server's
+# max_allowed_packet and silently drops the billing record.
+_IMAGE_COLUMN_LIMIT = 8_000_000
+
 
 def _cap_text_column(text, limit=_TEXT_COLUMN_LIMIT):
     """Truncate a free-text value so the usage row can always be INSERTed.
@@ -337,7 +342,14 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
     log_answer = output.get("answer") if logging_enabled else None
     log_system = system_prompt if logging_enabled else None
     log_context = _json.dumps(context) if context and logging_enabled else None
+    # Images arrive as base64 data-URIs and can be tens of MB. This column is
+    # LONGTEXT on MySQL but the server's `max_allowed_packet` (64 MB default)
+    # rejects the INSERT long before that — and a failed log row means the
+    # inference is never metered (see `_cap_text_column`). Store a marker
+    # instead of the payload once it gets absurd.
     log_image = output.get("image") if logging_enabled else None
+    if log_image and len(log_image) > _IMAGE_COLUMN_LIMIT:
+        log_image = None
     log_error = output.get("error") if logging_enabled else None
     # A DB DataError's str() embeds the full SQL echo — including any base64
     # image bound as a parameter — which can be 100KB+. We never need that to
@@ -354,6 +366,7 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
     # execution details either.
     trace_list = output.get("tool_trace") or None
     log_tool_trace = _json.dumps(trace_list) if (trace_list and logging_enabled) else None
+    log_tool_trace = _cap_text_column(log_tool_trace)
 
     # Cap before redacting: the truncated tail is discarded either way, and
     # _redact_secrets sweeps five regexes over whatever it is handed.

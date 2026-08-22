@@ -479,7 +479,9 @@
         "uploadFiles": "上传文件",
         "uploading": "上传中...",
         "queuedFiles": "已排队 {{count}} 个文件等待摄取。",
-        "ingestHelp": "PDF / DOCX / CSV / XLSX / TXT。由 bulk_ingest 定时任务异步处理。"
+        "ingestHelp": "PDF / DOCX / CSV / XLSX / TXT。由 bulk_ingest 定时任务异步处理。",
+        "maxPerFile": "每个文件最大 {{max}} MB。",
+        "fileTooLarge": "文件过大：{{names}}（每个文件最大 {{max}} MB）。"
       },
       "security": {
         "guards": "提示防护",
@@ -1685,6 +1687,9 @@
       "systemLlm": "系统 LLM",
       "systemLlmHelp": "平台 AI 助手(智能搜索、提示生成器、Blockly 生成器)的后端模型。留空以禁用这些功能。",
       "maxAudioUploadSize": "最大音频上传大小 (MB)",
+      "maxUploadSize": "最大上传大小 (MB)",
+      "sandboxMemory": "沙箱内存 (MB)",
+      "maxUploadSizeHelp": "适用于知识库导入和聊天附件。",
       "dataRetentionDays": "数据保留(天)",
       "redisHost": "Redis 主机",
       "redisHostPlaceholder": "留空使用内存存储",
@@ -1769,6 +1774,7 @@
       "retention": "自动删除早于此的日志。0 = 永久保留。",
       "containerImage": "沙箱容器的基础镜像",
       "dockerTimeout": "在此秒数的非活动后移除容器",
+      "sandboxMemory": "每个代理沙箱容器的内存。同时决定其 tmpfs 大小——若代理会收到大附件，请与上传限制一并调高。",
       "browserImage": "Playwright 镜像。需要预装 Chromium + playwright.sync_api。",
       "browserTimeout": "未使用的容器将在此时间后被回收。",
       "allowedDomains": "以逗号分隔的邮箱域名，或 * 表示全部",

@@ -480,7 +480,9 @@
         "uploadFiles": "Cargar archivos",
         "uploading": "Cargando...",
         "queuedFiles": "{{count}} archivo(s) en cola para ingesta.",
-        "ingestHelp": "PDF / DOCX / CSV / XLSX / TXT. Procesado de forma asíncrona por el cron bulk_ingest."
+        "ingestHelp": "PDF / DOCX / CSV / XLSX / TXT. Procesado de forma asíncrona por el cron bulk_ingest.",
+        "maxPerFile": "Máx. {{max}} MB por archivo.",
+        "fileTooLarge": "Demasiado grande: {{names}} (máx. {{max}} MB por archivo)."
       },
       "security": {
         "guards": "Guards de prompt",
@@ -1686,6 +1688,9 @@
       "systemLlm": "LLM del sistema",
       "systemLlmHelp": "Modelo base para los asistentes de IA de la plataforma (Búsqueda Inteligente, Generador de Prompt, Generador Blockly). Deje vacío para desactivar estas funciones.",
       "maxAudioUploadSize": "Tamaño máximo de carga de audio (MB)",
+      "maxUploadSize": "Tamaño máximo de subida (MB)",
+      "sandboxMemory": "Memoria del sandbox (MB)",
+      "maxUploadSizeHelp": "Se aplica a la ingesta de la base de conocimiento y a los adjuntos del chat.",
       "dataRetentionDays": "Retención de datos (días)",
       "redisHost": "Host de Redis",
       "redisHostPlaceholder": "Deje vacío para memoria interna",
@@ -1770,6 +1775,7 @@
       "retention": "Elimina automáticamente los registros más antiguos que este valor. 0 = mantener siempre.",
       "containerImage": "Imagen base para los contenedores sandbox",
       "dockerTimeout": "Eliminar contenedores tras este número de segundos de inactividad",
+      "sandboxMemory": "RAM por contenedor sandbox del agente. También dimensiona su tmpfs; auméntala junto con el límite de subida si los agentes reciben adjuntos grandes.",
       "browserImage": "Imagen de Playwright. Necesita Chromium + playwright.sync_api preinstalados.",
       "browserTimeout": "Los contenedores no utilizados se eliminan tras este tiempo.",
       "allowedDomains": "Dominios de correo separados por comas, o * para todos",

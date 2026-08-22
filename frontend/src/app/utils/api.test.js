@@ -5,11 +5,23 @@ jest.mock("react-toastify", () => ({
   toast: { error: jest.fn() },
 }));
 
+// Mirrors the parts of a real Response the client touches. `text()` matters
+// on the error path: the client reads the body as text and parses it itself,
+// so a non-JSON error page (a reverse proxy's 413) doesn't throw.
 const jsonResponse = (status, body) => ({
   ok: status >= 200 && status < 300,
   status,
   statusText: `HTTP ${status}`,
   json: () => Promise.resolve(body),
+  text: () => Promise.resolve(JSON.stringify(body)),
+});
+
+const textResponse = (status, body, statusText) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  statusText: statusText || `HTTP ${status}`,
+  json: () => Promise.reject(new Error("not json")),
+  text: () => Promise.resolve(body),
 });
 
 beforeEach(() => {
@@ -129,5 +141,142 @@ describe("api client", () => {
     } finally {
       window.location = original;
     }
+  });
+});
+
+describe("proxy-level errors without a JSON envelope", () => {
+  it("explains a 413 raised in front of the app", async () => {
+    global.fetch.mockResolvedValue(
+      textResponse(413, "<html><head><title>413</title></head></html>", "Request Entity Too Large")
+    );
+    await expect(api.post("/projects/1/ingest-bulk", {}, null)).rejects.toMatchObject({
+      status: 413,
+    });
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining("client_max_body_size")
+    );
+  });
+
+  it("falls back to statusText for other non-JSON bodies", async () => {
+    global.fetch.mockResolvedValue(textResponse(502, "<html>bad gateway</html>", "Bad Gateway"));
+    await expect(api.get("/info", null)).rejects.toMatchObject({
+      status: 502,
+      detail: "Bad Gateway",
+    });
+  });
+});
+
+describe("api.upload", () => {
+  // `fetch` cannot report upload progress, so uploads go through XHR. Stub
+  // the class rather than the network so the progress + error plumbing is
+  // exercised deterministically.
+  let xhr;
+
+  class MockXHR {
+    constructor() {
+      this.upload = {};
+      this.headers = {};
+      this.status = 0;
+      this.statusText = "";
+      this.responseText = "";
+      xhr = this;
+    }
+    open(method, url) {
+      this.method = method;
+      this.url = url;
+    }
+    setRequestHeader(k, v) {
+      this.headers[k] = v;
+    }
+    send(body) {
+      this.sent = body;
+    }
+    abort() {
+      this.aborted = true;
+      if (this.onabort) this.onabort();
+    }
+  }
+
+  beforeEach(() => {
+    global.XMLHttpRequest = MockXHR;
+  });
+
+  afterAll(() => {
+    delete global.XMLHttpRequest;
+  });
+
+  it("POSTs the FormData with Basic auth and no forced content type", async () => {
+    const form = new FormData();
+    const p = api.upload("/projects/1/ingest-bulk", form, "dG9rZW4=");
+    expect(xhr.method).toBe("POST");
+    expect(xhr.url).toBe("/projects/1/ingest-bulk");
+    expect(xhr.headers.Authorization).toBe("Basic dG9rZW4=");
+    // The browser must set Content-Type so it can add the multipart boundary.
+    expect(xhr.headers["Content-Type"]).toBeUndefined();
+    expect(xhr.sent).toBe(form);
+
+    xhr.status = 202;
+    xhr.responseText = JSON.stringify({ queued: [1, 2], count: 2 });
+    xhr.onload();
+    await expect(p).resolves.toEqual({ queued: [1, 2], count: 2 });
+  });
+
+  it("reports fractional progress, and null when the length is unknown", async () => {
+    const seen = [];
+    const p = api.upload("/x", new FormData(), null, {
+      onProgress: (pct) => seen.push(pct),
+    });
+    xhr.upload.onprogress({ lengthComputable: true, loaded: 25, total: 100 });
+    xhr.upload.onprogress({ lengthComputable: true, loaded: 100, total: 100 });
+    xhr.upload.onprogress({ lengthComputable: false, loaded: 5, total: 0 });
+    expect(seen).toEqual([0.25, 1, null]);
+
+    xhr.status = 200;
+    xhr.responseText = "{}";
+    xhr.onload();
+    await p;
+  });
+
+  it("rejects with an ApiError carrying the server's detail", async () => {
+    const p = api.upload("/x", new FormData(), null);
+    xhr.status = 413;
+    xhr.statusText = "Payload Too Large";
+    xhr.responseText = JSON.stringify({ detail: "File too large. Max size: 100 MB" });
+    xhr.onload();
+    await expect(p).rejects.toMatchObject({
+      status: 413,
+      detail: "File too large. Max size: 100 MB",
+    });
+    expect(toast.error).toHaveBeenCalledWith("File too large. Max size: 100 MB");
+  });
+
+  it("surfaces 422 field errors the same way the fetch path does", async () => {
+    const p = api.upload("/x", new FormData(), null);
+    xhr.status = 422;
+    xhr.responseText = JSON.stringify({
+      detail: [{ loc: ["query", "chunks"], msg: "Input should be less than or equal to 8192" }],
+    });
+    xhr.onload();
+    await expect(p).rejects.toMatchObject({
+      status: 422,
+      fieldErrors: { chunks: "Input should be less than or equal to 8192" },
+    });
+  });
+
+  it("aborts when the caller's signal fires", async () => {
+    const controller = new AbortController();
+    const p = api.upload("/x", new FormData(), null, { signal: controller.signal });
+    controller.abort();
+    expect(xhr.aborted).toBe(true);
+    await expect(p).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it("does not toast when silent", async () => {
+    const p = api.upload("/x", new FormData(), null, { silent: true });
+    xhr.status = 500;
+    xhr.responseText = JSON.stringify({ detail: "boom" });
+    xhr.onload();
+    await expect(p).rejects.toMatchObject({ status: 500 });
+    expect(toast.error).not.toHaveBeenCalled();
   });
 });

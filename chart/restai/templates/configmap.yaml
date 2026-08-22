@@ -39,5 +39,10 @@ data:
   {{- if .Values.config.restaiUrl }}
   RESTAI_URL: {{ .Values.config.restaiUrl | quote }}
   {{- end }}
+  {{- if .Values.uploadStaging.enabled }}
+  # Bulk-ingest staging dir. Must resolve to the shared uploads volume:
+  # the API pod stages each file here and the cron pod reads it back.
+  UPLOAD_STAGING_PATH: {{ .Values.uploadStaging.mountPath | quote }}
+  {{- end }}
   # GPU device targeting is GUI-managed at /admin/gpu (the worker
   # pool's first selected index drives `config.RESTAI_DEFAULT_DEVICE`).

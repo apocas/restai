@@ -9,10 +9,12 @@ from __future__ import annotations
 import io
 import os
 import random
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
 
+from restai import config
 from restai.config import RESTAI_DEFAULT_PASSWORD
 from restai.database import open_db_wrapper
 from restai.main import app
@@ -20,6 +22,11 @@ from restai.models.databasemodels import BulkIngestJobDatabase
 
 
 ADMIN = ("admin", RESTAI_DEFAULT_PASSWORD)
+
+suffix = uuid.uuid4().hex[:8]
+llm_name = f"bulk_llm_{suffix}"
+emb_name = f"bulk_emb_{suffix}"
+team_name = f"bulk-team-{suffix}"
 
 
 @pytest.fixture(scope="module")
@@ -29,28 +36,54 @@ def client():
 
 
 @pytest.fixture(scope="module")
-def rag_project(client):
-    teams = client.get("/teams", auth=ADMIN).json().get("teams", []) or []
-    if not teams:
-        pytest.skip("no team available")
-    llms = (client.get("/info", auth=ADMIN).json() or {}).get("llms") or []
-    embs = (client.get("/info", auth=ADMIN).json() or {}).get("embeddings") or []
-    if not llms or not embs:
-        pytest.skip("no LLMs or embeddings configured")
+def team(client):
+    """A team that actually owns the LLM + embedding it hands to projects.
 
-    name = f"bulk_test_{random.randint(0, 999999)}"
+    Picking `teams[0]` and `llms[0]` independently (as this file used to)
+    gives a pair with no access relationship, so every test skipped on a
+    403 from project creation.
+    """
     r = client.post(
-        "/projects",
+        "/llms",
         json={
-            "name": name, "type": "rag",
-            "llm": llms[0]["name"], "embeddings": embs[0]["name"],
-            "team_id": teams[0]["id"], "vectorstore": "chromadb",
+            "name": llm_name, "class_name": "OpenAI", "type": "chat",
+            "options": '{"model": "gpt-4o-mini", "api_key": "sk-fake"}',
+            "privacy": "private",
         },
         auth=ADMIN,
     )
-    if r.status_code not in (200, 201):
-        pytest.skip(f"could not create RAG project: {r.status_code} {r.text}")
-    pid = r.json().get("project") or r.json().get("id")
+    assert r.status_code in (200, 201), r.text
+    r = client.post(
+        "/embeddings",
+        json={"name": emb_name, "class_name": "Ollama",
+              "options": '{"model_name": "nomic-embed-text", "base_url": "http://127.0.0.1:11434"}',
+              "privacy": "private", "dimension": 768},
+        auth=ADMIN,
+    )
+    assert r.status_code in (200, 201), r.text
+    r = client.post(
+        "/teams",
+        json={"name": team_name, "users": ["admin"],
+              "llms": [llm_name], "embeddings": [emb_name]},
+        auth=ADMIN,
+    )
+    assert r.status_code in (200, 201), r.text
+    yield r.json()["id"]
+
+
+def _make_project(client, team_id, ptype="rag"):
+    name = f"bulk_{ptype}_{random.randint(0, 999999)}"
+    body = {"name": name, "type": ptype, "llm": llm_name, "team_id": team_id}
+    if ptype == "rag":
+        body.update({"embeddings": emb_name, "vectorstore": "chromadb"})
+    r = client.post("/projects", json=body, auth=ADMIN)
+    assert r.status_code in (200, 201), r.text
+    return r.json().get("project") or r.json().get("id")
+
+
+@pytest.fixture(scope="module")
+def rag_project(client, team):
+    pid = _make_project(client, team, "rag")
     yield pid
     client.delete(f"/projects/{pid}", auth=ADMIN)
 
@@ -138,22 +171,9 @@ def test_enqueue_rejects_empty_upload(client, rag_project):
     assert r.status_code in (400, 422)
 
 
-def test_enqueue_rejects_non_rag_project(client):
+def test_enqueue_rejects_non_rag_project(client, team):
     """Agent projects don't have a vectorstore — reject bulk ingest."""
-    teams = client.get("/teams", auth=ADMIN).json().get("teams", []) or []
-    llms = (client.get("/info", auth=ADMIN).json() or {}).get("llms") or []
-    if not teams or not llms:
-        pytest.skip("fixtures unavailable")
-
-    name = f"bulk_agent_{random.randint(0, 999999)}"
-    r = client.post(
-        "/projects",
-        json={"name": name, "type": "agent", "llm": llms[0]["name"], "team_id": teams[0]["id"]},
-        auth=ADMIN,
-    )
-    if r.status_code not in (200, 201):
-        pytest.skip(f"could not create agent project: {r.status_code}")
-    pid = r.json().get("project") or r.json().get("id")
+    pid = _make_project(client, team, "agent")
     try:
         files = [("files", ("a.txt", io.BytesIO(b"x"), "text/plain"))]
         r = client.post(f"/projects/{pid}/ingest-bulk", files=files, auth=ADMIN)
@@ -161,3 +181,92 @@ def test_enqueue_rejects_non_rag_project(client):
         assert "rag" in r.json()["detail"].lower()
     finally:
         client.delete(f"/projects/{pid}", auth=ADMIN)
+
+
+def _staged_files(project_id):
+    """Staged tempfiles currently on disk for this project."""
+    from restai.routers.bulk_ingest import _QUEUE_DIR
+
+    if not os.path.isdir(_QUEUE_DIR):
+        return []
+    return [f for f in os.listdir(_QUEUE_DIR) if f.startswith(f"proj{project_id}_")]
+
+
+def test_enqueue_rejects_oversized_file(client, rag_project, monkeypatch):
+    """A part over the ceiling 413s, and the *whole batch* is refused.
+
+    Sizes are validated for every part before anything is staged, so the
+    small file that precedes the big one must leave neither a tempfile nor a
+    job row behind — the old code staged and committed it first.
+    """
+    monkeypatch.setattr(config, "max_upload_bytes", lambda: 1024)
+
+    before_files = set(_staged_files(rag_project))
+    before_ids = {
+        j["id"] for j in client.get(f"/projects/{rag_project}/ingest-bulk", auth=ADMIN).json()["jobs"]
+    }
+
+    files = [
+        ("files", ("small.txt", io.BytesIO(b"tiny"), "text/plain")),
+        ("files", ("big.txt", io.BytesIO(b"x" * 5000), "text/plain")),
+    ]
+    r = client.post(f"/projects/{rag_project}/ingest-bulk", files=files, auth=ADMIN)
+    assert r.status_code == 413, r.text
+    assert "too large" in r.json()["detail"].lower(), r.text
+
+    after_ids = {
+        j["id"] for j in client.get(f"/projects/{rag_project}/ingest-bulk", auth=ADMIN).json()["jobs"]
+    }
+    assert after_ids == before_ids, "partial batch leaked a job row"
+    assert set(_staged_files(rag_project)) == before_files, "partial batch leaked a staged file"
+
+
+def test_enqueue_accepts_file_under_ceiling(client, rag_project, monkeypatch):
+    monkeypatch.setattr(config, "max_upload_bytes", lambda: 1024 * 1024)
+    payload = b"y" * 4096
+    files = [("files", ("ok.txt", io.BytesIO(payload), "text/plain"))]
+    r = client.post(f"/projects/{rag_project}/ingest-bulk", files=files, auth=ADMIN)
+    assert r.status_code == 202, r.text
+    jid = r.json()["queued"][0]
+    try:
+        db = open_db_wrapper()
+        try:
+            row = db.db.query(BulkIngestJobDatabase).filter(BulkIngestJobDatabase.id == jid).first()
+            # size_bytes is stat'd off the staged file, not taken from the
+            # client's header — it must match the bytes actually written.
+            assert row.size_bytes == len(payload)
+            assert os.path.getsize(row.file_path) == len(payload)
+        finally:
+            db.db.close()
+    finally:
+        client.delete(f"/projects/{rag_project}/ingest-bulk/{jid}", auth=ADMIN)
+
+
+def test_enqueue_rejects_out_of_range_chunks(client, rag_project):
+    files = [("files", ("a.txt", io.BytesIO(b"x"), "text/plain"))]
+    r = client.post(
+        f"/projects/{rag_project}/ingest-bulk?chunks=999999", files=files, auth=ADMIN
+    )
+    assert r.status_code == 422
+
+
+def test_enqueue_refuses_when_disk_is_full(client, rag_project, monkeypatch):
+    """507 rather than filling the staging volume and taking the app down."""
+    import shutil as _shutil
+
+    from restai.routers import bulk_ingest as mod
+
+    class _Usage:
+        total = free = 1024  # far below _DISK_HEADROOM_BYTES
+
+    before = set(_staged_files(rag_project))
+    monkeypatch.setattr(mod, "shutil", type("S", (), {
+        "disk_usage": staticmethod(lambda _p: _Usage),
+        "copyfileobj": staticmethod(_shutil.copyfileobj),
+    }))
+
+    files = [("files", ("a.txt", io.BytesIO(b"x" * 100), "text/plain"))]
+    r = client.post(f"/projects/{rag_project}/ingest-bulk", files=files, auth=ADMIN)
+    assert r.status_code == 507, r.text
+    # Refused before staging, so nothing new landed on the volume.
+    assert set(_staged_files(rag_project)) == before

@@ -11,6 +11,9 @@ jest.mock("app/utils/api", () => ({
   post: jest.fn(),
   patch: jest.fn(),
   delete: jest.fn(),
+  // Uploads go through the XHR helper so the progress bar has something to
+  // report; `fetch` (and therefore api.post) can't emit upload progress.
+  upload: jest.fn(),
 }));
 jest.mock("react-toastify", () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 jest.mock("react-i18next", () => ({ useTranslation: () => ({ t: (k) => k }) }));
@@ -50,6 +53,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   api.get.mockResolvedValue({ jobs: JOBS });
   api.post.mockResolvedValue({ queued: [7] });
+  api.upload.mockResolvedValue({ queued: [7], count: 1 });
   api.delete.mockResolvedValue({});
 });
 
@@ -118,10 +122,11 @@ describe("ProjectEditKnowledge", () => {
     });
 
     await waitFor(() =>
-      expect(api.post).toHaveBeenCalledWith(
+      expect(api.upload).toHaveBeenCalledWith(
         "/projects/3/ingest-bulk?method=auto&splitter=sentence&chunks=256",
         expect.any(FormData),
-        "tok"
+        "tok",
+        expect.objectContaining({ onProgress: expect.any(Function) })
       )
     );
     expect(toast.success).toHaveBeenCalledWith("projects.edit.knowledge.queuedFiles", { position: "top-right" });
@@ -138,7 +143,46 @@ describe("ProjectEditKnowledge", () => {
     await act(async () => {
       fireEvent.change(input, { target: { files: [] } });
     });
-    expect(api.post).not.toHaveBeenCalled();
+    expect(api.upload).not.toHaveBeenCalled();
+  });
+
+  it("refuses a file over the server ceiling without uploading it", async () => {
+    // The server rejects the WHOLE batch when any part is oversized, so the
+    // client has to check before spending the upload — and name the offender.
+    const { container } = renderKnowledge(makeState(), {
+      info: { llms: [], max_upload_size_mb: 1 },
+    });
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+
+    const input = container.querySelector('input[type="file"]');
+    const big = new File([new Uint8Array(2 * 1024 * 1024)], "huge.pdf", {
+      type: "application/pdf",
+    });
+    await act(async () => {
+      fireEvent.change(input, { target: { files: [big] } });
+    });
+
+    expect(api.upload).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      "projects.edit.knowledge.fileTooLarge",
+      { position: "top-right" }
+    );
+  });
+
+  it("uploads a file that fits under the server ceiling", async () => {
+    const { container } = renderKnowledge(makeState(), {
+      info: { llms: [], max_upload_size_mb: 1 },
+    });
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+
+    const input = container.querySelector('input[type="file"]');
+    const ok = new File([new Uint8Array(1024)], "small.pdf", { type: "application/pdf" });
+    await act(async () => {
+      fireEvent.change(input, { target: { files: [ok] } });
+    });
+
+    await waitFor(() => expect(api.upload).toHaveBeenCalledTimes(1));
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
   it("deleting a job row calls DELETE and refreshes", async () => {
