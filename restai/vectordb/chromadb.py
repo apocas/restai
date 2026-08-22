@@ -36,15 +36,46 @@ def _get_client(path=None):
     return _client_cache[path]
 
 
+# ChromaDB is the only backend with a MINIMUM name length: collection names
+# must be 3-512 chars. `project_store_key` returns `p{id}`, so every project
+# with a single-digit id produced a 2-char name and `get_or_create_collection`
+# raised InvalidArgumentError — i.e. on a fresh install the first nine projects
+# could not be created at all (500 from POST /projects).
+_CHROMA_MIN_NAME_LEN = 3
+
+
+def _chroma_collection_name(store_key: str) -> str:
+    """Collection name for `store_key`, satisfying ChromaDB's length floor.
+
+    Zero-pads the numeric suffix (`p1` -> `p01`) instead of appending a
+    sentinel, so the name keeps its `p<digits>` shape and cannot collide with
+    another project (`p01` != `p10`, and ids are unique).
+
+    Deliberately local to this backend rather than folded into
+    `project_store_key`: `store_key` still names the on-disk embeddings
+    directory and the pgvector / pinecone / weaviate identifiers, all of which
+    accept a 2-char name today. Changing it globally would orphan those stores
+    for every existing project with a single-digit id, whereas no ChromaDB
+    collection can exist under the short name — creating one always failed.
+    """
+    if len(store_key) >= _CHROMA_MIN_NAME_LEN:
+        return store_key
+    return store_key[0] + store_key[1:].zfill(_CHROMA_MIN_NAME_LEN - 1)
+
+
 class ChromaDBVector(VectorBase):
     db = None
     chroma_collection = None
+    collection_name = None
 
     def __init__(self, brain, project, embedding: Embedding):
         super().__init__(brain, project, embedding)
+        # The directory stays keyed on `store_key`; only the collection name is
+        # padded, so an existing project's embeddings dir is never orphaned.
         path = find_embeddings_path(self.store_key)
+        self.collection_name = _chroma_collection_name(self.store_key)
         self.db = _get_client(path)
-        self.chroma_collection = self.db.get_or_create_collection(self.store_key)
+        self.chroma_collection = self.db.get_or_create_collection(self.collection_name)
         self.index = self._vector_init(brain)
 
     def _vector_init(self, brain):
@@ -93,7 +124,7 @@ class ChromaDBVector(VectorBase):
 
     def delete(self):
         try:
-            self.db.delete_collection(name=self.store_key)
+            self.db.delete_collection(name=self.collection_name)
             embeddingsPath = os.path.join(EMBEDDINGS_PATH, self.store_key)
             shutil.rmtree(embeddingsPath, ignore_errors=True)
             _client_cache.pop(embeddingsPath, None)
@@ -113,8 +144,8 @@ class ChromaDBVector(VectorBase):
         return id
 
     def reset(self, brain):
-        self.db.delete_collection(name=self.store_key)
-        self.chroma_collection = self.db.get_or_create_collection(self.store_key)
+        self.db.delete_collection(name=self.collection_name)
+        self.chroma_collection = self.db.get_or_create_collection(self.collection_name)
         self.index = self._vector_init(brain)
 
     def list_all_chunks(self, limit=50000):
