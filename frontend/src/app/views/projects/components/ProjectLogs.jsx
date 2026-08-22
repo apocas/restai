@@ -689,6 +689,59 @@ export default function ProjectLogs({ project }) {
                             </Box>
                           )}
 
+                          {(log.stop_reason || log.retries > 0 || log.fallbacks > 0 || log.token_accuracy) && (
+                            <Box>
+                              <Typography
+                                sx={{
+                                  fontFamily: FONT_MONO,
+                                  fontSize: "0.65rem",
+                                  letterSpacing: "0.18em",
+                                  color: "text.disabled",
+                                  fontWeight: 700,
+                                  mb: 0.75,
+                                }}
+                              >
+                                RUN OUTCOME
+                              </Typography>
+                              <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+                                {log.stop_reason && (
+                                  <Chip
+                                    label={`stopped: ${log.stop_reason.replace("_", " ")}`}
+                                    size="small"
+                                    sx={{
+                                      fontFamily: FONT_MONO,
+                                      fontSize: "0.7rem",
+                                      backgroundColor: "rgba(230,126,34,0.12)",
+                                      color: "#b9541a",
+                                      border: "1px solid rgba(230,126,34,0.3)",
+                                    }}
+                                  />
+                                )}
+                                {log.retries > 0 && (
+                                  <Chip
+                                    label={`retries: ${log.retries}`}
+                                    size="small"
+                                    sx={{ fontFamily: FONT_MONO, fontSize: "0.7rem" }}
+                                  />
+                                )}
+                                {log.fallbacks > 0 && (
+                                  <Chip
+                                    label={`llm fallbacks: ${log.fallbacks}`}
+                                    size="small"
+                                    sx={{ fontFamily: FONT_MONO, fontSize: "0.7rem" }}
+                                  />
+                                )}
+                                {log.token_accuracy && (
+                                  <Chip
+                                    label={`tokens: ${log.token_accuracy}`}
+                                    size="small"
+                                    sx={{ fontFamily: FONT_MONO, fontSize: "0.7rem" }}
+                                  />
+                                )}
+                              </Box>
+                            </Box>
+                          )}
+
                           {log.system_prompt && (
                             <LogBlock label="System prompt" content={log.system_prompt} accent="#7dd3fc" />
                           )}

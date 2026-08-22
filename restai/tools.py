@@ -371,6 +371,23 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
 
     status = output.get("status") or "success"
 
+    # Agent run-outcome metadata (migration 061). All optional — non-agent
+    # project types simply leave them NULL.
+    stop_reason = output.get("stop_reason")
+    if isinstance(stop_reason, str):
+        stop_reason = stop_reason[:32]
+    else:
+        stop_reason = None
+    try:
+        retries = int(output["retries"]) if output.get("retries") is not None else None
+    except (TypeError, ValueError):
+        retries = None
+    fallback_trail = output.get("llm_fallbacks") or []
+    fallbacks = len(fallback_trail) if fallback_trail else None
+    token_accuracy = tokens.get("accuracy") if isinstance(tokens, dict) else None
+    if not isinstance(token_accuracy, str):
+        token_accuracy = None
+
     output_db_entry = OutputDatabase(
         user_id=user.id,
         team_id=project.props.team.id if project.props.team else None,
@@ -392,6 +409,10 @@ def log_inference(project: Project, user: User, output, db: DBWrapper, latency_m
         image=log_image,
         attachments=log_attachments,
         tool_trace=log_tool_trace,
+        stop_reason=stop_reason,
+        retries=retries,
+        fallbacks=fallbacks,
+        token_accuracy=token_accuracy[:16] if token_accuracy else None,
     )
 
     if "id" in output:

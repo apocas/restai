@@ -108,6 +108,9 @@ class Agent2Runtime:
         # Same-provider retries per turn for transient errors (429/5xx/…).
         self.retry_attempts = max(0, int(retry_attempts))
         self.retry_base_delay = max(0.0, float(retry_base_delay))
+        # Transient retries actually performed this run (observability —
+        # persisted on the log row so flaky providers are visible).
+        self.retry_count = 0
 
         # Real token usage accumulated across every LLM turn this run.
         # usage_turns counts turns that reported usage; llm_turns counts all —
@@ -161,6 +164,7 @@ class Agent2Runtime:
             # Mutates session.messages in place; no-op when under the threshold.
             await self._maybe_compress_session(session)
 
+            turn_started = time.monotonic()
             try:
                 if stream and self.mode != "react":
                     assistant_message = None
@@ -198,7 +202,17 @@ class Agent2Runtime:
             text_now = assistant_message.text_content()
             if text_now:
                 last_assistant_text = text_now
-            yield AgentEvent(type="assistant", message=assistant_message, turn=turn)
+            # Turn wall time (retries/backoff/fallback switches included) +
+            # the model that served it — feeds the persisted trace timeline.
+            yield AgentEvent(
+                type="assistant",
+                message=assistant_message,
+                turn=turn,
+                data={
+                    "turn_latency_ms": int((time.monotonic() - turn_started) * 1000),
+                    "llm": self.active_llm_name or None,
+                },
+            )
 
             tool_calls = [
                 b for b in assistant_message.content if isinstance(b, ToolUseBlock)
@@ -260,6 +274,7 @@ class Agent2Runtime:
                     raise
                 delay = backoff_delay(attempt, base=self.retry_base_delay)
                 attempt += 1
+                self.retry_count += 1
                 logger.warning(
                     "agent2: transient provider error on '%s' (%s); "
                     "retry %d/%d in %.1fs",
@@ -362,6 +377,7 @@ class Agent2Runtime:
                 ):
                     delay = backoff_delay(attempt, base=self.retry_base_delay)
                     attempt += 1
+                    self.retry_count += 1
                     logger.warning(
                         "agent2: transient streaming error on '%s' (%s); "
                         "retry %d/%d in %.1fs",

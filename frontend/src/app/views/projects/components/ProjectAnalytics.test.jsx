@@ -156,6 +156,44 @@ describe("ProjectAnalytics", () => {
     expect(screen.queryByText("projects.edit.analytics.topUsers")).not.toBeInTheDocument();
   });
 
+  it("renders the agent-run drill-down when tool analytics arrive", async () => {
+    api.get.mockImplementation((path) => {
+      if (path.includes("/analytics/conversations")) {
+        return Promise.resolve({
+          ...DATA,
+          stop_reason_breakdown: [{ stop_reason: "max_time", count: 4 }],
+          reliability: {
+            retries: 7, fallbacks: 2, runs_with_fallback: 2,
+            token_accuracy: [{ accuracy: "high", count: 250 }],
+          },
+        });
+      }
+      if (path.includes("/analytics/tools")) {
+        return Promise.resolve({
+          tools: [{ tool: "search_knowledge", calls: 40, errors: 10, error_rate: 0.25, avg_ms: 120, p50_ms: 100, p95_ms: 400 }],
+          llm_turns: { count: 90, avg_ms: 900, p50_ms: 800, p95_ms: 2000 },
+          fallbacks: 2, runs_with_fallback: 2, runs_analyzed: 50, truncated: false,
+        });
+      }
+      return Promise.resolve({});
+    });
+    await renderAnalytics();
+
+    expect(await screen.findByText("Tool Performance")).toBeInTheDocument();
+    expect(screen.getByText("search_knowledge")).toBeInTheDocument();
+    expect(screen.getByText("25%")).toBeInTheDocument();
+    expect(screen.getByText("Agent Run Endings")).toBeInTheDocument();
+    expect(screen.getByText("max time")).toBeInTheDocument();
+    expect(screen.getByText("Provider retries")).toBeInTheDocument();
+    expect(screen.getByText("LLM Turn Latency")).toBeInTheDocument();
+  });
+
+  it("hides the agent-run drill-down when no tool data exists", async () => {
+    await renderAnalytics(); // default mock: tools endpoint returns {}
+    expect(screen.queryByText("Tool Performance")).not.toBeInTheDocument();
+    expect(screen.queryByText("Agent Run Endings")).not.toBeInTheDocument();
+  });
+
   it("month navigation refetches the previous month", async () => {
     const user = userEvent.setup();
     await renderAnalytics();

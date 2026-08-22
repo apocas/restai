@@ -415,11 +415,20 @@ Tests: `tests/test_agent_loops_parity.py` (policy, fallback driver, estimator, w
 
 ### Agent Tool-Call Trace
 
-Per-tool-call timeline captured during `agent._drive_runtime` and persisted to `OutputDatabase.tool_trace` (migration 046). JSON list of `{tool, args, latency_ms, status, error?}`. Latency between LLM `assistant` event (containing `ToolUseBlock`) and matching `tool_result` event. Status best-effort: tools following `"ERROR: ..."` / `"OK: ..."` convention auto-classify; rest default to `ok`.
+Per-tool-call timeline captured during `agent._drive_runtime` and persisted to `OutputDatabase.tool_trace` (migration 046). JSON list of `{tool, args, latency_ms, status, error?}`. Latency between LLM `assistant` event (containing `ToolUseBlock`) and matching `tool_result` event. Status: the runtime's `ToolResultBlock.is_error` flag is authoritative (covers unknown tools, invalid args, timeouts, raised exceptions), with a case-insensitive `error` prefix check as fallback for builtins returning soft error strings.
 
+- **Synthetic timeline rows**: `llm_turn` (one per LLM turn — wall time incl. retries/backoff + the serving model, from the assistant event's `turn_latency_ms`/`llm` data) and `llm_fallback` (mid-run model switches). Together with the tool rows the trace reads as a full run timeline.
 - **Persistence**: `tools.py:log_inference` writes `tool_trace` if present, gated by `logging` toggle.
 - **UI**: `ProjectLogs.jsx` renders Tool Trace panel under each expanded log row — one row per call with tool chip, truncated args, error block, latency. Error rows get a subtle red wash.
-- **Empty trace**: agents that didn't use tools (or non-agent projects) leave `tool_trace=NULL` — panel omitted.
+- **Empty trace**: non-agent projects (and external-loop runs without tool calls) leave `tool_trace=NULL` — panel omitted. restai-loop runs always carry at least their `llm_turn` rows.
+
+### Agent Run Observability (migration 061)
+
+Four nullable `OutputDatabase` columns persisted by `log_inference` for every row (NULL on non-agent rows/history): **`stop_reason`** (`max_turns`/`max_time`/`error`; NULL = completed normally), **`retries`** (`Agent2Runtime.retry_count`, transient provider retries incl. streaming — recorded via `Agent._record_fallbacks`), **`fallbacks`** (`len(output["llm_fallbacks"])`), **`token_accuracy`** (`tokens.accuracy` — high/medium/low provenance). All five loops propagate `stop_reason` onto the output; external loops' counts come from the same output keys.
+
+- **`GET /projects/{id}/analytics/tools`** (`analytics.py`) — per-tool stats for the month window aggregated from persisted traces via the pure `aggregate_tool_traces` helper (unit-tested in `tests/test_analytics_tool_traces.py`): calls, errors, error_rate, avg/p50/p95 latency, plus `llm_turns` latency rollup, fallback totals, `runs_analyzed`, and a `truncated` flag (newest-first cap `_TOOL_ANALYTICS_MAX_ROWS=2000`). Pseudo-rows (`llm_turn`/`llm_fallback`) are split out of tool stats.
+- **`/analytics/conversations` additions**: `stop_reason_breakdown` (how agent runs ended — distinct from `status_breakdown`, which is the request outcome) and `reliability` (`retries`/`fallbacks`/`runs_with_fallback` sums + `token_accuracy` counts).
+- **Frontend**: `ProjectAnalytics.jsx` second drill-down row (Agent Run Endings + reliability, LLM Turn Latency, Tool Performance table — hidden when no agent data); `ProjectLogs.jsx` RUN OUTCOME chips (stop reason / retries / fallbacks / token accuracy) on expanded rows; the logs endpoint returns raw ORM rows so new columns flow to clients automatically.
 
 ### Per-Project Analytics Drill-Down
 

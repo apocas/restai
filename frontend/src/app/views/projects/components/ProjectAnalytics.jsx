@@ -24,6 +24,7 @@ export default function ProjectAnalytics({ project }) {
   const { t } = useTranslation();
   const auth = useAuth();
   const [data, setData] = useState(null);
+  const [toolsData, setToolsData] = useState(null);
 
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -48,6 +49,9 @@ export default function ProjectAnalytics({ project }) {
     api.get(`/projects/${project.id}/analytics/conversations?${params}`, auth.user.token, { silent: true })
       .then(setData)
       .catch(() => setData(null));
+    api.get(`/projects/${project.id}/analytics/tools?${params}`, auth.user.token, { silent: true })
+      .then(setToolsData)
+      .catch(() => setToolsData(null));
   }, [project.id, selectedYear, selectedMonth]);
 
   const filledDaily = useMemo(() => {
@@ -214,6 +218,107 @@ export default function ProjectAnalytics({ project }) {
             </Grid>
           )}
         </Grid>
+
+        {/* Agent-run drill-down: how runs ended / provider reliability / tool performance */}
+        {(toolsData?.tools?.length > 0
+          || toolsData?.llm_turns?.count > 0
+          || data.stop_reason_breakdown?.length > 0) && (
+          <Grid container spacing={2} sx={{ mt: 2 }}>
+            {(data.stop_reason_breakdown?.length > 0 || data.reliability) && (
+              <Grid item xs={12} md={4}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>Agent Run Endings</Typography>
+                <Table size="small">
+                  <TableBody>
+                    {(data.stop_reason_breakdown || []).map((row) => (
+                      <TableRow key={row.stop_reason}>
+                        <TableCell sx={{ pl: 2, textTransform: "capitalize" }}>
+                          {row.stop_reason.replace("_", " ")}
+                        </TableCell>
+                        <TableCell align="right" sx={{ pr: 2 }}>{row.count}</TableCell>
+                      </TableRow>
+                    ))}
+                    {data.reliability && (
+                      <>
+                        <TableRow>
+                          <TableCell sx={{ pl: 2 }}>Provider retries</TableCell>
+                          <TableCell align="right" sx={{ pr: 2 }}>{data.reliability.retries}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ pl: 2 }}>LLM fallbacks (runs)</TableCell>
+                          <TableCell align="right" sx={{ pr: 2 }}>
+                            {data.reliability.fallbacks} ({data.reliability.runs_with_fallback})
+                          </TableCell>
+                        </TableRow>
+                        {(data.reliability.token_accuracy || []).map((row) => (
+                          <TableRow key={row.accuracy}>
+                            <TableCell sx={{ pl: 2 }}>Token accuracy: {row.accuracy}</TableCell>
+                            <TableCell align="right" sx={{ pr: 2 }}>{row.count}</TableCell>
+                          </TableRow>
+                        ))}
+                      </>
+                    )}
+                  </TableBody>
+                </Table>
+              </Grid>
+            )}
+            {toolsData?.llm_turns?.count > 0 && (
+              <Grid item xs={12} md={3}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>LLM Turn Latency</Typography>
+                <Table size="small">
+                  <TableBody>
+                    <TableRow>
+                      <TableCell sx={{ pl: 2 }}>Turns</TableCell>
+                      <TableCell align="right" sx={{ pr: 2 }}>{toolsData.llm_turns.count}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell sx={{ pl: 2 }}>Average</TableCell>
+                      <TableCell align="right" sx={{ pr: 2 }}>{toolsData.llm_turns.avg_ms ?? "—"} ms</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell sx={{ pl: 2 }}>p50</TableCell>
+                      <TableCell align="right" sx={{ pr: 2 }}>{toolsData.llm_turns.p50_ms ?? "—"} ms</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell sx={{ pl: 2 }}>p95</TableCell>
+                      <TableCell align="right" sx={{ pr: 2 }}>{toolsData.llm_turns.p95_ms ?? "—"} ms</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </Grid>
+            )}
+            {toolsData?.tools?.length > 0 && (
+              <Grid item xs={12} md={5}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Tool Performance{toolsData.truncated ? " (latest runs)" : ""}
+                </Typography>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ pl: 2 }}>Tool</TableCell>
+                      <TableCell align="right">Calls</TableCell>
+                      <TableCell align="right">Err %</TableCell>
+                      <TableCell align="right">p50</TableCell>
+                      <TableCell align="right" sx={{ pr: 2 }}>p95</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {toolsData.tools.slice(0, 12).map((row) => (
+                      <TableRow key={row.tool}>
+                        <TableCell sx={{ pl: 2, fontFamily: "monospace", fontSize: 12 }}>{row.tool}</TableCell>
+                        <TableCell align="right">{row.calls}</TableCell>
+                        <TableCell align="right" sx={{ color: row.error_rate > 0.2 ? "error.main" : undefined }}>
+                          {Math.round(row.error_rate * 100)}%
+                        </TableCell>
+                        <TableCell align="right">{row.p50_ms ?? "—"} ms</TableCell>
+                        <TableCell align="right" sx={{ pr: 2 }}>{row.p95_ms ?? "—"} ms</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Grid>
+            )}
+          </Grid>
+        )}
       </Box>
     </Card>
   );
