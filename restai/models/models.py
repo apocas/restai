@@ -25,8 +25,8 @@ VALID_EMBEDDING_CLASSES = {
 # both api.openai.com and any OpenAI-spec-compatible server (Together,
 # Groq, Fireworks, vLLM image servers, etc.) — set `options.base_url` on
 # the latter. `google` covers Imagen / Nano Banana via the Google AI SDK;
-# `atlascloud` covers Atlas Cloud's asynchronous Media API.
-VALID_IMAGE_GENERATOR_CLASSES = {"local", "openai", "google", "atlascloud"}
+# `atlascloud` and `muapi` cover asynchronous hosted image APIs.
+VALID_IMAGE_GENERATOR_CLASSES = {"local", "openai", "google", "atlascloud", "muapi"}
 
 # Providers for the speech-to-text registry. `local` covers
 # `restai/audio/workers/*.py` (Whisper / WhisperX / Granite Speech, etc.).
@@ -355,7 +355,7 @@ class ImageGeneratorModel(BaseModel):
     """Image generator registry entry — local worker or external provider."""
     id: Union[int, None] = Field(default=None, description="Unique image generator identifier")
     name: str = Field(description="Unique name identifier (used in /image/{name}/generate)")
-    class_name: str = Field(description="Provider: 'local' (worker module), 'openai' (incl. OpenAI-compat via options.base_url), 'google', 'atlascloud'")
+    class_name: str = Field(description="Provider: 'local' (worker module), 'openai' (incl. OpenAI-compat via options.base_url), 'google', 'atlascloud', or 'muapi'")
     options: Dict[str, Any] = Field(default_factory=dict, description="Provider-specific options (model, api_key, base_url, ...)")
     privacy: Literal["public", "private"] = Field(default="public", description="Privacy level: 'public' (cloud-hosted) or 'private' (self-hosted)")
     description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable description")
@@ -408,7 +408,7 @@ class ImageGeneratorModel(BaseModel):
 class ImageGeneratorModelCreate(BaseModel):
     """Create a new image generator entry."""
     name: str = Field(description="Unique name identifier")
-    class_name: str = Field(description="Provider: 'local', 'openai', 'google', or 'atlascloud'")
+    class_name: str = Field(description="Provider: 'local', 'openai', 'google', 'atlascloud', or 'muapi'")
     options: Union[str, Dict[str, Any]] = Field(default_factory=dict, description="Provider-specific options")
     privacy: Literal["public", "private"] = Field(default="public")
     description: Union[str, None] = Field(default=None, max_length=1000)

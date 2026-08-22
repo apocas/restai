@@ -150,6 +150,21 @@ describe("ImageGenerators List", () => {
     );
   });
 
+  it("offers MuAPI with a live-catalog-compatible default", async () => {
+    const user = userEvent.setup();
+    await renderList();
+
+    await user.click(screen.getByRole("button", { name: "imageGen.new" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByLabelText(/imageGen\.dialog\.provider/));
+    await user.click(await screen.findByRole("option", { name: "MuAPI" }));
+
+    expect(within(dialog).getByLabelText(/imageGen\.dialog\.model/)).toHaveValue("flux-dev");
+    expect(within(dialog).getByLabelText(/imageGen\.dialog\.baseUrl/)).toHaveValue(
+      "https://api.muapi.ai"
+    );
+  });
+
   it("editing a local worker restricts the payload to privacy/description/enabled", async () => {
     const user = userEvent.setup();
     await renderList();
