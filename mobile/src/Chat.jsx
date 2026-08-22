@@ -83,6 +83,11 @@ export default function Chat({ creds, onUnpair }) {
   const [attachments, setAttachments] = useState([]);
   const [sending, setSending] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Per-file attachment ceiling from the paired host. The PWA used to cap
+  // nothing at all, so a phone could post a 500 MB base64 body and only find
+  // out after uploading it over mobile data.
+  const [maxUploadMb, setMaxUploadMb] = useState(20);
+  const [pickError, setPickError] = useState(null);
 
   const endRef = useRef(null);
   const camRef = useRef(null);
@@ -105,12 +110,38 @@ export default function Chat({ creds, onUnpair }) {
       return out;
     });
 
+  // Read the host's configured ceiling once. Best-effort: on failure the
+  // conservative 20 MB default stands.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${host}/info`, { headers: { Authorization: `Bearer ${apiKey}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d?.max_upload_size_mb) setMaxUploadMb(Number(d.max_upload_size_mb));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [host, apiKey]);
+
   const onPick = async (e) => {
     const files = Array.from(e.target.files || []);
     e.target.value = "";
     setMenuOpen(false);
     if (!files.length) return;
-    const read = await Promise.all(files.map(readFile));
+
+    const limit = maxUploadMb * 1024 * 1024;
+    const tooBig = files.filter((f) => f.size > limit);
+    const ok = files.filter((f) => f.size <= limit);
+    if (tooBig.length) {
+      setPickError(
+        `${tooBig.map((f) => f.name).join(", ")} exceeds the ${maxUploadMb} MB limit.`
+      );
+    } else {
+      setPickError(null);
+    }
+    if (!ok.length) return;
+
+    const read = await Promise.all(ok.map(readFile));
     setAttachments((a) => [...a, ...read]);
   };
 
@@ -236,6 +267,13 @@ export default function Chat({ creds, onUnpair }) {
         })}
         <div ref={endRef} />
       </main>
+
+      {pickError && (
+        <div className="att-error" role="alert">
+          {pickError}
+          <button onClick={() => setPickError(null)} aria-label="Dismiss">×</button>
+        </div>
+      )}
 
       {attachments.length > 0 && (
         <div className="att-tray">

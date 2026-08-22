@@ -183,6 +183,9 @@ pytest.ini
 .env
 .local
 restai.db
+# Runtime data dir: SQLite file in Docker, plus the bulk-ingest staging area
+# (config.UPLOAD_STAGING_PATH defaults to ./data/bulk_ingest/).
+/data/
 restai_prod
 lab.py
 

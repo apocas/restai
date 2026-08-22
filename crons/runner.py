@@ -28,7 +28,19 @@ logger = logging.getLogger("restai.cron_runner")
 CRONS_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(CRONS_DIR)
 SKIP_FILES = {"__init__.py", "runner.py"}
-JOB_TIMEOUT = 600  # seconds per job
+JOB_TIMEOUT = 600  # seconds per job (default)
+
+# Jobs that legitimately run longer than the default. Bulk ingest processes
+# whole uploaded files — parsing, chunking and embedding a large document
+# routinely exceeds 10 minutes, and being SIGKILLed mid-file used to leave the
+# row stuck at `processing` forever with its staged file leaked.
+JOB_TIMEOUT_OVERRIDES = {
+    "bulk_ingest.py": 3600,
+}
+
+
+def _timeout_for(script_path):
+    return JOB_TIMEOUT_OVERRIDES.get(os.path.basename(script_path), JOB_TIMEOUT)
 
 
 def discover_crons():
@@ -61,7 +73,7 @@ def run_all():
         logger.info("No cron modules found")
         return
 
-    jobs = []  # list of (name, process, lock_fp)
+    jobs = []  # list of (name, process, lock_fp, deadline)
 
     for script_path in scripts:
         name = os.path.basename(script_path)[:-3]
@@ -95,7 +107,7 @@ def run_all():
             stderr=subprocess.PIPE,
             text=True,
         )
-        jobs.append((name, proc, lock_fp))
+        jobs.append((name, proc, lock_fp, time.monotonic() + _timeout_for(script_path)))
 
     if not jobs:
         return
@@ -109,12 +121,15 @@ def run_all():
     # skipping" for jobs whose actual subprocesses had exited a minute
     # ago. Now we poll all jobs each cycle and release each lock the
     # instant its subprocess returns.
-    deadline = time.monotonic() + JOB_TIMEOUT
     pending = list(jobs)
 
     while pending:
-        if time.monotonic() >= deadline:
-            for name, proc, lock_fp in pending:
+        # Each job carries its own deadline (see JOB_TIMEOUT_OVERRIDES) so a
+        # long-running ingest doesn't force every other cron to wait, and
+        # doesn't get killed on the short default.
+        expired = [j for j in pending if time.monotonic() >= j[3]]
+        if expired:
+            for name, proc, lock_fp, _deadline in expired:
                 # SIGTERM first so the cron's signal handler can flush its
                 # CronLog row to the DB. SIGKILL bypasses atexit/__del__
                 # entirely, which is why timed-out jobs used to vanish from
@@ -130,19 +145,20 @@ def run_all():
                         pass
                 except Exception:
                     pass
-                logger.error("Cron %s timed out after %ds, killed", name, JOB_TIMEOUT)
+                logger.error("Cron %s timed out after %ds, killed", name, _timeout_for(name))
                 try:
                     fcntl.flock(lock_fp, fcntl.LOCK_UN)
                 except Exception:
                     pass
                 lock_fp.close()
-            break
+            pending = [j for j in pending if j not in expired]
+            continue
 
         still_pending = []
-        for name, proc, lock_fp in pending:
+        for name, proc, lock_fp, deadline in pending:
             rc = proc.poll()
             if rc is None:
-                still_pending.append((name, proc, lock_fp))
+                still_pending.append((name, proc, lock_fp, deadline))
                 continue
 
             try:

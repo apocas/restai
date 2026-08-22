@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 from datetime import datetime, timezone
 
@@ -9,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path as PathParam, Query,
 
 from restai import config
 from restai.auth import check_not_restricted, get_current_username_project
+from restai.constants import ERROR_MESSAGES
 from restai.database import DBWrapper, get_db_wrapper
 from restai.models.databasemodels import BulkIngestJobDatabase
 from restai.models.models import User, sanitize_filename
@@ -17,12 +19,57 @@ from restai.models.models import User, sanitize_filename
 router = APIRouter()
 
 
-_QUEUE_DIR = os.path.join(tempfile.gettempdir(), "restai_bulk_ingest")
+# Staging area for queued uploads. Deliberately NOT the system temp dir: the
+# API and the cron consumer run in separate containers (docker-compose and the
+# Helm chart alike) and only share the data volume, so a /tmp path is written
+# by one and invisible to the other. See config.UPLOAD_STAGING_PATH.
+_QUEUE_DIR = os.path.abspath(
+    config.UPLOAD_STAGING_PATH or os.path.join(tempfile.gettempdir(), "restai_bulk_ingest")
+)
 
 
 def _ensure_queue_dir() -> str:
     os.makedirs(_QUEUE_DIR, exist_ok=True)
     return _QUEUE_DIR
+
+
+# Keep this much of the staging filesystem free after a batch lands. Uploads
+# are staged to local disk and only removed once the cron has ingested them,
+# so a large batch on a small volume can otherwise fill the disk and take the
+# rest of the app down with it.
+_DISK_HEADROOM_BYTES = 512 * 1024 * 1024
+
+
+def _require_free_space(path: str, needed_bytes: int) -> None:
+    """Refuse a batch that wouldn't leave `_DISK_HEADROOM_BYTES` free.
+
+    Best-effort: if the filesystem can't be queried we allow the write rather
+    than block ingestion on a stat failure.
+    """
+    if needed_bytes <= 0:
+        return
+    try:
+        free = shutil.disk_usage(path).free
+    except OSError:
+        return
+    if free - needed_bytes < _DISK_HEADROOM_BYTES:
+        raise HTTPException(
+            status_code=507,
+            detail=(
+                "Not enough free disk space to stage this upload "
+                f"({needed_bytes // (1024 * 1024)} MB requested, "
+                f"{free // (1024 * 1024)} MB free)."
+            ),
+        )
+
+
+def _cleanup_staged(paths: list[str]) -> None:
+    """Remove partially-staged files so a rejected batch leaves nothing behind."""
+    for p in paths:
+        try:
+            os.unlink(p)
+        except OSError:
+            pass
 
 
 def _job_to_dict(job: BulkIngestJobDatabase) -> dict:
@@ -49,7 +96,7 @@ async def enqueue_bulk_ingest(
     files: list[UploadFile] = ...,
     method: str = "auto",
     splitter: str = "sentence",
-    chunks: int = 256,
+    chunks: int = Query(256, ge=32, le=8192),
     user: User = Depends(get_current_username_project),
     db_wrapper: DBWrapper = Depends(get_db_wrapper),
 ):
@@ -66,36 +113,46 @@ async def enqueue_bulk_ingest(
     if project.type != "rag":
         raise HTTPException(status_code=400, detail="Bulk ingest only available for RAG projects")
 
-    max_bytes = config.MAX_UPLOAD_SIZE
+    max_bytes = config.max_upload_bytes()
     queue_dir = _ensure_queue_dir()
     queued_ids: list[int] = []
 
+    # Validate every part BEFORE staging anything. Starlette records the byte
+    # count on `UploadFile.size` while parsing (spooling parts over 1 MB to
+    # disk), so this is free — and it makes "refuse the whole request" true:
+    # previously the size check ran per file mid-loop, after earlier files had
+    # already been written to the queue dir AND committed as job rows.
     for upload in files:
-        safe_name = sanitize_filename(upload.filename or "upload.bin")
-        contents = await upload.read()
-        if len(contents) > max_bytes:
-            # Refuse the whole request to avoid half-queued batches.
+        if upload.size is not None and upload.size > max_bytes:
             raise HTTPException(
                 status_code=413,
-                detail=f"'{safe_name}' exceeds max upload size ({max_bytes // (1024*1024)} MB)",
+                detail=ERROR_MESSAGES.FILE_TOO_LARGE(f"{max_bytes // (1024 * 1024)} MB"),
             )
+
+    _require_free_space(queue_dir, sum((u.size or 0) for u in files))
+
+    staged_paths: list[str] = []
+    for upload in files:
+        safe_name = sanitize_filename(upload.filename or "upload.bin")
 
         fd, path = tempfile.mkstemp(prefix=f"proj{projectID}_", suffix=f"_{safe_name}", dir=queue_dir)
         try:
+            await upload.seek(0)
             with os.fdopen(fd, "wb") as fh:
-                fh.write(contents)
+                # Stream in 64 KB blocks — never materialize the file in RAM.
+                shutil.copyfileobj(upload.file, fh)
+            staged_paths.append(path)
+            size_bytes = os.path.getsize(path)
         except Exception:
-            try:
-                os.unlink(path)
-            except OSError:
-                pass
+            _cleanup_staged(staged_paths + [path])
+            db_wrapper.db.rollback()
             raise
 
         job = BulkIngestJobDatabase(
             project_id=projectID,
             filename=safe_name,
             mime_type=upload.content_type,
-            size_bytes=len(contents),
+            size_bytes=size_bytes,
             file_path=path,
             method=method or "auto",
             splitter=splitter,

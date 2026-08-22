@@ -583,6 +583,41 @@ helm install restai chart/restai/ \
 
 See `chart/restai/` for full Helm values and configuration options.
 
+**Bulk ingest needs a shared volume.** The API pod stages each upload to disk
+and the cron pod reads it back to index it, so the two must see the same
+filesystem. Set `uploadStaging.enabled=true` (a ReadWriteMany PVC, or a
+single-node RWO with both pods pinned to that node) — otherwise every
+bulk-ingest job stays `queued` with a file path the cron can't open:
+
+```bash
+helm install restai chart/restai/ \
+  --set uploadStaging.enabled=true \
+  --set uploadStaging.size=50Gi \
+  --set uploadStaging.storageClass=nfs-client
+```
+
+### Uploads behind a reverse proxy
+
+The upload ceiling is an admin setting (**Admin → Settings → Limits → Max
+Upload Size**, default 100 MB), but a proxy in front of RESTai enforces its
+own limit first and returns an HTML 413 the app never sees. Raise both
+together:
+
+| Proxy | Directive |
+|-------|-----------|
+| nginx | `client_max_body_size 500m;` (plus `proxy_read_timeout 600s;`) |
+| ingress-nginx | `nginx.ingress.kubernetes.io/proxy-body-size: "500m"` — already templated in `chart/restai/values.yaml` under `ingress.annotations`; the controller default is **1 MB** |
+| Traefik | no body limit by default; raise `respondingTimeouts.readTimeout` |
+| Cloudflare | hard 100 MB on Free/Pro — not raisable from the origin |
+
+Two more things scale with the ceiling. A single large upload occupies one
+worker for its whole duration, so run more than one (`make start` uses 4; the
+Docker entrypoint runs a single worker) and set a proxy read timeout that
+matches how long a big upload actually takes on your link. And staging is
+disk-backed: RESTai refuses a batch that would leave under 512 MB free
+(HTTP 507) rather than filling the volume, so size `uploadStaging` for the
+largest batch you expect to have in flight at once.
+
 ---
 
 ## Architecture
@@ -614,6 +649,7 @@ Direct interaction with the GPU layer — ideal for small deployments.
 | `POSTGRES_HOST` | Use PostgreSQL instead of SQLite | — |
 | `MYSQL_HOST` | Use MySQL instead of SQLite | — |
 | `MCP_SERVER` | Enable built-in MCP server at `/mcp/sse` | `false` |
+| `UPLOAD_STAGING_PATH` | Where queued bulk-ingest uploads are staged. Must be shared between the API and cron processes. | `./data/bulk_ingest/` |
 
 LLM credentials (OpenAI, Anthropic, Gemini, Grok, Azure, etc.) live on
 each LLM in `/admin/llms` — encrypted per-LLM in the DB and scoped to

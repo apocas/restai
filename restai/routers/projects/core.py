@@ -27,6 +27,7 @@ from restai.auth import (
     check_not_restricted,
     check_user_can_use_mcp_host,
 )
+from restai.constants import ERROR_MESSAGES
 from restai.database import get_db_wrapper, DBWrapper
 from restai.helper import chat_main
 from restai.loaders.url import SeleniumWebReader
@@ -1111,12 +1112,16 @@ async def ingest_file(
     if splitter not in ("sentence", "token"):
         raise HTTPException(status_code=422, detail="splitter must be 'sentence' or 'token'")
 
-    contents = await file.read()
-    if len(contents) > config.MAX_UPLOAD_SIZE:
-        max_mb = config.MAX_UPLOAD_SIZE // (1024 * 1024)
+    # Size check BEFORE touching the bytes. Starlette spools multipart parts
+    # over 1 MB to a temp file and records the byte count on `UploadFile.size`,
+    # so this costs nothing — whereas the old `await file.read()` pulled the
+    # whole file into RAM just to measure it, turning an oversized upload into
+    # an OOM instead of a 413.
+    max_bytes = config.max_upload_bytes()
+    if file.size is not None and file.size > max_bytes:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large. Maximum size is {max_mb} MB",
+            detail=ERROR_MESSAGES.FILE_TOO_LARGE(f"{max_bytes // (1024 * 1024)} MB"),
         )
     await file.seek(0)
 

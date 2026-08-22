@@ -100,7 +100,10 @@ def docker_env(monkeypatch, tmp_path):
     containers = FakeContainers()
     client = FakeClient(containers)
     monkeypatch.setattr(rd, "_client", client)
-    monkeypatch.setattr(rd, "_client_url", "tcp://fake:2375")
+    # Ask the module for the key shape rather than hard-coding it — it now
+    # includes the client timeout, and a stale literal silently disabled the
+    # cache and made every test fall through to a real connection attempt.
+    monkeypatch.setattr(rd, "_client_url", rd._client_cache_key())
 
     import restai.database as rdb
     FakeDBWrapper.upserts = []
@@ -139,8 +142,9 @@ def test_get_client_rebuilds_on_url_change(docker_env, monkeypatch):
     built = {}
 
     class FakeSdkClient:
-        def __init__(self, base_url=None):
+        def __init__(self, base_url=None, timeout=None):
             built["url"] = base_url
+            built["timeout"] = timeout
 
     monkeypatch.setattr(
         rd, "_docker_sdk", types.SimpleNamespace(DockerClient=FakeSdkClient)
@@ -149,10 +153,12 @@ def test_get_client_rebuilds_on_url_change(docker_env, monkeypatch):
     client = rd._get_client()
     assert isinstance(client, FakeSdkClient)
     assert built["url"] == "tcp://other:2375"
+    # Never the SDK's 60s default: a large put_archive needs far longer.
+    assert built["timeout"] >= 60
 
 
 def test_get_client_connect_failure_returns_none(docker_env, monkeypatch):
-    def boom(base_url=None):
+    def boom(base_url=None, timeout=None):
         raise RuntimeError("no daemon")
 
     monkeypatch.setattr(

@@ -206,6 +206,15 @@ app.add_middleware(
     https_only=SESSION_COOKIE_SECURE,
 )
 
+# Request body-size guard. Registered BEFORE the audit middleware and after
+# SessionMiddleware: Starlette's `add_middleware` inserts at position 0, so
+# the last one registered ends up outermost. That ordering puts the guard
+# inside cors_middleware (registered last, in register_middleware) — so a 413
+# still carries CORS + security headers, which matters for /widget/* embeds —
+# while staying outside the router so the body is rejected before parsing.
+from restai.middleware import BodySizeLimitMiddleware
+app.add_middleware(BodySizeLimitMiddleware)
+
 # Audit log middleware — records all mutation requests
 from restai.observability.audit import AuditMiddleware
 app.add_middleware(AuditMiddleware)

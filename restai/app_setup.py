@@ -191,6 +191,10 @@ def register_health_routes(fs_app: FastAPI) -> None:
             "embeddings": [],
             "llms": [],
             "vectorstores": get_available_vectorstores(),
+            # Per-file upload ceiling (MB) so clients can pre-validate a
+            # selection instead of hard-coding a number that drifts from the
+            # server's. Governs knowledge ingest and chat attachments alike.
+            "max_upload_size_mb": config.MAX_UPLOAD_SIZE_MB,
             "system_llm_configured": bool(getattr(db_wrapper.get_setting("system_llm"), "value", None)),
             # Admin-only security signal. Non-admins always see False here
             # — they shouldn't know whether the instance is misconfigured.

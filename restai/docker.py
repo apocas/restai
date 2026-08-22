@@ -25,6 +25,8 @@ from __future__ import annotations
 import base64 as _b64
 import logging
 import time
+
+from docker.types import Mount
 from typing import Optional
 
 import docker as _docker_sdk
@@ -42,7 +44,20 @@ ARTIFACT_MAX_BYTES_PER_SCAN = 50 * 1024 * 1024
 PUT_FILES_CHUNK = 64 * 1024  # tar chunk for upload, < MAX_ARG_STRLEN
 
 _client: Optional[_docker_sdk.DockerClient] = None
-_client_url: str = ""
+_client_url: tuple = ()
+
+
+def _client_cache_key() -> tuple:
+    """Identity of the currently-configured client.
+
+    The SDK defaults to a 60s read timeout, which is far too short for a large
+    `put_archive` over a remote docker host — so the timeout is part of the
+    key, and changing the setting rebuilds the client rather than silently
+    keeping the old one.
+    """
+    url = (getattr(_cfg, "DOCKER_URL", "") or "").strip()
+    timeout = max(60, int(getattr(_cfg, "DOCKER_TIMEOUT", 900) or 900))
+    return (url, timeout)
 
 
 def _get_client() -> Optional[_docker_sdk.DockerClient]:
@@ -50,17 +65,18 @@ def _get_client() -> Optional[_docker_sdk.DockerClient]:
     global _client, _client_url
     if not is_enabled():
         return None
-    url = (getattr(_cfg, "DOCKER_URL", "") or "").strip()
-    if _client is not None and _client_url == url:
+    cache_key = _client_cache_key()
+    url, timeout = cache_key
+    if _client is not None and _client_url == cache_key:
         return _client
     try:
-        _client = _docker_sdk.DockerClient(base_url=url)
-        _client_url = url
+        _client = _docker_sdk.DockerClient(base_url=url, timeout=timeout)
+        _client_url = cache_key
         logger.info("Docker client connected to %s", url)
     except Exception as e:
         logger.error("Docker client failed to connect to %s: %s", url, e)
         _client = None
-        _client_url = ""
+        _client_url = ()
     return _client
 
 
@@ -124,6 +140,13 @@ def _create_container(chat_id: str):
     read_only = bool(getattr(_cfg, "DOCKER_READ_ONLY", True))
     from restai.observability.instance import get_instance_id
 
+    # Sandbox RAM. Uploaded attachments land on the tmpfs, which is charged to
+    # this same cgroup, so the two must be sized together — raising the upload
+    # ceiling without raising this just moves the failure from a clean 413 to
+    # an OOM-killed container mid-turn.
+    mem_mb = max(128, int(getattr(_cfg, "DOCKER_MEMORY_MB", 512) or 512))
+    tmpfs_bytes = mem_mb * 1024 * 1024
+
     container = c.containers.run(
         image,
         command="tail -f /dev/null",
@@ -134,7 +157,7 @@ def _create_container(chat_id: str):
             "restai.created_at": str(int(time.time())),
             "restai.observability.instance_id": get_instance_id(),
         },
-        mem_limit="512m",
+        mem_limit=f"{mem_mb}m",
         cpu_period=100000,
         cpu_quota=50000,
         network_mode=network,
@@ -143,7 +166,20 @@ def _create_container(chat_id: str):
         # host mount used to exist only so the Claude SDK's host-side file
         # tools could share files with the in-container terminal; that loop no
         # longer runs any host tools, so the mount is gone.)
-        tmpfs={"/tmp": "size=1G", "/home/user": "size=1G"},
+        #
+        # Declared as `mounts=[Mount(type="tmpfs")]` rather than the simpler
+        # `tmpfs={...}` kwarg for two reasons:
+        #   1. tmpfs pages are charged to the container's memory cgroup, so
+        #      the sizes must track `mem_limit` — a 1G tmpfs under a 512m
+        #      limit is unreachable and fails as an OOM kill, not an error.
+        #   2. `tmpfs=` maps to HostConfig.Tmpfs, which never registers as a
+        #      MountPoint, so Docker treats those paths as read-only rootfs
+        #      and refuses `put_archive`. `mounts=` registers real
+        #      MountPoints, which is what makes the fast upload path legal.
+        mounts=[
+            Mount(target="/tmp", source=None, type="tmpfs", tmpfs_size=tmpfs_bytes),
+            Mount(target="/home/user", source=None, type="tmpfs", tmpfs_size=tmpfs_bytes),
+        ],
         read_only=read_only,
         remove=True,
     )
@@ -325,6 +361,7 @@ def put_files(chat_id: str, files: list[tuple[str, bytes]],
     via base64-piped tar. Returns a manifest of what landed."""
     import io
     import tarfile
+    import tempfile
 
     if not chat_id:
         chat_id = "ephemeral"
@@ -335,15 +372,39 @@ def put_files(chat_id: str, files: list[tuple[str, bytes]],
     target_dir = f"{extract_to}/{subdir}"
     manifest: list[dict] = []
 
-    buf = io.BytesIO()
-    with tarfile.open(fileobj=buf, mode="w") as tar:
+    # Spool the tar to disk instead of holding it (plus a second copy from
+    # `getvalue()`) in RAM — attachments can be hundreds of MB and the decoded
+    # bytes are already resident.
+    spool = tempfile.SpooledTemporaryFile(max_size=8 * 1024 * 1024)
+    with tarfile.open(fileobj=spool, mode="w") as tar:
         for name, data in files:
             ti = tarfile.TarInfo(name=name)
             ti.size = len(data)
             ti.mode = 0o644
             tar.addfile(ti, io.BytesIO(data))
             manifest.append({"name": name, "size": len(data), "path": f"{target_dir}/{name}"})
-    tar_bytes = buf.getvalue()
+    spool.seek(0)
+
+    # Fast path: hand the tar to the daemon in one request. Requires the
+    # target to be a real MountPoint (see the `mounts=` tmpfs declaration in
+    # `_create_container`) — containers created by an older build used the
+    # `tmpfs=` kwarg, which Docker treats as read-only rootfs, so a mixed
+    # fleet during a rolling deploy falls back to the chunked path below.
+    try:
+        res = _exec_with_retry(chat_id, container, ["sh", "-c", f"mkdir -p {target_dir}"])
+        if res.exit_code != 0:
+            raise RuntimeError(f"mkdir failed (exit {res.exit_code})")
+        if container.put_archive(target_dir, spool):
+            _touch_db_activity(chat_id, container.id)
+            return manifest
+        logger.info("put_archive returned false for chat_id=%s; using chunked upload", chat_id)
+    except Exception as e:
+        logger.info(
+            "put_archive unavailable for chat_id=%s (%s); using chunked upload", chat_id, e,
+        )
+
+    spool.seek(0)
+    tar_bytes = spool.read()
 
     tmp_path = f"{extract_to}/_restai_upload.tar"
     try:
@@ -352,7 +413,14 @@ def put_files(chat_id: str, files: list[tuple[str, bytes]],
         if res.exit_code != 0:
             raise RuntimeError(f"tar staging failed (exit {res.exit_code})")
 
+        # A large chunked upload can run for minutes; without a heartbeat the
+        # idle-container reaper (crons/docker_cleanup.py) can evict the
+        # container out from under it.
+        last_touch = time.time()
         for offset in range(0, len(tar_bytes), PUT_FILES_CHUNK):
+            if time.time() - last_touch > 30:
+                _touch_db_activity(chat_id, container.id)
+                last_touch = time.time()
             chunk = tar_bytes[offset:offset + PUT_FILES_CHUNK]
             chunk_b64 = _b64.b64encode(chunk).decode("ascii")
             cmd = f"printf '%s' {chunk_b64} | base64 -d >> {tmp_path}"

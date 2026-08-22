@@ -56,6 +56,15 @@ def load_env_vars():
     if "EMBEDDINGS_PATH" not in os.environ:
         os.environ["EMBEDDINGS_PATH"] = "./embeddings/"
 
+    # Staging area for queued bulk-ingest uploads. MUST be on storage shared
+    # by the API process and the cron process — they are separate containers
+    # in both docker-compose and the Helm chart, and the cron consumer reads
+    # back the exact path the API wrote. The old default (the system temp
+    # dir) is private to each container, so every queued job failed with
+    # "staged file missing". `./data` is the volume both already mount.
+    if "UPLOAD_STAGING_PATH" not in os.environ:
+        os.environ["UPLOAD_STAGING_PATH"] = "./data/bulk_ingest/"
+
     if "ANONYMIZED_TELEMETRY" not in os.environ:
         os.environ["ANONYMIZED_TELEMETRY"] = "True"
 
@@ -142,6 +151,20 @@ RESTAI_APPS_PATH = os.environ.get("RESTAI_APPS_PATH")
 
 
 HF_TOKEN = os.environ.get("HF_TOKEN")
+
+
+def max_upload_bytes() -> int:
+    """Current per-file upload ceiling in BYTES, from the GUI-managed
+    `max_upload_size_mb` setting.
+
+    Goes through `_cfg.X` attribute access so this module's `__getattr__`
+    resolves the value from the DB on every call — an admin raising the limit
+    takes effect in every worker immediately, with no process-local mirror.
+    (A bare `MAX_UPLOAD_SIZE_MB` here would be a module-global lookup and
+    would NOT hit `__getattr__`.)
+    """
+    import restai.config as _cfg
+    return int(_cfg.MAX_UPLOAD_SIZE_MB) * 1024 * 1024
 
 
 def build_redis_url():
@@ -244,6 +267,7 @@ def detect_gpu_info():
     return gpus
 
 EMBEDDINGS_PATH = os.environ.get("EMBEDDINGS_PATH")
+UPLOAD_STAGING_PATH = os.environ.get("UPLOAD_STAGING_PATH")
 
 # Database connection pool settings
 DB_POOL_SIZE = int(os.environ.get("DB_POOL_SIZE") or 50)
@@ -251,7 +275,6 @@ DB_MAX_OVERFLOW = int(os.environ.get("DB_MAX_OVERFLOW") or 100)
 DB_POOL_RECYCLE = int(os.environ.get("DB_POOL_RECYCLE") or 100)
 
 
-MAX_UPLOAD_SIZE = int(os.environ.get("MAX_UPLOAD_SIZE_MB") or 100) * 1024 * 1024  # Default 100MB
 
 OAUTH_PROVIDERS = {}
 
@@ -273,6 +296,8 @@ _GUI_SETTING_ATTRS = {
     "HIDE_BRANDING": ("hide_branding", bool, False),
     "RESTAI_AUTH_DISABLE_LOCAL": ("auth_disable_local", bool, False),
     "MAX_AUDIO_UPLOAD_SIZE": ("max_audio_upload_size", int, 10),
+    "MAX_UPLOAD_SIZE_MB": ("max_upload_size_mb", int, 100),
+    "DOCKER_MEMORY_MB": ("docker_memory_mb", int, 512),
     "CURRENCY": ("currency", str, "EUR"),
     "REDIS_HOST": ("redis_host", str, None),
     "REDIS_PORT": ("redis_port", str, None),

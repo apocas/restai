@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Card, Grid, MenuItem, styled, TextField, Tabs, Tab, Typography, Box, ListItemText,
+  LinearProgress,
 } from "@mui/material";
 import Publish from "@mui/icons-material/Publish";
 import { useDropzone } from "react-dropzone";
@@ -51,6 +52,19 @@ export default function RAGUpload({ project }) {
   });
   const [tabIndex, setTabIndex] = useState(0);
   const handleTabChange = (e, value) => setTabIndex(value);
+  // null while indeterminate (no Content-Length), 0..1 otherwise.
+  const [uploadPct, setUploadPct] = useState(0);
+  const [maxUploadMb, setMaxUploadMb] = useState(100);
+
+  // The ceiling is an admin setting, so read it rather than hard-coding —
+  // otherwise this dropzone either lies about the limit or wastes a long
+  // upload on a file the server will refuse.
+  useEffect(() => {
+    if (!auth?.user?.token) return;
+    api.get("/info", auth.user.token, { silent: true })
+      .then((d) => { if (d?.max_upload_size_mb) setMaxUploadMb(Number(d.max_upload_size_mb)); })
+      .catch(() => {});
+  }, [auth?.user?.token]);
 
   const showChunkSettings = state.method === "classic";
 
@@ -59,6 +73,16 @@ export default function RAGUpload({ project }) {
     setLoading(true);
 
     if (tabIndex === 0) {
+      if (!files[0]) {
+        setLoading(false);
+        return;
+      }
+      if (files[0].size > maxUploadMb * 1024 * 1024) {
+        toast.error(`"${files[0].name}" is larger than the ${maxUploadMb} MB upload limit.`);
+        setLoading(false);
+        return;
+      }
+
       // Documents always go through the ingest queue — a large file no longer
       // blocks the request; the cron ingests it in the background honoring the
       // selected method/splitter/chunks. Track status in the Knowledge tab.
@@ -71,11 +95,13 @@ export default function RAGUpload({ project }) {
         params.set("chunks", state.chunksize);
       }
 
+      setUploadPct(0);
       try {
-        const result = await api.post(
+        const result = await api.upload(
           `/projects/${project.id}/ingest-bulk?${params.toString()}`,
           formData,
-          auth.user.token
+          auth.user.token,
+          { onProgress: (pct) => setUploadPct(pct) },
         );
         toast.success(`Queued ${result?.count ?? 1} file for background ingestion — track status in the Knowledge tab.`);
         setFiles([]);
@@ -83,6 +109,7 @@ export default function RAGUpload({ project }) {
         // errors auto-toasted
       } finally {
         setLoading(false);
+        setUploadPct(0);
       }
     } else if (tabIndex === 1) {
       var body = {
@@ -187,8 +214,21 @@ export default function RAGUpload({ project }) {
                 {files.length ? <span>{files[0].name}</span> : <span>Drop file</span>}
               </Box>
             </DropZone>
+            {loading && (
+              <Box sx={{ mb: 1 }}>
+                <LinearProgress
+                  variant={uploadPct === null ? "indeterminate" : "determinate"}
+                  value={uploadPct === null ? undefined : Math.round(uploadPct * 100)}
+                  aria-label="Upload progress"
+                />
+                <Typography variant="caption" color="text.secondary">
+                  {uploadPct === null ? "Uploading…" : `Uploading ${Math.round(uploadPct * 100)}%`}
+                </Typography>
+              </Box>
+            )}
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
               Files are queued and ingested in the background. Track progress in the project's Knowledge tab.
+              {" "}Maximum {maxUploadMb} MB per file.
             </Typography>
           </>
         )}

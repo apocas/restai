@@ -1,3 +1,4 @@
+{{- $hasSqlite := and (eq .Values.config.database.type "sqlite") .Values.persistence.enabled -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -58,10 +59,20 @@ spec:
                 name: {{ include "restai.configMapName" . }}
             - secretRef:
                 name: {{ include "restai.secretName" . }}
-          {{- if and (eq .Values.config.database.type "sqlite") .Values.persistence.enabled }}
+          {{- if or $hasSqlite .Values.uploadStaging.enabled .Values.tmpVolume.enabled }}
           volumeMounts:
+            {{- if $hasSqlite }}
             - name: sqlite-data
               mountPath: {{ dir .Values.config.database.sqlite.path | quote }}
+            {{- end }}
+            {{- if .Values.uploadStaging.enabled }}
+            - name: uploads
+              mountPath: {{ .Values.uploadStaging.mountPath | quote }}
+            {{- end }}
+            {{- if .Values.tmpVolume.enabled }}
+            - name: tmp
+              mountPath: /tmp
+            {{- end }}
           {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
@@ -79,11 +90,26 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-      {{- if and (eq .Values.config.database.type "sqlite") .Values.persistence.enabled }}
+      {{- if or $hasSqlite .Values.uploadStaging.enabled .Values.tmpVolume.enabled }}
       volumes:
+        {{- if $hasSqlite }}
         - name: sqlite-data
           persistentVolumeClaim:
             claimName: {{ .Values.persistence.existingClaim | default (printf "%s-sqlite" (include "restai.fullname" .)) }}
+        {{- end }}
+        {{- if .Values.uploadStaging.enabled }}
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: {{ .Values.uploadStaging.existingClaim | default (printf "%s-uploads" (include "restai.fullname" .)) }}
+        {{- end }}
+        {{- if .Values.tmpVolume.enabled }}
+        # Per-pod scratch for Starlette's multipart spool. Sized so a
+        # runaway upload fills this volume and 413s rather than filling
+        # the node's disk.
+        - name: tmp
+          emptyDir:
+            sizeLimit: {{ .Values.tmpVolume.sizeLimit | quote }}
+        {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

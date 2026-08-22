@@ -112,6 +112,34 @@ persistence:
   # not create a PVC and just mounts the named claim.
   existingClaim: ""
 
+# -- Staging area for queued bulk file ingests
+# The API pod writes each upload here and the cron pod reads it back to
+# index it, so unlike the multipart spool this volume MUST be shared
+# between the Deployment and the CronJob — an emptyDir would leave every
+# job stuck at `queued` with an unreadable file path. That means
+# ReadWriteMany (or a single-node RWO with both pods pinned to that node).
+# When disabled, the Deployment/CronJob fall back to the image's
+# UPLOAD_STAGING_PATH default, which is NOT shared: bulk ingest will not
+# work on Kubernetes without this.
+uploadStaging:
+  enabled: false
+  mountPath: /app/uploads
+  storageClass: ""
+  accessMode: ReadWriteMany
+  size: 20Gi
+  # Use an existing PVC instead of creating one.
+  existingClaim: ""
+
+# -- Per-pod scratch space for in-flight uploads
+# Starlette spools any multipart part over 1 MB to the system temp dir
+# while parsing. Without this the spool lands on the container's writable
+# layer, which on most nodes is a shared, unsized overlay — one big upload
+# can fill the node's disk. This is per-pod on purpose: the spool is only
+# ever read by the process that wrote it.
+tmpVolume:
+  enabled: true
+  sizeLimit: 8Gi
+
 # -- Service
 service:
   type: ClusterIP
@@ -121,7 +149,14 @@ service:
 ingress:
   enabled: false
   className: ""
-  annotations: {}
+  # NOTE: ingress-nginx defaults to `proxy-body-size: 1m`, which rejects any
+  # upload over 1 MB long before RESTai's own limit applies. Keep this in sync
+  # with the `max_upload_size_mb` setting (Admin -> Settings -> Limits), and
+  # give slow large uploads room with the read/send timeouts.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
     # kubernetes.io/ingress.class: nginx
     # cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
@@ -208,8 +243,10 @@ cron:
   startingDeadlineSeconds: 200
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 3
-  # 10-min hard ceiling per tick (matches runner.py's per-job timeout).
-  activeDeadlineSeconds: 600
+  # Hard ceiling per tick. Must be >= the runner's longest per-job timeout
+  # (crons/runner.py JOB_TIMEOUT_OVERRIDES gives bulk_ingest 3600s) or k8s
+  # kills the pod mid-ingest and leaves the job row stuck at `processing`.
+  activeDeadlineSeconds: 3900
   resources: {}
     # requests:
     #   cpu: 100m

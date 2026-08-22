@@ -11,6 +11,22 @@ from restai.database import open_db_wrapper
 logger = logging.getLogger(__name__)
 
 
+# Downloaded files are streamed to disk in fixed-size blocks rather than
+# materialized via `response.content`. A sync source can hold files far larger
+# than the worker's memory budget, and `.content` buffers the whole body.
+_DOWNLOAD_CHUNK_BYTES = 1024 * 1024
+
+
+def _stream_to_tempfile(response, suffix: str) -> str:
+    """Write a streaming `requests` response to a temp file; return its path."""
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        for chunk in response.iter_content(chunk_size=_DOWNLOAD_CHUNK_BYTES):
+            if chunk:
+                tmp.write(chunk)
+        return tmp.name
+
+
+
 def _extract_entities_for_documents(project, documents, db, brain):
     if not project.props.options.enable_knowledge_graph:
         return
@@ -343,12 +359,10 @@ def _sync_sharepoint(project, source, db, brain=None):
             if not download_url:
                 continue
 
-            file_resp = req.get(download_url, timeout=60)
+            file_resp = req.get(download_url, timeout=60, stream=True)
             file_resp.raise_for_status()
 
-            with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
-                tmp.write(file_resp.content)
-                tmp_path = tmp.name
+            tmp_path = _stream_to_tempfile(file_resp, ext)
 
             try:
                 docs = loader.load_data(file=tmp_path)
@@ -465,11 +479,12 @@ def _sync_gdrive(project, source, db, brain=None):
                 dl_resp = req.get(
                     f"https://www.googleapis.com/drive/v3/files/{file_id}/export",
                     headers=headers, params={"mimeType": export_mime}, timeout=60,
+                    stream=True,
                 )
             else:
                 dl_resp = req.get(
                     f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media",
-                    headers=headers, timeout=60,
+                    headers=headers, timeout=60, stream=True,
                 )
             dl_resp.raise_for_status()
 
@@ -488,9 +503,7 @@ def _sync_gdrive(project, source, db, brain=None):
             except Exception:
                 continue
 
-            with tempfile.NamedTemporaryFile(suffix=export_ext, delete=False) as tmp:
-                tmp.write(dl_resp.content)
-                tmp_path = tmp.name
+            tmp_path = _stream_to_tempfile(dl_resp, export_ext)
 
             try:
                 docs = loader.load_data(file=tmp_path)

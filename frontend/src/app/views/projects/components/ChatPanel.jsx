@@ -27,6 +27,8 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
   // `dataUrl` is only set for images (for inline preview) and never sent
   // over the wire — the backend only needs `contentBase64`.
   const [files, setFiles] = useState([]);
+  // Per-file attachment ceiling, read from /info (admin-configurable).
+  const [attachLimitMb, setAttachLimitMb] = useState(20);
   const [isLoading, setIsLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   // Live plan-and-execute progress for the current streaming turn.
@@ -73,6 +75,13 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
       setBranches(prev => prev.map((b, i) => i === activeBranchIdx ? { ...b, messages: currentMessages } : b));
     }
   }, [activeBranchIdx]);
+
+  useEffect(() => {
+    if (!auth?.user?.token) return;
+    api.get("/info", auth.user.token, { silent: true })
+      .then((d) => { if (d?.max_upload_size_mb) setAttachLimitMb(Number(d.max_upload_size_mb)); })
+      .catch(() => {});
+  }, [auth?.user?.token]);
 
   useEffect(() => {
     if (activeBranchIdx >= 0 && messages.length > 0) {
@@ -611,7 +620,10 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     handleSend();
   };
 
-  const MAX_FILE_MB = 20;
+  // Server ceiling, not a hard-coded 20. `enforce_attachment_limits` rejects
+  // anything over `max_upload_size_mb`, so a stale client-side number either
+  // blocks files the server would accept or lets through ones it won't.
+  const MAX_FILE_MB = Number(attachLimitMb) || 20;
 
   const fileIsImage = (file) => {
     const t = (file.type || "").toLowerCase();

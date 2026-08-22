@@ -5,6 +5,8 @@ from urllib.parse import urljoin, urlparse, urlunparse
 
 from starlette.responses import StreamingResponse
 from fastapi import BackgroundTasks
+from restai import config
+from restai.constants import ERROR_MESSAGES
 from restai.database import DBWrapper
 from restai.project import Project
 from restai.projects.agent import Agent
@@ -303,6 +305,54 @@ def _is_image_attachment(att) -> bool:
     return name.endswith(_IMAGE_ATTACHMENT_EXTS)
 
 
+def _b64_decoded_size(content) -> int:
+    """Raw byte count of a base64 string, without decoding it.
+
+    Every 4 base64 chars encode 3 bytes, minus one byte per `=` of padding.
+    Used instead of `len(content)` so sizes reported to the model, the logs
+    and the limit check are actual bytes rather than 4/3 of them.
+    """
+    if not isinstance(content, str) or not content:
+        return 0
+    body = content.strip()
+    padding = 2 if body.endswith("==") else (1 if body.endswith("=") else 0)
+    return max(0, (len(body) * 3) // 4 - padding)
+
+
+def enforce_attachment_limits(model) -> None:
+    """Reject inline chat attachments above the configured per-file ceiling.
+
+    Covers both inline slots: every `files[].content` and the single `.image`
+    slot (which carries no length bound of its own). A `.image` that is a URL
+    rather than base64 is left alone — `resolve_image` fetches those behind
+    the SSRF guard.
+
+    The playground caps files client-side, but that is advisory — the API (and
+    the mobile PWA, which caps nothing) can post whatever fits the model's
+    string bound. This is the server-side enforcement, and it applies to
+    public/unauthenticated callers too since `files` is a public-safe field.
+    """
+    max_bytes = config.max_upload_bytes()
+
+    def _too_big(payload) -> bool:
+        return _b64_decoded_size(payload) > max_bytes
+
+    def _refuse():
+        raise HTTPException(
+            status_code=413,
+            detail=ERROR_MESSAGES.FILE_TOO_LARGE(f"{max_bytes // (1024 * 1024)} MB"),
+        )
+
+    for f in getattr(model, "files", None) or []:
+        if _too_big(getattr(f, "content", None)):
+            _refuse()
+
+    image = getattr(model, "image", None)
+    if isinstance(image, str) and not image.lower().startswith(("http://", "https://")):
+        if _too_big(image):
+            _refuse()
+
+
 def _attachment_meta(files):
     """Strip attachment bytes down to logging-safe metadata."""
     if not files:
@@ -310,7 +360,7 @@ def _attachment_meta(files):
     meta = []
     for f in files:
         try:
-            size = len(f.content or "") if isinstance(f.content, str) else 0
+            size = _b64_decoded_size(f.content)
         except Exception:
             size = 0
         meta.append({
@@ -750,6 +800,11 @@ async def chat_main(
     # every downstream path (agent vision flow, block interpreter, log
     # viewer) sees a single source of truth. Does nothing if `.image` was
     # already set or if `.files[]` has no image.
+    # Enforce the configured per-file ceiling before anything decodes or
+    # promotes the payload. Runs here (not in the router) so every caller —
+    # chat, the deprecated question endpoint, public projects, mobile — is
+    # covered by the same check.
+    enforce_attachment_limits(chat_input)
     _normalize_image_inputs(chat_input)
 
     # Capture request metadata up front so every error path below can

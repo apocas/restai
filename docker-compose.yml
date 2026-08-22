@@ -29,6 +29,11 @@ x-restai-env: &restai-env
   # so the cron sidecar and the web server hit the same DB. Override
   # by setting SQLITE_PATH in the host env (or use Postgres/MySQL).
   SQLITE_PATH: ${SQLITE_PATH:-/app/data/restai.db}
+  # Bulk-ingest staging area. Lives on the same shared /app/data volume
+  # for the same reason SQLITE_PATH does: the API service stages each
+  # upload here and the cron service reads it back to index it. A path
+  # outside the shared volume leaves every job stuck at `queued`.
+  UPLOAD_STAGING_PATH: ${UPLOAD_STAGING_PATH:-/app/data/bulk_ingest}
   DB_POOL_SIZE: ${DB_POOL_SIZE}
   DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW}
   DB_POOL_RECYCLE: ${DB_POOL_RECYCLE}

@@ -1,4 +1,4 @@
-import { Card, Chip, Grid, TextField, Button, MenuItem, Switch, Slider, Typography, IconButton, Divider, Box, Tooltip, Table, TableHead, TableBody, TableRow, TableCell } from "@mui/material";
+import { Card, Chip, Grid, TextField, Button, MenuItem, Switch, Slider, Typography, IconButton, Divider, Box, Tooltip, Table, TableHead, TableBody, TableRow, TableCell, LinearProgress } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { HelpOutline, Storage } from "@mui/icons-material";
@@ -36,6 +36,13 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
   // processing → done without a manual reload.
   const [bulkJobs, setBulkJobs] = useState([]);
   const [uploading, setUploading] = useState(false);
+  // null while indeterminate (no Content-Length), 0..1 otherwise.
+  const [uploadPct, setUploadPct] = useState(0);
+
+  // Server-side ceiling, so the browser refuses an oversized file before
+  // spending minutes pushing it up only to collect a 413. Falls back to the
+  // shipped default when /info hasn't loaded yet.
+  const maxUploadMb = Number(info?.max_upload_size_mb) || 100;
 
   const refreshJobs = useCallback(() => {
     if (!project?.id) return;
@@ -57,14 +64,33 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
   const handleBulkUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0 || !project?.id) return;
+
+    // The server refuses the whole batch if any part is over the limit, so
+    // check every file up front and name the offenders.
+    const limit = maxUploadMb * 1024 * 1024;
+    const tooBig = files.filter((f) => f.size > limit);
+    if (tooBig.length > 0) {
+      toast.error(
+        t("projects.edit.knowledge.fileTooLarge", {
+          names: tooBig.map((f) => f.name).join(", "),
+          max: maxUploadMb,
+        }),
+        { position: "top-right" },
+      );
+      e.target.value = "";
+      return;
+    }
+
     setUploading(true);
+    setUploadPct(0);
     try {
       const form = new FormData();
       for (const f of files) form.append("files", f);
-      await api.post(
+      await api.upload(
         `/projects/${project.id}/ingest-bulk?method=auto&splitter=sentence&chunks=256`,
         form,
         auth.user.token,
+        { onProgress: (pct) => setUploadPct(pct) },
       );
       toast.success(t("projects.edit.knowledge.queuedFiles", { count: files.length }), { position: "top-right" });
       refreshJobs();
@@ -72,6 +98,7 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
       // api.js toasts already; no-op
     } finally {
       setUploading(false);
+      setUploadPct(0);
       // Reset the input so re-uploading the same file works.
       e.target.value = "";
     }
@@ -106,7 +133,24 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
           <Typography variant="caption" color="text.secondary">
             {t("projects.edit.knowledge.ingestHelp")}
           </Typography>
+          <Typography variant="caption" color="text.disabled">
+            {t("projects.edit.knowledge.maxPerFile", { max: maxUploadMb })}
+          </Typography>
         </Box>
+        {uploading && (
+          <Box sx={{ mb: 2 }}>
+            <LinearProgress
+              variant={uploadPct === null ? "indeterminate" : "determinate"}
+              value={uploadPct === null ? undefined : Math.round(uploadPct * 100)}
+              aria-label={t("projects.edit.knowledge.uploading")}
+            />
+            <Typography variant="caption" color="text.secondary">
+              {uploadPct === null
+                ? t("projects.edit.knowledge.uploading")
+                : `${Math.round(uploadPct * 100)}%`}
+            </Typography>
+          </Box>
+        )}
         {bulkJobs.length > 0 && (
           <Table size="small">
             <TableHead>
