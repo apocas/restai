@@ -550,6 +550,42 @@ def test_store_key_is_valid_for_every_backend_naming_rule():
     assert key[0].isalpha()                          # weaviate: leading letter
 
 
+def test_chroma_collection_name_meets_the_length_floor():
+    """ChromaDB is the one backend with a MINIMUM name length (3 chars), which
+    `p{id}` misses for every single-digit id — so on a fresh install the first
+    nine projects 500'd on creation. Padding happens in the Chroma backend only;
+    `store_key` itself is unchanged so no other backend's store is orphaned."""
+    from restai.vectordb.chromadb import _CHROMA_MIN_NAME_LEN, _chroma_collection_name
+    from restai.vectordb.tools import project_store_key
+
+    for pid in range(1, 12):
+        key = project_store_key(_proj(pid, "n"))
+        name = _chroma_collection_name(key)
+        assert len(name) >= _CHROMA_MIN_NAME_LEN, (pid, name)
+
+    # Two-plus digits are already long enough and must pass through untouched,
+    # otherwise every existing project's collection would be renamed.
+    assert _chroma_collection_name("p10") == "p10"
+    assert _chroma_collection_name("p4321") == "p4321"
+    # Padding must not make two projects collide.
+    assert _chroma_collection_name("p1") != _chroma_collection_name("p10")
+    names = {_chroma_collection_name(project_store_key(_proj(i, "n"))) for i in range(1, 200)}
+    assert len(names) == 199
+
+
+def test_chromadb_accepts_the_padded_name_for_a_single_digit_id(tmp_path):
+    """Pins the real constraint against the real library rather than our reading
+    of its docs: the unpadded name is rejected, the padded one is accepted."""
+    import chromadb
+
+    from restai.vectordb.chromadb import _chroma_collection_name
+
+    client = chromadb.PersistentClient(path=str(tmp_path))
+    with pytest.raises(Exception):
+        client.get_or_create_collection("p1")
+    client.get_or_create_collection(_chroma_collection_name("p1"))
+
+
 def test_find_embeddings_path_is_the_id_keyed_directory(tmp_path, monkeypatch):
     import restai.vectordb.tools as vt
 
