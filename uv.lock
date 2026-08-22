@@ -3435,15 +3435,15 @@ wheels = [
 
 [[package]]
 name = "llama-index-vector-stores-weaviate"
-version = "1.6.0"
+version = "1.6.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "llama-index-core" },
     { name = "weaviate-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/16/de/4c6e4aa714558fd61e76bbf2b3a46bf6e4b24553b7302fb07bc05c7e84f9/llama_index_vector_stores_weaviate-1.6.0.tar.gz", hash = "sha256:d88256f94f9e55d8e0a2f87e936f1481d016bdd3c871f142367b64ff179fcafa", size = 9678, upload-time = "2026-03-12T20:48:59.692Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/28/09/b5623d8eb381511ff0086a1adda3fc9ef737b047ac004087a24600a92fd8/llama_index_vector_stores_weaviate-1.6.2.tar.gz", hash = "sha256:8a457899b97c39bbd6404eac0155a949d9a2a877f317dbd9c0fa4887d241e030", size = 10095, upload-time = "2026-08-04T15:46:21.358Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/01/069f641c7d8775392f8e2fc4f8a701b29d8818463207088a29f9ef1da04c/llama_index_vector_stores_weaviate-1.6.0-py3-none-any.whl", hash = "sha256:702bef9254ee68587084ba974c65c18cbd64223c24015499cf03c392aea6ba2b", size = 10438, upload-time = "2026-03-12T20:48:58.967Z" },
+    { url = "https://files.pythonhosted.org/packages/50/f3/b75a1aeb3d1df3a06daa84e91a8005d0fbec49ceccb63d5808f53befc5ab/llama_index_vector_stores_weaviate-1.6.2-py3-none-any.whl", hash = "sha256:c5bcb8719afeb2742530342764097bf255aafcf51eb9981929a7b1da8e926576", size = 10892, upload-time = "2026-08-04T15:46:20.469Z" },
 ]
 
 [[package]]
@@ -6238,7 +6238,7 @@ requires-dist = [
     { name = "llama-index-vector-stores-chroma", specifier = ">=0.5.5,<0.6" },
     { name = "llama-index-vector-stores-pinecone", specifier = ">=0.5,<0.9" },
     { name = "llama-index-vector-stores-postgres", specifier = ">=0.6.0,<0.9" },
-    { name = "llama-index-vector-stores-weaviate", specifier = ">=0.6,<2" },
+    { name = "llama-index-vector-stores-weaviate", specifier = ">=1.6.2,<2" },
     { name = "markitdown", extras = ["all"], specifier = ">=0.1.5,<0.2" },
     { name = "ollama", specifier = ">=0.6.1,<0.7" },
     { name = "openai", specifier = ">=1.109.0,<3" },

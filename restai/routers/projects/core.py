@@ -20,6 +20,7 @@ from llama_index.core.schema import Document
 from llama_index.tools.mcp import BasicMCPClient, McpToolSpec
 from unidecode import unidecode
 from restai import config
+from restai import reembed
 from restai.auth import (
     get_current_username,
     get_current_username_project,
@@ -347,12 +348,23 @@ async def route_get_project(
 
         match project.props.type:
             case "rag":
+                # `info()` is the first thing that actually talks to the vector
+                # backend — the constructors are lazy, so an unreachable store
+                # leaves `project.vector` non-None and fails HERE. Unguarded,
+                # that turned the entire project page into a 500 whenever the
+                # vector DB was down, even though every other field is fine and
+                # the chat path degrades gracefully in the same situation.
+                final_output["chunks"] = 0
                 if project.vector is not None:
-                    chunks = project.vector.info()
-                    if chunks is not None:
-                        final_output["chunks"] = chunks
-                else:
-                    final_output["chunks"] = 0
+                    try:
+                        chunks = project.vector.info()
+                        if chunks is not None:
+                            final_output["chunks"] = chunks
+                    except Exception:
+                        logging.warning(
+                            "project %s: vector store unreachable while reading chunk count",
+                            projectID, exc_info=True,
+                        )
                 final_output["embeddings"] = output["embeddings"]
                 final_output["vectorstore"] = output["vectorstore"]
                 final_output["system"] = output["system"] or ""
@@ -581,15 +593,73 @@ async def route_edit_project(
     # immutable id (`vectordb.tools.project_store_key`), not its name.
     projectModelUpdate._user_id = user.id
 
-    # Drop memory_search collection synchronously on embedding swap so cron rebuilds clean.
-    if (
+    # Swapping a RAG project's embedding model used to be a silent footgun:
+    # the new name was written, the memory index was dropped, and the RAG
+    # vector store was left full of vectors from the OLD model — an opaque 500
+    # when the dimension changed, meaningless similarity scores when it didn't,
+    # and unrecoverable either way because ingest deletes its source files.
+    # Now the swap queues a migration that re-embeds the stored chunk text.
+    embeddings_changing = (
         projectModelUpdate.embeddings is not None
         and projectModelUpdate.embeddings != project.embeddings
-    ):
+    )
+    previous_embeddings = project.embeddings
+    reembed_chunks = 0
+
+    if embeddings_changing:
         Project.reset_memory_index(projectID)
+
+    if embeddings_changing and project.type == "rag":
+        if reembed.is_migrating(projectID, db_wrapper):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "A knowledge-base migration is already running for this project. "
+                    "Wait for it to finish before changing the embedding model again."
+                ),
+            )
+
+        live_project = get_project(projectID, db_wrapper, request.app.state.brain)
+        try:
+            reembed_chunks = int(live_project.vector.info() or 0) if live_project.vector else 0
+        except Exception:
+            reembed_chunks = 0
+
+        if reembed_chunks:
+            if not projectModelUpdate.embeddings:
+                # Clearing the field would strand the vectors permanently —
+                # there is no model left to migrate them to. `edit_project`
+                # accepts "" with no validation at all, so it has to be caught
+                # here.
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Cannot clear the embedding model while this project has a "
+                        "knowledge base. Delete its documents first, or pick a "
+                        "different embedding model to migrate to."
+                    ),
+                )
+            target = request.app.state.brain.get_embedding(
+                projectModelUpdate.embeddings, db_wrapper
+            )
+            compat = reembed.check_compatibility(
+                project.vectorstore,
+                reembed.dimension_of(previous_embeddings, db_wrapper),
+                getattr(target.props, "dimension", None) if target else None,
+            )
+            if not compat["compatible"]:
+                raise HTTPException(status_code=400, detail=compat["reason"])
 
     try:
         if db_wrapper.edit_project(projectID, projectModelUpdate):
+            if embeddings_changing and reembed_chunks:
+                from restai.routers.reembed import enqueue_reembed
+
+                job = enqueue_reembed(
+                    projectID, previous_embeddings, projectModelUpdate.embeddings,
+                    user.id, db_wrapper,
+                )
+                return {"project": projectID, "reembed_job": job.id, "reembed_chunks": reembed_chunks}
             return {"project": projectID}
         else:
             raise HTTPException(status_code=404, detail="Project not found")
@@ -734,6 +804,8 @@ async def reset_embeddings(
                 status_code=400, detail="Only available for RAG projects."
             )
 
+        reembed.raise_if_migrating(projectID, db_wrapper)
+
         project.vector.reset(request.app.state.brain)
 
         return {"project": project.props.name}
@@ -760,6 +832,8 @@ async def find_embedding(
             raise HTTPException(
                 status_code=400, detail="Only available for RAG projects."
             )
+
+        reembed.raise_if_migrating(projectID, db_wrapper)
 
         output = []
 
@@ -823,6 +897,8 @@ async def get_embedding(
                 status_code=400, detail="Only available for RAG projects."
             )
 
+        reembed.raise_if_migrating(projectID, db_wrapper)
+
         docs = project.vector.find_source(base64.b64decode(source).decode("utf-8"))
 
         if len(docs["ids"]) == 0:
@@ -852,6 +928,8 @@ async def get_embedding_by_id(
             raise HTTPException(
                 status_code=400, detail="Only available for RAG projects."
             )
+
+        reembed.raise_if_migrating(projectID, db_wrapper)
 
         chunk = project.vector.find_id(embedding_id)
         return chunk
@@ -984,6 +1062,8 @@ async def ingest_text(
                 status_code=400, detail="Only available for RAG projects."
             )
 
+        reembed.raise_if_migrating(projectID, db_wrapper)
+
         metadata = {"source": ingest.source}
         documents = [Document(text=ingest.text, metadata=metadata)]
 
@@ -997,6 +1077,7 @@ async def ingest_text(
             project, documents, ingest.splitter, ingest.chunks
         )
         project.vector.save()
+        reembed.stamp_indexed_embedding(project, db_wrapper)
 
         if project.props.options.enable_knowledge_graph:
             full_text = "\n".join(d.text for d in documents)
@@ -1059,6 +1140,8 @@ async def ingest_url(
                 status_code=400, detail="Only available for RAG projects."
             )
 
+        reembed.raise_if_migrating(projectID, db_wrapper)
+
         urls = project.vector.list()
         if ingest.url in urls:
             raise HTTPException(status_code=409, detail="URL already ingested. Delete first.")
@@ -1074,6 +1157,7 @@ async def ingest_url(
             project, documents, ingest.splitter, ingest.chunks
         )
         project.vector.save()
+        reembed.stamp_indexed_embedding(project, db_wrapper)
 
         if project.props.options.enable_knowledge_graph:
             full_text = "\n".join(d.text for d in documents)
@@ -1129,6 +1213,8 @@ async def ingest_file(
 
     if project.props.type != "rag":
         raise HTTPException(status_code=400, detail="Only available for RAG projects.")
+
+    reembed.raise_if_migrating(projectID, db_wrapper)
 
     opts = json.loads(options)
 
@@ -1189,6 +1275,7 @@ async def ingest_file(
             n_chunks = index_documents_classic(project, documents, splitter, chunks)
 
         project.vector.save()
+        reembed.stamp_indexed_embedding(project, db_wrapper)
 
         if project.props.options.enable_knowledge_graph:
             full_text = "\n".join(d.text for d in documents)
@@ -1232,6 +1319,8 @@ async def get_embeddings(
                 status_code=400, detail="Only available for RAG projects."
             )
 
+        reembed.raise_if_migrating(projectID, db_wrapper)
+
         if project.vector is not None:
             output = project.vector.list()
         else:
@@ -1262,6 +1351,8 @@ async def delete_embedding(
             raise HTTPException(
                 status_code=400, detail="Only available for RAG projects."
             )
+
+        reembed.raise_if_migrating(projectID, db_wrapper)
 
         ids = project.vector.delete_source(base64.b64decode(source).decode("utf-8"))
 
@@ -1450,6 +1541,14 @@ async def trigger_sync(
     project = get_project(projectID, db_wrapper, request.app.state.brain)
     if project.props.type != "rag":
         raise HTTPException(status_code=400, detail="Sync only available for RAG projects")
+
+    # `run_sync_now` spawns a daemon thread that does delete-then-reindex
+    # straight into the vector store. Started during a migration it would race
+    # the snapshot/reset, so its work would be discarded or land embedded with
+    # the wrong model. This endpoint phrases its RAG check differently from the
+    # other knowledge routes, which is exactly why it is easy to miss.
+    reembed.raise_if_migrating(projectID, db_wrapper)
+
     opts = project.props.options
     if not opts or not opts.sync_sources:
         raise HTTPException(status_code=400, detail="No sync sources configured")

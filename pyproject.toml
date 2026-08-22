@@ -48,7 +48,14 @@ dependencies = [
     "llama-index-embeddings-langchain>=0.5.0,<0.6",
     "llama-index-vector-stores-chroma>=0.5.5,<0.6",
     "llama-index-vector-stores-postgres>=0.6.0,<0.9",
-    "llama-index-vector-stores-weaviate>=0.6,<2",
+    # Floor is 1.6.2, not 0.6: every earlier release does a hard
+    # `from weaviate.collections.batch.batch_wrapper import _ContextManagerWrapper`,
+    # which weaviate-client >= 4.20 removed. The old range resolved to 1.6.0
+    # against the pinned client, so importing the Weaviate backend raised
+    # ImportError and creating any Weaviate-backed project returned 500 — the
+    # backend was entirely non-functional. Upstream metadata does not catch
+    # this (every version declares the same permissive `weaviate-client<5`).
+    "llama-index-vector-stores-weaviate>=1.6.2,<2",
     "llama-index-vector-stores-pinecone>=0.5,<0.9",
     "pgvector>=0.4.2,<0.5",
     "pinecone>=7.0.0,<9",

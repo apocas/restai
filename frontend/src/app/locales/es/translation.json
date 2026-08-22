@@ -482,7 +482,33 @@
         "queuedFiles": "{{count}} archivo(s) en cola para ingesta.",
         "ingestHelp": "PDF / DOCX / CSV / XLSX / TXT. Procesado de forma asíncrona por el cron bulk_ingest.",
         "maxPerFile": "Máx. {{max}} MB por archivo.",
-        "fileTooLarge": "Demasiado grande: {{names}} (máx. {{max}} MB por archivo)."
+        "fileTooLarge": "Demasiado grande: {{names}} (máx. {{max}} MB por archivo).",
+        "reembed": {
+          "title": "Migración de embeddings",
+          "subtitle": "Cambiar el modelo de embeddings vuelve a calcular la base de conocimiento existente. No hacen falta los archivos originales.",
+          "noJobs": "Todavía no hay migraciones.",
+          "from": "Desde",
+          "to": "Hasta",
+          "status": "Estado",
+          "progress": "Progreso",
+          "cost": "Coste",
+          "started": "Iniciada",
+          "actions": "Acciones",
+          "cancel": "Cancelar migración en cola",
+          "cancelled": "Migración cancelada.",
+          "phaseSnapshotting": "Copiando fragmentos",
+          "phaseResetting": "Recreando el índice",
+          "phaseRebuilding": "Recalculando embeddings",
+          "running": "La recuperación y la ingesta están en pausa hasta que termine.",
+          "changeTitle": "Cambio de modelo de embeddings",
+          "changeBody": "Cambiar de {{from}} a {{to}} volverá a calcular los {{chunks}} fragmentos almacenados de este proyecto con el nuevo modelo. La recuperación y la ingesta se pausan hasta que termine.",
+          "changeCost": "Coste estimado: {{cost}} ({{tokens}} tokens).",
+          "changeIncompatible": "Este cambio no se puede aplicar: {{reason}}",
+          "changeEmpty": "Este proyecto aún no tiene base de conocimiento, así que el modelo cambia de inmediato y no hay nada que migrar.",
+          "staleTitle": "La base de conocimiento está desactualizada",
+          "staleBody": "Los vectores almacenados se crearon con {{indexed}}, pero el proyecto ahora usa {{current}}. Los resultados no son fiables hasta que se vuelva a calcular la base de conocimiento.",
+          "migrateNow": "Recalcular ahora"
+        }
       },
       "security": {
         "guards": "Guards de prompt",
@@ -659,7 +685,8 @@
       "overloaded": "El servicio está temporalmente sobrecargado. Reinténtelo en un momento.",
       "timeout": "La solicitud expiró. El LLM tardó demasiado en responder.",
       "default": "Error: {{detail}}",
-      "generic": "Error: la solicitud falló. Compruebe su conexión e inténtelo de nuevo."
+      "generic": "Error: la solicitud falló. Compruebe su conexión e inténtelo de nuevo.",
+      "reembedding": "La base de conocimiento se está migrando a un nuevo modelo de embeddings. La recuperación se reanudará cuando termine."
     }
   },
   "users": {

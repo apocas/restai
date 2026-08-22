@@ -482,7 +482,33 @@
         "queuedFiles": "{{count}} file in coda per il caricamento.",
         "ingestHelp": "PDF / DOCX / CSV / XLSX / TXT. Elaborati in modo asincrono dal cron bulk_ingest.",
         "maxPerFile": "Max {{max}} MB per file.",
-        "fileTooLarge": "Troppo grande: {{names}} (max {{max}} MB per file)."
+        "fileTooLarge": "Troppo grande: {{names}} (max {{max}} MB per file).",
+        "reembed": {
+          "title": "Migrazione degli embedding",
+          "subtitle": "Cambiare il modello di embedding ricalcola la knowledge base esistente. I file originali non servono.",
+          "noJobs": "Nessuna migrazione finora.",
+          "from": "Da",
+          "to": "A",
+          "status": "Stato",
+          "progress": "Avanzamento",
+          "cost": "Costo",
+          "started": "Avviata",
+          "actions": "Azioni",
+          "cancel": "Annulla migrazione in coda",
+          "cancelled": "Migrazione annullata.",
+          "phaseSnapshotting": "Backup dei frammenti",
+          "phaseResetting": "Ricreazione dell'indice",
+          "phaseRebuilding": "Ricalcolo degli embedding",
+          "running": "Recupero e importazione sono sospesi fino al termine.",
+          "changeTitle": "Cambio del modello di embedding",
+          "changeBody": "Passare da {{from}} a {{to}} ricalcolerà i {{chunks}} frammenti archiviati di questo progetto con il nuovo modello. Recupero e importazione restano sospesi fino al termine.",
+          "changeCost": "Costo stimato: {{cost}} ({{tokens}} token).",
+          "changeIncompatible": "Questa modifica non può essere applicata: {{reason}}",
+          "changeEmpty": "Questo progetto non ha ancora una knowledge base, quindi il modello cambia subito e non c'è nulla da migrare.",
+          "staleTitle": "La knowledge base non è aggiornata",
+          "staleBody": "I vettori archiviati sono stati creati con {{indexed}}, ma il progetto ora usa {{current}}. I risultati non sono affidabili finché la knowledge base non viene ricalcolata.",
+          "migrateNow": "Ricalcola ora"
+        }
       },
       "security": {
         "guards": "Guardie per prompt",
@@ -659,7 +685,8 @@
       "overloaded": "Il servizio è temporaneamente sovraccarico. Riprova tra poco.",
       "timeout": "La richiesta è scaduta. L'LLM ha impiegato troppo tempo per rispondere.",
       "default": "Errore: {{detail}}",
-      "generic": "Errore: la richiesta non è riuscita. Controlla la connessione e riprova."
+      "generic": "Errore: la richiesta non è riuscita. Controlla la connessione e riprova.",
+      "reembedding": "La knowledge base è in fase di migrazione verso un nuovo modello di embedding. Il recupero riprenderà al termine."
     }
   },
   "users": {

@@ -482,7 +482,33 @@
         "queuedFiles": "{{count}} Datei(en) zur Verarbeitung in die Warteschlange gestellt.",
         "ingestHelp": "PDF / DOCX / CSV / XLSX / TXT. Wird asynchron durch den bulk_ingest-Cron verarbeitet.",
         "maxPerFile": "Max. {{max}} MB pro Datei.",
-        "fileTooLarge": "Zu groß: {{names}} (max. {{max}} MB pro Datei)."
+        "fileTooLarge": "Zu groß: {{names}} (max. {{max}} MB pro Datei).",
+        "reembed": {
+          "title": "Embedding-Migration",
+          "subtitle": "Ein Wechsel des Embedding-Modells berechnet die vorhandene Wissensdatenbank neu. Die Originaldateien werden nicht benötigt.",
+          "noJobs": "Noch keine Migrationen.",
+          "from": "Von",
+          "to": "Nach",
+          "status": "Status",
+          "progress": "Fortschritt",
+          "cost": "Kosten",
+          "started": "Gestartet",
+          "actions": "Aktionen",
+          "cancel": "Wartende Migration abbrechen",
+          "cancelled": "Migration abgebrochen.",
+          "phaseSnapshotting": "Textabschnitte werden gesichert",
+          "phaseResetting": "Index wird neu erstellt",
+          "phaseRebuilding": "Embeddings werden neu berechnet",
+          "running": "Suche und Datenaufnahme pausieren, bis dieser Vorgang abgeschlossen ist.",
+          "changeTitle": "Änderung des Embedding-Modells",
+          "changeBody": "Der Wechsel von {{from}} zu {{to}} berechnet die {{chunks}} gespeicherten Textabschnitte dieses Projekts mit dem neuen Modell neu. Suche und Datenaufnahme pausieren bis zum Abschluss.",
+          "changeCost": "Geschätzte Kosten: {{cost}} ({{tokens}} Tokens).",
+          "changeIncompatible": "Diese Änderung ist nicht möglich: {{reason}}",
+          "changeEmpty": "Dieses Projekt hat noch keine Wissensdatenbank — das Modell wird sofort geändert, es gibt nichts zu migrieren.",
+          "staleTitle": "Wissensdatenbank ist veraltet",
+          "staleBody": "Die gespeicherten Vektoren wurden mit {{indexed}} erstellt, das Projekt verwendet jetzt aber {{current}}. Die Suchergebnisse sind unzuverlässig, bis die Wissensdatenbank neu berechnet wurde.",
+          "migrateNow": "Jetzt neu berechnen"
+        }
       },
       "security": {
         "guards": "Prompt-Guards",
@@ -659,7 +685,8 @@
       "overloaded": "Der Dienst ist vorübergehend überlastet. Bitte versuchen Sie es in einem Moment erneut.",
       "timeout": "Die Anfrage ist abgelaufen. Das LLM hat zu lange zum Antworten gebraucht.",
       "default": "Fehler: {{detail}}",
-      "generic": "Fehler: Die Anfrage ist fehlgeschlagen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+      "generic": "Fehler: Die Anfrage ist fehlgeschlagen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      "reembedding": "Die Wissensdatenbank wird auf ein neues Embedding-Modell migriert. Die Suche wird fortgesetzt, sobald der Vorgang abgeschlossen ist."
     }
   },
   "users": {

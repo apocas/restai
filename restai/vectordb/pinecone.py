@@ -176,3 +176,36 @@ class PineconeDB(VectorBase):
         except Exception:
             pass
         return output
+
+    def list_all_nodes(self, limit=1000, offset=0):
+        """Full-metadata read-back.
+
+        Deliberately does not swallow exceptions, unlike the reads above:
+        this feeds a re-embed that then wipes the namespace, so a failed
+        read must not look like an empty knowledge base.
+
+        Note `pinecone_index.list()` is serverless-only — on a pod-based
+        index it yields nothing and this returns `[]` for a namespace that
+        is not actually empty. Callers cross-check against `info()` before
+        destroying anything, which is what catches that case.
+
+        Pinecone stores the node text inside vector metadata, so `text` is
+        lifted out and the rest is passed through as metadata.
+        """
+        output = []
+        skipped = 0
+        for ids_batch in self.pinecone_index.list(namespace=self.namespace):
+            fetched = self.pinecone_index.fetch(ids=ids_batch, namespace=self.namespace)
+            for vid, vec in fetched.vectors.items():
+                if skipped < offset:
+                    skipped += 1
+                    continue
+                meta = dict(vec.metadata or {})
+                output.append({
+                    "id": vid,
+                    "text": meta.get("text", "") or "",
+                    "metadata": {k: v for k, v in meta.items() if k != "text"},
+                })
+                if len(output) >= limit:
+                    return output
+        return output

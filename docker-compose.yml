@@ -34,6 +34,14 @@ x-restai-env: &restai-env
   # upload here and the cron service reads it back to index it. A path
   # outside the shared volume leaves every job stuck at `queued`.
   UPLOAD_STAGING_PATH: ${UPLOAD_STAGING_PATH:-/app/data/bulk_ingest}
+  # Local ChromaDB store. Also on the shared volume, and for a stronger
+  # reason than convenience: it defaults to `./embeddings/`, which is a
+  # path INSIDE each container's own filesystem. Left unset, the API and
+  # the cron each got a private copy — so cron-side knowledge work (bulk
+  # ingest, sync, re-embedding) wrote into a store the API could never
+  # read, and the whole thing was discarded on every container recreate.
+  # Ignored when CHROMADB_HOST points at a remote Chroma server.
+  EMBEDDINGS_PATH: ${EMBEDDINGS_PATH:-/app/data/embeddings}
   DB_POOL_SIZE: ${DB_POOL_SIZE}
   DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW}
   DB_POOL_RECYCLE: ${DB_POOL_RECYCLE}

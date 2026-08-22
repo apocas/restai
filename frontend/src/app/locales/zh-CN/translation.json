@@ -481,7 +481,33 @@
         "queuedFiles": "已排队 {{count}} 个文件等待摄取。",
         "ingestHelp": "PDF / DOCX / CSV / XLSX / TXT。由 bulk_ingest 定时任务异步处理。",
         "maxPerFile": "每个文件最大 {{max}} MB。",
-        "fileTooLarge": "文件过大：{{names}}（每个文件最大 {{max}} MB）。"
+        "fileTooLarge": "文件过大：{{names}}（每个文件最大 {{max}} MB）。",
+        "reembed": {
+          "title": "嵌入迁移",
+          "subtitle": "更换嵌入模型会重新计算现有知识库，无需原始文件。",
+          "noJobs": "暂无迁移记录。",
+          "from": "从",
+          "to": "到",
+          "status": "状态",
+          "progress": "进度",
+          "cost": "费用",
+          "started": "开始时间",
+          "actions": "操作",
+          "cancel": "取消排队中的迁移",
+          "cancelled": "迁移已取消。",
+          "phaseSnapshotting": "正在备份文本块",
+          "phaseResetting": "正在重建索引",
+          "phaseRebuilding": "正在重新计算嵌入",
+          "running": "迁移完成前，检索和导入均已暂停。",
+          "changeTitle": "更改嵌入模型",
+          "changeBody": "从 {{from}} 切换到 {{to}} 将使用新模型重新计算本项目已存储的 {{chunks}} 个文本块。迁移期间检索和导入将暂停。",
+          "changeCost": "预计费用：{{cost}}（{{tokens}} 个 token）。",
+          "changeIncompatible": "无法应用此更改：{{reason}}",
+          "changeEmpty": "本项目尚无知识库，因此模型会立即更改，没有需要迁移的内容。",
+          "staleTitle": "知识库已过期",
+          "staleBody": "已存储的向量由 {{indexed}} 生成，但本项目现在使用 {{current}}。在重新计算知识库之前，检索结果不可靠。",
+          "migrateNow": "立即重新计算"
+        }
       },
       "security": {
         "guards": "提示防护",
@@ -658,7 +684,8 @@
       "overloaded": "服务暂时过载。请稍后重试。",
       "timeout": "请求超时。LLM 响应时间过长。",
       "default": "错误:{{detail}}",
-      "generic": "错误:请求失败。请检查网络连接后重试。"
+      "generic": "错误:请求失败。请检查网络连接后重试。",
+      "reembedding": "知识库正在迁移到新的嵌入模型。迁移完成后将恢复检索。"
     }
   },
   "users": {

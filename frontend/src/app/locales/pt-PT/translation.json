@@ -482,7 +482,33 @@
         "queuedFiles": "{{count}} ficheiro(s) em fila para ingestão.",
         "ingestHelp": "PDF / DOCX / CSV / XLSX / TXT. Processado de forma assíncrona pelo cron bulk_ingest.",
         "maxPerFile": "Máx. {{max}} MB por ficheiro.",
-        "fileTooLarge": "Demasiado grande: {{names}} (máx. {{max}} MB por ficheiro)."
+        "fileTooLarge": "Demasiado grande: {{names}} (máx. {{max}} MB por ficheiro).",
+        "reembed": {
+          "title": "Migração de embeddings",
+          "subtitle": "Mudar o modelo de embeddings recalcula a base de conhecimento existente. Os ficheiros originais não são necessários.",
+          "noJobs": "Ainda não há migrações.",
+          "from": "De",
+          "to": "Para",
+          "status": "Estado",
+          "progress": "Progresso",
+          "cost": "Custo",
+          "started": "Iniciada",
+          "actions": "Ações",
+          "cancel": "Cancelar migração em fila",
+          "cancelled": "Migração cancelada.",
+          "phaseSnapshotting": "A copiar fragmentos",
+          "phaseResetting": "A recriar o índice",
+          "phaseRebuilding": "A recalcular embeddings",
+          "running": "A pesquisa e a ingestão estão em pausa até isto terminar.",
+          "changeTitle": "Alteração do modelo de embeddings",
+          "changeBody": "Mudar de {{from}} para {{to}} vai recalcular os {{chunks}} fragmentos guardados deste projeto com o novo modelo. A pesquisa e a ingestão ficam em pausa até terminar.",
+          "changeCost": "Custo estimado: {{cost}} ({{tokens}} tokens).",
+          "changeIncompatible": "Esta alteração não pode ser aplicada: {{reason}}",
+          "changeEmpty": "Este projeto ainda não tem base de conhecimento, por isso o modelo muda de imediato e não há nada a migrar.",
+          "staleTitle": "A base de conhecimento está desatualizada",
+          "staleBody": "Os vetores guardados foram criados com {{indexed}}, mas o projeto usa agora {{current}}. Os resultados não são fiáveis até a base de conhecimento ser recalculada.",
+          "migrateNow": "Recalcular agora"
+        }
       },
       "security": {
         "guards": "Guardas de prompt",
@@ -659,7 +685,8 @@
       "overloaded": "O serviço está temporariamente sobrecarregado. Tente novamente num momento.",
       "timeout": "O pedido expirou. O LLM demorou demasiado a responder.",
       "default": "Erro: {{detail}}",
-      "generic": "Erro: o pedido falhou. Verifique a ligação e tente novamente."
+      "generic": "Erro: o pedido falhou. Verifique a ligação e tente novamente.",
+      "reembedding": "A base de conhecimento está a ser migrada para um novo modelo de embeddings. A pesquisa é retomada quando terminar."
     }
   },
   "users": {

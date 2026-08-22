@@ -188,3 +188,34 @@ class WeaviateDB(VectorBase):
         except Exception:
             pass
         return output
+
+    def list_all_nodes(self, limit=1000, offset=0):
+        """Full-metadata read-back.
+
+        Unlike the reads above this does NOT swallow exceptions. Those are
+        display paths where an outage degrading to "empty" is survivable;
+        this one feeds a re-embed that then drops the collection, so a
+        failure has to surface as a failure rather than as an empty
+        knowledge base.
+
+        Weaviate's iterator has no server-side offset, so paging walks and
+        discards. Callers should prefer a large `limit` and few pages.
+        """
+        output = []
+        collection = self._get_collection()
+        skipped = 0
+        # No `return_properties` filter — every property comes back, which is
+        # the whole point versus `list_all_chunks`.
+        for obj in collection.iterator():
+            if skipped < offset:
+                skipped += 1
+                continue
+            props = dict(obj.properties or {})
+            output.append({
+                "id": str(obj.uuid),
+                "text": props.get("text", "") or "",
+                "metadata": {k: v for k, v in props.items() if k != "text"},
+            })
+            if len(output) >= limit:
+                break
+        return output

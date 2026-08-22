@@ -18,6 +18,11 @@ export function formatChatError(t, status, detail) {
     case 500: return t("chat.error.internal");
     case 502:
     case 503:
+      // A knowledge-base re-embed also answers 503, and "overloaded" would
+      // send the user off debugging capacity. Distinguished on the detail
+      // string, same as the quota/rate-limit split under 429 above.
+      if (d && d.toLowerCase().includes("re-embedded"))
+        return t("chat.error.reembedding", { detail: d });
       return t("chat.error.overloaded");
     case 504: return t("chat.error.timeout");
     default:

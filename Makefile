@@ -187,6 +187,31 @@ test:
 frontend-test:
 	cd frontend && npm run test:ci
 
+# Containerised equivalents of `test` / `frontend-test` / `lint`, for working
+# without a local uv/node toolchain. `Dockerfile.test` installs the dev
+# dependency group (where ruff and pytest live) and skips building the local
+# workspace package, which would otherwise demand a built frontend/build.
+# `database.py` runs first because the suite assumes an initialised schema —
+# same order CI uses — and test_projects.py is excluded there too (it needs a
+# real LLM configured).
+.PHONY: docker-test-image
+docker-test-image:
+	docker build -f Dockerfile.test -t restai-test:local .
+
+.PHONY: docker-test
+docker-test: docker-test-image
+	docker run --rm restai-test:local
+
+.PHONY: docker-lint
+docker-lint: docker-test-image
+	docker run --rm -v "$(CURDIR)":/src:ro -w /src -e RUFF_CACHE_DIR=/tmp/ruff \
+		restai-test:local /app/.venv/bin/ruff check .
+
+.PHONY: docker-frontend-test
+docker-frontend-test:
+	docker build -f Dockerfile.frontend-test -t restai-frontend-test:local .
+	docker run --rm restai-frontend-test:local
+
 .PHONY: coverage
 coverage:
 	uv run --no-group gpu pytest tests --ignore=tests/test_projects.py --cov --cov-report=term-missing:skip-covered --cov-report=html

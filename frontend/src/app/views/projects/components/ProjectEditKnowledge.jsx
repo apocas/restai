@@ -39,6 +39,9 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
   // null while indeterminate (no Content-Length), 0..1 otherwise.
   const [uploadPct, setUploadPct] = useState(0);
 
+  // Embedding-migration jobs, polled on the same 5s cadence.
+  const [reembedJobs, setReembedJobs] = useState([]);
+
   // Server-side ceiling, so the browser refuses an oversized file before
   // spending minutes pushing it up only to collect a 413. Falls back to the
   // shipped default when /info hasn't loaded yet.
@@ -51,15 +54,32 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
       .catch(() => {});
   }, [project?.id, auth.user.token]);
 
+  const refreshReembed = useCallback(() => {
+    if (!project?.id) return;
+    api.get(`/projects/${project.id}/reembed?limit=10`, auth.user.token, { silent: true })
+      .then((d) => setReembedJobs(d.jobs || []))
+      .catch(() => {});
+  }, [project?.id, auth.user.token]);
+
   useEffect(() => {
     // Only poll for RAG projects — other types never read this tab.
     if (state.type !== "rag") return undefined;
     refreshJobs();
-    const t = setInterval(refreshJobs, 5000);
+    refreshReembed();
+    const t = setInterval(() => { refreshJobs(); refreshReembed(); }, 5000);
     return () => clearInterval(t);
-  }, [refreshJobs, state.type]);
+  }, [refreshJobs, refreshReembed, state.type]);
 
   if (state.type !== "rag") return null;
+
+  const handleCancelReembed = (jobId) => {
+    api.delete(`/projects/${project.id}/reembed/${jobId}`, auth.user.token)
+      .then(() => {
+        toast.success(t("projects.edit.knowledge.reembed.cancelled"));
+        refreshReembed();
+      })
+      .catch((e) => toast.error(e?.detail || String(e)));
+  };
 
   const handleBulkUpload = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -188,6 +208,87 @@ export default function ProjectEditKnowledge({ state, setState, handleChange, pr
             </TableBody>
           </Table>
         )}
+
+        {reembedJobs.length > 0 && (
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="subtitle2">
+              {t("projects.edit.knowledge.reembed.title")}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+              {t("projects.edit.knowledge.reembed.subtitle")}
+            </Typography>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>{t("projects.edit.knowledge.reembed.from")}</TableCell>
+                  <TableCell>{t("projects.edit.knowledge.reembed.to")}</TableCell>
+                  <TableCell>{t("projects.edit.knowledge.reembed.status")}</TableCell>
+                  <TableCell>{t("projects.edit.knowledge.reembed.progress")}</TableCell>
+                  <TableCell align="right">{t("projects.edit.knowledge.reembed.cost")}</TableCell>
+                  <TableCell align="right">{t("projects.edit.knowledge.reembed.actions")}</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {reembedJobs.map((job) => {
+                  const total = job.chunks_total || 0;
+                  const done = job.chunks_done || 0;
+                  const pct = total ? Math.round((done / total) * 100) : 0;
+                  return (
+                    <TableRow key={job.id}>
+                      <TableCell>
+                        <Typography variant="body2">{job.from_embeddings || "—"}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">{job.to_embeddings}</Typography>
+                        {job.error_message && (
+                          <Typography variant="caption" color="error" sx={{ display: "block" }}>
+                            {job.error_message}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Chip size="small" label={job.status} color={BULK_STATUS_COLOR[job.status] || "default"} />
+                        {job.status === "processing" && job.phase && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                            {t(`projects.edit.knowledge.reembed.phase${job.phase.charAt(0).toUpperCase()}${job.phase.slice(1)}`)}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 140 }}>
+                        {total > 0 ? (
+                          <>
+                            <LinearProgress variant="determinate" value={pct} />
+                            <Typography variant="caption" color="text.secondary">
+                              {done} / {total}
+                            </Typography>
+                          </>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell align="right">
+                        {job.cost ? `$${Number(job.cost).toFixed(4)}` : "—"}
+                      </TableCell>
+                      <TableCell align="right">
+                        {/* Only a queued job can be cancelled — once it is
+                            processing, stopping it would leave the knowledge
+                            base half-rebuilt, so the server refuses too. */}
+                        {job.status === "queued" && (
+                          <IconButton
+                            size="small"
+                            onClick={() => handleCancelReembed(job.id)}
+                            title={t("projects.edit.knowledge.reembed.cancel")}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Box>
+        )}
+
         <Divider sx={{ mt: 2 }} />
       </Grid>
 

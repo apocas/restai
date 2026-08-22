@@ -321,7 +321,7 @@ export default function ProjectEdit({ project, projects, info }) {
             {active === "General" && (
               <ProjectEditGeneral
                 state={state} setState={setState} handleChange={handleChange}
-                project={project} info={info} users={users} teams={teams}
+                project={project} info={info} users={users} teams={teams} auth={auth}
                 promptVersions={promptVersions} showVersions={showVersions}
                 setShowVersions={setShowVersions} handleTeamChange={handleTeamChange}
                 fieldErrors={fieldErrors}

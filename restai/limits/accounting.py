@@ -87,3 +87,51 @@ def log_platform_usage(db: DBWrapper, feature: str, sys_llm, prompt: str, answer
         )
     except Exception:
         logging.exception("Failed to log platform usage for %s", feature)
+
+
+def log_embedding_usage(
+    db: DBWrapper, project, embedding_props, tokens: int, label: str, user_id=None,
+) -> float:
+    """Record embedding-model spend against a project and its team, and debit
+    the team wallet. Returns the USD charged (0.0 on any failure).
+
+    Embeddings are input-only, so `output_tokens`/`output_cost` are always 0.
+
+    `log_direct_usage` is the same shape but hardcodes `project_id=None`
+    (it exists for the project-less `/v1/*` path), and a knowledge-base
+    re-embed is very much attributable to a project — so the row is written
+    here instead, reusing `charge_team_balance` for the wallet movement.
+
+    Never raises: accounting must not be able to fail a migration that is
+    mid-way through rebuilding a vector store."""
+    from restai.models.databasemodels import OutputDatabase
+    from datetime import datetime, timezone
+
+    try:
+        in_tok = int(tokens or 0)
+        rate = float(getattr(embedding_props, "input_cost", 0.0) or 0.0)
+        in_cost = in_tok * rate / 1_000_000
+        team_id = getattr(getattr(project, "props", project), "team_id", None)
+        project_id = getattr(getattr(project, "props", project), "id", None)
+
+        db.db.add(OutputDatabase(
+            user_id=user_id,
+            project_id=project_id,
+            team_id=team_id,
+            llm=getattr(embedding_props, "name", None) or "embedding",
+            question=label,
+            answer="(embedded)",
+            date=datetime.now(timezone.utc),
+            input_tokens=in_tok,
+            output_tokens=0,
+            input_cost=in_cost,
+            output_cost=0.0,
+        ))
+        db.db.commit()
+
+        from restai.limits.budget import charge_team_balance
+        charge_team_balance(db, team_id, in_cost, actor_user_id=user_id)
+        return in_cost
+    except Exception:
+        logging.exception("Failed to log embedding usage (%s)", label)
+        return 0.0

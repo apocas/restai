@@ -6,6 +6,7 @@ import threading
 from collections import defaultdict
 from datetime import datetime, timezone
 
+from restai import reembed
 from restai.database import open_db_wrapper
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,7 @@ def _sync_url(project, source, db, brain=None):
             logger.warning(f"Failed to delete old chunks for source '{source.name}': {e}")
     n_chunks = index_documents_classic(project, documents, source.splitter, source.chunks)
     project.vector.save()
+    reembed.stamp_indexed_embedding(project, db)
     _extract_entities_for_documents(project, documents, db, brain)
     logger.info(f"URL source '{source.name}' synced: {len(documents)} documents, {n_chunks} chunks")
 
@@ -192,6 +194,7 @@ def _sync_s3(project, source, db, brain=None):
 
     n_chunks = index_documents_classic(project, all_documents, source.splitter, source.chunks)
     project.vector.save()
+    reembed.stamp_indexed_embedding(project, db)
     _extract_entities_for_documents(project, all_documents, db, brain)
     logger.info(f"S3 source '{source.name}' synced: {len(all_documents)} documents, {n_chunks} chunks")
 
@@ -284,6 +287,7 @@ def _sync_confluence(project, source, db, brain=None):
 
     n_chunks = index_documents_classic(project, all_documents, source.splitter, source.chunks)
     project.vector.save()
+    reembed.stamp_indexed_embedding(project, db)
     _extract_entities_for_documents(project, all_documents, db, brain)
     logger.info(f"Confluence source '{source.name}' synced: {len(all_documents)} pages, {n_chunks} chunks")
 
@@ -391,6 +395,7 @@ def _sync_sharepoint(project, source, db, brain=None):
 
     n_chunks = index_documents_classic(project, all_documents, source.splitter, source.chunks)
     project.vector.save()
+    reembed.stamp_indexed_embedding(project, db)
     _extract_entities_for_documents(project, all_documents, db, brain)
     logger.info(f"SharePoint source '{source.name}' synced: {len(all_documents)} files, {n_chunks} chunks")
 
@@ -535,6 +540,7 @@ def _sync_gdrive(project, source, db, brain=None):
 
     n_chunks = index_documents_classic(project, all_documents, source.splitter, source.chunks)
     project.vector.save()
+    reembed.stamp_indexed_embedding(project, db)
     _extract_entities_for_documents(project, all_documents, db, brain)
     logger.info(f"Google Drive source '{source.name}' synced: {len(all_documents)} files, {n_chunks} chunks")
 

@@ -39,6 +39,15 @@ def main():
             if not opts.get("sync_enabled") or not opts.get("sync_sources"):
                 continue
 
+            # Sync is delete-then-reindex. Running it against a store that a
+            # re-embed is snapshotting or rebuilding would either be discarded
+            # by the reset or land chunks embedded with the wrong model. Skip
+            # without stamping `last_sync`, so the source syncs on a later tick.
+            from restai import reembed
+            if reembed.is_migrating(proj.id, db):
+                logger.info("sync: skipping project %s — knowledge base is being re-embedded", proj.id)
+                continue
+
             sources = opts["sync_sources"]
             now = datetime.now(timezone.utc)
 

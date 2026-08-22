@@ -1,6 +1,10 @@
-import { Card, Chip, Grid, Typography, styled } from "@mui/material";
+import { Alert, Button, Card, Chip, Grid, Typography, styled } from "@mui/material";
 import { Storage } from "@mui/icons-material";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "react-toastify";
+import useAuth from "app/hooks/useAuth";
+import api from "app/utils/api";
 import RAGUpload from "./RAGUpload";
 import RAGBrowser from "./RAGBrowser";
 import RAGRetrieval from "./RAGRetrieval";
@@ -31,6 +35,25 @@ const DetailItem = ({ label, children }) => (
 
 export default function ProjectInfoKnowledge({ project }) {
   const { t } = useTranslation();
+  const auth = useAuth();
+  const [migrating, setMigrating] = useState(false);
+
+  // Repair path for a project the old silent-swap behaviour already broke.
+  // Re-picking the model in Edit wouldn't help: `embeddings` is already the
+  // one they want, so nothing there registers as a change — the migration has
+  // to be requested explicitly.
+  const handleRepair = () => {
+    setMigrating(true);
+    api.post(
+      `/projects/${project.id}/reembed?to_embeddings=${encodeURIComponent(project.embeddings)}`,
+      {},
+      auth.user.token,
+    )
+      .then(() => toast.success(t("projects.edit.knowledge.reembed.title")))
+      .catch((e) => toast.error(e?.detail || String(e)))
+      .finally(() => setMigrating(false));
+  };
+
   return (
     <ContentCard
       icon={<Storage />}
@@ -38,6 +61,32 @@ export default function ProjectInfoKnowledge({ project }) {
       subtitle={`PROJECT/${String(project.id).padStart(4, "0")} · DOCS · INDEX · RETRIEVAL`}
     >
     <Grid container spacing={3}>
+      {/* The stored vectors were built with a different model than the project
+          now uses — the state the old silent-swap behaviour left projects in.
+          `embeddings_indexed` is null on anything ingested before it existed,
+          which means "unknown", not "stale", so it must not trigger this. */}
+      {project.embeddings_indexed
+        && project.embeddings
+        && project.embeddings_indexed !== project.embeddings && (
+        <Grid item xs={12}>
+          <Alert
+            severity="warning"
+            variant="outlined"
+            action={
+              <Button color="inherit" size="small" disabled={migrating} onClick={handleRepair}>
+                {t("projects.edit.knowledge.reembed.migrateNow")}
+              </Button>
+            }
+          >
+            <strong>{t("projects.edit.knowledge.reembed.staleTitle")}</strong>{" "}
+            {t("projects.edit.knowledge.reembed.staleBody", {
+              indexed: project.embeddings_indexed,
+              current: project.embeddings,
+            })}
+          </Alert>
+        </Grid>
+      )}
+
       {/* RAG Settings */}
       <Grid item xs={12}>
         <Card elevation={0} sx={{ p: 2.5, background: "rgba(255,255,255,0.55)", border: `1px solid ${PALETTE.edge}` }}>
