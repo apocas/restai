@@ -246,7 +246,7 @@ Every system prompt change is automatically versioned. Browse the full history, 
 
 ### Image Generation
 
-Local and remote image generators loaded dynamically. Supports Stable Diffusion, Flux, DALL-E, RMBG2, and more. Atlas Cloud and MuAPI are available as first-class asynchronous providers: select the provider in the Image Generators admin page, enter its API key, and choose a supported image model. MuAPI accepts the live catalog's model or endpoint path and defaults to `flux-dev`.
+Local and remote image generators loaded dynamically. Supports Stable Diffusion, Flux, DALL-E, RMBG2, and more. Atlas Cloud and MuAPI are available as first-class asynchronous providers: select the provider in the Image Generators admin page, enter its API key, and choose a supported image model. MuAPI ([documentation](https://muapi.ai/docs/api-reference)) accepts the live catalog's model or endpoint path and defaults to `flux-dev`.
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/image.png" width="45%" alt="Flux1"/>
