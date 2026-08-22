@@ -1,3 +1,4 @@
+import json
 import logging
 from fastapi import (
     Depends,
@@ -550,6 +551,49 @@ async def get_conversation_analytics(
         for r in llm_rows
     ]
 
+    # How agent runs ENDED (NULL = completed normally; "max_turns"/
+    # "max_time"/"error" mark capped or failed runs). Distinct from
+    # status_breakdown, which records the request outcome (success/guard/
+    # rate_limit/…) rather than how the agent loop terminated.
+    stop_rows = (
+        db_wrapper.db.query(
+            OutputDatabase.stop_reason,
+            func.count(OutputDatabase.id).label("count"),
+        )
+        .filter(*base_filter, OutputDatabase.stop_reason.isnot(None))
+        .group_by(OutputDatabase.stop_reason)
+        .order_by(func.count(OutputDatabase.id).desc())
+        .all()
+    )
+    stop_reason_breakdown = [
+        {"stop_reason": r.stop_reason, "count": r.count} for r in stop_rows
+    ]
+
+    # Provider-reliability rollup: transient retries burned, fallback-LLM
+    # switches, and how trustworthy the token counts are.
+    total_retries = db_wrapper.db.query(func.sum(OutputDatabase.retries)).filter(*base_filter).scalar() or 0
+    total_fallbacks = db_wrapper.db.query(func.sum(OutputDatabase.fallbacks)).filter(*base_filter).scalar() or 0
+    runs_with_fallback = db_wrapper.db.query(func.count(OutputDatabase.id)).filter(
+        *base_filter, OutputDatabase.fallbacks.isnot(None), OutputDatabase.fallbacks > 0
+    ).scalar() or 0
+    accuracy_rows = (
+        db_wrapper.db.query(
+            OutputDatabase.token_accuracy,
+            func.count(OutputDatabase.id).label("count"),
+        )
+        .filter(*base_filter, OutputDatabase.token_accuracy.isnot(None))
+        .group_by(OutputDatabase.token_accuracy)
+        .all()
+    )
+    reliability = {
+        "retries": int(total_retries),
+        "fallbacks": int(total_fallbacks),
+        "runs_with_fallback": runs_with_fallback,
+        "token_accuracy": [
+            {"accuracy": r.token_accuracy, "count": r.count} for r in accuracy_rows
+        ],
+    }
+
     return {
         "summary": summary,
         "daily": daily,
@@ -558,7 +602,140 @@ async def get_conversation_analytics(
         "status_breakdown": status_breakdown,
         "latency_buckets": latency_buckets,
         "llm_breakdown": llm_breakdown,
+        "stop_reason_breakdown": stop_reason_breakdown,
+        "reliability": reliability,
     }
+
+
+def _percentile(sorted_values: list, pct: float):
+    """Nearest-rank percentile over an already-sorted list; None when empty."""
+    if not sorted_values:
+        return None
+    idx = int(round((pct / 100.0) * (len(sorted_values) - 1)))
+    return sorted_values[max(0, min(len(sorted_values) - 1, idx))]
+
+
+# Synthetic timeline rows the runtime writes alongside real tool calls.
+_PSEUDO_TRACE_TOOLS = {"llm_turn", "llm_fallback"}
+
+
+def aggregate_tool_traces(trace_payloads: list) -> dict:
+    """Aggregate persisted `tool_trace` JSON blobs into per-tool stats plus
+    LLM-turn latency and fallback totals. Pure function — unit-tested
+    directly; the endpoint below is a thin DB shim around it."""
+    tools: dict = {}
+    turn_latencies: list = []
+    turn_count = 0
+    fallback_count = 0
+    runs_with_fallback = 0
+    runs_analyzed = 0
+
+    for payload in trace_payloads:
+        try:
+            rows = json.loads(payload) if isinstance(payload, str) else payload
+        except (ValueError, TypeError):
+            continue
+        if not isinstance(rows, list):
+            continue
+        runs_analyzed += 1
+        run_fallbacks = 0
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            name = row.get("tool") or "unknown"
+            latency = row.get("latency_ms")
+            latency = int(latency) if isinstance(latency, (int, float)) else None
+            if name == "llm_turn":
+                turn_count += 1
+                if latency is not None:
+                    turn_latencies.append(latency)
+                continue
+            if name == "llm_fallback":
+                fallback_count += 1
+                run_fallbacks += 1
+                continue
+            slot = tools.setdefault(name, {"calls": 0, "errors": 0, "latencies": []})
+            slot["calls"] += 1
+            if row.get("status") == "error":
+                slot["errors"] += 1
+            if latency is not None:
+                slot["latencies"].append(latency)
+        if run_fallbacks:
+            runs_with_fallback += 1
+
+    tool_stats = []
+    for name, s in tools.items():
+        lat = sorted(s["latencies"])
+        tool_stats.append({
+            "tool": name,
+            "calls": s["calls"],
+            "errors": s["errors"],
+            "error_rate": round(s["errors"] / s["calls"], 3) if s["calls"] else 0.0,
+            "avg_ms": int(sum(lat) / len(lat)) if lat else None,
+            "p50_ms": _percentile(lat, 50),
+            "p95_ms": _percentile(lat, 95),
+        })
+    tool_stats.sort(key=lambda t: t["calls"], reverse=True)
+
+    turn_sorted = sorted(turn_latencies)
+    return {
+        "tools": tool_stats,
+        "llm_turns": {
+            "count": turn_count,
+            "avg_ms": int(sum(turn_sorted) / len(turn_sorted)) if turn_sorted else None,
+            "p50_ms": _percentile(turn_sorted, 50),
+            "p95_ms": _percentile(turn_sorted, 95),
+        },
+        "fallbacks": fallback_count,
+        "runs_with_fallback": runs_with_fallback,
+        "runs_analyzed": runs_analyzed,
+    }
+
+
+_TOOL_ANALYTICS_MAX_ROWS = 2000
+
+
+@router.get("/projects/{projectID}/analytics/tools", tags=["Statistics"])
+async def get_tool_analytics(
+    projectID: int = PathParam(description="Project ID"),
+    year: int = Query(None, ge=2000, le=2100, description="Year"),
+    month: int = Query(None, ge=1, le=12, description="Month"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Per-tool performance for a project's agent runs, aggregated from the
+    persisted tool traces: call counts, error rates, latency percentiles,
+    plus LLM-turn latency and fallback totals."""
+    import datetime as dt
+
+    now = dt.datetime.now(dt.timezone.utc)
+    if year is None:
+        year = now.year
+    if month is None:
+        month = now.month
+
+    start_date = dt.datetime(year, month, 1, tzinfo=dt.timezone.utc)
+    last_day = calendar.monthrange(year, month)[1]
+    end_date = dt.datetime(year, month, last_day, 23, 59, 59, tzinfo=dt.timezone.utc)
+
+    rows = (
+        db_wrapper.db.query(OutputDatabase.tool_trace)
+        .filter(
+            OutputDatabase.project_id == projectID,
+            OutputDatabase.date >= start_date,
+            OutputDatabase.date <= end_date,
+            OutputDatabase.tool_trace.isnot(None),
+        )
+        .order_by(OutputDatabase.date.desc())
+        .limit(_TOOL_ANALYTICS_MAX_ROWS)
+        .all()
+    )
+
+    result = aggregate_tool_traces([r.tool_trace for r in rows])
+    # Newest-first cap: when a busy month exceeds the cap the stats cover the
+    # most recent runs — say so instead of silently pretending it's everything.
+    result["truncated"] = len(rows) >= _TOOL_ANALYTICS_MAX_ROWS
+    return result
 
 
 @router.get("/projects/{projectID}/logs", tags=["Statistics"])
@@ -589,6 +766,122 @@ async def get_token_consumption(
             raise e
         logging.exception(e)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+def build_conversation_details(rows: list) -> dict:
+    """Assemble the full-detail view of one conversation from its OutputDatabase
+    rows (ordered oldest→newest). Pure over row-shaped objects — unit-tested
+    with stand-ins; the endpoint below only does auth + the query."""
+    turns = []
+    total_in = total_out = 0
+    total_cost = 0.0
+    error_turns = 0
+    latencies = []
+    trace_payloads = []
+    models = set()
+    users = set()
+
+    for row in rows:
+        tokens_in = int(getattr(row, "input_tokens", 0) or 0)
+        tokens_out = int(getattr(row, "output_tokens", 0) or 0)
+        cost = float(getattr(row, "input_cost", 0) or 0) + float(getattr(row, "output_cost", 0) or 0)
+        latency = getattr(row, "latency_ms", None)
+        status = getattr(row, "status", None) or "success"
+        trace_raw = getattr(row, "tool_trace", None)
+        trace_rows = []
+        if trace_raw:
+            trace_payloads.append(trace_raw)
+            try:
+                parsed = json.loads(trace_raw)
+                if isinstance(parsed, list):
+                    trace_rows = [r for r in parsed if isinstance(r, dict)]
+            except (ValueError, TypeError):
+                trace_rows = []
+
+        total_in += tokens_in
+        total_out += tokens_out
+        total_cost += cost
+        if status not in ("success", "guard"):
+            error_turns += 1
+        if isinstance(latency, (int, float)):
+            latencies.append(int(latency))
+        if getattr(row, "llm", None):
+            models.add(row.llm)
+
+        date_value = getattr(row, "date", None)
+        turns.append({
+            "id": getattr(row, "id", None),
+            "date": date_value.isoformat() if hasattr(date_value, "isoformat") else date_value,
+            "question": getattr(row, "question", None),
+            "answer": getattr(row, "answer", None),
+            "llm": getattr(row, "llm", None),
+            "status": status,
+            "error": getattr(row, "error", None),
+            "input_tokens": tokens_in,
+            "output_tokens": tokens_out,
+            "cost": round(cost, 6),
+            "latency_ms": latency,
+            "stop_reason": getattr(row, "stop_reason", None),
+            "retries": getattr(row, "retries", None),
+            "fallbacks": getattr(row, "fallbacks", None),
+            "token_accuracy": getattr(row, "token_accuracy", None),
+            "tool_trace": trace_rows,
+            "attachments": getattr(row, "attachments", None),
+            "has_image": bool(getattr(row, "image", None)),
+        })
+        if getattr(row, "user_id", None) is not None:
+            users.add(row.user_id)
+
+    first_date = turns[0]["date"] if turns else None
+    last_date = turns[-1]["date"] if turns else None
+    sorted_lat = sorted(latencies)
+    summary = {
+        "turns": len(turns),
+        "input_tokens": total_in,
+        "output_tokens": total_out,
+        "total_tokens": total_in + total_out,
+        "cost": round(total_cost, 6),
+        "error_turns": error_turns,
+        "avg_latency_ms": int(sum(sorted_lat) / len(sorted_lat)) if sorted_lat else None,
+        "p95_latency_ms": _percentile(sorted_lat, 95),
+        "models": sorted(models),
+        "distinct_users": len(users),
+        "started_at": first_date,
+        "last_at": last_date,
+    }
+
+    return {
+        "summary": summary,
+        "turns": turns,
+        "tools": aggregate_tool_traces(trace_payloads),
+    }
+
+
+@router.get("/projects/{projectID}/logs/conversation/{chat_id}/details", tags=["Statistics"])
+async def get_conversation_details(
+    projectID: int = PathParam(description="Project ID"),
+    chat_id: str = PathParam(description="Conversation chat id"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Everything the platform knows about one conversation: every turn's
+    tokens/cost/latency/outcome metadata + full tool-trace timeline, plus
+    conversation-level rollups (totals, latency percentiles, per-tool stats,
+    models involved). Companion to the replay endpoint, which returns only
+    the transcript."""
+    rows = (
+        db_wrapper.db.query(OutputDatabase)
+        .filter(
+            OutputDatabase.project_id == projectID,
+            OutputDatabase.chat_id == chat_id,
+        )
+        .order_by(OutputDatabase.date.asc(), OutputDatabase.id.asc())
+        .limit(_REPLAY_MAX_TURNS)
+        .all()
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return build_conversation_details(rows)
 
 
 _REPLAY_MAX_TURNS = 500

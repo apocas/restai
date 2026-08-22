@@ -283,9 +283,26 @@ class OutputDatabase(Base):
     # loop. JSON list with shape:
     # [{"tool": str, "args": str (truncated), "latency_ms": int,
     #   "status": "ok" | "error", "error": str | None}, ...]
+    # Also carries synthetic timeline rows: `llm_turn` (per-turn LLM wall
+    # time + serving model) and `llm_fallback` (mid-run model switches).
     # The log viewer renders this as a timeline so "why did the agent
     # get stuck" is answerable without re-running.
     tool_trace = Column(Text, nullable=True)
+
+    # Agent run-outcome metadata (migration 061; all nullable — non-agent
+    # rows and pre-061 rows leave them NULL):
+    # - stop_reason: how the run ended ("max_turns", "max_time", "error";
+    #   NULL = completed normally). Drives the outcome breakdown in
+    #   per-project analytics.
+    # - retries: transient provider retries performed during the run.
+    # - fallbacks: number of fallback-LLM switches during the run.
+    # - token_accuracy: provenance of the token counts ("high" = real
+    #   provider usage, "medium" = estimate floored by partial usage,
+    #   "low" = pure estimate).
+    stop_reason = Column(String(32), nullable=True)
+    retries = Column(Integer, nullable=True)
+    fallbacks = Column(Integer, nullable=True)
+    token_accuracy = Column(String(16), nullable=True)
 
 
 class EvalDatasetDatabase(Base):

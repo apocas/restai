@@ -185,6 +185,18 @@ def test_transient_error_retried_then_succeeds():
     assert events[-1].data["stop_reason"] == "completed"
     assert events[-1].data["final_text"] == "recovered"
     assert len(provider.complete_calls) == 2
+    # Observability: the retry was counted for the persisted log row.
+    assert runtime.retry_count == 1
+
+
+def test_assistant_events_carry_turn_latency_and_llm():
+    provider = FakeProvider(turns=[text_msg("hi there")])
+    runtime = make_runtime(provider, llm_name="main-llm")
+    events = run(collect(runtime, "go"))
+    assistant = next(e for e in events if e.type == "assistant")
+    assert assistant.data.get("llm") == "main-llm"
+    assert isinstance(assistant.data.get("turn_latency_ms"), int)
+    assert assistant.data["turn_latency_ms"] >= 0
 
 
 def test_retries_exhausted_yields_error():

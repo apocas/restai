@@ -104,17 +104,19 @@ def ev_delta(text):
     return AgentEvent(type="text_delta", data={"text": text})
 
 
-def ev_assistant(*blocks):
+def ev_assistant(*blocks, data=None):
     return AgentEvent(type="assistant",
-                      message=Message(role="assistant", content=list(blocks)))
+                      message=Message(role="assistant", content=list(blocks)),
+                      data=data or {})
 
 
-def ev_tool_result(tool_use_id, content):
+def ev_tool_result(tool_use_id, content, is_error=False):
     return AgentEvent(
         type="tool_result",
         message=Message(role="user",
                         content=[ToolResultBlock(tool_use_id=tool_use_id,
-                                                 content=content)]),
+                                                 content=content,
+                                                 is_error=is_error)]),
     )
 
 
@@ -707,6 +709,56 @@ def test_drive_runtime_appends_max_time_notice():
     assert output["answer"].startswith("got this far")
     assert "45s execution-time cap" in output["answer"]
     assert "continue" in output["answer"]
+
+
+# ─── observability: llm_turn rows, is_error status, retries ─────────────
+
+def test_drive_runtime_records_llm_turn_trace_rows():
+    agent = make_agent()
+    runtime = ScriptedRuntime([[
+        ev_assistant(TextBlock(text="thinking"),
+                     data={"turn_latency_ms": 850, "llm": "main-llm"}),
+        ev_final("done"),
+    ]])
+    _, output = run(drive(agent, runtime))
+    trace = output.get("tool_trace") or []
+    turn_rows = [r for r in trace if r["tool"] == "llm_turn"]
+    assert len(turn_rows) == 1
+    assert turn_rows[0]["latency_ms"] == 850
+    assert "main-llm" in turn_rows[0]["args"]
+    assert turn_rows[0]["status"] == "ok"
+
+
+def test_drive_runtime_trace_status_honors_is_error_flag():
+    agent = make_agent()
+    runtime = ScriptedRuntime([[
+        ev_assistant(ToolUseBlock(id="t1", name="mytool", input={"a": 1})),
+        ev_tool_result("t1", "tool exploded quietly", is_error=True),
+        ev_assistant(ToolUseBlock(id="t2", name="mytool", input={"a": 2})),
+        ev_tool_result("t2", "all good", is_error=False),
+        ev_final("done"),
+    ]])
+    _, output = run(drive(agent, runtime))
+    rows = [r for r in (output.get("tool_trace") or []) if r["tool"] == "mytool"]
+    assert [r["status"] for r in rows] == ["error", "ok"]
+    assert rows[0]["error"] == "tool exploded quietly"
+
+
+def test_record_fallbacks_sets_retry_count():
+    from restai.projects.agent import Agent
+
+    project = types.SimpleNamespace(props=types.SimpleNamespace(llm="main"))
+    output = {}
+    Agent._record_fallbacks(
+        output, types.SimpleNamespace(fallback_trail=[], retry_count=3), project,
+    )
+    assert output["retries"] == 3
+
+    output2 = {}
+    Agent._record_fallbacks(
+        output2, types.SimpleNamespace(fallback_trail=[], retry_count=0), project,
+    )
+    assert "retries" not in output2
 
 
 # ─── provider-error status + fallback surfacing ─────────────────────────

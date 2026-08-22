@@ -506,10 +506,13 @@ class Agent(ProjectBase):
 
     @staticmethod
     def _record_fallbacks(output: dict, runtime, project: Project) -> None:
-        """Expose mid-run LLM fallback switches on the response. Only set when
-        a switch actually happened, so the default response shape is unchanged.
-        `llm_used` feeds log_inference so the log row + cost attribute to the
-        model that actually answered."""
+        """Expose mid-run LLM fallback switches + retry count on the response.
+        Only set when something actually happened, so the default response
+        shape is unchanged. `llm_used` feeds log_inference so the log row +
+        cost attribute to the model that actually answered."""
+        retries = int(getattr(runtime, "retry_count", 0) or 0)
+        if retries:
+            output["retries"] = retries
         trail = getattr(runtime, "fallback_trail", None) or []
         if not trail:
             return
@@ -604,6 +607,22 @@ class Agent(ProjectBase):
                     yield ("text", delta)
 
             elif event.type == "assistant":
+                # Per-turn LLM timing row — with the tool rows below this
+                # makes the persisted trace a full run timeline (turn 1 LLM
+                # 1.2s → tool 300ms → turn 2 LLM 900ms → …), so "where did
+                # the 40 seconds go" is answerable from the log viewer.
+                turn_ms = (event.data or {}).get("turn_latency_ms")
+                if turn_ms is not None:
+                    tool_trace.append({
+                        "tool": "llm_turn",
+                        "args": json.dumps({
+                            "turn": event.turn,
+                            "llm": (event.data or {}).get("llm"),
+                        }),
+                        "latency_ms": turn_ms,
+                        "status": "ok",
+                        "error": None,
+                    })
                 msg = event.message
                 if msg:
                     try:
@@ -664,15 +683,23 @@ class Agent(ProjectBase):
                         content = getattr(block, "content", "") or ""
                         if tool_call is not None:
                             self._record_step(steps, reasoning_buf, tool_call, content)
-                            # Per-tool trace row. Status is best-effort: our
-                            # builtins return `"ERROR: ..."` / `"OK: ..."` so
-                            # a prefix check works without wrapping every tool.
+                            # Per-tool trace row. The runtime's ToolResultBlock
+                            # carries the authoritative is_error flag (set for
+                            # unknown tools, invalid args, timeouts, raised
+                            # exceptions); the prefix check remains as a
+                            # fallback for builtins that return soft
+                            # "ERROR: ..." strings without flagging.
                             started = tool_call_started_at.pop(tool_use_id, None)
                             latency_ms = (
                                 int((_time.monotonic() - started) * 1000) if started is not None else None
                             )
                             _c = str(content).strip()
-                            status = "error" if (_c.startswith("ERROR:") or _c.startswith("Error calling tool")) else "ok"
+                            status = (
+                                "error"
+                                if (getattr(block, "is_error", False)
+                                    or _c.lower().startswith("error"))
+                                else "ok"
+                            )
                             try:
                                 input_preview = json.dumps(tool_call.input, default=str)
                             except Exception:
@@ -784,6 +811,7 @@ class Agent(ProjectBase):
         # `status`/`error`; the analytics status_breakdown then tells the truth.
         if stop_reason == "error":
             output["status"] = "error"
+            output["stop_reason"] = "error"
             output.setdefault("error", (output.get("answer") or "")[:2000])
 
         # Recover what the user saw streaming. Two cases:

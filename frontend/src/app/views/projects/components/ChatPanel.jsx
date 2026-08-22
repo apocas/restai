@@ -10,6 +10,7 @@ import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import MessageBubble from "./MessageBubble";
 import PlaygroundLanes from "./PlaygroundLanes";
+import RunTelemetry from "./RunTelemetry";
 import { formatChatError } from "./chatErrors";
 
 const HiddenInput = styled("input")({ display: "none" });
@@ -34,6 +35,16 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
   // status ∈ "pending" | "running" | "done"
   const [streamingPlan, setStreamingPlan] = useState(null);
   const [streamingToolCalls, setStreamingToolCalls] = useState([]);
+  // Live run telemetry: run clock start, llm_fallback frames seen, and a
+  // frozen snapshot of the finished run so the strip stays readable after
+  // streaming ends (replaced on the next question).
+  const [runStartedAt, setRunStartedAt] = useState(null);
+  const [runFallbacks, setRunFallbacks] = useState(0);
+  const [lastRunTelemetry, setLastRunTelemetry] = useState(null);
+  // Refs mirror the two values above so the SSE onclose closure (captured at
+  // submit time) reads the live run's numbers, not the previous render's.
+  const runStartedAtRef = useRef(null);
+  const runFallbacksRef = useRef(0);
   // Mirror of streamingToolCalls in a ref so `onclose` can read the
   // latest value without going through a setter callback (which gets
   // double-invoked under React 18 StrictMode). Useful only for the
@@ -194,6 +205,11 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
     setStreamingPlan(null);
     setStreamingToolCalls([]);
     streamingToolCallsRef.current = [];
+    runStartedAtRef.current = Date.now();
+    runFallbacksRef.current = 0;
+    setRunStartedAt(runStartedAtRef.current);
+    setRunFallbacks(0);
+    setLastRunTelemetry(null);
 
     let accumulated = "";
     let finalOutput = null;
@@ -290,6 +306,9 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
               streamingToolCallsRef.current = next;
               return next;
             });
+          } else if (data.llm_fallback) {
+            runFallbacksRef.current += 1;
+            setRunFallbacks(runFallbacksRef.current);
           }
         } catch (e) {
         }
@@ -307,6 +326,16 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
         // — the closure captured the value from the render when
         // handleSubmit was called (empty array).
         const finalToolCalls = streamingToolCallsRef.current.slice();
+        // Freeze the finished run's telemetry so the strip keeps showing the
+        // final timeline until the next question replaces it.
+        if (runStartedAtRef.current) {
+          setLastRunTelemetry({
+            startedAt: runStartedAtRef.current,
+            toolCalls: finalToolCalls,
+            outputChars: ((finalOutput && finalOutput.answer) || accumulated || "").length,
+            fallbacks: runFallbacksRef.current,
+          });
+        }
         streamingToolCallsRef.current = [];
         setStreamingText("");
         setStreamingPlan(null);
@@ -761,6 +790,18 @@ export default function ChatPanel({ project, systemOverride, sharedQuestion, onQ
               />
             )
           ))}
+        </Box>
+      )}
+
+      {((isLoading && runStartedAt) || lastRunTelemetry) && (
+        <Box sx={{ px: 2 }}>
+          <RunTelemetry
+            active={isLoading}
+            startedAt={isLoading ? runStartedAt : lastRunTelemetry?.startedAt}
+            toolCalls={isLoading ? streamingToolCalls : (lastRunTelemetry?.toolCalls || [])}
+            outputChars={isLoading ? streamingText.length : (lastRunTelemetry?.outputChars || 0)}
+            fallbacks={isLoading ? runFallbacks : (lastRunTelemetry?.fallbacks || 0)}
+          />
         </Box>
       )}
 
