@@ -7,7 +7,7 @@ import {
 import {
   Article, ChevronLeft, ChevronRight, Search, Close, ExpandMore,
   ExpandLess, CheckCircle, Error as ErrorIcon, Warning, Info as InfoIcon,
-  Image as ImageIcon, AttachFile, PlayCircleOutline,
+  Image as ImageIcon, AttachFile, PlayCircleOutline, QueryStats,
 } from "@mui/icons-material";
 import ReactJson from "@microlink/react-json-view";
 import { useTranslation } from "react-i18next";
@@ -15,6 +15,7 @@ import useAuth from "app/hooks/useAuth";
 import api from "app/utils/api";
 import { FONT_MONO, sweep, pulse } from "app/components/page/pageStyles";
 import ChatReplayDialog from "./ChatReplayDialog";
+import ConversationDetailsDialog from "./ConversationDetailsDialog";
 
 // Logs = inference history / trace. Violet = unique vs cron-amber and
 // audit-indigo so the user knows which "log" surface they're on.
@@ -258,6 +259,7 @@ export default function ProjectLogs({ project }) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [replayChatId, setReplayChatId] = useState(null);
+  const [detailsChatId, setDetailsChatId] = useState(null);
 
   const fetchLogs = (projectID, start, end) => {
     setLoading(true);
@@ -598,15 +600,26 @@ export default function ProjectLogs({ project }) {
                     </TableCell>
                     <TableCell align="right" sx={{ pr: 3 }} onClick={(e) => e.stopPropagation()}>
                       {log.chat_id ? (
-                        <Tooltip title={t("projects.logs.replay.button", "Replay conversation")} arrow>
-                          <IconButton
-                            size="small"
-                            onClick={() => setReplayChatId(log.chat_id)}
-                            sx={{ color: ACCENT }}
-                          >
-                            <PlayCircleOutline fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                        <Box component="span" sx={{ whiteSpace: "nowrap" }}>
+                          <Tooltip title={t("projects.logs.details.button", "Conversation details")} arrow>
+                            <IconButton
+                              size="small"
+                              onClick={() => setDetailsChatId(log.chat_id)}
+                              sx={{ color: ACCENT }}
+                            >
+                              <QueryStats fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title={t("projects.logs.replay.button", "Replay conversation")} arrow>
+                            <IconButton
+                              size="small"
+                              onClick={() => setReplayChatId(log.chat_id)}
+                              sx={{ color: ACCENT }}
+                            >
+                              <PlayCircleOutline fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
                       ) : null}
                     </TableCell>
                   </TableRow>
@@ -965,6 +978,12 @@ export default function ProjectLogs({ project }) {
       projectId={project?.id}
       projectName={project?.name}
       chatId={replayChatId}
+    />
+    <ConversationDetailsDialog
+      open={!!detailsChatId}
+      onClose={() => setDetailsChatId(null)}
+      projectId={project?.id}
+      chatId={detailsChatId}
     />
     </>
   );

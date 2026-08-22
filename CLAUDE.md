@@ -430,6 +430,13 @@ Four nullable `OutputDatabase` columns persisted by `log_inference` for every ro
 - **`/analytics/conversations` additions**: `stop_reason_breakdown` (how agent runs ended — distinct from `status_breakdown`, which is the request outcome) and `reliability` (`retries`/`fallbacks`/`runs_with_fallback` sums + `token_accuracy` counts).
 - **Frontend**: `ProjectAnalytics.jsx` second drill-down row (Agent Run Endings + reliability, LLM Turn Latency, Tool Performance table — hidden when no agent data); `ProjectLogs.jsx` RUN OUTCOME chips (stop reason / retries / fallbacks / token accuracy) on expanded rows; the logs endpoint returns raw ORM rows so new columns flow to clients automatically.
 
+### Conversation Inspector & Live Run Telemetry
+
+- **`GET /projects/{id}/logs/conversation/{chat_id}/details`** (`analytics.py:build_conversation_details`, pure over row objects) — everything about one conversation: per-turn tokens/cost/latency/outcome metadata + parsed tool_trace, plus rollups (totals, latency avg/p95, models, per-tool stats via `aggregate_tool_traces`). 404 on unknown chat. Companion to the replay endpoint (transcript only). Tests: `tests/test_conversation_details.py` (creates LLM/team/project via API, inserts OutputDatabase rows directly).
+- **`ConversationDetailsDialog.jsx`** — opened by the QueryStats button NEXT TO the Replay button in `ProjectLogs.jsx`: stat tiles, per-turn latency + stacked input/output token mini-bar charts (last 30 turns), turns table with per-turn `TraceTimelineBar` mini-timelines + outcome chips + click-to-expand Q/A/error/tool-calls, and a per-conversation tool usage table.
+- **`RunTelemetry.jsx`** — live playground telemetry strip in `ChatPanel.jsx` (above the input): run clock, tool-call Gantt rows building in realtime from the SSE frames (500ms tick while streaming), error/fallback counters, ~output-token estimate; freezes at the final state until the next question (snapshot taken in `onclose` via refs — closures see stale state). Pure derivations live in `app/utils/runTelemetry.js` (`buildLiveTimeline`/`traceToSegments`/`estimateTokens`/`formatMs` — unit-tested; components importing react-markdown can't be, so keep logic there).
+- **Chart colors** are the dataviz reference palette, validated per mode with the skill validator: blue `#2a78d6`/`#3987e5` = LLM/input, aqua `#1baf7a`/`#199e70` = tools (orange FAILED CVD separation against error-red in dark mode — don't "fix" it back), orange = output tokens, `#d03b3b` = errors (always with a text label/tooltip, never color alone).
+
 ### Per-Project Analytics Drill-Down
 
 `GET /projects/{id}/analytics/conversations` returns summary + daily + hourly + top_users, plus:

@@ -768,6 +768,122 @@ async def get_token_consumption(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+def build_conversation_details(rows: list) -> dict:
+    """Assemble the full-detail view of one conversation from its OutputDatabase
+    rows (ordered oldest→newest). Pure over row-shaped objects — unit-tested
+    with stand-ins; the endpoint below only does auth + the query."""
+    turns = []
+    total_in = total_out = 0
+    total_cost = 0.0
+    error_turns = 0
+    latencies = []
+    trace_payloads = []
+    models = set()
+    users = set()
+
+    for row in rows:
+        tokens_in = int(getattr(row, "input_tokens", 0) or 0)
+        tokens_out = int(getattr(row, "output_tokens", 0) or 0)
+        cost = float(getattr(row, "input_cost", 0) or 0) + float(getattr(row, "output_cost", 0) or 0)
+        latency = getattr(row, "latency_ms", None)
+        status = getattr(row, "status", None) or "success"
+        trace_raw = getattr(row, "tool_trace", None)
+        trace_rows = []
+        if trace_raw:
+            trace_payloads.append(trace_raw)
+            try:
+                parsed = json.loads(trace_raw)
+                if isinstance(parsed, list):
+                    trace_rows = [r for r in parsed if isinstance(r, dict)]
+            except (ValueError, TypeError):
+                trace_rows = []
+
+        total_in += tokens_in
+        total_out += tokens_out
+        total_cost += cost
+        if status not in ("success", "guard"):
+            error_turns += 1
+        if isinstance(latency, (int, float)):
+            latencies.append(int(latency))
+        if getattr(row, "llm", None):
+            models.add(row.llm)
+
+        date_value = getattr(row, "date", None)
+        turns.append({
+            "id": getattr(row, "id", None),
+            "date": date_value.isoformat() if hasattr(date_value, "isoformat") else date_value,
+            "question": getattr(row, "question", None),
+            "answer": getattr(row, "answer", None),
+            "llm": getattr(row, "llm", None),
+            "status": status,
+            "error": getattr(row, "error", None),
+            "input_tokens": tokens_in,
+            "output_tokens": tokens_out,
+            "cost": round(cost, 6),
+            "latency_ms": latency,
+            "stop_reason": getattr(row, "stop_reason", None),
+            "retries": getattr(row, "retries", None),
+            "fallbacks": getattr(row, "fallbacks", None),
+            "token_accuracy": getattr(row, "token_accuracy", None),
+            "tool_trace": trace_rows,
+            "attachments": getattr(row, "attachments", None),
+            "has_image": bool(getattr(row, "image", None)),
+        })
+        if getattr(row, "user_id", None) is not None:
+            users.add(row.user_id)
+
+    first_date = turns[0]["date"] if turns else None
+    last_date = turns[-1]["date"] if turns else None
+    sorted_lat = sorted(latencies)
+    summary = {
+        "turns": len(turns),
+        "input_tokens": total_in,
+        "output_tokens": total_out,
+        "total_tokens": total_in + total_out,
+        "cost": round(total_cost, 6),
+        "error_turns": error_turns,
+        "avg_latency_ms": int(sum(sorted_lat) / len(sorted_lat)) if sorted_lat else None,
+        "p95_latency_ms": _percentile(sorted_lat, 95),
+        "models": sorted(models),
+        "distinct_users": len(users),
+        "started_at": first_date,
+        "last_at": last_date,
+    }
+
+    return {
+        "summary": summary,
+        "turns": turns,
+        "tools": aggregate_tool_traces(trace_payloads),
+    }
+
+
+@router.get("/projects/{projectID}/logs/conversation/{chat_id}/details", tags=["Statistics"])
+async def get_conversation_details(
+    projectID: int = PathParam(description="Project ID"),
+    chat_id: str = PathParam(description="Conversation chat id"),
+    _: User = Depends(get_current_username_project),
+    db_wrapper: DBWrapper = Depends(get_db_wrapper),
+):
+    """Everything the platform knows about one conversation: every turn's
+    tokens/cost/latency/outcome metadata + full tool-trace timeline, plus
+    conversation-level rollups (totals, latency percentiles, per-tool stats,
+    models involved). Companion to the replay endpoint, which returns only
+    the transcript."""
+    rows = (
+        db_wrapper.db.query(OutputDatabase)
+        .filter(
+            OutputDatabase.project_id == projectID,
+            OutputDatabase.chat_id == chat_id,
+        )
+        .order_by(OutputDatabase.date.asc(), OutputDatabase.id.asc())
+        .limit(_REPLAY_MAX_TURNS)
+        .all()
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return build_conversation_details(rows)
+
+
 _REPLAY_MAX_TURNS = 500
 
 
