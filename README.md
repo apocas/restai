@@ -246,7 +246,7 @@ Every system prompt change is automatically versioned. Browse the full history, 
 
 ### Image Generation
 
-Local and remote image generators loaded dynamically. Supports Stable Diffusion, Flux, DALL-E, RMBG2, and more.
+Local and remote image generators loaded dynamically. Supports Stable Diffusion, Flux, DALL-E, RMBG2, and more. Atlas Cloud is available as a first-class asynchronous provider: select **Atlas Cloud** in the Image Generators admin page, enter an Atlas API key, and choose a supported image model such as `qwen-image-3.0/text-to-image`.
 
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/image.png" width="45%" alt="Flux1"/>
