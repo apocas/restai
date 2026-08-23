@@ -24,6 +24,7 @@ const PROVIDERS = [
   { value: "openai", label: "OpenAI / OpenAI-compatible" },
   { value: "google", label: "Google (Imagen / Nano Banana)" },
   { value: "atlascloud", label: "Atlas Cloud" },
+  { value: "muapi", label: "MuAPI" },
 ];
 
 const PROVIDER_DEFAULT_OPTIONS = {
@@ -33,6 +34,11 @@ const PROVIDER_DEFAULT_OPTIONS = {
     model: "qwen-image-3.0/text-to-image",
     api_key: "",
     base_url: "https://api.atlascloud.ai",
+  },
+  muapi: {
+    model: "flux-dev",
+    api_key: "",
+    base_url: "https://api.muapi.ai",
   },
 };
 
@@ -382,6 +388,7 @@ export default function ImageGenerators() {
               { value: "openai", label: "OpenAI" },
               { value: "google", label: "Google" },
               { value: "atlascloud", label: "Atlas Cloud" },
+              { value: "muapi", label: "MuAPI" },
             ],
           },
         ]}
@@ -495,6 +502,8 @@ export default function ImageGenerators() {
                       ? "e.g. gpt-image-1.5, dall-e-3"
                       : form.class_name === "atlascloud"
                         ? "e.g. qwen-image-3.0/text-to-image"
+                        : form.class_name === "muapi"
+                          ? "e.g. flux-dev, nano-banana, or a catalog endpoint"
                       : "e.g. imagen-3.0-generate-001, nano-banana"
                   }
                 />
@@ -507,13 +516,13 @@ export default function ImageGenerators() {
                   fullWidth
                   helperText={editing ? t("imageGen.dialog.apiKeyHelp") : ""}
                 />
-                {(form.class_name === "openai" || form.class_name === "atlascloud") && (
+                {(form.class_name === "openai" || form.class_name === "atlascloud" || form.class_name === "muapi") && (
                   <TextField
                     label={t("imageGen.dialog.baseUrl")}
                     value={form.options?.base_url ?? ""}
                     onChange={(e) => setOption("base_url", e.target.value)}
                     fullWidth
-                    placeholder={form.class_name === "atlascloud" ? "https://api.atlascloud.ai" : "https://api.openai.com/v1"}
+                    placeholder={form.class_name === "atlascloud" ? "https://api.atlascloud.ai" : form.class_name === "muapi" ? "https://api.muapi.ai" : "https://api.openai.com/v1"}
                     helperText={t("imageGen.dialog.baseUrlHelp")}
                   />
                 )}

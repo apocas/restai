@@ -74,6 +74,10 @@ def generate_image(name: str, image_model: ImageModel, brain, db_wrapper) -> tup
         from restai.image.providers.atlascloud import generate as _gen
         return _gen(options, image_model)
 
+    if row.class_name == "muapi":
+        from restai.image.providers.muapi import generate as _gen
+        return _gen(options, image_model)
+
     if row.class_name == "local":
         # Local workers live in `restai/image/workers/*.py`. `name` matches
         # the module basename. Lightweight `Brain` (cron) never loads
