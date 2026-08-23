@@ -482,7 +482,33 @@
         "queuedFiles": "{{count}} fil(er) sat i kø til indlæsning.",
         "ingestHelp": "PDF / DOCX / CSV / XLSX / TXT. Behandles asynkront af bulk_ingest-cron.",
         "maxPerFile": "Maks. {{max}} MB pr. fil.",
-        "fileTooLarge": "For stor: {{names}} (maks. {{max}} MB pr. fil)."
+        "fileTooLarge": "For stor: {{names}} (maks. {{max}} MB pr. fil).",
+        "reembed": {
+          "title": "Embedding-migrering",
+          "subtitle": "Skift af embedding-model genberegner den eksisterende vidensbase. Originalfilerne er ikke nødvendige.",
+          "noJobs": "Ingen migreringer endnu.",
+          "from": "Fra",
+          "to": "Til",
+          "status": "Status",
+          "progress": "Fremdrift",
+          "cost": "Omkostning",
+          "started": "Startet",
+          "actions": "Handlinger",
+          "cancel": "Annullér migrering i kø",
+          "cancelled": "Migrering annulleret.",
+          "phaseSnapshotting": "Sikkerhedskopierer tekststykker",
+          "phaseResetting": "Genopbygger indeks",
+          "phaseRebuilding": "Genberegner embeddings",
+          "running": "Søgning og indlæsning er sat på pause, indtil dette er færdigt.",
+          "changeTitle": "Ændring af embedding-model",
+          "changeBody": "Skift fra {{from}} til {{to}} genberegner projektets {{chunks}} gemte tekststykker med den nye model. Søgning og indlæsning sættes på pause, indtil det er færdigt.",
+          "changeCost": "Anslået omkostning: {{cost}} ({{tokens}} tokens).",
+          "changeIncompatible": "Denne ændring kan ikke gennemføres: {{reason}}",
+          "changeEmpty": "Projektet har endnu ingen vidensbase, så modellen ændres med det samme uden noget at migrere.",
+          "staleTitle": "Vidensbasen er forældet",
+          "staleBody": "De gemte vektorer blev bygget med {{indexed}}, men projektet bruger nu {{current}}. Søgeresultater er upålidelige, indtil vidensbasen er genberegnet.",
+          "migrateNow": "Genberegn nu"
+        }
       },
       "security": {
         "guards": "Prompt-vagter",
@@ -659,7 +685,8 @@
       "overloaded": "Tjenesten er midlertidigt overbelastet. Prøv igen om lidt.",
       "timeout": "Forespørgslen fik timeout. LLM'en brugte for lang tid på at svare.",
       "default": "Fejl: {{detail}}",
-      "generic": "Fejl: forespørgslen mislykkedes. Kontrollér din forbindelse, og prøv igen."
+      "generic": "Fejl: forespørgslen mislykkedes. Kontrollér din forbindelse, og prøv igen.",
+      "reembedding": "Vidensbasen migreres til en ny embedding-model. Søgning genoptages, når den er færdig."
     }
   },
   "users": {

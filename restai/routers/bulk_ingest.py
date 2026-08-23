@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Path as PathParam, Query, UploadFile
 
 from restai import config
+from restai import reembed
 from restai.auth import check_not_restricted, get_current_username_project
 from restai.constants import ERROR_MESSAGES
 from restai.database import DBWrapper, get_db_wrapper
@@ -112,6 +113,10 @@ async def enqueue_bulk_ingest(
         raise HTTPException(status_code=404, detail="Project not found")
     if project.type != "rag":
         raise HTTPException(status_code=400, detail="Bulk ingest only available for RAG projects")
+
+    # A queued file would be ingested by the cron into a store the re-embed is
+    # about to reset, so the work would be silently discarded.
+    reembed.raise_if_migrating(projectID, db_wrapper)
 
     max_bytes = config.max_upload_bytes()
     queue_dir = _ensure_queue_dir()

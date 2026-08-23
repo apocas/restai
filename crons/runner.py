@@ -36,6 +36,11 @@ JOB_TIMEOUT = 600  # seconds per job (default)
 # row stuck at `processing` forever with its staged file leaked.
 JOB_TIMEOUT_OVERRIDES = {
     "bulk_ingest.py": 3600,
+    # Re-embedding a knowledge base is one embedding call per batch across the
+    # whole store; a large project easily runs past 10 minutes. Being SIGKILLed
+    # mid-rebuild is survivable (the job resumes from `chunks_done`) but leaves
+    # the project serving a partial store until the next tick.
+    "reembed.py": 3600,
 }
 
 

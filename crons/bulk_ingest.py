@@ -203,6 +203,7 @@ def main():
                     extract_keywords_for_metadata,
                 )
                 from restai.vectordb.tools import find_file_loader
+                from restai import reembed
                 from unidecode import unidecode
 
                 ext = os.path.splitext(filename)[1].lower()
@@ -250,6 +251,7 @@ def main():
 
                 docs_count = len(documents)
                 project.vector.save()
+                reembed.stamp_indexed_embedding(project, db)
                 ok = True
             except Exception as e:
                 logger.exception("Job %d failed: %s", job_id, e)

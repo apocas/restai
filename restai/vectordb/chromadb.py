@@ -158,3 +158,21 @@ class ChromaDBVector(VectorBase):
                 "text": docs["documents"][i] if docs["documents"] else "",
             })
         return output
+
+    def list_all_nodes(self, limit=1000, offset=0):
+        # `limit`/`offset` go to Chroma rather than slicing after the fetch
+        # (what `list_all_chunks` does above) so paging a large collection
+        # never materializes all of it at once.
+        docs = self.chroma_collection.get(
+            include=["metadatas", "documents"], limit=limit, offset=offset,
+        )
+        metadatas = docs.get("metadatas") or []
+        documents = docs.get("documents") or []
+        output = []
+        for i, doc_id in enumerate(docs.get("ids") or []):
+            output.append({
+                "id": doc_id,
+                "text": documents[i] if i < len(documents) else "",
+                "metadata": dict(metadatas[i] or {}) if i < len(metadatas) else {},
+            })
+        return output

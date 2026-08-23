@@ -166,7 +166,7 @@ export default function EmbeddingEdit({ embedding }) {
     e.preventDefault();
     setSaving(true);
     const update = {};
-    ["name", "class_name", "options", "privacy", "description", "dimension"].forEach((k) => {
+    ["name", "class_name", "options", "privacy", "description", "dimension", "input_cost"].forEach((k) => {
       if (state[k] !== embedding[k]) update[k] = state[k];
     });
     api.patch("/embeddings/" + embedding.id, update, auth.user.token)
@@ -185,7 +185,7 @@ export default function EmbeddingEdit({ embedding }) {
   }, [state.options]);
 
   const dirty = useMemo(() => {
-    return ["name", "class_name", "options", "privacy", "description", "dimension"]
+    return ["name", "class_name", "options", "privacy", "description", "dimension", "input_cost"]
       .some((k) => state[k] !== embedding[k]);
   }, [state, embedding]);
 
@@ -385,6 +385,20 @@ export default function EmbeddingEdit({ embedding }) {
                 sx={fieldSx}
               />
             </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                name="input_cost"
+                type="number"
+                label="Input cost (USD / 1M tokens)"
+                value={state.input_cost ?? ""}
+                onChange={handleChange}
+                InputLabelProps={{ shrink: true }}
+                helperText="Prices ingestion and knowledge-base re-embedding. 0 records usage without billing it."
+                inputProps={{ min: 0, step: "0.001" }}
+                sx={fieldSx}
+              />
+            </Grid>
 
             <Grid item xs={12}>
               <TextField
@@ -543,7 +557,7 @@ export default function EmbeddingEdit({ embedding }) {
         >
           <AltRoute sx={{ fontSize: 14, color: ACCENT }} />
           {dirty
-            ? `${Object.keys(state).filter((k) => state[k] !== embedding[k] && ["name","class_name","options","privacy","description","dimension"].includes(k)).length} field(s) changed`
+            ? `${Object.keys(state).filter((k) => state[k] !== embedding[k] && ["name","class_name","options","privacy","description","dimension","input_cost"].includes(k)).length} field(s) changed`
             : "no changes"}
         </Box>
         <Box sx={{ display: "flex", gap: 1 }}>

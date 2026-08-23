@@ -49,9 +49,22 @@ const renderKnowledge = (state = makeState(), props = {}) => {
   return { state, setState, handleChange, ...utils };
 };
 
+// The tab polls two endpoints. Count only the bulk-ingest ones so the
+// cadence assertions below stay about the thing they're testing.
+const bulkCalls = () =>
+  api.get.mock.calls.filter(([url]) => String(url).includes("/ingest-bulk")).length;
+
+// Route by path — a blanket mock would feed bulk-ingest rows into the
+// re-embed table and render a second table nothing here is asserting on.
+const mockGet = ({ bulk = JOBS, reembed = [] } = {}) => {
+  api.get.mockImplementation((url) =>
+    Promise.resolve(String(url).includes("/reembed") ? { jobs: reembed } : { jobs: bulk })
+  );
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
-  api.get.mockResolvedValue({ jobs: JOBS });
+  mockGet();
   api.post.mockResolvedValue({ queued: [7] });
   api.upload.mockResolvedValue({ queued: [7], count: 1 });
   api.delete.mockResolvedValue({});
@@ -82,7 +95,7 @@ describe("ProjectEditKnowledge", () => {
   });
 
   it("hides the job table entirely when there are no jobs", async () => {
-    api.get.mockResolvedValue({ jobs: [] });
+    mockGet({ bulk: [] });
     renderKnowledge();
     await waitFor(() => expect(api.get).toHaveBeenCalled());
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
@@ -92,28 +105,28 @@ describe("ProjectEditKnowledge", () => {
     jest.useFakeTimers();
     const { unmount } = renderKnowledge();
 
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(bulkCalls()).toBe(1));
 
     act(() => {
       jest.advanceTimersByTime(5000);
     });
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(bulkCalls()).toBe(2));
 
     act(() => {
       jest.advanceTimersByTime(10000);
     });
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(bulkCalls()).toBe(4));
 
     unmount();
     act(() => {
       jest.advanceTimersByTime(20000);
     });
-    expect(api.get).toHaveBeenCalledTimes(4);
+    expect(bulkCalls()).toBe(4);
   });
 
   it("uploading files POSTs multipart to the bulk endpoint, toasts, and refreshes the table", async () => {
     const { container } = renderKnowledge();
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(bulkCalls()).toBe(1));
 
     const input = container.querySelector('input[type="file"]');
     const file = new File(["hello"], "notes.txt", { type: "text/plain" });
@@ -131,14 +144,14 @@ describe("ProjectEditKnowledge", () => {
     );
     expect(toast.success).toHaveBeenCalledWith("projects.edit.knowledge.queuedFiles", { position: "top-right" });
     // initial load + post-upload refresh
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(bulkCalls()).toBe(2));
     // input reset so the same file can be re-picked
     expect(input.value).toBe("");
   });
 
   it("selecting no files does not POST", async () => {
     const { container } = renderKnowledge();
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(bulkCalls()).toBe(1));
     const input = container.querySelector('input[type="file"]');
     await act(async () => {
       fireEvent.change(input, { target: { files: [] } });
@@ -152,7 +165,7 @@ describe("ProjectEditKnowledge", () => {
     const { container } = renderKnowledge(makeState(), {
       info: { llms: [], max_upload_size_mb: 1 },
     });
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(bulkCalls()).toBe(1));
 
     const input = container.querySelector('input[type="file"]');
     const big = new File([new Uint8Array(2 * 1024 * 1024)], "huge.pdf", {
@@ -173,7 +186,7 @@ describe("ProjectEditKnowledge", () => {
     const { container } = renderKnowledge(makeState(), {
       info: { llms: [], max_upload_size_mb: 1 },
     });
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(bulkCalls()).toBe(1));
 
     const input = container.querySelector('input[type="file"]');
     const ok = new File([new Uint8Array(1024)], "small.pdf", { type: "application/pdf" });
@@ -195,7 +208,7 @@ describe("ProjectEditKnowledge", () => {
     await waitFor(() =>
       expect(api.delete).toHaveBeenCalledWith("/projects/3/ingest-bulk/2", "tok")
     );
-    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(bulkCalls()).toBe(2));
   });
 
   it("rerank LLM picker only appears when llm_rerank is on", async () => {
@@ -265,5 +278,83 @@ describe("ProjectEditKnowledge", () => {
     expect(screen.getByText("Source #1")).toBeInTheDocument();
     expect(screen.getByDisplayValue("https://example.com/docs")).toBeInTheDocument();
     expect(screen.getByDisplayValue("docs")).toBeInTheDocument();
+  });
+
+  describe("embedding migration table", () => {
+    const REEMBED = [
+      {
+        id: 11, from_embeddings: "old-emb", to_embeddings: "new-emb",
+        status: "processing", phase: "rebuilding",
+        chunks_total: 200, chunks_done: 50, cost: 0.1234,
+      },
+      {
+        id: 12, from_embeddings: "old-emb", to_embeddings: "broken-emb",
+        status: "error", error_message: "Read back 3 chunks but the store reports 100.",
+        chunks_total: 0, chunks_done: 0, cost: 0,
+      },
+    ];
+
+    it("stays hidden when the project has never been migrated", async () => {
+      renderKnowledge();
+      await waitFor(() => expect(api.get).toHaveBeenCalled());
+      expect(screen.queryByText("projects.edit.knowledge.reembed.title")).not.toBeInTheDocument();
+    });
+
+    it("polls the migration endpoint alongside bulk ingest", async () => {
+      mockGet({ reembed: REEMBED });
+      renderKnowledge();
+      await waitFor(() =>
+        expect(api.get).toHaveBeenCalledWith("/projects/3/reembed?limit=10", "tok", { silent: true })
+      );
+    });
+
+    it("shows progress, phase and the failure reason", async () => {
+      mockGet({ reembed: REEMBED });
+      renderKnowledge();
+
+      await waitFor(() =>
+        expect(screen.getByText("projects.edit.knowledge.reembed.title")).toBeInTheDocument()
+      );
+      expect(screen.getByText("new-emb")).toBeInTheDocument();
+      expect(screen.getByText("50 / 200")).toBeInTheDocument();
+      expect(screen.getByText("projects.edit.knowledge.reembed.phaseRebuilding")).toBeInTheDocument();
+      // An errored migration has to say WHY — the message names the recovery.
+      expect(
+        screen.getByText("Read back 3 chunks but the store reports 100.")
+      ).toBeInTheDocument();
+    });
+
+    it("offers cancel only for queued jobs", async () => {
+      // A running migration may already have reset the store, so stopping it
+      // would leave the knowledge base half-rebuilt; the server refuses too.
+      mockGet({ reembed: REEMBED });
+      renderKnowledge();
+      await waitFor(() =>
+        expect(screen.getByText("projects.edit.knowledge.reembed.title")).toBeInTheDocument()
+      );
+      expect(
+        screen.queryByTitle("projects.edit.knowledge.reembed.cancel")
+      ).not.toBeInTheDocument();
+
+      mockGet({ reembed: [{ ...REEMBED[0], id: 13, status: "queued", phase: null }] });
+      renderKnowledge();
+      await waitFor(() =>
+        expect(screen.getAllByTitle("projects.edit.knowledge.reembed.cancel").length).toBe(1)
+      );
+    });
+
+    it("cancels a queued migration and refreshes", async () => {
+      mockGet({ reembed: [{ ...REEMBED[0], id: 13, status: "queued", phase: null }] });
+      const user = userEvent.setup();
+      renderKnowledge();
+
+      const btn = await screen.findByTitle("projects.edit.knowledge.reembed.cancel");
+      await user.click(btn);
+
+      await waitFor(() =>
+        expect(api.delete).toHaveBeenCalledWith("/projects/3/reembed/13", "tok")
+      );
+      expect(toast.success).toHaveBeenCalledWith("projects.edit.knowledge.reembed.cancelled");
+    });
   });
 });

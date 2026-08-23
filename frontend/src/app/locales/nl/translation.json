@@ -482,7 +482,33 @@
         "queuedFiles": "{{count}} bestand(en) in wachtrij voor verwerking.",
         "ingestHelp": "PDF / DOCX / CSV / XLSX / TXT. Asynchroon verwerkt door de bulk_ingest cron.",
         "maxPerFile": "Max {{max}} MB per bestand.",
-        "fileTooLarge": "Te groot: {{names}} (max {{max}} MB per bestand)."
+        "fileTooLarge": "Te groot: {{names}} (max {{max}} MB per bestand).",
+        "reembed": {
+          "title": "Embeddingmigratie",
+          "subtitle": "Het embeddingmodel wijzigen herberekent de bestaande kennisbank. De originele bestanden zijn niet nodig.",
+          "noJobs": "Nog geen migraties.",
+          "from": "Van",
+          "to": "Naar",
+          "status": "Status",
+          "progress": "Voortgang",
+          "cost": "Kosten",
+          "started": "Gestart",
+          "actions": "Acties",
+          "cancel": "Migratie in wachtrij annuleren",
+          "cancelled": "Migratie geannuleerd.",
+          "phaseSnapshotting": "Fragmenten veiligstellen",
+          "phaseResetting": "Index opnieuw opbouwen",
+          "phaseRebuilding": "Embeddings herberekenen",
+          "running": "Ophalen en importeren staan gepauzeerd tot dit klaar is.",
+          "changeTitle": "Wijziging van embeddingmodel",
+          "changeBody": "Overschakelen van {{from}} naar {{to}} herberekent de {{chunks}} opgeslagen fragmenten van dit project met het nieuwe model. Ophalen en importeren pauzeren tot het klaar is.",
+          "changeCost": "Geschatte kosten: {{cost}} ({{tokens}} tokens).",
+          "changeIncompatible": "Deze wijziging kan niet worden toegepast: {{reason}}",
+          "changeEmpty": "Dit project heeft nog geen kennisbank, dus het model verandert direct en er valt niets te migreren.",
+          "staleTitle": "Kennisbank is verouderd",
+          "staleBody": "De opgeslagen vectoren zijn gemaakt met {{indexed}}, maar dit project gebruikt nu {{current}}. Zoekresultaten zijn onbetrouwbaar tot de kennisbank opnieuw is berekend.",
+          "migrateNow": "Nu herberekenen"
+        }
       },
       "security": {
         "guards": "Prompt-guards",
@@ -659,7 +685,8 @@
       "overloaded": "De service is tijdelijk overbelast. Probeer het over een moment opnieuw.",
       "timeout": "Het verzoek heeft de time-out overschreden. De LLM deed er te lang over om te reageren.",
       "default": "Fout: {{detail}}",
-      "generic": "Fout: het verzoek is mislukt. Controleer uw verbinding en probeer het opnieuw."
+      "generic": "Fout: het verzoek is mislukt. Controleer uw verbinding en probeer het opnieuw.",
+      "reembedding": "De kennisbank wordt gemigreerd naar een nieuw embeddingmodel. Het ophalen hervat zodra dit klaar is."
     }
   },
   "users": {

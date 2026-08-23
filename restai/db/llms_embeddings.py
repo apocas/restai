@@ -68,6 +68,7 @@ class LLMEmbeddingMixin:
         privacy: str,
         description: str,
         dimension: int,
+        input_cost: float = 0.0,
     ) -> EmbeddingDatabase:
         db_embedding: EmbeddingDatabase = EmbeddingDatabase(
             name=name,
@@ -76,6 +77,7 @@ class LLMEmbeddingMixin:
             privacy=privacy,
             description=description,
             dimension=dimension,
+            input_cost=input_cost or 0.0,
         )
         self.db.add(db_embedding)
         self.db.commit()
@@ -212,6 +214,12 @@ class LLMEmbeddingMixin:
             and embedding.dimension != embeddingUpdate.dimension
         ):
             embedding.dimension = embeddingUpdate.dimension
+
+        if (
+            embeddingUpdate.input_cost is not None
+            and embedding.input_cost != embeddingUpdate.input_cost
+        ):
+            embedding.input_cost = embeddingUpdate.input_cost
 
         self.db.commit()
         return True

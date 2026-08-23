@@ -19,6 +19,13 @@ def _db(rows):
     db.db.query.return_value.all.return_value = rows
     # _update_last_sync goes through the same query mock.
     db.db.query.return_value.filter.return_value.first.return_value = rows[0] if rows else None
+    # The loop now also asks whether a knowledge-base re-embed owns this
+    # project's vector store (sync is delete-then-reindex, so running it
+    # mid-migration would be discarded or embedded with the wrong model).
+    # That lookup adds an `.order_by()`, so it lands on a different branch of
+    # the mock than the `_update_last_sync` one above — left unset it returns a
+    # truthy MagicMock and every project is skipped as "migrating".
+    db.db.query.return_value.filter.return_value.order_by.return_value.first.return_value = None
     return db
 
 

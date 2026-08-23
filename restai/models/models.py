@@ -247,6 +247,7 @@ class EmbeddingModel(BaseModel):
     privacy: Literal["public", "private"] = Field(description="Privacy level: 'public' (cloud-hosted) or 'private' (self-hosted)")
     description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable description of the embedding model")
     dimension: int = Field(default=1536, ge=1, le=65536, description="Output embedding dimension size")
+    input_cost: float = Field(default=0.0, ge=0, description="USD per 1M input tokens. Used to price ingest and knowledge-base re-embedding; 0 means embedding usage is recorded but not billed")
     teams: list["TeamModel"] = Field(default=[], description="Teams that have access to this embedding model")
 
     @field_validator('name')
@@ -328,6 +329,7 @@ class EmbeddingUpdate(BaseModel):
     privacy: Optional[Literal["public", "private"]] = Field(default=None, description="Privacy level: 'public' or 'private'")
     description: Union[str, None] = Field(default=None, max_length=1000, description="Human-readable description of the embedding model")
     dimension: Union[int, None] = Field(default=None, ge=1, le=65536, description="Output embedding dimension size")
+    input_cost: Union[float, None] = Field(default=None, ge=0, description="USD per 1M input tokens")
 
     @field_validator('class_name')
     @classmethod
@@ -782,6 +784,7 @@ class ProjectBaseModel(BaseModel):
     id: int = Field(description="Unique project identifier")
     name: str = Field(description="URL-friendly project name (used in API paths)")
     embeddings: Union[str, None] = Field(default=None, description="Name of the embedding model used for this project")
+    embeddings_indexed: Union[str, None] = Field(default=None, description="Read-only: the embedding model the stored vectors were actually built with. A value differing from `embeddings` means the knowledge base is stale and needs re-embedding; null means never stamped (unknown, not stale)")
     llm: Union[str, None] = Field(default=None, description="Name of the LLM used for this project")
     type: str = Field(description="Project type: 'rag', 'agent', or 'block'")
     system: Union[str, None] = Field(default=None, description="System prompt for the LLM")

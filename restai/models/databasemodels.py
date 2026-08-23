@@ -81,6 +81,13 @@ class ProjectDatabase(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), unique=True, index=True)
     embeddings = Column(String(255))
+    # The model the stored vectors were ACTUALLY built with, as opposed to
+    # `embeddings` (the one the project asks for). A disagreement means the
+    # vector store is stale and retrieval is meaningless — that's the state
+    # changing `embeddings` used to leave behind silently. NULL = never
+    # stamped (any project predating this column) and reads as unknown, not
+    # stale, so an upgrade doesn't flag the whole installed base.
+    embeddings_indexed = Column(String(255), nullable=True)
     type = Column(String(255))
     llm = Column(String(255))
     system = Column(Text)
@@ -438,6 +445,40 @@ class BulkIngestJobDatabase(Base):
     completed_at = Column(DateTime, nullable=True)
 
 
+class ReembedJobDatabase(Base):
+    """Queued job that re-embeds a RAG project's knowledge base into a
+    different embeddings model, drained by ``crons/reembed.py``.
+
+    The chunk text inside the vector store is the only surviving copy of
+    the knowledge base — every ingest path deletes its source bytes — so
+    the job snapshots that text to ``snapshot_path`` BEFORE resetting the
+    store, and the snapshot is deleted only once the row reaches ``done``.
+
+    ``phase`` is what makes a crashed job safe to resume: a job
+    interrupted while ``rebuilding`` must continue from ``chunks_done``
+    rather than restart, because re-running the reset would wipe the
+    chunks already written and re-snapshotting would capture the
+    half-rebuilt store."""
+    __tablename__ = "reembed_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, nullable=True)  # who requested it, for cost attribution
+    from_embeddings = Column(String(255), nullable=True)
+    to_embeddings = Column(String(255), nullable=False)
+    status = Column(String(16), nullable=False, default="queued", index=True)  # queued / processing / done / error
+    phase = Column(String(16), nullable=True)  # snapshotting / resetting / rebuilding
+    error_message = Column(Text, nullable=True)
+    snapshot_path = Column(String(1024), nullable=True)
+    chunks_total = Column(Integer, nullable=False, default=0)
+    chunks_done = Column(Integer, nullable=False, default=0)
+    tokens_embedded = Column(BigInteger, nullable=False, default=0)
+    cost = Column(Float, nullable=False, default=0.0)
+    created_at = Column(DateTime, nullable=False)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+
+
 class ProjectTemplateDatabase(Base):
     """Reusable project snapshot — name + system prompt + options + (for
     block projects) Blockly workspace. Decouples sharing from the live
@@ -624,6 +665,11 @@ class EmbeddingDatabase(Base):
     privacy = Column(String(255))
     description = Column(Text)
     dimension = Column(Integer, default=1536)
+    # USD per 1M input tokens. Embedding models carried no pricing, so
+    # embedding spend (ingest, and now re-embedding a whole knowledge base)
+    # was invisible. 0.0 keeps existing installs free until an admin sets a
+    # real rate, so upgrading never starts failing budget checks.
+    input_cost = Column(Float, default=0.0)
     teams = relationship('TeamDatabase', secondary=teams_embeddings, back_populates='embeddings')
 
 

@@ -50,8 +50,9 @@ async def lifespan(fs_app: FastAPI):
     from restai.database import engine as db_engine
     ensure_settings_table(db_engine)
 
-    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase, TeamInvitationDatabase, ImageGeneratorDatabase, SpeechToTextDatabase, ProjectSecretDatabase, ProjectTemplateDatabase, BulkIngestJobDatabase, RoutineExecutionLogDatabase
+    from restai.models.databasemodels import TeamImageGeneratorDatabase, TeamAudioGeneratorDatabase, EvalDatasetDatabase, EvalTestCaseDatabase, EvalRunDatabase, EvalResultDatabase, PromptVersionDatabase, GuardEventDatabase, RetrievalEventDatabase, AuditLogDatabase, TeamInvitationDatabase, ImageGeneratorDatabase, SpeechToTextDatabase, ProjectSecretDatabase, ProjectTemplateDatabase, BulkIngestJobDatabase, RoutineExecutionLogDatabase, ReembedJobDatabase
     TeamImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
+    ReembedJobDatabase.__table__.create(db_engine, checkfirst=True)
     TeamAudioGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     ImageGeneratorDatabase.__table__.create(db_engine, checkfirst=True)
     SpeechToTextDatabase.__table__.create(db_engine, checkfirst=True)

@@ -1,0 +1,14 @@
+# Frontend Jest runner. Installs into the image rather than bind-mounting the
+# checkout, so `npm ci` never drops a node_modules/ into the working tree.
+FROM node:lts
+
+WORKDIR /frontend
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ ./
+
+# CI=true makes react-scripts run once and treat warnings as non-fatal output
+# rather than entering watch mode.
+CMD ["npm", "run", "test:ci"]

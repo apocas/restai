@@ -1,0 +1,33 @@
+# Test/lint image. Separate from the runtime Dockerfile because that one
+# builds the React bundle (needed only to serve /admin) and drops the `dev`
+# dependency group, which is where ruff and pytest live.
+#
+# `--no-install-project` matters: building the local workspace package would
+# make hatchling demand `frontend/build`, which does not exist in a
+# backend-only checkout. Nothing here imports restai as an installed dist —
+# pytest runs from /app with the source on the path.
+FROM python:3.12
+
+RUN apt-get update && apt-get install --no-install-recommends -y \
+        postgresql-client python3-dev ffmpeg \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+WORKDIR /app
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-group gpu --no-install-project
+
+COPY . /app
+
+ENV PATH="/app/.venv/bin:$PATH"
+ENV RESTAI_DEFAULT_PASSWORD=admin
+ENV ANONYMIZED_TELEMETRY=false
+
+# `database.py` is a side-effect script that runs `Base.metadata.create_all`
+# and seeds the admin user; the test suite assumes an initialized schema, so
+# CI runs it first and so do we. `test_projects.py` is excluded upstream too —
+# it needs a real LLM configured.
+CMD ["sh", "-c", "python database.py && pytest tests/ -q --tb=short --ignore=tests/test_projects.py"]
+

@@ -91,7 +91,7 @@ async def api_create_embeddings(
     try:
         if db_wrapper.get_embedding_by_name(embeddingc.name):
             raise HTTPException(status_code=409, detail=f"Embedding '{embeddingc.name}' already exists")
-        embedding_db: EmbeddingDatabase = db_wrapper.create_embedding(embeddingc.name, embeddingc.class_name, embeddingc.options, embeddingc.privacy, embeddingc.description, embeddingc.dimension)
+        embedding_db: EmbeddingDatabase = db_wrapper.create_embedding(embeddingc.name, embeddingc.class_name, embeddingc.options, embeddingc.privacy, embeddingc.description, embeddingc.dimension, embeddingc.input_cost)
         embedding = EmbeddingModel.model_validate(embedding_db)
         embedding.options = mask_embedding_options(embedding.options)
         return embedding

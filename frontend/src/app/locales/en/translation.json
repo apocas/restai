@@ -482,7 +482,33 @@
         "queuedFiles": "Queued {{count}} file(s) for ingestion.",
         "ingestHelp": "PDF / DOCX / CSV / XLSX / TXT. Processed asynchronously by the bulk_ingest cron.",
         "maxPerFile": "Max {{max}} MB per file.",
-        "fileTooLarge": "Too large: {{names}} (max {{max}} MB per file)."
+        "fileTooLarge": "Too large: {{names}} (max {{max}} MB per file).",
+        "reembed": {
+          "title": "Embedding migration",
+          "subtitle": "Switching the embedding model re-embeds the existing knowledge base. Original files are not needed.",
+          "noJobs": "No migrations yet.",
+          "from": "From",
+          "to": "To",
+          "status": "Status",
+          "progress": "Progress",
+          "cost": "Cost",
+          "started": "Started",
+          "actions": "Actions",
+          "cancel": "Cancel queued migration",
+          "cancelled": "Migration cancelled.",
+          "phaseSnapshotting": "Backing up chunks",
+          "phaseResetting": "Recreating index",
+          "phaseRebuilding": "Re-embedding",
+          "running": "Retrieval and ingestion are paused until this finishes.",
+          "changeTitle": "Embedding model change",
+          "changeBody": "Switching from {{from}} to {{to}} will re-embed this project's {{chunks}} stored chunks with the new model. Retrieval and ingestion pause until it finishes.",
+          "changeCost": "Estimated cost: {{cost}} ({{tokens}} tokens).",
+          "changeIncompatible": "This change cannot be applied: {{reason}}",
+          "changeEmpty": "This project has no knowledge base yet, so the model changes immediately with nothing to migrate.",
+          "staleTitle": "Knowledge base is out of date",
+          "staleBody": "Stored vectors were built with {{indexed}}, but this project now uses {{current}}. Retrieval results are unreliable until the knowledge base is re-embedded.",
+          "migrateNow": "Re-embed now"
+        }
       },
       "security": {
         "guards": "Prompt guards",
@@ -659,7 +685,8 @@
       "overloaded": "The service is temporarily overloaded. Please retry in a moment.",
       "timeout": "The request timed out. The LLM took too long to respond.",
       "default": "Error: {{detail}}",
-      "generic": "Error: the request failed. Check your connection and try again."
+      "generic": "Error: the request failed. Check your connection and try again.",
+      "reembedding": "The knowledge base is being migrated to a new embedding model. Retrieval will resume when it finishes."
     }
   },
   "users": {

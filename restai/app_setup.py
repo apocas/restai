@@ -310,7 +310,7 @@ def register_routers(fs_app: FastAPI) -> None:
 
     fs_app.include_router(llms.router, tags=["LLMs"])
     fs_app.include_router(embeddings.router, tags=["Embeddings"])
-    from restai.routers import image_generators, speech_to_text, secrets, whatsapp_webhook, webhooks as webhooks_router, templates as templates_router, bulk_ingest as bulk_ingest_router
+    from restai.routers import image_generators, speech_to_text, secrets, whatsapp_webhook, webhooks as webhooks_router, templates as templates_router, bulk_ingest as bulk_ingest_router, reembed as reembed_router
     fs_app.include_router(image_generators.router, tags=["Image Generators"])
     fs_app.include_router(speech_to_text.router, tags=["Speech-to-Text"])
     fs_app.include_router(secrets.router, tags=["Project Secrets"])
@@ -321,6 +321,7 @@ def register_routers(fs_app: FastAPI) -> None:
     fs_app.include_router(payment_webhook_router.router, tags=["Payments"])
     fs_app.include_router(templates_router.router)
     fs_app.include_router(bulk_ingest_router.router)
+    fs_app.include_router(reembed_router.router)
     fs_app.include_router(projects.router)
     fs_app.include_router(tools.router, tags=["Tools"])
     fs_app.include_router(users.router, tags=["Users"])

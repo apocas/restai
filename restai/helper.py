@@ -6,6 +6,7 @@ from urllib.parse import urljoin, urlparse, urlunparse
 from starlette.responses import StreamingResponse
 from fastapi import BackgroundTasks
 from restai import config
+from restai import reembed
 from restai.constants import ERROR_MESSAGES
 from restai.database import DBWrapper
 from restai.project import Project
@@ -815,6 +816,26 @@ async def chat_main(
     _question = chat_input.question
     _sys = project.props.system
     _ctx = chat_input.context
+
+    # A knowledge-base re-embed owns the project's vector store for its whole
+    # run: the store gets dropped and repopulated, so retrieval during it would
+    # return partial results or fail. Guarded here rather than in `rag.py` for
+    # the same reason `enforce_attachment_limits` is — this is the one boundary
+    # every entry path converges on (chat, question, public, widget, mobile,
+    # routines, the messaging crons) — and because it runs before any SSE
+    # stream opens, so a real 503 is possible instead of a message improvised
+    # mid-stream. NL→SQL-only projects don't touch the store and keep working.
+    if project.props.type == "rag" and not project.props.options.connection:
+        _job = reembed.get_active_job(project.props.id, db)
+        if _job is not None:
+            e = HTTPException(status_code=503, detail=reembed.migration_detail(_job))
+            _log_inference_error(
+                project, user, db,
+                question=_question, image=_image, attachments=_attachments,
+                status="migrating", error=e.detail,
+                system_prompt=_sys, context=_ctx, start_time=start_time,
+            )
+            raise e
 
     try:
         api_key_row = (

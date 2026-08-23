@@ -4,8 +4,11 @@ import {
 } from "@mui/material";
 import { HelpOutline, Settings } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
+import { useEffect, useState } from "react";
 import ContentCard from "app/components/page/ContentCard";
 import { FONT_MONO } from "app/components/page/pageStyles";
+import { formatCost } from "app/utils/utils";
+import api from "app/utils/api";
 import { makeErrorFor } from "./projectOptionValidators";
 import { SectionHeader, sectionShellSx } from "./integrationsKit";
 
@@ -39,12 +42,40 @@ function FieldGrid({ children }) {
 }
 
 export default function ProjectEditGeneral({
-  state, setState, handleChange, project, info, users, teams,
+  state, setState, handleChange, project, info, users, teams, auth,
   handleTeamChange, fieldErrors = {}, clearFieldError = () => {},
 }) {
   const { t } = useTranslation();
   const errorFor = makeErrorFor(fieldErrors, state);
   const opts = state.options || {};
+
+  // Changing a RAG project's embedding model queues a migration that
+  // re-embeds the stored chunks, so the admin is shown what it will move and
+  // what it will cost BEFORE saving — not a generic "this discards your data"
+  // warning, which is what used to be here and was never even accurate.
+  const embeddingsChanged =
+    state.embeddings !== undefined && state.embeddings !== project?.embeddings;
+  const [reembedEstimate, setReembedEstimate] = useState(null);
+
+  useEffect(() => {
+    if (!embeddingsChanged || state.type !== "rag" || !state.embeddings || !project?.id) {
+      setReembedEstimate(null);
+      return undefined;
+    }
+    let cancelled = false;
+    // Debounced: the select fires on every keyboard-driven option change, and
+    // the estimate samples the vector store.
+    const timer = setTimeout(() => {
+      api.get(
+        `/projects/${project.id}/reembed/estimate?to=${encodeURIComponent(state.embeddings)}`,
+        auth?.user?.token,
+        { silent: true },
+      )
+        .then((d) => { if (!cancelled) setReembedEstimate(d); })
+        .catch(() => { if (!cancelled) setReembedEstimate(null); });
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [embeddingsChanged, state.embeddings, state.type, project?.id, auth?.user?.token]);
 
   const teamId = state.team ? state.team.id : (project.team ? project.team.id : "");
   const llmsForTeam = info.llms.filter((l) => {
@@ -209,18 +240,53 @@ export default function ProjectEditGeneral({
                 ))}
               </TextField>
             </FieldGrid>
-            {project?.embeddings
-              && state.embeddings !== undefined
-              && state.embeddings !== project.embeddings && (
-                <Alert severity="warning" variant="outlined">
-                  <strong>Embedding change detected.</strong> Switching from{" "}
-                  <Box component="code" sx={{ fontFamily: FONT_MONO }}>{project.embeddings || "(none)"}</Box>{" "}
-                  to <Box component="code" sx={{ fontFamily: FONT_MONO }}>{state.embeddings || "(none)"}</Box>{" "}
-                  will <strong>discard all previously-computed embeddings</strong> for this project — the
-                  conversation memory index is wiped and rebuilt on the next cron tick
-                  {state.type === "rag" && ", and the RAG knowledge base will need to be re-ingested before retrieval works again"}.
+            {project?.embeddings && embeddingsChanged && (() => {
+              const from = <Box component="code" sx={{ fontFamily: FONT_MONO }}>{project.embeddings || "(none)"}</Box>;
+              const to = <Box component="code" sx={{ fontFamily: FONT_MONO }}>{state.embeddings || "(none)"}</Box>;
+
+              if (state.type === "rag" && reembedEstimate && !reembedEstimate.compatible) {
+                return (
+                  <Alert severity="error" variant="outlined">
+                    {t("projects.edit.knowledge.reembed.changeIncompatible", { reason: reembedEstimate.reason })}
+                  </Alert>
+                );
+              }
+
+              if (state.type === "rag" && reembedEstimate && reembedEstimate.chunks > 0) {
+                return (
+                  <Alert severity="warning" variant="outlined">
+                    <strong>{t("projects.edit.knowledge.reembed.changeTitle")}</strong>{" "}
+                    {t("projects.edit.knowledge.reembed.changeBody", {
+                      from: project.embeddings || "(none)",
+                      to: state.embeddings || "(none)",
+                      chunks: reembedEstimate.chunks,
+                    })}{" "}
+                    {t("projects.edit.knowledge.reembed.changeCost", {
+                      cost: formatCost(reembedEstimate.cost),
+                      tokens: reembedEstimate.tokens,
+                    })}
+                  </Alert>
+                );
+              }
+
+              if (state.type === "rag" && reembedEstimate) {
+                return (
+                  <Alert severity="info" variant="outlined">
+                    {t("projects.edit.knowledge.reembed.changeEmpty")}
+                  </Alert>
+                );
+              }
+
+              // Non-RAG (agent + Memory Search), or the estimate hasn't landed
+              // yet. Only the conversation-memory index is affected, and it is
+              // rebuilt automatically from the inference log.
+              return (
+                <Alert severity="info" variant="outlined">
+                  <strong>Embedding change detected.</strong> Switching from {from} to {to} wipes the
+                  conversation memory index, which is rebuilt on the next cron tick.
                 </Alert>
-              )}
+              );
+            })()}
           </Section>
         )}
 

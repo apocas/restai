@@ -34,6 +34,14 @@ config:
   logLevel: "INFO"
   dev: false
   anonymizedTelemetry: false
+  # Local ChromaDB store. IMPORTANT: this path is NOT backed by a shared
+  # volume by default — the Deployment and the CronJob each get their own
+  # ephemeral copy. Cron-side knowledge work (bulk ingest, sync, knowledge-base
+  # re-embedding) then writes into a store the API pod cannot read, and it is
+  # lost on every pod restart. For any real deployment on the local Chroma
+  # backend, point this at a ReadWriteMany volume mounted into both workloads
+  # (the `uploadStaging` block below is the pattern), or use a remote Chroma
+  # server via `chromadbHost` / an external vector store, which sidesteps it.
   embeddingsPath: "/app/embeddings/"
 
   # Database — one of: postgresql, mysql, sqlite

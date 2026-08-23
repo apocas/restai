@@ -482,7 +482,33 @@
         "queuedFiles": "{{count}} fichier(s) mis en file pour ingestion.",
         "ingestHelp": "PDF / DOCX / CSV / XLSX / TXT. Traités de manière asynchrone par le cron bulk_ingest.",
         "maxPerFile": "Max {{max}} Mo par fichier.",
-        "fileTooLarge": "Trop volumineux : {{names}} (max {{max}} Mo par fichier)."
+        "fileTooLarge": "Trop volumineux : {{names}} (max {{max}} Mo par fichier).",
+        "reembed": {
+          "title": "Migration des embeddings",
+          "subtitle": "Changer de modèle d'embeddings recalcule la base de connaissances existante. Les fichiers d'origine ne sont pas nécessaires.",
+          "noJobs": "Aucune migration pour l'instant.",
+          "from": "De",
+          "to": "Vers",
+          "status": "État",
+          "progress": "Progression",
+          "cost": "Coût",
+          "started": "Démarrée",
+          "actions": "Actions",
+          "cancel": "Annuler la migration en file d'attente",
+          "cancelled": "Migration annulée.",
+          "phaseSnapshotting": "Sauvegarde des fragments",
+          "phaseResetting": "Recréation de l'index",
+          "phaseRebuilding": "Recalcul des embeddings",
+          "running": "La recherche et l'ingestion sont suspendues jusqu'à la fin de l'opération.",
+          "changeTitle": "Changement de modèle d'embeddings",
+          "changeBody": "Passer de {{from}} à {{to}} recalculera les {{chunks}} fragments stockés de ce projet avec le nouveau modèle. La recherche et l'ingestion sont suspendues jusqu'à la fin.",
+          "changeCost": "Coût estimé : {{cost}} ({{tokens}} jetons).",
+          "changeIncompatible": "Ce changement ne peut pas être appliqué : {{reason}}",
+          "changeEmpty": "Ce projet n'a pas encore de base de connaissances : le modèle change immédiatement, il n'y a rien à migrer.",
+          "staleTitle": "La base de connaissances n'est plus à jour",
+          "staleBody": "Les vecteurs stockés ont été créés avec {{indexed}}, mais le projet utilise désormais {{current}}. Les résultats de recherche ne sont pas fiables tant que la base n'a pas été recalculée.",
+          "migrateNow": "Recalculer maintenant"
+        }
       },
       "security": {
         "guards": "Gardes d'invite",
@@ -659,7 +685,8 @@
       "overloaded": "Le service est temporairement surchargé. Veuillez réessayer dans un instant.",
       "timeout": "La requête a expiré. Le LLM a mis trop de temps à répondre.",
       "default": "Erreur : {{detail}}",
-      "generic": "Erreur : la requête a échoué. Vérifiez votre connexion et réessayez."
+      "generic": "Erreur : la requête a échoué. Vérifiez votre connexion et réessayez.",
+      "reembedding": "La base de connaissances est en cours de migration vers un nouveau modèle d'embeddings. La recherche reprendra une fois l'opération terminée."
     }
   },
   "users": {

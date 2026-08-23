@@ -26,9 +26,21 @@ describe("formatChatError", () => {
     expect(formatChatError(t, 429, "")).toBe("chat.error.rateLimit");
   });
 
+  it("maps a 503 from a knowledge-base migration to its own message", () => {
+    // A re-embed answers 503 too, and "the service is overloaded" would send
+    // the user off debugging capacity instead of waiting for the migration.
+    const detail = "Knowledge base is being re-embedded into 'text-embedding-3-small'.";
+    expect(formatChatError(t, 503, detail)).toBe(`chat.error.reembedding:${detail}`);
+    // Case-insensitive, same as the 429 quota check.
+    expect(formatChatError(t, 503, "Being RE-EMBEDDED now")).toBe(
+      "chat.error.reembedding:Being RE-EMBEDDED now",
+    );
+  });
+
   it("maps both 502 and 503 to overloaded", () => {
     expect(formatChatError(t, 502, "")).toBe("chat.error.overloaded");
     expect(formatChatError(t, 503, "")).toBe("chat.error.overloaded");
+    expect(formatChatError(t, 503, "upstream capacity exceeded")).toBe("chat.error.overloaded");
   });
 
   it("includes detail on 422 when present", () => {
