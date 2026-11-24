@@ -248,6 +248,8 @@ Every system prompt change is automatically versioned. Browse the full history, 
 
 Local and remote image generators loaded dynamically. Supports Stable Diffusion, Flux, DALL-E, RMBG2, and more. Atlas Cloud and MuAPI are available as first-class asynchronous providers: select the provider in the Image Generators admin page, enter its API key, and choose a supported image model. MuAPI ([documentation](https://muapi.ai/docs/api-reference)) accepts the live catalog's model or endpoint path and defaults to `flux-dev`.
 
+For MiniMax H3 text-to-image, select **MiniMax** in Image Generators and enter an API key for the selected region. The default base URL is `https://api.minimax.io/v1`. For China, use `https://api.minimax.cn/v1`. Choose `MiniMax-H3-Image` (default) or `MiniMax-H3-Image-Highspeed`.
+
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/image.png" width="45%" alt="Flux1"/>
 </div>
