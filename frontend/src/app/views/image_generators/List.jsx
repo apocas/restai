@@ -28,7 +28,7 @@ const PROVIDERS = [
 ];
 
 const PROVIDER_DEFAULT_OPTIONS = {
-  openai: { model: "gpt-image-1.5", api_key: "", base_url: "" },
+  openai: { model: "gpt-image-2.6-sunburst", api_key: "", base_url: "" },
   google: { model: "imagen-3.0-generate-001", api_key: "" },
   atlascloud: {
     model: "qwen-image-3.0/text-to-image",
@@ -499,7 +499,7 @@ export default function ImageGenerators() {
                   fullWidth
                   helperText={
                     form.class_name === "openai"
-                      ? "e.g. gpt-image-1.5, dall-e-3"
+                      ? "e.g. gpt-image-2.6-sunburst, gpt-image-2.6-flare"
                       : form.class_name === "atlascloud"
                         ? "e.g. qwen-image-3.0/text-to-image"
                         : form.class_name === "muapi"
