@@ -398,11 +398,11 @@ class ImageGeneratorModel(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, json_schema_extra={
         "example": {
-            "name": "gpt-image-1.5",
+            "name": "gpt-image-2.6-sunburst",
             "class_name": "openai",
-            "options": {"model": "gpt-image-1.5", "api_key": "sk-..."},
+            "options": {"model": "gpt-image-2.6-sunburst", "api_key": "sk-..."},
             "privacy": "public",
-            "description": "OpenAI gpt-image-1.5 image model",
+            "description": "OpenAI GPT-Image-2.6 Sunburst image model",
         }
     })
 

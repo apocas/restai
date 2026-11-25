@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import ImageGenerators from "./List";
 import api from "app/utils/api";
 import { toast } from "react-toastify";
+import useAuth from "app/hooks/useAuth";
 
 jest.mock("app/utils/api", () => ({
   get: jest.fn(),
@@ -20,7 +21,6 @@ jest.mock("react-i18next", () => {
   return { useTranslation: () => ({ t }) };
 });
 jest.mock("app/hooks/useAuth", () => jest.fn());
-import useAuth from "app/hooks/useAuth";
 
 const mockNavigate = jest.fn();
 jest.mock("react-router-dom", () => ({
@@ -132,6 +132,95 @@ describe("ImageGenerators List", () => {
     });
     expect(toast.success).toHaveBeenCalledWith("imageGen.dialog.created");
   });
+
+  it("creates an OpenAI generator with Sunburst without editing the model", async () => {
+    const user = userEvent.setup();
+    await renderList();
+
+    await user.click(screen.getByRole("button", { name: "imageGen.new" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText(/imageGen\.dialog\.model/)).toHaveValue(
+      "gpt-image-2.6-sunburst"
+    );
+    expect(within(dialog).getByText("e.g. gpt-image-2.6-sunburst, gpt-image-2.6-flare")).toBeInTheDocument();
+    await user.type(within(dialog).getByLabelText(/imageGen\.dialog\.name/), "sunburst");
+    await user.type(within(dialog).getByLabelText(/imageGen\.dialog\.apiKey/), "sk-img");
+    await user.click(within(dialog).getByRole("button", { name: "imageGen.dialog.create" }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith(
+      "/image_generators",
+      expect.objectContaining({
+        name: "sunburst",
+        class_name: "openai",
+        options: { model: "gpt-image-2.6-sunburst", api_key: "sk-img", base_url: "" },
+      }),
+      "tok"
+    ));
+  });
+
+  it("restores the OpenAI default when switching providers", async () => {
+    const user = userEvent.setup();
+    await renderList();
+
+    await user.click(screen.getByRole("button", { name: "imageGen.new" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByLabelText(/imageGen\.dialog\.provider/));
+    await user.click(await screen.findByRole("option", { name: "Google (Imagen / Nano Banana)" }));
+    await user.click(within(dialog).getByLabelText(/imageGen\.dialog\.provider/));
+    await user.click(await screen.findByRole("option", { name: "OpenAI / OpenAI-compatible" }));
+    expect(within(dialog).getByLabelText(/imageGen\.dialog\.model/)).toHaveValue("gpt-image-2.6-sunburst");
+  });
+
+  it("starts a fresh create form after discarding a custom model", async () => {
+    const user = userEvent.setup();
+    await renderList();
+
+    await user.click(screen.getByRole("button", { name: "imageGen.new" }));
+    let dialog = await screen.findByRole("dialog");
+    const model = within(dialog).getByLabelText(/imageGen\.dialog\.model/);
+
+    await user.clear(model);
+    await user.type(model, "x");
+    await user.click(within(dialog).getByRole("button", { name: "common.cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "imageGen.new" }));
+    dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText(/imageGen\.dialog\.model/)).toHaveValue("gpt-image-2.6-sunburst");
+  });
+
+  it.each(["gpt-image-1.5", "gpt-image-2.6-flare"])(
+    "keeps a saved generator's identity and options when saving model %s",
+    async (model) => {
+      const user = userEvent.setup();
+      const options = { model: "gpt-image-1.5", api_key: "********", base_url: "", quality: "high" };
+      api.get.mockResolvedValue(GENERATORS.map((row) => row.id === 2 ? { ...row, options } : row));
+      await renderList();
+
+      await user.click(screen.getAllByRole("button", { name: "imageGen.actions.edit" })[0]);
+      const dialog = await screen.findByRole("dialog");
+      expect(within(dialog).getByLabelText(/imageGen\.dialog\.name/)).toBeDisabled();
+      const modelInput = within(dialog).getByLabelText(/imageGen\.dialog\.model/);
+      expect(modelInput).toHaveValue("gpt-image-1.5");
+      if (model !== "gpt-image-1.5") {
+        await user.clear(modelInput);
+        await user.type(modelInput, model);
+      }
+      await user.click(within(dialog).getByRole("button", { name: "imageGen.dialog.save" }));
+
+      await waitFor(() => expect(api.patch).toHaveBeenCalledWith(
+        "/image_generators/2",
+        {
+          class_name: "openai",
+          privacy: "private",
+          description: "",
+          enabled: false,
+          options: { ...options, model },
+        },
+        "tok"
+      ));
+      expect(api.post).not.toHaveBeenCalled();
+    }
+  );
 
   it("offers Atlas Cloud with working image API defaults", async () => {
     const user = userEvent.setup();

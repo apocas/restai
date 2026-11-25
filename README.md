@@ -248,6 +248,8 @@ Every system prompt change is automatically versioned. Browse the full history, 
 
 Local and remote image generators loaded dynamically. Supports Stable Diffusion, Flux, DALL-E, RMBG2, and more. Atlas Cloud and MuAPI are available as first-class asynchronous providers: select the provider in the Image Generators admin page, enter its API key, and choose a supported image model. MuAPI ([documentation](https://muapi.ai/docs/api-reference)) accepts the live catalog's model or endpoint path and defaults to `flux-dev`.
 
+New OpenAI image generators default to `gpt-image-2.6-sunburst`; `gpt-image-2.6-flare` is also supported. OpenAI [retires `gpt-image-1.5` on December 1, 2026](https://developers.openai.com/api/docs/deprecations). Existing generators keep their configured model. Before that date, edit each affected generator in **Image Generators**, change **Model** to one of these replacements, and save. Keep the generator's name so existing team grants and API callers continue to use it. For a custom **Base URL**, choose a model supported by that provider.
+
 <div align="center">
   <img src="https://github.com/apocas/restai/blob/master/readme/assets/image.png" width="45%" alt="Flux1"/>
 </div>
